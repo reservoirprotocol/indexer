@@ -15,8 +15,7 @@ export const getCollectionAttributesOptions: RouteOptions = {
     query: Joi.object({
       attribute: Joi.string(),
       sortBy: Joi.string()
-        .valid("value", "floorSellValue", "floorCap", "topBuyValue")
-        .default("value"),
+        .valid("value", "floorSellValue", "floorCap", "topBuyValue"),
       sortDirection: Joi.string()
         .lowercase()
         .valid("asc", "desc")
