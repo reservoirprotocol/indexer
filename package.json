@@ -12,7 +12,8 @@
     "compile": "tsc",
     "build": "yarn clean; yarn compile",
     "start": "yarn migrate up; node -r module-alias/register ./dist/index.js",
-    "migrate": "ts-node ./node_modules/node-pg-migrate/bin/node-pg-migrate -m ./src/migrations"
+    "migrate": "ts-node ./node_modules/node-pg-migrate/bin/node-pg-migrate -m ./src/migrations",
+    "debug": "yarn build && yarn start"
   },
   "dependencies": {
     "@bull-board/hapi": "^3.9.0",

@@ -88,9 +88,18 @@ export const getCollectionAttributes = async (
   baseQuery += ` group by "a"."collection_id", "a"."key", "a"."value"`;
 
   // Sorting
-  const sortBy = filter.sortBy ?? "value";
+  const sortBy = filter.sortBy ?? "default";
   const sortDirection = filter.sortDirection ?? "asc";
   switch (sortBy) {
+    case "default": {
+      baseQuery += `
+        order by
+          max("ts"."top_buy_value") desc nulls last,
+          min("t"."floor_sell_value") desc nulls last
+      `;
+      break;
+    }
+
     case "value": {
       // TODO: Properly integrate sorting by attribute rank and kind
       baseQuery += `
