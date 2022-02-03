@@ -18,6 +18,12 @@ export type GetStatsResponse = {
       value: number | null;
       maker: string | null;
       validFrom: number | null;
+      token: {
+        contract: string | null;
+        tokenId: string | null;
+        name: string | null;
+        image: string | null;
+      };
     };
     topBuy: {
       hash: string | null;
@@ -44,6 +50,10 @@ export const getStats = async (
         end) as "on_sale_count",
         array["t"."image"] as "sample_images",
         "t"."floor_sell_hash",
+        "t"."contract",
+        "t"."token_id",
+        "t"."name",
+        "t"."image",
         "os"."value" as "floor_sell_value",
         "os"."maker" as "floor_sell_maker",
         date_part('epoch', lower("os"."valid_between")) as "floor_sell_valid_from",
@@ -95,6 +105,10 @@ export const getStats = async (
       select distinct on ("t"."collection_id")
         "t"."collection_id",
         "t"."floor_sell_hash",
+        "t"."contract",
+        "t"."token_id",
+        "t"."name",
+        "t"."image",
         "o"."value" as "floor_sell_value",
         "o"."maker" as "floor_sell_maker",
         date_part('epoch', lower("o"."valid_between")) as "floor_sell_valid_from",
@@ -156,6 +170,10 @@ export const getStats = async (
     baseQuery = `
       select
         "x".*,
+        "y"."contract",
+        "y"."token_id",
+        "y"."name",
+        "y"."image",
         "y"."floor_sell_hash",
         "y"."floor_sell_value",
         "y"."floor_sell_maker",
@@ -176,6 +194,10 @@ export const getStats = async (
     baseQuery = `
       select
         "x".*,
+        "y"."contract",
+        "y"."token_id",
+        "y"."name",
+        "y"."image",
         "y"."floor_sell_hash",
         "y"."floor_sell_value",
         "y"."floor_sell_maker",
@@ -200,6 +222,10 @@ export const getStats = async (
         select distinct on ("t"."collection_id")
           "t"."collection_id",
           "t"."floor_sell_hash",
+          "t"."contract",
+          "t"."token_id",
+          "t"."name",
+          "t"."image",
           "o"."value" as "floor_sell_value",
           "o"."maker" as "floor_sell_maker",
           date_part('epoch', lower("o"."valid_between")) as "floor_sell_valid_from",
@@ -252,6 +278,12 @@ export const getStats = async (
             value: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
             maker: r.floor_sell_maker || null,
             validFrom: r.floor_sell_valid_from || null,
+            token: {
+              contract: r.contract || null,
+              tokenId: r.token_id || null,
+              name: r.name || null,
+              image: r.image || null,
+            },
           },
           topBuy: {
             hash: r.top_buy_hash || null,
@@ -275,6 +307,12 @@ export const getStats = async (
         value: null,
         maker: null,
         validFrom: null,
+        token: {
+          contract: null,
+          tokenId: null,
+          name: null,
+          image: null,
+        },
       },
       topBuy: {
         hash: null,

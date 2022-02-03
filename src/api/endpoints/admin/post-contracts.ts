@@ -90,7 +90,7 @@ export const postContractsOptions: RouteOptions = {
               .get(
                 `${etherscanUrl}?module=account&action=txlist&startBlock=0&endblock=99999999&sort=asc&page=1&offset=1&address=${contract}&apikey=${config.etherscanApiKey}`
               )
-              .then(({ data }) => Number(data.result[0].blockNumber));
+              .then(({ data }: any) => Number(data.result[0].blockNumber));
 
             // Check if the contract is erc721-compliant
             const erc721 = new Sdk.Common.Helpers.Erc721(
