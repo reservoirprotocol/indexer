@@ -25,7 +25,7 @@ export const getAttributesOptions: RouteOptions = {
           kind: Joi.string(),
           values: Joi.array().items(
             Joi.object({
-              value: Joi.string(),
+              value: Joi.string().allow(""),
               count: Joi.number(),
             })
           ),

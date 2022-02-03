@@ -15,8 +15,7 @@ export const getCollectionAttributesOptions: RouteOptions = {
     query: Joi.object({
       attribute: Joi.string(),
       sortBy: Joi.string()
-        .valid("value", "floorSellValue", "floorCap", "topBuyValue")
-        .default("value"),
+        .valid("value", "floorSellValue", "floorCap", "topBuyValue"),
       sortDirection: Joi.string()
         .lowercase()
         .valid("asc", "desc")
@@ -30,7 +29,7 @@ export const getCollectionAttributesOptions: RouteOptions = {
       attributes: Joi.array().items(
         Joi.object({
           key: Joi.string(),
-          value: Joi.string(),
+          value: Joi.string().allow(""),
           tokenCount: Joi.number(),
           onSaleCount: Joi.number(),
           sampleImages: Joi.array().items(Joi.string().allow(null, "")),
