@@ -3,6 +3,7 @@ import { Server } from "@hapi/hapi";
 import * as adminEndpoints from "@/api/endpoints/admin";
 import * as attributesEndpoints from "@/api/endpoints/attributes";
 import * as collectionsEndpoints from "@/api/endpoints/collections";
+import * as executeEndpoints from "@/api/endpoints/execute";
 import * as ordersEndpoints from "@/api/endpoints/orders";
 import * as ownersEndpoints from "@/api/endpoints/owners";
 import * as rootEndpoints from "@/api/endpoints/root";
@@ -114,6 +115,14 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/users/{user}/collections",
     options: collectionsEndpoints.getUserCollectionsOptions,
+  });
+
+  // Execute
+
+  server.route({
+    method: "GET",
+    path: "/execute/fill",
+    options: executeEndpoints.getExecuteFillOptions,
   });
 
   // Orders
@@ -231,15 +240,15 @@ export const setupRoutes = (server: Server) => {
   // Both readyz and livez endpoints point to the same handler, maybe at some point we want to separate the logic
   // readyz: when can container be added to the load balancer and receive traffic
   // livez: during the lifetime of the container do checks to see if the container is still responsive
-  server.route( {
+  server.route({
     method: "GET",
     path: "/livez",
-    options: healthEndpoints.getLiveOptions
+    options: healthEndpoints.getLiveOptions,
   });
 
-  server.route( {
+  server.route({
     method: "GET",
     path: "/readyz",
-    options: healthEndpoints.getLiveOptions
+    options: healthEndpoints.getLiveOptions,
   });
 };
