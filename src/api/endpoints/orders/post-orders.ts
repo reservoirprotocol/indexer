@@ -1,3 +1,4 @@
+import { HashZero } from "@ethersproject/constants";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -29,6 +30,15 @@ export const postOrdersOptions: RouteOptions = {
             key: Joi.string().required(),
             value: Joi.string().required(),
           }),
+          signature: Joi.object({
+            v: Joi.number().required(),
+            r: Joi.string()
+              .pattern(/^0x[a-f0-9]{64}$/)
+              .required(),
+            s: Joi.string()
+              .pattern(/^0x[a-f0-9]{64}$/)
+              .required(),
+          }),
         })
       ),
     }),
@@ -44,9 +54,20 @@ export const postOrdersOptions: RouteOptions = {
       const orders = payload.orders as any;
 
       const validOrderInfos: wyvernV2.OrderInfo[] = [];
-      for (const { kind, data, attribute } of orders) {
+      for (const { kind, data, attribute, signature } of orders) {
         if (kind === "wyvern-v2") {
           try {
+            // Default the signature
+            if (!data.v || data.v == 0) {
+              data.v = signature.v;
+            }
+            if (!data.r || data.v == HashZero) {
+              data.r = signature.r;
+            }
+            if (!data.s || data.s == HashZero) {
+              data.s = signature.s;
+            }
+
             const order = new Sdk.WyvernV2.Order(config.chainId, data);
             validOrderInfos.push({ order, attribute });
           } catch {
