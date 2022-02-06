@@ -121,6 +121,18 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/execute/build",
+    options: executeEndpoints.getExecuteBuildOptions,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/execute/cancel",
+    options: executeEndpoints.getExecuteCancelOptions,
+  });
+
+  server.route({
+    method: "GET",
     path: "/execute/fill",
     options: executeEndpoints.getExecuteFillOptions,
   });
