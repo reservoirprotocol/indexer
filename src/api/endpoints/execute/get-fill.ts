@@ -1,3 +1,4 @@
+import { AddressZero } from "@ethersproject/constants";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
@@ -33,7 +34,8 @@ export const getExecuteFillOptions: RouteOptions = {
       steps: Joi.array().items(
         Joi.object({
           description: Joi.string().required(),
-          kind: Joi.string().valid("tx"),
+          status: Joi.string().valid("executed", "missing").required(),
+          kind: Joi.string().valid("transaction").required(),
           data: Joi.any(),
         })
       ),
@@ -56,7 +58,7 @@ export const getExecuteFillOptions: RouteOptions = {
       );
 
       if (!bestOrder) {
-        return { steps: [] };
+        return { error: "No matching order" };
       }
 
       const order = new Sdk.WyvernV2.Order(config.chainId, bestOrder.rawData);
@@ -106,13 +108,14 @@ export const getExecuteFillOptions: RouteOptions = {
           steps: [
             {
               description: "Fill order",
-              kind: "tx",
+              status: "missing",
+              kind: "transaction",
               data: fillTxData,
             },
           ],
         };
       } else {
-        // Step 1: Check the taker's ownership
+        // Step 1: Check that the taker owns the token
         const { kind } = await db.one(
           `
             select "c"."kind" from "contracts" "c"
@@ -143,7 +146,126 @@ export const getExecuteFillOptions: RouteOptions = {
           return { error: "Unknown contract" };
         }
 
-        return { steps: [] };
+        // Step 2: Check that the taker has registered a user proxy
+        const proxyRegistry = new Sdk.WyvernV2.Helpers.ProxyRegistry(
+          baseProvider,
+          config.chainId
+        );
+        const proxy = await proxyRegistry.getProxy(query.taker);
+        if (proxy === AddressZero) {
+          const proxyRegistrationTx = proxyRegistry.registerProxyTransaction(
+            query.taker
+          );
+          return {
+            steps: [
+              {
+                description: "Proxy registration",
+                status: "missing",
+                kind: "transaction",
+                data: proxyRegistrationTx,
+              },
+              {
+                description: "Approving token",
+                status: "missing",
+                kind: "transaction",
+              },
+              {
+                description: "Approving WETH",
+                status: "missing",
+                kind: "transaction",
+              },
+              {
+                description: "Relaying order",
+                status: "missing",
+                kind: "transaction",
+              },
+            ],
+          };
+        }
+
+        // Step 3: Check the taker's approval
+        let isApproved: boolean;
+        let approvalTx;
+        if (kind === "erc721") {
+          const contract = new Sdk.Common.Helpers.Erc721(
+            baseProvider,
+            order.params.target
+          );
+          isApproved = await contract.isApproved(query.taker, proxy);
+          approvalTx = contract.approveTransaction(query.taker, proxy);
+        } else if (kind === "erc1155") {
+          const contract = new Sdk.Common.Helpers.Erc1155(
+            baseProvider,
+            order.params.target
+          );
+          isApproved = await contract.isApproved(query.taker, proxy);
+          approvalTx = contract.approveTransaction(query.taker, proxy);
+        } else {
+          return { error: "Unknown contract" };
+        }
+
+        const wethContract = new Sdk.Common.Helpers.Weth(
+          baseProvider,
+          config.chainId
+        );
+        const wethApproval = await wethContract.getAllowance(
+          query.taker,
+          Sdk.WyvernV2.Addresses.TokenTransferProxy[config.chainId]
+        );
+
+        let isWethApproved = true;
+        let wethApprovalTx;
+        if (
+          bn(wethApproval).lt(
+            bn(order.params.basePrice)
+              .mul(order.params.takerRelayerFee)
+              .div(10000)
+          )
+        ) {
+          isWethApproved = false;
+          wethApprovalTx = wethContract.approveTransaction(
+            query.taker,
+            Sdk.WyvernV2.Addresses.TokenTransferProxy[config.chainId]
+          );
+        }
+
+        // Step 4: Create matching order
+        const sellOrder = order.buildMatching(query.taker, buildMatchingArgs);
+
+        const exchange = new Sdk.WyvernV2.Exchange(config.chainId);
+        const fillTxData = exchange.matchTransaction(
+          query.taker,
+          order,
+          sellOrder
+        );
+
+        return {
+          steps: [
+            {
+              description: "Proxy registration",
+              status: "executed",
+              kind: "transaction",
+            },
+            {
+              description: "Approving WETH",
+              status: isWethApproved ? "executed" : "missing",
+              kind: "transaction",
+              data: isWethApproved ? undefined : wethApprovalTx,
+            },
+            {
+              description: "Approving proxy",
+              status: isApproved ? "executed" : "missing",
+              kind: "transaction",
+              data: isApproved ? undefined : approvalTx,
+            },
+            {
+              description: "Relaying order",
+              status: "missing",
+              kind: "transaction",
+              data: fillTxData,
+            },
+          ],
+        };
       }
     } catch (error) {
       logger.error("get_execute_fill_handler", `Handler failure: ${error}`);
