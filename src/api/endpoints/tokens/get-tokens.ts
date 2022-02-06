@@ -27,7 +27,7 @@ export const getTokensOptions: RouteOptions = {
         .valid("asc", "desc")
         .default("asc"),
       offset: Joi.number().integer().min(0).default(0),
-      limit: Joi.number().integer().min(1).max(20).default(50),
+      limit: Joi.number().integer().min(1).max(50).default(20),
     })
       .or("contract", "collection", "tokenSetId")
       .oxor("contract", "collection", "tokenSetId"),
