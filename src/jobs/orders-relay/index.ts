@@ -38,6 +38,8 @@ export const addPendingTokenSets = async (
           kind: "token-set",
           data: {
             ...tokenSet,
+            // Fix wrong token set ids
+            id: `list:${tokenSet.contract}:${tokenSet.id}`,
           },
         })
       )
@@ -49,16 +51,16 @@ export const addPendingTokenSets = async (
 if (config.doBackgroundWork) {
   const CRON_NAME = "orders_relay";
 
-  cron.schedule("*/30 * * * *", async () => {
+  cron.schedule("*/10 * * * *", async () => {
     const lockAcquired = await acquireLock(
       `${CRON_NAME}_cron_lock`,
-      30 * 60 - 5
+      10 * 60 - 5
     );
     if (lockAcquired) {
       logger.info(`${CRON_NAME}_cron`, "Relaying pending orders");
 
       try {
-        const batchSize = 500;
+        const batchSize = 5000;
         const batch = await redis.lrange(PENDING_ORDERS_KEY, 0, batchSize);
         if (batch.length) {
           const wallet = JSON.parse(config.arweaveRelayerKey);
