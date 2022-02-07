@@ -22,8 +22,9 @@ export const getExecuteCancelOptions: RouteOptions = {
     schema: Joi.object({
       steps: Joi.array().items(
         Joi.object({
+          action: Joi.string().required(),
           description: Joi.string().required(),
-          status: Joi.string().valid("executed", "missing").required(),
+          status: Joi.string().valid("complete", "incomplete").required(),
           kind: Joi.string().valid("transaction").required(),
           data: Joi.any(),
         })
@@ -71,8 +72,9 @@ export const getExecuteCancelOptions: RouteOptions = {
       return {
         steps: [
           {
-            description: "Cancelling order",
-            status: "missing",
+            action: "Cancel order",
+            description: "Cancel order",
+            status: "incomplete",
             kind: "transaction",
             data: cancelTx,
           },

@@ -47,9 +47,10 @@ export const getExecuteBuildOptions: RouteOptions = {
     schema: Joi.object({
       steps: Joi.array().items(
         Joi.object({
+          action: Joi.string().required(),
           description: Joi.string().required(),
-          status: Joi.string().valid("executed", "missing").required(),
-          kind: Joi.string().valid("transaction", "order-signature").required(),
+          status: Joi.string().valid("complete", "incomplete").required(),
+          kind: Joi.string().valid("order-signature", "transaction").required(),
           data: Joi.any(),
         })
       ),
@@ -112,20 +113,23 @@ export const getExecuteBuildOptions: RouteOptions = {
         return {
           steps: [
             {
+              action: "Wrapping ETH",
               description: "Wrapping ETH",
-              status: ethWrapTransaction ? "missing" : "executed",
+              status: ethWrapTransaction ? "incomplete" : "complete",
               kind: "transaction",
               data: ethWrapTransaction,
             },
             {
+              action: "Approving WETH",
               description: "Approving WETH",
-              status: isWethApproved ? "executed" : "missing",
+              status: isWethApproved ? "complete" : "incomplete",
               kind: "transaction",
               data: isWethApproved ? undefined : wethApprovalTx,
             },
             {
+              action: "Signing order",
               description: "Signing order",
-              status: "missing",
+              status: "incomplete",
               kind: "order-signature",
               data: {
                 message: {
@@ -195,19 +199,22 @@ export const getExecuteBuildOptions: RouteOptions = {
           return {
             steps: [
               {
+                action: "Proxy registration",
                 description: "Proxy registration",
-                status: "missing",
+                status: "incomplete",
                 kind: "transaction",
                 data: proxyRegistrationTx,
               },
               {
+                action: "Approving token",
                 description: "Approving token",
-                status: "missing",
+                status: "incomplete",
                 kind: "transaction",
               },
               {
+                action: "Signing and relaying order",
                 description: "Signing and relaying order",
-                status: "missing",
+                status: "incomplete",
                 kind: "order-signature",
               },
             ],
@@ -238,19 +245,22 @@ export const getExecuteBuildOptions: RouteOptions = {
         return {
           steps: [
             {
+              action: "Proxy registration",
               description: "Proxy registration",
-              status: "executed",
+              status: "complete",
               kind: "transaction",
             },
             {
+              action: "Approving proxy",
               description: "Approving proxy",
-              status: isApproved ? "executed" : "missing",
+              status: isApproved ? "complete" : "incomplete",
               kind: "transaction",
               data: isApproved ? undefined : approvalTx,
             },
             {
+              action: "Signing and relaying order",
               description: "Signing and relaying order",
-              status: "missing",
+              status: "incomplete",
               kind: "order-signature",
               data: {
                 message: {
