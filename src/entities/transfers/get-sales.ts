@@ -132,7 +132,7 @@ export const getSales = async (
   }
 
   // Sorting
-  baseQuery += ` order by "fe"."block" desc nulls last`;
+  baseQuery += ` order by "nte"."block" desc`;
 
   // Pagination
   baseQuery += ` offset $/offset/`;
