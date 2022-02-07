@@ -33,8 +33,9 @@ export const getExecuteFillOptions: RouteOptions = {
     schema: Joi.object({
       steps: Joi.array().items(
         Joi.object({
+          action: Joi.string().required(),
           description: Joi.string().required(),
-          status: Joi.string().valid("executed", "missing").required(),
+          status: Joi.string().valid("complete", "incomplete").required(),
           kind: Joi.string().valid("transaction").required(),
           data: Joi.any(),
         })
@@ -107,8 +108,9 @@ export const getExecuteFillOptions: RouteOptions = {
         return {
           steps: [
             {
+              action: "Fill order",
               description: "Fill order",
-              status: "missing",
+              status: "incomplete",
               kind: "transaction",
               data: fillTxData,
             },
@@ -159,24 +161,28 @@ export const getExecuteFillOptions: RouteOptions = {
           return {
             steps: [
               {
+                action: "Proxy registration",
                 description: "Proxy registration",
-                status: "missing",
+                status: "incomplete",
                 kind: "transaction",
                 data: proxyRegistrationTx,
               },
               {
+                action: "Approving token",
                 description: "Approving token",
-                status: "missing",
+                status: "incomplete",
                 kind: "transaction",
               },
               {
+                action: "Approving WETH",
                 description: "Approving WETH",
-                status: "missing",
+                status: "incomplete",
                 kind: "transaction",
               },
               {
+                action: "Relaying order",
                 description: "Relaying order",
-                status: "missing",
+                status: "incomplete",
                 kind: "transaction",
               },
             ],
@@ -242,25 +248,29 @@ export const getExecuteFillOptions: RouteOptions = {
         return {
           steps: [
             {
+              action: "Proxy registration",
               description: "Proxy registration",
-              status: "executed",
+              status: "complete",
               kind: "transaction",
             },
             {
+              action: "Approving WETH",
               description: "Approving WETH",
-              status: isWethApproved ? "executed" : "missing",
+              status: isWethApproved ? "complete" : "incomplete",
               kind: "transaction",
               data: isWethApproved ? undefined : wethApprovalTx,
             },
             {
+              action: "Approving proxy",
               description: "Approving proxy",
-              status: isApproved ? "executed" : "missing",
+              status: isApproved ? "complete" : "incomplete",
               kind: "transaction",
               data: isApproved ? undefined : approvalTx,
             },
             {
+              action: "Relaying order",
               description: "Relaying order",
-              status: "missing",
+              status: "incomplete",
               kind: "transaction",
               data: fillTxData,
             },
