@@ -51,10 +51,10 @@ export const addPendingTokenSets = async (
 if (config.doBackgroundWork) {
   const CRON_NAME = "orders_relay";
 
-  cron.schedule("*/10 * * * *", async () => {
+  cron.schedule("*/5 * * * *", async () => {
     const lockAcquired = await acquireLock(
       `${CRON_NAME}_cron_lock`,
-      10 * 60 - 5
+      5 * 60 - 5
     );
     if (lockAcquired) {
       logger.info(`${CRON_NAME}_cron`, "Relaying pending orders");
