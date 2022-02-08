@@ -60,8 +60,7 @@ export const getSales = async (
     from "nft_transfer_events" "nte"
     join "fill_events" "fe"
       on "nte"."tx_hash" = "fe"."tx_hash"
-      and "nte"."from" = "fe"."maker"
-      and "nte"."log_index" + 1 = "fe"."log_index"
+      and "nte"."log_index" = "fe"."log_index" - 1
     join "tokens" "t"
       on "nte"."address" = "t"."contract"
       and "nte"."token_id" = "t"."token_id"
