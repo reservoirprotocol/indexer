@@ -61,7 +61,7 @@ export const postOrdersOptions: RouteOptions = {
             if (!data.v || data.v == 0) {
               data.v = signature.v;
             }
-            if (!data.r || data.v == HashZero) {
+            if (!data.r || data.r == HashZero) {
               data.r = signature.r;
             }
             if (!data.s || data.s == HashZero) {
