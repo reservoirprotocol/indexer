@@ -5,6 +5,7 @@
 import { StatsD } from 'hot-shots';
 
 import { config } from "@/config/index";
+import { logger } from "@/common/logger"
 
 let client: StatsD|undefined = undefined;
 
@@ -16,7 +17,7 @@ export class Metrics {
         port: 8020,
         globalTags: {version: config.version},
         errorHandler: function (error) {
-          console.log("Socket errors caught here: ", error);
+          logger.info("metrics", `Socket errors caught here: ${error}`);
         }
       });
     }
