@@ -3,7 +3,7 @@ import cron from "node-cron";
 
 import { db } from "@/common/db";
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
+import { baseProvider, safeWebSocketSubscription } from "@/common/provider";
 import { acquireLock, redis } from "@/common/redis";
 import { config } from "@/config/index";
 import {
@@ -129,17 +129,18 @@ export const catchupQueue = new Queue(CATCHUP_JOB_NAME, {
 new QueueScheduler(CATCHUP_JOB_NAME, { connection: redis.duplicate() });
 
 export const addToEventsSyncCatchupQueue = async (
-  contractKind: ContractKind
+  contractKind: ContractKind,
+  block?: number
 ) => {
-  await catchupQueue.add(contractKind, { contractKind });
+  await catchupQueue.add(contractKind, { contractKind, block });
 };
 
 // Actual work is to be handled by background worker processes
-if (config.doBackgroundWork) {
+if (1) {
   const worker = new Worker(
     CATCHUP_JOB_NAME,
     async (job: Job) => {
-      const { contractKind } = job.data;
+      const { contractKind, block } = job.data;
 
       try {
         // Sync all contracts of the given contract type
@@ -155,6 +156,13 @@ if (config.doBackgroundWork) {
           )
           .then((result) => result.map(({ address }) => address));
         const contractInfo = getContractInfo(contractKind, contracts);
+
+        // Support single-block syncing (eg. for the ws block subscription)
+        if (block) {
+          logger.info(contractKind, `Events catchup syncing block ${block}`);
+          await sync(block, block, contractInfo);
+          return;
+        }
 
         // We allow syncing of up to `maxBlocks` blocks behind the
         // head of the blockchain. If the indexer lagged behind more
@@ -241,5 +249,22 @@ if (config.doBackgroundWork) {
         );
       }
     }
+  });
+}
+
+// ONLY MASTER
+if (config.master) {
+  // Besides the manual polling of events via the above cron job
+  // we're also integrating WebSocket subscriptions to fetch the
+  // latest events as soon as they're hapenning on-chain. We are
+  // still keeping the manual polling though to ensure no events
+  // are being missed.
+  safeWebSocketSubscription(async (provider) => {
+    provider.on("block", async (block) => {
+      console.log("new block", block);
+      for (const contractKind of contractKinds) {
+        await addToEventsSyncCatchupQueue(contractKind, block);
+      }
+    });
   });
 }

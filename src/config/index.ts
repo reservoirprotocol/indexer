@@ -9,10 +9,12 @@ export const config = {
 
   metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
   baseNetworkHttpUrl: String(process.env.BASE_NETWORK_HTTP_URL),
+  baseNetworkWsUrl: String(process.env.BASE_NETWORK_WS_URL),
 
   databaseUrl: String(process.env.DATABASE_URL),
   redisUrl: String(process.env.REDIS_URL),
 
+  master: Boolean(Number(process.env.MASTER)),
   acceptOrders: Boolean(Number(process.env.ACCEPT_ORDERS)),
   doBackgroundWork: Boolean(Number(process.env.DO_BACKGROUND_WORK)),
 };
