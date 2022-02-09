@@ -11,6 +11,8 @@ import * as statsEndpoints from "@/api/endpoints/stats";
 import * as tokensEndpoints from "@/api/endpoints/tokens";
 import * as transfersEndpoints from "@/api/endpoints/transfers";
 import * as healthEndpoints from "@/api/endpoints/health";
+import * as apikeyEndpoints from "@/api/endpoints/apikeys"
+import { postApiKey } from '@/api/endpoints/apikeys';
 
 export const setupRoutes = (server: Server) => {
   // Root
@@ -262,5 +264,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/readyz",
     options: healthEndpoints.getLiveOptions,
+  });
+
+  // All routes related to api keys
+  server.route({
+    method: "POST",
+    path: "/apikey",
+    options: apikeyEndpoints.postApiKey
   });
 };
