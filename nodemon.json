@@ -1,0 +1,12 @@
+{
+  "watch": [
+    "src"
+  ],
+  "execMap": {
+    "ts": "ts-node"
+  },
+  "ext": "ts",
+  "verbose": true,
+  "ignore": [],
+  "exec": "yarn debug"
+}
