@@ -69,6 +69,14 @@ export const start = async function (): Promise<void> {
       plugin: HapiSwagger,
       options: <HapiSwagger.RegisterOptions>{
         grouping: "tags",
+        security: [{ 'API_KEY': [] }],
+        securityDefinitions: {
+          'API_KEY': {
+            type: 'apiKey',
+            name: 'x-api-key',
+            in: 'header',
+          },
+        },
         schemes: ["https", "http"],
         host: apiHost,
         cors: true,
@@ -76,7 +84,7 @@ export const start = async function (): Promise<void> {
           title: "Reservoir Protocol API",
           version: require("../../package.json").version,
           description:
-            "You are viewing the the reference docs for the Reservoir API. \n\nFor a more complete overview with guides and examples, check out the <a href='https://reservoirprotocol.github.io'>Reservoir Protocol Docs</a>.",
+            "You are viewing the reference docs for the Reservoir API. \n\nFor a more complete overview with guides and examples, check out the <a href='https://reservoirprotocol.github.io'>Reservoir Protocol Docs</a>.",
         },
         tryItOutEnabled: true,
       },

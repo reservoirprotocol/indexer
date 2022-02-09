@@ -4,8 +4,8 @@ import { ApiKeyManager, ApiKeyRecord, NewApiKeyResponse } from '@/entities/apike
 import { logger } from '@/common/logger';
 
 export const postApiKey: RouteOptions = {
-  description:
-    "Create a new API key",
+  description: "Create a new API key",
+  notes: 'The API key can be used optionally in every route, set it as a request header **x-api-key**',
   tags: ["api", "apikeys"],
   validate: {
     payload: Joi.object({
