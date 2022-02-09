@@ -12,6 +12,8 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { allQueues } from "@/jobs/index";
 
+import { ApiKeyManager} from '@/entities/apikeys/api-key';
+
 export const start = async function (): Promise<void> {
   const server = Hapi.server({
     port: config.port,
@@ -80,6 +82,11 @@ export const start = async function (): Promise<void> {
       },
     },
   ]);
+
+  server.ext('onPreHandler', (request, h) => {
+    ApiKeyManager.logUsage(request);
+    return h.continue;
+  });
 
   setupRoutes(server);
 

@@ -2,6 +2,7 @@ import { db } from '@/common/db';
 import { redis } from '@/common/redis';
 import { v4 as uuidv4 } from "uuid";
 import { logger } from '@/common/logger';
+import { Request } from '@hapi/hapi';
 
 export interface ApiKeyRecord {
   name: string;
@@ -30,7 +31,7 @@ export class ApiKeyManager {
 
     // Create the record in the database
     try {
-      await db.none('insert into apikeys (${this:name}) values (${this:csv})', values);
+      await db.none('insert into api_keys (${this:name}) values (${this:csv})', values);
     } catch (e) {
       logger.error("api-key", `Unable to create a new apikeys record: ${e}`)
       return false;
@@ -40,7 +41,7 @@ export class ApiKeyManager {
     try {
       const redisKey = `apikey:${values.key}`;
       await redis.hset(redisKey, new Map(Object.entries(values)))
-      await redis.expire(redisKey, 3600);
+      // await redis.expire(redisKey, 3600);
     } catch (e) {
       logger.error("api-key", `Unable to set the redis hash: ${e}`)
       // Let's continue here, even if we can't write to redis, we should be able to check the values against the db
@@ -48,6 +49,28 @@ export class ApiKeyManager {
 
     return {
       key: values.key
+    }
+  }
+
+  public static async logUsage(request: Request) {
+    const key = request.headers['x-api-key'];
+    if (key) {
+      const redisKey = `apikey:${key}`;
+
+      try {
+        const apiKey = await redis.hgetall(redisKey);
+        if (apiKey) {
+          const log = {
+            apiKey,
+            route: request.route.path,
+            method: request.route.method
+          }
+          logger.info('metrics', JSON.stringify(log));
+        }
+      } catch (e) {
+        logger.error('api-key', `${e}`);
+        // Don't do anything, just continue
+      }
     }
   }
 }

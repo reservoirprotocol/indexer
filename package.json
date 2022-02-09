@@ -11,7 +11,7 @@
     "clean": "rm -rf ./dist tsconfig.tsbuildinfo",
     "compile": "tsc",
     "build": "yarn clean; yarn compile",
-    "start": "yarn migrate up; node --inspect -r module-alias/register ./dist/index.js",
+    "start": "yarn migrate up; node -r module-alias/register ./dist/index.js",
     "migrate": "ts-node ./node_modules/node-pg-migrate/bin/node-pg-migrate -m ./src/migrations",
     "debug": "yarn build && yarn migrate up; node --inspect -r module-alias/register ./dist/index.js"
   },
@@ -31,6 +31,7 @@
     "graphql": "^16.2.0",
     "graphql-request": "^3.7.0",
     "hapi-swagger": "14.2.4",
+    "hot-shots": "^9.0.0",
     "ioredis": "^4.28.0",
     "joi": "17.x",
     "json-stable-stringify": "^1.0.1",

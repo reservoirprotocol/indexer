@@ -4,22 +4,22 @@ import { MigrationBuilder, ColumnDefinitions } from 'node-pg-migrate';
 export const shorthands: ColumnDefinitions | undefined = undefined;
 
 export async function up(pgm: MigrationBuilder): Promise<void> {
-  pgm.createTable("apikeys", {
+  pgm.createTable("api_keys", {
     key: {
-      type: "character(36)",
+      type: "text",
       notNull: true,
       primaryKey: true,
     },
     name: {
-      type: "character(255)",
+      type: "text",
       notNull: true,
     },
     website: {
-      type: "character(2048)",
+      type: "text",
       notNull: true,
     },
     email: {
-      type: "character(254)",
+      type: "text",
       notNull: true,
     },
     created_at: {
@@ -36,5 +36,5 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 }
 
 export async function down(pgm: MigrationBuilder): Promise<void> {
-  pgm.dropTable("apikeys");
+  pgm.dropTable("api_keys");
 }
