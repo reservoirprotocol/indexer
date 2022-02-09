@@ -260,6 +260,7 @@ if (config.master) {
   // still keeping the manual polling though to ensure no events
   // are being missed.
   safeWebSocketSubscription(async (provider) => {
+    console.log("subscribing");
     provider.on("block", async (block) => {
       console.log("new block", block);
       for (const contractKind of contractKinds) {
