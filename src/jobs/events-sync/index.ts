@@ -159,8 +159,10 @@ if (config.doBackgroundWork) {
 
         // Support single-block syncing (eg. for the ws block subscription)
         if (block) {
-          logger.info(contractKind, `Events catchup syncing block ${block}`);
-          await sync(block, block, contractInfo);
+          if (contracts.length) {
+            logger.info(contractKind, `Events catchup syncing block ${block}`);
+            await sync(block, block, contractInfo);
+          }
           return;
         }
 
@@ -260,9 +262,7 @@ if (config.master) {
   // still keeping the manual polling though to ensure no events
   // are being missed.
   safeWebSocketSubscription(async (provider) => {
-    console.log("subscribing");
     provider.on("block", async (block) => {
-      console.log("new block", block);
       for (const contractKind of contractKinds) {
         await addToEventsSyncCatchupQueue(contractKind, block);
       }
