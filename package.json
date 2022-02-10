@@ -21,7 +21,7 @@
     "@hapi/hapi": "^20.0.0",
     "@hapi/inert": "^6.0.4",
     "@hapi/vision": "^6.1.0",
-    "@reservoir0x/sdk": "0.0.25",
+    "@reservoir0x/sdk": "0.0.26",
     "arweave": "^1.10.23",
     "axios": "^0.24.0",
     "bullmq": "1.63.0",
