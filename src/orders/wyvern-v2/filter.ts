@@ -5,6 +5,7 @@ import { db } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 import { OrderInfo } from "@/orders/wyvern-v2";
+import { getOrderTarget } from "@/orders/wyvern-v2/utils";
 
 type FilterResult = {
   valid: OrderInfo[];
@@ -35,7 +36,7 @@ export const filterOrders = async (
       from "contracts" "c"
       where "c"."address" in ($1:csv)
     `,
-    [orderInfos.map(({ order }) => order.params.target)]
+    [orderInfos.map(({ order }) => getOrderTarget(order)).filter(Boolean)]
   );
 
   const contractKinds = new Map<string, string>();
@@ -61,6 +62,7 @@ export const filterOrders = async (
   for (const orderInfo of orderInfos) {
     const { order } = orderInfo;
 
+    const target = getOrderTarget(order);
     const hash = order.prefixHash();
 
     // Check: order doesn't already exist
@@ -70,9 +72,7 @@ export const filterOrders = async (
     }
 
     // Check: order has a valid target
-    if (
-      !order.params.kind?.startsWith(contractKinds.get(order.params.target)!)
-    ) {
+    if (!target || !order.params.kind?.startsWith(contractKinds.get(target)!)) {
       result.invalid.push({
         orderInfo,
         reason: "Order has unsupported target",

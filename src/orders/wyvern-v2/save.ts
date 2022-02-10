@@ -25,27 +25,57 @@ const extractOrderMetadata = (
 ): OrderMetadata | undefined => {
   switch (order.params.kind) {
     case "erc721-single-token": {
-      const builder = new Sdk.WyvernV2.Builders.Erc721.SingleToken(
+      const builder = new Sdk.WyvernV2.Builders.Erc721.SingleToken.V1(
         config.chainId
       );
 
       return {
         kind: "token",
         data: {
+          contract: order.params.target,
           tokenId: builder.getTokenId(order),
         },
       };
     }
 
-    case "erc1155-single-token": {
-      const builder = new Sdk.WyvernV2.Builders.Erc1155.SingleToken(
+    case "erc721-single-token-v2": {
+      const builder = new Sdk.WyvernV2.Builders.Erc721.SingleToken.V2(
         config.chainId
       );
 
       return {
         kind: "token",
         data: {
+          contract: builder.getDetails(order)?.contract,
+          tokenId: builder.getDetails(order)?.tokenId,
+        },
+      };
+    }
+
+    case "erc1155-single-token": {
+      const builder = new Sdk.WyvernV2.Builders.Erc1155.SingleToken.V1(
+        config.chainId
+      );
+
+      return {
+        kind: "token",
+        data: {
+          contract: order.params.target,
           tokenId: builder.getTokenId(order),
+        },
+      };
+    }
+
+    case "erc1155-single-token-v2": {
+      const builder = new Sdk.WyvernV2.Builders.Erc1155.SingleToken.V2(
+        config.chainId
+      );
+
+      return {
+        kind: "token",
+        data: {
+          contract: builder.getDetails(order)?.contract,
+          tokenId: builder.getDetails(order)?.tokenId,
         },
       };
     }
@@ -58,6 +88,7 @@ const extractOrderMetadata = (
       return {
         kind: "collection",
         data: {
+          contract: order.params.target,
           tokenIdRange: builder.getTokenIdRange(order),
         },
       };
@@ -71,6 +102,7 @@ const extractOrderMetadata = (
       return {
         kind: "collection",
         data: {
+          contract: order.params.target,
           tokenIdRange: builder.getTokenIdRange(order),
         },
       };
@@ -79,12 +111,18 @@ const extractOrderMetadata = (
     case "erc721-contract-wide": {
       return {
         kind: "collection",
+        data: {
+          contract: order.params.target,
+        },
       };
     }
 
     case "erc1155-contract-wide": {
       return {
         kind: "collection",
+        data: {
+          contract: order.params.target,
+        },
       };
     }
 
@@ -96,6 +134,7 @@ const extractOrderMetadata = (
       return {
         kind: "attribute",
         data: {
+          contract: order.params.target,
           merkleRoot: builder.getMerkleRoot(order),
         },
       };
@@ -109,6 +148,7 @@ const extractOrderMetadata = (
       return {
         kind: "attribute",
         data: {
+          contract: order.params.target,
           merkleRoot: builder.getMerkleRoot(order),
         },
       };
@@ -170,7 +210,7 @@ export const saveOrders = async (
       // We have a single-token order
       case "token": {
         tokenSetInfo = generateTokenInfo(
-          order.params.target,
+          orderMetadata.data?.contract,
           orderMetadata.data?.tokenId
         );
 
@@ -205,7 +245,7 @@ export const saveOrders = async (
           `,
           values: {
             tokenSetId: tokenSetInfo.id,
-            contract: order.params.target,
+            contract: orderMetadata.data.contract,
             tokenId: orderMetadata.data.tokenId,
             tokenSetLabel: tokenSetInfo.label,
             tokenSetLabelHash: tokenSetInfo.labelHash,
@@ -240,7 +280,7 @@ export const saveOrders = async (
             `,
             values: {
               tokenSetId: tokenSetInfo.id,
-              contract: order.params.target,
+              contract: orderMetadata.data.contract,
               tokenId: orderMetadata.data.tokenId,
             },
           });
@@ -253,8 +293,8 @@ export const saveOrders = async (
       case "collection": {
         // Build the token set associated to the order
         const tokenSetId = orderMetadata.data?.tokenIdRange
-          ? `range:${order.params.target}:${orderMetadata.data.tokenIdRange[0]}:${orderMetadata.data.tokenIdRange[1]}`
-          : `contract:${order.params.target}`;
+          ? `range:${orderMetadata.data.contract}:${orderMetadata.data.tokenIdRange[0]}:${orderMetadata.data.tokenIdRange[1]}`
+          : `contract:${orderMetadata.data.contract}`;
 
         // Fetch the collection that matches the token set
         const collection: { id: string } | null = await db.oneOrNone(
@@ -270,7 +310,7 @@ export const saveOrders = async (
         if (collection) {
           tokenSetInfo = generateCollectionInfo(
             collection.id,
-            order.params.target,
+            orderMetadata.data.contract,
             orderMetadata.data?.tokenIdRange
           );
 
@@ -396,7 +436,11 @@ export const saveOrders = async (
           break;
         }
 
-        if (!tokens.every(({ contract }) => contract === order.params.target)) {
+        if (
+          !tokens.every(
+            ({ contract }) => contract === orderMetadata.data.contract
+          )
+        ) {
           // Make sure all matching tokens are on the same order target contract
           break;
         }
@@ -471,7 +515,7 @@ export const saveOrders = async (
           arweaveTokenSetData.push({
             id: tokenSetInfo.id,
             schema: tokenSetInfo.label,
-            contract: order.params.target,
+            contract: orderMetadata.data.contract,
             tokenIds: tokens.map(({ token_id }) => token_id),
           });
 
@@ -586,7 +630,7 @@ export const saveOrders = async (
         where "t"."contract" = $/contract/
         limit 1
       `,
-      { contract: order.params.target }
+      { contract: orderMetadata.data.contract }
     );
 
     let royaltyInfo;
