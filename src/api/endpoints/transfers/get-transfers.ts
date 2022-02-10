@@ -22,7 +22,7 @@ export const getTransfersOptions: RouteOptions = {
         .pattern(/^0x[a-f0-9]{40}$/),
       direction: Joi.string().lowercase().valid("from", "to"),
       offset: Joi.number().integer().min(0).default(0),
-      limit: Joi.number().integer().min(1).max(20).default(20),
+      limit: Joi.number().integer().min(1).max(100).default(20),
     })
       .oxor("collection", "contract")
       .or("collection", "contract", "user")
