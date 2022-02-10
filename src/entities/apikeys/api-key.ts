@@ -4,11 +4,11 @@ import { v4 as uuidv4 } from "uuid";
 import { logger } from '@/common/logger';
 import { Request } from '@hapi/hapi';
 
-export interface ApiKeyRecord {
-  name: string;
+export type ApiKeyRecord = {
+  app_name: string;
   website: string;
   email: string;
-  key: string;
+  key?: string;
 }
 
 export type NewApiKeyResponse = {
@@ -52,6 +52,11 @@ export class ApiKeyManager {
     }
   }
 
+  /**
+   * Log usage of the api key in the logger
+   *
+   * @param request
+   */
   public static async logUsage(request: Request) {
     const key = request.headers['x-api-key'];
     if (key) {
@@ -60,11 +65,23 @@ export class ApiKeyManager {
       try {
         const apiKey = await redis.hgetall(redisKey);
         if (apiKey) {
-          const log = {
+          const log: any = {
             apiKey,
             route: request.route.path,
             method: request.route.method
           }
+          if (request.payload) {
+            log.payload = request.payload;
+          }
+
+          if (request.params) {
+            log.params = request.params;
+          }
+
+          if (request.query) {
+            log.query = request.query;
+          }
+
           logger.info('metrics', JSON.stringify(log));
         }
       } catch (e) {

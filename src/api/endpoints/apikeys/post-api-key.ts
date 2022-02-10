@@ -9,7 +9,7 @@ export const postApiKey: RouteOptions = {
   tags: ["api", "apikeys"],
   validate: {
     payload: Joi.object({
-      name: Joi.string().required(),
+      appName: Joi.string().required(),
       email: Joi.string().email().required(),
       website: Joi.string().uri().required()
     }),
@@ -26,7 +26,12 @@ export const postApiKey: RouteOptions = {
     const payload: any = request.payload
     const manager = new ApiKeyManager();
 
-    const key: any = await manager.create(payload);
+    const key: any = await manager.create({
+      app_name: payload.appName,
+      website: payload.website,
+      email: payload.email
+    });
+
     if (!key) {
       throw new Error(`Unable to create a new api key with given values`);
     }
