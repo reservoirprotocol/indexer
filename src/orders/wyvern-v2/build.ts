@@ -60,9 +60,13 @@ export const buildOrder = async (options: BuildOrderOptions) => {
       (buildParams as any).tokenId = tokenId;
 
       if (data.kind === "erc721") {
-        builder = new Sdk.WyvernV2.Builders.Erc721.SingleToken(config.chainId);
+        builder = new Sdk.WyvernV2.Builders.Erc721.SingleToken.V1(
+          config.chainId
+        );
       } else if (data.kind === "erc1155") {
-        builder = new Sdk.WyvernV2.Builders.Erc1155.SingleToken(config.chainId);
+        builder = new Sdk.WyvernV2.Builders.Erc1155.SingleToken.V1(
+          config.chainId
+        );
       }
     } else if (
       options.collection &&
