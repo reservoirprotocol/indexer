@@ -1,29 +1,29 @@
-import { db } from '@/common/db';
-import { redis } from '@/common/redis';
+import { db } from "@/common/db";
+import { redis } from "@/common/redis";
 import { v4 as uuidv4 } from "uuid";
-import { logger } from '@/common/logger';
-import { Request } from '@hapi/hapi';
+import { logger } from "@/common/logger";
+import { Request } from "@hapi/hapi";
 
 export type ApiKeyRecord = {
-  app_name: string;
+  name: string;
   website: string;
   email: string;
   key?: string;
-}
+};
 
 export type NewApiKeyResponse = {
   key: string;
-}
+};
 
 export class ApiKeyManager {
-
   /**
    * Create a new key, leave the ApiKeyRecord.key empty to generate a new key (uuid) in this function
    *
    * @param values
    */
-  public async create(values: ApiKeyRecord): Promise<NewApiKeyResponse|boolean> {
-
+  public async create(
+    values: ApiKeyRecord
+  ): Promise<NewApiKeyResponse | boolean> {
     // Create a new key if none was set
     if (!values.key) {
       values.key = uuidv4();
@@ -31,25 +31,28 @@ export class ApiKeyManager {
 
     // Create the record in the database
     try {
-      await db.none('insert into api_keys (${this:name}) values (${this:csv})', values);
+      await db.none(
+        "insert into api_keys (${this:name}) values (${this:csv})",
+        values
+      );
     } catch (e) {
-      logger.error("api-key", `Unable to create a new apikeys record: ${e}`)
+      logger.error("api-key", `Unable to create a new apikeys record: ${e}`);
       return false;
     }
 
     // Cache the key on redis for faster lookup
     try {
       const redisKey = `apikey:${values.key}`;
-      await redis.hset(redisKey, new Map(Object.entries(values)))
+      await redis.hset(redisKey, new Map(Object.entries(values)));
       // await redis.expire(redisKey, 3600);
     } catch (e) {
-      logger.error("api-key", `Unable to set the redis hash: ${e}`)
+      logger.error("api-key", `Unable to set the redis hash: ${e}`);
       // Let's continue here, even if we can't write to redis, we should be able to check the values against the db
     }
 
     return {
-      key: values.key
-    }
+      key: values.key,
+    };
   }
 
   /**
@@ -58,7 +61,7 @@ export class ApiKeyManager {
    * @param request
    */
   public static async logUsage(request: Request) {
-    const key = request.headers['x-api-key'];
+    const key = request.headers["x-api-key"];
     if (key) {
       const redisKey = `apikey:${key}`;
 
@@ -68,8 +71,8 @@ export class ApiKeyManager {
           const log: any = {
             apiKey,
             route: request.route.path,
-            method: request.route.method
-          }
+            method: request.route.method,
+          };
           if (request.payload) {
             log.payload = request.payload;
           }
@@ -82,10 +85,10 @@ export class ApiKeyManager {
             log.query = request.query;
           }
 
-          logger.info('metrics', JSON.stringify(log));
+          logger.info("metrics", JSON.stringify(log));
         }
       } catch (e) {
-        logger.error('api-key', `${e}`);
+        logger.error("api-key", `${e}`);
         // Don't do anything, just continue
       }
     }
