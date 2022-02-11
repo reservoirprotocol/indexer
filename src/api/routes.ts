@@ -11,8 +11,7 @@ import * as statsEndpoints from "@/api/endpoints/stats";
 import * as tokensEndpoints from "@/api/endpoints/tokens";
 import * as transfersEndpoints from "@/api/endpoints/transfers";
 import * as healthEndpoints from "@/api/endpoints/health";
-import * as apikeyEndpoints from "@/api/endpoints/apikeys"
-import { postApiKey } from '@/api/endpoints/apikeys';
+import * as apikeyEndpoints from "@/api/endpoints/apikeys";
 
 export const setupRoutes = (server: Server) => {
   // Root
@@ -120,6 +119,30 @@ export const setupRoutes = (server: Server) => {
   });
 
   // Execute
+
+  server.route({
+    method: "GET",
+    path: "/execute/bid",
+    options: executeEndpoints.getExecuteBidOptions,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/execute/buy",
+    options: executeEndpoints.getExecuteBuyOptions,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/execute/list",
+    options: executeEndpoints.getExecuteListOptions,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/execute/sell",
+    options: executeEndpoints.getExecuteSellOptions,
+  });
 
   server.route({
     method: "GET",
@@ -270,6 +293,6 @@ export const setupRoutes = (server: Server) => {
   server.route({
     method: "POST",
     path: "/apikey",
-    options: apikeyEndpoints.postApiKey
+    options: apikeyEndpoints.postApiKey,
   });
 };
