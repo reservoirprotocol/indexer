@@ -29,7 +29,7 @@ export const start = async function (): Promise<void> {
       },
       cors: {
         origin: ["*"],
-        additionalHeaders: ["Access-Control-Request-Headers", "x-api-key"]
+        additionalHeaders: ["x-api-key"]
       },
       // Expose any validation errors
       // https://github.com/hapijs/hapi/issues/3706
