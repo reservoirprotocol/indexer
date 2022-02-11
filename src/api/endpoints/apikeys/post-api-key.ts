@@ -7,11 +7,16 @@ export const postApiKey: RouteOptions = {
   description: "Create a new API key",
   notes: 'The API key can be used optionally in every route, set it as a request header **x-api-key**',
   tags: ["api", "apikeys"],
+  plugins: {
+    'hapi-swagger': {
+      payloadType: 'form'
+    }
+  },
   validate: {
     payload: Joi.object({
-      appName: Joi.string().required(),
-      email: Joi.string().email().required(),
-      website: Joi.string().uri().required()
+      appName: Joi.string().required().description('The name of the app'),
+      email: Joi.string().email().required().description('Your e-mail address so we can reach you'),
+      website: Joi.string().uri().required().description('The website of your project')
     }),
   },
   response: {
