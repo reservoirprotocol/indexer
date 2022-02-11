@@ -7,11 +7,16 @@ export const postApiKey: RouteOptions = {
   description: "Create a new API key",
   notes: 'The API key can be used optionally in every route, set it as a request header **x-api-key**',
   tags: ["api", "apikeys"],
+  plugins: {
+    'hapi-swagger': {
+      payloadType: 'form'
+    }
+  },
   validate: {
     payload: Joi.object({
-      name: Joi.string().required(),
-      email: Joi.string().email().required(),
-      website: Joi.string().uri().required()
+      appName: Joi.string().required().description('The name of the app'),
+      email: Joi.string().email().required().description('Your e-mail address so we can reach you'),
+      website: Joi.string().uri().required().description('The website of your project')
     }),
   },
   response: {
@@ -26,7 +31,12 @@ export const postApiKey: RouteOptions = {
     const payload: any = request.payload
     const manager = new ApiKeyManager();
 
-    const key: any = await manager.create(payload);
+    const key: any = await manager.create({
+      app_name: payload.appName,
+      website: payload.website,
+      email: payload.email
+    });
+
     if (!key) {
       throw new Error(`Unable to create a new api key with given values`);
     }

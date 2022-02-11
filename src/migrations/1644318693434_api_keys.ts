@@ -10,7 +10,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
       notNull: true,
       primaryKey: true,
     },
-    name: {
+    app_name: {
       type: "text",
       notNull: true,
     },
