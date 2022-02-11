@@ -11,7 +11,7 @@ import * as queries from "@/entities/orders/get-best-order";
 export const getOrdersFillOptions: RouteOptions = {
   description:
     "Get the best available order for buying or selling a token. The response can be passed to the SDK for signing.",
-  tags: ["api", "orders"],
+  tags: ["api", "x-deprecated"],
   validate: {
     query: Joi.object({
       tokenId: Joi.string()

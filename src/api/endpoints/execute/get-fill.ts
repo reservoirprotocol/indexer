@@ -12,7 +12,7 @@ import * as queries from "@/entities/orders/get-best-order";
 
 export const getExecuteFillOptions: RouteOptions = {
   description: "Get steps required to fill an order.",
-  tags: ["api", "execute"],
+  tags: ["api", "x-deprecated"],
   validate: {
     query: Joi.object({
       contract: Joi.string()
