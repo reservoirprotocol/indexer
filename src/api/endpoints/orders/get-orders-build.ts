@@ -9,7 +9,7 @@ import * as wyvernV2 from "@/orders/wyvern-v2";
 export const getOrdersBuildOptions: RouteOptions = {
   description:
     "Build an order object that abstracts different token / order types. The response can be passed to SDK for signing.",
-  tags: ["api", "orders"],
+  tags: ["api", "x-deprecated"],
   validate: {
     query: Joi.object({
       contract: Joi.string()

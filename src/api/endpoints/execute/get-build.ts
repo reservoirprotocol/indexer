@@ -12,7 +12,7 @@ import * as wyvernV2 from "@/orders/wyvern-v2";
 
 export const getExecuteBuildOptions: RouteOptions = {
   description: "Get steps required to build an order.",
-  tags: ["api", "execute"],
+  tags: ["api", "x-deprecated"],
   validate: {
     query: Joi.object({
       contract: Joi.string()

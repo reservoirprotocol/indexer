@@ -66,6 +66,7 @@ export const getCollections = async (
           "t"."image"
         from "tokens" "t"
         where "t"."collection_id" = "c"."id"
+          and "t"."image" is not null
         limit 4
       ) as "sample_images",
       (
