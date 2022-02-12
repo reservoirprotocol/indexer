@@ -8,14 +8,21 @@ export const getCollectionAttributesOptions: RouteOptions = {
   description:
     "Explore the top attribute values, across a whole collection or within a single attribute key",
   tags: ["api", "attributes"],
+  timeout: {
+    server: 30 * 1000,
+  },
   validate: {
     params: Joi.object({
       collection: Joi.string().lowercase().required(),
     }),
     query: Joi.object({
       attribute: Joi.string(),
-      sortBy: Joi.string()
-        .valid("value", "floorSellValue", "floorCap", "topBuyValue"),
+      sortBy: Joi.string().valid(
+        "value",
+        "floorSellValue",
+        "floorCap",
+        "topBuyValue"
+      ),
       sortDirection: Joi.string()
         .lowercase()
         .valid("asc", "desc")
