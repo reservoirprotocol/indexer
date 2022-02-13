@@ -5,7 +5,7 @@ import { logger } from "@/common/logger";
 import { Request } from "@hapi/hapi";
 
 export type ApiKeyRecord = {
-  name: string;
+  app_name: string;
   website: string;
   email: string;
   key?: string;

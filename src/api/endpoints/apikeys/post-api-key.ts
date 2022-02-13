@@ -15,7 +15,7 @@ export const postApiKey: RouteOptions = {
   },
   validate: {
     payload: Joi.object({
-      name: Joi.string().required().description("The name of the app"),
+      appName: Joi.string().required().description("The name of the app"),
       email: Joi.string()
         .email()
         .required()
@@ -39,7 +39,7 @@ export const postApiKey: RouteOptions = {
     const manager = new ApiKeyManager();
 
     const key: any = await manager.create({
-      name: payload.name,
+      app_name: payload.appName,
       website: payload.website,
       email: payload.email,
     });
