@@ -155,6 +155,12 @@ export const getExecuteSellOptions: RouteOptions = {
               status: "incomplete",
               kind: "transaction",
             },
+            {
+              action: "Confirmation",
+              description: "Confirmation",
+              status: "incomplete",
+              kind: "confirmation",
+            },
           ],
         };
       }
@@ -243,6 +249,16 @@ export const getExecuteSellOptions: RouteOptions = {
             status: "incomplete",
             kind: "transaction",
             data: fillTxData,
+          },
+          {
+            action: "Confirmation",
+            description: "Confirmation",
+            status: "incomplete",
+            kind: "confirmation",
+            data: {
+              endpoint: `/orders/executed?hash=${order.prefixHash()}`,
+              method: "GET",
+            },
           },
         ],
       };
