@@ -84,7 +84,7 @@ export const getExecuteCancelOptions: RouteOptions = {
             status: "incomplete",
             kind: "confirmation",
             data: {
-              endpoint: `/orders/executed?hash=${order.prefixHash()}`,
+              endpoint: `/orders/executed?hash=${sdkOrder.prefixHash()}`,
               method: "GET",
             },
           },
