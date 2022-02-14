@@ -33,8 +33,6 @@ export type GetSalesResponse = {
   block: number;
   timestamp: number;
   price: number | null;
-  tokenSetId: string | null;
-  schema: any;
 }[];
 
 export const getSales = async (
@@ -54,9 +52,7 @@ export const getSales = async (
       "nte"."tx_hash" as "txHash",
       "nte"."block",
       coalesce("b"."timestamp", extract(epoch from now())::int) as "timestamp",
-      "fe"."price",
-      "x"."token_set_id",
-      "x"."schema"
+      "fe"."price"
     from "nft_transfer_events" "nte"
     join "fill_events" "fe"
       on "nte"."tx_hash" = "fe"."tx_hash"
@@ -68,18 +64,6 @@ export const getSales = async (
       on "t"."collection_id" = "c"."id"
     left join "blocks" "b"
       on "nte"."block" = "b"."block"
-    left join lateral (
-      select
-        "o"."hash",
-        "o"."token_set_id",
-        "ts"."label" as "schema"
-      from
-        "orders" "o"
-      join "token_sets" "ts"
-        on "o"."token_set_id" = "ts"."id"
-      where "o"."hash" = "fe"."buy_order_hash" or "o"."hash" = "fe"."sell_order_hash"
-      limit 1
-    ) "x" on true
   `;
 
   // Filters
