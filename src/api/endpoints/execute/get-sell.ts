@@ -35,7 +35,7 @@ export const getExecuteSellOptions: RouteOptions = {
           action: Joi.string().required(),
           description: Joi.string().required(),
           status: Joi.string().valid("complete", "incomplete").required(),
-          kind: Joi.string().valid("transaction").required(),
+          kind: Joi.string().valid("transaction", "confirmation").required(),
           data: Joi.any(),
         })
       ),
