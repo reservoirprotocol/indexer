@@ -24,12 +24,6 @@ export const getExecuteListOptions: RouteOptions = {
         .pattern(/^0x[a-f0-9]{40}$/)
         .required(),
       price: Joi.string().required(),
-      fee: Joi.alternatives(Joi.string(), Joi.number()).required(),
-      feeRecipient: Joi.string()
-        .lowercase()
-        .pattern(/^0x[a-f0-9]{40}$/)
-        .disallow(AddressZero)
-        .required(),
       orderbook: Joi.string()
         .valid("reservoir", "opensea")
         .default("reservoir"),
