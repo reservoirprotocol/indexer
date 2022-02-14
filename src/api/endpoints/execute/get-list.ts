@@ -30,6 +30,12 @@ export const getExecuteListOptions: RouteOptions = {
         .pattern(/^0x[a-f0-9]{40}$/)
         .disallow(AddressZero)
         .required(),
+      orderbook: Joi.string()
+        .valid("reservoir", "opensea")
+        .default("reservoir"),
+      v: Joi.number(),
+      r: Joi.string().pattern(/^0x[a-f0-9]{64}$/),
+      s: Joi.string().pattern(/^0x[a-f0-9]{64}$/),
       listingTime: Joi.alternatives(Joi.string(), Joi.number()),
       expirationTime: Joi.alternatives(Joi.string(), Joi.number()),
       salt: Joi.string(),
@@ -46,10 +52,13 @@ export const getExecuteListOptions: RouteOptions = {
           action: Joi.string().required(),
           description: Joi.string().required(),
           status: Joi.string().valid("complete", "incomplete").required(),
-          kind: Joi.string().valid("order-signature", "transaction").required(),
+          kind: Joi.string()
+            .valid("request", "signature", "transaction")
+            .required(),
           data: Joi.any(),
         })
       ),
+      query: Joi.any(),
       error: Joi.string(),
     }).label("getExecuteListResponse"),
     failAction: (_request, _h, error) => {
@@ -76,9 +85,9 @@ export const getExecuteListOptions: RouteOptions = {
       // Step 1: Check that the taker owns the token
       const { kind } = await db.one(
         `
-            select "c"."kind" from "contracts" "c"
-            where "c"."address" = $/address/
-          `,
+          select "c"."kind" from "contracts" "c"
+          where "c"."address" = $/address/
+        `,
         { address: order.params.target }
       );
 
@@ -130,10 +139,16 @@ export const getExecuteListOptions: RouteOptions = {
               kind: "transaction",
             },
             {
-              action: "Signing and relaying order",
-              description: "Signing and relaying order",
+              action: "Signing order",
+              description: "Signing order",
               status: "incomplete",
-              kind: "order-signature",
+              kind: "signature",
+            },
+            {
+              action: "Relaying order",
+              description: "Relaying order",
+              status: "incomplete",
+              kind: "request",
             },
           ],
         };
@@ -160,6 +175,8 @@ export const getExecuteListOptions: RouteOptions = {
         return { error: "Unknown contract" };
       }
 
+      const hasSignature = query.v && query.r && query.s;
+
       return {
         steps: [
           {
@@ -176,22 +193,51 @@ export const getExecuteListOptions: RouteOptions = {
             data: isApproved ? undefined : approvalTx,
           },
           {
-            action: "Signing and relaying order",
-            description: "Signing and relaying order",
+            action: "Signing order",
+            description: "Signing order",
+            status: hasSignature ? "complete" : "incomplete",
+            kind: "signature",
+            data: hasSignature
+              ? undefined
+              : {
+                  message: order.hash(),
+                  signatureKind: "eip191",
+                },
+          },
+          {
+            action: "Relaying order",
+            description: "Relaying order",
             status: "incomplete",
-            kind: "order-signature",
-            data: {
-              message: {
-                kind: "eip191",
-                value: order.hash(),
-              },
-              order: {
-                kind: "wyvern-v2",
-                data: order.params,
-              },
-            },
+            kind: "request",
+            data: !hasSignature
+              ? undefined
+              : {
+                  endpoint: "/orders",
+                  method: "POST",
+                  body: {
+                    orders: [
+                      {
+                        kind: "wyvern-v2",
+                        orderbook: query.orderbook,
+                        data: {
+                          ...order.params,
+                          v: query.v,
+                          r: query.r,
+                          s: query.s,
+                          contract: query.contract,
+                          tokenId: query.tokenId,
+                        },
+                      },
+                    ],
+                  },
+                },
           },
         ],
+        query: {
+          listingTime: order.params.listingTime,
+          expirationTime: order.params.expirationTime,
+          salt: order.params.salt,
+        },
       };
     } catch (error) {
       logger.error("get_execute_list_handler", `Handler failure: ${error}`);

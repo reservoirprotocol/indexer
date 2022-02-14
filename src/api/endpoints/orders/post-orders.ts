@@ -1,7 +1,7 @@
-import { HashZero } from "@ethersproject/constants";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import axios from "axios";
 import Joi from "joi";
 
 import { wyvernV2OrderFormat } from "@/api/types";
@@ -21,6 +21,10 @@ export const postOrdersOptions: RouteOptions = {
       orders: Joi.array().items(
         Joi.object().keys({
           kind: Joi.string().lowercase().valid("wyvern-v2").required(),
+          orderbook: Joi.string()
+            .lowercase()
+            .valid("reservoir", "opensea")
+            .default("reservoir"),
           data: Joi.object().when("kind", {
             is: Joi.equal("wyvern-v2"),
             then: wyvernV2OrderFormat,
@@ -29,15 +33,6 @@ export const postOrdersOptions: RouteOptions = {
             collection: Joi.string().required(),
             key: Joi.string().required(),
             value: Joi.string().required(),
-          }),
-          signature: Joi.object({
-            v: Joi.number().required(),
-            r: Joi.string()
-              .pattern(/^0x[a-f0-9]{64}$/)
-              .required(),
-            s: Joi.string()
-              .pattern(/^0x[a-f0-9]{64}$/)
-              .required(),
           }),
         })
       ),
@@ -54,24 +49,66 @@ export const postOrdersOptions: RouteOptions = {
       const orders = payload.orders as any;
 
       const validOrderInfos: wyvernV2.OrderInfo[] = [];
-      for (const { kind, data, attribute, signature } of orders) {
+      for (const { kind, orderbook, data, attribute } of orders) {
         if (kind === "wyvern-v2") {
-          try {
-            // Default the signature
-            if (!data.v || data.v == 0) {
-              data.v = signature.v;
+          if (orderbook === "reservoir") {
+            try {
+              const order = new Sdk.WyvernV2.Order(config.chainId, data);
+              validOrderInfos.push({ order, attribute });
+            } catch {
+              // Skip any invalid orders
             }
-            if (!data.r || data.r == HashZero) {
-              data.r = signature.r;
-            }
-            if (!data.s || data.s == HashZero) {
-              data.s = signature.s;
-            }
+          } else if (orderbook === "opensea") {
+            try {
+              const order = new Sdk.WyvernV2.Order(config.chainId, data);
 
-            const order = new Sdk.WyvernV2.Order(config.chainId, data);
-            validOrderInfos.push({ order, attribute });
-          } catch {
-            // Skip any invalid orders
+              // Only allow one at a time
+              const filterResults = await wyvernV2.filterOrders([{ order }]);
+              if (filterResults.valid.length) {
+                const osOrder = {
+                  ...order.params,
+                  makerProtocolFee: "0",
+                  takerProtocolFee: "0",
+                  makerReferrerFee: "0",
+                  feeMethod: 1,
+                  quantity: "1",
+                  metadata: {
+                    asset: {
+                      id: data.tokenId,
+                      address: data.contract,
+                    },
+                    schema: "ERC721",
+                  },
+                  hash: order.hash(),
+                };
+
+                // Post order to OpenSea
+                await axios.post(
+                  `https://${
+                    config.chainId === 4 ? "testnets-api." : ""
+                  }opensea.io/wyvern/v1/orders/post`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "x-api-key": process.env.OPENSEA_API_KEY,
+                    },
+                    body: JSON.stringify(osOrder),
+                  }
+                );
+              } else {
+                const [{ orderInfo, reason }] = filterResults.invalid;
+                return {
+                  orders: {
+                    [orderInfo.order.prefixHash()]: reason,
+                  },
+                };
+              }
+
+              break;
+            } catch {
+              // Skip any invalid orders
+            }
           }
         }
       }

@@ -14,11 +14,10 @@ export type BuildOrderOptions = {
   collection?: string;
   attributeKey?: string;
   attributeValue?: string;
+  orderbook: string;
   maker: string;
   side: "buy" | "sell";
   price: string;
-  fee: number;
-  feeRecipient: string;
   listingTime?: number;
   expirationTime?: number;
   salt?: string;
@@ -34,8 +33,8 @@ export const buildOrder = async (options: BuildOrderOptions) => {
         options.side === "buy"
           ? Sdk.Common.Addresses.Weth[config.chainId]
           : Sdk.Common.Addresses.Eth[config.chainId],
-      fee: options.fee,
-      feeRecipient: options.feeRecipient,
+      fee: 0,
+      feeRecipient: options.maker,
       listingTime: options.listingTime,
       expirationTime: options.expirationTime,
       salt: options.salt,
@@ -44,6 +43,30 @@ export const buildOrder = async (options: BuildOrderOptions) => {
     let builder: BaseBuilder | undefined;
     if (options.contract && options.tokenId) {
       const { contract, tokenId } = options;
+
+      const royalty = await db.one(
+        `
+          select
+            "c"."royalty_bps",
+            "c"."royalty_recipient"
+          from "tokens" "t"
+          join "collections" "c"
+            on "t"."collection_id" = "c"."id"
+          where "t"."contract" = $/contract/
+            and "t"."token_id" = $/tokenId/
+        `,
+        { contract, tokenId }
+      );
+
+      if (royalty.royalty_bps && royalty.royalty_recipient) {
+        buildParams.fee = royalty.royalty_bps;
+        buildParams.feeRecipient = royalty.royalty_recipient;
+      }
+
+      if (options.orderbook === "opensea") {
+        buildParams.fee += 250;
+        buildParams.feeRecipient = "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073";
+      }
 
       const data = await db.oneOrNone(
         `
@@ -74,6 +97,27 @@ export const buildOrder = async (options: BuildOrderOptions) => {
       options.attributeValue
     ) {
       const { collection, attributeKey, attributeValue } = options;
+
+      const royalty = await db.one(
+        `
+          select
+            "c"."royalty_bps",
+            "c"."royalty_recipient"
+          from "collections" "c"
+          where "c"."id" = $/collection/
+        `,
+        { collection }
+      );
+
+      if (royalty.royalty_bps && royalty.royalty_recipient) {
+        buildParams.fee = royalty.royalty_bps;
+        buildParams.feeRecipient = royalty.royalty_recipient;
+      }
+
+      if (options.orderbook === "opensea") {
+        buildParams.fee += 250;
+        buildParams.feeRecipient = "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073";
+      }
 
       const data = await db.manyOrNone(
         `
@@ -119,6 +163,27 @@ export const buildOrder = async (options: BuildOrderOptions) => {
       !options.attributeValue
     ) {
       const { collection } = options;
+
+      const royalty = await db.one(
+        `
+          select
+            "c"."royalty_bps",
+            "c"."royalty_recipient"
+          from "collections" "c"
+          where "c"."id" = $/collection/
+        `,
+        { collection }
+      );
+
+      if (royalty.royalty_bps && royalty.royalty_recipient) {
+        buildParams.fee = royalty.royalty_bps;
+        buildParams.feeRecipient = royalty.royalty_recipient;
+      }
+
+      if (options.orderbook === "opensea") {
+        buildParams.fee += 250;
+        buildParams.feeRecipient = "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073";
+      }
 
       const data = await db.oneOrNone(
         `

@@ -1,10 +1,8 @@
-import { AddressZero } from "@ethersproject/constants";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
 import { bn } from "@/common/bignumber";
-import { db } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
@@ -27,12 +25,12 @@ export const getExecuteBidOptions: RouteOptions = {
         .pattern(/^0x[a-f0-9]{40}$/)
         .required(),
       price: Joi.string().required(),
-      fee: Joi.alternatives(Joi.string(), Joi.number()).required(),
-      feeRecipient: Joi.string()
-        .lowercase()
-        .pattern(/^0x[a-f0-9]{40}$/)
-        .disallow(AddressZero)
-        .required(),
+      orderbook: Joi.string()
+        .valid("reservoir", "opensea")
+        .default("reservoir"),
+      v: Joi.number(),
+      r: Joi.string().pattern(/^0x[a-f0-9]{64}$/),
+      s: Joi.string().pattern(/^0x[a-f0-9]{64}$/),
       listingTime: Joi.alternatives(Joi.string(), Joi.number()),
       expirationTime: Joi.alternatives(Joi.string(), Joi.number()),
       salt: Joi.string(),
@@ -49,10 +47,13 @@ export const getExecuteBidOptions: RouteOptions = {
           action: Joi.string().required(),
           description: Joi.string().required(),
           status: Joi.string().valid("complete", "incomplete").required(),
-          kind: Joi.string().valid("order-signature", "transaction").required(),
+          kind: Joi.string()
+            .valid("request", "signature", "transaction")
+            .required(),
           data: Joi.any(),
         })
       ),
+      query: Joi.any(),
       error: Joi.string(),
     }).label("getExecuteBidResponse"),
     failAction: (_request, _h, error) => {
@@ -109,6 +110,8 @@ export const getExecuteBidOptions: RouteOptions = {
         );
       }
 
+      const hasSignature = query.v && query.r && query.s;
+
       return {
         steps: [
           {
@@ -128,28 +131,59 @@ export const getExecuteBidOptions: RouteOptions = {
           {
             action: "Signing order",
             description: "Signing order",
+            status: hasSignature ? "complete" : "incomplete",
+            kind: "signature",
+            data: hasSignature
+              ? undefined
+              : {
+                  message: order.hash(),
+                  signatureKind: "eip191",
+                },
+          },
+          {
+            action: "Relaying order",
+            description: "Relaying order",
             status: "incomplete",
-            kind: "order-signature",
-            data: {
-              message: {
-                kind: "eip191",
-                value: order.hash(),
-              },
-              order: {
-                kind: "wyvern-v2",
-                data: order.params,
-                attribute:
-                  query.collection && query.attributeKey && query.attributeValue
-                    ? {
-                        collection: query.collection,
-                        key: query.attributeKey,
-                        value: query.attributeValue,
-                      }
-                    : undefined,
-              },
-            },
+            kind: "request",
+            data: !hasSignature
+              ? undefined
+              : {
+                  endpoint: "/orders",
+                  method: "POST",
+                  body: {
+                    orders: [
+                      {
+                        kind: "wyvern-v2",
+                        orderbook: query.orderbook,
+                        data: {
+                          ...order.params,
+                          v: query.v,
+                          r: query.r,
+                          s: query.s,
+                          contract: query.contract,
+                          tokenId: query.tokenId,
+                        },
+                        attribute:
+                          query.collection &&
+                          query.attributeKey &&
+                          query.attributeValue
+                            ? {
+                                collection: query.collection,
+                                key: query.attributeKey,
+                                value: query.attributeValue,
+                              }
+                            : undefined,
+                      },
+                    ],
+                  },
+                },
           },
         ],
+        query: {
+          listingTime: order.params.listingTime,
+          expirationTime: order.params.expirationTime,
+          salt: order.params.salt,
+        },
       };
     } catch (error) {
       logger.error("get_execute_bid_handler", `Handler failure: ${error}`);
