@@ -78,6 +78,16 @@ export const getExecuteCancelOptions: RouteOptions = {
             kind: "transaction",
             data: cancelTx,
           },
+          {
+            action: "Confirmation",
+            description: "Confirmation",
+            status: "incomplete",
+            kind: "confirmation",
+            data: {
+              endpoint: `/orders/executed?hash=${order.prefixHash()}`,
+              method: "GET",
+            },
+          },
         ],
       };
     } catch (error) {
