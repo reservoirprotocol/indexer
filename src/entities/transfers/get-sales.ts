@@ -140,8 +140,6 @@ export const getSales = async (
       block: r.block,
       timestamp: r.timestamp,
       price: r.price ? formatEth(r.price) : null,
-      tokenSetId: r.token_set_id || null,
-      schema: r.schema || null,
     }))
   );
 };
