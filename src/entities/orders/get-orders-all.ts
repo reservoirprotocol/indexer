@@ -1,11 +1,14 @@
 import { formatEth } from "@/common/bignumber";
 import { db } from "@/common/db";
+import PgPromise from "pg-promise";
 
 export type GetOrdersAllFilter = {
   side?: "sell" | "buy";
   sortDirection: "asc" | "desc";
   continuation?: string;
   limit: number;
+  startTime?: number;
+  endTime?: number;
 };
 
 export type GetOrdersAllResponse = {
@@ -71,6 +74,14 @@ export const getOrdersAll = async (
     );
   }
 
+  if (filter.startTime) {
+    conditions.push(`"o"."created_at" >= $/startTime/`);
+  }
+
+  if (filter.endTime) {
+    conditions.push(`"o"."created_at" <= $/endTime/`);
+  }
+
   if (conditions.length) {
     baseQuery += " where " + conditions.map((c) => `(${c})`).join(" and ");
   }
@@ -84,6 +95,9 @@ export const getOrdersAll = async (
 
   // Pagination
   baseQuery += ` limit $/limit/`;
+
+  const query = PgPromise.as.format(baseQuery, filter);
+  console.log(query);
 
   const orders = await db.manyOrNone(baseQuery, filter).then((result) =>
     result.map((r) => ({
@@ -104,6 +118,7 @@ export const getOrdersAll = async (
       rawData: r.raw_data,
     }))
   );
+
 
   let continuation = null;
   if (orders.length === filter.limit) {
