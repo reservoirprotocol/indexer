@@ -1,6 +1,5 @@
 import { formatEth } from "@/common/bignumber";
 import { db } from "@/common/db";
-import PgPromise from "pg-promise";
 
 export type GetOrdersAllFilter = {
   side?: "sell" | "buy";
@@ -95,9 +94,6 @@ export const getOrdersAll = async (
 
   // Pagination
   baseQuery += ` limit $/limit/`;
-
-  const query = PgPromise.as.format(baseQuery, filter);
-  console.log(query);
 
   const orders = await db.manyOrNone(baseQuery, filter).then((result) =>
     result.map((r) => ({
