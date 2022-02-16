@@ -17,8 +17,13 @@ export const getOrdersAllOptions: RouteOptions = {
         .default("asc"),
       continuation: Joi.string().pattern(/^\d+_0x[a-f0-9]{64}$/),
       limit: Joi.number().integer().min(1).max(1000).default(50),
-      startTime: Joi.date().timestamp("unix"),
-      endTime: Joi.date().timestamp("unix").min(Joi.ref('startTime')),
+      startTime: Joi.date()
+        .timestamp("unix")
+        .description("Needs to be a unix timestamp"),
+      endTime: Joi.date()
+        .timestamp("unix")
+        .min(Joi.ref('startTime'))
+        .description("Needs to be a unix timestamp and must be a later timestamp than startTime"),
     }),
   },
   response: {
