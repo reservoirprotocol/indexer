@@ -116,7 +116,9 @@ export const getUserCollectionsV1Options: RouteOptions = {
               id: r.id,
               name: r.name,
               metadata: r.metadata,
-              floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+              floorAskPrice: r.floor_sell_value
+                ? formatEth(r.floor_sell_value)
+                : null,
               topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
             },
             ownership: {
