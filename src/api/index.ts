@@ -60,10 +60,9 @@ export const start = async (): Promise<void> => {
     routes: { prefix: "/admin/bullmq" },
   });
 
-  const apiDescription = `
-    You are viewing the reference docs for the Reservoir API.
-    For a more complete overview with guides and examples, check out the <a href='https://reservoirprotocol.github.io'>Reservoir Protocol Docs</a>.
-  `;
+  const apiDescription = "You are viewing the reference docs for the Reservoir API.\n\
+    \n\
+    For a more complete overview with guides and examples, check out the <a href='https://reservoirprotocol.github.io'>Reservoir Protocol Docs</a>.";
 
   await server.register([
     {
@@ -97,6 +96,20 @@ export const start = async (): Promise<void> => {
           version: require("../../package.json").version,
           description: apiDescription,
         },
+        tags: [
+          {
+            name: "1. Order Book",
+            description: "Read & write raw orders from Reservoir's decentralized order book"
+          },
+          {
+            name: "2. Liquidity",
+            description: "Read & write orders to Reservoir's decentralized order book"
+          },
+          {
+            name: "3. Router",
+            description: "Generate the necessary steps to buy or sell any token"
+          }
+        ]
       },
     },
   ]);

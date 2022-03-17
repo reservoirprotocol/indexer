@@ -16,7 +16,7 @@ const version = "v1";
 
 export const getExecuteBuyV1Options: RouteOptions = {
   description: "Get steps required to accept a sell order (eg. buy an item).",
-  tags: ["api", "execute"],
+  tags: ["api", "3. Router"],
   validate: {
     query: Joi.object({
       token: Joi.string()

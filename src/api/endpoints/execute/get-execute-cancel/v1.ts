@@ -14,7 +14,7 @@ const version = "v1";
 
 export const getExecuteCancelV1Options: RouteOptions = {
   description: "Get steps required to cancel an order.",
-  tags: ["api", "execute"],
+  tags: ["api", "3. Router"],
   validate: {
     query: Joi.object({
       id: Joi.string().required(),
