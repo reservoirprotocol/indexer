@@ -1,4 +1,4 @@
-// Initialize all background job queues and crons
+// Initialize all background job queues and crons.
 
 import "@/jobs/arweave-relay";
 import "@/jobs/arweave-sync";
@@ -12,7 +12,7 @@ import "@/jobs/orderbook";
 import "@/jobs/token-updates";
 import "@/jobs/daily-volumes";
 
-// Export all job queues for monitoring through the UI
+// Export all job queues for monitoring through the UI.
 
 import * as arweaveSyncBackfill from "@/jobs/arweave-sync/backfill-queue";
 import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
@@ -21,7 +21,7 @@ import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncFtTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/ft-transfers";
 import * as eventsSyncNftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as metadataIndexFast from "@/jobs/metadata-index/fast-queue";
+import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 import * as orderFixes from "@/jobs/order-fixes/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
@@ -39,7 +39,7 @@ export const allJobQueues = [
   eventsSyncFtTransfersWriteBuffer.queue,
   eventsSyncNftTransfersWriteBuffer.queue,
   fillUpdates.queue,
-  metadataIndexFast.queue,
+  metadataIndexFetch.queue,
   metadataIndexWrite.queue,
   orderFixes.queue,
   orderUpdatesById.queue,

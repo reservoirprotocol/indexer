@@ -138,6 +138,8 @@ export const getCollectionV1Options: RouteOptions = {
         baseQuery += ` WHERE "c"."slug" = $/collectionOrSlug/`;
       }
 
+      baseQuery += ` LIMIT 1`;
+
       baseQuery = `
         WITH "x" AS (${baseQuery})
         SELECT

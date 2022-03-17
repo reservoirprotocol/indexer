@@ -7,6 +7,7 @@ CREATE TABLE "collections" (
   "metadata" JSONB,
   "royalties" JSONB,
   "community" TEXT,
+  "index_metadata" BOOLEAN,
   "contract" BYTEA NOT NULL,
   "token_id_range" NUMRANGE NOT NULL,
   "token_set_id" TEXT,

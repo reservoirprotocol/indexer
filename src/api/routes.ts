@@ -9,6 +9,7 @@ import * as collectionsEndpoints from "@/api/endpoints/collections";
 import * as healthEndpoints from "@/api/endpoints/health";
 import * as ordersEndpoints from "@/api/endpoints/orders";
 import * as ownersEndpoints from "@/api/endpoints/owners";
+import * as statsEndpoints from "@/api/endpoints/stats";
 import * as tokensEndpoints from "@/api/endpoints/tokens";
 import * as transfersEndpoints from "@/api/endpoints/transfers";
 
@@ -17,8 +18,8 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
-    path: "/admin/fast-metadata-index",
-    options: adminEndpoints.postFastMetadataIndexOptions,
+    path: "/admin/index-metadata",
+    options: adminEndpoints.postMetadataIndexOptions,
   });
 
   server.route({
@@ -111,8 +112,32 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/execute/bid/v1",
+    options: executeEndpoints.getExecuteBidV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/execute/buy/v1",
+    options: executeEndpoints.getExecuteBuyV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/execute/cancel/v1",
+    options: executeEndpoints.getExecuteCancelV1Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/execute/list/v1",
     options: executeEndpoints.getExecuteListV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/execute/sell/v1",
+    options: executeEndpoints.getExecuteSellV1Options,
   });
 
   // Orders
@@ -131,8 +156,26 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/orders/executed/v1",
+    options: ordersEndpoints.getOrderExecutedV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/users/{user}/positions/v1",
+    options: ordersEndpoints.getUserPositionsV1Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/liquidity/users/v1",
     options: ordersEndpoints.getUsersLiquidityV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/order/v1",
+    options: ordersEndpoints.postOrderV1Options,
   });
 
   server.route({
@@ -147,6 +190,14 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/owners/v1",
     options: ownersEndpoints.getOwnersV1Options,
+  });
+
+  // Stats
+
+  server.route({
+    method: "GET",
+    path: "/stats/v1",
+    options: statsEndpoints.getStatsV1Options,
   });
 
   // Tokens
@@ -197,8 +248,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/sales/v3",
+    options: transfersEndpoints.getSalesV3Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/transfers/v1",
     options: transfersEndpoints.getTransfersV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/transfers/v2",
+    options: transfersEndpoints.getTransfersV2Options,
   });
 
   // Health

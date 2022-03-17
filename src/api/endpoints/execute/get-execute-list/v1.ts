@@ -58,7 +58,7 @@ export const getExecuteListV1Options: RouteOptions = {
           kind: Joi.string()
             .valid("request", "signature", "transaction")
             .required(),
-          data: Joi.any(),
+          data: Joi.object(),
         })
       ),
       query: Joi.object(),
@@ -94,26 +94,30 @@ export const getExecuteListV1Options: RouteOptions = {
           action: "Initialize wallet",
           description:
             "A one-time setup transaction to enable trading with the Wyvern Protocol (used by Open Sea)",
+          kind: "transaction",
         },
         {
           action: "Approve NFT contract",
           description:
             "Each NFT collection you want to trade requires a one-time approval transaction",
+          kind: "transaction",
         },
         {
           action: "Authorize listing",
           description: "A free off-chain signature to create the listing",
+          kind: "signature",
         },
         {
           action: "Submit listing",
           description:
             "Post your listing to the order book for others to discover it",
+          kind: "request",
         },
       ];
 
       // Check the order's fillability
       try {
-        await offChainCheck(order, orderInfo);
+        await offChainCheck(order, { onChainSellApprovalRecheck: true });
       } catch (error: any) {
         switch (error.message) {
           case "no-balance": {
@@ -137,23 +141,19 @@ export const getExecuteListV1Options: RouteOptions = {
                 {
                   ...steps[0],
                   status: "incomplete",
-                  kind: "transaction",
                   data: proxyRegistrationTx,
                 },
                 {
                   ...steps[1],
                   status: "incomplete",
-                  kind: "transaction",
                 },
                 {
                   ...steps[2],
                   status: "incomplete",
-                  kind: "signature",
                 },
                 {
                   ...steps[3],
                   status: "incomplete",
-                  kind: "request",
                 },
               ],
             };
@@ -184,23 +184,19 @@ export const getExecuteListV1Options: RouteOptions = {
                 {
                   ...steps[0],
                   status: "complete",
-                  kind: "transaction",
                 },
                 {
                   ...steps[1],
                   status: "incomplete",
-                  kind: "transaction",
                   data: approvalTx,
                 },
                 {
                   ...steps[2],
                   status: "incomplete",
-                  kind: "signature",
                 },
                 {
                   ...steps[3],
                   status: "incomplete",
-                  kind: "request",
                 },
               ],
             };
@@ -215,23 +211,19 @@ export const getExecuteListV1Options: RouteOptions = {
           {
             ...steps[0],
             status: "complete",
-            kind: "transaction",
           },
           {
             ...steps[1],
             status: "complete",
-            kind: "transaction",
           },
           {
             ...steps[2],
             status: hasSignature ? "complete" : "incomplete",
-            kind: "signature",
             data: hasSignature ? undefined : order.getSignatureData(),
           },
           {
             ...steps[3],
             status: "incomplete",
-            kind: "request",
             data: !hasSignature
               ? undefined
               : {
@@ -240,8 +232,6 @@ export const getExecuteListV1Options: RouteOptions = {
                   body: {
                     order: {
                       kind: "wyvern-v2.3",
-                      orderbook: query.orderbook,
-                      source: query.source,
                       data: {
                         ...order.params,
                         v: query.v,
@@ -249,6 +239,8 @@ export const getExecuteListV1Options: RouteOptions = {
                         s: query.s,
                       },
                     },
+                    orderbook: query.orderbook,
+                    source: query.source,
                   },
                 },
           },

@@ -35,6 +35,19 @@ if (config.doBackgroundWork) {
       const { context, maker, trigger, data } = job.data as MakerInfo;
 
       try {
+        // TODO: Right now, it is assumed all results from the below queries
+        // are small enough so that they can be retrieved in one go. This is
+        // not going to hold for much longer so we should change the flow to
+        // use keyset pagination (eg. get a batch of affected orders, handle
+        // them, and then trigger the next batch). While sell side approvals
+        // or balances will fit in a single batch in all cases, results from
+        // the buy side can potentially span multiple batches (eg. checks on
+        // the sell side will handle all of a maker's sell orders on exactly
+        // a SINGLE TOKEN, while checks on the buy side will handle all of a
+        // maker's buy orders on ALL TOKENS / TOKEN SETS - so buy side check
+        // can potentially be more prone to not being able to handle all the
+        // affected orders in a single batch).
+
         switch (data.kind) {
           case "buy-balance": {
             const fillabilityStatuses = await idb.manyOrNone(

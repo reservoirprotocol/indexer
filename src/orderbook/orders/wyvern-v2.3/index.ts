@@ -53,9 +53,6 @@ export const save = async (
       }
 
       // Check: order doesn't already exist
-      // TODO: We should probably store any missing information
-      // for the orders that are cancelled or filled (these can
-      // be missing the order details).
       const orderExists = await idb.oneOrNone(
         `SELECT 1 FROM "orders" "o" WHERE "o"."id" = $/id/`,
         { id }
@@ -150,7 +147,7 @@ export const save = async (
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
       try {
-        await offChainCheck(order, info);
+        await offChainCheck(order, { onChainSellApprovalRecheck: true });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         // Keep any orders that can potentially get valid in the future

@@ -8,6 +8,7 @@ import { toBuffer } from "@/common/utils";
 export type TokenSet = {
   id: string;
   schemaHash: string;
+  // Not currently used (the token set id is a good enough schema)
   schema?: object;
   contract: string;
   startTokenId: string;
@@ -54,16 +55,32 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
     const { id, schemaHash, schema, contract, startTokenId, endTokenId } =
       tokenSet;
     try {
+      // Make sure an associated collection exists
+      const collectionResult = await idb.oneOrNone(
+        `
+          SELECT "id" FROM "collections"
+          WHERE "id" = $/id/
+        `,
+        {
+          id: `${contract}:${startTokenId}:${endTokenId}`,
+        }
+      );
+      if (!collectionResult) {
+        continue;
+      }
+
       queries.push({
         query: `
           INSERT INTO "token_sets" (
             "id",
             "schema_hash",
-            "schema"
+            "schema",
+            "collection_id"
           ) VALUES (
             $/id/,
             $/schemaHash/,
-            $/schema:json/
+            $/schema:json/,
+            $/collection/
           )
           ON CONFLICT DO NOTHING
         `,
@@ -71,6 +88,7 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
           id,
           schemaHash: toBuffer(schemaHash),
           schema,
+          collection: collectionResult.id,
         },
       });
 

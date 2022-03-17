@@ -4,7 +4,25 @@ import { config } from "@/config/index";
 
 // Optional metadata associated to an order
 export type OrderMetadata = {
+  // For now, only attribute orders will have an associated schema.
+  // The other order kinds only have a single possible schema that
+  // can be attached to them:
+  // - single-token -> order on a single token
+  // - token-range / contract-wide -> order on a full collection
+  schema?: {
+    kind: "attribute";
+    data: {
+      collection: string;
+      attributes: [
+        {
+          key: string;
+          value: string;
+        }
+      ];
+    };
+  };
   schemaHash?: string;
+  source?: string;
 };
 
 export const defaultSchemaHash = HashZero;

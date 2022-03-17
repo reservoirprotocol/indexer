@@ -179,11 +179,13 @@ if (config.doBackgroundWork) {
               }
             );
           } else if (data.side === "buy") {
-            // TODO: Updating the caches of a few tens of thousands of tokens
-            // can potentially be quite expensive to be done all at once. For
-            // this reason, it might be worthwhile to look into other ways of
-            // doing it, like updating each token individually or running the
-            // updates in fixed-size batches.
+            // TODO: Use keyset pagination (via multiple jobs) to handle token
+            // cache updates in batches - only relevant for orders that are on
+            // token sets with lots of tokens (eg. contract, range, list). The
+            // reason for it is that updating tens of thousands of token cache
+            // entries all at once can be quite expensive (eg. queries running
+            // for 1-2 minutes) and this doesn't scale.
+
             await idb.none(
               `
                 WITH "z" AS (

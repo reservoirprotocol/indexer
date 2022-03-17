@@ -27,9 +27,6 @@ export const getUserTokensV2Options: RouteOptions = {
       contract: Joi.string()
         .lowercase()
         .pattern(/^0x[a-f0-9]{40}$/),
-      hasOffer: Joi.boolean(),
-      sortBy: Joi.string().valid("topBuyValue"),
-      sortDirection: Joi.string().lowercase().valid("asc", "desc"),
       offset: Joi.number().integer().min(0).max(10000).default(0),
       limit: Joi.number().integer().min(1).max(20).default(20),
     }),
@@ -72,62 +69,55 @@ export const getUserTokensV2Options: RouteOptions = {
     const params = request.params as any;
     const query = request.query as any;
 
+    // Filters
+    (params as any).user = toBuffer(params.user);
+    (params as any).offset = query.offset;
+    (params as any).limit = query.limit;
+
+    let communityFilter = "";
+    if (query.community) {
+      (params as any).community = query.community;
+      communityFilter = `AND c.community = $/community/`;
+    }
+
+    let collectionFilter = "";
+    if (query.collection) {
+      (params as any).collection = query.collection;
+      collectionFilter = `AND t.collection_id = $/collection/`;
+    }
+
     try {
-      let baseQuery = `
-        SELECT  tokens.contract,
-                tokens.token_id,
-                tokens.name,
-                tokens.image,
-                tokens.collection_id,
-                tokens.floor_sell_id,
-                tokens.top_buy_id,
-                tokens.top_buy_value,
-                nft_balances.amount as token_count,
-                nft_balances.amount * tokens.top_buy_value AS total_buy_value,
-                collections.name as collection_name,
-                (
-                  CASE WHEN tokens.floor_sell_value IS NOT NULL
-                  THEN 1
-                  ELSE 0
-                  END
-                ) AS on_sale_count
-        FROM nft_balances
-        JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id
-        JOIN collections ON nft_balances.contract = collections.contract
+      const baseQuery = `
+        SELECT  b.contract, b.token_id, b.token_count, t.name,
+               t.image, t.collection_id, t.floor_sell_id, t.top_buy_id,
+               t.top_buy_value, t.total_buy_value, c.name as collection_name,
+               (
+                    CASE WHEN t.floor_sell_value IS NOT NULL
+                    THEN 1
+                    ELSE 0
+                    END
+               ) AS on_sale_count
+        FROM (
+            SELECT amount AS token_count, token_id, contract
+            FROM nft_balances
+            WHERE owner =  $/user/
+            AND amount > 0
+          ) AS b
+          JOIN LATERAL (
+            SELECT t.token_id, t.name, t.image, t.collection_id,
+               t.floor_sell_id, t.top_buy_id, t.top_buy_value,
+               t.floor_sell_value, b.token_count * t.top_buy_value AS total_buy_value
+            FROM tokens t
+            WHERE b.token_id = t.token_id
+            AND b.contract = t.contract
+            ${collectionFilter}
+            ORDER BY t.top_buy_value DESC NULLS LAST
+          ) t ON TRUE
+          JOIN collections c ON c.contract = b.contract
+          ${communityFilter}
+        OFFSET $/offset/
+        LIMIT $/limit/
       `;
-
-      // Filters
-      (params as any).user = toBuffer(params.user);
-      const conditions: string[] = [
-        `nft_balances.owner = $/user/`,
-        `nft_balances.amount > 0`,
-      ];
-
-      if (query.community) {
-        conditions.push(`collections.community = $/community/`);
-      }
-
-      if (query.collection) {
-        conditions.push(`tokens.collection_id = $/collection/`);
-      }
-
-      if (query.hasOffer) {
-        conditions.push(`tokens.top_buy_value IS NOT NULL`);
-      }
-
-      if (conditions.length) {
-        baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
-      }
-
-      baseQuery += `ORDER BY nft_balances.contract,
-                             nft_balances.token_id`;
-
-      // Pagination
-      baseQuery += ` OFFSET $/offset/`;
-      baseQuery += ` LIMIT $/limit/`;
-
-      // PgPromise.as.format(baseQuery, params);
-      // console.log(query);
 
       const result = await edb
         .manyOrNone(baseQuery, { ...query, ...params })

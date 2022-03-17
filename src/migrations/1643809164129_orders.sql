@@ -56,8 +56,8 @@ CREATE INDEX "orders_token_set_id_side_value_maker_index"
   INCLUDE ("id")
   WHERE ("fillability_status" = 'fillable' AND "approval_status" = 'approved');
 
-CREATE INDEX "orders_maker_side_index"
-  ON "orders" ("maker", "side")
+CREATE INDEX "orders_maker_side__token_set_id_index"
+  ON "orders" ("maker", "side", "token_set_id")
   INCLUDE ("id")
   WHERE ("fillability_status" = 'fillable' OR "fillability_status" = 'no-balance');
 
@@ -73,6 +73,10 @@ CREATE INDEX "orders_kind_maker_nonce_index"
 CREATE INDEX "orders_created_at_id_side_index"
   ON "orders" ("created_at", "id", "side")
   WHERE ("fillability_status" = 'fillable' AND "approval_status" = 'approved');
+
+CREATE INDEX "orders_maker_side_token_set_id_expiration"
+  ON "orders" ("maker", "side", "token_set_id", "expiration" DESC)
+  WHERE ("fillability_status" != 'fillable' OR "approval_status" != 'approved');
 
 -- https://www.lob.com/blog/supercharge-your-postgresql-performance
 -- https://klotzandrew.com/blog/posgres-per-table-autovacuum-management

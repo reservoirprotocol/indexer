@@ -38,13 +38,13 @@ if (config.doBackgroundWork) {
       try {
         switch (by) {
           case "all": {
-            // WARNING! This is a very slow process!
-            // Use keyset pagination on `maker_id` to iterate through all of
-            // the potentially valid orders (eg. 'fillable' or 'no-balance')
+            // WARNING! This is a very slow process! Use keyset pagination on
+            // `maker_id` to iterate through all potentially valid orders (eg.
+            // 'fillable' or 'no-balance').
 
-            const { kind, side, continuation } = data;
+            const { kind, continuation } = data;
 
-            if (kind === "balance" && side === "sell") {
+            if (kind === "sell-balance") {
               let makerContinuation = toBuffer(AddressZero);
               let idContinuation = HashZero;
               if (continuation) {
@@ -104,7 +104,7 @@ if (config.doBackgroundWork) {
               );
 
               if (result) {
-                // Update any wrong caches
+                // Update any wrong caches.
                 const orderIds: string[] = result.order_ids || [];
                 await orderUpdatesById.addToQueue(
                   orderIds.map(
@@ -119,7 +119,7 @@ if (config.doBackgroundWork) {
                   )
                 );
 
-                // Trigger the next job if we still have orders to process
+                // Trigger the next job if we still have orders to process.
                 const count = Number(result.count);
                 if (count === limit) {
                   const maker = fromBuffer(result.maker);
@@ -127,7 +127,10 @@ if (config.doBackgroundWork) {
                   await addToQueue([
                     {
                       by: "all",
-                      data: { kind, side, continuation: `${maker}_${id}` },
+                      data: {
+                        kind,
+                        continuation: `${maker}_${id}`,
+                      },
                     },
                   ]);
                 }
@@ -154,11 +157,13 @@ if (config.doBackgroundWork) {
                     result.raw_data
                   );
 
-                  // Check whether the order is not fillable or not approved
+                  // Check whether the order is not fillable or not approved.
                   let fillabilityStatus = "fillable";
                   let approvalStatus = "approved";
                   try {
-                    await wyvernV23Check.offChainCheck(order, order.getInfo()!);
+                    await wyvernV23Check.offChainCheck(order, {
+                      onChainSellApprovalRecheck: true,
+                    });
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   } catch (error: any) {
                     if (error.message === "no-balance") {
@@ -185,7 +190,7 @@ if (config.doBackgroundWork) {
                   );
 
                   if (fixResult) {
-                    // Update any wrong caches
+                    // Update any wrong caches.
                     await orderUpdatesById.addToQueue([
                       {
                         context: `revalidation-${Date.now()}-${fixResult.id}`,
@@ -206,7 +211,7 @@ if (config.doBackgroundWork) {
           }
 
           case "maker": {
-            // Trigger a fix for all of the maker's potentially valid orders
+            // Trigger a fix for all of the maker's potentially valid orders.
             const result = await idb.manyOrNone(
               `
                 SELECT "o"."id" FROM "orders" "o"
@@ -217,9 +222,40 @@ if (config.doBackgroundWork) {
             );
 
             if (result) {
-              for (const { id } of result) {
-                await addToQueue([{ by: "id", data: { id } }]);
-              }
+              await addToQueue(
+                result.map(({ id }) => ({ by: "id", data: { id } }))
+              );
+            }
+
+            break;
+          }
+
+          case "contract": {
+            // Trigger a fix for all of the contract's potentially valid orders.
+            // WARNING! In order to have this executed efficiently we should set
+            // an additional index on the `orders` table (for now missing due to
+            // maintenance overhead):
+            // ```
+            //   CREATE INDEX CONCURRENTLY "orders_token_set_id_index"
+            //     ON "orders" ("token_set_id")
+            //     WHERE ("fillability_status" = 'fillable' OR "fillability_status" = 'no-balance');
+            // ```
+
+            const result = await idb.manyOrNone(
+              `
+                SELECT "o"."id" FROM "orders" "o"
+                JOIN "token_sets_tokens" "tst"
+                  ON "o"."token_set_id" = "tst"."token_set_id"
+                WHERE "tst"."contract" = $/contract/
+                  AND ("o"."fillability_status" = 'fillable' OR "o"."fillability_status" = 'no-balance')
+              `,
+              { contract: toBuffer(data.contract) }
+            );
+
+            if (result) {
+              await addToQueue(
+                result.map(({ id }) => ({ by: "id", data: { id } }))
+              );
             }
 
             break;
@@ -246,8 +282,7 @@ export type OrderFixInfo =
   | {
       by: "all";
       data: {
-        kind: "balance";
-        side: "sell";
+        kind: "sell-balance";
         continuation?: string;
       };
     }
@@ -261,6 +296,12 @@ export type OrderFixInfo =
       by: "maker";
       data: {
         maker: string;
+      };
+    }
+  | {
+      by: "contract";
+      data: {
+        contract: string;
       };
     };
 

@@ -19,15 +19,34 @@ export const postFixOrdersOptions: RouteOptions = {
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     payload: Joi.object({
-      id: Joi.string(),
+      by: Joi.string().valid("id", "maker", "contract", "all").required(),
+      id: Joi.string().when("by", {
+        is: "id",
+        then: Joi.required(),
+        otherwise: Joi.forbidden(),
+      }),
       maker: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-f0-9]{40}$/),
-      kind: Joi.string().valid("balance"),
-      side: Joi.string().valid("sell"),
-    })
-      .or("id", "maker", "kind")
-      .with("kind", "side"),
+        .pattern(/^0x[a-f0-9]{40}$/)
+        .when("by", {
+          is: "maker",
+          then: Joi.required(),
+          otherwise: Joi.forbidden(),
+        }),
+      contract: Joi.string()
+        .lowercase()
+        .pattern(/^0x[a-f0-9]{40}$/)
+        .when("by", {
+          is: "contract",
+          then: Joi.required(),
+          otherwise: Joi.forbidden(),
+        }),
+      kind: Joi.string().valid("sell-balance").when("by", {
+        is: "all",
+        then: Joi.required(),
+        otherwise: Joi.forbidden(),
+      }),
+    }),
   },
   handler: async (request: Request) => {
     if (request.headers["x-admin-api-key"] !== config.adminApiKey) {
@@ -37,20 +56,21 @@ export const postFixOrdersOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      const id = payload.id;
-      const maker = payload.maker;
-      const kind = payload.kind;
-      const side = payload.side;
+      const by = payload.by;
 
-      if (id) {
-        await orderFixes.addToQueue([{ by: "id", data: { id } }]);
-      } else if (maker) {
-        await orderFixes.addToQueue([{ by: "maker", data: { maker } }]);
-      } else if (kind && side) {
+      if (by === "id") {
+        await orderFixes.addToQueue([{ by, data: { id: payload.id } }]);
+      } else if (by === "maker") {
+        await orderFixes.addToQueue([{ by, data: { maker: payload.maker } }]);
+      } else if (by === "contract") {
+        await orderFixes.addToQueue([
+          { by, data: { contract: payload.contract } },
+        ]);
+      } else if (by === "all") {
         await orderFixes.addToQueue([
           {
-            by: "all",
-            data: { kind, side },
+            by,
+            data: { kind: payload.kind },
           },
         ]);
       }

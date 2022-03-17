@@ -13,7 +13,7 @@ export const getUserTokensV1Options: RouteOptions = {
   description: "User tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
-  tags: ["api", "users"],
+  tags: ["api", "x-deprecated"],
   validate: {
     params: Joi.object({
       user: Joi.string()

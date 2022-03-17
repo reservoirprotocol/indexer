@@ -42,7 +42,7 @@ export const getUserCollectionsV1Options: RouteOptions = {
               externalUrl: Joi.string().allow(null),
               bannerImageUrl: Joi.string().allow(null),
               twitterUsername: Joi.string().allow(null),
-            }),
+            }).allow(null),
             floorAskPrice: Joi.number().unsafe().allow(null),
             topBidValue: Joi.number().unsafe().allow(null),
           }),

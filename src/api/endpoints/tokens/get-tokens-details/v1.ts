@@ -220,20 +220,11 @@ export const getTokensDetailsV1Options: RouteOptions = {
         });
 
         for (let i = 0; i < attributes.length; i++) {
-          (query as any)[`key${i}`] = attributes[i].key;
-          (query as any)[`value${i}`] = attributes[i].value;
+          (query as any)[
+            `attribute${i}`
+          ] = `${attributes[i].key},${attributes[i].value}`;
           conditions.push(`
-            EXISTS (
-              SELECT FROM "token_attributes" "ta"
-              JOIN "attributes" "a"
-                ON "ta"."attribute_id" = "a"."id"
-              JOIN "attribute_keys" "ak"
-                ON "a"."attribute_key_id" = "ak"."id"
-              WHERE "ta"."contract" = "t"."contract"
-                AND "ta"."token_id" = "t"."token_id"
-                AND "ak"."key" = $/key${i}/
-                AND "a"."value" = $/value${i}/
-            )
+            "t"."attributes" ? $/attribute${i}/
           `);
         }
       }

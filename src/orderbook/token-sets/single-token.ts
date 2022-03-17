@@ -8,6 +8,7 @@ import { toBuffer } from "@/common/utils";
 export type TokenSet = {
   id: string;
   schemaHash: string;
+  // Not currently used (the token set id is a good enough schema)
   schema?: object;
   contract: string;
   tokenId: string;
