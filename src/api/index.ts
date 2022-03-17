@@ -99,15 +99,19 @@ export const start = async (): Promise<void> => {
         tags: [
           {
             name: "1. Order Book",
-            description: "Read & write raw orders from Reservoir's decentralized order book"
+            description: "Distribute orders through Reservoir's decentralized order book"
           },
           {
-            name: "2. Liquidity",
-            description: "Read & write orders to Reservoir's decentralized order book"
+            name: "2. Price Feeds",
+            description: "Feed real-time aggregate liquidity into your "
           },
           {
             name: "3. Router",
             description: "Generate the necessary steps to buy or sell any token"
+          },
+          {
+            name: "4. NFT API",
+            description: "Build a complete application with rich NFT endpoints"
           }
         ]
       },
