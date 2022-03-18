@@ -14,7 +14,7 @@ export const getTokensDetailsV1Options: RouteOptions = {
   description: "Tokens with metadata",
   notes:
     "Get a list of tokens with full metadata. This is useful for showing a single token page, or scenarios that require more metadata. If you don't need this metadata, you should use the <a href='#/tokens/getTokensV1'>tokens</a> API, which is much faster.",
-  tags: ["api", "tokens"],
+  tags: ["api", "x-deprecated"],
   validate: {
     query: Joi.object({
       collection: Joi.string()

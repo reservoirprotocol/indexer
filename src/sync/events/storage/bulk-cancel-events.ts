@@ -130,6 +130,8 @@ export const removeEvents = async (blockHash: string) => {
   // knew, it might mess up other higher-level order processes.
   await idb.any(
     `DELETE FROM "bulk_cancel_events" WHERE "block_hash" = $/blockHash/`,
-    { blockHash: toBuffer(blockHash) }
+    {
+      blockHash: toBuffer(blockHash),
+    }
   );
 };

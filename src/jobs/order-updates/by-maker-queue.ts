@@ -88,7 +88,9 @@ if (config.doBackgroundWork) {
             if (values.length) {
               const columns = new pgp.helpers.ColumnSet(
                 ["id", "fillability_status", "expiration"],
-                { table: "orders" }
+                {
+                  table: "orders",
+                }
               );
 
               await idb.none(
@@ -163,7 +165,9 @@ if (config.doBackgroundWork) {
             if (values.length) {
               const columns = new pgp.helpers.ColumnSet(
                 ["id", "fillability_status", "expiration"],
-                { table: "orders" }
+                {
+                  table: "orders",
+                }
               );
 
               await idb.none(

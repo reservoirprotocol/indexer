@@ -94,14 +94,7 @@ export const getSalesV3Options: RouteOptions = {
       tokenFilter = `fill_events_2.contract = $/contract/ AND fill_events_2.token_id = $/tokenId/`;
     }
     if (query.collection) {
-      let attributesFilter = "";
       if (query.attributes) {
-        tokenJoins = `
-          JOIN tokens
-            ON fill_events_2.contract = tokens.contract
-            AND fill_events_2.token_id = tokens.token_id
-        `;
-
         const attributes: { key: string; value: string }[] = [];
         Object.entries(query.attributes).forEach(([key, values]) => {
           (Array.isArray(values) ? values : [values]).forEach((value) =>
@@ -109,24 +102,20 @@ export const getSalesV3Options: RouteOptions = {
           );
         });
 
-        attributesFilter += `AND tokens.collection_id = $/collection/`;
         for (let i = 0; i < attributes.length; i++) {
-          (query as any)[
-            `attribute${i}`
-          ] = `${attributes[i].key},${attributes[i].value}`;
-          attributesFilter += `
-            AND tokens.attributes ? $/attribute${i}/
+          (query as any)[`key${i}`] = attributes[i].key;
+          (query as any)[`value${i}`] = attributes[i].value;
+          tokenJoins += `
+            JOIN token_attributes ta${i}
+              ON fill_events_2.contract = ta${i}.contract
+              AND fill_events_2.token_id = ta${i}.token_id
+              AND ta${i}.key = $/key${i}/
+              AND ta${i}.value = $/value${i}/
           `;
         }
       }
 
       if (query.collection.match(/^0x[a-f0-9]{40}:\d+:\d+$/g)) {
-        tokenJoins = `
-          JOIN tokens
-            ON fill_events_2.contract = tokens.contract
-            AND fill_events_2.token_id = tokens.token_id
-        `;
-
         const [contract, startTokenId, endTokenId] =
           query.collection.split(":");
 
@@ -134,16 +123,14 @@ export const getSalesV3Options: RouteOptions = {
         (query as any).startTokenId = startTokenId;
         (query as any).endTokenId = endTokenId;
         collectionFilter = `
-          fill_events_2."contract" = $/contract/
-          AND fill_events_2."token_id" >= $/startTokenId/
-          AND fill_events_2."token_id" <= $/endTokenId/
+          fill_events_2.contract = $/contract/
+          AND fill_events_2.token_id >= $/startTokenId/
+          AND fill_events_2.token_id <= $/endTokenId/
         `;
       } else {
         (query as any).contract = toBuffer(query.collection);
         collectionFilter = `fill_events_2.contract = $/contract/`;
       }
-
-      collectionFilter += ` ${attributesFilter}`;
     }
 
     if (query.continuation) {
@@ -174,7 +161,7 @@ export const getSalesV3Options: RouteOptions = {
             fill_events_2.taker,
             fill_events_2.amount,
             fill_events_2.tx_hash,
-            fill_events_2."timestamp",
+            fill_events_2.timestamp,
             fill_events_2.price,
             fill_events_2.block,
             fill_events_2.log_index,

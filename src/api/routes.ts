@@ -156,6 +156,18 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/orders/asks/v1",
+    options: ordersEndpoints.getOrdersAsksV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/orders/bids/v1",
+    options: ordersEndpoints.getOrdersBidsV1Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/orders/executed/v1",
     options: ordersEndpoints.getOrderExecutedV1Options,
   });
@@ -210,8 +222,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/tokens/v2",
+    options: tokensEndpoints.getTokensV2Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/tokens/details/v1",
     options: tokensEndpoints.getTokensDetailsV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/tokens/details/v2",
+    options: tokensEndpoints.getTokensDetailsV2Options,
   });
 
   server.route({

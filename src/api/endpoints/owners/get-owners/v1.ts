@@ -16,7 +16,9 @@ export const getOwnersV1Options: RouteOptions = {
   tags: ["api", "owners"],
   validate: {
     query: Joi.object({
-      collection: Joi.string().lowercase(),
+      collection: Joi.string()
+        .lowercase()
+        .pattern(/^0x[a-f0-9]{40}:[0-9]+:[0-9]+$|^0x[a-f0-9]{40}$/),
       contract: Joi.string()
         .lowercase()
         .pattern(/^0x[a-f0-9]{40}$/),
@@ -55,52 +57,66 @@ export const getOwnersV1Options: RouteOptions = {
   handler: async (request: Request) => {
     const query = request.query as any;
 
-    try {
-      let baseQuery = `
-        SELECT
-          "nb"."owner",
-          SUM("nb"."amount") AS "token_count",
-          COUNT(*) FILTER (WHERE "t"."floor_sell_value" IS NOT NULL) AS "on_sale_count",
-          MIN("t"."floor_sell_value") AS "floor_sell_value",
-          MAX("t"."top_buy_value") AS "top_buy_value",
-          SUM("nb"."amount") * MAX("t"."top_buy_value") AS "total_buy_value"
-        FROM "tokens" "t"
-        JOIN "nft_balances" "nb"
-          ON "t"."contract" = "nb"."contract"
-          AND "t"."token_id" = "nb"."token_id"
-          AND "nb"."amount" > 0
-      `;
+    let nftBalancesFilter = "";
+    let tokensFilter = "";
 
-      // Filters
-      const conditions: string[] = [];
-      if (query.collection) {
-        conditions.push(`"t"."collection_id" = $/collection/`);
-      }
-      if (query.contract) {
-        (query as any).contract = toBuffer(query.contract);
-        conditions.push(`"t"."contract" = $/contract/`);
-      }
-      if (query.token) {
-        const [contract, tokenId] = query.token.split(":");
+    if (query.collection) {
+      // If the collection passed is identical the contract
+      if (/^0x[a-f0-9]{40}$/.test(query.collection)) {
+        (query as any).contract = toBuffer(query.collection);
 
+        nftBalancesFilter = `nft_balances.contract = $/contract/`;
+        tokensFilter = `tokens.contract = $/contract/`;
+      } else {
+        // This is a range collection
+        const [contract, startTokenId, endTokenId] =
+          query.collection.split(":");
         (query as any).contract = toBuffer(contract);
-        (query as any).tokenId = tokenId;
-        conditions.push(`"t"."contract" = $/contract/`);
-        conditions.push(`"t"."token_id" = $/tokenId/`);
+        (query as any).startTokenId = startTokenId;
+        (query as any).endTokenId = endTokenId;
+
+        nftBalancesFilter = `nft_balances.contract = $/contract/ AND nft_balances.token_id BETWEEN $/startTokenId/ AND $/endTokenId/`;
+        tokensFilter = `tokens.contract = $/contract/ AND tokens.token_id BETWEEN $/startTokenId/ AND $/endTokenId/`;
       }
-      if (conditions.length) {
-        baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
-      }
+    } else if (query.contract) {
+      (query as any).contract = toBuffer(query.contract);
+      nftBalancesFilter = `nft_balances.contract = $/contract/`;
+      tokensFilter = `tokens.contract = $/contract/`;
+    } else if (query.token) {
+      const [contract, tokenId] = query.token.split(":");
 
-      // Grouping
-      baseQuery += ` GROUP BY "nb"."owner"`;
+      (query as any).contract = toBuffer(contract);
+      (query as any).tokenId = tokenId;
+      nftBalancesFilter = `nft_balances.contract = $/contract/ AND nft_balances.token_id = $/tokenId/`;
+      tokensFilter = `tokens.contract = $/contract/ AND tokens.token_id = $/tokenId/`;
+    }
 
-      // Sorting
-      baseQuery += ` ORDER BY "token_count" DESC, "nb"."owner"`;
-
-      // Pagination
-      baseQuery += ` OFFSET $/offset/`;
-      baseQuery += ` LIMIT $/limit/`;
+    try {
+      const baseQuery = `
+        WITH x AS (
+          SELECT owner, SUM(amount) AS token_count
+          FROM nft_balances
+          WHERE ${nftBalancesFilter}
+          AND amount > 0
+          GROUP BY owner
+          ORDER BY token_count DESC
+          OFFSET ${query.offset} LIMIT ${query.limit}
+        )
+        
+        SELECT 
+          nft_balances.owner,
+          SUM(nft_balances.amount) AS token_count,
+          COUNT(*) FILTER (WHERE tokens.floor_sell_value IS NOT NULL) AS on_sale_count,
+          MIN(tokens.floor_sell_value) AS floor_sell_value,
+          MAX(tokens.top_buy_value) AS top_buy_value,
+          SUM(nft_balances.amount) * MAX(tokens.top_buy_value) AS total_buy_value
+        FROM nft_balances
+        JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id
+        WHERE ${tokensFilter}
+        AND nft_balances.owner IN (SELECT owner FROM x)
+        GROUP BY nft_balances.owner
+        ORDER BY token_count DESC, nft_balances.owner
+      `;
 
       const result = await edb.manyOrNone(baseQuery, query).then((result) =>
         result.map((r) => ({

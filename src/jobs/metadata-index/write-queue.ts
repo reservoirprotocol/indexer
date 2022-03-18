@@ -79,6 +79,9 @@ if (config.doBackgroundWork) {
         }
 
         // Delete all previous attributes of the token.
+        // TODO: Token reindexing seems to mess up the `token_count`
+        // cached inside each attribute. We should investigate what
+        // causes it (probably concurrent writes) and fix the issue.
         await idb.none(
           `
             WITH x AS (
@@ -198,11 +201,17 @@ if (config.doBackgroundWork) {
                 INSERT INTO "token_attributes" (
                   "contract",
                   "token_id",
-                  "attribute_id"
+                  "attribute_id",
+                  "collection_id",
+                  "key",
+                  "value"
                 ) VALUES (
                   $/contract/,
                   $/tokenId/,
-                  $/attributeId/
+                  $/attributeId/,
+                  $/collection/,
+                  $/key/,
+                  $/value/
                 )
                 ON CONFLICT DO NOTHING
                 RETURNING 1
@@ -215,16 +224,20 @@ if (config.doBackgroundWork) {
               contract: toBuffer(contract),
               tokenId,
               attributeId: attributeResult.id,
+              collection,
+              key: String(key),
+              value: String(value),
             }
           );
         }
 
-        // Mark the token as indexed
+        // Mark the token as having metadata indexed.
         await idb.none(
           `
-            UPDATE "tokens" SET "metadata_indexed" = TRUE
-            WHERE "contract" = $/contract/
-              AND "token_id" = $/tokenId/
+            UPDATE tokens SET metadata_indexed = TRUE
+            WHERE tokens.contract = $/contract/
+              AND tokens.token_id = $/tokenId/
+              AND tokens.metadata_indexed IS DISTINCT FROM TRUE
           `,
           {
             contract: toBuffer(contract),
@@ -241,7 +254,8 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 20 }
+    // No concurrency here to avoid any possible deadlocks.
+    { connection: redis.duplicate() }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

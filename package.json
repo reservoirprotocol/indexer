@@ -15,7 +15,8 @@
     "migrate": "ts-node ./node_modules/node-pg-migrate/bin/node-pg-migrate -m ./src/migrations",
     "debug": "yarn build && yarn migrate up; node --inspect -r module-alias/register ./dist/index.js",
     "commitlint": "commitlint --edit",
-    "lint": "eslint --max-warnings 0 --ext .js,.ts,.json src",
+    "lint-check": "eslint --max-warnings 0 --ext .js,.ts,.json src",
+    "format-check": "prettier --check \"src/**/*.+(js|ts|json)\"",
     "format": "prettier --write \"src/**/*.+(js|ts|json)\"",
     "postinstall": "husky install"
   },

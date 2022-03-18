@@ -15,7 +15,8 @@
         "avoidEscape": true,
         "allowTemplateLiterals": true
       }
-    ]
+    ],
+    "no-console": "error"
   },
   "env": {
     "es2021": true

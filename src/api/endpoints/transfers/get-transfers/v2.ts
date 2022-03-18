@@ -83,11 +83,11 @@ export const getTransfersV2Options: RouteOptions = {
           tokens.image,
           tokens.collection_id,
           collections.name as collection_name,
-          nft_transfer_events."from",
-          nft_transfer_events."to",
+          nft_transfer_events.from,
+          nft_transfer_events.to,
           nft_transfer_events.amount,
           nft_transfer_events.tx_hash,
-          nft_transfer_events."timestamp",
+          nft_transfer_events.timestamp,
           nft_transfer_events.block,
           nft_transfer_events.log_index,
           nft_transfer_events.batch_index,
@@ -110,15 +110,15 @@ export const getTransfersV2Options: RouteOptions = {
       const conditions: string[] = [];
       if (query.contract) {
         (query as any).contract = toBuffer(query.contract);
-        conditions.push(`nft_transfer_events."address" = $/contract/`);
+        conditions.push(`nft_transfer_events.address = $/contract/`);
       }
       if (query.token) {
         const [contract, tokenId] = query.token.split(":");
 
         (query as any).contract = toBuffer(contract);
         (query as any).tokenId = tokenId;
-        conditions.push(`nft_transfer_events."address" = $/contract/`);
-        conditions.push(`nft_transfer_events."token_id" = $/tokenId/`);
+        conditions.push(`nft_transfer_events.address = $/contract/`);
+        conditions.push(`nft_transfer_events.token_id = $/tokenId/`);
       }
       if (query.collection) {
         if (query.attributes) {
@@ -129,14 +129,16 @@ export const getTransfersV2Options: RouteOptions = {
             );
           });
 
-          conditions.push(`tokens.collection_id = $/collection/`);
           for (let i = 0; i < attributes.length; i++) {
-            (query as any)[
-              `attribute${i}`
-            ] = `${attributes[i].key},${attributes[i].value}`;
-            conditions.push(`
-              tokens.attributes ? $/attribute${i}/
-            `);
+            (query as any)[`key${i}`] = attributes[i].key;
+            (query as any)[`value${i}`] = attributes[i].value;
+            baseQuery += `
+              JOIN token_attributes ta${i}
+                ON nft_transfer_events.address = ta${i}.contract
+                AND nft_transfer_events.token_id = ta${i}.token_id
+                AND ta${i}.key = $/key${i}/
+                AND ta${i}.value = $/value${i}/
+            `;
           }
         }
 
@@ -147,12 +149,12 @@ export const getTransfersV2Options: RouteOptions = {
           (query as any).contract = toBuffer(contract);
           (query as any).startTokenId = startTokenId;
           (query as any).endTokenId = endTokenId;
-          conditions.push(`nft_transfer_events."address" = $/contract/`);
-          conditions.push(`nft_transfer_events."token_id" >= $/startTokenId/`);
-          conditions.push(`nft_transfer_events."token_id" <= $/endTokenId/`);
+          conditions.push(`nft_transfer_events.address = $/contract/`);
+          conditions.push(`nft_transfer_events.token_id >= $/startTokenId/`);
+          conditions.push(`nft_transfer_events.token_id <= $/endTokenId/`);
         } else {
           (query as any).contract = toBuffer(query.collection);
-          conditions.push(`nft_transfer_events."address" = $/contract/`);
+          conditions.push(`nft_transfer_events.address = $/contract/`);
         }
       }
 

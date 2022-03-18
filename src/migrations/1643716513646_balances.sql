@@ -9,10 +9,16 @@ CREATE TABLE "nft_balances" (
 
 ALTER TABLE "nft_balances"
   ADD CONSTRAINT "nft_balances_pk"
-  PRIMARY KEY ("contract", "token_id", "owner");
+  PRIMARY KEY ("contract", "token_id", "owner")
+  INCLUDE ("amount");
 
 CREATE INDEX "nft_balances_owner_contract_token_id_index"
   ON "nft_balances" ("owner", "contract", "token_id")
+  WHERE ("amount" > 0);
+
+CREATE INDEX "nft_balances_contract_owner_index"
+  ON "nft_balances" ("contract", "owner")
+  INCLUDE ("amount")
   WHERE ("amount" > 0);
 
 -- https://www.lob.com/blog/supercharge-your-postgresql-performance

@@ -68,7 +68,7 @@ export const save = async (
 
       // Check: order has a valid listing time
       const listingTime = order.params.listingTime;
-      if (listingTime - 3 * 60 >= currentTime) {
+      if (listingTime - 5 * 60 >= currentTime) {
         // TODO: Add support for not-yet-valid orders
         return results.push({
           id,
@@ -338,6 +338,7 @@ export const save = async (
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.nonce,
         source_id: sourceId ? toBuffer(sourceId) : null,
+        contract: toBuffer(info.contract),
         fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
         raw_data: order.params,
@@ -385,6 +386,7 @@ export const save = async (
         { name: "valid_between", mod: ":raw" },
         "nonce",
         "source_id",
+        "contract",
         "fee_bps",
         { name: "fee_breakdown", mod: ":json" },
         "raw_data",

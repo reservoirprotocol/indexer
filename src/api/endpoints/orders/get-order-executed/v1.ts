@@ -24,13 +24,16 @@ export const getOrderExecutedV1Options: RouteOptions = {
     try {
       const data = await edb.oneOrNone(
         `
-          SELECT "fillability_status" FROM "orders"
-          WHERE "id" = $/id/
+          SELECT fillability_status FROM orders
+          WHERE id = $/id/
         `,
         { id: query.id }
       );
 
-      if (data?.status === "filled" || data?.status === "cancelled") {
+      if (
+        data?.fillability_status === "filled" ||
+        data?.fillability_status === "cancelled"
+      ) {
         return { message: "Order is executed" };
       }
 
