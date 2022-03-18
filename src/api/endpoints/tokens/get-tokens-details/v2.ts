@@ -14,7 +14,12 @@ export const getTokensDetailsV2Options: RouteOptions = {
   description: "Tokens with metadata v2",
   notes:
     "Get a list of tokens with full metadata. This is useful for showing a single token page, or scenarios that require more metadata. If you don't need this metadata, you should use the <a href='#/tokens/getTokensV1'>tokens</a> API, which is much faster.",
-  tags: ["api", "tokens"],
+  tags: ["api", "4. NFT API"],
+  plugins: {
+    "hapi-swagger": {
+      order: 22,
+    },
+  },
   validate: {
     query: Joi.object({
       collection: Joi.string().lowercase(),

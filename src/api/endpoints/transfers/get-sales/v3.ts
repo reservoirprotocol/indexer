@@ -13,7 +13,12 @@ export const getSalesV3Options: RouteOptions = {
   description: "Historical sales",
   notes:
     "Get recent sales for a contract or token. For pagination API expect to receive the continuation from previous result",
-  tags: ["api", "events"],
+  tags: ["api", "4. NFT API"],
+  plugins: {
+    "hapi-swagger": {
+      order: 52,
+    },
+  },
   validate: {
     query: Joi.object({
       contract: Joi.string()

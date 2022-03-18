@@ -13,8 +13,13 @@ import { config } from "@/config/index";
 const version = "v1";
 
 export const getExecuteCancelV1Options: RouteOptions = {
-  description: "Get steps required to cancel an order.",
+  description: "Cancel an existing order",
   tags: ["api", "3. Router"],
+  plugins: {
+    "hapi-swagger": {
+      order: 5,
+    },
+  },
   validate: {
     query: Joi.object({
       id: Joi.string().required(),

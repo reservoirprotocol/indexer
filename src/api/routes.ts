@@ -70,8 +70,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/{collection}/attributes/all/v1",
+    options: attributesEndpoints.getAttributesAllV1Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/collections/{collection}/attributes/v1",
     options: attributesEndpoints.getCollectionAttributesV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/{collection}/attributes/explore/v1",
+    options: attributesEndpoints.getAttributesExploreV1Options,
   });
 
   // Collections
@@ -274,6 +286,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/sales/v3",
     options: transfersEndpoints.getSalesV3Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/sales/bulk/v3",
+    options: transfersEndpoints.getSalesBulkV1Options,
   });
 
   server.route({

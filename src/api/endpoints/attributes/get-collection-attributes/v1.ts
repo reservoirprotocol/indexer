@@ -11,7 +11,12 @@ const version = "v1";
 
 export const getCollectionAttributesV1Options: RouteOptions = {
   description: "List of collection attributes",
-  tags: ["api", "attributes"],
+  tags: ["api", "x-deprecated"],
+  plugins: {
+    "hapi-swagger": {
+      deprecated: true,
+    },
+  },
   validate: {
     params: Joi.object({
       collection: Joi.string().lowercase(),

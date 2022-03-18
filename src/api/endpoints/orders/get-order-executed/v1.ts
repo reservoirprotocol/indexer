@@ -10,9 +10,13 @@ import { logger } from "@/common/logger";
 const version = "v1";
 
 export const getOrderExecutedV1Options: RouteOptions = {
-  description:
-    "Returns whether an order was executed (filled or cancelled) or not.",
-  tags: ["api", "orders"],
+  description: "Check if an order is filled/canceled",
+  tags: ["api", "3. Router"],
+  plugins: {
+    "hapi-swagger": {
+      order: 6,
+    },
+  },
   validate: {
     query: Joi.object({
       id: Joi.string().required(),

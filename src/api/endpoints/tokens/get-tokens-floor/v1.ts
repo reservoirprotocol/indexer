@@ -10,10 +10,16 @@ import { formatEth, toBuffer } from "@/common/utils";
 const version = "v1";
 
 export const getTokensFloorV1Options: RouteOptions = {
-  description: "All prices in a collection",
+  description:
+    "Get the current best price of every on sale token in a collection",
   notes:
-    "This API will return the bestt price of every token in a collection that is currently on sale",
-  tags: ["api", "tokens"],
+    "This API will return the best price of every token in a collection that is currently on sale",
+  tags: ["api", "2. Aggregator"],
+  plugins: {
+    "hapi-swagger": {
+      order: 2,
+    },
+  },
   validate: {
     query: Joi.object({
       collection: Joi.string().lowercase(),

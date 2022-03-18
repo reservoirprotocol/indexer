@@ -13,6 +13,11 @@ export const getTransfersV1Options: RouteOptions = {
   description: "Historical token transfers",
   notes: "Get recent transfers for a contract or token.",
   tags: ["api", "x-deprecated"],
+  plugins: {
+    "hapi-swagger": {
+      deprecated: true,
+    },
+  },
   validate: {
     query: Joi.object({
       // TODO: Look into optimizing filtering by collection

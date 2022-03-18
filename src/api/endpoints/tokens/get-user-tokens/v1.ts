@@ -14,6 +14,11 @@ export const getUserTokensV1Options: RouteOptions = {
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
   tags: ["api", "x-deprecated"],
+  plugins: {
+    "hapi-swagger": {
+      deprecated: true,
+    },
+  },
   validate: {
     params: Joi.object({
       user: Joi.string()

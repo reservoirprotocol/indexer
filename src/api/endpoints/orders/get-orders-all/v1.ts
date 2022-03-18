@@ -10,10 +10,15 @@ import { formatEth, fromBuffer } from "@/common/utils";
 const version = "v1";
 
 export const getOrdersAllV1Options: RouteOptions = {
-  description: "Bulk orders access",
+  description: "Bulk access to raw orders",
   notes:
     "This API is designed for efficiently ingesting large volumes of orders, for external processing",
-  tags: ["api", "orders"],
+  tags: ["api", "1. Order Book"],
+  plugins: {
+    "hapi-swagger": {
+      order: 1,
+    },
+  },
   validate: {
     query: Joi.object({
       side: Joi.string().lowercase().valid("buy", "sell"),

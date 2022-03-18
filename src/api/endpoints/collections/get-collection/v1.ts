@@ -13,7 +13,12 @@ export const getCollectionV1Options: RouteOptions = {
   description: "Single collection",
   notes:
     "Get detailed information about a single collection, including real-time stats.",
-  tags: ["api", "collections"],
+  tags: ["api", "4. NFT API"],
+  plugins: {
+    "hapi-swagger": {
+      order: 12,
+    },
+  },
   validate: {
     params: Joi.object({
       collectionOrSlug: Joi.string().lowercase().required(),

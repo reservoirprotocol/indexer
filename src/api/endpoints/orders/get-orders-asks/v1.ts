@@ -13,7 +13,12 @@ export const getOrdersAsksV1Options: RouteOptions = {
   description: "Bulk asks access",
   notes:
     "This API is designed for efficiently ingesting large volumes of orders, for external processing",
-  tags: ["api", "orders"],
+  tags: ["api", "4. NFT API"],
+  plugins: {
+    "hapi-swagger": {
+      order: 41,
+    },
+  },
   validate: {
     query: Joi.object({
       token: Joi.string()

@@ -17,8 +17,13 @@ import { offChainCheck } from "@/orderbook/orders/wyvern-v2.3/check";
 const version = "v1";
 
 export const getExecuteSellV1Options: RouteOptions = {
-  description: "Get steps required to fill a sell order (eg. sell an item).",
+  description: "Sell any token at the best available price (accept bid)",
   tags: ["api", "3. Router"],
+  plugins: {
+    "hapi-swagger": {
+      order: 4,
+    },
+  },
   validate: {
     query: Joi.object({
       token: Joi.string()

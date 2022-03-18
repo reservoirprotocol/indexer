@@ -14,6 +14,11 @@ export const getTokensV1Options: RouteOptions = {
   notes:
     "This API is optimized for quickly fetching a list of tokens in a collection, sorted by price, with only the most important information returned. If you need more metadata, use the `tokens/details` API",
   tags: ["api", "x-deprecated"],
+  plugins: {
+    "hapi-swagger": {
+      deprecated: true,
+    },
+  },
   validate: {
     query: Joi.object({
       collection: Joi.string()

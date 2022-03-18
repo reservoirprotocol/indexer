@@ -61,8 +61,8 @@ export const start = async (): Promise<void> => {
   });
 
   const apiDescription =
-    "You are viewing the reference docs for the Reservoir API.\n\
-    \n\
+    "You are viewing the reference docs for the Reservoir API.\
+    \
     For a more complete overview with guides and examples, check out the <a href='https://reservoirprotocol.github.io'>Reservoir Protocol Docs</a>.";
 
   await server.register([
@@ -91,6 +91,7 @@ export const start = async (): Promise<void> => {
         cors: true,
         tryItOutEnabled: true,
         documentationPath: "/",
+        sortEndpoints: "ordered",
         info: {
           title: "Reservoir API",
           // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -101,16 +102,17 @@ export const start = async (): Promise<void> => {
           {
             name: "1. Order Book",
             description:
-              "Distribute orders through Reservoir's decentralized order book",
+              "Read & write from Reservoir's open, aggregated order book",
           },
           {
-            name: "2. Price Feeds",
-            description: "Feed real-time aggregate liquidity into your ",
+            name: "2. Aggregator",
+            description:
+              "Access normalized pricing and sales data, to feed into your own system",
           },
           {
             name: "3. Router",
             description:
-              "Generate the necessary steps to buy or sell any token",
+              "Simple APIs to create and fill liquidity from any supported exchange protocol",
           },
           {
             name: "4. NFT API",

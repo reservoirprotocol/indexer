@@ -13,8 +13,13 @@ import * as wyvernV23 from "@/orderbook/orders/wyvern-v2.3";
 const version = "v1";
 
 export const postOrderV1Options: RouteOptions = {
-  description: "Post a new order.",
-  tags: ["api", "orders"],
+  description: "Publish a single order",
+  tags: ["api", "1. Order Book"],
+  plugins: {
+    "hapi-swagger": {
+      order: 4,
+    },
+  },
   validate: {
     payload: Joi.object({
       order: Joi.object({
@@ -132,7 +137,9 @@ export const postOrderV1Options: RouteOptions = {
                   if (error.response) {
                     logger.error(
                       `post-orders-${version}-handler`,
-                      `Failed to post order to OpenSea: ${error.response.data}`
+                      `Failed to post order to OpenSea: ${JSON.stringify(
+                        error.response.data
+                      )}`
                     );
                   }
 

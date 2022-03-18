@@ -13,7 +13,12 @@ export const getUserPositionsV1Options: RouteOptions = {
   description: "User positions",
   notes:
     "Get aggregate user liquidity, grouped by collection. Useful for showing a summary of liquidity being provided (orders made).",
-  tags: ["api", "liquidity"],
+  tags: ["api", "4. NFT API"],
+  plugins: {
+    "hapi-swagger": {
+      order: 33,
+    },
+  },
   validate: {
     params: Joi.object({
       user: Joi.string()

@@ -15,8 +15,13 @@ import { config } from "@/config/index";
 const version = "v1";
 
 export const getExecuteBuyV1Options: RouteOptions = {
-  description: "Get steps required to accept a sell order (eg. buy an item).",
+  description: "Buy any token at the best available price",
   tags: ["api", "3. Router"],
+  plugins: {
+    "hapi-swagger": {
+      order: 3,
+    },
+  },
   validate: {
     query: Joi.object({
       token: Joi.string()

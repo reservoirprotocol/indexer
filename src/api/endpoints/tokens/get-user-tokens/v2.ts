@@ -13,7 +13,12 @@ export const getUserTokensV2Options: RouteOptions = {
   description: "User tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
-  tags: ["api", "users"],
+  tags: ["api", "4. NFT API"],
+  plugins: {
+    "hapi-swagger": {
+      order: 32,
+    },
+  },
   validate: {
     params: Joi.object({
       user: Joi.string()

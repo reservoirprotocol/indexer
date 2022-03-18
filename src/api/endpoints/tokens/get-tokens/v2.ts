@@ -13,7 +13,12 @@ export const getTokensV2Options: RouteOptions = {
   description: "List of tokens v2",
   notes:
     "This API is optimized for quickly fetching a list of tokens in a collection, sorted by price, with only the most important information returned. If you need more metadata, use the `tokens/details` API",
-  tags: ["api", "tokens"],
+  tags: ["api", "4. NFT API"],
+  plugins: {
+    "hapi-swagger": {
+      order: 21,
+    },
+  },
   validate: {
     query: Joi.object({
       collection: Joi.string().lowercase(),

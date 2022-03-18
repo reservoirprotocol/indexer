@@ -16,8 +16,13 @@ import { offChainCheck } from "@/orderbook/orders/wyvern-v2.3/check";
 const version = "v1";
 
 export const getExecuteListV1Options: RouteOptions = {
-  description: "Get steps required to build a sell order.",
+  description: "List a token for sale",
   tags: ["api", "3. Router"],
+  plugins: {
+    "hapi-swagger": {
+      order: 1,
+    },
+  },
   validate: {
     query: Joi.object({
       token: Joi.string()

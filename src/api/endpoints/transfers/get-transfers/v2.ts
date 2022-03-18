@@ -12,7 +12,12 @@ const version = "v2";
 export const getTransfersV2Options: RouteOptions = {
   description: "Historical token transfers",
   notes: "Get recent transfers for a contract or token.",
-  tags: ["api", "events"],
+  tags: ["api", "4. NFT API"],
+  plugins: {
+    "hapi-swagger": {
+      order: 54,
+    },
+  },
   validate: {
     query: Joi.object({
       contract: Joi.string()

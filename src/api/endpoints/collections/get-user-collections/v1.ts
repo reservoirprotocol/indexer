@@ -13,7 +13,12 @@ export const getUserCollectionsV1Options: RouteOptions = {
   description: "User collections",
   notes:
     "Get aggregate stats for a user, grouped by collection. Useful for showing total portfolio information.",
-  tags: ["api", "users"],
+  tags: ["api", "4. NFT API"],
+  plugins: {
+    "hapi-swagger": {
+      order: 31,
+    },
+  },
   validate: {
     params: Joi.object({
       user: Joi.string()

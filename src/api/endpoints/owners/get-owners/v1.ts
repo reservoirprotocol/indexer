@@ -13,7 +13,12 @@ export const getOwnersV1Options: RouteOptions = {
   description: "List of owners",
   notes:
     "Get owners with various filters applied, and a summary of their ownership. Useful for exploring top owners in a collection or attribute.",
-  tags: ["api", "owners"],
+  tags: ["api", "4. NFT API"],
+  plugins: {
+    "hapi-swagger": {
+      order: 51,
+    },
+  },
   validate: {
     query: Joi.object({
       collection: Joi.string()

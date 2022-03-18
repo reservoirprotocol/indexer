@@ -10,8 +10,13 @@ import * as wyvernV23 from "@/orderbook/orders/wyvern-v2.3";
 const version = "v1";
 
 export const postOrdersV1Options: RouteOptions = {
-  description: "Post new orders.",
-  tags: ["api", "orders"],
+  description: "Publish multiple orders in bulk",
+  tags: ["api", "1. Order Book"],
+  plugins: {
+    "hapi-swagger": {
+      order: 5,
+    },
+  },
   validate: {
     payload: Joi.object({
       orders: Joi.array().items(
