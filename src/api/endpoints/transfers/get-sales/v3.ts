@@ -33,7 +33,11 @@ export const getSalesV3Options: RouteOptions = {
         .description(
           "Filter to a particular token, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
-      collection: Joi.string(),
+      collection: Joi.string()
+        .lowercase()
+        .description(
+          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       attributes: Joi.object()
         .unknown()
         .description(
