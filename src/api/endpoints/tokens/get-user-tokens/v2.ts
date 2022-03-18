@@ -27,11 +27,20 @@ export const getUserTokensV2Options: RouteOptions = {
         .required(),
     }),
     query: Joi.object({
-      community: Joi.string().lowercase(),
-      collection: Joi.string().lowercase(),
+      community: Joi.string()
+        .lowercase()
+        .description("Filter to a particular community, e.g. `artblocks`"),
+      collection: Joi.string()
+        .lowercase()
+        .description(
+          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       contract: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-f0-9]{40}$/),
+        .pattern(/^0x[a-f0-9]{40}$/)
+        .description(
+          "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       offset: Joi.number().integer().min(0).max(10000).default(0),
       limit: Joi.number().integer().min(1).max(20).default(20),
     }),

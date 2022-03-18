@@ -8,16 +8,16 @@ import { logger } from "@/common/logger";
 
 const version = "v1";
 
-export const getAttributesV1Options: RouteOptions = {
+export const getAttributesAllV1Options: RouteOptions = {
   description: "List of attributes",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "4. NFT API"],
   plugins: {
     "hapi-swagger": {
-      deprecated: true,
+      order: 13,
     },
   },
   validate: {
-    query: Joi.object({
+    params: Joi.object({
       collection: Joi.string()
         .lowercase()
         .description(

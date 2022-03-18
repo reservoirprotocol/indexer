@@ -9,12 +9,12 @@ import { formatEth, fromBuffer } from "@/common/utils";
 
 const version = "v1";
 
-export const getCollectionAttributesV1Options: RouteOptions = {
+export const getAttributesExploreV1Options: RouteOptions = {
   description: "List of collection attributes",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "4. NFT API"],
   plugins: {
     "hapi-swagger": {
-      deprecated: true,
+      order: 15,
     },
   },
   validate: {

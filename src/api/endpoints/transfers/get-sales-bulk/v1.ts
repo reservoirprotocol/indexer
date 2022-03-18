@@ -7,13 +7,13 @@ import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 
-const version = "v3";
+const version = "v1";
 
-export const getSalesV3Options: RouteOptions = {
-  description: "Historical sales",
+export const getSalesBulkV1Options: RouteOptions = {
+  description: "Get bulk access to historical sales",
   notes:
     "Get recent sales for a contract or token. For pagination API expect to receive the continuation from previous result",
-  tags: ["api", "4. NFT API"],
+  tags: ["api", "2. Aggregator"],
   plugins: {
     "hapi-swagger": {
       order: 52,
@@ -33,17 +33,9 @@ export const getSalesV3Options: RouteOptions = {
         .description(
           "Filter to a particular token, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
-      collection: Joi.string(),
-      attributes: Joi.object()
-        .unknown()
-        .description(
-          "Filter to a particular attribute, e.g. `attributes[Type]=Original`"
-        ),
-      limit: Joi.number().integer().min(1).max(100).default(20),
+      limit: Joi.number().integer().min(1).max(1000).default(100),
       continuation: Joi.string().pattern(/^(\d+)_(\d+)_(\d+)$/),
-    })
-      .oxor("contract", "token", "collection")
-      .or("contract", "token", "collection"),
+    }),
   },
   response: {
     schema: Joi.object({
@@ -54,12 +46,6 @@ export const getSalesV3Options: RouteOptions = {
               .lowercase()
               .pattern(/^0x[a-f0-9]{40}$/),
             tokenId: Joi.string().pattern(/^[0-9]+$/),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
-            collection: Joi.object({
-              id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
-            }),
           }),
           orderSide: Joi.string().valid("ask", "bid"),
           from: Joi.string()
@@ -93,59 +79,18 @@ export const getSalesV3Options: RouteOptions = {
 
     let paginationFilter = "";
     let tokenFilter = "";
-    let tokenJoins = "";
-    let collectionFilter = "";
 
     // Filters
     if (query.contract) {
       (query as any).contract = toBuffer(query.contract);
-      tokenFilter = `fill_events_2.contract = $/contract/`;
+      tokenFilter = `WHERE fill_events_2.contract = $/contract/`;
     }
     if (query.token) {
       const [contract, tokenId] = query.token.split(":");
 
       (query as any).contract = toBuffer(contract);
       (query as any).tokenId = tokenId;
-      tokenFilter = `fill_events_2.contract = $/contract/ AND fill_events_2.token_id = $/tokenId/`;
-    }
-    if (query.collection) {
-      if (query.attributes) {
-        const attributes: { key: string; value: string }[] = [];
-        Object.entries(query.attributes).forEach(([key, values]) => {
-          (Array.isArray(values) ? values : [values]).forEach((value) =>
-            attributes.push({ key, value })
-          );
-        });
-
-        for (let i = 0; i < attributes.length; i++) {
-          (query as any)[`key${i}`] = attributes[i].key;
-          (query as any)[`value${i}`] = attributes[i].value;
-          tokenJoins += `
-            JOIN token_attributes ta${i}
-              ON fill_events_2.contract = ta${i}.contract
-              AND fill_events_2.token_id = ta${i}.token_id
-              AND ta${i}.key = $/key${i}/
-              AND ta${i}.value = $/value${i}/
-          `;
-        }
-      }
-
-      if (query.collection.match(/^0x[a-f0-9]{40}:\d+:\d+$/g)) {
-        const [contract, startTokenId, endTokenId] =
-          query.collection.split(":");
-
-        (query as any).contract = toBuffer(contract);
-        (query as any).startTokenId = startTokenId;
-        (query as any).endTokenId = endTokenId;
-        collectionFilter = `
-          fill_events_2.contract = $/contract/
-          AND fill_events_2.token_id >= $/startTokenId/
-          AND fill_events_2.token_id <= $/endTokenId/
-        `;
-      } else {
-        (query as any).contract = toBuffer(query.collection);
-        collectionFilter = `fill_events_2.contract = $/contract/`;
-      }
+      tokenFilter = `WHERE fill_events_2.contract = $/contract/ AND fill_events_2.token_id = $/tokenId/`;
     }
 
     if (query.continuation) {
@@ -155,18 +100,15 @@ export const getSalesV3Options: RouteOptions = {
       (query as any).batchIndex = batchIndex;
 
       paginationFilter = `
-        AND (fill_events_2.block, fill_events_2.log_index, fill_events_2.batch_index) < ($/block/, $/logIndex/, $/batchIndex/)
+        ${tokenFilter == "" ? "WHERE " : " AND "}
+        (fill_events_2.block, fill_events_2.log_index, fill_events_2.batch_index) < ($/block/, $/logIndex/, $/batchIndex/)
       `;
     }
 
     try {
       const baseQuery = `
         SELECT
-          fill_events_2_data.*,
-          tokens_data.name,
-          tokens_data.image,
-          tokens_data.collection_id,
-          tokens_data.collection_name
+          fill_events_2_data.*
         FROM (
           SELECT
             fill_events_2.contract,
@@ -182,9 +124,6 @@ export const getSalesV3Options: RouteOptions = {
             fill_events_2.log_index,
             fill_events_2.batch_index
           FROM fill_events_2
-            ${tokenJoins}
-          WHERE
-            ${collectionFilter}
             ${tokenFilter}
             ${paginationFilter}
           ORDER BY
@@ -193,18 +132,6 @@ export const getSalesV3Options: RouteOptions = {
             fill_events_2.batch_index DESC
           LIMIT $/limit/
         ) AS fill_events_2_data
-        JOIN LATERAL (
-          SELECT
-            tokens.name,
-            tokens.image,
-            tokens.collection_id,
-            collections.name AS collection_name
-          FROM tokens
-          JOIN collections
-            ON tokens.collection_id = collections.id
-          WHERE fill_events_2_data.token_id = tokens.token_id
-            AND fill_events_2_data.contract = tokens.contract
-        ) tokens_data ON TRUE
       `;
 
       const rawResult = await edb.manyOrNone(baseQuery, query);
@@ -223,12 +150,6 @@ export const getSalesV3Options: RouteOptions = {
         token: {
           contract: fromBuffer(r.contract),
           tokenId: r.token_id,
-          name: r.name,
-          image: r.mage,
-          collection: {
-            id: r.collection_id,
-            name: r.collection_name,
-          },
         },
         orderSide: r.order_side === "sell" ? "ask" : "bid",
         from: fromBuffer(r.maker),

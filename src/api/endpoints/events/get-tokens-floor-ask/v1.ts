@@ -26,9 +26,20 @@ export const getTokensFloorAskV1Options: RouteOptions = {
         .pattern(/^0x[a-f0-9]{40}/),
       token: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-f0-9]{40}:[0-9]+$/),
-      startTimestamp: Joi.number().default(0),
-      endTimestamp: Joi.number().default(9999999999),
+        .pattern(/^0x[a-f0-9]{40}:[0-9]+$/)
+        .description(
+          "Filter to a particular token, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+        ),
+      startTimestamp: Joi.number()
+        .default(0)
+        .description(
+          "Get events after a particular unix timestamp (inclusive)"
+        ),
+      endTimestamp: Joi.number()
+        .default(9999999999)
+        .description(
+          "Get events before a particular unix timestamp (inclusive)"
+        ),
       sortDirection: Joi.string().valid("asc", "desc").default("desc"),
       continuation: Joi.string().pattern(/^\d+(.\d+)?_\d+$/),
       limit: Joi.number().integer().min(1).max(1000).default(50),

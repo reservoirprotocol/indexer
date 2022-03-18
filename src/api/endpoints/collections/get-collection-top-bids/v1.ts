@@ -21,7 +21,12 @@ export const getCollectionTopBidsV1Options: RouteOptions = {
   },
   validate: {
     params: Joi.object({
-      collection: Joi.string().lowercase().required(),
+      collection: Joi.string()
+        .lowercase()
+        .required()
+        .description(
+          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
     }),
   },
   response: {

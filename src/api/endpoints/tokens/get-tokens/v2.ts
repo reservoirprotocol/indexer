@@ -21,15 +21,33 @@ export const getTokensV2Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      collection: Joi.string().lowercase(),
+      collection: Joi.string()
+        .lowercase()
+        .description(
+          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       contract: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-f0-9]{40}$/),
+        .pattern(/^0x[a-f0-9]{40}$/)
+        .description(
+          "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       token: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-f0-9]{40}:[0-9]+$/),
-      tokenSetId: Joi.string().lowercase(),
-      attributes: Joi.object().unknown(),
+        .pattern(/^0x[a-f0-9]{40}:[0-9]+$/)
+        .description(
+          "Filter to a particular token, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+        ),
+      tokenSetId: Joi.string()
+        .lowercase()
+        .description(
+          "Filter to a particular set, e.g. `contract:0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
+      attributes: Joi.object()
+        .unknown()
+        .description(
+          "Filter to a particular attribute, e.g. `attributes[Type]=Original`"
+        ),
       sortBy: Joi.string()
         .valid("floorAskPrice", "topBidValue")
         .default("floorAskPrice"),

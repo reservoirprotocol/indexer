@@ -7,7 +7,7 @@ import { logger } from "@/common/logger";
 import { ApiKeyManager } from "@/entities/api-keys";
 
 export const postApiKey: RouteOptions = {
-  description: "Create a new API key.",
+  description: "Instantly create a new API key",
   notes:
     "The API key can be used optionally in every route, set it as a request header **x-api-key**.",
   tags: ["api", "5. Misc"],
