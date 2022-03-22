@@ -50,9 +50,10 @@ export const postMetadataIndexOptions: RouteOptions = {
       }
 
       // Queue the collection for indexing.
-      await metadataIndexFetch.addToQueue([
-        { kind: "full-collection", data: { method, collection } },
-      ]);
+      await metadataIndexFetch.addToQueue(
+        [{ kind: "full-collection", data: { method, collection } }],
+        true
+      );
 
       // Mark the collection as requiring metadata indexing.
       await idb.none(
