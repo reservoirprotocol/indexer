@@ -41,6 +41,12 @@ CREATE INDEX "fill_events_2_timestamp_index"
 CREATE INDEX "collections_day1_volume_index"
   ON "collections" ("day1_volume" DESC);
 
+CREATE INDEX "collections_day7_volume_index"
+    ON "collections" ("day7_volume" DESC);
+
+CREATE INDEX "collections_day30_volume_index"
+    ON "collections" ("day30_volume" DESC);
+
 CREATE INDEX "collections_all_time_volume_index"
   ON "collections" ("all_time_volume" DESC);
 

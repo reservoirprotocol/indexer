@@ -39,7 +39,7 @@ export const getCollectionsV2Options: RouteOptions = {
         .lowercase()
         .description("Filter to a particular slug, e.g. `boredapeyachtclub`"),
       sortBy: Joi.string()
-        .valid("1DayVolume", "allTimeVolume")
+        .valid("1DayVolume", "7DayVolume", "30DayVolume", "allTimeVolume")
         .default("allTimeVolume"),
       offset: Joi.number().integer().min(0).max(10000).default(0),
       limit: Joi.number().integer().min(1).max(20).default(20),
@@ -67,6 +67,8 @@ export const getCollectionsV2Options: RouteOptions = {
             .pattern(/^0x[a-f0-9]{40}$/)
             .allow(null),
           "1dayVolume": Joi.number().unsafe().allow(null),
+          "7dayVolume": Joi.number().unsafe().allow(null),
+          "30dayVolume": Joi.number().unsafe().allow(null),
           allTimeVolume: Joi.number().unsafe().allow(null),
           allTimeRank: Joi.number().unsafe().allow(null),
         })
@@ -107,6 +109,8 @@ export const getCollectionsV2Options: RouteOptions = {
             WHERE tokens.collection_id = collections.id
           ) AS floor_sell_value,
           collections.day1_volume,
+          collections.day7_volume,
+          collections.day30_volume,
           collections.all_time_volume,
           collections.all_time_rank
         FROM collections
@@ -137,6 +141,14 @@ export const getCollectionsV2Options: RouteOptions = {
         switch (query.sortBy) {
           case "1DayVolume":
             baseQuery += ` ORDER BY collections.day1_volume DESC`;
+            break;
+
+          case "7DayVolume":
+            baseQuery += ` ORDER BY collections.day7_volume DESC`;
+            break;
+
+          case "30DayVolume":
+            baseQuery += ` ORDER BY collections.day30_volume DESC`;
             break;
 
           case "allTimeVolume":
@@ -184,6 +196,8 @@ export const getCollectionsV2Options: RouteOptions = {
           topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
           topBidMaker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
           "1dayVolume": r.day1_volume ? formatEth(r.day1_volume) : null,
+          "7dayVolume": r.day7_volume ? formatEth(r.day7_volume) : null,
+          "30dayVolume": r.day30_volume ? formatEth(r.day30_volume) : null,
           allTimeVolume: r.all_time_volume
             ? formatEth(r.all_time_volume)
             : null,
