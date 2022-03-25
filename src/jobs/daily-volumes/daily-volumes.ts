@@ -11,14 +11,7 @@ const QUEUE_NAME = "calculate-daily-volumes";
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
-    attempts: 10,
-    backoff: {
-      type: "exponential",
-      delay: 10000,
-    },
     removeOnComplete: true,
-    removeOnFail: 10000,
-    timeout: 60000,
   },
 });
 
