@@ -31,6 +31,7 @@ if (config.doBackgroundWork) {
       // Get the startTime and endTime of the day we want to calculate
       const startTime = job.data.startTime;
       const ignoreInsertedRows = job.data.ignoreInsertedRows;
+      let retry = job.data.retry;
 
       await DailyVolume.calculateDay(startTime, ignoreInsertedRows);
 
@@ -39,7 +40,26 @@ if (config.doBackgroundWork) {
           "daily-volumes",
           `All daily volumes are finished processing, updating the collections table`
         );
-        await DailyVolume.updateCollections();
+        const updated = await DailyVolume.updateCollections();
+
+        if (updated) {
+          logger.info("daily-volumes", `Finished updating the collections table`);
+        } else {
+          if (retry < 5) {
+            retry++;
+            logger.info(
+              "daily-volumes",
+              `Something went wrong with updating the collections, will retry in a couple of minutes, retry ${retry}`
+            );
+
+            await addToQueue(startTime, true, retry);
+          } else {
+            logger.info(
+              "daily-volumes",
+              `Something went wrong with retrying during updating the collection, stopping...`
+            );
+          }
+        }
       }
 
       return true;
@@ -57,8 +77,13 @@ if (config.doBackgroundWork) {
  *
  * @param startTime When startTime is null, we assume we want to calculate the previous day volume.
  * @param ignoreInsertedRows When set to true, we force an update/insert of daily_volume rows, even when they already exist
+ * @param retry Retry mechanism
  */
-export const addToQueue = async (startTime?: number | null, ignoreInsertedRows = true) => {
+export const addToQueue = async (
+  startTime?: number | null,
+  ignoreInsertedRows = true,
+  retry = 0
+) => {
   let dayBeginning = new Date();
 
   if (!startTime) {
@@ -67,8 +92,15 @@ export const addToQueue = async (startTime?: number | null, ignoreInsertedRows =
     startTime = dayBeginning.getTime() / 1000 - 24 * 3600;
   }
 
-  await queue.add(randomUUID(), {
-    startTime,
-    ignoreInsertedRows,
-  });
+  await queue.add(
+    randomUUID(),
+    {
+      startTime,
+      ignoreInsertedRows,
+      retry,
+    },
+    {
+      delay: retry ? retry ** 2 * 120 * 1000 : 0,
+    }
+  );
 };

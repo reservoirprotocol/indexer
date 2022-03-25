@@ -213,6 +213,8 @@ export class DailyVolume {
         "daily-volumes",
         "No daily volumes found for the previous day, should be impossible"
       );
+
+      return false;
     }
 
     // Get 7, 30, all_time days previous data
@@ -236,6 +238,8 @@ export class DailyVolume {
           exception: e.message,
         })
       );
+
+      return false;
     }
 
     try {
@@ -248,6 +252,8 @@ export class DailyVolume {
           exception: e.message,
         })
       );
+
+      return false;
     }
 
     try {
@@ -260,6 +266,8 @@ export class DailyVolume {
           exception: e.message,
         })
       );
+
+      return false;
     }
 
     const mergedArr = this.mergeArrays(day1Results, day7Results, day30Results, allTimeResults);
@@ -269,7 +277,8 @@ export class DailyVolume {
         "daily-volumes",
         "No daily volumes found for 1, 7 and 30 days. Should be impossible"
       );
-      return true;
+
+      return false;
     }
 
     try {
