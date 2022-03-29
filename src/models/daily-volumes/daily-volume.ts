@@ -171,6 +171,8 @@ export class DailyVolume {
 
   /**
    * Update the collections table (fields day1_volume, day1_rank, etc) with latest values we have from daily_volumes
+   *
+   * @return boolean Returns false when it fails to update the collection, will need to reschedule the job
    */
   public static async updateCollections(): Promise<boolean> {
     // Skip the query when the collection_id = -1
