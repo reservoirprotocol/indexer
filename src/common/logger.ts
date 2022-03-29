@@ -26,7 +26,8 @@ const log = (level: "error" | "info" | "warn") => {
     ],
   });
 
-  return (component: string, message: string) => logger.log(level, message, { component });
+  return (component: string, message: string) =>
+    logger.log(level, message, { component, version: process.env.npm_package_version });
 };
 
 export const logger = {
