@@ -2,8 +2,6 @@ import { HashZero } from "@ethersproject/constants";
 import crypto from "crypto";
 import stringify from "json-stable-stringify";
 
-import { config } from "@/config/index";
-
 // Optional metadata associated to an order
 export type OrderMetadata = {
   // For now, only attribute orders will have an associated schema.
@@ -32,48 +30,6 @@ export const generateSchemaHash = (schema?: object) =>
   schema
     ? "0x" + crypto.createHash("sha256").update(stringify(schema)).digest("hex")
     : defaultSchemaHash;
-
-// For now, we hardcode the order's source metadata
-export const getOrderSourceMetadata = (
-  sourceId: string | null,
-  contract: string,
-  tokenId: string
-) => {
-  switch (sourceId) {
-    // opensea.io
-    case "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073": {
-      return {
-        id: sourceId,
-        name: "OpenSea",
-        icon: "https://opensea.io/static/images/logos/opensea.svg",
-        url:
-          config.chainId === 1
-            ? `https://opensea.io/assets/${contract}/${tokenId}`
-            : `https://testnets.opensea.io/assets/${contract}/${tokenId}`,
-      };
-    }
-
-    // forgotten.market
-    case "0xfdfda3d504b1431ea0fd70084b1bfa39fa99dcc4": {
-      return {
-        id: sourceId,
-        name: "Forgotten Market",
-        icon: "https://forgotten.market/static/img/favicon.ico",
-        url: `https://forgotten.market/${contract}/${tokenId}`,
-      };
-    }
-
-    // Unknown
-    default: {
-      return {
-        id: sourceId,
-        name: "Unknown",
-        icon: null,
-        url: null,
-      };
-    }
-  }
-};
 
 // Underlying database model for an order
 export type DbOrder = {

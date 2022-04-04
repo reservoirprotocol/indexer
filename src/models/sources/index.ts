@@ -10,10 +10,10 @@ export class Sources {
       source_id: sourceId,
       metadata: {
         id: sourceId,
-        name: "Unknown",
-        icon: null,
-        urlMainnet: null,
-        urlRinkeby: null,
+        name: "Reservoir",
+        icon: "https://www.reservoir.market/reservoir.svg",
+        urlMainnet: "https://www.reservoir.market/collections/${contract}/${tokenId}",
+        urlRinkeby: "https://www.reservoir.fun/collections/${contract}/${tokenId}",
       },
     });
   }
@@ -32,6 +32,7 @@ export class Sources {
   }
 
   public async get(sourceId: string, contract?: string, tokenId?: string) {
+    let sourceEntity;
     const source: SourcesEntityParams | null = await idb.oneOrNone(
       `SELECT *
               FROM sources
@@ -41,35 +42,35 @@ export class Sources {
       }
     );
 
-    if (source) {
-      const sourceEntity = new SourcesEntity(source);
-
-      if (config.chainId == 1) {
-        if (sourceEntity.metadata.urlMainnet && contract && tokenId) {
-          sourceEntity.metadata.url = _.replace(
-            sourceEntity.metadata.urlMainnet,
-            "${contract}",
-            contract
-          );
-
-          sourceEntity.metadata.url = _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
-        }
-      } else {
-        if (sourceEntity.metadata.urlRinkeby && contract && tokenId) {
-          sourceEntity.metadata.url = _.replace(
-            sourceEntity.metadata.urlRinkeby,
-            "${contract}",
-            contract
-          );
-
-          sourceEntity.metadata.url = _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
-        }
-      }
-
-      return sourceEntity;
+    if (!source) {
+      sourceEntity = Sources.getDefaultSource(sourceId);
+    } else {
+      sourceEntity = new SourcesEntity(source);
     }
 
-    return Sources.getDefaultSource(sourceId);
+    if (config.chainId == 1) {
+      if (sourceEntity.metadata.urlMainnet && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.urlMainnet,
+          "${contract}",
+          contract
+        );
+
+        sourceEntity.metadata.url = _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else {
+      if (sourceEntity.metadata.urlRinkeby && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.urlRinkeby,
+          "${contract}",
+          contract
+        );
+
+        sourceEntity.metadata.url = _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    }
+
+    return sourceEntity;
   }
 
   public async set(sourceId: string, metadata: object) {
