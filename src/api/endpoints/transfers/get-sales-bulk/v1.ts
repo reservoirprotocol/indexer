@@ -133,7 +133,7 @@ export const getSalesBulkV1Options: RouteOptions = {
     `);
 
     let conditionsRendered = "";
-    if (conditions) {
+    if (conditions.length) {
       conditionsRendered = "WHERE " + conditions.join(" AND ");
     }
 
