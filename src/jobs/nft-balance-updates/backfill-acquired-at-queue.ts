@@ -57,7 +57,6 @@ if (config.doBackgroundWork) {
                     AND nb.owner = x.owner::bytea;`;
 
         const { rowCount } = await idb.result(query);
-
         logger.info(QUEUE_NAME, `Updated ${rowCount} records`);
 
         if (rowCount > 0) {
