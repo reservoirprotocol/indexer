@@ -21,7 +21,7 @@ export const getActivityV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      limit: Joi.number().integer().min(1).max(20).default(1000),
+      limit: Joi.number().integer().min(1).max(1000).default(20),
       continuation: Joi.number(),
     }),
   },
