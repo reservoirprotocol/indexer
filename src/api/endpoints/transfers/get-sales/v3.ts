@@ -245,7 +245,7 @@ export const getSalesV3Options: RouteOptions = {
             tokens.collection_id,
             collections.name AS collection_name
           FROM tokens
-          LEFT JOIN collections
+          LEFT JOIN collections 
             ON tokens.collection_id = collections.id
           WHERE fill_events_2_data.token_id = tokens.token_id
             AND fill_events_2_data.contract = tokens.contract
