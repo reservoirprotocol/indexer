@@ -3,14 +3,14 @@
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { edb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 
 const version = "v1";
 
 export const getStatsV1Options: RouteOptions = {
-  description: "Aggregate stats for a group of tokens",
+  description: "Stats",
   notes: "Get aggregate stats for a particular set (collection, attribute or single token)",
   tags: ["api", "Stats"],
   plugins: {
@@ -23,17 +23,17 @@ export const getStatsV1Options: RouteOptions = {
       collection: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       token: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
         .description(
-          "Filter to a particular token, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+          "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
       attributes: Joi.object()
         .unknown()
-        .description("Filter to a particular attribute, e.g. `attributes[Type]=Original`"),
+        .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
     })
       .oxor("collection", "token")
       .or("collection", "token"),
@@ -293,6 +293,7 @@ export const getStatsV1Options: RouteOptions = {
             array(
               SELECT "t"."image" FROM "tokens" "t"
               WHERE "t"."collection_id" = $/collection/
+              AND "t"."image" IS NOT NULL
               LIMIT 4
             ) AS "sample_images",
             "x".*,
@@ -320,7 +321,7 @@ export const getStatsV1Options: RouteOptions = {
         `;
       }
 
-      const result = await edb.oneOrNone(baseQuery!, query).then((r) =>
+      const result = await redb.oneOrNone(baseQuery!, query).then((r) =>
         r
           ? {
               tokenCount: Number(r.token_count),

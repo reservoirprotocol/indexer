@@ -255,6 +255,7 @@ if (config.doBackgroundWork) {
             const fillabilityStatuses = await idb.manyOrNone(
               `
                 SELECT
+                  "o"."kind",
                   "o"."id",
                   "o"."fillability_status" AS "old_status",
                   (CASE
@@ -288,6 +289,15 @@ if (config.doBackgroundWork) {
 
             const values = fillabilityStatuses
               .filter(({ old_status, new_status }) => old_status !== new_status)
+              // When a token gets transferred, X2Y2 will off-chain cancel all the
+              // orders from the initial owner, so that if they ever get the token
+              // back in their wallet no order will get reactivated (they are able
+              // to do that by having their backend refuse to sign on such orders).
+              .map((data) =>
+                data.kind === "x2y2" && data.new_status === "no-balance"
+                  ? { ...data, new_status: "cancelled" }
+                  : data
+              )
               .map(({ id, new_status, expiration }) => ({
                 id,
                 fillability_status: new_status,
@@ -510,40 +520,42 @@ if (config.doBackgroundWork) {
             }
 
             // Wyvern v2.3
-            const proxy = await wyvernV23Utils.getUserProxy(maker);
-            if (proxy && proxy === data.operator) {
-              detected = true;
-              result.push(
-                ...(await idb.manyOrNone(
-                  `
-                    UPDATE "orders" AS "o" SET
-                      "approval_status" = $/approvalStatus/,
-                      "expiration" = to_timestamp($/expiration/),
-                      "updated_at" = now()
-                    FROM (
-                      SELECT
-                        "o"."id"
-                      FROM "orders" "o"
-                      JOIN "token_sets_tokens" "tst"
-                        ON "o"."token_set_id" = "tst"."token_set_id"
-                      WHERE "tst"."contract" = $/contract/
-                        AND "o"."kind" = 'wyvern-v2.3'
-                        AND "o"."maker" = $/maker/
-                        AND "o"."side" = 'sell'
-                        AND ("o"."fillability_status" = 'fillable' OR "o"."fillability_status" = 'no-balance')
-                        AND "o"."approval_status" != $/approvalStatus/
-                    ) "x"
-                    WHERE "o"."id" = "x"."id"
-                    RETURNING "o"."id"
-                  `,
-                  {
-                    maker: toBuffer(maker),
-                    contract: toBuffer(data.contract),
-                    approvalStatus: data.approved ? "approved" : "no-approval",
-                    expiration: trigger.txTimestamp,
-                  }
-                ))
-              );
+            if (Sdk.WyvernV23.Addresses.ProxyRegistry[config.chainId]) {
+              const proxy = await wyvernV23Utils.getUserProxy(maker);
+              if (proxy && proxy === data.operator) {
+                detected = true;
+                result.push(
+                  ...(await idb.manyOrNone(
+                    `
+                      UPDATE "orders" AS "o" SET
+                        "approval_status" = $/approvalStatus/,
+                        "expiration" = to_timestamp($/expiration/),
+                        "updated_at" = now()
+                      FROM (
+                        SELECT
+                          "o"."id"
+                        FROM "orders" "o"
+                        JOIN "token_sets_tokens" "tst"
+                          ON "o"."token_set_id" = "tst"."token_set_id"
+                        WHERE "tst"."contract" = $/contract/
+                          AND "o"."kind" = 'wyvern-v2.3'
+                          AND "o"."maker" = $/maker/
+                          AND "o"."side" = 'sell'
+                          AND ("o"."fillability_status" = 'fillable' OR "o"."fillability_status" = 'no-balance')
+                          AND "o"."approval_status" != $/approvalStatus/
+                      ) "x"
+                      WHERE "o"."id" = "x"."id"
+                      RETURNING "o"."id"
+                    `,
+                    {
+                      maker: toBuffer(maker),
+                      contract: toBuffer(data.contract),
+                      approvalStatus: data.approved ? "approved" : "no-approval",
+                      expiration: trigger.txTimestamp,
+                    }
+                  ))
+                );
+              }
             }
 
             // TODO: Backfill orders conduit and use that directly instead of

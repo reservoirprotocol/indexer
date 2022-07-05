@@ -22,7 +22,7 @@ export const getOrderEventsV1Options: RouteOptions = {
     privacy: "public",
     expiresIn: 5000,
   },
-  description: "Historical order status",
+  description: "Order status changes",
   notes: "Get updates any time an order status changes",
   tags: ["api", "Events"],
   plugins: {
@@ -34,16 +34,29 @@ export const getOrderEventsV1Options: RouteOptions = {
     query: Joi.object({
       contract: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}/),
+        .pattern(/^0x[a-fA-F0-9]{40}/)
+        .description(
+          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
-      sortDirection: Joi.string().valid("asc", "desc").default("desc"),
-      continuation: Joi.string().pattern(base64Regex),
-      limit: Joi.number().integer().min(1).max(1000).default(50),
+      sortDirection: Joi.string()
+        .valid("asc", "desc")
+        .default("desc")
+        .description("Order the items are returned in the response."),
+      continuation: Joi.string()
+        .pattern(base64Regex)
+        .description("Use continuation token to request next offset of items."),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(1000)
+        .default(50)
+        .description("Amount of items returned in response."),
     }).oxor("contract"),
   },
   response: {

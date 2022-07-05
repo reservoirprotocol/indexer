@@ -1,6 +1,6 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
@@ -32,7 +32,7 @@ if (config.doBackgroundWork) {
 
       try {
         // First, retrieve the token's associated collection.
-        const collectionResult = await idb.oneOrNone(
+        const collectionResult = await redb.oneOrNone(
           `
             SELECT tokens.collection_id FROM tokens
             WHERE tokens.contract = $/contract/
@@ -58,7 +58,8 @@ if (config.doBackgroundWork) {
                 floor_sell_maker = x.floor_sell_maker,
                 floor_sell_source_id = x.source_id,
                 floor_sell_source_id_int = x.source_id_int,
-                floor_sell_valid_between = x.valid_between
+                floor_sell_valid_between = x.valid_between,
+                updated_at = now()
               FROM (
                 SELECT
                   tokens.floor_sell_id,

@@ -1,4 +1,4 @@
-import { BigNumberish } from "@ethersproject/bignumber";
+import { BigNumberish, BigNumber } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
@@ -237,11 +237,11 @@ export const save = async (
 
         case "token-range": {
           const typedInfo = info as typeof info & {
-            startTokenId: string;
-            endTokenId: string;
+            startTokenId: BigNumber;
+            endTokenId: BigNumber;
           };
-          const startTokenId = typedInfo.startTokenId;
-          const endTokenId = typedInfo.endTokenId;
+          const startTokenId = typedInfo.startTokenId.toString();
+          const endTokenId = typedInfo.endTokenId.toString();
 
           if (startTokenId && endTokenId) {
             [{ id: tokenSetId }] = await tokenSet.tokenRange.save([

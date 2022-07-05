@@ -8,7 +8,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
-import { idb } from "@/common/db";
+import { redb } from "@/common/db";
 import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
 import { fromBuffer } from "@/common/utils";
 
@@ -43,7 +43,7 @@ if (config.doBackgroundWork) {
                      ORDER BY id ASC
                      LIMIT ${limit}`;
 
-      const collections = await idb.manyOrNone(query);
+      const collections = await redb.manyOrNone(query);
 
       if (collections) {
         const collectionsIds = _.join(
@@ -60,7 +60,7 @@ if (config.doBackgroundWork) {
             AND tokens.floor_sell_value IS NOT NULL
         `;
 
-        const tokens = await idb.manyOrNone(tokensQuery, { collectionsIds });
+        const tokens = await redb.manyOrNone(tokensQuery, { collectionsIds });
 
         _.forEach(tokens, (token) => {
           resyncAttributeCache.addToQueue(fromBuffer(token.contract), token.token_id, 0);

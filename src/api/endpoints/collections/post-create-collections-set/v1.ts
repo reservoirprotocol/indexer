@@ -22,7 +22,7 @@ export const postCreateCollectionsSetV1Options: RouteOptions = {
           Joi.string()
             .lowercase()
             .description(
-              `Array of collection to gather in a set ["0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63"]`
+              "Array of collections to gather in a set. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
             )
         )
         .max(500)

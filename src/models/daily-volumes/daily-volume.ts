@@ -328,7 +328,8 @@ export class DailyVolume {
                 day30_volume = $/day30_volume/,
                 day30_rank   = $/day30_rank/,
                 all_time_volume = $/all_time_volume/,
-                all_time_rank = $/all_time_rank/
+                all_time_rank = $/all_time_rank/,
+                updated_at = now()
             WHERE
                 id = $/collection_id/`,
           values: row,
@@ -451,7 +452,8 @@ export class DailyVolume {
       queries.push({
         query: `
             UPDATE collections
-            SET day${days}_volume_change = day${days}_volume / NULLIF($/prev_day${days}_volume/::numeric, 0)                
+            SET day${days}_volume_change = day${days}_volume / NULLIF($/prev_day${days}_volume/::numeric, 0),
+                updated_at = now()                
             WHERE id = $/collection_id/`,
         values: row,
       });
@@ -541,7 +543,8 @@ export class DailyVolume {
       queries.push({
         query: `
             UPDATE collections
-            SET day${period}_floor_sell_value = $/floor_sell_value/                              
+            SET day${period}_floor_sell_value = $/floor_sell_value/,
+                updated_at = now()                              
             WHERE id = $/collection_id/`,
         values: row,
       });

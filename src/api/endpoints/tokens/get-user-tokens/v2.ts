@@ -15,7 +15,7 @@ export const getUserTokensV2Options: RouteOptions = {
     privacy: "public",
     expiresIn: 60000,
   },
-  description: "Get tokens held by a user, along with ownership information",
+  description: "User tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
   tags: ["api", "Tokens"],
@@ -30,7 +30,9 @@ export const getUserTokensV2Options: RouteOptions = {
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}$/)
         .required()
-        .description("Wallet to see results for e.g. `0xf296178d553c8ec21a2fbd2c5dda8ca9ac905a00`"),
+        .description(
+          "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+        ),
     }),
     query: Joi.object({
       community: Joi.string()
@@ -38,11 +40,11 @@ export const getUserTokensV2Options: RouteOptions = {
         .description("Filter to a particular community, e.g. `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set"),
+        .description("Filter to a particular collection set."),
       collection: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       contract: Joi.string()
         .lowercase()
@@ -50,10 +52,26 @@ export const getUserTokensV2Options: RouteOptions = {
         .description(
           "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
-      sortBy: Joi.string().valid("acquiredAt"),
-      sortDirection: Joi.string().lowercase().valid("asc", "desc").default("desc"),
-      offset: Joi.number().integer().min(0).max(10000).default(0),
-      limit: Joi.number().integer().min(1).max(20).default(20),
+      sortBy: Joi.string()
+        .valid("acquiredAt")
+        .description("Order the items are returned in the response."),
+      sortDirection: Joi.string()
+        .lowercase()
+        .valid("asc", "desc")
+        .default("desc")
+        .description("Order the items are returned in the response."),
+      offset: Joi.number()
+        .integer()
+        .min(0)
+        .max(10000)
+        .default(0)
+        .description("Use offset to request the next batch of items."),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(20)
+        .default(20)
+        .description("Amount of items returned in response."),
     }),
   },
   response: {
@@ -163,17 +181,17 @@ export const getUserTokensV2Options: RouteOptions = {
     try {
       const baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, b.acquired_at, t.name,
-               t.image, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.top_buy_id,
+               t.image, t.collection_id, b.floor_sell_id, b.floor_sell_value, t.top_buy_id,
                t.top_buy_value, t.total_buy_value, c.name as collection_name,
                c.metadata, c.floor_sell_value AS "collection_floor_sell_value",
                (
-                    CASE WHEN t.floor_sell_value IS NOT NULL
+                    CASE WHEN b.floor_sell_value IS NOT NULL
                     THEN 1
                     ELSE 0
                     END
                ) AS on_sale_count
         FROM (
-            SELECT amount AS token_count, token_id, contract, acquired_at
+            SELECT amount AS token_count, token_id, contract, acquired_at, floor_sell_id, floor_sell_value
             FROM nft_balances
             WHERE owner = $/user/
               AND ${collectionFilters.length ? "(" + collectionFilters.join(" OR ") + ")" : "TRUE"}
@@ -181,8 +199,7 @@ export const getUserTokensV2Options: RouteOptions = {
           ) AS b
           JOIN LATERAL (
             SELECT t.token_id, t.name, t.image, t.collection_id,
-               t.floor_sell_id, t.top_buy_id, t.top_buy_value,
-               t.floor_sell_value, b.token_count * t.top_buy_value AS total_buy_value
+               t.top_buy_id, t.top_buy_value, b.token_count * t.top_buy_value AS total_buy_value
             FROM tokens t
             WHERE b.token_id = t.token_id
             AND b.contract = t.contract

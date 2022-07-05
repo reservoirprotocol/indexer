@@ -1,6 +1,10 @@
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { formatEther, formatUnits } from "@ethersproject/units";
 
+import { config } from "../config/index";
+
+// --- BigNumbers and prices ---
+
 export const bn = (value: BigNumberish) => BigNumber.from(value);
 
 export const formatEth = (wei: BigNumberish) => Number(Number(formatEther(wei)).toFixed(5));
@@ -8,38 +12,45 @@ export const formatEth = (wei: BigNumberish) => Number(Number(formatEther(wei)).
 export const formatPrice = (value: BigNumberish, decimals = 18) =>
   Number(Number(formatUnits(value, decimals)).toFixed(5));
 
+// --- Buffers ---
+
 export const fromBuffer = (buffer: Buffer) => "0x" + buffer.toString("hex");
 
 export const toBuffer = (hexValue: string) => Buffer.from(hexValue.slice(2), "hex");
 
-/**
- * Split a continuation string based on a regular expression
- * The continuation string can be either a regular string or base64 encoded string.
- *
- * @param cont
- * @param regEx
- */
-export const splitContinuation = (cont: string, regEx: RegExp) => {
-  // underscores are not in base64, we should remove this part once it's rolled out and assume everything is
-  // base64 encoded
-  if (cont.includes("_")) {
-    return cont.split("_");
+// --- Continuations ---
+
+export const splitContinuation = (c: string, regEx: RegExp) => {
+  if (c.includes("_")) {
+    return c.split("_");
   }
 
-  cont = decodeURIComponent(cont);
-
-  // If it matches a base64 string, it might be really base64, we don't know until we decode
-  if (cont.match(base64Regex)) {
-    const decoded = Buffer.from(cont, "base64").toString("ascii");
+  c = decodeURIComponent(c);
+  if (c.match(base64Regex)) {
+    const decoded = Buffer.from(c, "base64").toString("ascii");
     if (decoded.match(regEx)) {
       return decoded.split("_");
     }
   }
 
-  // We failed to decode the base64 string and compare it to our regex, so return whatever we passed
-  return cont;
+  return c;
 };
 
-export const buildContinuation = (cont: string) => Buffer.from(cont).toString("base64");
+export const buildContinuation = (c: string) => Buffer.from(c).toString("base64");
 
 export const base64Regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+// --- Networks ---
+
+export const getNetworkName = () => {
+  switch (config.chainId) {
+    case 1:
+      return "mainnet";
+    case 4:
+      return "rinkeby";
+    case 10:
+      return "optimism";
+    default:
+      return "unknown";
+  }
+};

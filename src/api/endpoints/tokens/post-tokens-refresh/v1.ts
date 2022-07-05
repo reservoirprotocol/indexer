@@ -1,19 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import * as Boom from "@hapi/boom";
+import { Request, RouteOptions } from "@hapi/hapi";
 import { isAfter, add, formatISO9075 } from "date-fns";
 import _ from "lodash";
-import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { Tokens } from "@/models/tokens";
 import { logger } from "@/common/logger";
-import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
-import { Collections } from "@/models/collections";
+import { config } from "@/config/index";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as Boom from "@hapi/boom";
 import * as orderFixes from "@/jobs/order-fixes/queue";
 import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
 import * as tokenRefreshCacheQueue from "@/jobs/token-updates/token-refresh-cache";
+import { Collections } from "@/models/collections";
+import { Tokens } from "@/models/tokens";
+import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 
 const version = "v1";
 
@@ -31,7 +32,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
         .description(
-          "Refresh the given token, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+          "Refresh the given token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         )
         .required(),
     }),
@@ -83,7 +84,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
             {
               kind: "single-token",
               data: {
-                method: "opensea",
+                method: config.metadataIndexingMethod,
                 contract,
                 tokenId,
                 collection: collection.id,

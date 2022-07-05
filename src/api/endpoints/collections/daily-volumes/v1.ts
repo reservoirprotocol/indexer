@@ -10,7 +10,7 @@ import { formatEth } from "@/common/utils";
 const version = "v1";
 
 export const getDailyVolumesV1Options: RouteOptions = {
-  description: "Historical collection volume",
+  description: "Daily collection volume",
   notes: "Get date, volume, rank and sales count for each collection",
   tags: ["api", "Stats"],
   plugins: {
@@ -23,10 +23,10 @@ export const getDailyVolumesV1Options: RouteOptions = {
       id: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         )
         .required(),
-      limit: Joi.number().default(60).description("Rows to return"),
+      limit: Joi.number().default(60).description("Amount of items returned in response."),
       startTimestamp: Joi.number().description("The start timestamp you want to filter on (UTC)"),
       endTimestamp: Joi.number().description("The end timestamp you want to filter on (UTC)"),
     }),

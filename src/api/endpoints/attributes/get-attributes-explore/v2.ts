@@ -11,8 +11,8 @@ import { formatEth, fromBuffer } from "@/common/utils";
 const version = "v2";
 
 export const getAttributesExploreV2Options: RouteOptions = {
-  description: "Explore attribute floors",
-  notes: "Get detailed aggregate about attributes in a collection, e.g. trait floors",
+  description: "Explore attributes",
+  notes: "Get detailed aggregate about attributes in a collection, attribute floors",
   tags: ["api", "Attributes"],
   plugins: {
     "hapi-swagger": {
@@ -24,28 +24,41 @@ export const getAttributesExploreV2Options: RouteOptions = {
       collection: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
     }),
     query: Joi.object({
       attributeKey: Joi.string().description(
-        "Filter to a particular attribute key, e.g. `Composition`"
+        "Filter to a particular attribute key. Example: `Composition`"
       ),
       maxFloorAskPrices: Joi.number()
         .integer()
         .min(1)
         .max(20)
         .default(1)
-        .description("Max floor prices to return"),
+        .description("Max number of items returned in the response."),
       maxLastSells: Joi.number()
         .integer()
         .min(0)
         .max(20)
         .default(0)
-        .description("Max last sells to return"),
-      sortBy: Joi.string().valid("floorAskPrice", "topBidValue").default("floorAskPrice"),
-      offset: Joi.number().integer().min(0).max(10000).default(0),
-      limit: Joi.number().integer().min(1).max(5000).default(20),
+        .description("Max number of items returned in the response."),
+      sortBy: Joi.string()
+        .valid("floorAskPrice", "topBidValue")
+        .default("floorAskPrice")
+        .description("Order the items are returned in the response."),
+      offset: Joi.number()
+        .integer()
+        .min(0)
+        .max(10000)
+        .default(0)
+        .description("Use offset to request the next batch of items."),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(5000)
+        .default(20)
+        .description("Amount of items returned in response."),
     }),
   },
   response: {

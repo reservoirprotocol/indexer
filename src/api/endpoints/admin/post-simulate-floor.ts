@@ -5,7 +5,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
-import { idb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -45,7 +45,7 @@ export const postSimulateFloor: RouteOptions = {
         },
       });
 
-      const contractResult = await idb.one(
+      const contractResult = await redb.one(
         `
           SELECT
             contracts.kind

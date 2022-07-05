@@ -11,7 +11,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 import Joi from "joi";
 
-import { edb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, formatPrice } from "@/common/utils";
 import { config } from "@/config/index";
@@ -19,7 +19,8 @@ import { config } from "@/config/index";
 const version = "v1";
 
 export const getCollectionFloorAskOracleV1Options: RouteOptions = {
-  description: "Get a signed message of any collection's floor price (spot or twap)",
+  description: "Collection floor",
+  notes: "Get a signed message of any collection's floor price (spot or twap)",
   tags: ["api", "Oracle"],
   plugins: {
     "hapi-swagger": {
@@ -124,7 +125,7 @@ export const getCollectionFloorAskOracleV1Options: RouteOptions = {
       let price: string;
       let decimals = 18;
       if (query.kind === "spot") {
-        const result = await edb.oneOrNone(spotQuery, params);
+        const result = await redb.oneOrNone(spotQuery, params);
         if (!result?.price) {
           throw Boom.badRequest("No floor ask price available");
         }
@@ -132,7 +133,7 @@ export const getCollectionFloorAskOracleV1Options: RouteOptions = {
         kind = PriceKind.SPOT;
         price = result.price;
       } else if (query.kind === "twap") {
-        const result = await edb.oneOrNone(twapQuery, params);
+        const result = await redb.oneOrNone(twapQuery, params);
         if (!result?.price) {
           throw Boom.badRequest("No floor ask price available");
         }
@@ -140,8 +141,8 @@ export const getCollectionFloorAskOracleV1Options: RouteOptions = {
         kind = PriceKind.TWAP;
         price = result.price;
       } else {
-        const spotResult = await edb.oneOrNone(spotQuery, params);
-        const twapResult = await edb.oneOrNone(twapQuery, params);
+        const spotResult = await redb.oneOrNone(spotQuery, params);
+        const twapResult = await redb.oneOrNone(twapQuery, params);
         if (!spotResult?.price || !twapResult?.price) {
           throw Boom.badRequest("No floor ask price available");
         }

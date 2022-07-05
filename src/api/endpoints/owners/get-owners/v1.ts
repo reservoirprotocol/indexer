@@ -14,7 +14,7 @@ export const getOwnersV1Options: RouteOptions = {
     privacy: "public",
     expiresIn: 60 * 60 * 1000,
   },
-  description: "Owners of a token or collection",
+  description: "Owners",
   notes:
     "Get owners with various filters applied, and a summary of their ownership. Useful for exploring top owners in a collection or attribute.",
   tags: ["api", "Owners"],
@@ -29,25 +29,34 @@ export const getOwnersV1Options: RouteOptions = {
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+:[0-9]+$|^0x[a-fA-F0-9]{40}$/)
         .description(
-          "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       contract: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}$/)
         .description(
-          "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       token: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
         .description(
-          "Filter to a particular token, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+          "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
       attributes: Joi.object()
         .unknown()
-        .description("Filter to a particular attribute, e.g. `attributes[Type]=Original`"),
-      offset: Joi.number().integer().min(0).default(0),
-      limit: Joi.number().integer().min(1).max(500).default(20),
+        .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
+      offset: Joi.number()
+        .integer()
+        .min(0)
+        .default(0)
+        .description("Use offset to request the next batch of items."),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(500)
+        .default(20)
+        .description("Amount of items returned in response."),
     })
       .oxor("collection", "contract", "token")
       .or("collection", "contract", "token")

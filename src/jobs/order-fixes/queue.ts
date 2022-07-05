@@ -2,7 +2,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
@@ -44,7 +44,7 @@ if (config.doBackgroundWork) {
         switch (by) {
           case "id": {
             // If the order is valid, recheck is status.
-            const result = await idb.oneOrNone(
+            const result = await redb.oneOrNone(
               `
                 SELECT
                   orders.kind,
@@ -220,7 +220,8 @@ if (config.doBackgroundWork) {
                 `
                   UPDATE "orders" AS "o" SET
                     "fillability_status" = $/fillabilityStatus/,
-                    "approval_status" = $/approvalStatus/
+                    "approval_status" = $/approvalStatus/,
+                    "updated_at" = now()
                   WHERE "o"."id" = $/id/
                     AND ("o"."fillability_status" != $/fillabilityStatus/ OR "o"."approval_status" != $/approvalStatus/)
                   RETURNING "o"."id"
@@ -251,7 +252,7 @@ if (config.doBackgroundWork) {
 
           case "token": {
             // Trigger a fix for all valid orders on the token.
-            const result = await idb.manyOrNone(
+            const result = await redb.manyOrNone(
               `
                 SELECT "o"."id" FROM "orders" "o"
                 WHERE "o"."token_set_id" = $/tokenSetId/
@@ -270,7 +271,7 @@ if (config.doBackgroundWork) {
           case "maker": {
             // Trigger a fix for all of valid orders from the maker.
             // TODO: Use keyset pagination to be able to handle large amounts of orders.
-            const result = await idb.manyOrNone(
+            const result = await redb.manyOrNone(
               `
                 SELECT "o"."id" FROM "orders" "o"
                 WHERE "o"."maker" = $/maker/
@@ -291,7 +292,7 @@ if (config.doBackgroundWork) {
             // Trigger a fix for all valid orders on the contract.
             for (const side of ["sell", "buy"]) {
               // TODO: Use keyset pagination to be able to handle large amounts of orders.
-              const result = await idb.manyOrNone(
+              const result = await redb.manyOrNone(
                 `
                   SELECT "o"."id" FROM "orders" "o"
                   WHERE "o"."side" = $/side/ AND "o"."contract" = $/contract/

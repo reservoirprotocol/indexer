@@ -48,6 +48,9 @@ CREATE INDEX "collections_minted_timestamp_index"
     ON collections USING btree
     (minted_timestamp DESC NULLS LAST);
 
+CREATE INDEX "collections_updated_at_id_index"
+  ON "collections" ("updated_at", "id");
+
 CREATE EXTENSION tsm_system_rows;
 
 -- Down Migration

@@ -10,7 +10,7 @@ import { toBuffer } from "@/common/utils";
 const version = "v1";
 
 export const getCollectionOwnersDistributionV1Options: RouteOptions = {
-  description: "Owner distribution in a collection",
+  description: "Owners distribution",
   notes: "This API can be used to show what the distribution of owners in a collection looks like.",
   tags: ["api", "Owners"],
   plugins: {
@@ -24,7 +24,7 @@ export const getCollectionOwnersDistributionV1Options: RouteOptions = {
         .lowercase()
         .required()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
     }),
   },
@@ -32,8 +32,8 @@ export const getCollectionOwnersDistributionV1Options: RouteOptions = {
     schema: Joi.object({
       ownersDistribution: Joi.array().items(
         Joi.object({
-          tokenCount: Joi.number(),
-          ownerCount: Joi.number(),
+          tokenCount: Joi.number().unsafe(),
+          ownerCount: Joi.number().unsafe(),
         })
       ),
     }).label(`getCollectionOwnersDistribution${version.toUpperCase()}Response`),

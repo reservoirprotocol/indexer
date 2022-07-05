@@ -1,6 +1,7 @@
 import { createLogger, format, transports } from "winston";
 
 import { config } from "@/config/index";
+import { getNetworkName } from "@/common/utils";
 
 import { networkInterfaces } from "os";
 
@@ -22,7 +23,7 @@ for (const name of Object.keys(nets)) {
 }
 
 const log = (level: "error" | "info" | "warn") => {
-  const service = `indexer-${config.version}-${config.chainId === 1 ? "mainnet" : "rinkeby"}`;
+  const service = `indexer-${config.version}-${getNetworkName()}`;
 
   const logger = createLogger({
     exitOnError: false,

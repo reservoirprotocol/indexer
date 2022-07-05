@@ -8,7 +8,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 
 const QUEUE_NAME = "resync-attribute-collection-queue";
 
@@ -43,7 +43,7 @@ if (config.doBackgroundWork) {
                      ORDER BY id ASC
                      LIMIT ${limit}`;
 
-      const attributeKeys = await idb.manyOrNone(query);
+      const attributeKeys = await redb.manyOrNone(query);
 
       if (attributeKeys) {
         for (const attributeKey of attributeKeys) {

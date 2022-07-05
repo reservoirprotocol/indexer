@@ -26,23 +26,37 @@ export const getUserCollectionsV2Options: RouteOptions = {
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}$/)
         .required()
-        .description("Wallet to see results for e.g. `0xf296178d553c8ec21a2fbd2c5dda8ca9ac905a00`"),
+        .description(
+          "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+        ),
     }),
     query: Joi.object({
       community: Joi.string()
         .lowercase()
-        .description("Filter to a particular community, e.g. `artblocks`"),
+        .description("Filter to a particular community. Example: `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set"),
+        .description("Filter to a particular collection set."),
       collection: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
-      includeTopBid: Joi.boolean().default(false),
-      offset: Joi.number().integer().min(0).max(10000).default(0),
-      limit: Joi.number().integer().min(1).max(100).default(20),
+      includeTopBid: Joi.boolean()
+        .default(false)
+        .description("If true, top bid will be returned in the response."),
+      offset: Joi.number()
+        .integer()
+        .min(0)
+        .max(10000)
+        .default(0)
+        .description("Use offset to request the next batch of items."),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(100)
+        .default(20)
+        .description("Amount of items returned in response."),
     }),
   },
   response: {
@@ -129,6 +143,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
                   SELECT array(
                     SELECT tokens.image FROM tokens
                     WHERE tokens.collection_id = collections.id
+                    AND tokens.image IS NOT NULL
                     LIMIT 4
                   )
                 ) AS sample_images,

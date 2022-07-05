@@ -97,6 +97,10 @@ export const getTransfersV2Options: RouteOptions = {
     const query = request.query as any;
 
     try {
+      // Associating sales to transfers is done by searching for transfer
+      // and sale events that occurred close to each other. In most cases
+      // we will first have the transfer followed by the sale but we have
+      // some exceptions.
       let baseQuery = `
         SELECT
           nft_transfer_events.address,
@@ -117,7 +121,13 @@ export const getTransfersV2Options: RouteOptions = {
             SELECT fill_events_2.price
             FROM fill_events_2
             WHERE fill_events_2.tx_hash = nft_transfer_events.tx_hash
-              AND fill_events_2.log_index = nft_transfer_events.log_index + 1
+              AND fill_events_2.log_index = nft_transfer_events.log_index + (
+                CASE
+                  WHEN fill_events_2.order_kind = 'x2y2' THEN 2
+                  WHEN fill_events_2.order_kind = 'seaport' THEN -2
+                  ELSE 1
+                END
+              )
             LIMIT 1
           ) AS price
         FROM nft_transfer_events

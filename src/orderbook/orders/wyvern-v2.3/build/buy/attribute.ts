@@ -64,6 +64,7 @@ export const build = async (options: BuildOrderOptions) => {
     }
 
     // Fetch all tokens matching the attributes
+    // TODO: Include `NOT is_flagged` filter in the query
     const tokens = await edb.manyOrNone(
       `
         SELECT

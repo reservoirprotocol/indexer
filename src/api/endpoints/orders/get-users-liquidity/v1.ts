@@ -26,13 +26,26 @@ export const getUsersLiquidityV1Options: RouteOptions = {
       collection: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       user: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/),
-      offset: Joi.number().integer().min(0).max(10000).default(0),
-      limit: Joi.number().integer().min(1).max(20).default(20),
+        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .description(
+          "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+        ),
+      offset: Joi.number()
+        .integer()
+        .min(0)
+        .max(10000)
+        .default(0)
+        .description("Use offset to request the next batch of items."),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(20)
+        .default(20)
+        .description("Amount of items returned in response."),
     })
       .or("collection", "user")
       .oxor("collection", "user"),

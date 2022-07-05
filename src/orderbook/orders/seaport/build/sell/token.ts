@@ -29,9 +29,6 @@ export const build = async (options: BuildOrderOptions) => {
   }
 
   const buildInfo = await utils.getBuildInfo(options, collectionResult.collection_id, "sell");
-  if (!buildInfo) {
-    throw new Error("Could not generate build info");
-  }
 
   const builder: BaseBuilder = new Sdk.Seaport.Builders.SingleToken(config.chainId);
 

@@ -8,7 +8,7 @@ import { TxData } from "@reservoir0x/sdk/dist/utils";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
+import { slowProvider } from "@/common/provider";
 import { config } from "@/config/index";
 
 // OpenDao
@@ -164,7 +164,7 @@ export const getExecuteListV1Options: RouteOptions = {
                 // Generate a proxy registration transaction
 
                 const proxyRegistry = new Sdk.WyvernV23.Helpers.ProxyRegistry(
-                  baseProvider,
+                  slowProvider,
                   config.chainId
                 );
                 const proxyRegistrationTx = proxyRegistry.registerProxyTransaction(query.maker);
@@ -200,8 +200,8 @@ export const getExecuteListV1Options: RouteOptions = {
 
                 const approvalTx = (
                   kind === "erc721"
-                    ? new Sdk.Common.Helpers.Erc721(baseProvider, orderInfo.contract)
-                    : new Sdk.Common.Helpers.Erc1155(baseProvider, orderInfo.contract)
+                    ? new Sdk.Common.Helpers.Erc721(slowProvider, orderInfo.contract)
+                    : new Sdk.Common.Helpers.Erc1155(slowProvider, orderInfo.contract)
                 ).approveTransaction(query.maker, userProxy!);
 
                 return {
@@ -333,8 +333,8 @@ export const getExecuteListV1Options: RouteOptions = {
 
                 approvalTx = (
                   kind === "erc721"
-                    ? new Sdk.Common.Helpers.Erc721(baseProvider, order.params.nft)
-                    : new Sdk.Common.Helpers.Erc1155(baseProvider, order.params.nft)
+                    ? new Sdk.Common.Helpers.Erc721(slowProvider, order.params.nft)
+                    : new Sdk.Common.Helpers.Erc1155(slowProvider, order.params.nft)
                 ).approveTransaction(query.maker, Sdk.OpenDao.Addresses.Exchange[config.chainId]);
 
                 break;
@@ -442,8 +442,8 @@ export const getExecuteListV1Options: RouteOptions = {
 
                 approvalTx = (
                   kind === "erc721"
-                    ? new Sdk.Common.Helpers.Erc721(baseProvider, order.params.nft)
-                    : new Sdk.Common.Helpers.Erc1155(baseProvider, order.params.nft)
+                    ? new Sdk.Common.Helpers.Erc721(slowProvider, order.params.nft)
+                    : new Sdk.Common.Helpers.Erc1155(slowProvider, order.params.nft)
                 ).approveTransaction(query.maker, Sdk.ZeroExV4.Addresses.Exchange[config.chainId]);
 
                 break;

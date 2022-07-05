@@ -7,9 +7,9 @@ import { logger } from "@/common/logger";
 import { ApiKeyManager } from "../../../models/api-keys";
 
 export const postApiKey: RouteOptions = {
-  description: "Request an instant API Key",
+  description: "Generate API Key",
   notes:
-    "The optional API key can be used in every route, by setting it as a request header **x-api-key**.\n\n<a href='https://reservoirprotocol.github.io/docs/api/hosted-api'>Learn more</a> about API Keys and Rate Limiting",
+    "The optional API key can be used in every route, by setting it as a request header **x-api-key**.\n\n<a href='https://docs.reservoir.tools/reference/getting-started'>Learn more</a> about API Keys and Rate Limiting",
   tags: ["api", "Management"],
   plugins: {
     "hapi-swagger": {

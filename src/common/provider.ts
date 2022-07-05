@@ -8,6 +8,7 @@ import { config } from "@/config/index";
 // - use static providers to avoid redundant `eth_chainId` calls
 
 export const baseProvider = new StaticJsonRpcProvider(config.baseNetworkHttpUrl, config.chainId);
+export const slowProvider = new StaticJsonRpcProvider(config.slowNetworkHttpUrl, config.chainId);
 
 // https://github.com/ethers-io/ethers.js/issues/1053#issuecomment-808736570
 export const safeWebSocketSubscription = (

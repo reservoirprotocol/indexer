@@ -27,14 +27,19 @@ export const getSearchCollectionsV1Options: RouteOptions = {
     query: Joi.object({
       name: Joi.string()
         .lowercase()
-        .description("Lightweight search for collections that match a string, e.g. `bored`"),
+        .description("Lightweight search for collections that match a string. Example: `bored`"),
       community: Joi.string()
         .lowercase()
-        .description("Filter to a particular community, e.g. `artblocks`"),
+        .description("Filter to a particular community. Example: `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set"),
-      limit: Joi.number().integer().min(1).max(50).default(20),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(50)
+        .default(20)
+        .description("Amount of items returned in response."),
     }),
   },
   response: {

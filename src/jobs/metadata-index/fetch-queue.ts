@@ -3,7 +3,7 @@ import _ from "lodash";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
-import { idb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis, acquireLock } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
@@ -111,7 +111,7 @@ async function getTokensForCollection(
   tokenId: string,
   limit: number
 ) {
-  const tokens = await idb.manyOrNone(
+  const tokens = await redb.manyOrNone(
     `SELECT tokens.contract, tokens.token_id
             FROM tokens
             WHERE tokens.collection_id = $/collection/
@@ -129,14 +129,11 @@ async function getTokensForCollection(
   });
 }
 
-// We support the following metadata indexing methods.
-type IndexingMethod = "opensea" | "rarible";
-
 export type MetadataIndexInfo =
   | {
       kind: "full-collection";
       data: {
-        method: IndexingMethod;
+        method: string;
         collection: string;
         continuation?: string;
       };
@@ -144,7 +141,7 @@ export type MetadataIndexInfo =
   | {
       kind: "single-token";
       data: {
-        method: IndexingMethod;
+        method: string;
         collection: string;
         contract: string;
         tokenId: string;

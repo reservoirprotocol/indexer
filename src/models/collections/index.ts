@@ -79,7 +79,7 @@ export class Collections {
 
     const query = `UPDATE collections
                    SET metadata = $/metadata:json/, name = $/name/, royalties = $/royalties:json/,
-                       slug = $/slug/, token_count = $/tokenCount/
+                       slug = $/slug/, token_count = $/tokenCount/, updated_at = now()
                    WHERE id = $/id/`;
 
     const values = {

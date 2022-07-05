@@ -10,3 +10,5 @@ export * from "@/api/endpoints/admin/post-simulate-floor";
 export * from "@/api/endpoints/admin/post-sync-arweave";
 export * from "@/api/endpoints/admin/post-sync-daily-volumes";
 export * from "@/api/endpoints/admin/post-sync-events";
+export * from "@/api/endpoints/admin/post-calc-rarity";
+export * from "@/api/endpoints/admin/get-open-api";

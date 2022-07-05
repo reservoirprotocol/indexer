@@ -52,11 +52,9 @@ export const build = async (options: BuildOrderOptions) => {
     options.collection,
     "buy"
   );
-  if (!buildInfo) {
-    throw new Error("Could not generate build info");
-  }
 
   // Fetch all tokens matching the attributes
+  // TODO: Include `NOT is_flagged` filter in the query
   const tokens = await edb.manyOrNone(
     `
       SELECT

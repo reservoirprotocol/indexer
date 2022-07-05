@@ -20,20 +20,25 @@ jobs:
         with:
           node-version: 16
 
-      - name: Configure committer
-        run: |
-          git config user.name "github-actions"
-          git config user.email "<41898282+github-actions[bot]@users.noreply.github.com>"
-
-      - name: Standard Version
-        uses: qzb/standard-version-action@v1.0.6
-
-      - name: Push changes
-        uses: ad-m/github-push-action@v0.6.0
+      - name: Conventional Changelog Action
+        id: changelog
+        uses: TriPSs/conventional-changelog-action@v3.7.1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
-          tags: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          release-count: '0'
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          draft: false
+          prerelease: false
+          tag_name: ${{ steps.changelog.outputs.tag }}
+          release_name: ${{ steps.changelog.outputs.tag }}
+          body: ${{ steps.changelog.outputs.clean_changelog }}
 
       - name: Merge to main
         uses: devmasx/merge-branch@master

@@ -9,7 +9,9 @@ import { logger } from "@/common/logger";
 
 process.on("unhandledRejection", (error) => {
   logger.error("process", `Unhandled rejection: ${error}`);
-  process.exit(1);
+
+  // For now, just skip any unhandled errors
+  // process.exit(1);
 });
 
 start();

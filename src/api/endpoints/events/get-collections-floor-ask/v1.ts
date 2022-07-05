@@ -21,7 +21,7 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
     privacy: "public",
     expiresIn: 1000,
   },
-  description: "Historical collection floor",
+  description: "Collection floor changes",
   notes:
     "Every time the floor price of a collection changes (i.e. the 'floor ask'), an event is generated. This API is designed to be polled at high frequency, in order to keep an external system in sync with accurate prices for any token.\n\nThere are multiple event types, which describe what caused the change in price:\n\n- `new-order` > new listing at a lower price\n\n- `expiry` > the previous best listing expired\n\n- `sale` > the previous best listing was filled\n\n- `cancel` > the previous best listing was cancelled\n\n- `balance-change` > the best listing was invalidated due to no longer owning the NFT\n\n- `approval-change` > the best listing was invalidated due to revoked approval\n\n- `revalidation` > manual revalidation of orders (e.g. after a bug fixed) \n\n- `bootstrap` > initial loading of data, so that all tokens have a price associated\n\nSome considerations to keep in mind\n\n- Due to the complex nature of monitoring off-chain liquidity across multiple marketplaces, including dealing with block re-orgs, events should be considered 'relative' to the perspective of the indexer, ie _when they were discovered_, rather than _when they happened_. A more deterministic historical record of price changes is in development, but in the meantime, this method is sufficent for keeping an external system in sync with the best available prices.\n\n- Events are only generated if the best price changes. So if a new order or sale happens without changing the best price, no event is generated. This is more common with 1155 tokens, which have multiple owners and more depth. For this reason, if you need sales data, use the Sales API.",
   tags: ["api", "Events"],
@@ -32,16 +32,28 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      collection: Joi.string(),
+      collection: Joi.string().description(
+        "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+      ),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
-      sortDirection: Joi.string().valid("asc", "desc").default("desc"),
-      continuation: Joi.string().pattern(base64Regex),
-      limit: Joi.number().integer().min(1).max(1000).default(50),
+      sortDirection: Joi.string()
+        .valid("asc", "desc")
+        .default("desc")
+        .description("Order the items are returned in the response."),
+      continuation: Joi.string()
+        .pattern(base64Regex)
+        .description("Use continuation token to request next offset of items."),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(1000)
+        .default(50)
+        .description("Amount of items returned in response."),
     }).oxor("collection"),
   },
   response: {

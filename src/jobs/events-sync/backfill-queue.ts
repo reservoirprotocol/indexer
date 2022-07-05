@@ -3,6 +3,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { logger } from "@/common/logger";
 import { BullMQBulkJob, redis } from "@/common/redis";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import { EventDataKind } from "@/events-sync/data";
 import { syncEvents } from "@/events-sync/index";
 
@@ -59,7 +60,7 @@ export const addToQueue = async (
   // Syncing is done in several batches since the requested block
   // range might result in lots of events which could potentially
   // not fit within a single provider response.
-  const blocksPerBatch = options?.blocksPerBatch ?? 16;
+  const blocksPerBatch = options?.blocksPerBatch ?? getNetworkSettings().backfillBlockBatchSize;
 
   // Important backfill processes should be prioritized
   const prioritized = options?.prioritized ?? false;

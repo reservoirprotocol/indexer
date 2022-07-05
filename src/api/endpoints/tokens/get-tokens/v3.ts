@@ -4,7 +4,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import _ from "lodash";
 
-import { edb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
   base64Regex,
@@ -267,7 +267,7 @@ export const getTokensV3Options: RouteOptions = {
 
       baseQuery += ` LIMIT $/limit/`;
 
-      const rawResult = await edb.manyOrNone(baseQuery, query);
+      const rawResult = await redb.manyOrNone(baseQuery, query);
 
       /** Depending on how we sorted, we use that sorting key to determine the next page of results
           Possible formats:

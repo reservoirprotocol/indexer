@@ -27,22 +27,31 @@ export const getUserActivityV1Options: RouteOptions = {
         .pattern(/^0x[a-fA-F0-9]{40}$/)
         .required()
         .description(
-          "Filter to a particular user, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
         ),
     }),
     query: Joi.object({
-      limit: Joi.number().integer().min(1).max(20).default(20),
-      continuation: Joi.number(),
-      types: Joi.alternatives().try(
-        Joi.array().items(
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(20)
+        .default(20)
+        .description("Amount of items returned in response."),
+      continuation: Joi.number().description(
+        "Use continuation token to request next offset of items."
+      ),
+      types: Joi.alternatives()
+        .try(
+          Joi.array().items(
+            Joi.string()
+              .lowercase()
+              .valid(..._.values(ActivityType))
+          ),
           Joi.string()
             .lowercase()
             .valid(..._.values(ActivityType))
-        ),
-        Joi.string()
-          .lowercase()
-          .valid(..._.values(ActivityType))
-      ),
+        )
+        .description("Types of events returned in response. Example: 'types=sale'"),
     }),
   },
   response: {
@@ -78,7 +87,7 @@ export const getUserActivityV1Options: RouteOptions = {
     const params = request.params as any;
     const query = request.query as any;
 
-    if (!_.isArray(query.types)) {
+    if (query.types && !_.isArray(query.types)) {
       query.types = [query.types];
     }
 

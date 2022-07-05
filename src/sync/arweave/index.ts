@@ -5,7 +5,7 @@ import * as v001 from "@/arweave-sync/common/v001";
 import { arweaveGateway } from "@/common/provider";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { config } from "@/config/index";
+import { getNetworkName } from "@/common/utils";
 
 type Transaction = {
   version: string;
@@ -36,7 +36,7 @@ export const syncArweave = async (options: {
       transactions(
         tags: [
           { name: "App-Name", values: ["Reservoir Protocol"] },
-          { name: "Network", values: ["${config.chainId === 1 ? "mainnet" : "rinkeby"}"] }
+          { name: "Network", values: ["${getNetworkName()}"] }
         ]
         first: ${batchSize}
         sort: ${pending ? "HEIGHT_DESC" : "HEIGHT_ASC"}

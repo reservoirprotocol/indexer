@@ -14,6 +14,7 @@ export interface BaseOrderBuildOptions {
   feeRecipient?: string[];
   expirationTime?: number;
   automatedRoyalties?: boolean;
+  excludeFlaggedTokens?: boolean;
 }
 
 type OrderBuildInfo = {

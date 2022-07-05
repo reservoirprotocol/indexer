@@ -8,7 +8,7 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 
 const QUEUE_NAME = "remove-buy-order-events-queue";
 
@@ -36,7 +36,7 @@ if (config.doBackgroundWork) {
         continuationFilter = `AND (created_at, id) < (to_timestamp($/createdAt/), $/id/)`;
       }
 
-      const buyOrders = await idb.manyOrNone(
+      const buyOrders = await redb.manyOrNone(
         `
               SELECT extract(epoch from created_at) created_at, id
               FROM orders

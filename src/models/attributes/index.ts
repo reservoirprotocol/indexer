@@ -11,7 +11,8 @@ import {
 export class Attributes {
   public static async incrementOnSaleCount(attributesId: number[], incrementBy: number) {
     const query = `UPDATE attributes
-                   SET on_sale_count = CASE WHEN on_sale_count + $/incrementBy/ <= 0 THEN 0 ELSE on_sale_count + $/incrementBy/ END 
+                   SET on_sale_count = CASE WHEN on_sale_count + $/incrementBy/ <= 0 THEN 0 ELSE on_sale_count + $/incrementBy/ END, 
+                       updated_at = now()
                    WHERE id IN ($/attributesId:raw/)`;
 
     return await idb.none(query, {
@@ -66,7 +67,8 @@ export class Attributes {
     updateString = _.trimEnd(updateString, ",");
 
     const query = `UPDATE attributes
-                   SET ${updateString}
+                   SET updated_at = now(),
+                       ${updateString}
                    WHERE id = $/attributeId/`;
 
     return await idb.none(query, replacementValues);
@@ -77,8 +79,13 @@ export class Attributes {
       attributeId,
     };
 
-    const query = `DELETE FROM attributes
-                   WHERE id = $/attributeId/`;
+    const query = `WITH x AS (
+                    DELETE FROM attributes
+                    WHERE id = $/attributeId/
+                    RETURNING id, attribute_key_id, value, token_count, on_sale_count,
+                              floor_sell_value, top_buy_value, sell_updated_at, buy_updated_at,
+                              sample_images, collection_id, kind, key, created_at
+                   ) INSERT INTO removed_attributes SELECT * FROM x;`;
 
     return await idb.none(query, replacementValues);
   }

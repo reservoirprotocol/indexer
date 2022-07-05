@@ -7,9 +7,9 @@ import * as Sdk from "@reservoir0x/sdk";
 import { BidDetails } from "@reservoir0x/sdk/dist/router/types";
 import Joi from "joi";
 
-import { edb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
+import { slowProvider } from "@/common/provider";
 import { bn, formatEth, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -28,18 +28,31 @@ export const getExecuteSellV2Options: RouteOptions = {
       token: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
-        .required(),
+        .required()
+        .description(
+          "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+        ),
       taker: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}$/)
-        .required(),
+        .required()
+        .description(
+          "Address of wallet filling the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+        ),
       referrer: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}$/)
-        .default(AddressZero),
-      onlyQuote: Joi.boolean().default(false),
-      maxFeePerGas: Joi.string().pattern(/^[0-9]+$/),
-      maxPriorityFeePerGas: Joi.string().pattern(/^[0-9]+$/),
+        .default(AddressZero)
+        .description(
+          "Wallet address of referrer. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+        ),
+      onlyQuote: Joi.boolean().default(false).description("If true, only quote will be returned."),
+      maxFeePerGas: Joi.string()
+        .pattern(/^[0-9]+$/)
+        .description("Optional. Set custom gas price."),
+      maxPriorityFeePerGas: Joi.string()
+        .pattern(/^[0-9]+$/)
+        .description("Optional. Set custom gas price."),
     }),
   },
   response: {
@@ -70,7 +83,7 @@ export const getExecuteSellV2Options: RouteOptions = {
       const [contract, tokenId] = query.token.split(":");
 
       // Fetch the best offer on the current token.
-      const bestOrderResult = await edb.oneOrNone(
+      const bestOrderResult = await redb.oneOrNone(
         `
           SELECT
             orders.id,
@@ -122,7 +135,7 @@ export const getExecuteSellV2Options: RouteOptions = {
             // When filling an attribute order, we also need to pass
             // in the full list of tokens the order is made on (that
             // is, the underlying token set tokens).
-            const tokens = await edb.manyOrNone(
+            const tokens = await redb.manyOrNone(
               `
                 SELECT
                   token_sets_tokens.token_id
@@ -154,7 +167,7 @@ export const getExecuteSellV2Options: RouteOptions = {
             // When filling an attribute order, we also need to pass
             // in the full list of tokens the order is made on (that
             // is, the underlying token set tokens).
-            const tokens = await edb.manyOrNone(
+            const tokens = await redb.manyOrNone(
               `
                 SELECT
                   token_sets_tokens.token_id
@@ -231,7 +244,7 @@ export const getExecuteSellV2Options: RouteOptions = {
         throw Boom.internal("Could not generate transaction(s)");
       }
 
-      const router = new Sdk.Router.Router(config.chainId, baseProvider);
+      const router = new Sdk.Router.Router(config.chainId, slowProvider);
       const tx = await router.fillBidTx(bidDetails, query.taker, { referrer: query.referrer });
 
       // Set up generic filling steps

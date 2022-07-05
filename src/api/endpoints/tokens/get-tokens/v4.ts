@@ -5,7 +5,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import _ from "lodash";
 
-import { edb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
   base64Regex,
@@ -21,7 +21,7 @@ const version = "v4";
 export const getTokensV4Options: RouteOptions = {
   description: "Tokens",
   notes:
-    "This API is optimized for quickly fetching a list of tokens in a collection, sorted by price, with only the most important information returned. If you need more metadata, use the `tokens/details` API",
+    "This API is optimized for quickly fetching a list of tokens in a collection, sorted by price, with only the most important information returned. If you need more metadata, use the tokens/details API",
   tags: ["api", "Tokens"],
   plugins: {
     "hapi-swagger": {
@@ -33,13 +33,13 @@ export const getTokensV4Options: RouteOptions = {
       collection: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       contract: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}$/)
         .description(
-          "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       tokens: Joi.alternatives().try(
         Joi.array()
@@ -50,30 +50,38 @@ export const getTokensV4Options: RouteOptions = {
               .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
           )
           .description(
-            "Filter to one or more tokens, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           ),
         Joi.string()
           .lowercase()
           .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
           .description(
-            "Filter to one or more tokens, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           )
       ),
       tokenSetId: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular set, e.g. `contract:0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular token set. Example: token:0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270:129000685"
         ),
       attributes: Joi.object()
         .unknown()
-        .description("Filter to a particular attribute, e.g. `attributes[Type]=Original`"),
-      source: Joi.string(),
-      native: Joi.boolean(),
+        .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
+      source: Joi.string().description("Name of the order source. Example `OpenSea`"),
+      native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       sortBy: Joi.string()
-        .valid("floorAskPrice", "topBidValue", "tokenId")
-        .default("floorAskPrice"),
-      limit: Joi.number().integer().min(1).max(50).default(20),
-      continuation: Joi.string().pattern(base64Regex),
+        .valid("floorAskPrice", "topBidValue", "tokenId", "rarity")
+        .default("floorAskPrice")
+        .description("Order the items are returned in the response."),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(50)
+        .default(20)
+        .description("Amount of items returned in response."),
+      continuation: Joi.string()
+        .pattern(base64Regex)
+        .description("Use continuation token to request next offset of items."),
     })
       .or("collection", "contract", "tokens", "tokenSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId")
@@ -103,6 +111,8 @@ export const getTokensV4Options: RouteOptions = {
           source: Joi.string().allow(null, ""),
           topBidValue: Joi.number().unsafe().allow(null),
           floorAskPrice: Joi.number().unsafe().allow(null),
+          rarity: Joi.number().unsafe().allow(null),
+          rarityRank: Joi.number().unsafe().allow(null),
           owner: Joi.string().allow(null, ""),
         })
       ),
@@ -130,6 +140,8 @@ export const getTokensV4Options: RouteOptions = {
           "c"."slug",
           "t"."floor_sell_value",
           "t"."top_buy_value",
+          "t"."rarity_score",
+          "t"."rarity_rank",
           (
             SELECT owner
             FROM "nft_balances" "nb"
@@ -222,7 +234,7 @@ export const getTokensV4Options: RouteOptions = {
       if (query.continuation && !query.tokens) {
         const contArr = splitContinuation(
           query.continuation,
-          /^((\d+|null|0x[a-fA-F0-9]+)_\d+|\d+)$/
+          /^((([0-9]+\.?[0-9]*|\.[0-9]+)|null|0x[a-fA-F0-9]+)_\d+|\d+)$/
         );
 
         if (query.collection || query.attributes) {
@@ -237,7 +249,17 @@ export const getTokensV4Options: RouteOptions = {
 
             throw new Error("Invalid continuation string used");
           }
+
           switch (query.sortBy) {
+            case "rarity": {
+              conditions.push(
+                `("t"."rarity_score", "t"."token_id") < ($/contRarity/, $/contTokenId/)`
+              );
+              (query as any).contRarity = contArr[0];
+              (query as any).contTokenId = contArr[1];
+              break;
+            }
+
             case "tokenId": {
               conditions.push(
                 `("t"."contract", "t"."token_id") > ($/contContract/, $/contTokenId/)`
@@ -290,9 +312,14 @@ export const getTokensV4Options: RouteOptions = {
       }
 
       // Sorting
-      // Only allow sorting on floorSell and topBid when we filter by collection or attributes
+      // Only allow sorting on floorSell / topBid / tokenId / rarity when we filter by collection or attributes
       if (query.collection || query.attributes) {
         switch (query.sortBy) {
+          case "rarity": {
+            baseQuery += ` ORDER BY "t"."rarity_score" DESC NULLS LAST, "t"."token_id" DESC`;
+            break;
+          }
+
           case "tokenId": {
             baseQuery += ` ORDER BY "t"."contract", "t"."token_id"`;
             break;
@@ -315,10 +342,11 @@ export const getTokensV4Options: RouteOptions = {
 
       baseQuery += ` LIMIT $/limit/`;
 
-      const rawResult = await edb.manyOrNone(baseQuery, query);
+      const rawResult = await redb.manyOrNone(baseQuery, query);
 
       /** Depending on how we sorted, we use that sorting key to determine the next page of results
           Possible formats:
+            rarity_tokenid
             topBidValue_tokenid
             floorAskPrice_tokenid
             tokenid
@@ -332,15 +360,22 @@ export const getTokensV4Options: RouteOptions = {
         // when we have collection/attributes
         if (query.collection || query.attributes) {
           switch (query.sortBy) {
+            case "rarity":
+              continuation = rawResult[rawResult.length - 1].rarity_score || "null";
+              break;
+
             case "tokenId":
               continuation = fromBuffer(rawResult[rawResult.length - 1].contract);
               break;
+
             case "topBidValue":
               continuation = rawResult[rawResult.length - 1].top_buy_value || "null";
               break;
+
             case "floorAskPrice":
               continuation = rawResult[rawResult.length - 1].floor_sell_value || "null";
               break;
+
             default:
               break;
           }
@@ -374,6 +409,8 @@ export const getTokensV4Options: RouteOptions = {
           source: source?.name,
           floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
           topBidValue: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+          rarity: r.rarity_score,
+          rarityRank: r.rarity_rank,
           owner: r.owner ? fromBuffer(r.owner) : null,
         };
       });

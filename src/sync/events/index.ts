@@ -69,9 +69,13 @@ export const syncEvents = async (
   // custom way so as to properly associate the maker and taker.
   const routerToFillSource: { [address: string]: string } = {};
 
+  // TODO: Move router detection logic to the core SDK
+
   // Reservoir
-  for (const address of Sdk.Router.Addresses.AllRouters[config.chainId]) {
-    routerToFillSource[address.toLowerCase()] = "reservoir";
+  if (Sdk.Router.Addresses.AllRouters[config.chainId]) {
+    for (const address of Sdk.Router.Addresses.AllRouters[config.chainId]) {
+      routerToFillSource[address.toLowerCase()] = "reservoir";
+    }
   }
 
   // Gem and Genie (source: https://dune.com/sohwak/NFT-Aggregator-(OpenSea-via-GemGenie)-Overview)
@@ -1620,6 +1624,10 @@ export const syncEvents = async (
                   break;
                 }
 
+                if (saleInfo.recipientOverride) {
+                  taker = saleInfo.recipientOverride;
+                }
+
                 // Handle filling through routers
                 let fillSource: string | undefined;
                 if (routerToFillSource[taker]) {
@@ -1772,7 +1780,6 @@ export const syncEvents = async (
           fillUpdates.addToQueue(fillInfos),
           orderUpdatesById.addToQueue(orderInfos),
           orderUpdatesByMaker.addToQueue(makerInfos),
-          tokenUpdatesMint.addToQueue(mintInfos),
           orderbookOrders.addToQueue(
             foundationOrders.map((info) => ({ kind: "foundation", info }))
           ),
@@ -1793,6 +1800,7 @@ export const syncEvents = async (
 
         // Put all fetched blocks on a queue for handling block reorgs
         // (recheck each block in 1m, 5m, 10m and 60m).
+        // TODO: The check frequency should be a per-chain setting
         await Promise.all(
           Object.entries(blockHashToNumber).map(async ([, block]) =>
             Promise.all([
@@ -1804,6 +1812,9 @@ export const syncEvents = async (
           )
         );
       }
+
+      // We want to get metadata when backfilling as well
+      await tokenUpdatesMint.addToQueue(mintInfos);
     });
 };
 

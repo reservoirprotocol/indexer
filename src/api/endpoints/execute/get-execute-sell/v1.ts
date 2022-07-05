@@ -7,9 +7,9 @@ import * as Sdk from "@reservoir0x/sdk";
 import { BidDetails } from "@reservoir0x/sdk/dist/router/types";
 import Joi from "joi";
 
-import { edb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
+import { slowProvider } from "@/common/provider";
 import { bn, formatEth, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -70,7 +70,7 @@ export const getExecuteSellV1Options: RouteOptions = {
       const [contract, tokenId] = query.token.split(":");
 
       // Fetch the best offer on the current token.
-      const bestOrderResult = await edb.oneOrNone(
+      const bestOrderResult = await redb.oneOrNone(
         `
           SELECT
             orders.id,
@@ -122,7 +122,7 @@ export const getExecuteSellV1Options: RouteOptions = {
             // When filling an attribute order, we also need to pass
             // in the full list of tokens the order is made on (that
             // is, the underlying token set tokens).
-            const tokens = await edb.manyOrNone(
+            const tokens = await redb.manyOrNone(
               `
                 SELECT
                   token_sets_tokens.token_id
@@ -154,7 +154,7 @@ export const getExecuteSellV1Options: RouteOptions = {
             // When filling an attribute order, we also need to pass
             // in the full list of tokens the order is made on (that
             // is, the underlying token set tokens).
-            const tokens = await edb.manyOrNone(
+            const tokens = await redb.manyOrNone(
               `
                 SELECT
                   token_sets_tokens.token_id
@@ -231,7 +231,7 @@ export const getExecuteSellV1Options: RouteOptions = {
         throw Boom.internal("Could not generate transaction(s)");
       }
 
-      const router = new Sdk.Router.Router(config.chainId, baseProvider);
+      const router = new Sdk.Router.Router(config.chainId, slowProvider);
       const tx = await router.fillBidTx(bidDetails, query.taker, { referrer: query.referrer });
 
       // Set up generic filling steps

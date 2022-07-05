@@ -311,7 +311,8 @@ export const save = async (
         // forgotten.market
         case "0xfdfda3d504b1431ea0fd70084b1bfa39fa99dcc4":
         case "0xcfd61fb650da1dd7b8f7bc7ad0d105b40bbd3882":
-        case "0x94f0e012b7bb033f32029fbcc4f1d29ff1cfc30a": {
+        case "0x94f0e012b7bb033f32029fbcc4f1d29ff1cfc30a":
+        case "0x6be88409f2a4751aea05a3a0977cb239904fe0d6": {
           source = "0xfdfda3d504b1431ea0fd70084b1bfa39fa99dcc4";
           sourceId = sources.getByName("Forgotten Market").id;
           feeBreakdown = [
@@ -337,7 +338,7 @@ export const save = async (
         default: {
           // If source was passed
           if (metadata.source) {
-            const sourceEntity = await sources.getOrInsert(source);
+            const sourceEntity = await sources.getOrInsert(metadata.source);
             source = sourceEntity.address;
             sourceId = sourceEntity.id;
 

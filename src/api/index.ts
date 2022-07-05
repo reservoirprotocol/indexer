@@ -9,10 +9,11 @@ import qs from "qs";
 
 import { setupRoutes } from "@/api/routes";
 import { logger } from "@/common/logger";
+import { getNetworkName } from "@/common/utils";
 import { config } from "@/config/index";
-import { ApiKeyManager } from "../models/api-keys";
-import { allJobQueues } from "@/jobs/index";
+import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
+import { allJobQueues } from "@/jobs/index";
 
 let server: Hapi.Server;
 
@@ -92,7 +93,7 @@ export const start = async (): Promise<void> => {
           },
         },
         schemes: ["https", "http"],
-        host: `${config.chainId === 1 ? "api" : "api-rinkeby"}.reservoir.tools`,
+        host: `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}.reservoir.tools`,
         cors: true,
         tryItOutEnabled: true,
         documentationPath: "/",
@@ -110,6 +111,25 @@ export const start = async (): Promise<void> => {
   server.ext("onPreHandler", (request, h) => {
     ApiKeyManager.logUsage(request);
     return h.continue;
+  });
+
+  server.ext("onPreResponse", (request, reply) => {
+    const response = request.response;
+
+    // Set custom response in case of timeout
+    if ("isBoom" in response && "output" in response) {
+      if (response["output"]["statusCode"] == 503) {
+        const timeoutResponse = {
+          statusCode: 504,
+          error: "Gateway Timeout",
+          message: "Query cancelled because it took longer than 10s to execute",
+        };
+
+        return reply.response(timeoutResponse).type("application/json").code(504);
+      }
+    }
+
+    return reply.continue;
   });
 
   setupRoutes(server);

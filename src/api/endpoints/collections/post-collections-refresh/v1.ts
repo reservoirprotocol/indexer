@@ -8,6 +8,7 @@ import _ from "lodash";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
 import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
@@ -30,7 +31,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
       collection: Joi.string()
         .lowercase()
         .description(
-          "Refresh the given collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:1:2222`"
+          "Refresh the given collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         )
         .required(),
     }),
@@ -90,7 +91,8 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
             WHERE collections.id = $/collection/
           )
           UPDATE tokens SET
-            collection_id = $/collection/
+            collection_id = $/collection/,
+            updated_at = now()
           FROM x
           WHERE tokens.contract = x.contract
             AND tokens.token_id <@ x.token_id_range
@@ -120,7 +122,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
             {
               kind: "full-collection",
               data: {
-                method: "opensea",
+                method: config.metadataIndexingMethod,
                 collection: collection.id,
               },
             },

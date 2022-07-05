@@ -12,6 +12,7 @@ interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
 }
 
 export const build = async (options: BuildOrderOptions) => {
+  // TODO: Include `NOT is_flagged` filter in the query
   const collectionResult = await edb.oneOrNone(
     `
       SELECT
@@ -30,9 +31,6 @@ export const build = async (options: BuildOrderOptions) => {
   }
 
   const buildInfo = await utils.getBuildInfo(options, collectionResult.collection_id, "buy");
-  if (!buildInfo) {
-    throw new Error("Could not generate build info");
-  }
 
   const builder: BaseBuilder = new Sdk.Seaport.Builders.SingleToken(config.chainId);
 

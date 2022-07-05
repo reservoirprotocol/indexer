@@ -15,6 +15,7 @@ export interface BaseOrderBuildOptions {
   expirationTime?: number;
   salt?: string;
   automatedRoyalties?: boolean;
+  excludeFlaggedTokens?: boolean;
 }
 
 type OrderBuildInfo = {

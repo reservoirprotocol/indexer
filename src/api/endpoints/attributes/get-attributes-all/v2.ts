@@ -10,7 +10,7 @@ import { logger } from "@/common/logger";
 const version = "v2";
 
 export const getAttributesAllV2Options: RouteOptions = {
-  description: "All attributes in a collection",
+  description: "All attributes",
   tags: ["api", "Attributes"],
   plugins: {
     "hapi-swagger": {
@@ -22,7 +22,7 @@ export const getAttributesAllV2Options: RouteOptions = {
       collection: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
     }),
   },

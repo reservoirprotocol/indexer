@@ -29,7 +29,7 @@ export const getRedirectCollectionImageV1Options: RouteOptions = {
         .pattern(/^0x[a-fA-F0-9]{40}$/)
         .required()
         .description(
-          "Redirect to the given collection image, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Redirect to the given collection image. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
     }),
   },

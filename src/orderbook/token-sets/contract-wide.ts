@@ -43,8 +43,11 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
       // Make sure an associated collection exists
       const collectionResult = await idb.oneOrNone(
         `
-          SELECT "token_count" FROM "collections"
-          WHERE "id" = $/id/
+          SELECT
+            collections.id,
+            collections.token_count
+          FROM collections
+          WHERE collections.id = $/id/
         `,
         {
           id: contract,

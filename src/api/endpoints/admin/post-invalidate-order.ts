@@ -32,7 +32,8 @@ export const postInvalidateOrderOptions: RouteOptions = {
         `
           UPDATE orders SET
             fillability_status = 'cancelled',
-            approval_status = 'disabled'
+            approval_status = 'disabled',
+            updated_at = now()
           WHERE orders.id = $/id/
         `,
         { id: payload.id }

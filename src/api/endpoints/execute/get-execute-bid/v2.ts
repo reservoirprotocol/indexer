@@ -9,7 +9,7 @@ import { TxData } from "@reservoir0x/sdk/dist/utils";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
+import { slowProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -36,7 +36,8 @@ import * as wyvernV23BuyToken from "@/orderbook/orders/wyvern-v2.3/build/buy/tok
 const version = "v2";
 
 export const getExecuteBidV2Options: RouteOptions = {
-  description: "Bid on a token, collection or trait",
+  description: "Create bid (offer)",
+  notes: "Generate a bid and submit it to multiple marketplaces",
   tags: ["api", "Orderbook"],
   plugins: {
     "hapi-swagger": {
@@ -49,45 +50,81 @@ export const getExecuteBidV2Options: RouteOptions = {
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
         .description(
-          "Filter to a particular token, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+          "Bid on a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
       collection: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Bid on a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
-      attributeKey: Joi.string(),
-      attributeValue: Joi.string(),
-      quantity: Joi.number(),
+      attributeKey: Joi.string().description(
+        "Bid on a particular attribute key. Example: `Composition`"
+      ),
+      attributeValue: Joi.string().description(
+        "Bid on a particular attribute value. Example: `Teddy (#33)`"
+      ),
+      quantity: Joi.number().description(
+        "Quanity of tokens user is buying. Only compatible with ERC1155 tokens. Example: `5`"
+      ),
       maker: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .description(
+          "Address of wallet making the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+        )
         .required(),
       weiPrice: Joi.string()
-        .pattern(/^[0-9]+$/)
+        .pattern(/^\d+$/)
+        .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
         .required(),
       orderKind: Joi.string()
         .valid("wyvern-v2.3", "721ex", "zeroex-v4", "seaport")
-        .default("wyvern-v2.3"),
-      orderbook: Joi.string().valid("reservoir", "opensea").default("reservoir"),
-      source: Joi.string(),
-      automatedRoyalties: Joi.boolean().default(true),
-      fee: Joi.alternatives(Joi.string(), Joi.number()),
+        .default("wyvern-v2.3")
+        .description("Exchange protocol used to create order. Example: `seaport`"),
+      orderbook: Joi.string()
+        .valid("reservoir", "opensea")
+        .default("reservoir")
+        .description("Orderbook where order is placed. Example: `Reservoir`"),
+      source: Joi.string().description(
+        "Name of the platform that created the order. Example: `Chimpers Market`"
+      ),
+      automatedRoyalties: Joi.boolean()
+        .default(true)
+        .description("If true, royalties will be automatically included."),
+      fee: Joi.alternatives(Joi.string().pattern(/^\d+$/), Joi.number()).description(
+        "Fee amount in BPS. Example: `100`"
+      ),
+      excludeFlaggedTokens: Joi.boolean()
+        .default(false)
+        .description("If true flagged tokens will be excluded"),
       feeRecipient: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .description(
+          "Wallet address of fee recipient. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+        )
         .disallow(AddressZero),
-      listingTime: Joi.alternatives(Joi.string(), Joi.number()),
-      expirationTime: Joi.alternatives(Joi.string(), Joi.number()),
-      salt: Joi.string(),
-      nonce: Joi.string(),
-      v: Joi.number(),
+      listingTime: Joi.alternatives(Joi.string().pattern(/^\d+$/), Joi.number()).description(
+        "Unix timestamp indicating when listing will be listed. Example: `1656080318`"
+      ),
+      expirationTime: Joi.alternatives(Joi.string().pattern(/^\d+$/), Joi.number()).description(
+        "Unix timestamp indicating when listing will expire. Example: `1656080318`"
+      ),
+      salt: Joi.string()
+        .pattern(/^\d+$/)
+        .description("Optional. Random string to make the order unique"),
+      nonce: Joi.string().pattern(/^\d+$/).description("Optional. Set a custom nonce"),
+      v: Joi.number().description(
+        "Signature v component (only required after order has been signed)"
+      ),
       r: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{64}$/),
+        .pattern(/^0x[a-fA-F0-9]{64}$/)
+        .description("Signature r component (only required after order has been signed)"),
       s: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{64}$/),
+        .pattern(/^0x[a-fA-F0-9]{64}$/)
+        .description("Signature s component (only required after order has been signed)"),
     })
       .or("token", "collection")
       .oxor("token", "collection")
@@ -155,10 +192,10 @@ export const getExecuteBidV2Options: RouteOptions = {
 
       // Check the maker's Weth/Eth balance.
       let wrapEthTx: TxData | undefined;
-      const weth = new Sdk.Common.Helpers.Weth(baseProvider, config.chainId);
+      const weth = new Sdk.Common.Helpers.Weth(slowProvider, config.chainId);
       const wethBalance = await weth.getBalance(query.maker);
       if (bn(wethBalance).lt(query.weiPrice)) {
-        const ethBalance = await baseProvider.getBalance(query.maker);
+        const ethBalance = await slowProvider.getBalance(query.maker);
         if (bn(wethBalance).add(ethBalance).lt(query.weiPrice)) {
           // We cannot do anything if the maker doesn't have sufficient balance.
           throw Boom.badData("Maker does not have sufficient balance");
@@ -279,6 +316,14 @@ export const getExecuteBidV2Options: RouteOptions = {
                                 value: attributeValue,
                               }
                             : undefined,
+                        collection:
+                          collection &&
+                          query.excludeFlaggedTokens &&
+                          !attributeKey &&
+                          !attributeValue
+                            ? collection
+                            : undefined,
+                        isNonFlagged: query.excludeFlaggedTokens,
                         orderbook: query.orderbook,
                         source: query.source,
                       },
@@ -295,7 +340,7 @@ export const getExecuteBidV2Options: RouteOptions = {
         }
 
         case "seaport": {
-          if (!["reservoir"].includes(query.orderbook)) {
+          if (!["reservoir", "opensea"].includes(query.orderbook)) {
             throw Boom.badRequest("Unsupported orderbook");
           }
 
@@ -391,6 +436,14 @@ export const getExecuteBidV2Options: RouteOptions = {
                                 value: attributeValue,
                               }
                             : undefined,
+                        collection:
+                          collection &&
+                          query.excludeFlaggedTokens &&
+                          !attributeKey &&
+                          !attributeValue
+                            ? collection
+                            : undefined,
+                        isNonFlagged: query.excludeFlaggedTokens,
                         orderbook: query.orderbook,
                         source: query.source,
                       },
@@ -509,6 +562,14 @@ export const getExecuteBidV2Options: RouteOptions = {
                                 value: attributeValue,
                               }
                             : undefined,
+                        collection:
+                          collection &&
+                          query.excludeFlaggedTokens &&
+                          !attributeKey &&
+                          !attributeValue
+                            ? collection
+                            : undefined,
+                        isNonFlagged: query.excludeFlaggedTokens,
                         orderbook: query.orderbook,
                         source: query.source,
                       },
@@ -626,6 +687,14 @@ export const getExecuteBidV2Options: RouteOptions = {
                                 value: attributeValue,
                               }
                             : undefined,
+                        collection:
+                          collection &&
+                          query.excludeFlaggedTokens &&
+                          !attributeKey &&
+                          !attributeValue
+                            ? collection
+                            : undefined,
+                        isNonFlagged: query.excludeFlaggedTokens,
                         orderbook: query.orderbook,
                         source: query.source,
                       },

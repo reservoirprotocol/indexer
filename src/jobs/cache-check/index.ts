@@ -1,7 +1,7 @@
 import cron from "node-cron";
 
 import { inject } from "@/api/index";
-import { idb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redlock } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
@@ -29,7 +29,7 @@ if (config.doBackgroundWork) {
               id: string;
               contract: Buffer;
               is_wrong: boolean;
-            }[] = await idb.manyOrNone(
+            }[] = await redb.manyOrNone(
               `
                   SELECT * FROM (
                     SELECT
@@ -98,7 +98,7 @@ if (config.doBackgroundWork) {
               id: string;
               contract: Buffer;
               is_wrong: boolean;
-            }[] = await idb.manyOrNone(
+            }[] = await redb.manyOrNone(
               `
                   SELECT * FROM (
                     SELECT

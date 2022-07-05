@@ -24,7 +24,7 @@ export const getTokensBootstrapV1Options: RouteOptions = {
   tags: ["api", "Tokens"],
   plugins: {
     "hapi-swagger": {
-      order: 9,
+      order: 10,
     },
   },
   validate: {
@@ -32,16 +32,23 @@ export const getTokensBootstrapV1Options: RouteOptions = {
       collection: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       contract: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}$/)
         .description(
-          "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
-      continuation: Joi.string().pattern(base64Regex),
-      limit: Joi.number().integer().min(1).max(500).default(500),
+      continuation: Joi.string()
+        .pattern(base64Regex)
+        .description("Use continuation token to request next offset of items."),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(500)
+        .default(500)
+        .description("Amount of items returned in response."),
     })
       .or("collection", "contract")
       .oxor("collection", "contract"),

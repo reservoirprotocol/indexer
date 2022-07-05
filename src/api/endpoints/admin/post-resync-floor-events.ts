@@ -5,7 +5,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import pLimit from "p-limit";
 
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -38,7 +38,7 @@ export const postResyncFloorEventsOptions: RouteOptions = {
 
     try {
       const handleToken = async (contract: string, tokenId: string) => {
-        const tokenCacheResult = await idb.oneOrNone(
+        const tokenCacheResult = await redb.oneOrNone(
           `
             SELECT
               tokens.floor_sell_id,
@@ -53,7 +53,7 @@ export const postResyncFloorEventsOptions: RouteOptions = {
           }
         );
 
-        const latestEventResult = await idb.oneOrNone(
+        const latestEventResult = await redb.oneOrNone(
           `
             SELECT
               token_floor_sell_events.order_id,
@@ -126,7 +126,7 @@ export const postResyncFloorEventsOptions: RouteOptions = {
         const [contract, tokenId] = payload.token.split(":");
         await handleToken(contract, tokenId);
       } else if (payload.collection) {
-        const tokens = await idb.manyOrNone(
+        const tokens = await redb.manyOrNone(
           `
             SELECT
               tokens.contract,

@@ -60,7 +60,8 @@ export class Tokens {
     updateString = _.trimEnd(updateString, ",");
 
     const query = `UPDATE tokens
-                   SET ${updateString}
+                   SET updated_at = now(),
+                   ${updateString}
                    WHERE contract = $/contract/
                    AND token_id = $/tokenId/`;
 

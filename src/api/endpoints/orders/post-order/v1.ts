@@ -15,10 +15,10 @@ const version = "v1";
 
 export const postOrderV1Options: RouteOptions = {
   description: "Publish a single order",
-  tags: ["api", "Orders"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 4,
+      deprecated: true,
     },
   },
   validate: {
@@ -147,6 +147,10 @@ export const postOrderV1Options: RouteOptions = {
             }
 
             case "opensea": {
+              if (![1, 4].includes(config.chainId)) {
+                throw new Error("Unsupported network");
+              }
+
               const sdkOrder = new Sdk.WyvernV23.Order(config.chainId, order.data);
               const orderInfo = sdkOrder.getInfo();
               if (!orderInfo) {

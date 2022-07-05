@@ -38,14 +38,38 @@ export const build = async (options: BuildOrderOptions) => {
     options.collection,
     "buy"
   );
-  if (!buildInfo) {
-    throw new Error("Could not generate build info");
-  }
 
-  if (!collectionResult.token_set_id.startsWith("contract:")) {
-    throw new Error("Token range collections are not supported");
-  }
+  if (!options.excludeFlaggedTokens) {
+    // Use contract-wide/token-range order
 
-  const builder: BaseBuilder = new Sdk.Seaport.Builders.ContractWide(config.chainId);
-  return builder?.build(buildInfo.params);
+    if (!collectionResult.token_set_id.startsWith("contract:")) {
+      throw new Error("Token range collections are not supported");
+    }
+
+    const builder: BaseBuilder = new Sdk.Seaport.Builders.ContractWide(config.chainId);
+    return builder?.build(buildInfo.params);
+  } else {
+    // Use token-list order
+
+    // Fetch all non-flagged tokens from the collection
+    // TODO: Include `NOT is_flagged` filter in the query
+    const tokens = await edb.manyOrNone(
+      `
+        SELECT
+          tokens.token_id
+        FROM tokens
+        WHERE tokens.collection_id = $/collection/
+      `,
+      {
+        collection: options.collection,
+      }
+    );
+
+    const builder: BaseBuilder = new Sdk.Seaport.Builders.TokenList(config.chainId);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (buildInfo.params as any).tokenIds = tokens.map(({ token_id }) => token_id);
+
+    return builder?.build(buildInfo.params);
+  }
 };

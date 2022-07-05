@@ -14,7 +14,9 @@ CREATE TABLE "attribute_keys" (
   "kind" "attribute_key_kind_t" NOT NULL,
   "rank" INT,
   "attribute_count" INT NOT NULL DEFAULT 0,
-  "info" JSONB
+  "info" JSONB,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 ALTER TABLE "attribute_keys"
@@ -41,7 +43,9 @@ CREATE TABLE "attributes" (
   "sample_images" TEXT[],
   "collection_id" TEXT,
   "kind" "attribute_key_kind_t",
-  "key" TEXT
+  "key" TEXT,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX "attributes_attribute_key_id_value_unique_index"
@@ -69,7 +73,9 @@ CREATE TABLE "token_attributes" (
   "attribute_id" BIGINT NOT NULL,
   "collection_id" TEXT NOT NULL,
   "key" TEXT NOT NULL,
-  "value" TEXT NOT NULL
+  "value" TEXT NOT NULL,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 ALTER TABLE "token_attributes"

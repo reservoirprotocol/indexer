@@ -5,8 +5,8 @@ ARG PORT
 
 EXPOSE ${PORT}
 
-WORKDIR /indexer-v3
-ADD . /indexer-v3
+WORKDIR /indexer
+ADD . /indexer
 RUN yarn install
 RUN yarn build
 CMD yarn start

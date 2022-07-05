@@ -8,7 +8,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 
 const QUEUE_NAME = "resync-orders-source-queue";
@@ -47,7 +47,7 @@ if (config.doBackgroundWork) {
                      ORDER BY id ASC
                      LIMIT ${limit}`;
 
-      const orders = await idb.manyOrNone(query);
+      const orders = await redb.manyOrNone(query);
 
       if (orders) {
         for (const order of orders) {
@@ -96,7 +96,7 @@ if (config.doBackgroundWork) {
 
         try {
           const updateQuery = `UPDATE orders
-                             SET source_id_int = x.sourceIdColumn
+                             SET source_id_int = x.sourceIdColumn, updated_at = now()
                              FROM (VALUES ${updateValuesString}) AS x(idColumn, sourceIdColumn)
                              WHERE x.idColumn = orders.id`;
 

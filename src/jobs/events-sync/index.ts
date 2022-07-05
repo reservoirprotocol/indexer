@@ -4,6 +4,7 @@ import { logger } from "@/common/logger";
 import { safeWebSocketSubscription } from "@/common/provider";
 import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import * as realtimeEventsSync from "@/jobs/events-sync/realtime-queue";
 
 // For syncing events we have two separate job queues. One is for
@@ -26,14 +27,15 @@ import "@/jobs/events-sync/write-buffers/nft-transfers";
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.catchup) {
-  // Keep up with the head of the blockchain by polling for new blocks
-  // every once in a while (hardcoded at 15 seconds for now but should
-  // be set dynamically depending on the chain's average block time).
+  // Keep up with the head of the blockchain by polling for new blocks every once in a while
   cron.schedule(
-    "*/15 * * * * *",
+    `*/${getNetworkSettings().realtimeSyncFrequencySeconds} * * * * *`,
     async () =>
       await redlock
-        .acquire(["events-sync-catchup-lock"], (15 - 5) * 1000)
+        .acquire(
+          ["events-sync-catchup-lock"],
+          (getNetworkSettings().realtimeSyncFrequencySeconds - 1) * 1000
+        )
         .then(async () => {
           logger.info("events-sync-catchup", "Catching up events");
 

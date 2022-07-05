@@ -25,7 +25,8 @@ export class AttributeKeys {
     updateString = _.trimEnd(updateString, ",");
 
     const query = `UPDATE attribute_keys
-                   SET ${updateString}
+                   SET updated_at = now(),
+                       ${updateString}
                    WHERE collection_id = $/collectionId/
                    AND key = $/key/`;
 
@@ -38,9 +39,12 @@ export class AttributeKeys {
       key,
     };
 
-    const query = `DELETE FROM attribute_keys
-                   WHERE collection_id = $/collectionId/
-                   AND key = $/key/`;
+    const query = `WITH x AS (
+                    DELETE FROM attribute_keys
+                    WHERE collection_id = $/collectionId/
+                    AND key = $/key/
+                    RETURNING id, collection_id, key, kind, rank, attribute_count, info, created_at
+                   ) INSERT INTO removed_attribute_keys SELECT * FROM x;`;
 
     return await idb.none(query, replacementValues);
   }

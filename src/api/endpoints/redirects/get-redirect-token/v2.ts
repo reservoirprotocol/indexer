@@ -22,13 +22,13 @@ export const getRedirectTokenV2Options: RouteOptions = {
   },
   validate: {
     params: Joi.object({
-      source: Joi.string().required(),
+      source: Joi.string().required().description("Name of the order source. Example `OpenSea`"),
       token: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
         .required()
         .description(
-          "Redirect to the given token page, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+          "Redirect to the given token page. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
     }),
   },

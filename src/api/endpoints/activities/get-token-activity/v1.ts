@@ -26,23 +26,32 @@ export const getTokenActivityV1Options: RouteOptions = {
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
         .description(
-          "Filter to a particular token, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+          "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         )
         .required(),
     }),
     query: Joi.object({
-      limit: Joi.number().integer().min(1).max(20).default(20),
-      continuation: Joi.number(),
-      types: Joi.alternatives().try(
-        Joi.array().items(
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(20)
+        .default(20)
+        .description("Amount of items returned in response."),
+      continuation: Joi.number().description(
+        "Use continuation token to request next offset of items."
+      ),
+      types: Joi.alternatives()
+        .try(
+          Joi.array().items(
+            Joi.string()
+              .lowercase()
+              .valid(..._.values(ActivityType))
+          ),
           Joi.string()
             .lowercase()
             .valid(..._.values(ActivityType))
-        ),
-        Joi.string()
-          .lowercase()
-          .valid(..._.values(ActivityType))
-      ),
+        )
+        .description("Types of events returned in response. Example: 'types=sale'"),
     }),
   },
   response: {
@@ -78,7 +87,7 @@ export const getTokenActivityV1Options: RouteOptions = {
     const params = request.params as any;
     const query = request.query as any;
 
-    if (!_.isArray(query.types)) {
+    if (query.types && !_.isArray(query.types)) {
       query.types = [query.types];
     }
 

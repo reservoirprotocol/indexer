@@ -29,14 +29,25 @@ export const getOrdersAllV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      id: Joi.string(),
-      source: Joi.string(),
-      native: Joi.boolean(),
-      side: Joi.string().valid("sell", "buy").default("sell"),
-      includeMetadata: Joi.boolean().default(false),
-      includeRawData: Joi.boolean().default(false),
-      continuation: Joi.string().pattern(base64Regex),
-      limit: Joi.number().integer().min(1).max(1000).default(50),
+      id: Joi.string().description("Orders id."),
+      source: Joi.string().description("Filter to a source. Example: `OpenSea`"),
+      native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
+      side: Joi.string().valid("sell", "buy").default("sell").description("Sell or buy side."),
+      includeMetadata: Joi.boolean()
+        .default(false)
+        .description("If true, metadata will be included in the response."),
+      includeRawData: Joi.boolean()
+        .default(false)
+        .description("If true, raw data will be included in the response."),
+      continuation: Joi.string()
+        .pattern(base64Regex)
+        .description("Use continuation token to request next offset of items."),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(1000)
+        .default(50)
+        .description("Amount of items returned in response."),
     }).oxor("id", "source", "native"),
   },
   response: {

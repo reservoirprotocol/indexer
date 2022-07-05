@@ -24,11 +24,11 @@ export const getCollectionV2Options: RouteOptions = {
       id: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       slug: Joi.string()
         .lowercase()
-        .description("Filter to a particular slug, e.g. `boredapeyachtclub`"),
+        .description("Filter to a particular collection slug. Example: `boredapeyachtclub`"),
     })
       .or("id", "slug")
       .oxor("id", "slug"),
@@ -166,6 +166,7 @@ export const getCollectionV2Options: RouteOptions = {
           ARRAY(
             SELECT "t"."image" FROM "tokens" "t"
             WHERE "t"."collection_id" = "c"."id"
+            AND "t"."image" IS NOT NULL
             LIMIT 4
           ) AS "sample_images"          
         FROM "collections" "c"
@@ -227,7 +228,7 @@ export const getCollectionV2Options: RouteOptions = {
           FROM "token_sets" "ts"
           LEFT JOIN "orders" "o"
             ON "ts"."top_buy_id" = "o"."id"
-          WHERE "ts"."id" = "x"."token_set_id"
+          WHERE "ts"."collection_id" = "x"."id"
           ORDER BY "ts"."top_buy_value" DESC NULLS LAST
           LIMIT 1
         ) "z" ON TRUE

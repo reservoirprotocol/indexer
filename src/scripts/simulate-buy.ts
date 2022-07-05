@@ -29,7 +29,7 @@ const main = async () => {
       // Generate buy transaction.
       const { steps }: { steps: any } = await axios
         .get(
-          `${BASE_URL}/execute/buy/v1?token=${contract}:${tokenId}&taker=${genericTaker}&skipBalanceCheck=true`
+          `${BASE_URL}/execute/buy/v2?token=${contract}:${tokenId}&taker=${genericTaker}&skipBalanceCheck=true`
         )
         .then(({ data }) => data);
       const tx = steps[0].data;

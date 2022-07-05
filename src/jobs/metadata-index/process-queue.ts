@@ -7,6 +7,7 @@ import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
 import { redis, extendLock, releaseLock } from "@/common/redis";
+import { getNetworkName } from "@/common/utils";
 import { config } from "@/config/index";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
@@ -49,7 +50,9 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const { method } = job.data;
-      const count = method == "rarible" ? 50 : 20;
+
+      const count = 20;
+
       const queryParams = new URLSearchParams();
       queryParams.append("method", method);
 
@@ -71,9 +74,9 @@ if (config.doBackgroundWork) {
       }
 
       // Get the metadata for the tokens
-      const url = `${config.metadataApiBaseUrl}/v4/${
-        config.chainId === 1 ? "mainnet" : "rinkeby"
-      }/metadata/token?${queryParams.toString()}`;
+      const url = `${
+        config.metadataApiBaseUrl
+      }/v4/${getNetworkName()}/metadata/token?${queryParams.toString()}`;
 
       const metadataResult = await axios.get(url, { timeout: 60 * 1000 }).then(({ data }) => data);
 
@@ -83,7 +86,7 @@ if (config.doBackgroundWork) {
       await metadataIndexWrite.addToQueue(
         metadata.map((m) => ({
           ...m,
-          collection: (tokenToCollections as any)[`${m.contract}:${m.tokenId}`],
+          collection: (tokenToCollections as any)[`${m.contract.toLowerCase()}:${m.tokenId}`],
         }))
       );
 

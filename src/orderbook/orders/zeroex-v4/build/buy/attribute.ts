@@ -66,6 +66,7 @@ export const build = async (options: BuildOrderOptions) => {
     }
 
     // Fetch all tokens matching the attributes
+    // TODO: Include `NOT is_flagged` filter in the query
     const tokens = await edb.manyOrNone(
       `
         SELECT
@@ -91,6 +92,8 @@ export const build = async (options: BuildOrderOptions) => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (buildInfo.params as any).tokenIds = tokenIds;
+
+    // TODO: De-duplicate code
 
     // Choose the most gas-efficient method for checking (bit vector vs packed list)
     let bitVectorCost = -1;

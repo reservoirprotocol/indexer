@@ -5,7 +5,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
-import { edb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -13,7 +13,8 @@ import { config } from "@/config/index";
 const version = "v1";
 
 export const getExecuteCancelV1Options: RouteOptions = {
-  description: "Cancel an existing order",
+  description: "Cancel order",
+  notes: "Cancel an existing order on any marketplace",
   tags: ["api", "Orderbook"],
   plugins: {
     "hapi-swagger": {
@@ -22,13 +23,22 @@ export const getExecuteCancelV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      id: Joi.string().required(),
+      id: Joi.string()
+        .required()
+        .description("Collection ID. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63``"),
       maker: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}$/)
-        .required(),
-      maxFeePerGas: Joi.string().pattern(/^[0-9]+$/),
-      maxPriorityFeePerGas: Joi.string().pattern(/^[0-9]+$/),
+        .required()
+        .description(
+          "Address of wallet cancelling the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+        ),
+      maxFeePerGas: Joi.string()
+        .pattern(/^[0-9]+$/)
+        .description("Optional. Set custom gas price"),
+      maxPriorityFeePerGas: Joi.string()
+        .pattern(/^[0-9]+$/)
+        .description("Optional. Set custom gas price"),
     }),
   },
   response: {
@@ -56,7 +66,7 @@ export const getExecuteCancelV1Options: RouteOptions = {
 
     try {
       // Fetch the order to get cancelled.
-      const orderResult = await edb.oneOrNone(
+      const orderResult = await redb.oneOrNone(
         `
           SELECT "kind", "raw_data" FROM "orders"
           WHERE "id" = $/id/

@@ -118,6 +118,9 @@ CREATE INDEX "orders_side_contract_created_at_id_index"
   ON "orders" ("side", "contract", "created_at" DESC, "id" DESC)
   WHERE ("fillability_status" = 'fillable' AND "approval_status" = 'approved');
 
+CREATE INDEX "orders_updated_at_id_index"
+  ON "orders" ("updated_at", "id");
+
 -- https://stackoverflow.com/questions/51818949/is-there-any-adverse-effect-on-db-if-i-set-autovacuum-scale-factor-to-zero-for-c
 -- https://www.cybertec-postgresql.com/en/tuning-autovacuum-postgresql/
 ALTER TABLE "orders" SET (

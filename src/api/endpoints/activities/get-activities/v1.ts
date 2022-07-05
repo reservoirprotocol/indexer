@@ -27,7 +27,9 @@ export const getActivityV1Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      continuation: Joi.number().allow(null),
+      continuation: Joi.number()
+        .allow(null)
+        .description("Use continuation token to request next offset of items."),
       activities: Joi.array().items(
         Joi.object({
           id: Joi.number(),
@@ -40,7 +42,7 @@ export const getActivityV1Options: RouteOptions = {
           price: Joi.number(),
           amount: Joi.number(),
           timestamp: Joi.number(),
-        })
+        }).description("Amount of items returned in response.")
       ),
     }).label(`getActivity${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {

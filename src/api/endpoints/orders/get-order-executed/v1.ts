@@ -4,7 +4,7 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { edb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 
 const version = "v1";
@@ -27,7 +27,7 @@ export const getOrderExecutedV1Options: RouteOptions = {
     const query = request.query as any;
 
     try {
-      const data = await edb.oneOrNone(
+      const data = await redb.oneOrNone(
         `
           SELECT fillability_status FROM orders
           WHERE id = $/id/
@@ -40,7 +40,7 @@ export const getOrderExecutedV1Options: RouteOptions = {
       }
 
       if (query.checkRecentEvents) {
-        const data = await edb.oneOrNone(
+        const data = await redb.oneOrNone(
           `
             SELECT 1 FROM fill_events_2
             WHERE fill_events_2.timestamp > floor(extract(epoch FROM now() - interval '5 minutes'))::INT

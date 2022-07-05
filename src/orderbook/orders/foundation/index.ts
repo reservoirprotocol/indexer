@@ -93,7 +93,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 price = $/price/,
                 value = $/price/,
                 valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
-                expiration = 'Infinity'
+                expiration = 'Infinity',
+                updated_at = now()
               WHERE orders.id = $/id/
             `,
             {

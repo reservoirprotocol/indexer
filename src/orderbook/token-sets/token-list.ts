@@ -8,18 +8,26 @@ import { generateSchemaHash } from "@/orderbook/orders/utils";
 export type TokenSet = {
   id: string;
   schemaHash: string;
-  schema?: {
-    kind: "attribute";
-    data: {
-      collection: string;
-      attributes: [
-        {
-          key: string;
-          value: string;
-        }
-      ];
-    };
-  };
+  schema?:
+    | {
+        kind: "attribute";
+        data: {
+          collection: string;
+          isNonFlagged?: boolean;
+          attributes: [
+            {
+              key: string;
+              value: string;
+            }
+          ];
+        };
+      }
+    | {
+        kind: "collection-non-flagged";
+        data: {
+          collection: string;
+        };
+      };
   items?: {
     contract: string;
     tokenIds: string[];
@@ -29,17 +37,17 @@ export type TokenSet = {
 const isValid = async (tokenSet: TokenSet) => {
   try {
     if (!tokenSet.items && !tokenSet.schema) {
-      // In case we have no associated items or schema, we just skip the token set.
+      // In case we have no associated items or schema, we just skip the token set
       return false;
     }
 
     let itemsId: string | undefined;
     if (tokenSet.items) {
-      // Generate the token set id corresponding to the passed items.
+      // Generate the token set id corresponding to the passed items
       const merkleTree = Common.Helpers.generateMerkleTree(tokenSet.items.tokenIds);
       itemsId = `list:${tokenSet.items.contract}:${merkleTree.getHexRoot()}`;
 
-      // Make sure the passed tokens match the token set id.
+      // Make sure the passed tokens match the token set id
       if (itemsId !== tokenSet.id) {
         return false;
       }
@@ -47,64 +55,83 @@ const isValid = async (tokenSet: TokenSet) => {
 
     let schemaId: string | undefined;
     if (tokenSet.schema) {
-      // Detect the token set's items from the schema.
+      // Detect the token set's items from the schema
 
-      // Validate the schema against the schema hash.
+      // Validate the schema against the schema hash
       const schemaHash = generateSchemaHash(tokenSet.schema);
       if (schemaHash !== tokenSet.schemaHash) {
         return false;
       }
 
-      // TODO: Add support for multiple attributes.
-      if (tokenSet.schema.data.attributes.length !== 1) {
-        return false;
+      let tokens: { token_id: string; contract: Buffer }[] | undefined;
+      if (tokenSet.schema.kind === "attribute") {
+        // TODO: Add support for multiple attributes
+        if (tokenSet.schema.data.attributes.length !== 1) {
+          return false;
+        }
+
+        // TODO: Include `NOT is_flagged` filter in the query
+        tokens = await idb.manyOrNone(
+          `
+            SELECT
+              token_attributes.contract,
+              token_attributes.token_id
+            FROM token_attributes
+            JOIN attributes
+              ON token_attributes.attribute_id = attributes.id
+            JOIN attribute_keys
+              ON attributes.attribute_key_id = attribute_keys.id
+            WHERE attribute_keys.collection_id = $/collection/
+              AND attribute_keys.key = $/key/
+              AND attributes.value = $/value/
+          `,
+          {
+            collection: tokenSet.schema!.data.collection,
+            key: tokenSet.schema!.data.attributes[0].key,
+            value: tokenSet.schema!.data.attributes[0].value,
+          }
+        );
+      } else if (tokenSet.schema.kind === "collection-non-flagged") {
+        // TODO: Include `NOT is_flagged` filter in the query
+        tokens = await idb.manyOrNone(
+          `
+            SELECT
+              tokens.contract,
+              tokens.token_id
+            FROM tokens
+            WHERE tokens.collection_id = $/collection/
+          `,
+          {
+            collection: tokenSet.schema!.data.collection,
+          }
+        );
       }
 
-      const tokens = await idb.manyOrNone(
-        `
-          SELECT
-            token_attributes.contract,
-            token_attributes.token_id
-          FROM token_attributes
-          JOIN attributes
-            ON token_attributes.attribute_id = attributes.id
-          JOIN attribute_keys
-            ON attributes.attribute_key_id = attribute_keys.id
-          WHERE attribute_keys.collection_id = $/collection/
-            AND attribute_keys.key = $/key/
-            AND attributes.value = $/value/
-        `,
-        {
-          collection: tokenSet.schema!.data.collection,
-          key: tokenSet.schema!.data.attributes[0].key,
-          value: tokenSet.schema!.data.attributes[0].value,
-        }
-      );
       if (!tokens || !tokens.length) {
         return false;
       }
 
-      // All tokens will share the same underlying contract.
+      // All tokens will share the same underlying contract
       const contract = fromBuffer(tokens[0].contract);
       const tokenIds = tokens.map(({ token_id }) => token_id);
 
-      // Generate the token set id corresponding to the passed schema.
+      // Generate the token set id corresponding to the passed schema
       const merkleTree = Common.Helpers.generateMerkleTree(tokenIds);
       schemaId = `list:${contract}:${merkleTree.getHexRoot()}`;
 
-      // Make sure the passed schema matches the token set id.
+      // Make sure the passed schema matches the token set id
       if (schemaId !== tokenSet.id) {
         return false;
       }
 
-      // Populate the items field from the schema.
+      // Populate the items field from the schema
       if (!itemsId) {
         tokenSet.items = { contract, tokenIds };
       }
     }
 
     if (!itemsId && !schemaId) {
-      // Skip if we couldn't detect any valid items or schema.
+      // Skip if we couldn't detect any valid items or schema
       return false;
     }
   } catch {
@@ -130,9 +157,10 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
         continue;
       }
 
-      // If the token set has a schema, get the associated attribute
+      // If the token set has a schema, get the associated collection/attribute
       let attributeId: string | null = null;
-      if (schema) {
+      let collectionId: string | null = null;
+      if (schema && schema.kind === "attribute") {
         const attributeResult = await idb.oneOrNone(
           `
             SELECT
@@ -155,6 +183,8 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
         }
 
         attributeId = attributeResult.id;
+      } else if (schema && schema.kind === "collection-non-flagged") {
+        collectionId = schema.data.collection;
       }
 
       queries.push({
@@ -163,21 +193,22 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
             id,
             schema_hash,
             schema,
+            collection_id,
             attribute_id
           ) VALUES (
             $/id/,
             $/schemaHash/,
             $/schema:json/,
+            $/collectionId/,
             $/attributeId/
           )
-          ON CONFLICT (id, schema_hash) DO UPDATE
-          SET attribute_id = $/attributeId/
-          WHERE token_sets.attribute_id IS DISTINCT FROM $/attributeId/
+          ON CONFLICT DO NOTHING
         `,
         values: {
           id,
           schemaHash: toBuffer(schemaHash),
           schema,
+          collectionId,
           attributeId,
         },
       });
