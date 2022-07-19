@@ -1,5 +1,8 @@
 import { Log } from "@ethersproject/abstract-provider";
 
+import * as blocksModel from "@/models/blocks";
+import * as syncEventsUtils from "@/events-sync/utils";
+
 export type BaseEventParams = {
   address: string;
   block: number;
@@ -11,20 +14,11 @@ export type BaseEventParams = {
   batchIndex: number;
 };
 
-export const parseEvent = (
+export const parseEvent = async (
   log: Log,
-  blockRange: {
-    from: {
-      block: number;
-      timestamp: number;
-    };
-    to: {
-      block: number;
-      timestamp: number;
-    };
-  },
+  blocksCache: Map<number, blocksModel.Block>,
   batchIndex = 1
-): BaseEventParams => {
+): Promise<BaseEventParams> => {
   const address = log.address.toLowerCase();
   const block = log.blockNumber;
   const blockHash = log.blockHash.toLowerCase();
@@ -32,16 +26,10 @@ export const parseEvent = (
   const txIndex = log.transactionIndex;
   const logIndex = log.logIndex;
 
-  // Estimate the event's block timestamp.
-  const { from, to } = blockRange;
-  let timestamp: number;
-  if (block === from.block) {
-    timestamp = from.timestamp;
-  } else if (block === to.block) {
-    timestamp = to.timestamp;
-  } else {
-    const averageBlockTime = (to.timestamp - from.timestamp) / (to.block - from.block);
-    timestamp = from.timestamp + Math.round(averageBlockTime * (block - from.block));
+  let blockResult = blocksCache.get(block);
+  if (!blockResult) {
+    blocksCache.set(block, await syncEventsUtils.fetchBlock(block));
+    blockResult = blocksCache.get(block)!;
   }
 
   return {
@@ -51,7 +39,7 @@ export const parseEvent = (
     block,
     blockHash,
     logIndex,
-    timestamp,
+    timestamp: blockResult.timestamp,
     batchIndex,
   };
 };

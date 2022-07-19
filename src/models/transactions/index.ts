@@ -9,6 +9,9 @@ export type Transaction = {
   data: string;
   blockNumber: number;
   blockTimestamp: number;
+  gasPrice?: string;
+  gasUsed?: string;
+  gasFee?: string;
 };
 
 export const saveTransaction = async (transaction: Transaction) => {
@@ -21,7 +24,10 @@ export const saveTransaction = async (transaction: Transaction) => {
         value,
         data,
         block_number,
-        block_timestamp
+        block_timestamp,
+        gas_price,
+        gas_used,
+        gas_fee
       ) VALUES (
         $/hash/,
         $/from/,
@@ -29,7 +35,10 @@ export const saveTransaction = async (transaction: Transaction) => {
         $/value/,
         $/data/,
         $/blockNumber/,
-        $/blockTimestamp/
+        $/blockTimestamp/,
+        $/gasPrice/,
+        $/gasUsed/,
+        $/gasFee/
       )
       ON CONFLICT DO NOTHING
     `,
@@ -41,6 +50,9 @@ export const saveTransaction = async (transaction: Transaction) => {
       data: toBuffer(transaction.data),
       blockNumber: transaction.blockNumber,
       blockTimestamp: transaction.blockTimestamp,
+      gasPrice: transaction.gasPrice,
+      gasUsed: transaction.gasUsed,
+      gasFee: transaction.gasFee,
     }
   );
 
