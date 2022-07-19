@@ -1,15 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
+import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { redis, redlock } from "@/common/redis";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as syncEventsUtils from "@/events-sync/utils";
+import * as transactionsModel from "@/models/transactions";
 
 const QUEUE_NAME = "backfill-fill-events-fill-source-queue";
 
@@ -42,7 +45,8 @@ if (config.doBackgroundWork) {
             fill_events_2.log_index,
             fill_events_2.batch_index,
             fill_events_2.fill_source,
-            fill_events_2.timestamp
+            fill_events_2.timestamp,
+            fill_events_2.block
           FROM fill_events_2
           WHERE (fill_events_2.timestamp, fill_events_2.log_index, fill_events_2.batch_index) < ($/timestamp/, $/logIndex/, $/batchIndex/)
           ORDER BY
@@ -59,6 +63,42 @@ if (config.doBackgroundWork) {
         routerToFillSource = Sdk.Common.Addresses.Routers[config.chainId];
       }
 
+      const distinctBlocks = new Set<number>();
+      for (const { block } of result) {
+        distinctBlocks.add(block);
+      }
+      for (const block of distinctBlocks.values()) {
+        const b = await baseProvider.getBlockWithTransactions(block);
+
+        // Save all transactions within the block
+        const limit = pLimit(20);
+        await Promise.all(
+          b.transactions.map((tx) =>
+            limit(async () => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const rawTx = tx.raw as any;
+
+              const gasPrice = tx.gasPrice?.toString();
+              const gasUsed = rawTx?.gas ? bn(rawTx.gas).toString() : undefined;
+              const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
+
+              await transactionsModel.saveTransaction({
+                hash: tx.hash.toLowerCase(),
+                from: tx.from.toLowerCase(),
+                to: (tx.to || AddressZero).toLowerCase(),
+                value: tx.value.toString(),
+                data: tx.data.toLowerCase(),
+                blockNumber: b.number,
+                blockTimestamp: b.timestamp,
+                gasPrice,
+                gasUsed,
+                gasFee,
+              });
+            })
+          )
+        );
+      }
+
       const values: any[] = [];
       const columns = new pgp.helpers.ColumnSet(
         ["tx_hash", "log_index", "batch_index", "taker", "fill_source"],
@@ -68,7 +108,7 @@ if (config.doBackgroundWork) {
       );
       for (const { tx_hash, log_index, batch_index, fill_source } of result) {
         if (!fill_source) {
-          const tx = await syncEventsUtils.fetchTransaction(fromBuffer(tx_hash));
+          const tx = await transactionsModel.getTransaction(fromBuffer(tx_hash));
           if (routerToFillSource[tx.to]) {
             values.push({
               tx_hash,

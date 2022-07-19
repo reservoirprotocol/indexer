@@ -1,3 +1,17 @@
+# [5.117.0](https://github.com/reservoirprotocol/indexer/compare/v5.116.1...v5.117.0) (2022-07-19)
+
+
+### Bug Fixes
+
+* log received transactions ([292b672](https://github.com/reservoirprotocol/indexer/commit/292b672b4f520c0cfcb0b4b6292cea72edce89c7))
+
+
+### Features
+
+* more efficient handling of transactions ([4d51036](https://github.com/reservoirprotocol/indexer/commit/4d5103684790b44986fad245661cbf8a8ab61b44))
+
+
+
 ## [5.116.1](https://github.com/reservoirprotocol/indexer/compare/v5.116.0...v5.116.1) (2022-07-18)
 
 
