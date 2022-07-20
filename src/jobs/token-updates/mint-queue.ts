@@ -189,7 +189,7 @@ if (config.doBackgroundWork) {
           await idb.none(pgp.helpers.concat(queries));
         }
 
-        if (collection?.id) {
+        if (collection?.id && !config.disableRealtimeMetadataRefresh) {
           await metadataIndexFetch.addToQueue(
             [
               {

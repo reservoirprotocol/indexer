@@ -22,6 +22,18 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/refresh-token",
+    options: adminEndpoints.postRefreshTokenOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/refresh-collection",
+    options: adminEndpoints.postRefreshCollectionOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/calc-rarity",
     options: adminEndpoints.postCalcRarityOptions,
   });

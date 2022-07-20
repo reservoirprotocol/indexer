@@ -23,6 +23,7 @@ export const config = {
   liquidityOnly: !process.env.METADATA_API_BASE_URL,
   metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
   metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
+  disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
 
   databaseUrl: String(process.env.DATABASE_URL),
   readReplicaDatabaseUrl: String(process.env.READ_REPLICA_DATABASE_URL || process.env.DATABASE_URL),
