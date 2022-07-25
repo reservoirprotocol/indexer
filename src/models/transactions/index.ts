@@ -1,4 +1,5 @@
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
 import { fromBuffer, toBuffer } from "@/common/utils";
 
 export type Transaction = {
@@ -74,10 +75,15 @@ export const getTransaction = async (
     { hash: toBuffer(hash) }
   );
 
-  return {
-    hash,
-    from: fromBuffer(result.from),
-    to: fromBuffer(result.to),
-    value: result.value,
-  };
+  try {
+    return {
+      hash,
+      from: fromBuffer(result.from),
+      to: fromBuffer(result.to),
+      value: result.value,
+    };
+  } catch (error) {
+    logger.info("debug", `Error fetching transaction ${hash}: ${JSON.stringify(result)}`);
+    throw error;
+  }
 };

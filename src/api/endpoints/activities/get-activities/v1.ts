@@ -40,8 +40,14 @@ export const getActivityV1Options: RouteOptions = {
           fromAddress: Joi.string(),
           toAddress: Joi.string().allow(null),
           price: Joi.number(),
-          amount: Joi.number(),
+          amount: Joi.number().unsafe(),
           timestamp: Joi.number(),
+          txHash: Joi.string()
+            .lowercase()
+            .pattern(/^0x[a-f0-9]{64}$/)
+            .allow(null),
+          logIndex: Joi.number().allow(null),
+          batchIndex: Joi.number().allow(null),
         }).description("Amount of items returned in response.")
       ),
     }).label(`getActivity${version.toUpperCase()}Response`),
@@ -72,6 +78,9 @@ export const getActivityV1Options: RouteOptions = {
         price: formatEth(activity.price),
         amount: activity.amount,
         timestamp: activity.eventTimestamp,
+        txHash: activity.metadata.transactionHash,
+        logIndex: activity.metadata.logIndex,
+        batchIndex: activity.metadata.batchIndex,
       }));
 
       // Set the continuation node

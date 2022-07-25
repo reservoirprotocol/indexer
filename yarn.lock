@@ -1000,10 +1000,10 @@
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
   integrity sha1-p3c2C1s5oaLlEG+OhY8v0tBgxXA=
 
-"@reservoir0x/sdk@0.0.123":
-  version "0.0.123"
-  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.123.tgz#9a3ceeea54175b4965eb7930410a277a588765da"
-  integrity sha512-tnC+QXqYHPFxLE3oQ8wzi7M+QAlkRr5qpRMO9a7LCkPn9xcgB5Bm21K9a+VvhuycZDg51rPcJyqUvOol4nF1RA==
+"@reservoir0x/sdk@0.0.123-hotfix":
+  version "0.0.123-hotfix"
+  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.123-hotfix.tgz#9fa1d399c07612a7d1381ef2d146b471538b015a"
+  integrity sha512-GNABX15l0fcLm91BrPj4Ekmhp6KG7IVOBtGDgtOeOerJpcc+6pb8WJgRjApyNZeSUnfC1cnPxY5DITfrwUiBlA==
   dependencies:
     ethers "^5.6.8"
     merkletreejs "0.2.31"

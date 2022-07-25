@@ -35,7 +35,7 @@ export const postFixBlocksOptions: RouteOptions = {
       const toBlock = payload.toBlock;
 
       for (let block = fromBlock; block <= toBlock; block++) {
-        await blockCheck.addToQueue(block, 0, true);
+        await blockCheck.addToQueue(block);
       }
 
       return { message: "Request triggered" };

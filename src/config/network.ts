@@ -22,16 +22,6 @@ export const getNetworkName = () => {
 
 export const getNetworkSettings = () => {
   switch (config.chainId) {
-    // Ethereum
-    case 1:
-    // Rinkeby
-    case 4: {
-      return {
-        realtimeSyncFrequencySeconds: 15,
-        backfillBlockBatchSize: 16,
-      };
-    }
-
     // Goerli
     case 5: {
       return {
@@ -48,8 +38,16 @@ export const getNetworkSettings = () => {
       };
     }
 
+    // Ethereum
+    case 1:
+    // Rinkeby
+    case 4:
+    // Default
     default: {
-      throw new Error("Unsupported chain id");
+      return {
+        realtimeSyncFrequencySeconds: 15,
+        backfillBlockBatchSize: 16,
+      };
     }
   }
 };

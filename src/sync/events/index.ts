@@ -23,10 +23,10 @@ import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 import * as blocksModel from "@/models/blocks";
-import * as transactionsModel from "@/models/transactions";
 import { Sources } from "@/models/sources";
 import { OrderKind } from "@/orderbook/orders";
 import * as Foundation from "@/orderbook/orders/foundation";
+import * as syncEventsUtils from "@/events-sync/utils";
 
 // TODO: Split into multiple files (by exchange)
 // TODO: For simplicity, don't use bulk inserts/upserts for realtime
@@ -54,8 +54,10 @@ export const syncEvents = async (
 
   // --- Handle: fetch and process events ---
 
-  // Keep track of all handled blocks
+  // Cache blocks for efficiency
   const blocksCache = new Map<number, blocksModel.Block>();
+  // Keep track of all handled `${block}-${blockHash}` pairs
+  const blocksSet = new Set<string>();
 
   // Keep track of data needed by other processes that will get triggered
   const fillInfos: fillUpdates.FillInfo[] = [];
@@ -120,6 +122,7 @@ export const syncEvents = async (
       for (const log of logs) {
         try {
           const baseEventParams = await parseEvent(log, blocksCache);
+          blocksSet.add(`${log.blockNumber}-${log.blockHash}`);
 
           // It's quite important from a performance perspective to have
           // the block data available before proceeding with the events
@@ -579,7 +582,7 @@ export const syncEvents = async (
 
               // Handle fill source
               let fillSource: string | undefined;
-              const tx = await transactionsModel.getTransaction(baseEventParams.txHash);
+              const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
               if (routerToFillSource[tx.to]) {
                 fillSource = routerToFillSource[tx.to];
                 taker = tx.from;
@@ -703,7 +706,7 @@ export const syncEvents = async (
 
               // Handle fill source
               let fillSource: string | undefined;
-              const tx = await transactionsModel.getTransaction(baseEventParams.txHash);
+              const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
               if (routerToFillSource[tx.to]) {
                 fillSource = routerToFillSource[tx.to];
                 taker = tx.from;
@@ -842,7 +845,7 @@ export const syncEvents = async (
 
               // Handle fill source
               let fillSource: string | undefined;
-              const tx = await transactionsModel.getTransaction(baseEventParams.txHash);
+              const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
               if (routerToFillSource[tx.to]) {
                 fillSource = routerToFillSource[tx.to];
                 taker = tx.from;
@@ -934,7 +937,7 @@ export const syncEvents = async (
 
               // Handle fill source
               let fillSource: string | undefined;
-              const tx = await transactionsModel.getTransaction(baseEventParams.txHash);
+              const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
               if (routerToFillSource[tx.to]) {
                 fillSource = routerToFillSource[tx.to];
                 taker = tx.from;
@@ -1096,7 +1099,7 @@ export const syncEvents = async (
 
               // Handle fill source
               let fillSource: string | undefined;
-              const tx = await transactionsModel.getTransaction(baseEventParams.txHash);
+              const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
               if (routerToFillSource[tx.to]) {
                 fillSource = routerToFillSource[tx.to];
                 taker = tx.from;
@@ -1296,7 +1299,7 @@ export const syncEvents = async (
 
               // Handle fill source
               let fillSource: string | undefined;
-              const tx = await transactionsModel.getTransaction(baseEventParams.txHash);
+              const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
               if (routerToFillSource[tx.to]) {
                 fillSource = routerToFillSource[tx.to];
                 taker = tx.from;
@@ -1434,7 +1437,7 @@ export const syncEvents = async (
 
               // Handle fill source
               let fillSource: string | undefined;
-              const tx = await transactionsModel.getTransaction(baseEventParams.txHash);
+              const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
               if (routerToFillSource[tx.to]) {
                 fillSource = routerToFillSource[tx.to];
                 taker = tx.from;
@@ -1602,7 +1605,7 @@ export const syncEvents = async (
 
                 // Handle fill source
                 let fillSource: string | undefined;
-                const tx = await transactionsModel.getTransaction(baseEventParams.txHash);
+                const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
                 if (routerToFillSource[tx.to]) {
                   fillSource = routerToFillSource[tx.to];
                   taker = tx.from;
@@ -1667,6 +1670,8 @@ export const syncEvents = async (
           assignOrderSourceToFillEvents(fillEventsPartial),
           assignOrderSourceToFillEvents(fillEventsFoundation),
         ]);
+      } else {
+        logger.warn("sync-events", `Skipping assigning orders source assigned to fill events`);
       }
 
       // WARNING! Ordering matters (fills should come in front of cancels).
@@ -1704,11 +1709,14 @@ export const syncEvents = async (
 
       // --- Handle: orphan blocks ---
       if (!backfill) {
-        for (const block of blocksCache.values()) {
+        for (const blockData of blocksSet.values()) {
+          const block = Number(blockData.split("-")[0]);
+          const blockHash = blockData.split("-")[1];
+
           // Act right away if the current block is a duplicate
-          if ((await blocksModel.getBlocks(block.number)).length > 1) {
-            blockCheck.addToQueue(block.number, 10 * 1000);
-            blockCheck.addToQueue(block.number, 30 * 1000);
+          if ((await blocksModel.getBlocks(block)).length > 1) {
+            blockCheck.addToQueue(block, blockHash, 10);
+            blockCheck.addToQueue(block, blockHash, 30);
           }
         }
 
@@ -1716,14 +1724,17 @@ export const syncEvents = async (
         // (recheck each block in 1m, 5m, 10m and 60m).
         // TODO: The check frequency should be a per-chain setting
         await Promise.all(
-          [...blocksCache.keys()].map(async (blockNumber) =>
-            Promise.all([
-              blockCheck.addToQueue(blockNumber, 60 * 1000),
-              blockCheck.addToQueue(blockNumber, 5 * 60 * 1000),
-              blockCheck.addToQueue(blockNumber, 10 * 60 * 1000),
-              blockCheck.addToQueue(blockNumber, 60 * 60 * 1000),
-            ])
-          )
+          [...blocksSet.values()].map(async (blockData) => {
+            const block = Number(blockData.split("-")[0]);
+            const blockHash = blockData.split("-")[1];
+
+            return Promise.all([
+              blockCheck.addToQueue(block, blockHash, 60),
+              blockCheck.addToQueue(block, blockHash, 5 * 60),
+              blockCheck.addToQueue(block, blockHash, 10 * 60),
+              blockCheck.addToQueue(block, blockHash, 60 * 60),
+            ]);
+          })
         );
       }
 
@@ -1828,11 +1839,11 @@ const assignOrderSourceToFillEvents = async (fillEvents: es.fills.Event[]) => {
         const ordersChunk = await redb.manyOrNone(
           `
             SELECT id, source_id_int from orders
-            WHERE id IN ($/orderIds/)
+            WHERE id IN ($/orderIds:list/)
             AND source_id_int IS NOT NULL
           `,
           {
-            orderIds: orderIdsChunk.join(","),
+            orderIds: orderIdsChunk,
           }
         );
 
@@ -1853,13 +1864,6 @@ const assignOrderSourceToFillEvents = async (fillEvents: es.fills.Event[]) => {
 
           // If the order source id exists on the order, use it in the fill event.
           if (orderSourceId) {
-            logger.info(
-              "sync-events",
-              `Orders source assigned to fill event: ${JSON.stringify(
-                event
-              )}, orderSourceId: ${orderSourceId}`
-            );
-
             fillEvents[index].orderSourceIdInt = orderSourceId;
           }
         });

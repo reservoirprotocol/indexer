@@ -29,7 +29,7 @@ export const getOrdersAllV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      id: Joi.string().description("Orders id."),
+      id: Joi.alternatives(Joi.string(), Joi.array().items(Joi.string())).description("Orders id."),
       source: Joi.string().description("Filter to a source. Example: `OpenSea`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       side: Joi.string().valid("sell", "buy").default("sell").description("Sell or buy side."),
@@ -223,7 +223,11 @@ export const getOrdersAllV1Options: RouteOptions = {
       // Filters
       const conditions: string[] = [];
       if (query.id) {
-        conditions.push(`orders.id = $/id/`);
+        if (Array.isArray(query.id)) {
+          conditions.push(`orders.id IN ($/id:csv/)`);
+        } else {
+          conditions.push(`orders.id = $/id/`);
+        }
       } else {
         conditions.push(`orders.side = $/side/`);
         conditions.push(

@@ -1,3 +1,4 @@
+import { HashZero } from "@ethersproject/constants";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { idb } from "@/common/db";
@@ -15,10 +16,10 @@ const QUEUE_NAME = "events-sync-block-check";
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
-    attempts: 5,
+    attempts: 10,
     backoff: {
       type: "exponential",
-      delay: 10000,
+      delay: 30000,
     },
     removeOnComplete: 10000,
     removeOnFail: 10000,
@@ -32,14 +33,29 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { block, force } = job.data;
+      const { block, blockHash }: { block: number; blockHash?: string } = job.data;
 
       try {
-        const wrongBlocks = new Map<number, string>();
+        // Generic method for handling an orphan block
+        const handleOrphanBlock = async (block: { number: number; hash: string }) => {
+          // Resync the detected orphaned block
+          await backfillEventsSync.addToQueue(block.number, block.number, {
+            prioritized: true,
+          });
+          await unsyncEvents(block.number, block.hash);
 
+          // Delete the orphaned block from the `blocks` table
+          await blocksModel.deleteBlock(block.number, block.hash);
+
+          // TODO: Also delete transactions associated to the orphaned
+          // block and fetch the transactions of the replacement block
+        };
+
+        // Fetch the latest upstream hash for the specified block
         const upstreamBlockHash = (await baseProvider.getBlock(block)).hash.toLowerCase();
 
-        if (force) {
+        // When `blockHash` is empty, force recheck all event tables
+        if (!blockHash) {
           const result = await idb.manyOrNone(
             `
               (SELECT
@@ -84,35 +100,19 @@ if (config.doBackgroundWork) {
             `,
             { block }
           );
+
           for (const { block_hash } of result) {
             const blockHash = fromBuffer(block_hash);
-            if (blockHash !== upstreamBlockHash) {
-              logger.info(QUEUE_NAME, `Detected wrong block ${block} with hash ${blockHash}}`);
-              wrongBlocks.set(block, blockHash);
+            if (blockHash.toLowerCase() !== upstreamBlockHash.toLowerCase()) {
+              logger.info(QUEUE_NAME, `Detected orphan block ${block} with hash ${blockHash}}`);
+              await handleOrphanBlock({ number: block, hash: blockHash });
             }
           }
         } else {
-          // Fetch any blocks with a wrong hash from the `blocks` table
-          const blocks = await blocksModel.getBlocks(block);
-          for (const { number, hash } of blocks) {
-            if (hash !== upstreamBlockHash) {
-              logger.info(QUEUE_NAME, `Detected wrong block ${number} with hash ${hash}}`);
-              wrongBlocks.set(number, hash);
-            }
+          if (upstreamBlockHash.toLowerCase() !== blockHash.toLowerCase()) {
+            logger.info(QUEUE_NAME, `Detected orphan block ${block} with hash ${blockHash}}`);
+            await handleOrphanBlock({ number: block, hash: blockHash });
           }
-        }
-
-        for (const [block, blockHash] of wrongBlocks.entries()) {
-          // Resync the detected orphaned block
-          await backfillEventsSync.addToQueue(block, block, {
-            prioritized: true,
-          });
-          await unsyncEvents(block, blockHash);
-
-          // Delete the orphaned block from the `blocks` table
-          await blocksModel.deleteBlock(block, blockHash);
-
-          // TODO: Also delete transactions associated to the orphaned block
         }
       } catch (error) {
         logger.error(QUEUE_NAME, `Block check failed: ${error}`);
@@ -126,15 +126,16 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (block: number, delay: number, force = false) =>
-  queue.add(
-    `${block}-${delay}`,
+export const addToQueue = async (block: number, blockHash?: string, delayInSeconds = 0) => {
+  return queue.add(
+    `${block}-${blockHash ?? HashZero}-${delayInSeconds}`,
     {
       block,
-      force,
+      blockHash,
     },
     {
-      jobId: `${block}-${delay}${force ? "-" + Math.floor(Date.now() / 1000) : ""}`,
-      delay,
+      jobId: `${block}-${blockHash ?? HashZero}-${delayInSeconds}`,
+      delay: delayInSeconds * 1000,
     }
   );
+};

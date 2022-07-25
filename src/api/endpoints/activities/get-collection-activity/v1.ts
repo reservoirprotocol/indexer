@@ -63,7 +63,7 @@ export const getCollectionActivityV1Options: RouteOptions = {
           fromAddress: Joi.string(),
           toAddress: Joi.string().allow(null),
           price: Joi.number(),
-          amount: Joi.number(),
+          amount: Joi.number().unsafe(),
           timestamp: Joi.number(),
           token: Joi.object({
             tokenId: Joi.string().allow(null),
@@ -75,6 +75,12 @@ export const getCollectionActivityV1Options: RouteOptions = {
             collectionName: Joi.string().allow(null),
             collectionImage: Joi.string().allow(null),
           }),
+          txHash: Joi.string()
+            .lowercase()
+            .pattern(/^0x[a-f0-9]{64}$/)
+            .allow(null),
+          logIndex: Joi.number().allow(null),
+          batchIndex: Joi.number().allow(null),
         })
       ),
     }).label(`getCollectionActivity${version.toUpperCase()}Response`),
@@ -113,6 +119,9 @@ export const getCollectionActivityV1Options: RouteOptions = {
         timestamp: activity.eventTimestamp,
         token: activity.token,
         collection: activity.collection,
+        txHash: activity.metadata.transactionHash,
+        logIndex: activity.metadata.logIndex,
+        batchIndex: activity.metadata.batchIndex,
       }));
 
       // Set the continuation node
