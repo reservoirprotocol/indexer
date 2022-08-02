@@ -3,7 +3,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { idb, redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { randomUUID } from "crypto";
 import { EOL } from "os";
 import AWS from "aws-sdk";
@@ -19,7 +19,7 @@ import { AttributeKeysDataSource } from "@/jobs/data-export/data-sources/attribu
 import { AttributesDataSource } from "@/jobs/data-export/data-sources/attributes";
 import { TokenAttributesDataSource } from "@/jobs/data-export/data-sources/token-attributes";
 
-const QUEUE_NAME = "export-data-queue-v3";
+const QUEUE_NAME = "export-data-queue-v4";
 const QUERY_LIMIT = 1000;
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -112,7 +112,7 @@ const getSequenceInfo = async (kind: DataSourceKind) => {
                    FROM data_export_tasks
                    WHERE source = $/kind/`;
 
-  return await redb.one(query, {
+  return await idb.one(query, {
     kind,
   });
 };
