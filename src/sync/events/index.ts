@@ -1621,11 +1621,6 @@ export const syncEvents = async (
               // Assume the left order is the maker's order
               const side = [ERC721, ERC1155].includes(leftAsset[0]) ? "sell" : "buy";
 
-              const price =
-                side === "buy"
-                  ? bn(newLeftFill).div(newRightFill).toString()
-                  : bn(newRightFill).div(newLeftFill).toString();
-
               const decodedAsset = defaultAbiCoder.decode(
                 ["(address token, uint tokenId)"],
                 side === "sell" ? leftAsset.data : rightAsset.data
@@ -1634,7 +1629,10 @@ export const syncEvents = async (
               const contract = decodedAsset[0][0].toLowerCase();
               const tokenId = decodedAsset[0][1].toString();
 
-              const amount = side === "sell" ? newLeftFill : newRightFill;
+              let price = side === "sell" ? newLeftFill : newRightFill;
+              const amount = side === "sell" ? newRightFill : newLeftFill;
+
+              price = bn(price).div(amount).toString();
 
               const orderKind = "rarible";
 
