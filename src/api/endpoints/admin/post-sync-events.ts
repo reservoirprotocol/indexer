@@ -25,6 +25,7 @@ export const postSyncEventsOptions: RouteOptions = {
       eventDataKinds: Joi.array().items(Joi.string()),
       fromBlock: Joi.number().integer().positive().required(),
       toBlock: Joi.number().integer().positive().required(),
+      blocksPerBatch: Joi.number().integer().positive(),
       backfill: Joi.boolean().default(true),
     }),
   },
@@ -39,11 +40,13 @@ export const postSyncEventsOptions: RouteOptions = {
       const eventDataKinds = payload.eventDataKinds;
       const fromBlock = payload.fromBlock;
       const toBlock = payload.toBlock;
+      const blocksPerBatch = payload.blocksPerBatch;
       const backfill = payload.backfill;
 
       await eventsSyncBackfill.addToQueue(fromBlock, toBlock, {
         backfill,
         eventDataKinds,
+        blocksPerBatch,
       });
 
       return { message: "Request accepted" };
