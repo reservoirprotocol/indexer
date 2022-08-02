@@ -395,12 +395,15 @@ export const getTokensDetailsV3Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map((r) => {
-        const source = sources.get(r.floor_sell_source_id_int);
+        const contract = fromBuffer(r.contract);
+        const tokenId = r.token_id;
+
+        const source = sources.get(r.floor_sell_source_id_int, contract, tokenId);
 
         return {
           token: {
-            contract: fromBuffer(r.contract),
-            tokenId: r.token_id,
+            contract,
+            tokenId,
             name: r.name,
             description: r.description,
             image: r.image,

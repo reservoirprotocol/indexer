@@ -1,3 +1,21 @@
+# [5.139.0](https://github.com/reservoirprotocol/indexer/compare/v5.138.1...v5.139.0) (2022-08-02)
+
+
+### Features
+
+* allow bidding directly on token sets ([adb38ab](https://github.com/reservoirprotocol/indexer/commit/adb38ab587de5aa6d0e1dc38839b2f5464d25fa7))
+
+
+
+## [5.138.1](https://github.com/reservoirprotocol/indexer/compare/v5.138.0...v5.138.1) (2022-08-02)
+
+
+### Bug Fixes
+
+* consistent handling of zeroex-v4 fill events ([f149ae7](https://github.com/reservoirprotocol/indexer/commit/f149ae7b1fa23608d544f01f95d9b7cfb563ce3c))
+
+
+
 # [5.138.0](https://github.com/reservoirprotocol/indexer/compare/v5.137.0...v5.138.0) (2022-08-01)
 
 

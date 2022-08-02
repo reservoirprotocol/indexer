@@ -49,9 +49,7 @@ export const postOrderV2Options: RouteOptions = {
       collection: Joi.string(),
       tokenSetId: Joi.string(),
       isNonFlagged: Joi.boolean(),
-    })
-      .or("tokenSetId", "collection", "attribute")
-      .oxor("tokenSetId", "collection", "attribute"),
+    }).oxor("tokenSetId", "collection", "attribute"),
   },
   handler: async (request: Request) => {
     if (config.disableOrders) {

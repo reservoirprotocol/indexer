@@ -171,13 +171,17 @@ export class Sources {
     await redis.publish(channels.sourcesUpdated, `Updated source ${domain}`);
   }
 
-  public get(id: number): SourcesEntity {
+  public get(id: number, contract?: string, tokenId?: string): SourcesEntity {
     let sourceEntity;
 
     if (id in this.sources) {
       sourceEntity = (this.sources as any)[id];
     } else {
       sourceEntity = Sources.getDefaultSource();
+    }
+
+    if (sourceEntity && contract && tokenId) {
+      sourceEntity.metadata.url = this.getTokenUrl(sourceEntity, contract, tokenId);
     }
 
     return sourceEntity;

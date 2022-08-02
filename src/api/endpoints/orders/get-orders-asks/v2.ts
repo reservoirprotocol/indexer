@@ -362,7 +362,12 @@ export const getOrdersAsksV2Options: RouteOptions = {
       const result = rawResult.map(async (r) => {
         let source: SourcesEntity | undefined;
         if (r.source_id_int) {
-          source = sources.get(r.source_id_int);
+          if (r.token_set_id?.startsWith("token")) {
+            const [, contract, tokenId] = r.token_set_id.split(":");
+            source = sources.get(r.source_id_int, contract, tokenId);
+          } else {
+            source = sources.get(r.source_id_int);
+          }
         }
 
         return {
