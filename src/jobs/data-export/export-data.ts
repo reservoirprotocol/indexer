@@ -19,7 +19,7 @@ import { AttributeKeysDataSource } from "@/jobs/data-export/data-sources/attribu
 import { AttributesDataSource } from "@/jobs/data-export/data-sources/attributes";
 import { TokenAttributesDataSource } from "@/jobs/data-export/data-sources/token-attributes";
 
-const QUEUE_NAME = "export-data-queue";
+const QUEUE_NAME = "export-data-queue-v2";
 const QUERY_LIMIT = 1000;
 
 export const queue = new Queue(QUEUE_NAME, {
