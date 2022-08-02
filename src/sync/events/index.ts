@@ -1674,12 +1674,9 @@ export const syncEvents = async (
               const erc721TokenId = args["erc721TokenId"].toString();
               const orderHash = args["orderHash"].toLowerCase();
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
+              const ETH = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
+              if (![Sdk.Common.Addresses.Weth[config.chainId], ETH].includes(erc20Token)) {
                 // Skip if the payment token is not supported.
                 break;
               }
@@ -1710,12 +1707,9 @@ export const syncEvents = async (
               const erc721TokenId = args["erc721TokenId"].toString();
               const orderHash = args["orderHash"].toLowerCase();
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
+              const ETH = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
+              if (![Sdk.Common.Addresses.Weth[config.chainId], ETH].includes(erc20Token)) {
                 // Skip if the payment token is not supported.
                 break;
               }
@@ -1747,17 +1741,12 @@ export const syncEvents = async (
               const erc1155FillAmount = args["erc1155FillAmount"].toString();
               const orderHash = args["orderHash"].toLowerCase();
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
+              const ETH = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
+              if (![Sdk.Common.Addresses.Weth[config.chainId], ETH].includes(erc20Token)) {
                 // Skip if the payment token is not supported.
                 break;
               }
-
-              const price = bn(erc20FillAmount).div(erc1155FillAmount).toString();
 
               fillEventsPartial.push({
                 orderKind: "element-erc1155",
@@ -1765,7 +1754,7 @@ export const syncEvents = async (
                 orderSide: "sell",
                 maker,
                 taker,
-                price,
+                price: erc20FillAmount,
                 contract: erc1155Token,
                 tokenId: erc1155TokenId,
                 amount: erc1155FillAmount,
@@ -1786,17 +1775,12 @@ export const syncEvents = async (
               const erc1155FillAmount = args["erc1155FillAmount"].toString();
               const orderHash = args["orderHash"].toLowerCase();
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
+              const ETH = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
+              if (![Sdk.Common.Addresses.Weth[config.chainId], ETH].includes(erc20Token)) {
                 // Skip if the payment token is not supported.
                 break;
               }
-
-              const price = bn(erc20FillAmount).div(erc1155FillAmount).toString();
 
               fillEventsPartial.push({
                 orderKind: "element-erc1155",
@@ -1804,7 +1788,7 @@ export const syncEvents = async (
                 orderSide: "buy",
                 maker,
                 taker,
-                price,
+                price: erc20FillAmount,
                 contract: erc1155Token,
                 tokenId: erc1155TokenId,
                 amount: erc1155FillAmount,
