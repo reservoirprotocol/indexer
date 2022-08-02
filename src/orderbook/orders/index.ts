@@ -16,4 +16,6 @@ export type OrderKind =
   | "foundation"
   | "x2y2"
   | "seaport"
-  | "rarible";
+  | "rarible"
+  | "element-erc721"
+  | "element-erc1155";
