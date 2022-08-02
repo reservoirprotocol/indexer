@@ -49,8 +49,11 @@ export const postOrderV3Options: RouteOptions = {
         value: Joi.string().required(),
       }),
       collection: Joi.string(),
+      tokenSetId: Joi.string(),
       isNonFlagged: Joi.boolean(),
-    }),
+    })
+      .or("tokenSetId", "collection", "attribute")
+      .oxor("tokenSetId", "collection", "attribute"),
   },
   handler: async (request: Request) => {
     if (config.disableOrders) {
@@ -65,10 +68,15 @@ export const postOrderV3Options: RouteOptions = {
       const orderbook = payload.orderbook;
       const orderbookApiKey = payload.orderbookApiKey || null;
       const source = payload.source;
+
+      // We'll always have only one of the below cases:
       // Only relevant/present for attribute bids
       const attribute = payload.attribute;
       // Only relevant for collection bids
       const collection = payload.collection;
+      // Only relevant for token set bids
+      const tokenSetId = payload.tokenSetId;
+
       // Only relevant for non-flagged tokens bids
       const isNonFlagged = payload.isNonFlagged;
 
@@ -109,6 +117,13 @@ export const postOrderV3Options: RouteOptions = {
           kind: "collection-non-flagged",
           data: {
             collection,
+          },
+        };
+      } else if (tokenSetId) {
+        schema = {
+          kind: "token-set",
+          data: {
+            tokenSetId,
           },
         };
       }

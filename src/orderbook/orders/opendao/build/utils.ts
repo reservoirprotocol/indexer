@@ -17,7 +17,7 @@ export interface BaseOrderBuildOptions {
   excludeFlaggedTokens?: boolean;
 }
 
-type OrderBuildInfo = {
+export type OrderBuildInfo = {
   params: BaseBuildParams;
   kind: "erc721" | "erc1155";
 };

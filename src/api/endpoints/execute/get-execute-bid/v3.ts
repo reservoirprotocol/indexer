@@ -62,6 +62,7 @@ export const getExecuteBidV3Options: RouteOptions = {
             .description(
               "Bid on a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
             ),
+          tokenSetId: Joi.string().lowercase().description("Bid on a particular token set."),
           collection: Joi.string()
             .lowercase()
             .description(
@@ -121,8 +122,8 @@ export const getExecuteBidV3Options: RouteOptions = {
             .description("Optional. Random string to make the order unique"),
           nonce: Joi.string().pattern(regex.number).description("Optional. Set a custom nonce"),
         })
-          .or("token", "collection")
-          .oxor("token", "collection")
+          .or("token", "collection", "tokenSetId")
+          .oxor("token", "collection", "tokenSetId")
           .with("attributeValue", "attributeKey")
           .with("attributeKey", "attributeValue")
           .with("attributeKey", "collection")
@@ -199,6 +200,7 @@ export const getExecuteBidV3Options: RouteOptions = {
 
         const token = params.token;
         const collection = params.collection;
+        const tokenSetId = params.tokenSetId;
         const attributeKey = params.attributeKey;
         const attributeValue = params.attributeValue;
 
@@ -247,7 +249,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                 contract,
                 tokenId,
               });
-            } else if (collection && attributeKey && attributeValue) {
+            } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
               order = await seaportBuyAttribute.build({
                 ...params,
                 maker,
@@ -303,6 +305,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                         ...order.params,
                       },
                     },
+                    tokenSetId,
                     attribute:
                       collection && attributeKey && attributeValue
                         ? {
@@ -353,7 +356,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                 contract,
                 tokenId,
               });
-            } else if (collection && attributeKey && attributeValue) {
+            } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
               order = await openDaoBuyAttribute.build({
                 ...params,
                 maker,
@@ -414,6 +417,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                         ...order.params,
                       },
                     },
+                    tokenSetId,
                     attribute:
                       collection && attributeKey && attributeValue
                         ? {
@@ -464,7 +468,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                 contract,
                 tokenId,
               });
-            } else if (collection && attributeKey && attributeValue) {
+            } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
               order = await zeroExV4BuyAttribute.build({
                 ...params,
                 maker,
@@ -525,6 +529,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                         ...order.params,
                       },
                     },
+                    tokenSetId,
                     attribute:
                       collection && attributeKey && attributeValue
                         ? {
