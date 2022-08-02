@@ -94,7 +94,7 @@ if (config.doBackgroundWork) {
         await addToQueue(tokenSetId, fromBuffer(result.contract), result.token_id);
       }
     },
-    { connection: redis.duplicate(), concurrency: 10 }
+    { connection: redis.duplicate(), concurrency: 15 }
   );
 
   worker.on("error", (error) => {

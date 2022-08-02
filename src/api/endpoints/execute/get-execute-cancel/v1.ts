@@ -19,6 +19,7 @@ export const getExecuteCancelV1Options: RouteOptions = {
   plugins: {
     "hapi-swagger": {
       order: 11,
+      deprecated: true,
     },
   },
   validate: {

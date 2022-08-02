@@ -80,6 +80,7 @@ import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle
 import * as removeBuyOrderEvents from "@/jobs/order-updates/remove-buy-order-events";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
+import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
 import * as resyncOrdersSource from "@/jobs/orderbook/resync-orders-source";
 import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
 
@@ -93,8 +94,6 @@ import * as resyncAttributeCollection from "@/jobs/update-attribute/resync-attri
 import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attribute-floor-sell";
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
-
-import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
 
 import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
 
@@ -154,6 +153,7 @@ export const allJobQueues = [
   removeBuyOrderEvents.queue,
 
   orderbookOrders.queue,
+  orderbookPostOrderExternal.queue,
   orderbookTokenSets.queue,
   resyncOrdersSource.queue,
 

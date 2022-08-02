@@ -113,8 +113,10 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
 
       // Do these refresh operation only for small collections
       if (!isLargeCollection) {
-        // Refresh contract orders from OpenSea
-        await OpenseaIndexerApi.fastContractSync(collection.contract);
+        if (config.metadataIndexingMethod === "opensea") {
+          // Refresh contract orders from OpenSea
+          await OpenseaIndexerApi.fastContractSync(collection.contract);
+        }
 
         // Refresh the collection tokens metadata
         await metadataIndexFetch.addToQueue(

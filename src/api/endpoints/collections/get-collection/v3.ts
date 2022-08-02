@@ -53,7 +53,7 @@ export const getCollectionV3Options: RouteOptions = {
         royalties: Joi.object({
           recipient: Joi.string().allow(null, ""),
           bps: Joi.number(),
-        }),
+        }).allow(null),
         lastBuy: {
           value: Joi.number().unsafe().allow(null),
           timestamp: Joi.number().allow(null),

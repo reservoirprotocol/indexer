@@ -81,8 +81,10 @@ export const postRefreshCollectionOptions: RouteOptions = {
       // Revalidate the contract orders
       await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
 
-      // Refresh contract orders from OpenSea
-      await OpenseaIndexerApi.fastContractSync(collection.contract);
+      if (config.metadataIndexingMethod === "opensea") {
+        // Refresh contract orders from OpenSea
+        await OpenseaIndexerApi.fastContractSync(collection.contract);
+      }
 
       // Refresh the collection tokens metadata
       await metadataIndexFetch.addToQueue(

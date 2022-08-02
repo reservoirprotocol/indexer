@@ -78,7 +78,32 @@ if (config.doBackgroundWork) {
         config.metadataApiBaseUrl
       }/v4/${getNetworkName()}/metadata/token?${queryParams.toString()}`;
 
-      const metadataResult = await axios.get(url, { timeout: 60 * 1000 }).then(({ data }) => data);
+      let metadataResult;
+
+      try {
+        metadataResult = await axios.get(url, { timeout: 60 * 1000 }).then(({ data }) => data);
+      } catch (error) {
+        if ((error as any).response?.status === 429) {
+          logger.info(
+            QUEUE_NAME,
+            `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
+          );
+
+          const delay = (error as any).response.data.expires_in;
+
+          // Put tokens back in the list
+          await pendingRefreshTokens.add(refreshTokens, true);
+
+          // Trigger another job
+          if (await extendLock(getLockName(method), delay + 60 * 5)) {
+            await addToQueue(method, delay * 1000);
+          }
+
+          return;
+        }
+
+        throw error;
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const metadata: TokenMetadata[] = (metadataResult as any).metadata;
@@ -111,6 +136,6 @@ export const getLockName = (method: string) => {
   return `${QUEUE_NAME}:${method}`;
 };
 
-export const addToQueue = async (method: string) => {
-  await queue.add(randomUUID(), { method });
+export const addToQueue = async (method: string, delay = 0) => {
+  await queue.add(randomUUID(), { method }, { delay });
 };
