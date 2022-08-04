@@ -2077,6 +2077,29 @@ export const syncEvents = async (
 
               break;
             }
+
+            case "cryptopunks-punk-bought": {
+              const { args } = eventData.abi.parseLog(log);
+              const punkIndex = args["punkIndex"].toString();
+              const value = args["value"].toString();
+              const fromAddress = args["fromAddress"].toLowerCase();
+              const toAddress = args["toAddress"].toLowerCase();
+
+              fillEventsPartial.push({
+                orderKind: "cryptopunks",
+                orderSide: "buy",
+                taker: fromAddress,
+                maker: toAddress,
+                price: value,
+                currency: AddressZero,
+                contract: Sdk.CryptoPunks.Addresses.Exchange[config.chainId]?.toLowerCase(),
+                tokenId: punkIndex,
+                amount: "1",
+                baseEventParams,
+              });
+
+              break;
+            }
           }
         } catch (error) {
           logger.info("sync-events", `Failed to handle events: ${error}`);
