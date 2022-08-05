@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { AddressZero } from "@ethersproject/constants";
 import { Request, RouteOptions } from "@hapi/hapi";
+import * as Sdk from "@reservoir0x/sdk";
 import crypto from "crypto";
 import Joi from "joi";
 import _ from "lodash";
@@ -10,11 +12,14 @@ import { logger } from "@/common/logger";
 import {
   buildContinuation,
   formatEth,
+  formatPrice,
+  formatUsd,
   fromBuffer,
   regex,
   splitContinuation,
   toBuffer,
 } from "@/common/utils";
+import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 
 const version = "v3";
@@ -104,6 +109,9 @@ export const getSalesV3Options: RouteOptions = {
           batchIndex: Joi.number(),
           timestamp: Joi.number(),
           price: Joi.number().unsafe().allow(null),
+          currency: Joi.string().pattern(regex.address),
+          currencyPrice: Joi.number().unsafe().allow(null),
+          usdPrice: Joi.number().unsafe().allow(null),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
@@ -238,10 +246,16 @@ export const getSalesV3Options: RouteOptions = {
             fill_events_2.tx_hash,
             fill_events_2.timestamp,
             fill_events_2.price,
+            fill_events_2.currency,
+            fill_events_2.currency_price,
+            currencies.decimals,
+            fill_events_2.usd_price,
             fill_events_2.block,
             fill_events_2.log_index,
             fill_events_2.batch_index
           FROM fill_events_2
+          LEFT JOIN currencies
+            ON fill_events_2.currency = currencies.contract
           ${tokenJoins}
           WHERE
             ${collectionFilter}
@@ -318,6 +332,18 @@ export const getSalesV3Options: RouteOptions = {
           batchIndex: r.batch_index,
           timestamp: r.timestamp,
           price: r.price ? formatEth(r.price) : null,
+          currency:
+            fromBuffer(r.currency) === AddressZero
+              ? r.order_side === "sell"
+                ? Sdk.Common.Addresses.Eth[config.chainId]
+                : Sdk.Common.Addresses.Weth[config.chainId]
+              : fromBuffer(r.currency),
+          currencyPrice: r.currency_price
+            ? formatPrice(r.currency_price, r.decimals)
+            : r.price
+            ? formatEth(r.price)
+            : null,
+          usdPrice: r.usd_price ? formatUsd(r.usd_price) : null,
         };
       });
 

@@ -30,7 +30,7 @@ if (config.doBackgroundWork) {
 
       // Refresh the token floor sell and top bid
       await Tokens.recalculateTokenFloorSell(contract, tokenId);
-      await Tokens.recalculateTokenTopBuy(contract, tokenId);
+      await Tokens.recalculateTokenTopBid(contract, tokenId);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

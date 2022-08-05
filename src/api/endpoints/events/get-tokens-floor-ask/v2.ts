@@ -194,7 +194,7 @@ export const getTokensFloorAskV2Options: RouteOptions = {
           price: r.price ? formatEth(r.price) : null,
           validFrom: r.price ? Number(r.valid_from) : null,
           validUntil: r.price ? Number(r.valid_until) : null,
-          source: r.source_id_int ? sources.get(Number(r.source_id_int))?.name : null,
+          source: sources.get(r.source_id_int)?.name,
         },
         event: {
           id: r.id,

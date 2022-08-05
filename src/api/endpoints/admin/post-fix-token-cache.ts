@@ -44,7 +44,7 @@ export const postFixTokenCacheOptions: RouteOptions = {
         }
 
         case "tokens-top-buy": {
-          await Tokens.recalculateTokenTopBuy(contract, tokenId);
+          await Tokens.recalculateTokenTopBid(contract, tokenId);
           break;
         }
       }

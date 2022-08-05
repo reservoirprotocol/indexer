@@ -18,7 +18,7 @@ export const getUserTokensV2Options: RouteOptions = {
   description: "User tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
-  tags: ["api", "Tokens"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 9,
@@ -88,10 +88,6 @@ export const getUserTokensV2Options: RouteOptions = {
               name: Joi.string().allow(null, ""),
               imageUrl: Joi.string().allow(null),
               floorAskPrice: Joi.number().unsafe().allow(null),
-            }),
-            topBid: Joi.object({
-              id: Joi.string().allow(null),
-              value: Joi.number().unsafe().allow(null),
             }),
           }),
           ownership: Joi.object({
@@ -224,10 +220,6 @@ export const getUserTokensV2Options: RouteOptions = {
               floorAskPrice: r.collection_floor_sell_value
                 ? formatEth(r.collection_floor_sell_value)
                 : null,
-            },
-            topBid: {
-              id: r.top_buy_id,
-              value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
             },
           },
           ownership: {

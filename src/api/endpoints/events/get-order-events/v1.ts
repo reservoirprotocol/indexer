@@ -116,7 +116,7 @@ export const getOrderEventsV1Options: RouteOptions = {
           order_events.order_quantity_remaining,
           order_events.maker,
           order_events.price,
-          order_events.order_source_id,
+          order_events.order_source_id_int,
           coalesce(
             nullif(date_part('epoch', upper(order_events.order_valid_between)), 'Infinity'),
             0
@@ -191,9 +191,7 @@ export const getOrderEventsV1Options: RouteOptions = {
           quantityRemaining: Number(r.order_quantity_remaining),
           validFrom: r.valid_from ? Number(r.valid_from) : null,
           validUntil: r.valid_until ? Number(r.valid_until) : null,
-          source: r.order_source_id
-            ? sources.getByAddress(fromBuffer(r.order_source_id))?.name
-            : null,
+          source: sources.get(r.order_source_id_int)?.name,
         },
         event: {
           id: r.id,

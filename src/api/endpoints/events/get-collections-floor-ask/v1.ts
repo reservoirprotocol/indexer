@@ -112,7 +112,7 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
           collection_floor_sell_events.contract,
           collection_floor_sell_events.token_id,
           collection_floor_sell_events.order_id,
-          collection_floor_sell_events.order_source_id,
+          collection_floor_sell_events.order_source_id_int,
           collection_floor_sell_events.maker,
           collection_floor_sell_events.price,
           collection_floor_sell_events.previous_price,
@@ -184,9 +184,7 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
           maker: r.maker ? fromBuffer(r.maker) : null,
           price: r.price ? formatEth(r.price) : null,
           validUntil: r.price ? Number(r.valid_until) : null,
-          source: r.order_source_id
-            ? sources.getByAddress(fromBuffer(r.order_source_id))?.name
-            : null,
+          source: sources.get(r.order_source_id_int)?.name,
         },
         event: {
           id: r.id,

@@ -8,7 +8,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { genericTaker, simulateBuyTx } from "@/utils/tenderly";
+import { genericTaker, ensureBuyTxSucceeds } from "@/utils/simulation";
 
 const version = "v1";
 
@@ -53,7 +53,12 @@ export const postSimulateFloorV1Options: RouteOptions = {
         },
       });
 
+      if (response.payload.includes("No available orders")) {
+        return { message: "No orders to simulate" };
+      }
+
       // HACK: Extract the corresponding order id via regex
+      // TODO: Once we switch to the v3 APIs we should get the order ids from the path
       const { groups } = /\?ids=(?<orderId>0x[0-9a-f]{64})/.exec(response.payload)!;
 
       const contractResult = await redb.one(
@@ -66,11 +71,17 @@ export const postSimulateFloorV1Options: RouteOptions = {
         { contract: toBuffer(token.split(":")[0]) }
       );
 
-      const simulationResult = await simulateBuyTx(
-        contractResult.kind,
-        JSON.parse(response.payload).steps[0].data
+      const parsedPayload = JSON.parse(response.payload);
+      const success = await ensureBuyTxSucceeds(
+        {
+          kind: contractResult.kind as "erc721" | "erc1155",
+          contract: parsedPayload.path[0].contract as string,
+          tokenId: parsedPayload.path[0].tokenId as string,
+          amount: parsedPayload.path[0].quantity as string,
+        },
+        parsedPayload.steps[0].data
       );
-      if (simulationResult.success) {
+      if (success) {
         return { message: "Floor order is fillable" };
       } else {
         const orderId = (groups as any).orderId;

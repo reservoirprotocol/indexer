@@ -2,10 +2,12 @@
 
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
+import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
+import { Tokens } from "@/models/tokens";
 
 const version = "v1";
 
@@ -96,6 +98,12 @@ export const getStatsV1Options: RouteOptions = {
         (query as any).contract = toBuffer(contract);
         (query as any).tokenId = tokenId;
 
+        (query as any).topBidOrderId = null;
+        const topBid = await Tokens.getTokensTopBid(contract, [tokenId]);
+        if (!_.isEmpty(topBid)) {
+          (query as any).topBidOrderId = topBid[0].orderId;
+        }
+
         baseQuery = `
           SELECT
             1 AS "token_count",
@@ -118,9 +126,9 @@ export const getStatsV1Options: RouteOptions = {
             "t"."token_id",
             "t"."name",
             "t"."image",
-            "t"."top_buy_id",
-            "t"."top_buy_value",
-            "t"."top_buy_maker",
+            "ob"."id" AS "top_buy_id",
+            "ob"."value" AS "top_buy_value",
+            "ob"."maker" AS "top_buy_maker",
             date_part('epoch', lower("ob"."valid_between")) AS "top_buy_valid_from",
             coalesce(
               nullif(date_part('epoch', upper("ob"."valid_between")), 'Infinity'),
@@ -130,7 +138,7 @@ export const getStatsV1Options: RouteOptions = {
           LEFT JOIN "orders" "os"
             ON "t"."floor_sell_id" = "os"."id"
           LEFT JOIN "orders" "ob"
-            ON "t"."top_buy_id" = "ob"."id"
+            ON $/topBidOrderId/ = "ob"."id"
           WHERE "t"."contract" = $/contract/
             AND "t"."token_id" = $/tokenId/
         `;

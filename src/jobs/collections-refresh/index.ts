@@ -3,10 +3,11 @@ import cron from "node-cron";
 import { logger } from "@/common/logger";
 import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import * as collectionsRefresh from "@/jobs/collections-refresh/collections-refresh";
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+if (config.doBackgroundWork && getNetworkSettings().enableMetadataAutoRefresh) {
   cron.schedule(
     "30 23 * * *",
     async () =>
@@ -23,7 +24,7 @@ if (config.doBackgroundWork) {
         })
         .catch((e) => {
           logger.error(
-            "daily-volumes",
+            "daily-collections-refresh",
             JSON.stringify({
               msg: e.message,
             })

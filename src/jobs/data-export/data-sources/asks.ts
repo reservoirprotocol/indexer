@@ -32,7 +32,7 @@ export class AsksDataSource extends BaseDataSource {
             0
           ) AS valid_until,
           orders.nonce,
-          orders.source_id,
+          orders.source_id_int,
           orders.fee_bps,
           COALESCE(
             NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'),
@@ -106,7 +106,7 @@ export class AsksDataSource extends BaseDataSource {
           valid_from: Number(r.valid_from),
           valid_until: Number(r.valid_until),
           nonce: Number(r.nonce),
-          source: r.source_id ? sources.getByAddress(fromBuffer(r.source_id))?.name : null,
+          source: sources.get(r.source_id_int)?.name,
           fee_bps: Number(r.fee_bps),
           expiration: Number(r.expiration),
           raw_data: r.raw_data ?? null,

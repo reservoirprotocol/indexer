@@ -22,7 +22,7 @@ export class AskEventsDataSource extends BaseDataSource {
               order_events.order_quantity_remaining,
               order_events.maker,
               order_events.price,
-              order_events.order_source_id,
+              order_events.order_source_id_int,
               coalesce(
                 nullif(date_part('epoch', upper(order_events.order_valid_between)), 'Infinity'),
                 0
@@ -57,9 +57,7 @@ export class AskEventsDataSource extends BaseDataSource {
         quantity_remaining: Number(r.order_quantity_remaining),
         valid_from: r.valid_from ? Number(r.valid_from) : null,
         valid_until: r.valid_until ? Number(r.valid_until) : null,
-        source: r.order_source_id
-          ? sources.getByAddress(fromBuffer(r.order_source_id))?.name
-          : null,
+        source: sources.get(r.order_source_id_int)?.name,
         tx_hash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
         tx_timestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
         created_at: new Date(r.created_at * 1000).toISOString(),

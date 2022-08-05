@@ -28,11 +28,6 @@ import * as zeroExV4BuyAttribute from "@/orderbook/orders/zeroex-v4/build/buy/at
 import * as zeroExV4BuyToken from "@/orderbook/orders/zeroex-v4/build/buy/token";
 import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/collection";
 
-// Wyvern v2.3
-import * as wyvernV23BuyAttribute from "@/orderbook/orders/wyvern-v2.3/build/buy/attribute";
-import * as wyvernV23BuyCollection from "@/orderbook/orders/wyvern-v2.3/build/buy/collection";
-import * as wyvernV23BuyToken from "@/orderbook/orders/wyvern-v2.3/build/buy/token";
-
 const version = "v3";
 
 export const getExecuteBidV3Options: RouteOptions = {
@@ -67,6 +62,7 @@ export const getExecuteBidV3Options: RouteOptions = {
             .description(
               "Bid on a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
             ),
+          tokenSetId: Joi.string().lowercase().description("Bid on a particular token set."),
           collection: Joi.string()
             .lowercase()
             .description(
@@ -86,7 +82,7 @@ export const getExecuteBidV3Options: RouteOptions = {
             .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
             .required(),
           orderKind: Joi.string()
-            .valid("wyvern-v2.3", "721ex", "zeroex-v4", "seaport")
+            .valid("721ex", "zeroex-v4", "seaport")
             .default("seaport")
             .description("Exchange protocol used to create order. Example: `seaport`"),
           orderbook: Joi.string()
@@ -126,8 +122,8 @@ export const getExecuteBidV3Options: RouteOptions = {
             .description("Optional. Random string to make the order unique"),
           nonce: Joi.string().pattern(regex.number).description("Optional. Set a custom nonce"),
         })
-          .or("token", "collection")
-          .oxor("token", "collection")
+          .or("token", "collection", "tokenSetId")
+          .oxor("token", "collection", "tokenSetId")
           .with("attributeValue", "attributeKey")
           .with("attributeKey", "attributeValue")
           .with("attributeKey", "collection")
@@ -204,6 +200,7 @@ export const getExecuteBidV3Options: RouteOptions = {
 
         const token = params.token;
         const collection = params.collection;
+        const tokenSetId = params.tokenSetId;
         const attributeKey = params.attributeKey;
         const attributeValue = params.attributeValue;
 
@@ -227,123 +224,6 @@ export const getExecuteBidV3Options: RouteOptions = {
         }
 
         switch (params.orderKind) {
-          case "wyvern-v2.3": {
-            if (!["reservoir", "opensea"].includes(params.orderbook)) {
-              throw Boom.badRequest("Unsupported orderbook");
-            }
-            if (params.automatedRoyalties && params.feeRecipient) {
-              throw Boom.badRequest("Exchange does not supported multiple fee recipients");
-            }
-            if (Array.isArray(params.fee) || Array.isArray(params.feeRecipient)) {
-              throw Boom.badRequest("Exchange does not support multiple fee recipients");
-            }
-
-            let order: Sdk.WyvernV23.Order | undefined;
-            if (token) {
-              const [contract, tokenId] = token.split(":");
-
-              order = await wyvernV23BuyToken.build({
-                ...params,
-                maker,
-                contract,
-                tokenId,
-              });
-            } else if (collection && attributeKey && attributeValue) {
-              if (params.orderbook !== "reservoir") {
-                throw Boom.notImplemented("Attribute bids are not supported outside of Reservoir");
-              }
-
-              order = await wyvernV23BuyAttribute.build({
-                ...params,
-                maker,
-                collection,
-                attributes: [
-                  {
-                    key: attributeKey,
-                    value: attributeValue,
-                  },
-                ],
-              });
-            } else if (collection) {
-              if (params.orderbook !== "reservoir") {
-                throw Boom.notImplemented("Collection bids are not supported outside of Reservoir");
-              }
-
-              order = await wyvernV23BuyCollection.build({
-                ...params,
-                maker,
-                collection,
-              });
-            }
-
-            // Make sure the order was successfully generated
-            const orderInfo = order?.getInfo();
-            if (!order || !orderInfo) {
-              throw Boom.internal("Failed to generate order");
-            }
-
-            // Check the maker's approval
-            let approvalTx: TxData | undefined;
-            const wethApproval = await weth.getAllowance(
-              maker,
-              Sdk.WyvernV23.Addresses.TokenTransferProxy[config.chainId]
-            );
-            if (bn(wethApproval).lt(order.params.basePrice)) {
-              approvalTx = weth.approveTransaction(
-                maker,
-                Sdk.WyvernV23.Addresses.TokenTransferProxy[config.chainId]
-              );
-            }
-
-            steps[0].items.push({
-              status: !wrapEthTx ? "complete" : "incomplete",
-              data: wrapEthTx,
-              orderIndex: i,
-            });
-            steps[1].items.push({
-              status: !approvalTx ? "complete" : "incomplete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-            steps[2].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v2",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: "wyvern-v2.3",
-                      data: {
-                        ...order.params,
-                      },
-                    },
-                    attribute:
-                      collection && attributeKey && attributeValue
-                        ? {
-                            collection,
-                            key: attributeKey,
-                            value: attributeValue,
-                          }
-                        : undefined,
-                    collection:
-                      collection && params.excludeFlaggedTokens && !attributeKey && !attributeValue
-                        ? collection
-                        : undefined,
-                    isNonFlagged: params.excludeFlaggedTokens,
-                    orderbook: params.orderbook,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            // Go on with the next bid
-            continue;
-          }
-
           case "seaport": {
             if (!["reservoir", "opensea"].includes(params.orderbook)) {
               throw Boom.badRequest("Unsupported orderbook");
@@ -369,7 +249,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                 contract,
                 tokenId,
               });
-            } else if (collection && attributeKey && attributeValue) {
+            } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
               order = await seaportBuyAttribute.build({
                 ...params,
                 maker,
@@ -425,6 +305,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                         ...order.params,
                       },
                     },
+                    tokenSetId,
                     attribute:
                       collection && attributeKey && attributeValue
                         ? {
@@ -475,7 +356,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                 contract,
                 tokenId,
               });
-            } else if (collection && attributeKey && attributeValue) {
+            } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
               order = await openDaoBuyAttribute.build({
                 ...params,
                 maker,
@@ -536,6 +417,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                         ...order.params,
                       },
                     },
+                    tokenSetId,
                     attribute:
                       collection && attributeKey && attributeValue
                         ? {
@@ -586,7 +468,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                 contract,
                 tokenId,
               });
-            } else if (collection && attributeKey && attributeValue) {
+            } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
               order = await zeroExV4BuyAttribute.build({
                 ...params,
                 maker,
@@ -647,6 +529,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                         ...order.params,
                       },
                     },
+                    tokenSetId,
                     attribute:
                       collection && attributeKey && attributeValue
                         ? {

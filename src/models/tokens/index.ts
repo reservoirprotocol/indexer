@@ -3,7 +3,7 @@
 import _ from "lodash";
 
 import { idb, redb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import {
   TokensEntity,
@@ -166,8 +166,9 @@ export class Tokens {
     ]);
   }
 
-  public static async recalculateTokenTopBuy(contract: string, tokenId: string) {
+  public static async recalculateTokenTopBid(contract: string, tokenId: string) {
     const tokenSetId = `token:${contract}:${tokenId}`;
+
     await orderUpdatesById.addToQueue([
       {
         context: `revalidate-buy-${tokenSetId}-${Math.floor(Date.now() / 1000)}`,
@@ -176,5 +177,169 @@ export class Tokens {
         trigger: { kind: "revalidation" },
       },
     ]);
+  }
+
+  /**
+   * Get top bid for the given tokens within a single contract
+   * @param contract
+   * @param tokenIds
+   */
+  public static async getTokensTopBid(contract: string, tokenIds: string[]) {
+    const query = `
+      SELECT "x"."contract", "x"."token_id", "y"."order_id", "y"."value", "y"."maker"
+      FROM (
+        SELECT contract, token_id
+        FROM tokens
+        WHERE contract = $/contract/
+        AND token_id IN ($/tokenIds:csv/)
+        ORDER BY contract, token_id ASC
+      ) "x" LEFT JOIN LATERAL (
+        SELECT
+          "o"."id" as "order_id",
+          "o"."value",
+          "o"."maker"
+        FROM "orders" "o"
+        JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
+        WHERE "tst"."contract" = "x"."contract"
+        AND "tst"."token_id" = "x"."token_id"
+        AND "o"."side" = 'buy'
+        AND "o"."fillability_status" = 'fillable'
+        AND "o"."approval_status" = 'approved'
+        AND EXISTS(
+          SELECT FROM "nft_balances" "nb"
+            WHERE "nb"."contract" = "x"."contract"
+            AND "nb"."token_id" = "x"."token_id"
+            AND "nb"."amount" > 0
+            AND "nb"."owner" != "o"."maker"
+        )
+        ORDER BY "o"."value" DESC
+        LIMIT 1
+      ) "y" ON TRUE
+    `;
+
+    const result = await redb.manyOrNone(query, {
+      contract: toBuffer(contract),
+      tokenIds,
+    });
+
+    return _.map(result, (r) => ({
+      contract: r.contract ? fromBuffer(r.contract) : null,
+      tokenId: r.token_id,
+      orderId: r.order_id,
+      value: r.value,
+      maker: r.maker ? fromBuffer(r.maker) : null,
+    }));
+  }
+
+  /**
+   * Get top bids for tokens within multiple contracts, this is not the most efficient query, if the intention is to get
+   * top bid for tokens which are all in the same contract, better to use getTokensTopBid
+   * @param tokens
+   */
+  public static async getMultipleContractsTokensTopBid(
+    tokens: { contract: string; tokenId: string }[]
+  ) {
+    let tokensFilter = "";
+    const values = {};
+    let i = 0;
+
+    _.map(tokens, (token) => {
+      tokensFilter += `($/contract${i}/, $/token${i}/),`;
+      (values as any)[`contract${i}`] = toBuffer(token.contract);
+      (values as any)[`token${i}`] = token.tokenId;
+      ++i;
+    });
+
+    tokensFilter = _.trimEnd(tokensFilter, ",");
+
+    const query = `
+      SELECT "x"."contract", "x"."token_id", "y"."order_id", "y"."value", "y"."maker"
+      FROM (
+        SELECT contract, token_id
+        FROM tokens
+        WHERE (contract, token_id) IN (${tokensFilter})
+        ORDER BY contract, token_id ASC
+      ) "x" LEFT JOIN LATERAL (
+        SELECT
+          "o"."id" as "order_id",
+          "o"."value",
+          "o"."maker"
+        FROM "orders" "o"
+        JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
+        WHERE "tst"."contract" = "x"."contract"
+        AND "tst"."token_id" = "x"."token_id"
+        AND "o"."side" = 'buy'
+        AND "o"."fillability_status" = 'fillable'
+        AND "o"."approval_status" = 'approved'
+        AND EXISTS(
+          SELECT FROM "nft_balances" "nb"
+            WHERE "nb"."contract" = "x"."contract"
+            AND "nb"."token_id" = "x"."token_id"
+            AND "nb"."amount" > 0
+            AND "nb"."owner" != "o"."maker"
+        )
+        ORDER BY "o"."value" DESC
+        LIMIT 1
+      ) "y" ON TRUE
+    `;
+
+    const result = await redb.manyOrNone(query, values);
+
+    return _.map(result, (r) => ({
+      contract: r.contract ? fromBuffer(r.contract) : null,
+      tokenId: r.token_id,
+      orderId: r.order_id,
+      value: r.value,
+      maker: r.maker ? fromBuffer(r.maker) : null,
+    }));
+  }
+
+  /**
+   * Get top bid for the given token set
+   * @param tokenSetId
+   */
+  public static async getTokenSetTopBid(tokenSetId: string) {
+    const query = `
+      SELECT "x"."contract", "x"."token_id", "y"."order_id", "y"."value", "y"."maker"
+      FROM (
+        SELECT contract, token_id
+        FROM token_sets_tokens
+        WHERE token_set_id = $/tokenSetId/
+        ORDER BY contract, token_id ASC
+      ) "x" LEFT JOIN LATERAL (
+        SELECT
+          "o"."id" as "order_id",
+          "o"."value",
+          "o"."maker"
+        FROM "orders" "o"
+        JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
+        WHERE "tst"."contract" = "x"."contract"
+        AND "tst"."token_id" = "x"."token_id"
+        AND "o"."side" = 'buy'
+        AND "o"."fillability_status" = 'fillable'
+        AND "o"."approval_status" = 'approved'
+        AND EXISTS(
+          SELECT FROM "nft_balances" "nb"
+            WHERE "nb"."contract" = "x"."contract"
+            AND "nb"."token_id" = "x"."token_id"
+            AND "nb"."amount" > 0
+            AND "nb"."owner" != "o"."maker"
+        )
+        ORDER BY "o"."value" DESC
+        LIMIT 1
+      ) "y" ON TRUE
+    `;
+
+    const result = await redb.manyOrNone(query, {
+      tokenSetId,
+    });
+
+    return _.map(result, (r) => ({
+      contract: fromBuffer(r.contract),
+      tokenId: r.token_id,
+      orderId: r.order_id,
+      value: r.value,
+      maker: fromBuffer(r.maker),
+    }));
   }
 }

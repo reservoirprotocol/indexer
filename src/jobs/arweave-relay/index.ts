@@ -11,25 +11,6 @@ const PENDING_DATA_KEY = "pending-arweave-data";
 
 // TODO: Add support for relaying token sets
 
-export const addPendingOrdersWyvernV23 = async (
-  data: { order: Sdk.WyvernV23.Order; schemaHash?: string; source?: string }[]
-) => {
-  if (config.arweaveRelayerKey && data.length) {
-    await redis.rpush(
-      PENDING_DATA_KEY,
-      ...data.map(({ order, schemaHash }) =>
-        JSON.stringify({
-          kind: "wyvern-v2.3",
-          data: {
-            ...order.params,
-            schemaHash,
-          },
-        })
-      )
-    );
-  }
-};
-
 export const addPendingOrdersSeaport = async (
   data: {
     order: Sdk.Seaport.Order | Sdk.Seaport.BundleOrder;

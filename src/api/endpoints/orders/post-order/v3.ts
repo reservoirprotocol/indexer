@@ -8,7 +8,6 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import * as orders from "@/orderbook/orders";
-import { parseOpenSeaOrder } from "@/orderbook/orders/wyvern-v2.3/opensea";
 
 import * as postOrderExternal from "@/jobs/orderbook/post-order-external";
 
@@ -32,7 +31,7 @@ export const postOrderV3Options: RouteOptions = {
       order: Joi.object({
         kind: Joi.string()
           .lowercase()
-          .valid("opensea", "wyvern-v2.3", "looks-rare", "721ex", "zeroex-v4", "seaport")
+          .valid("opensea", "looks-rare", "721ex", "zeroex-v4", "seaport")
           .required(),
         data: Joi.object().required(),
       }),
@@ -50,8 +49,9 @@ export const postOrderV3Options: RouteOptions = {
         value: Joi.string().required(),
       }),
       collection: Joi.string(),
+      tokenSetId: Joi.string(),
       isNonFlagged: Joi.boolean(),
-    }),
+    }).oxor("tokenSetId", "collection", "attribute"),
   },
   handler: async (request: Request) => {
     if (config.disableOrders) {
@@ -66,10 +66,15 @@ export const postOrderV3Options: RouteOptions = {
       const orderbook = payload.orderbook;
       const orderbookApiKey = payload.orderbookApiKey || null;
       const source = payload.source;
+
+      // We'll always have only one of the below cases:
       // Only relevant/present for attribute bids
       const attribute = payload.attribute;
       // Only relevant for collection bids
       const collection = payload.collection;
+      // Only relevant for token set bids
+      const tokenSetId = payload.tokenSetId;
+
       // Only relevant for non-flagged tokens bids
       const isNonFlagged = payload.isNonFlagged;
 
@@ -112,28 +117,16 @@ export const postOrderV3Options: RouteOptions = {
             collection,
           },
         };
+      } else if (tokenSetId) {
+        schema = {
+          kind: "token-set",
+          data: {
+            tokenSetId,
+          },
+        };
       }
 
       switch (order.kind) {
-        // Publish a native OpenSea Wyvern v2.3 order
-        case "opensea": {
-          const parsedOrder = await parseOpenSeaOrder(order.data);
-          if (!parsedOrder) {
-            throw Boom.badRequest("Invalid/unsupported order");
-          }
-
-          const orderInfo: orders.wyvernV23.OrderInfo = {
-            orderParams: parsedOrder.params,
-            metadata: {},
-          };
-          const [result] = await orders.wyvernV23.save([orderInfo]);
-          if (result.status === "success") {
-            return { message: "Success", orderId: result.id };
-          } else {
-            throw Boom.badRequest(result.status);
-          }
-        }
-
         case "721ex": {
           if (orderbook !== "reservoir") {
             throw new Error("Unsupported orderbook");
@@ -207,35 +200,8 @@ export const postOrderV3Options: RouteOptions = {
           return { message: "Success", orderId: result.id };
         }
 
-        case "wyvern-v2.3": {
-          // Both Reservoir and OpenSea are supported as orderbooks.
-          switch (orderbook) {
-            case "reservoir": {
-              const orderInfo: orders.wyvernV23.OrderInfo = {
-                orderParams: order.data,
-                metadata: {
-                  schema,
-                  source,
-                },
-              };
-              const [result] = await orders.wyvernV23.save([orderInfo]);
-              if (result.status === "success") {
-                return { message: "Success", orderId: result.id };
-              } else {
-                throw Boom.badRequest(result.status);
-              }
-            }
-
-            default: {
-              throw Boom.badData("Unknown orderbook");
-            }
-          }
-
-          break;
-        }
-
         case "looks-rare": {
-          // Only Reservoir and LooksRare are supported as orderbooks.
+          // Only Reservoir and LooksRare are supported as orderbooks
           if (!["looks-rare", "reservoir"].includes(orderbook)) {
             throw new Error("Unknown orderbook");
           }

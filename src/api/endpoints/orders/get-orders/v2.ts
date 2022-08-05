@@ -111,7 +111,7 @@ export const getOrdersV2Options: RouteOptions = {
             NULLIF(DATE_PART('epoch', UPPER("o"."valid_between")), 'Infinity'),
             0
           ) AS "valid_until",
-          "o"."source_id",
+          "o"."source_id_int",
           "o"."fee_bps",
           "o"."fee_breakdown",
           COALESCE(
@@ -162,11 +162,8 @@ export const getOrdersV2Options: RouteOptions = {
       baseQuery += ` LIMIT $/limit/`;
 
       const sources = await Sources.getInstance();
-
       const result = await redb.manyOrNone(baseQuery, query).then((result) =>
         result.map((r) => {
-          const source = r.source_id ? sources.getByAddress(fromBuffer(r.source_id)).name : null;
-
           return {
             id: r.id,
             kind: r.kind,
@@ -185,7 +182,7 @@ export const getOrdersV2Options: RouteOptions = {
                 : formatEth(r.value) - (formatEth(r.value) * Number(r.fee_bps)) / 10000,
             validFrom: Number(r.valid_from),
             validUntil: Number(r.valid_until),
-            source,
+            source: sources.get(r.source_id_int)?.name,
             feeBps: Number(r.fee_bps),
             feeBreakdown: r.fee_breakdown,
             expiration: Number(r.expiration),

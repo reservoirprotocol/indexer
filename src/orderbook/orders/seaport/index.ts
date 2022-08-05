@@ -258,22 +258,15 @@ export const save = async (
       // Handle: native Reservoir orders
       let isReservoir = false;
 
-      // Handle: source and fees breakdown
+      // Handle: source
       const sources = await Sources.getInstance();
-
-      // Default source: OpenSea
-      let source = "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073";
-      let sourceId = sources.getByDomain("opensea.io").id;
-
+      let source = await sources.getOrInsert("opensea.io");
       if (metadata.source) {
-        const sourceEntity = await sources.getOrInsert(metadata.source);
-        source = sourceEntity.address;
-        sourceId = sourceEntity.id;
-
-        // Assume native listing
+        source = await sources.getOrInsert(metadata.source);
         isReservoir = true;
       }
 
+      // Handle: fee breakdown
       const openSeaFeeRecipients = [
         "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
         "0x8de9c5a032463c561423387a9648c5c7bcc5bc90",
@@ -305,8 +298,7 @@ export const save = async (
         value: value.toString(),
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.counter,
-        source_id: source ? toBuffer(source) : null,
-        source_id_int: sourceId,
+        source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
         contract: toBuffer(info.contract),
         conduit: toBuffer(
@@ -327,7 +319,7 @@ export const save = async (
       });
 
       if (relayToArweave) {
-        arweaveData.push({ order, schemaHash, source });
+        arweaveData.push({ order, schemaHash, source: source?.domain });
       }
     } catch (error) {
       logger.warn(
@@ -497,6 +489,7 @@ export const save = async (
         });
       }
 
+      // Handle: fee breakdown
       const openSeaFeeRecipients = [
         "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
         "0x8de9c5a032463c561423387a9648c5c7bcc5bc90",
@@ -513,19 +506,11 @@ export const save = async (
       // Handle: native Reservoir orders
       let isReservoir = false;
 
-      // Handle: source and fees breakdown
+      // Handle: source
       const sources = await Sources.getInstance();
-
-      // Default source: OpenSea
-      let source = "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073";
-      let sourceId = sources.getByDomain("opensea.io").id;
-
+      let source = await sources.getOrInsert("opensea.io");
       if (metadata.source) {
-        const sourceEntity = await sources.getOrInsert(metadata.source);
-        source = sourceEntity.address;
-        sourceId = sourceEntity.id;
-
-        // Assume native listing
+        source = await sources.getOrInsert(metadata.source);
         isReservoir = true;
       }
 
@@ -552,8 +537,7 @@ export const save = async (
         value: value.toString(),
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.counter,
-        source_id: source ? toBuffer(source) : null,
-        source_id_int: sourceId,
+        source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
         conduit: toBuffer(
           new Sdk.Seaport.Exchange(config.chainId).deriveConduit(order.params.conduitKey)
@@ -573,7 +557,7 @@ export const save = async (
       });
 
       if (relayToArweave) {
-        arweaveData.push({ order, source });
+        arweaveData.push({ order, source: source?.domain });
       }
     } catch (error) {
       logger.error(
@@ -616,7 +600,6 @@ export const save = async (
         "value",
         { name: "valid_between", mod: ":raw" },
         "nonce",
-        "source_id",
         "source_id_int",
         "is_reservoir",
         "contract",

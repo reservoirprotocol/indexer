@@ -45,6 +45,9 @@ export const getUserCollectionsV2Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
+      includeLiquidCount: Joi.boolean()
+        .default(false)
+        .description("If true, number of tokens with bids will be returned in the response."),
       offset: Joi.number()
         .integer()
         .min(0)
@@ -111,7 +114,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
           ownership: Joi.object({
             tokenCount: Joi.string(),
             onSaleCount: Joi.string(),
-            liquidCount: Joi.string(),
+            liquidCount: Joi.string().optional(),
           }),
         })
       ),
@@ -124,6 +127,32 @@ export const getUserCollectionsV2Options: RouteOptions = {
   handler: async (request: Request) => {
     const params = request.params as any;
     const query = request.query as any;
+
+    let liquidCount = "";
+    let selectLiquidCount = "";
+    if (query.includeLiquidCount) {
+      selectLiquidCount = "SUM(owner_liquid_count) AS owner_liquid_count,";
+      liquidCount = `
+        LEFT JOIN LATERAL (
+            SELECT 1 AS owner_liquid_count
+            FROM "orders" "o"
+            JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
+            WHERE "tst"."contract" = nft_balances."contract"
+            AND "tst"."token_id" = nft_balances."token_id"
+            AND "o"."side" = 'buy'
+            AND "o"."fillability_status" = 'fillable'
+            AND "o"."approval_status" = 'approved'
+            AND EXISTS(
+              SELECT FROM "nft_balances" "nb"
+                WHERE "nb"."contract" = nft_balances."contract"
+                AND "nb"."token_id" = nft_balances."token_id"
+                AND "nb"."amount" > 0
+                AND "nb"."owner" != "o"."maker"
+            )
+            LIMIT 1
+        ) "y" ON TRUE
+      `;
+    }
 
     try {
       let baseQuery = `
@@ -162,11 +191,12 @@ export const getUserCollectionsV2Options: RouteOptions = {
                 collections.day1_floor_sell_value,
                 collections.day7_floor_sell_value,
                 collections.day30_floor_sell_value,
-                SUM(nft_balances.amount) AS owner_token_count,
-                SUM(CASE WHEN tokens.floor_sell_value IS NULL THEN 0 ELSE 1 END) AS owner_on_sale_count,
-                SUM(CASE WHEN tokens.top_buy_value IS NULL THEN 0 ELSE 1 END) AS owner_liquid_count
-        FROM nft_balances
+                SUM(COALESCE(nft_balances.amount, 0)) AS owner_token_count,
+                ${selectLiquidCount}
+                SUM(CASE WHEN tokens.floor_sell_value IS NULL THEN 0 ELSE 1 END) AS owner_on_sale_count
+        FROM nft_balances 
         JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id
+        ${liquidCount}
         JOIN collections ON tokens.collection_id = collections.id
       `;
 
@@ -269,7 +299,9 @@ export const getUserCollectionsV2Options: RouteOptions = {
           ownership: {
             tokenCount: String(r.owner_token_count),
             onSaleCount: String(r.owner_on_sale_count),
-            liquidCount: String(r.owner_liquid_count),
+            liquidCount: query.includeLiquidCount
+              ? String(Number(r.owner_liquid_count))
+              : undefined,
           },
         };
 

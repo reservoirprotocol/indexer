@@ -2,7 +2,6 @@ import { BigNumber } from "@ethersproject/bignumber";
 
 import { redb } from "@/common/db";
 import { toBuffer, bn } from "@/common/utils";
-import { config } from "@/config/index";
 
 export const getContractKind = async (
   contract: string
@@ -81,51 +80,24 @@ export const getNftApproval = async (
 };
 
 export const getMinNonce = async (orderKind: string, maker: string): Promise<BigNumber> => {
-  let bulkCancelResult: { nonce: string } | null;
-
-  // WARNING! The Wyvern contract has a bug on Rinkeby where the
-  // emitted event (eg. `NonceIncremented`) is one nonce behind.
-  // Mainnet: ++nonces[msg.sender]
-  // Rinkeby: nonces[msg.sender]++
-  if (config.chainId === 4 && orderKind === "wyvern-v2.3") {
-    bulkCancelResult = await redb.oneOrNone(
-      `
-        SELECT coalesce(
-          (
-            SELECT bulk_cancel_events.min_nonce + 1 FROM bulk_cancel_events
-            WHERE bulk_cancel_events.order_kind = $/orderKind/
-              AND bulk_cancel_events.maker = $/maker/
-            ORDER BY bulk_cancel_events.min_nonce DESC
-            LIMIT 1
-          ),
-          0
-        ) AS nonce
-      `,
-      {
-        orderKind,
-        maker: toBuffer(maker),
-      }
-    );
-  } else {
-    bulkCancelResult = await redb.oneOrNone(
-      `
-        SELECT coalesce(
-          (
-            SELECT bulk_cancel_events.min_nonce FROM bulk_cancel_events
-            WHERE bulk_cancel_events.order_kind = $/orderKind/
-              AND bulk_cancel_events.maker = $/maker/
-            ORDER BY bulk_cancel_events.min_nonce DESC
-            LIMIT 1
-          ),
-          0
-        ) AS nonce
-      `,
-      {
-        orderKind,
-        maker: toBuffer(maker),
-      }
-    );
-  }
+  const bulkCancelResult: { nonce: string } | null = await redb.oneOrNone(
+    `
+      SELECT coalesce(
+        (
+          SELECT bulk_cancel_events.min_nonce FROM bulk_cancel_events
+          WHERE bulk_cancel_events.order_kind = $/orderKind/
+            AND bulk_cancel_events.maker = $/maker/
+          ORDER BY bulk_cancel_events.min_nonce DESC
+          LIMIT 1
+        ),
+        0
+      ) AS nonce
+    `,
+    {
+      orderKind,
+      maker: toBuffer(maker),
+    }
+  );
 
   return bn(bulkCancelResult!.nonce);
 };

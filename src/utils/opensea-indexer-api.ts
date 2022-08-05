@@ -9,7 +9,7 @@ export class OpenseaIndexerApi {
       .post(`${config.openseaIndexerApiBaseUrl}/fast-token-sync`, { token }, { timeout: 60000 })
       .catch((error) => {
         logger.error("fast_token_sync", `Failed to sync token=${token}, error=${error}`);
-        throw error;
+        return false;
       });
   }
 
@@ -22,7 +22,7 @@ export class OpenseaIndexerApi {
       )
       .catch((error) => {
         logger.error("fast_token_sync", `Failed to sync contract=${contract}, error=${error}`);
-        throw error;
+        return false;
       });
   }
 }

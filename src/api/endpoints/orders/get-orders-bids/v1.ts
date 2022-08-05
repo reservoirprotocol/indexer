@@ -226,7 +226,7 @@ export const getOrdersBidsV1Options: RouteOptions = {
             NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
             0
           ) AS valid_until,
-          orders.source_id,
+          orders.source_id_int,
           orders.fee_bps,
           orders.fee_breakdown,
           COALESCE(
@@ -333,17 +333,16 @@ export const getOrdersBidsV1Options: RouteOptions = {
         }
       }
 
+      const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
-        const sources = await Sources.getInstance();
         let source: SourcesEntity | undefined;
-
-        if (r.source_id) {
-          let contract: string | undefined;
-          let tokenId: string | undefined;
-          if (r.token_set_id?.startsWith("token:")) {
-            [contract, tokenId] = r.token_set_id.split(":").slice(1);
+        if (r.source_id_int !== null) {
+          if (r.token_set_id?.startsWith("token")) {
+            const [, contract, tokenId] = r.token_set_id.split(":");
+            source = sources.get(r.source_id_int, contract, tokenId);
+          } else {
+            source = sources.get(r.source_id_int);
           }
-          source = sources.getByAddress(fromBuffer(r.source_id), contract, tokenId);
         }
 
         return {

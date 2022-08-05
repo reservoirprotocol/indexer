@@ -33,7 +33,7 @@ export class TokensDataSource extends BaseDataSource {
           "t"."floor_sell_maker",
           "t"."floor_sell_valid_from",
           "t"."floor_sell_valid_to",
-          "t"."floor_sell_source_id",
+          "t"."floor_sell_source_id_int",
           "t"."created_at",
           extract(epoch from "t"."updated_at") "updated_ts"
         FROM "tokens" "t"
@@ -68,9 +68,7 @@ export class TokensDataSource extends BaseDataSource {
         floor_ask_maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
         floor_ask_valid_from: r.floor_sell_valid_from ? r.floor_sell_valid_from : null,
         floor_ask_valid_to: r.floor_sell_valid_to ? r.floor_sell_valid_to : null,
-        floor_ask_source: r.floor_sell_source_id
-          ? sources.getByAddress(fromBuffer(r.floor_sell_source_id))?.name
-          : null,
+        floor_ask_source: sources.get(r.floor_sell_source_id_int)?.name,
         last_sale_value: r.last_sell_value ? r.last_sell_value.toString() : null,
         last_sale_timestamp: r.last_sell_timestamp,
         created_at: new Date(r.created_at).toISOString(),

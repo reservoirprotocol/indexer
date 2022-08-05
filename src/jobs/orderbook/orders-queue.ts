@@ -77,16 +77,6 @@ if (config.doBackgroundWork) {
             break;
           }
 
-          case "wyvern-v2.3": {
-            const result = await orders.wyvernV23.save(
-              [info as orders.wyvernV23.OrderInfo],
-              relayToArweave
-            );
-            logger.info(QUEUE_NAME, `[wyvern-v2.3] Order save result: ${JSON.stringify(result)}`);
-
-            break;
-          }
-
           case "zeroex-v4": {
             const result = await orders.openDao.save(
               [info as orders.zeroExV4.OrderInfo],
@@ -129,11 +119,6 @@ if (config.doBackgroundWork) {
 }
 
 export type GenericOrderInfo =
-  | {
-      kind: "wyvern-v2.3";
-      info: orders.wyvernV23.OrderInfo;
-      relayToArweave?: boolean;
-    }
   | {
       kind: "looks-rare";
       info: orders.looksRare.OrderInfo;

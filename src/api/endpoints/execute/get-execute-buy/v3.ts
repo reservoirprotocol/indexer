@@ -57,7 +57,7 @@ export const getExecuteBuyV3Options: RouteOptions = {
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
-      noDirectFilling: Joi.boolean().description(
+      forceRouter: Joi.boolean().description(
         "If true, all fills will be executed through the router."
       ),
       source: Joi.string()
@@ -201,14 +201,6 @@ export const getExecuteBuyV3Options: RouteOptions = {
               kind: "opendao",
               ...common,
               order: new Sdk.OpenDao.Order(config.chainId, rawData),
-            });
-          }
-
-          case "wyvern-v2.3": {
-            return listingDetails.push({
-              kind: "wyvern-v2.3",
-              ...common,
-              order: new Sdk.WyvernV23.Order(config.chainId, rawData),
             });
           }
 
@@ -387,7 +379,7 @@ export const getExecuteBuyV3Options: RouteOptions = {
           bps: query.referrerFeeBps,
         },
         partial: query.partial,
-        noDirectFilling: query.noDirectFilling,
+        forceRouter: query.forceRouter,
       });
 
       // Check that the taker has enough funds to fill all requested tokens

@@ -34,10 +34,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
-      // On Foundation, we can only have a single currently active order per NFT.
+      // On Foundation, we can only have a single currently active order per NFT
       const id = keccak256(["address", "uint256"], [orderParams.contract, orderParams.tokenId]);
 
-      // Ensure that the order is not cancelled.
+      // Ensure that the order is not cancelled
       const cancelResult = await redb.oneOrNone(
         `
           SELECT 1 FROM cancel_events
@@ -84,7 +84,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       );
       if (orderResult) {
         if (Number(orderResult.valid_from) < orderParams.txTimestamp) {
-          // If an older order already exists then we just update some fields on it.
+          // If an older order already exists then we just update some fields on it
           await idb.none(
             `
               UPDATE orders SET
@@ -110,7 +110,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             status: "success",
           });
         } else {
-          // If a newer order already exists, then we just skip processing.
+          // If a newer order already exists, then we just skip processing
           return results.push({
             id,
             txHash: orderParams.txHash,
@@ -131,14 +131,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         },
       ]);
 
-      // Handle: source and fees breakdown
-      let source: string | undefined;
-      let sourceId: number | null = null;
+      // Handle: source
+      const sources = await Sources.getInstance();
+      let source = await sources.getOrInsert("foundation.app");
       if (metadata.source) {
-        const sources = await Sources.getInstance();
-        const sourceEntity = await sources.getOrInsert(metadata.source);
-        source = sourceEntity.address;
-        sourceId = sourceEntity.id;
+        source = await sources.getOrInsert(metadata.source);
       }
 
       // Handle: marketplace fees
@@ -185,8 +182,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         quantity_remaining: "1",
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: null,
-        source_id: source ? toBuffer(source) : null,
-        source_id_int: sourceId,
+        source_id_int: source?.id,
         is_reservoir: null,
         contract: toBuffer(orderParams.contract),
         conduit: null,
@@ -231,7 +227,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "quantity_remaining",
         { name: "valid_between", mod: ":raw" },
         "nonce",
-        "source_id",
         "source_id_int",
         "is_reservoir",
         "contract",

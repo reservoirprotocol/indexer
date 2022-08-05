@@ -27,14 +27,16 @@ import "@/jobs/events-sync/write-buffers/nft-transfers";
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.catchup) {
+  const networkSettings = getNetworkSettings();
+
   // Keep up with the head of the blockchain by polling for new blocks every once in a while
   cron.schedule(
-    `*/${getNetworkSettings().realtimeSyncFrequencySeconds} * * * * *`,
+    `*/${networkSettings.realtimeSyncFrequencySeconds} * * * * *`,
     async () =>
       await redlock
         .acquire(
           ["events-sync-catchup-lock"],
-          (getNetworkSettings().realtimeSyncFrequencySeconds - 1) * 1000
+          (networkSettings.realtimeSyncFrequencySeconds - 1) * 1000
         )
         .then(async () => {
           logger.info("events-sync-catchup", "Catching up events");
@@ -51,7 +53,7 @@ if (config.doBackgroundWork && config.catchup) {
   );
 
   // ONLY MASTER
-  if (config.master) {
+  if (config.master && networkSettings.enableWebSocket) {
     // Besides the manual polling of events via the above cron job
     // we're also integrating WebSocket subscriptions to fetch the
     // latest events as soon as they're hapenning on-chain. We are

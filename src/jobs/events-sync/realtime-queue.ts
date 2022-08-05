@@ -5,6 +5,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import { syncEvents } from "@/events-sync/index";
 import * as eventsSyncBackfill from "@/jobs/events-sync/backfill-queue";
 
@@ -32,7 +33,7 @@ if (config.doBackgroundWork) {
         // of the blockchain. If we lag behind more than that, then all
         // previous blocks that we cannot cover here will be relayed to
         // the backfill queue.
-        const maxBlocks = 16;
+        const maxBlocks = getNetworkSettings().realtimeSyncMaxBlockLag;
 
         const headBlock = await baseProvider.getBlockNumber();
 

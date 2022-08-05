@@ -156,6 +156,12 @@ export const setupRoutes = (server: Server) => {
     options: adminEndpoints.postSetCollectionCommunity,
   });
 
+  server.route({
+    method: "GET",
+    path: "/admin/get-marketplaces",
+    options: adminEndpoints.getMarketplaces,
+  });
+
   // API keys
 
   server.route({
@@ -327,13 +333,6 @@ export const setupRoutes = (server: Server) => {
     path: "/events/orders/v1",
     options: eventsEndpoints.getOrderEventsV1Options,
   });
-
-  server.route({
-    method: "GET",
-    path: "/events/tokens/floor-ask/v1",
-    options: eventsEndpoints.getTokensFloorAskV1Options,
-  });
-
   server.route({
     method: "GET",
     path: "/events/tokens/floor-ask/v2",
@@ -341,12 +340,6 @@ export const setupRoutes = (server: Server) => {
   });
 
   // Execute
-
-  server.route({
-    method: "GET",
-    path: "/execute/bid/v1",
-    options: executeEndpoints.getExecuteBidV1Options,
-  });
 
   server.route({
     method: "GET",
@@ -388,12 +381,6 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/execute/cancel/v2",
     options: executeEndpoints.getExecuteCancelV2Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/execute/list/v1",
-    options: executeEndpoints.getExecuteListV1Options,
   });
 
   server.route({
@@ -513,6 +500,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/liquidity/users/v1",
     options: ordersEndpoints.getUsersLiquidityV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/liquidity/users/v2",
+    options: ordersEndpoints.getUsersLiquidityV2Options,
   });
 
   server.route({
@@ -647,12 +640,6 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-    path: "/tokens/details/v1",
-    options: tokensEndpoints.getTokensDetailsV1Options,
-  });
-
-  server.route({
-    method: "GET",
     path: "/tokens/details/v2",
     options: tokensEndpoints.getTokensDetailsV2Options,
   });
@@ -685,6 +672,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/users/{user}/tokens/v2",
     options: tokensEndpoints.getUserTokensV2Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/users/{user}/tokens/v3",
+    options: tokensEndpoints.getUserTokensV3Options,
   });
 
   server.route({
@@ -739,12 +732,6 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/sales/bulk/v1",
     options: transfersEndpoints.getSalesBulkV1Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/transfers/v1",
-    options: transfersEndpoints.getTransfersV1Options,
   });
 
   server.route({

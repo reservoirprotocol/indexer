@@ -28,11 +28,6 @@ import * as zeroExV4BuyAttribute from "@/orderbook/orders/zeroex-v4/build/buy/at
 import * as zeroExV4BuyToken from "@/orderbook/orders/zeroex-v4/build/buy/token";
 import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/collection";
 
-// Wyvern v2.3
-import * as wyvernV23BuyAttribute from "@/orderbook/orders/wyvern-v2.3/build/buy/attribute";
-import * as wyvernV23BuyCollection from "@/orderbook/orders/wyvern-v2.3/build/buy/collection";
-import * as wyvernV23BuyToken from "@/orderbook/orders/wyvern-v2.3/build/buy/token";
-
 const version = "v2";
 
 export const getExecuteBidV2Options: RouteOptions = {
@@ -52,6 +47,7 @@ export const getExecuteBidV2Options: RouteOptions = {
         .description(
           "Bid on a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
+      tokenSetId: Joi.string().lowercase().description("Bid on a particular token set."),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -78,8 +74,8 @@ export const getExecuteBidV2Options: RouteOptions = {
         .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
         .required(),
       orderKind: Joi.string()
-        .valid("wyvern-v2.3", "721ex", "zeroex-v4", "seaport")
-        .default("wyvern-v2.3")
+        .valid("721ex", "zeroex-v4", "seaport")
+        .default("seaport")
         .description("Exchange protocol used to create order. Example: `seaport`"),
       orderbook: Joi.string()
         .valid("reservoir", "opensea")
@@ -127,8 +123,8 @@ export const getExecuteBidV2Options: RouteOptions = {
         .pattern(regex.bytes32)
         .description("Signature s component (only required after order has been signed)"),
     })
-      .or("token", "collection")
-      .oxor("token", "collection")
+      .or("token", "collection", "tokenSetId")
+      .oxor("token", "collection", "tokenSetId")
       .with("attributeValue", "attributeKey")
       .with("attributeKey", "attributeValue")
       .with("attributeKey", "collection")
@@ -159,15 +155,16 @@ export const getExecuteBidV2Options: RouteOptions = {
     try {
       const token = query.token;
       const collection = query.collection;
+      const tokenSetId = query.tokenSetId;
       const attributeKey = query.attributeKey;
       const attributeValue = query.attributeValue;
 
-      // On Rinkeby, proxy ZeroEx V4 to 721ex.
+      // On Rinkeby, proxy ZeroEx V4 to 721ex
       if (query.orderKind === "zeroex-v4" && config.chainId === 4) {
         query.orderKind = "721ex";
       }
 
-      // Set up generic bid creation steps.
+      // Set up generic bid creation steps
       const steps = [
         {
           action: "Wrapping ETH",
@@ -191,14 +188,14 @@ export const getExecuteBidV2Options: RouteOptions = {
         },
       ];
 
-      // Check the maker's Weth/Eth balance.
+      // Check the maker's Weth/Eth balance
       let wrapEthTx: TxData | undefined;
       const weth = new Sdk.Common.Helpers.Weth(slowProvider, config.chainId);
       const wethBalance = await weth.getBalance(query.maker);
       if (bn(wethBalance).lt(query.weiPrice)) {
         const ethBalance = await slowProvider.getBalance(query.maker);
         if (bn(wethBalance).add(ethBalance).lt(query.weiPrice)) {
-          // We cannot do anything if the maker doesn't have sufficient balance.
+          // We cannot do anything if the maker doesn't have sufficient balance
           throw Boom.badData("Maker does not have sufficient balance");
         } else {
           wrapEthTx = weth.depositTransaction(query.maker, bn(query.weiPrice).sub(wethBalance));
@@ -206,140 +203,6 @@ export const getExecuteBidV2Options: RouteOptions = {
       }
 
       switch (query.orderKind) {
-        case "wyvern-v2.3": {
-          if (!["reservoir", "opensea"].includes(query.orderbook)) {
-            throw Boom.badRequest("Unsupported orderbook");
-          }
-          if (query.automatedRoyalties && query.feeRecipient) {
-            throw Boom.badRequest("Exchange does not supported multiple fee recipients");
-          }
-          if (Array.isArray(query.fee) || Array.isArray(query.feeRecipient)) {
-            throw Boom.badRequest("Exchange does not support multiple fee recipients");
-          }
-
-          let order: Sdk.WyvernV23.Order | undefined;
-          if (token) {
-            const [contract, tokenId] = token.split(":");
-
-            order = await wyvernV23BuyToken.build({
-              ...query,
-              contract,
-              tokenId,
-            });
-          } else if (collection && attributeKey && attributeValue) {
-            if (query.orderbook !== "reservoir") {
-              throw Boom.notImplemented("Attribute bids are not supported outside of Reservoir");
-            }
-
-            order = await wyvernV23BuyAttribute.build({
-              ...query,
-              collection,
-              attributes: [
-                {
-                  key: attributeKey,
-                  value: attributeValue,
-                },
-              ],
-            });
-          } else if (collection) {
-            if (query.orderbook !== "reservoir") {
-              throw Boom.notImplemented("Collection bids are not supported outside of Reservoir");
-            }
-
-            order = await wyvernV23BuyCollection.build({
-              ...query,
-              collection,
-            });
-          }
-
-          // Make sure the order was successfully generated.
-          const orderInfo = order?.getInfo();
-          if (!order || !orderInfo) {
-            throw Boom.internal("Failed to generate order");
-          }
-
-          // Check the maker's approval.
-          let approvalTx: TxData | undefined;
-          const wethApproval = await weth.getAllowance(
-            query.maker,
-            Sdk.WyvernV23.Addresses.TokenTransferProxy[config.chainId]
-          );
-          if (bn(wethApproval).lt(order.params.basePrice)) {
-            approvalTx = weth.approveTransaction(
-              query.maker,
-              Sdk.WyvernV23.Addresses.TokenTransferProxy[config.chainId]
-            );
-          }
-
-          const hasSignature = query.v && query.r && query.s;
-          return {
-            steps: [
-              {
-                ...steps[0],
-                status: !wrapEthTx ? "complete" : "incomplete",
-                data: wrapEthTx,
-              },
-              {
-                ...steps[1],
-                status: !approvalTx ? "complete" : "incomplete",
-                data: approvalTx,
-              },
-              {
-                ...steps[2],
-                status: hasSignature ? "complete" : "incomplete",
-                data: hasSignature ? undefined : order.getSignatureData(),
-              },
-              {
-                ...steps[3],
-                status: "incomplete",
-                data: !hasSignature
-                  ? undefined
-                  : {
-                      endpoint: "/order/v2",
-                      method: "POST",
-                      body: {
-                        order: {
-                          kind: "wyvern-v2.3",
-                          data: {
-                            ...order.params,
-                            v: query.v,
-                            r: query.r,
-                            s: query.s,
-                            contract: query.contract,
-                            tokenId: query.tokenId,
-                          },
-                        },
-                        attribute:
-                          collection && attributeKey && attributeValue
-                            ? {
-                                collection,
-                                key: attributeKey,
-                                value: attributeValue,
-                              }
-                            : undefined,
-                        collection:
-                          collection &&
-                          query.excludeFlaggedTokens &&
-                          !attributeKey &&
-                          !attributeValue
-                            ? collection
-                            : undefined,
-                        isNonFlagged: query.excludeFlaggedTokens,
-                        orderbook: query.orderbook,
-                        source: query.source,
-                      },
-                    },
-              },
-            ],
-            query: {
-              ...query,
-              listingTime: order.params.listingTime,
-              expirationTime: order.params.expirationTime,
-              salt: order.params.salt,
-            },
-          };
-        }
-
         case "seaport": {
           if (!["reservoir", "opensea"].includes(query.orderbook)) {
             throw Boom.badRequest("Unsupported orderbook");
@@ -364,7 +227,7 @@ export const getExecuteBidV2Options: RouteOptions = {
               contract,
               tokenId,
             });
-          } else if (collection && attributeKey && attributeValue) {
+          } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
             order = await seaportBuyAttribute.build({
               ...query,
               collection,
@@ -429,6 +292,7 @@ export const getExecuteBidV2Options: RouteOptions = {
                             signature: joinSignature({ v: query.v, r: query.r, s: query.s }),
                           },
                         },
+                        tokenSetId,
                         attribute:
                           collection && attributeKey && attributeValue
                             ? {
@@ -465,7 +329,7 @@ export const getExecuteBidV2Options: RouteOptions = {
             throw Boom.badRequest("Unsupported orderbook");
           }
 
-          // Make sure the fee information is correctly types.
+          // Make sure the fee information is correctly types
           if (query.fee && !Array.isArray(query.fee)) {
             query.fee = [query.fee];
           }
@@ -484,7 +348,7 @@ export const getExecuteBidV2Options: RouteOptions = {
               contract,
               tokenId,
             });
-          } else if (collection && attributeKey && attributeValue) {
+          } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
             order = await openDaoBuyAttribute.build({
               ...query,
               collection,
@@ -506,7 +370,7 @@ export const getExecuteBidV2Options: RouteOptions = {
             throw Boom.internal("Failed to generate order");
           }
 
-          // Check the maker's approval.
+          // Check the maker's approval
           let approvalTx: TxData | undefined;
           const wethApproval = await weth.getAllowance(
             query.maker,
@@ -555,6 +419,7 @@ export const getExecuteBidV2Options: RouteOptions = {
                             s: query.s,
                           },
                         },
+                        tokenSetId,
                         attribute:
                           collection && attributeKey && attributeValue
                             ? {
@@ -590,7 +455,7 @@ export const getExecuteBidV2Options: RouteOptions = {
             throw Boom.badRequest("Unsupported orderbook");
           }
 
-          // Make sure the fee information is correctly types.
+          // Make sure the fee information is correctly types
           if (query.fee && !Array.isArray(query.fee)) {
             query.fee = [query.fee];
           }
@@ -609,7 +474,7 @@ export const getExecuteBidV2Options: RouteOptions = {
               contract,
               tokenId,
             });
-          } else if (collection && attributeKey && attributeValue) {
+          } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
             order = await zeroExV4BuyAttribute.build({
               ...query,
               collection,
@@ -631,7 +496,7 @@ export const getExecuteBidV2Options: RouteOptions = {
             throw Boom.internal("Failed to generate order");
           }
 
-          // Check the maker's approval.
+          // Check the maker's approval
           let approvalTx: TxData | undefined;
           const wethApproval = await weth.getAllowance(
             query.maker,
@@ -680,6 +545,7 @@ export const getExecuteBidV2Options: RouteOptions = {
                             s: query.s,
                           },
                         },
+                        tokenSetId,
                         attribute:
                           collection && attributeKey && attributeValue
                             ? {

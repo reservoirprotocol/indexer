@@ -5,14 +5,7 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import {
-  buildContinuation,
-  formatEth,
-  fromBuffer,
-  regex,
-  splitContinuation,
-  toBuffer,
-} from "@/common/utils";
+import { buildContinuation, formatEth, fromBuffer, regex, splitContinuation } from "@/common/utils";
 import { Sources } from "@/models/sources";
 
 const version = "v1";
@@ -184,7 +177,7 @@ export const getOrdersAllV1Options: RouteOptions = {
             NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
             0
           ) AS valid_until,
-          orders.source_id,
+          orders.source_id_int,
           orders.fee_bps,
           orders.fee_breakdown,
           COALESCE(
@@ -224,9 +217,13 @@ export const getOrdersAllV1Options: RouteOptions = {
 
         if (query.source) {
           const sources = await Sources.getInstance();
-          const source = sources.getByName(query.source);
-          (query as any).sourceAddress = toBuffer(source.address);
-          conditions.push(`orders.source_id = $/sourceAddress/`);
+          const source = sources.getByDomain(query.source);
+          if (!source) {
+            return { orders: [] };
+          }
+
+          (query as any).source = source.id;
+          conditions.push(`orders.source_id_int = $/source/`);
         }
         if (query.native) {
           conditions.push(`orders.is_reservoir`);
@@ -280,7 +277,7 @@ export const getOrdersAllV1Options: RouteOptions = {
             : formatEth(r.value) - (formatEth(r.value) * Number(r.fee_bps)) / 10000,
         validFrom: Number(r.valid_from),
         validUntil: Number(r.valid_until),
-        source: r.source_id ? sources.getByAddress(fromBuffer(r.source_id))?.name : null,
+        source: sources.get(r.source_id_int)?.name,
         feeBps: Number(r.fee_bps),
         feeBreakdown: r.fee_breakdown,
         expiration: Number(r.expiration),

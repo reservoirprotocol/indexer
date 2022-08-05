@@ -23,7 +23,7 @@ export class CollectionFloorAskEventsDataSource extends BaseDataSource {
               collection_floor_sell_events.contract,
               collection_floor_sell_events.token_id,
               collection_floor_sell_events.order_id,
-              collection_floor_sell_events.order_source_id,
+              collection_floor_sell_events.order_source_id_int,
               collection_floor_sell_events.maker,
               collection_floor_sell_events.price,
               collection_floor_sell_events.previous_price,
@@ -55,9 +55,7 @@ export class CollectionFloorAskEventsDataSource extends BaseDataSource {
         price: r.price ? r.toString() : null,
         previous_price: r.previous_price ? r.toString() : null,
         valid_until: r.valid_until ? Number(r.valid_until) : null,
-        source: r.order_source_id
-          ? sources.getByAddress(fromBuffer(r.order_source_id))?.name
-          : null,
+        source: sources.get(r.order_source_id_int)?.name,
         tx_hash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
         tx_timestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
         created_at: new Date(r.created_at * 1000).toISOString(),

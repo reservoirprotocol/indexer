@@ -48,14 +48,37 @@ export const getCollectionTopBidsV1Options: RouteOptions = {
 
     try {
       const baseQuery = `
-        SELECT
-          "t"."top_buy_value" AS "value",
-          COUNT(*) AS "quantity"
-        FROM "tokens" "t"
-        WHERE "t"."collection_id" = $/collection/
-          AND "t"."top_buy_value" IS NOT NULL
-        GROUP BY "t"."top_buy_value"
-        ORDER BY "t"."top_buy_value" DESC NULLS LAST
+        SELECT "y"."value", COUNT(*) AS "quantity"
+        FROM (
+          SELECT contract, token_id
+          FROM tokens
+          WHERE collection_id = $/collection/
+          ORDER BY contract, token_id ASC
+        ) "x" LEFT JOIN LATERAL (
+          SELECT
+            "o"."id" as "order_id",
+            "o"."value",
+            "o"."maker"
+          FROM "orders" "o"
+          JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
+          WHERE "tst"."contract" = "x"."contract"
+          AND "tst"."token_id" = "x"."token_id"
+          AND "o"."side" = 'buy'
+          AND "o"."fillability_status" = 'fillable'
+          AND "o"."approval_status" = 'approved'
+          AND EXISTS(
+            SELECT FROM "nft_balances" "nb"
+            WHERE "nb"."contract" = "x"."contract"
+            AND "nb"."token_id" = "x"."token_id"
+            AND "nb"."amount" > 0
+            AND "nb"."owner" != "o"."maker"
+          )
+          ORDER BY "o"."value" DESC
+          LIMIT 1
+        ) "y" ON TRUE
+        WHERE value IS NOT NULL
+        GROUP BY y.value
+        ORDER BY y.value DESC NULLS LAST
       `;
 
       const result = await redb.manyOrNone(baseQuery, params).then((result) =>

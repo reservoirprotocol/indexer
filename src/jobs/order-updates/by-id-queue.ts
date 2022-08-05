@@ -15,7 +15,6 @@ import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-ord
 import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as topBidUpdateQueue from "@/jobs/bid-updates/top-bid-update-queue";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -54,7 +53,6 @@ if (config.doBackgroundWork) {
                 orders.id,
                 orders.side,
                 orders.token_set_id AS "tokenSetId",
-                orders.source_id AS "sourceId",
                 orders.source_id_int AS "sourceIdInt",
                 orders.valid_between AS "validBetween",
                 COALESCE(orders.quantity_remaining, 1) AS "quantityRemaining",
@@ -139,7 +137,6 @@ if (config.doBackgroundWork) {
                     y.maker,
                     y.valid_between,
                     y.nonce,
-                    y.source_id,
                     y.source_id_int,
                     y.is_reservoir
                   FROM (
@@ -154,7 +151,6 @@ if (config.doBackgroundWork) {
                       orders.value,
                       orders.maker,
                       orders.valid_between,
-                      orders.source_id,
                       orders.source_id_int,
                       orders.nonce,
                       orders.is_reservoir
@@ -187,7 +183,6 @@ if (config.doBackgroundWork) {
                         0
                       )
                     )::INT,
-                    floor_sell_source_id = z.source_id,
                     floor_sell_source_id_int = z.source_id_int,
                     floor_sell_is_reservoir = z.is_reservoir,
                     updated_at = now()
@@ -270,8 +265,6 @@ if (config.doBackgroundWork) {
                 : null;
               await collectionUpdatesFloorAsk.addToQueue([sellOrderResult]);
             }
-          } else if (side === "buy") {
-            await topBidUpdateQueue.addToQueue(tokenSetId!);
           }
 
           if (order) {
@@ -285,7 +278,6 @@ if (config.doBackgroundWork) {
                     contract,
                     token_id,
                     order_id,
-                    order_source_id,
                     order_source_id_int,
                     order_valid_between,
                     order_quantity_remaining,
@@ -309,7 +301,6 @@ if (config.doBackgroundWork) {
                     $/contract/,
                     $/tokenId/,
                     $/id/,
-                    $/sourceId/,
                     $/sourceIdInt/,
                     $/validBetween/,
                     $/quantityRemaining/,
@@ -325,7 +316,6 @@ if (config.doBackgroundWork) {
                   contract: order.contract,
                   tokenId: order.tokenId,
                   id: order.id,
-                  sourceId: order.sourceId,
                   sourceIdInt: order.sourceIdInt,
                   validBetween: order.validBetween,
                   quantityRemaining: order.quantityRemaining,

@@ -308,8 +308,10 @@ if (config.doBackgroundWork) {
           resyncAttributeValueCounts.addToQueue(collection, attribute.key, attribute.value);
         });
 
-        // Recalculate the collection rarity
-        await rarityQueue.addToQueue(collection);
+        // If any attributes changed
+        if (!_.isEmpty(attributesToRefresh)) {
+          await rarityQueue.addToQueue(collection); // Recalculate the collection rarity
+        }
 
         // Update the attributes token count
         const replacementParams = {};

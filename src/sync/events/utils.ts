@@ -111,6 +111,13 @@ export const getOrderSourceByOrderKind = async (
       case "wyvern-v2":
       case "wyvern-v2.3":
         return sources.getByDomain("opensea.io");
+      case "rarible":
+        return sources.getByDomain("rarible.com");
+      case "element-erc721":
+      case "element-erc1155":
+        return sources.getByDomain("element.market");
+      case "quixotic":
+        return sources.getByDomain("quixotic.io");
       default:
         // For all other order kinds we cannot default the source
         return null;

@@ -8,6 +8,7 @@ export * from "@/api/endpoints/orders/get-orders-asks/v1";
 export * from "@/api/endpoints/orders/get-orders-asks/v2";
 export * from "@/api/endpoints/orders/get-user-positions/v1";
 export * from "@/api/endpoints/orders/get-users-liquidity/v1";
+export * from "@/api/endpoints/orders/get-users-liquidity/v2";
 export * from "@/api/endpoints/orders/post-order/v1";
 export * from "@/api/endpoints/orders/post-order/v2";
 export * from "@/api/endpoints/orders/post-order/v3";

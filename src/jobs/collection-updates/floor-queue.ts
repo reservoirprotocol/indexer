@@ -56,7 +56,6 @@ if (config.doBackgroundWork) {
                 floor_sell_id = x.floor_sell_id,
                 floor_sell_value = x.floor_sell_value,
                 floor_sell_maker = x.floor_sell_maker,
-                floor_sell_source_id = x.source_id,
                 floor_sell_source_id_int = x.source_id_int,
                 floor_sell_valid_between = x.valid_between,
                 updated_at = now()
@@ -65,7 +64,6 @@ if (config.doBackgroundWork) {
                   tokens.floor_sell_id,
                   tokens.floor_sell_value,
                   tokens.floor_sell_maker,
-                  orders.source_id,
                   orders.source_id_int,
                   orders.valid_between
                 FROM tokens
@@ -90,7 +88,6 @@ if (config.doBackgroundWork) {
                   WHERE id = $/collection/
                 ) AS old_floor_sell_value,
                 collections.floor_sell_maker,
-                collections.floor_sell_source_id,
                 collections.floor_sell_source_id_int,
                 collections.floor_sell_valid_between
             )
@@ -100,7 +97,6 @@ if (config.doBackgroundWork) {
               contract,
               token_id,
               order_id,
-              order_source_id,
               order_source_id_int,
               order_valid_between,
               maker,
@@ -115,7 +111,6 @@ if (config.doBackgroundWork) {
               z.contract,
               z.token_id,
               y.floor_sell_id,
-              y.floor_sell_source_id,
               y.floor_sell_source_id_int,
               y.floor_sell_valid_between,
               y.floor_sell_maker,

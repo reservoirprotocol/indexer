@@ -110,16 +110,7 @@ if (config.doBackgroundWork) {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const values: any[] = [];
               for (const { kind, id, raw_data } of dynamicOrders) {
-                if (kind === "wyvern-v2.3") {
-                  const order = new Sdk.WyvernV23.Order(config.chainId, raw_data);
-                  const newPrice = order.getMatchingPrice().toString();
-                  values.push({
-                    id,
-                    price: newPrice,
-                    // TODO: We should have a generic method for deriving the `value` from `price`.
-                    value: newPrice,
-                  });
-                } else if (kind === "seaport") {
+                if (kind === "seaport") {
                   const order = new Sdk.Seaport.Order(config.chainId, raw_data);
                   const newPrice = order.getMatchingPrice().toString();
                   values.push({

@@ -19,9 +19,9 @@ import "@/jobs/oracle";
 import "@/jobs/order-fixes";
 import "@/jobs/order-updates";
 import "@/jobs/orderbook";
+import "@/jobs/sources";
 import "@/jobs/token-updates";
 import "@/jobs/update-attribute";
-import "@/jobs/sources";
 
 // Export all job queues for monitoring through the BullMQ UI
 
@@ -33,6 +33,7 @@ import * as arweaveSyncBackfill from "@/jobs/arweave-sync/backfill-queue";
 import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
 import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
+import * as backfillCancelWyvernV23Orders from "@/jobs/backfill/backfill-cancel-wyvern-v23-orders";
 import * as backfillFillEventsCreatedAt from "@/jobs/backfill/backfill-fill-events-created-at";
 import * as backfillFillEventsFillSource from "@/jobs/backfill/backfill-fill-events-fill-source";
 import * as backfillFillEventsOrderSource from "@/jobs/backfill/backfill-fill-events-order-source";
@@ -106,6 +107,7 @@ export const allJobQueues = [
   arweaveSyncRealtime.queue,
 
   backfillBlockTimestamps.queue,
+  backfillCancelWyvernV23Orders.queue,
   backfillFillEventsCreatedAt.queue,
   backfillFillEventsFillSource.queue,
   backfillFillEventsOrderSource.queue,

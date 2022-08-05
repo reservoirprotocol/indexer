@@ -105,43 +105,6 @@ export const getExecuteCancelV1Options: RouteOptions = {
       ];
 
       switch (orderResult.kind) {
-        case "wyvern-v2.3": {
-          const order = new Sdk.WyvernV23.Order(config.chainId, orderResult.raw_data);
-
-          // Generate exchange-specific cancellation transaction.
-          const exchange = new Sdk.WyvernV23.Exchange(config.chainId);
-          const cancelTx = exchange.cancelTransaction(query.maker, order);
-
-          const steps = generateSteps(
-            order.params.side === Sdk.WyvernV23.Types.OrderSide.SELL ? "sell" : "buy"
-          );
-          return {
-            steps: [
-              {
-                ...steps[0],
-                status: "incomplete",
-                data: {
-                  ...cancelTx,
-                  maxFeePerGas: query.maxFeePerGas
-                    ? bn(query.maxFeePerGas).toHexString()
-                    : undefined,
-                  maxPriorityFeePerGas: query.maxPriorityFeePerGas
-                    ? bn(query.maxPriorityFeePerGas).toHexString()
-                    : undefined,
-                },
-              },
-              {
-                ...steps[1],
-                status: "incomplete",
-                data: {
-                  endpoint: `/orders/executed/v1?ids=${order.prefixHash()}`,
-                  method: "GET",
-                },
-              },
-            ],
-          };
-        }
-
         case "seaport": {
           const order = new Sdk.Seaport.Order(config.chainId, orderResult.raw_data);
 

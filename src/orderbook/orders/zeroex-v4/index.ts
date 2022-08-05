@@ -312,21 +312,14 @@ export const save = async (
         });
       }
 
-      // Handle: source and fees breakdown
-      let source: string | undefined;
-      let sourceId: number | null = null;
+      // Handle: source
+      const sources = await Sources.getInstance();
+      const source = metadata.source ? await sources.getOrInsert(metadata.source) : undefined;
 
       // Handle: native Reservoir orders
       const isReservoir = true;
 
-      // If source was passed
-      if (metadata.source) {
-        const sources = await Sources.getInstance();
-        const sourceEntity = await sources.getOrInsert(metadata.source);
-        source = sourceEntity.address;
-        sourceId = sourceEntity.id;
-      }
-
+      // Handle: fee breakdown
       const feeBreakdown = order.params.fees.map(({ recipient, amount }) => ({
         kind: "royalty",
         recipient,
@@ -350,8 +343,7 @@ export const save = async (
         quantity_remaining: order.params.nftAmount,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.nonce,
-        source_id: source ? toBuffer(source) : null,
-        source_id_int: sourceId,
+        source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
         contract: toBuffer(order.params.nft),
         conduit: toBuffer(Sdk.ZeroExV4.Addresses.Exchange[config.chainId]),
@@ -370,7 +362,7 @@ export const save = async (
       });
 
       if (relayToArweave) {
-        arweaveData.push({ order, schemaHash, source });
+        arweaveData.push({ order, schemaHash, source: source?.domain });
       }
     } catch (error) {
       logger.error(
@@ -401,7 +393,6 @@ export const save = async (
         "quantity_remaining",
         { name: "valid_between", mod: ":raw" },
         "nonce",
-        "source_id",
         "source_id_int",
         "is_reservoir",
         "contract",

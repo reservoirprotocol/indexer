@@ -192,16 +192,15 @@ export class DailyVolume {
                 $/sales_count_clean/
             )
             ON CONFLICT ON CONSTRAINT daily_volumes_pk
-            DO 
-                UPDATE SET 
-                    volume = $/volume/, 
-                    volume_clean = $/volume_clean/, 
-                    rank = $/rank/, 
-                    rank_clean = $/rank_clean/, 
-                    floor_sell_value = $/floor_sell_value/, 
-                    floor_sell_value_clean = $/floor_sell_value_clean/, 
-                    sales_count = $/sales_count/,
-                    sales_count_clean = $/sales_count_clean/
+            DO UPDATE SET 
+              volume = $/volume/, 
+              volume_clean = $/volume_clean/, 
+              rank = $/rank/, 
+              rank_clean = $/rank_clean/, 
+              floor_sell_value = $/floor_sell_value/, 
+              floor_sell_value_clean = $/floor_sell_value_clean/, 
+              sales_count = $/sales_count/,
+              sales_count_clean = $/sales_count_clean/
             `,
           values: values,
         });
@@ -231,13 +230,15 @@ export class DailyVolume {
    *
    * @return boolean Returns false when it fails to update the collection, will need to reschedule the job
    */
-  public static async updateCollections(): Promise<boolean> {
+  public static async updateCollections(useCleanValues = false): Promise<boolean> {
     // Skip the query when the collection_id = -1
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
     const day1Timestamp = date.getTime() / 1000 - 24 * 3600;
     const day7Timestamp = date.getTime() / 1000 - 7 * 24 * 3600;
     const day30Timestamp = date.getTime() / 1000 - 30 * 24 * 3600;
+
+    const valuesPostfix = useCleanValues ? "_clean" : "";
 
     let day1Results: any = [];
     let day7Results: any = [];
@@ -250,9 +251,9 @@ export class DailyVolume {
         `
           SELECT 
                  collection_id,
-                 rank AS $1:name,
-                 volume AS $2:name,
-                 floor_sell_value as $3:name
+                 rank${valuesPostfix} AS $1:name,
+                 volume${valuesPostfix} AS $2:name,
+                 floor_sell_value${valuesPostfix} as $3:name
           FROM daily_volumes
           WHERE timestamp = $4 AND collection_id != '-1'
       `,
@@ -281,9 +282,9 @@ export class DailyVolume {
     const query = `
         SELECT 
                collection_id,
-               RANK() OVER (ORDER BY SUM(volume) DESC, "collection_id") $1:name,
-               SUM(volume) AS $2:name,
-               MIN(floor_sell_value) AS $3:name
+               RANK() OVER (ORDER BY SUM(volume${valuesPostfix}) DESC, "collection_id") $1:name,
+               SUM(volume${valuesPostfix}) AS $2:name,
+               MIN(floor_sell_value${valuesPostfix}) AS $3:name
         FROM daily_volumes
         WHERE timestamp >= $4 AND collection_id != '-1'
         GROUP BY collection_id
@@ -392,23 +393,23 @@ export class DailyVolume {
     }
 
     try {
-      if (!(await DailyVolume.calculateVolumeChange(1))) {
+      if (!(await DailyVolume.calculateVolumeChange(1, useCleanValues))) {
         return false;
       }
-      if (!(await DailyVolume.calculateVolumeChange(7))) {
+      if (!(await DailyVolume.calculateVolumeChange(7, useCleanValues))) {
         return false;
       }
-      if (!(await DailyVolume.calculateVolumeChange(30))) {
+      if (!(await DailyVolume.calculateVolumeChange(30, useCleanValues))) {
         return false;
       }
 
-      if (!(await DailyVolume.cacheFloorSalePrice(1))) {
+      if (!(await DailyVolume.cacheFloorSalePrice(1, useCleanValues))) {
         return false;
       }
-      if (!(await DailyVolume.cacheFloorSalePrice(7))) {
+      if (!(await DailyVolume.cacheFloorSalePrice(7, useCleanValues))) {
         return false;
       }
-      if (!(await DailyVolume.cacheFloorSalePrice(30))) {
+      if (!(await DailyVolume.cacheFloorSalePrice(30, useCleanValues))) {
         return false;
       }
     } catch (e: any) {
@@ -433,7 +434,10 @@ export class DailyVolume {
    *
    * @param days The amount of days you want to calculate volume changes for, this should be 1, 7 or 30
    */
-  public static async calculateVolumeChange(days: number): Promise<boolean> {
+  public static async calculateVolumeChange(
+    days: number,
+    useCleanValues = false
+  ): Promise<boolean> {
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
 
@@ -441,18 +445,19 @@ export class DailyVolume {
 
     const currentPeriod = date.getTime() / 1000 - timeDiff; // The last 1, 7, 30 days
     const previousPeriod = currentPeriod - timeDiff; // The period before the last 1, 7, 30 days
+    const valuesPostfix = useCleanValues ? "_clean" : "";
 
     logger.info(
       "daily-volumes",
       JSON.stringify({
-        msg: `running calculateVolumeChange for period ${days}`,
+        msg: `running calculateVolumeChange for period ${days}, useCleanValues: ${useCleanValues}`,
       })
     );
 
     const query = `
         SELECT 
                collection_id,               
-               SUM(volume) AS $1:name              
+               SUM(volume${valuesPostfix}) AS $1:name              
         FROM daily_volumes
         WHERE timestamp >= $2 
             AND timestamp < $3 
@@ -532,24 +537,28 @@ export class DailyVolume {
    *
    * @param period The previous period you want to fetch and update into collections, can be 1/7/30
    */
-  public static async cacheFloorSalePrice(period: number): Promise<boolean> {
+  public static async cacheFloorSalePrice(
+    period: number,
+    useCleanValues = false
+  ): Promise<boolean> {
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
 
     const timeDiff = period * 24 * 3600;
     const dayToFetch = date.getTime() / 1000 - timeDiff;
+    const valuesPostfix = useCleanValues ? "_clean" : "";
 
     logger.info(
       "daily-volumes",
       JSON.stringify({
-        msg: `Running cacheFloorSalePrice for period ${period}`,
+        msg: `Running cacheFloorSalePrice for period ${period}. useCleanValues: ${useCleanValues}`,
       })
     );
 
     const query = `
         SELECT 
                collection_id,               
-               floor_sell_value
+               floor_sell_value${valuesPostfix}
         FROM daily_volumes
         WHERE timestamp = $1              
             AND collection_id != '-1'        

@@ -74,6 +74,13 @@ export const getAttributesExploreV3Options: RouteOptions = {
           onSaleCount: Joi.number().required(),
           sampleImages: Joi.array().items(Joi.string().allow(null, "")),
           floorAskPrices: Joi.array().items(Joi.number().unsafe()),
+          lastBuys: Joi.array().items(
+            Joi.object({
+              tokenId: Joi.string().required(),
+              value: Joi.number().unsafe().required(),
+              timestamp: Joi.number().required(),
+            })
+          ),
           lastSells: Joi.array().items(
             Joi.object({
               tokenId: Joi.string().required(),
@@ -141,7 +148,14 @@ export const getAttributesExploreV3Options: RouteOptions = {
                 'value', tokens.last_sell_value::text,
                 'timestamp', tokens.last_sell_timestamp
               ) ORDER BY tokens.last_sell_timestamp DESC
-            ) FILTER (WHERE tokens.last_sell_value IS NOT NULL AND tokens.last_sell_value > 0) )::json[])[1:${query.maxLastSells}] AS "last_sells"
+            ) FILTER (WHERE tokens.last_sell_value IS NOT NULL AND tokens.last_sell_value > 0) )::json[])[1:${query.maxLastSells}] AS "last_sells",
+            ((array_agg(
+              json_build_object(
+                'tokenId', tokens.token_id,
+                'value', tokens.last_buy_value::text,
+                'timestamp', tokens.last_buy_timestamp
+              ) ORDER BY tokens.last_buy_timestamp DESC
+            ) FILTER (WHERE tokens.last_buy_value IS NOT NULL))::json[])[1:${query.maxLastSells}] AS "last_buys"
       `);
     }
 
@@ -203,6 +217,13 @@ export const getAttributesExploreV3Options: RouteOptions = {
           query.maxFloorAskPrices > 1
             ? (r.floor_sell_values || []).map(formatEth)
             : [formatEth(r.floor_sell_value || 0)],
+        lastBuys: query.maxLastSells
+          ? (r.last_buys || []).map(({ tokenId, value, timestamp }: any) => ({
+              tokenId: `${tokenId}`,
+              value: formatEth(value),
+              timestamp: Number(timestamp),
+            }))
+          : [],
         lastSells: query.maxLastSells
           ? (r.last_sells || []).map(({ tokenId, value, timestamp }: any) => ({
               tokenId: `${tokenId}`,

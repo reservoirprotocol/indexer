@@ -6,6 +6,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
+import { Sources } from "@/models/sources";
 
 const version = "v1";
 
@@ -113,7 +114,7 @@ export const getOrdersV1Options: RouteOptions = {
             NULLIF(DATE_PART('epoch', UPPER("o"."valid_between")), 'Infinity'),
             0
           ) AS "valid_until",
-          "o"."source_id",
+          "o"."source_id_int",
           "o"."fee_bps",
           "o"."fee_breakdown",
           COALESCE(
@@ -163,6 +164,7 @@ export const getOrdersV1Options: RouteOptions = {
       baseQuery += ` OFFSET $/offset/`;
       baseQuery += ` LIMIT $/limit/`;
 
+      const sources = await Sources.getInstance();
       const result = await redb.manyOrNone(baseQuery, query).then((result) =>
         result.map((r) => ({
           id: r.id,
@@ -182,7 +184,7 @@ export const getOrdersV1Options: RouteOptions = {
               : formatEth(r.value) - (formatEth(r.value) * Number(r.fee_bps)) / 10000,
           validFrom: Number(r.valid_from),
           validUntil: Number(r.valid_until),
-          sourceId: r.source_id ? fromBuffer(r.source_id) : null,
+          sourceId: sources.get(r.source_id_int)?.address,
           feeBps: Number(r.fee_bps),
           feeBreakdown: r.fee_breakdown,
           expiration: Number(r.expiration),

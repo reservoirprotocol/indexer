@@ -42,7 +42,6 @@ export const save = async (
     try {
       const order = new Sdk.LooksRare.Order(config.chainId, orderParams);
       const id = order.hash();
-      const sources = await Sources.getInstance();
 
       // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(`SELECT 1 FROM "orders" "o" WHERE "o"."id" = $/id/`, {
@@ -198,22 +197,25 @@ export const save = async (
         value = price;
       }
 
-      // Handle: source and fees breakdown
-      const source = metadata.source ?? "0x5924a28caaf1cc016617874a2f0c3710d881f3c1";
+      // Handle: source
+      const sources = await Sources.getInstance();
+      let source = await sources.getOrInsert("looksrare.org");
+      if (metadata.source) {
+        source = await sources.getOrInsert(metadata.source);
+      }
+
+      // Handle fee breakdown
       const feeBreakdown = [
         {
           kind: "marketplace",
           recipient: "0x5924a28caaf1cc016617874a2f0c3710d881f3c1",
           bps: 200,
         },
-        // TODO: Include royalty fees as well.
+        // TODO: Include royalty fees as well (looksrare has on-chain royalties)
       ];
 
       // Handle: native Reservoir orders
-      let isReservoir = true;
-      if (source === "0x5924a28caaf1cc016617874a2f0c3710d881f3c1") {
-        isReservoir = false;
-      }
+      const isReservoir = false;
 
       // Handle: conduit
       let conduit = Sdk.LooksRare.Addresses.Exchange[config.chainId];
@@ -241,8 +243,7 @@ export const save = async (
         value,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.nonce,
-        source_id: source ? toBuffer(source) : null,
-        source_id_int: source ? sources.getByDomain("looksrare.io").id : null,
+        source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
         contract: toBuffer(order.params.collection),
         conduit: toBuffer(conduit),
@@ -261,7 +262,7 @@ export const save = async (
       });
 
       if (relayToArweave) {
-        arweaveData.push({ order, schemaHash, source });
+        arweaveData.push({ order, schemaHash, source: source?.domain });
       }
     } catch (error) {
       logger.error(
@@ -291,7 +292,6 @@ export const save = async (
         "value",
         { name: "valid_between", mod: ":raw" },
         "nonce",
-        "source_id",
         "source_id_int",
         "is_reservoir",
         "contract",

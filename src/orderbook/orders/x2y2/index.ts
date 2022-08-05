@@ -151,22 +151,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Handle: source
       const sources = await Sources.getInstance();
-      const sourceEntity = await sources.getOrInsert("X2Y2");
-      const source = sourceEntity.address;
-      const sourceId = sourceEntity.id;
+      const source = await sources.getOrInsert("x2y2.io");
 
       // Handle: native Reservoir orders
       const isReservoir = false;
 
       // Handle: conduit
-      let conduit = Sdk.X2Y2.Addresses.Exchange[config.chainId];
-      if (order.params.type === "sell") {
-        const contractKind = await commonHelpers.getContractKind(order.params.nft.token);
-        conduit =
-          contractKind === "erc721"
-            ? Sdk.LooksRare.Addresses.TransferManagerErc721[config.chainId]
-            : Sdk.LooksRare.Addresses.TransferManagerErc1155[config.chainId];
-      }
+      const conduit = Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId];
 
       const validFrom = `date_trunc('seconds', to_timestamp(0))`;
       const validTo = `date_trunc('seconds', to_timestamp(${order.params.deadline}))`;
@@ -185,8 +176,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         quantity_remaining: "1",
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: null,
-        source_id: source ? toBuffer(source) : null,
-        source_id_int: sourceId,
+        source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
         contract: toBuffer(order.params.nft.token),
         conduit: toBuffer(conduit),
@@ -236,7 +226,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "quantity_remaining",
         { name: "valid_between", mod: ":raw" },
         "nonce",
-        "source_id",
         "source_id_int",
         "is_reservoir",
         "contract",

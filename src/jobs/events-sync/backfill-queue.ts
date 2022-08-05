@@ -29,12 +29,12 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { fromBlock, toBlock, backfill, eventDataKinds } = job.data;
+      const { fromBlock, toBlock, backfill, eventDataKinds, useSlowProvider } = job.data;
 
       try {
         logger.info(QUEUE_NAME, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
 
-        await syncEvents(fromBlock, toBlock, { backfill, eventDataKinds });
+        await syncEvents(fromBlock, toBlock, { backfill, eventDataKinds, useSlowProvider });
       } catch (error) {
         logger.error(QUEUE_NAME, `Events backfill syncing failed: ${error}`);
         throw error;
@@ -55,6 +55,7 @@ export const addToQueue = async (
     prioritized?: boolean;
     backfill?: boolean;
     eventDataKinds?: EventDataKind[];
+    useSlowProvider?: boolean;
   }
 ) => {
   // Syncing is done in several batches since the requested block

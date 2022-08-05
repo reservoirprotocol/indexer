@@ -27,6 +27,12 @@ export type TokenSet = {
         data: {
           collection: string;
         };
+      }
+    | {
+        kind: "token-set";
+        data: {
+          tokenSetId: string;
+        };
       };
   items?: {
     contract: string;
@@ -103,6 +109,19 @@ const isValid = async (tokenSet: TokenSet) => {
           `,
           {
             collection: tokenSet.schema!.data.collection,
+          }
+        );
+      } else if (tokenSet.schema.kind === "token-set") {
+        tokens = await redb.manyOrNone(
+          `
+            SELECT
+              token_sets_tokens.contract,
+              token_sets_tokens.token_id
+            FROM token_sets_tokens
+            WHERE token_sets_tokens.token_set_id = $/tokenSetId/
+          `,
+          {
+            tokenSetId: tokenSet.schema.data.tokenSetId,
           }
         );
       }

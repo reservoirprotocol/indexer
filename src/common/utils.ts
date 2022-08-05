@@ -5,7 +5,9 @@ import { formatEther, formatUnits } from "@ethersproject/units";
 
 export const bn = (value: BigNumberish) => BigNumber.from(value);
 
-export const formatEth = (wei: BigNumberish) => Number(Number(formatEther(wei)).toFixed(5));
+export const formatEth = (value: BigNumberish) => Number(Number(formatEther(value)).toFixed(5));
+
+export const formatUsd = (value: BigNumberish) => Number(Number(formatUnits(value, 6)).toFixed(5));
 
 export const formatPrice = (value: BigNumberish, decimals = 18) =>
   Number(Number(formatUnits(value, decimals)).toFixed(5));

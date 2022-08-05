@@ -52,8 +52,7 @@ export type DbOrder = {
   quantity_remaining?: string;
   valid_between: string;
   nonce: string | null;
-  source_id: Buffer | null;
-  source_id_int?: number | null;
+  source_id_int?: number;
   is_reservoir?: boolean | null;
   contract?: Buffer | null;
   conduit: Buffer | null;

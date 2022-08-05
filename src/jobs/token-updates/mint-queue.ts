@@ -7,6 +7,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
 import MetadataApi from "@/utils/metadata-api";
@@ -36,7 +37,7 @@ if (config.doBackgroundWork) {
       const { contract, tokenId, mintedTimestamp } = job.data as MintInfo;
 
       try {
-        // First, check the database for any matching collection.
+        // First, check the database for any matching collection
         const collection: {
           id: string;
           token_set_id: string | null;
@@ -58,7 +59,7 @@ if (config.doBackgroundWork) {
         const queries: PgPromiseQuery[] = [];
         if (collection) {
           // If the collection is readily available in the database then
-          // all we needed to do is to associate it with the token.
+          // all we needed to do is to associate it with the token
           queries.push({
             query: `
               WITH "x" AS (
@@ -82,7 +83,7 @@ if (config.doBackgroundWork) {
             },
           });
 
-          // We also need to include the new token to any collection-wide token set.
+          // We also need to include the new token to any collection-wide token set
           if (collection.token_set_id) {
             queries.push({
               query: `
@@ -112,7 +113,7 @@ if (config.doBackgroundWork) {
             });
           }
         } else {
-          // Otherwise, we fetch the collection metadata from upstream.
+          // Otherwise, we fetch the collection metadata from upstream
           const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, {
             allowFallback: true,
           });
@@ -161,7 +162,7 @@ if (config.doBackgroundWork) {
           });
 
           // Since this is the first time we run into this collection,
-          // we update all tokens that match its token definition.
+          // we update all tokens that match its token definition
           queries.push({
             query: `
               WITH "x" AS (
@@ -203,13 +204,11 @@ if (config.doBackgroundWork) {
               },
             ],
             true,
-            // One minute of delay to increase the chances of metadata being
-            // available on the upstream provider by the time we fetch it
-            60
+            getNetworkSettings().metadataMintDelay
           );
         }
 
-        // Set any cached information (eg. floor sell, top buy).
+        // Set any cached information (eg. floor sell, top buy)
         await tokenRefreshCache.addToQueue(contract, tokenId);
       } catch (error) {
         logger.error(

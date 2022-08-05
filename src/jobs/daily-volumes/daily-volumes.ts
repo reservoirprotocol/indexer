@@ -34,7 +34,7 @@ if (config.doBackgroundWork) {
           `All daily volumes are finished processing, updating the collections table`
         );
 
-        const updated = await DailyVolume.updateCollections();
+        const updated = await DailyVolume.updateCollections(true);
 
         if (updated) {
           logger.info("daily-volumes", `Finished updating the collections table`);

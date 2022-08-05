@@ -27,6 +27,9 @@ export const addEventsFoundation = async (events: Event[]) => {
       aggregator_source_id: event.aggregatorSourceId || null,
       fill_source_id: event.fillSourceId || null,
       wash_trading_score: event.washTradingScore || 0,
+      currency: toBuffer(event.currency),
+      currency_price: event.currencyPrice || null,
+      usd_price: event.usdPrice || null,
     });
   }
 
@@ -56,6 +59,9 @@ export const addEventsFoundation = async (events: Event[]) => {
         "aggregator_source_id",
         "fill_source_id",
         "wash_trading_score",
+        "currency",
+        "currency_price",
+        "usd_price",
       ],
       { table: "fill_events_2" }
     );
@@ -84,7 +90,10 @@ export const addEventsFoundation = async (events: Event[]) => {
           "amount",
           "aggregator_source_id",
           "fill_source_id",
-          "wash_trading_score"
+          "wash_trading_score",
+          "currency",
+          "currency_price",
+          "usd_price"
         ) VALUES ${pgp.helpers.values(fillValues, columns)}
         ON CONFLICT DO NOTHING
         RETURNING "order_kind", "order_id", "timestamp"
