@@ -89,17 +89,17 @@ if (config.doBackgroundWork) {
             `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
           );
 
-          const delay = (error as any).response.data.expires_in;
-
-          // Put tokens back in the list
-          await pendingRefreshTokens.add(refreshTokens, true);
-
-          // Trigger another job
-          if (await extendLock(getLockName(method), delay + 60 * 5)) {
-            await addToQueue(method, delay * 1000);
-          }
-
-          return;
+          // const delay = (error as any).response.data.expires_in;
+          //
+          // // Put tokens back in the list
+          // await pendingRefreshTokens.add(refreshTokens, true);
+          //
+          // // Trigger another job
+          // if (await extendLock(getLockName(method), delay + 60 * 5)) {
+          //   await addToQueue(method, delay * 1000);
+          // }
+          //
+          // return;
         }
 
         throw error;
