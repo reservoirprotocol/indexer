@@ -2100,6 +2100,24 @@ export const syncEvents = async (
 
               break;
             }
+
+            case "cryptopunks-transfer": {
+              const { args } = eventData.abi.parseLog(log);
+              const from = args["from"].toLowerCase();
+              const to = args["to"].toLowerCase();
+              const value = args["value"].toString();
+
+              nftTransferEvents.push({
+                kind: "erc721",
+                from,
+                to,
+                tokenId: value,
+                amount: "1",
+                baseEventParams,
+              });
+
+              break;
+            }
           }
         } catch (error) {
           logger.info("sync-events", `Failed to handle events: ${error}`);

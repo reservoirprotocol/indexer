@@ -60,7 +60,8 @@ export type EventDataKind =
   | "element-erc1155-sell-order-filled"
   | "element-erc1155-buy-order-filled"
   | "quixotic-order-filled"
-  | "cryptopunks-punk-bought";
+  | "cryptopunks-punk-bought"
+  | "cryptopunks-transfer";
 
 export type EventData = {
   kind: EventDataKind;
@@ -111,6 +112,7 @@ export const getEventData = (eventDataKinds: EventDataKind[] | undefined) => {
       element.erc1155SellOrderFilled,
       quixotic.orderFulfilled,
       cryptoPunks.punkBought,
+      cryptoPunks.transfer,
     ];
   } else {
     return (
@@ -201,6 +203,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return quixotic.orderFulfilled;
     case "cryptopunks-punk-bought":
       return cryptoPunks.punkBought;
+    case "cryptopunks-transfer":
+      return cryptoPunks.transfer;
     default:
       return undefined;
   }
