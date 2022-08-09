@@ -2,8 +2,8 @@ import { ActivitiesEntityInsertParams, ActivityType } from "@/models/activities/
 import { Activities } from "@/models/activities";
 import _ from "lodash";
 import { getActivityHash } from "@/jobs/activities/utils";
-import { UserActivitiesEntityInsertParams } from "@/models/user_activities/user-activities-entity";
-import { UserActivities } from "@/models/user_activities";
+import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
+import { UserActivities } from "@/models/user-activities";
 
 export class AskActivity {
   public static async handleEvent(data: NewSellOrderEventData) {

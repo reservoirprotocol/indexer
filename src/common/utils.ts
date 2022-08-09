@@ -47,4 +47,5 @@ export const regex = {
   bytes32: /^0x[a-fA-F0-9]{64}$/,
   token: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
   number: /^[0-9]+$/,
+  unix_timestamp: /^[0-9]{10}$/,
 };

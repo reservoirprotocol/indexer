@@ -73,7 +73,10 @@ const getUpstreamUSDPrice = async (
       }
     }
   } catch (error) {
-    logger.error("prices", `Failed to fetch upstream USD price for ${currencyAddress}: ${error}`);
+    logger.error(
+      "prices",
+      `Failed to fetch upstream USD price for ${currencyAddress} and timestamp ${timestamp}: ${error}`
+    );
   }
 
   return undefined;

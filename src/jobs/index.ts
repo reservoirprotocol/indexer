@@ -22,6 +22,7 @@ import "@/jobs/orderbook";
 import "@/jobs/sources";
 import "@/jobs/token-updates";
 import "@/jobs/update-attribute";
+import "@/jobs/user-received-bids";
 
 // Export all job queues for monitoring through the BullMQ UI
 
@@ -98,6 +99,9 @@ import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-externa
 
 import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
 
+import * as addUserReceivedBids from "@/jobs/user-received-bids/add-user-received-bids";
+import * as cleanUserReceivedBids from "@/jobs/user-received-bids/clean-user-received-bids";
+
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,
   processActivityEvent.queue,
@@ -171,4 +175,7 @@ export const allJobQueues = [
   orderbookPostOrderExternal.queue,
 
   fetchSourceInfo.queue,
+
+  addUserReceivedBids.queue,
+  cleanUserReceivedBids.queue,
 ];

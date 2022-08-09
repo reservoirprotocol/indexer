@@ -3,8 +3,8 @@ import _ from "lodash";
 import { logger } from "@/common/logger";
 import { Activities } from "@/models/activities";
 import { getActivityHash, getBidInfoByOrderId } from "@/jobs/activities/utils";
-import { UserActivitiesEntityInsertParams } from "@/models/user_activities/user-activities-entity";
-import { UserActivities } from "@/models/user_activities";
+import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
+import { UserActivities } from "@/models/user-activities";
 
 export class BidActivity {
   public static async handleEvent(data: NewBuyOrderEventData) {

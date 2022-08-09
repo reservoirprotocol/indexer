@@ -5,8 +5,8 @@ import { logger } from "@/common/logger";
 import { Activities } from "@/models/activities";
 import { AddressZero } from "@ethersproject/constants";
 import { getActivityHash } from "@/jobs/activities/utils";
-import { UserActivitiesEntityInsertParams } from "@/models/user_activities/user-activities-entity";
-import { UserActivities } from "@/models/user_activities";
+import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
+import { UserActivities } from "@/models/user-activities";
 import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
 
 export class TransferActivity {

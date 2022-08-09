@@ -91,26 +91,19 @@ export class Sources {
 
   public static async syncSources() {
     _.forEach(sourcesFromJson, (item, id) => {
-      Sources.addFromJson(Number(id), item.domain, item.name, item.address, item.data);
+      Sources.addFromJson(Number(id), item.domain, item.address, item.data);
     });
   }
 
-  public static async addFromJson(
-    id: number,
-    domain: string,
-    name: string,
-    address: string,
-    metadata: object
-  ) {
-    const query = `INSERT INTO sources_v2 (id, domain, name, address, metadata)
-                   VALUES ($/id/, $/domain/, $/name/, $/address/, $/metadata:json/)
+  public static async addFromJson(id: number, domain: string, address: string, metadata: object) {
+    const query = `INSERT INTO sources_v2 (id, domain, address, metadata)
+                   VALUES ($/id/, $/domain/, $/address/, $/metadata:json/)
                    ON CONFLICT (id) DO UPDATE
-                   SET metadata = $/metadata:json/, name = $/name/, domain = $/domain/`;
+                   SET metadata = $/metadata:json/, domain = $/domain/`;
 
     const values = {
       id,
       domain,
-      name,
       address,
       metadata,
     };

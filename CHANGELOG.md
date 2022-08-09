@@ -1,3 +1,67 @@
+## [5.148.1](https://github.com/reservoirprotocol/indexer/compare/v5.148.0...v5.148.1) (2022-08-08)
+
+
+### Bug Fixes
+
+* added null support ([#1417](https://github.com/reservoirprotocol/indexer/issues/1417)) ([0cc3e01](https://github.com/reservoirprotocol/indexer/commit/0cc3e01287fdd576b18e915aca2e5ec91b5eaadc))
+
+
+
+# [5.148.0](https://github.com/reservoirprotocol/indexer/compare/v5.147.3...v5.148.0) (2022-08-08)
+
+
+### Features
+
+* validate timestamps ([520d305](https://github.com/reservoirprotocol/indexer/commit/520d305f6bae49085bd4ff5b5ecf598eec773cd9))
+* validate unix timestamps are no more than 10 numbers ([698c2a6](https://github.com/reservoirprotocol/indexer/commit/698c2a6b9eec90fbb6ebf7a4f9d85a8e46e8e6f0))
+
+
+
+## [5.147.3](https://github.com/reservoirprotocol/indexer/compare/v5.147.2...v5.147.3) (2022-08-06)
+
+
+### Bug Fixes
+
+* change optimism native token to eth ([799761f](https://github.com/reservoirprotocol/indexer/commit/799761f48ee4d76b83b9a6e6defcab3e8efdf620))
+
+
+
+## [5.147.2](https://github.com/reservoirprotocol/indexer/compare/v5.147.1...v5.147.2) (2022-08-06)
+
+
+### Bug Fixes
+
+* use get or insert for sources ([d203880](https://github.com/reservoirprotocol/indexer/commit/d203880f2a2951a802b8f132fd71e9db22f02387))
+
+
+
+## [5.147.1](https://github.com/reservoirprotocol/indexer/compare/v5.147.0...v5.147.1) (2022-08-06)
+
+
+### Bug Fixes
+
+* undefined access ([9ae1018](https://github.com/reservoirprotocol/indexer/commit/9ae101832b1cf02ee22805b0f61b37105510f417))
+
+
+
+# [5.147.0](https://github.com/reservoirprotocol/indexer/compare/v5.146.0...v5.147.0) (2022-08-06)
+
+
+### Features
+
+* bids cleanup lock per server ([d55733f](https://github.com/reservoirprotocol/indexer/commit/d55733f2f2f9334318ba920c91fdf6d79abc234d))
+* clean 5k bids each time ([d9f7a0f](https://github.com/reservoirprotocol/indexer/commit/d9f7a0fe0dcf406bebaeb1fd516b6c5329d0cda4))
+* do not update source name ([6129e4a](https://github.com/reservoirprotocol/indexer/commit/6129e4a3a41e217ff226f628a5d118bfaf893d16))
+* increase bids cleanup frequency ([242d066](https://github.com/reservoirprotocol/indexer/commit/242d06661d8a1a1727451de73363d1b70156bed1))
+* increase bids cleanup frequency ([91c6e7e](https://github.com/reservoirprotocol/indexer/commit/91c6e7e92fe0ec0d5ecda3ff0f898422319b0aef))
+* increase bids cleanup frequency ([080048f](https://github.com/reservoirprotocol/indexer/commit/080048fd68059c9e6941d53b71067daf7c81e8d4))
+* increase bids cleanup frequency ([0cf3a19](https://github.com/reservoirprotocol/indexer/commit/0cf3a191bc3e374e49d27e5c366e96bf3e8b3440))
+* increase bids cleanup frequency ([0cc09c3](https://github.com/reservoirprotocol/indexer/commit/0cc09c3d799316daab7e3ff09a1b4be57f5bac6f))
+* increase bids cleanup limit ([17654cd](https://github.com/reservoirprotocol/indexer/commit/17654cdd37e8f94be5c68ee86f511bcb00f6c86e))
+* update bids locks ([291be5e](https://github.com/reservoirprotocol/indexer/commit/291be5e714551d47a864a6a3d34fadb93427d259))
+
+
+
 # [5.146.0](https://github.com/reservoirprotocol/indexer/compare/v5.145.0...v5.146.0) (2022-08-04)
 
 

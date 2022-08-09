@@ -124,10 +124,10 @@ export const getNetworkSettings = (): NetworkSettings => {
                   metadata
                 ) VALUES (
                   '\\x0000000000000000000000000000000000000000',
-                  'Optimism',
-                  'OP',
+                  'Ether',
+                  'ETH',
                   18,
-                  '{"coingeckoCurrencyId": "optimism"}'
+                  '{"coingeckoCurrencyId": "ethereum"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

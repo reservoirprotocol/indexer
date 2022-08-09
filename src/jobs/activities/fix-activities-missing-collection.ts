@@ -8,7 +8,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
 import { Activities } from "@/models/activities";
-import { UserActivities } from "@/models/user_activities";
+import { UserActivities } from "@/models/user-activities";
 import { Tokens } from "@/models/tokens";
 
 const QUEUE_NAME = "fix-activities-missing-collection-queue";
