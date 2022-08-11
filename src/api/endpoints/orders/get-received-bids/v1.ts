@@ -15,7 +15,7 @@ const version = "v1";
 export const getReceivedBidsV1Options: RouteOptions = {
   description: "Received Bids (offers)",
   notes:
-    "Get a list of received bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
+    "Get a list of received bids (offers), filtered by address. This API is designed for efficiently receiving all bids, for real-time ingestion.",
   tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
