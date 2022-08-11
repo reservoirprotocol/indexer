@@ -249,7 +249,7 @@ export const getSalesV3Options: RouteOptions = {
             fill_events_2.timestamp,
             fill_events_2.price,
             fill_events_2.currency,
-            fill_events_2.currency_price,
+            TRUNC(fill_events_2.currency_price, 0),
             currencies.decimals,
             fill_events_2.usd_price,
             fill_events_2.block,
@@ -300,10 +300,8 @@ export const getSalesV3Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map((r) => {
-        const orderSource = r.order_source_id_int ? sources.get(r.order_source_id_int)?.name : null;
-        const orderSourceDomain = r.order_source_id_int
-          ? sources.get(r.order_source_id_int)?.domain
-          : null;
+        const orderSource = sources.get(Number(r.order_source_id_int))?.name;
+        const orderSourceDomain = sources.get(Number(r.order_source_id_int))?.domain;
 
         return {
           id: crypto

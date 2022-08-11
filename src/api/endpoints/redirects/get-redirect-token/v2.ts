@@ -45,7 +45,11 @@ export const getRedirectTokenV2Options: RouteOptions = {
       const [contract, tokenId] = params.token.split(":");
       const tokenUrl = sources.getTokenUrl(source, contract, tokenId);
 
-      return response.redirect(tokenUrl);
+      if (tokenUrl) {
+        return response.redirect(tokenUrl);
+      }
+
+      return response.redirect(source.domain);
     } catch (error) {
       logger.error(`get-redirect-token-${version}-handler`, `Handler failure: ${error}`);
       throw error;

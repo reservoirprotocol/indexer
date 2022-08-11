@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Request } from "@hapi/hapi";
-import { randomUUID } from "crypto";
 
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { ApiKeyEntity } from "@/models/api-keys/api-key-entity";
+import getUuidByString from "uuid-by-string";
 
 export type ApiKeyRecord = {
   app_name: string;
@@ -28,12 +28,15 @@ export class ApiKeyManager {
   public async create(values: ApiKeyRecord): Promise<NewApiKeyResponse | boolean> {
     // Create a new key if none was set
     if (!values.key) {
-      values.key = randomUUID();
+      values.key = getUuidByString(`${values.key}${values.email}${values.website}`);
     }
 
     // Create the record in the database
     try {
-      await idb.none("insert into api_keys (${this:name}) values (${this:csv})", values);
+      await idb.none(
+        "INSERT INTO api_keys (${this:name}) values (${this:csv}) ON CONFLICT DO NOTHING",
+        values
+      );
     } catch (e) {
       logger.error("api-key", `Unable to create a new apikeys record: ${e}`);
       return false;

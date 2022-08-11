@@ -65,9 +65,10 @@ export const getTokensDetailsV4Options: RouteOptions = {
         .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
       source: Joi.string().description("Domain of the order source. Example `opensea.io`"),
       sortBy: Joi.string()
-        .valid("floorAskPrice")
+        .valid("floorAskPrice", "tokenId")
         .default("floorAskPrice")
         .description("Order the items are returned in the response."),
+      sortDirection: Joi.string().lowercase().valid("asc", "desc"),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -319,7 +320,10 @@ export const getTokensDetailsV4Options: RouteOptions = {
 
       // Continue with the next page, this depends on the sorting used
       if (query.continuation && !query.token) {
-        const contArr = splitContinuation(query.continuation, /^((\d+|null)_\d+|\d+)$/);
+        const contArr = splitContinuation(
+          query.continuation,
+          /^((([0-9]+\.?[0-9]*|\.[0-9]+)|null|0x[a-fA-F0-9]+)_\d+|\d+)$/
+        );
 
         if (query.collection || query.attributes || query.tokenSetId) {
           if (contArr.length !== 2) {
@@ -333,25 +337,41 @@ export const getTokensDetailsV4Options: RouteOptions = {
 
             throw new Error("Invalid continuation string used");
           }
+
           switch (query.sortBy) {
+            case "tokenId": {
+              const sign = query.sortDirection == "desc" ? "<" : ">";
+              conditions.push(
+                `("t"."contract", "t"."token_id") ${sign} ($/contContract/, $/contTokenId/)`
+              );
+              (query as any).contContract = toBuffer(contArr[0]);
+              (query as any).contTokenId = contArr[1];
+              break;
+            }
+
             case "floorAskPrice":
             default:
-              if (contArr[0] !== "null") {
-                conditions.push(`(
-                  (t.floor_sell_value, "t"."token_id") > ($/floorSellValue/, $/tokenId/)
+              {
+                const sign = query.sortDirection == "desc" ? "<" : ">";
+
+                if (contArr[0] !== "null") {
+                  conditions.push(`(
+                  (t.floor_sell_value, "t"."token_id") ${sign} ($/floorSellValue/, $/tokenId/)
                   OR (t.floor_sell_value is null)
                 )
                 `);
-                (query as any).floorSellValue = contArr[0];
-                (query as any).tokenId = contArr[1];
-              } else {
-                conditions.push(`(t.floor_sell_value is null AND t.token_id > $/tokenId/)`);
-                (query as any).tokenId = contArr[1];
+                  (query as any).floorSellValue = contArr[0];
+                  (query as any).tokenId = contArr[1];
+                } else {
+                  conditions.push(`(t.floor_sell_value is null AND t.token_id ${sign} $/tokenId/)`);
+                  (query as any).tokenId = contArr[1];
+                }
               }
               break;
           }
         } else {
-          conditions.push(`"t"."token_id" > $/tokenId/`);
+          const sign = query.sortDirection == "desc" ? "<" : ">";
+          conditions.push(`"t"."token_id" ${sign} $/tokenId/`);
           (query as any).tokenId = contArr[1] ? contArr[1] : contArr[0];
         }
       }
@@ -364,14 +384,21 @@ export const getTokensDetailsV4Options: RouteOptions = {
       // Only allow sorting on floorSell when we filter by collection / attributes / tokenSetId
       if (query.collection || query.attributes || query.tokenSetId) {
         switch (query.sortBy) {
+          case "tokenId": {
+            baseQuery += ` ORDER BY "t"."contract", "t"."token_id" ${query.sortDirection || "ASC"}`;
+            break;
+          }
+
           case "floorAskPrice":
           default: {
-            baseQuery += ` ORDER BY "t"."floor_sell_value" ASC NULLS LAST, "t"."token_id"`;
+            baseQuery += ` ORDER BY "t"."floor_sell_value" ${
+              query.sortDirection || "ASC"
+            } NULLS LAST, "t"."token_id"`;
             break;
           }
         }
       } else if (query.contract) {
-        baseQuery += ` ORDER BY "t"."token_id" ASC`;
+        baseQuery += ` ORDER BY "t"."token_id" ${query.sortDirection || "ASC"}`;
       }
 
       baseQuery += ` LIMIT $/limit/`;
@@ -381,6 +408,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
       /** Depending on how we sorted, we use that sorting key to determine the next page of results
           Possible formats:
             floorAskPrice_tokenid
+            contract_tokenid
             tokenid
        **/
       let continuation = null;
@@ -392,6 +420,10 @@ export const getTokensDetailsV4Options: RouteOptions = {
         // when we have collection/attributes
         if (query.collection || query.attributes || query.tokenSetId) {
           switch (query.sortBy) {
+            case "tokenId":
+              continuation = fromBuffer(rawResult[rawResult.length - 1].contract);
+              break;
+
             case "floorAskPrice":
               continuation = rawResult[rawResult.length - 1].floor_sell_value || "null";
               break;
@@ -412,10 +444,10 @@ export const getTokensDetailsV4Options: RouteOptions = {
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
 
-        const source =
-          r.floor_sell_source_id_int !== null
-            ? sources.get(r.floor_sell_source_id_int, contract, tokenId)
-            : undefined;
+        const source = r.floor_sell_value
+          ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
+          : undefined;
+
         return {
           token: {
             contract,

@@ -75,6 +75,7 @@ export const getTokensV4Options: RouteOptions = {
         .description(
           "Order the items are returned in the response, by default sorted by `floorAskPrice`. Not supported when filtering by `contract`. When filtering by `contract` the results are sorted by `tokenId` by default."
         ),
+      sortDirection: Joi.string().lowercase().valid("asc", "desc"),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -289,8 +290,9 @@ export const getTokensV4Options: RouteOptions = {
 
           switch (query.sortBy) {
             case "rarity": {
+              const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(
-                `("t"."rarity_score", "t"."token_id") < ($/contRarity/, $/contTokenId/)`
+                `("t"."rarity_score", "t"."token_id") ${sign} ($/contRarity/, $/contTokenId/)`
               );
               (query as any).contRarity = contArr[0];
               (query as any).contTokenId = contArr[1];
@@ -298,8 +300,9 @@ export const getTokensV4Options: RouteOptions = {
             }
 
             case "tokenId": {
+              const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(
-                `("t"."contract", "t"."token_id") > ($/contContract/, $/contTokenId/)`
+                `("t"."contract", "t"."token_id") ${sign} ($/contContract/, $/contTokenId/)`
               );
               (query as any).contContract = toBuffer(contArr[0]);
               (query as any).contTokenId = contArr[1];
@@ -308,23 +311,26 @@ export const getTokensV4Options: RouteOptions = {
 
             case "floorAskPrice":
             default: {
+              const sign = query.sortDirection == "desc" ? "<" : ">";
+
               if (contArr[0] !== "null") {
                 conditions.push(`(
-                  (t.floor_sell_value, "t"."token_id") > ($/floorSellValue/, $/tokenId/)
+                  (t.floor_sell_value, "t"."token_id") ${sign} ($/floorSellValue/, $/tokenId/)
                   OR (t.floor_sell_value is null)
                 )
                 `);
                 (query as any).floorSellValue = contArr[0];
                 (query as any).tokenId = contArr[1];
               } else {
-                conditions.push(`(t.floor_sell_value is null AND t.token_id > $/tokenId/)`);
+                conditions.push(`(t.floor_sell_value is null AND t.token_id ${sign} $/tokenId/)`);
                 (query as any).tokenId = contArr[1];
               }
               break;
             }
           }
         } else {
-          conditions.push(`"t"."token_id" > $/tokenId/`);
+          const sign = query.sortDirection == "desc" ? "<" : ">";
+          conditions.push(`"t"."token_id" ${sign} $/tokenId/`);
           (query as any).tokenId = contArr[1] ? contArr[1] : contArr[0];
         }
       }
@@ -338,23 +344,27 @@ export const getTokensV4Options: RouteOptions = {
       if (query.collection || query.attributes || query.tokenSetId) {
         switch (query.sortBy) {
           case "rarity": {
-            baseQuery += ` ORDER BY "t"."rarity_score" DESC NULLS LAST, "t"."token_id" DESC`;
+            baseQuery += ` ORDER BY "t"."rarity_score" ${
+              query.sortDirection || "DESC"
+            } NULLS LAST, "t"."token_id" ${query.sortDirection || "DESC"}`;
             break;
           }
 
           case "tokenId": {
-            baseQuery += ` ORDER BY "t"."contract", "t"."token_id"`;
+            baseQuery += ` ORDER BY "t"."contract", "t"."token_id" ${query.sortDirection || "ASC"}`;
             break;
           }
 
           case "floorAskPrice":
           default: {
-            baseQuery += ` ORDER BY "t"."floor_sell_value" ASC NULLS LAST, "t"."token_id"`;
+            baseQuery += ` ORDER BY "t"."floor_sell_value" ${
+              query.sortDirection || "ASC"
+            } NULLS LAST, "t"."token_id"`;
             break;
           }
         }
       } else if (query.contract) {
-        baseQuery += ` ORDER BY "t"."token_id" ASC`;
+        baseQuery += ` ORDER BY "t"."token_id" ${query.sortDirection || "ASC"}`;
       }
 
       baseQuery += ` LIMIT $/limit/`;
@@ -364,6 +374,7 @@ export const getTokensV4Options: RouteOptions = {
       /** Depending on how we sorted, we use that sorting key to determine the next page of results
           Possible formats:
             rarity_tokenid
+            contract_tokenid
             floorAskPrice_tokenid
             tokenid
        **/
@@ -414,14 +425,12 @@ export const getTokensV4Options: RouteOptions = {
             image: r.collection_image,
             slug: r.slug,
           },
-          source:
-            r.floor_sell_source_id_int !== null
-              ? sources.get(r.floor_sell_source_id_int)?.name
-              : undefined,
-          sourceDomain:
-            r.floor_sell_source_id_int !== null
-              ? sources.get(r.floor_sell_source_id_int)?.domain
-              : undefined,
+          source: r.floor_sell_value
+            ? sources.get(Number(r.floor_sell_source_id_int))?.name
+            : undefined,
+          sourceDomain: r.floor_sell_value
+            ? sources.get(Number(r.floor_sell_source_id_int))?.domain
+            : undefined,
           floorAskPrice: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
           topBidValue: query.includeTopBid
             ? r.top_buy_value

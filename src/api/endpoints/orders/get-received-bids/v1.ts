@@ -5,7 +5,7 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { formatEth, fromBuffer } from "@/common/utils";
+import { formatEth, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import _ from "lodash";
@@ -15,7 +15,7 @@ const version = "v1";
 export const getReceivedBidsV1Options: RouteOptions = {
   description: "Received Bids (offers)",
   notes:
-    "Get a list of received bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
+    "Get a list of received bids (offers), filtered by address. This API is designed for efficiently receiving all bids, for real-time ingestion.",
   tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
@@ -24,6 +24,12 @@ export const getReceivedBidsV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
+      address: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+        ),
       limit: Joi.number().integer().min(1).max(1000).default(20),
       continuation: Joi.number().default(null),
     }),
@@ -83,14 +89,8 @@ export const getReceivedBidsV1Options: RouteOptions = {
   handler: async (request: Request) => {
     const query = request.query as any;
 
-    let continuationFilter = "";
-
-    if (!_.isNull(query.continuation)) {
-      continuationFilter = `WHERE user_received_bids.id < $/continuation/`;
-    }
-
     try {
-      const baseQuery = `       
+      let baseQuery = `       
         SELECT
             user_received_bids.id,
             user_received_bids.token_set_id,
@@ -108,10 +108,26 @@ export const getReceivedBidsV1Options: RouteOptions = {
             ) AS valid_until,
             extract(epoch from user_received_bids.order_created_at) AS created_at
         FROM user_received_bids
-        ${continuationFilter}
-        ORDER BY id DESC
-        LIMIT $/limit/
       `;
+
+      // Filters
+      const conditions: string[] = [];
+
+      if (query.address) {
+        (query as any).address = toBuffer(query.address);
+        conditions.push(`user_received_bids.address = $/address/`);
+      }
+
+      if (query.continuation) {
+        conditions.push(`user_received_bids.id < $/continuation/`);
+      }
+
+      if (conditions.length) {
+        baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
+      }
+
+      // Sorting
+      baseQuery += ` ORDER BY id DESC LIMIT $/limit/`;
 
       const sources = await Sources.getInstance();
 
