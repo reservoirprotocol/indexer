@@ -119,7 +119,7 @@ export const getOrderSourceByOrderKind = async (
       case "quixotic":
         return sources.getByDomain("quixotic.io");
       case "cryptopunks":
-        return sources.getByDomain("larvalabs.com");
+        return sources.getByDomain("cryptopunks.app");
       default:
         // For all other order kinds we cannot default the source
         return null;
