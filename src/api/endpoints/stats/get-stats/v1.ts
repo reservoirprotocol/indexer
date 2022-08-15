@@ -9,6 +9,8 @@ import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 import { Tokens } from "@/models/tokens";
 
+import { AddressZero } from "@ethersproject/constants";
+
 const version = "v1";
 
 export const getStatsV1Options: RouteOptions = {
@@ -180,6 +182,10 @@ export const getStatsV1Options: RouteOptions = {
             "t"."floor_sell_value",
             "t"."floor_sell_maker"
           FROM "tokens" "t"
+          LEFT JOIN "nft_balances" "nb"
+            ON "t"."contract" = "nb"."contract"
+              AND "t"."token_id" = "nb"."token_id"
+          WHERE "nb"."owner" != ${toBuffer(AddressZero)}
         `;
         if (conditions.length) {
           filterQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
@@ -268,6 +274,11 @@ export const getStatsV1Options: RouteOptions = {
         `;
       } else if (query.collection) {
         baseQuery = `
+          WITH "burned" AS (
+            SELECT * FROM "nft_balances"
+            WHERE "owner" = ${toBuffer(AddressZero)}
+            AND "contract" = $/collection/
+          )
           WITH "x" AS (
             SELECT DISTINCT ON ("t"."collection_id")
               "t"."collection_id",
@@ -291,7 +302,7 @@ export const getStatsV1Options: RouteOptions = {
             LIMIT 1
           )
           SELECT
-            "c"."token_count",
+            "c"."token_count" - (SELECT COUNT(*) FROM "burned") AS "token_count",
             "c"."token_set_id",
             (
               SELECT COUNT(*) FROM "tokens"
