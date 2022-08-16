@@ -556,16 +556,6 @@ export const syncEvents = async (
               const item = parsedLog.args["item"];
               const op = parsedLog.args["detail"].op;
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.Common.Addresses.Eth[config.chainId],
-                ].includes(currency)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               // 1 - COMPLETE_SELL_OFFER
               // 2 - COMPLETE_BUY_OFFER
               // 5 - COMPLETE_AUCTION
@@ -858,11 +848,6 @@ export const syncEvents = async (
               const tokenId = parsedLog.args["tokenId"].toString();
               const amount = parsedLog.args["amount"].toString();
 
-              if (![Sdk.Common.Addresses.Weth[config.chainId]].includes(currency)) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               const orderKind = "looks-rare";
 
               // Handle attribution
@@ -963,11 +948,6 @@ export const syncEvents = async (
               const contract = parsedLog.args["collection"].toLowerCase();
               const tokenId = parsedLog.args["tokenId"].toString();
               const amount = parsedLog.args["amount"].toString();
-
-              if (![Sdk.Common.Addresses.Weth[config.chainId]].includes(currency)) {
-                // Skip if the payment token is not supported
-                break;
-              }
 
               const orderKind = "looks-rare";
 
@@ -1135,16 +1115,6 @@ export const syncEvents = async (
                 }
               }
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Eth[config.chainId],
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                ].includes(currency)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               const orderKind = eventData.kind.startsWith("wyvern-v2.3")
                 ? "wyvern-v2.3"
                 : "wyvern-v2";
@@ -1249,16 +1219,6 @@ export const syncEvents = async (
               const erc20TokenAmount = parsedLog.args["erc20TokenAmount"].toString();
               const erc721Token = parsedLog.args["erc721Token"].toLowerCase();
               const erc721TokenId = parsedLog.args["erc721TokenId"].toString();
-
-              if (
-                ![
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
 
               const orderKind = eventData!.kind.split("-").slice(0, -2).join("-") as OrderKind;
 
@@ -1409,16 +1369,6 @@ export const syncEvents = async (
               const erc1155Token = parsedLog.args["erc1155Token"].toLowerCase();
               const erc1155TokenId = parsedLog.args["erc1155TokenId"].toString();
               const erc1155FillAmount = parsedLog.args["erc1155FillAmount"].toString();
-
-              if (
-                ![
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
 
               const orderKind = eventData!.kind.split("-").slice(0, -2).join("-") as OrderKind;
 
@@ -1779,16 +1729,6 @@ export const syncEvents = async (
               const erc721TokenId = args["erc721TokenId"].toString();
               const orderHash = args["orderHash"].toLowerCase();
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               // Handle: prices
               let currency = erc20Token;
               if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
@@ -1831,16 +1771,6 @@ export const syncEvents = async (
               const erc721Token = args["erc721Token"].toLowerCase();
               const erc721TokenId = args["erc721TokenId"].toString();
               const orderHash = args["orderHash"].toLowerCase();
-
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
 
               // Handle: prices
               let currency = erc20Token;
@@ -1886,16 +1816,6 @@ export const syncEvents = async (
               const erc1155FillAmount = args["erc1155FillAmount"].toString();
               const orderHash = args["orderHash"].toLowerCase();
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported.
-                break;
-              }
-
               // Handle: prices
               let currency = erc20Token;
               if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
@@ -1939,16 +1859,6 @@ export const syncEvents = async (
               const erc1155TokenId = args["erc1155TokenId"].toString();
               const erc1155FillAmount = args["erc1155FillAmount"].toString();
               const orderHash = args["orderHash"].toLowerCase();
-
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
 
               // Handle: prices
               let currency = erc20Token;
