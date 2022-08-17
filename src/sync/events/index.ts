@@ -15,7 +15,7 @@ import { getNetworkSettings } from "@/config/network";
 import { EventDataKind, getEventData } from "@/events-sync/data";
 import * as es from "@/events-sync/storage";
 import * as syncEventsUtils from "@/events-sync/utils";
-import { parseEvent } from "@/events-sync/parser";
+import { BaseEventParams, parseEvent } from "@/events-sync/parser";
 import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
@@ -57,6 +57,15 @@ export const syncEvents = async (
   const orderInfos: orderUpdatesById.OrderInfo[] = [];
   const makerInfos: orderUpdatesByMaker.MakerInfo[] = [];
   const mintInfos: tokenUpdatesMint.MintInfo[] = [];
+
+  const cryptopunksTransferEvents: {
+    kind: "erc721";
+    from: string;
+    to: string;
+    tokenId: string;
+    amount: string;
+    baseEventParams: BaseEventParams;
+  }[] = [];
 
   const provider = options?.useSlowProvider ? slowProvider : baseProvider;
 
@@ -2085,12 +2094,26 @@ export const syncEvents = async (
               const fromAddress = args["fromAddress"].toLowerCase();
               const toAddress = args["toAddress"].toLowerCase();
 
+              // const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
+
+              const prices = await getPrices(
+                Sdk.Common.Addresses.Eth[config.chainId],
+                value,
+                baseEventParams.timestamp
+              );
+
+              if (!prices.nativePrice) {
+                // We must always have the native price
+                break;
+              }
+
               fillEventsPartial.push({
                 orderKind: "cryptopunks",
                 orderSide: "buy",
                 taker: fromAddress,
                 maker: toAddress,
-                price: value,
+                price: prices.nativePrice,
+                usdPrice: prices.usdPrice,
                 currency: AddressZero,
                 contract: Sdk.CryptoPunks.Addresses.Exchange[config.chainId]?.toLowerCase(),
                 tokenId: punkIndex,
@@ -2107,7 +2130,7 @@ export const syncEvents = async (
               const to = args["to"].toLowerCase();
               const value = args["value"].toString();
 
-              nftTransferEvents.push({
+              cryptopunksTransferEvents.push({
                 kind: "erc721",
                 from,
                 to,
