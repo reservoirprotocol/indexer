@@ -2133,11 +2133,14 @@ export const syncEvents = async (
 
               const orderSide = toAddress === AddressZero ? "buy" : "sell";
 
+              const maker = orderSide === "sell" ? fromAddress : toAddress;
+              const taker = orderSide === "sell" ? toAddress : fromAddress;
+
               fillEventsPartial.push({
                 orderKind: "cryptopunks",
                 orderSide,
-                taker: fromAddress,
-                maker: toAddress,
+                maker,
+                taker,
                 price: prices.nativePrice,
                 usdPrice: prices.usdPrice,
                 currency: Sdk.Common.Addresses.Eth[config.chainId],
