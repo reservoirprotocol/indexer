@@ -62,6 +62,14 @@ export const getSalesV3Options: RouteOptions = {
         .description(
           "Filter to a particular transaction. Example: `0x04654cc4c81882ed4d20b958e0eeb107915d75730110cce65333221439de6afc`"
         ),
+      fillSource: Joi.string()
+        .lowercase()
+        .pattern(regex.domain)
+        .description("Filter to a fill source by domain. Example: `reservoir.market`"),
+      orderSource: Joi.string()
+        .lowercase()
+        .pattern(regex.domain)
+        .description("Filter to a order source by domain. Example: `reservoir.market`"),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),
@@ -130,6 +138,7 @@ export const getSalesV3Options: RouteOptions = {
     let tokenFilter = "";
     let tokenJoins = "";
     let collectionFilter = "";
+    let sourceFilter = "";
 
     // Filters
     if (query.contract) {
@@ -199,6 +208,22 @@ export const getSalesV3Options: RouteOptions = {
       collectionFilter = "TRUE";
     }
 
+    if (query.fillSource || query.orderSource) {
+      const sourceDomain = query.fillSource || query.orderSource;
+      const sources = await Sources.getInstance();
+      const sourceId = sources.getByDomain(sourceDomain)?.id;
+      if (!sourceId) {
+        return {
+          sales: [],
+          continuation: null,
+        };
+      }
+      query.sourceId = sourceId;
+      sourceFilter = `AND fill_events_2.${
+        query.fillSource ? "fill_source_id" : "order_source_id_int"
+      } = $/sourceId/`;
+    }
+
     if (query.continuation) {
       const [timestamp, logIndex, batchIndex] = splitContinuation(
         query.continuation,
@@ -263,6 +288,7 @@ export const getSalesV3Options: RouteOptions = {
           WHERE
             ${collectionFilter}
             ${tokenFilter}
+            ${sourceFilter}
             ${paginationFilter}
             ${timestampFilter}
           ORDER BY
