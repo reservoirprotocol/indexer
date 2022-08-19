@@ -1,3 +1,13 @@
+## [5.171.7](https://github.com/reservoirprotocol/indexer/compare/v5.171.6...v5.171.7) (2022-08-19)
+
+
+### Bug Fixes
+
+* orders response validation ([56277eb](https://github.com/reservoirprotocol/indexer/commit/56277eb438e13c684ed7620e18f5617feda797af))
+* properly set sales fill source ([2363809](https://github.com/reservoirprotocol/indexer/commit/23638096dcfc0eded50a511c240926a4e6cec380))
+
+
+
 ## [5.171.6](https://github.com/reservoirprotocol/indexer/compare/v5.171.5...v5.171.6) (2022-08-18)
 
 
