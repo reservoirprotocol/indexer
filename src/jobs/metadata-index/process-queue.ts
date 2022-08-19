@@ -59,12 +59,6 @@ if (config.doBackgroundWork) {
         logger.info(QUEUE_NAME, `Rate Limited. rateLimitExpiresIn: ${rateLimitExpiresIn}`);
 
         useMetadataApiBaseUrlAlt = true;
-
-        // if (await extendLock(getLockName(method), 60 * 5)) {
-        //   await addToQueue(method, 1000);
-        // }
-        //
-        // return;
       }
 
       const count = 20;
@@ -105,11 +99,11 @@ if (config.doBackgroundWork) {
             `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
           );
 
+          await pendingRefreshTokens.add(refreshTokens, true);
+
           if (!useMetadataApiBaseUrlAlt) {
             await acquireLock(getRateLimitLockName(method), 5);
           }
-
-          await pendingRefreshTokens.add(refreshTokens, true);
 
           if (await extendLock(getLockName(method), 60 * 5)) {
             await addToQueue(method);
