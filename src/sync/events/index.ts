@@ -2109,7 +2109,7 @@ export const syncEvents = async (
 
               try {
                 const result = iface.decodeFunctionData("acceptBidForPunk", tx.data);
-                value = result.minPrice;
+                value = result.minPrice.toString();
               } catch {
                 // Skip any errors
               }
