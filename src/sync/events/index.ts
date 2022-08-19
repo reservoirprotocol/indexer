@@ -2093,6 +2093,7 @@ export const syncEvents = async (
               let value = args["value"].toString();
               const fromAddress = args["fromAddress"].toLowerCase();
               let toAddress = args["toAddress"].toLowerCase();
+
               if (
                 cryptopunksTransferEvents.length &&
                 cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].baseEventParams
@@ -2105,9 +2106,9 @@ export const syncEvents = async (
               const iface = new Interface([
                 "function acceptBidForPunk(uint punkIndex, uint minPrice)",
               ]);
+
               try {
                 const result = iface.decodeFunctionData("acceptBidForPunk", tx.data);
-                // console.log(JSON.stringify(result, null, 2));
                 value = result.minPrice;
               } catch {
                 // Skip any errors
@@ -2119,10 +2120,8 @@ export const syncEvents = async (
                 baseEventParams.timestamp
               );
 
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
+              // We must always have the native price
+              if (!prices.nativePrice) break;
 
               fillEventsPartial.push({
                 orderKind: "cryptopunks",
