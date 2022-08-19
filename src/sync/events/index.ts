@@ -1,4 +1,4 @@
-import { defaultAbiCoder } from "@ethersproject/abi";
+import { Interface, defaultAbiCoder } from "@ethersproject/abi";
 import { Log } from "@ethersproject/abstract-provider";
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
@@ -2090,11 +2090,28 @@ export const syncEvents = async (
             case "cryptopunks-punk-bought": {
               const { args } = eventData.abi.parseLog(log);
               const punkIndex = args["punkIndex"].toString();
-              const value = args["value"].toString();
+              let value = args["value"].toString();
               const fromAddress = args["fromAddress"].toLowerCase();
-              const toAddress = args["toAddress"].toLowerCase();
+              let toAddress = args["toAddress"].toLowerCase();
+              if (
+                cryptopunksTransferEvents.length &&
+                cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].baseEventParams
+                  .txHash === baseEventParams.txHash
+              ) {
+                toAddress = cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].to;
+              }
 
-              // const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
+              const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
+              const iface = new Interface([
+                "function acceptBidForPunk(uint punkIndex, uint minPrice)",
+              ]);
+              try {
+                const result = iface.decodeFunctionData("acceptBidForPunk", tx.data);
+                // console.log(JSON.stringify(result, null, 2));
+                value = result.minPrice;
+              } catch {
+                // Skip any errors
+              }
 
               const prices = await getPrices(
                 Sdk.Common.Addresses.Eth[config.chainId],
