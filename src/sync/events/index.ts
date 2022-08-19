@@ -15,7 +15,7 @@ import { getNetworkSettings } from "@/config/network";
 import { EventDataKind, getEventData } from "@/events-sync/data";
 import * as es from "@/events-sync/storage";
 import * as syncEventsUtils from "@/events-sync/utils";
-import { BaseEventParams, parseEvent } from "@/events-sync/parser";
+import { parseEvent } from "@/events-sync/parser";
 import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
@@ -59,12 +59,8 @@ export const syncEvents = async (
   const mintInfos: tokenUpdatesMint.MintInfo[] = [];
 
   const cryptopunksTransferEvents: {
-    kind: "erc721";
-    from: string;
     to: string;
-    tokenId: string;
-    amount: string;
-    baseEventParams: BaseEventParams;
+    txHash: string;
   }[] = [];
 
   const provider = options?.useSlowProvider ? slowProvider : baseProvider;
@@ -2094,14 +2090,26 @@ export const syncEvents = async (
               const fromAddress = args["fromAddress"].toLowerCase();
               let toAddress = args["toAddress"].toLowerCase();
 
+              // Due to an issue with the cryptopunks smart contract, the
+              // `PunkBought` event is emitted from `acceptBidForPunk`
+              // with toAddress = 0x00...00 and value = 0
+              // https://github.com/larvalabs/cryptopunks/issues/19
+
+              // To get the correct `toAddress` we take the `to` value
+              // the `Transfer` event emitted before `PunkBought` in the
+              // `acceptBidForPunk` function
+              // https://github.com/larvalabs/cryptopunks/blob/master/contracts/CryptoPunksMarket.sol#L223-L229
+              //
               if (
                 cryptopunksTransferEvents.length &&
-                cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].baseEventParams
-                  .txHash === baseEventParams.txHash
+                cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].txHash ===
+                  baseEventParams.txHash
               ) {
                 toAddress = cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].to;
               }
 
+              // To get the correct `price` that the bid was settled at
+              // We extract the `minPrice` from the `acceptBidForPunk` function
               const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
               const iface = new Interface([
                 "function acceptBidForPunk(uint punkIndex, uint minPrice)",
@@ -2123,15 +2131,17 @@ export const syncEvents = async (
               // We must always have the native price
               if (!prices.nativePrice) break;
 
+              const orderSide = toAddress === AddressZero ? "buy" : "sell";
+
               fillEventsPartial.push({
                 orderKind: "cryptopunks",
-                orderSide: "buy",
+                orderSide,
                 taker: fromAddress,
                 maker: toAddress,
                 price: prices.nativePrice,
                 usdPrice: prices.usdPrice,
-                currency: AddressZero,
-                contract: Sdk.CryptoPunks.Addresses.Exchange[config.chainId]?.toLowerCase(),
+                currency: Sdk.Common.Addresses.Eth[config.chainId],
+                contract: baseEventParams.address?.toLowerCase(),
                 tokenId: punkIndex,
                 amount: "1",
                 baseEventParams,
@@ -2142,17 +2152,11 @@ export const syncEvents = async (
 
             case "cryptopunks-transfer": {
               const { args } = eventData.abi.parseLog(log);
-              const from = args["from"].toLowerCase();
               const to = args["to"].toLowerCase();
-              const value = args["value"].toString();
 
               cryptopunksTransferEvents.push({
-                kind: "erc721",
-                from,
                 to,
-                tokenId: value,
-                amount: "1",
-                baseEventParams,
+                txHash: baseEventParams.txHash,
               });
 
               break;
