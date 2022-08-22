@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
-import { fromBuffer } from "@/common/utils";
+import { fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { extractAttributionData } from "@/events-sync/utils";
 
@@ -125,7 +125,7 @@ if (config.doBackgroundWork) {
   redlock
     .acquire([`${QUEUE_NAME}-lock-10`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
-      await addToQueue(Math.floor(Date.now() / 1000), 0, 0);
+      await addToQueue(now(), 0, 0);
     })
     .catch(() => {
       // Skip on any errors

@@ -2,6 +2,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { BaseBuildParams } from "@reservoir0x/sdk/dist/x2y2/builders/base";
 
 import { redb } from "@/common/db";
+import { now } from "@/common/utils";
 import { config } from "@/config/index";
 
 export interface BaseOrderBuildOptions {
@@ -51,7 +52,7 @@ export const getBuildInfo = async (
       side === "buy"
         ? Sdk.Common.Addresses.Weth[config.chainId]
         : Sdk.Common.Addresses.Eth[config.chainId],
-    deadline: options.expirationTime || Math.floor(Date.now() / 1000) + 24 * 3600,
+    deadline: options.expirationTime || now() + 24 * 3600,
     salt: options.salt?.toString(),
   };
 

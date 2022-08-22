@@ -26,10 +26,10 @@ export const getSalesBulkV1Options: RouteOptions = {
   description: "Bulk historical sales",
   notes:
     "Note: this API is optimized for bulk access, and offers minimal filters/metadata. If you need more flexibility, try the `NFT API > Sales` endpoint",
-  tags: ["api", "Sales"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 8,
+      deprecated: true,
     },
   },
   validate: {

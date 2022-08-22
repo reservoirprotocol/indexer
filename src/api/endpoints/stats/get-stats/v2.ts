@@ -6,19 +6,19 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
+import { JoiPrice, getJoiPriceObject } from "@/common/joi";
+import { fromBuffer, getNetAmount, regex, toBuffer } from "@/common/utils";
 import { Tokens } from "@/models/tokens";
 
-const version = "v1";
+const version = "v2";
 
-export const getStatsV1Options: RouteOptions = {
+export const getStatsV2Options: RouteOptions = {
   description: "Stats",
   notes: "Get aggregate stats for a particular set (collection, attribute or single token)",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Stats"],
   plugins: {
     "hapi-swagger": {
       order: 7,
-      deprecated: true,
     },
   },
   validate: {
@@ -50,33 +50,21 @@ export const getStatsV1Options: RouteOptions = {
         market: Joi.object({
           floorAsk: Joi.object({
             id: Joi.string().allow(null),
-            price: Joi.number().unsafe().allow(null),
-            maker: Joi.string()
-              .lowercase()
-              .pattern(/^0x[a-fA-F0-9]{40}$/)
-              .allow(null),
+            price: JoiPrice.allow(null),
+            maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
             token: Joi.object({
-              contract: Joi.string()
-                .lowercase()
-                .pattern(/^0x[a-fA-F0-9]{40}$/)
-                .allow(null),
-              tokenId: Joi.string()
-                .lowercase()
-                .pattern(/^[0-9]+$/)
-                .allow(null),
+              contract: Joi.string().lowercase().pattern(regex.address).allow(null),
+              tokenId: Joi.string().lowercase().pattern(regex.number).allow(null),
               name: Joi.string().allow("", null),
               image: Joi.string().allow("", null),
             }),
           }),
           topBid: {
             id: Joi.string().allow(null),
-            value: Joi.number().unsafe().allow(null),
-            maker: Joi.string()
-              .lowercase()
-              .pattern(/^0x[a-fA-F0-9]{40}$/)
-              .allow(null),
+            price: JoiPrice.allow(null),
+            maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
           },
@@ -123,6 +111,9 @@ export const getStatsV1Options: RouteOptions = {
               nullif(date_part('epoch', upper("os"."valid_between")), 'Infinity'),
               0
             ) AS "floor_sell_valid_until",
+            os.currency AS floor_sell_currency,
+            os.currency_value AS floor_sell_currency_value,
+            os.fee_bps AS floor_sell_fee_bps,
             "t"."contract",
             "t"."token_id",
             "t"."name",
@@ -134,7 +125,11 @@ export const getStatsV1Options: RouteOptions = {
             coalesce(
               nullif(date_part('epoch', upper("ob"."valid_between")), 'Infinity'),
               0
-            ) AS "top_buy_valid_until"
+            ) AS "top_buy_valid_until",
+            ob.price AS top_buy_price,
+            ob.currency AS top_buy_currency,
+            ob.currency_price AS top_buy_currency_price,
+            ob.currency_value AS top_buy_currency_value
           FROM "tokens" "t"
           LEFT JOIN "orders" "os"
             ON "t"."floor_sell_id" = "os"."id"
@@ -199,7 +194,10 @@ export const getStatsV1Options: RouteOptions = {
             coalesce(
               nullif(date_part('epoch', upper("os"."valid_between")), 'Infinity'),
               0
-            ) AS "floor_sell_valid_until"
+            ) AS "floor_sell_valid_until",
+            os.currency AS floor_sell_currency,
+            os.currency_value AS floor_sell_currency_value,
+            os.fee_bps AS floor_sell_fee_bps
           FROM "x"
           LEFT JOIN "orders" "os"
             ON "x"."floor_sell_id" = "os"."id"
@@ -218,7 +216,11 @@ export const getStatsV1Options: RouteOptions = {
               coalesce(
                 nullif(date_part('epoch', upper("ob"."valid_between")), 'Infinity'),
                 0
-              ) AS "top_buy_valid_until"
+              ) AS "top_buy_valid_until",
+              ob.price AS top_buy_price,
+              ob.currency AS top_buy_currency,
+              ob.currency_price AS top_buy_currency_price,
+              ob.currency_value AS top_buy_currency_value
             FROM "token_sets" "ts"
             LEFT JOIN "orders" "ob"
               ON "ts"."top_buy_id" = "ob"."id"
@@ -283,7 +285,10 @@ export const getStatsV1Options: RouteOptions = {
               coalesce(
                 nullif(date_part('epoch', upper("os"."valid_between")), 'Infinity'),
                 0
-              ) AS "floor_sell_valid_until"
+              ) AS "floor_sell_valid_until",
+              os.currency AS floor_sell_currency,
+              os.currency_value AS floor_sell_currency_value,
+              os.fee_bps AS floor_sell_fee_bps
             FROM "tokens" "t"
             LEFT JOIN "orders" "os"
               ON "t"."floor_sell_id" = "os"."id"
@@ -319,7 +324,11 @@ export const getStatsV1Options: RouteOptions = {
               coalesce(
                 nullif(date_part('epoch', upper("ob"."valid_between")), 'Infinity'),
                 0
-              ) AS "top_buy_valid_until"
+              ) AS "top_buy_valid_until",
+              ob.price AS top_buy_price,
+              ob.currency AS top_buy_currency,
+              ob.currency_price AS top_buy_currency_price,
+              ob.currency_value AS top_buy_currency_value
             FROM "token_sets" "ts"
             LEFT JOIN "orders" "ob"
               ON "ts"."top_buy_id" = "ob"."id"
@@ -330,7 +339,7 @@ export const getStatsV1Options: RouteOptions = {
         `;
       }
 
-      const result = await redb.oneOrNone(baseQuery!, query).then((r) =>
+      const result = await redb.oneOrNone(baseQuery!, query).then(async (r) =>
         r
           ? {
               tokenCount: Number(r.token_count),
@@ -339,7 +348,21 @@ export const getStatsV1Options: RouteOptions = {
               market: {
                 floorAsk: {
                   id: r.floor_sell_id,
-                  price: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+                  price: r.floor_sell_id
+                    ? await getJoiPriceObject(
+                        {
+                          net: {
+                            amount: getNetAmount(r.floor_sell_currency_value, r.floor_sell_fee_bps),
+                            nativeAmount: getNetAmount(r.floor_sell_value, r.floor_sell_fee_bps),
+                          },
+                          gross: {
+                            amount: r.floor_sell_currency_value,
+                            nativeAmount: r.floor_sell_value,
+                          },
+                        },
+                        fromBuffer(r.floor_sell_currency)
+                      )
+                    : null,
                   maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
                   validFrom: r.floor_sell_valid_from,
                   validUntil: r.floor_sell_value ? r.floor_sell_valid_until : null,
@@ -352,7 +375,21 @@ export const getStatsV1Options: RouteOptions = {
                 },
                 topBid: {
                   id: r.top_buy_id,
-                  value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+                  price: r.top_buy_id
+                    ? await getJoiPriceObject(
+                        {
+                          net: {
+                            amount: r.top_buy_currency_value,
+                            nativeAmount: r.top_buy_value,
+                          },
+                          gross: {
+                            amount: r.top_buy_currency_price,
+                            nativeAmount: r.top_buy_price,
+                          },
+                        },
+                        fromBuffer(r.top_buy_currency)
+                      )
+                    : null,
                   maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
                   validFrom: r.top_buy_valid_from,
                   validUntil: r.top_buy_value ? r.top_buy_valid_until : null,

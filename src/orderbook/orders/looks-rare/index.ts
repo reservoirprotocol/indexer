@@ -4,7 +4,7 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, toBuffer } from "@/common/utils";
+import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
@@ -56,7 +56,7 @@ export const save = async (
         });
       }
 
-      const currentTime = Math.floor(Date.now() / 1000);
+      const currentTime = now();
 
       // Check: order has a valid listing time
       const listingTime = order.params.startTime;
@@ -168,6 +168,13 @@ export const save = async (
 
       const side = order.params.isOrderAsk ? "sell" : "buy";
 
+      // Handle: currency
+      let currency = order.params.currency;
+      if (side === "sell" && currency === Sdk.Common.Addresses.Weth[config.chainId]) {
+        // LooksRare sell orders are always in WETH (although fillable in ETH)
+        currency = Sdk.Common.Addresses.Eth[config.chainId];
+      }
+
       // Handle: fees
       let feeBreakdown = [
         {
@@ -238,6 +245,10 @@ export const save = async (
         taker: toBuffer(AddressZero),
         price,
         value,
+        currency: toBuffer(currency),
+        currency_price: price,
+        currency_value: value,
+        needs_conversion: null,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.nonce,
         source_id_int: source?.id,
@@ -293,6 +304,10 @@ export const save = async (
         "taker",
         "price",
         "value",
+        "currency",
+        "currency_price",
+        "currency_value",
+        "needs_conversion",
         { name: "valid_between", mod: ":raw" },
         "nonce",
         "source_id_int",

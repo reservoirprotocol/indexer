@@ -1,24 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import _ from "lodash";
 import { Request, RouteOptions } from "@hapi/hapi";
+import _ from "lodash";
 import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { formatEth, fromBuffer } from "@/common/utils";
+import { JoiPrice, getJoiPriceObject } from "@/common/joi";
+import { formatEth, fromBuffer, getNetAmount, regex } from "@/common/utils";
 import { Sources } from "@/models/sources";
 
-const version = "v3";
+const version = "v4";
 
-export const getCollectionV3Options: RouteOptions = {
+export const getCollectionV4Options: RouteOptions = {
   description: "Single Collection",
   notes: "Get detailed information about a single collection, including real-time stats.",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
       order: 3,
-      deprecated: true,
     },
   },
   validate: {
@@ -48,9 +48,7 @@ export const getCollectionV3Options: RouteOptions = {
         sampleImages: Joi.array().items(Joi.string().allow(null, "")),
         tokenCount: Joi.string(),
         onSaleCount: Joi.string(),
-        primaryContract: Joi.string()
-          .lowercase()
-          .pattern(/^0x[a-fA-F0-9]{40}$/),
+        primaryContract: Joi.string().lowercase().pattern(regex.address),
         tokenSetId: Joi.string().allow(null),
         royalties: Joi.object({
           recipient: Joi.string().allow(null, ""),
@@ -63,32 +61,21 @@ export const getCollectionV3Options: RouteOptions = {
         floorAsk: {
           id: Joi.string().allow(null),
           sourceDomain: Joi.string().allow(null, ""),
-          price: Joi.number().unsafe().allow(null),
-          maker: Joi.string()
-            .lowercase()
-            .pattern(/^0x[a-fA-F0-9]{40}$/)
-            .allow(null),
+          price: JoiPrice.allow(null),
+          maker: Joi.string().lowercase().pattern(regex.address).allow(null),
           validFrom: Joi.number().unsafe().allow(null),
           validUntil: Joi.number().unsafe().allow(null),
           token: Joi.object({
-            contract: Joi.string()
-              .lowercase()
-              .pattern(/^0x[a-fA-F0-9]{40}$/)
-              .allow(null),
-            tokenId: Joi.string()
-              .pattern(/^[0-9]+$/)
-              .allow(null),
+            contract: Joi.string().lowercase().pattern(regex.address).allow(null),
+            tokenId: Joi.string().pattern(regex.number).allow(null),
             name: Joi.string().allow(null),
             image: Joi.string().allow(null, ""),
           }).allow(null),
         },
         topBid: Joi.object({
           id: Joi.string().allow(null),
-          value: Joi.number().unsafe().allow(null),
-          maker: Joi.string()
-            .lowercase()
-            .pattern(/^0x[a-fA-F0-9]{40}$/)
-            .allow(null),
+          price: JoiPrice.allow(null),
+          maker: Joi.string().lowercase().pattern(regex.address).allow(null),
           validFrom: Joi.number().unsafe().allow(null),
           validUntil: Joi.number().unsafe().allow(null),
         }).optional(),
@@ -137,8 +124,14 @@ export const getCollectionV3Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
-    let selectQuery = `SELECT "x".*, "y".*, "ow".*, attr_key.*`;
 
+    let selectQuery = `
+      SELECT
+        "x".*,
+        "y".*,
+        "ow".*,
+        "attr_key".*
+    `;
     try {
       let baseQuery = `
         SELECT
@@ -204,7 +197,10 @@ export const getCollectionV3Options: RouteOptions = {
               0
             ) AS "top_buy_valid_until",
             "ts"."last_buy_value",
-            "ts"."last_buy_timestamp"
+            "ts"."last_buy_timestamp",
+            "o"."currency" AS "top_buy_currency",
+            "o"."currency_price" AS "top_buy_currency_price",
+            "o"."currency_value" AS "top_buy_currency_value"
           FROM "token_sets" "ts"
           LEFT JOIN "orders" "o"
             ON "ts"."top_buy_id" = "o"."id"
@@ -232,7 +228,10 @@ export const getCollectionV3Options: RouteOptions = {
               COALESCE(
                 NULLIF(DATE_PART('epoch', UPPER("o"."valid_between")), 'Infinity'),
                 0
-              ) AS "floor_sell_valid_until"
+              ) AS "floor_sell_valid_until",
+            "o"."currency" AS "floor_sell_currency",
+            "o"."currency_value" AS "floor_sell_currency_value",
+            "o"."fee_bps" AS "floor_sell_fee_bps"
           FROM "tokens" "t"
           LEFT JOIN "orders" "o"
             ON "t"."floor_sell_id" = "o"."id"
@@ -257,7 +256,7 @@ export const getCollectionV3Options: RouteOptions = {
       `;
 
       const sources = await Sources.getInstance();
-      const result = await redb.oneOrNone(baseQuery, query).then((r) =>
+      const result = await redb.oneOrNone(baseQuery, query).then(async (r) =>
         !r
           ? null
           : {
@@ -282,7 +281,21 @@ export const getCollectionV3Options: RouteOptions = {
               floorAsk: {
                 id: r.floor_sell_id,
                 sourceDomain: sources.get(r.floor_sell_source_id_int)?.domain,
-                price: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
+                price: r.floor_sell_id
+                  ? await getJoiPriceObject(
+                      {
+                        net: {
+                          amount: getNetAmount(r.floor_sell_currency_value, r.floor_sell_fee_bps),
+                          nativeAmount: getNetAmount(r.floor_sell_value, r.floor_sell_fee_bps),
+                        },
+                        gross: {
+                          amount: r.floor_sell_currency_value,
+                          nativeAmount: r.floor_sell_value,
+                        },
+                      },
+                      fromBuffer(r.floor_sell_currency)
+                    )
+                  : null,
                 maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
                 validFrom: r.floor_sell_valid_from,
                 validUntil: r.floor_sell_value ? r.floor_sell_valid_until : null,
@@ -298,7 +311,21 @@ export const getCollectionV3Options: RouteOptions = {
               topBid: query.includeTopBid
                 ? {
                     id: r.top_buy_id,
-                    value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+                    price: r.top_buy_id
+                      ? await getJoiPriceObject(
+                          {
+                            net: {
+                              amount: r.top_buy_currency_value,
+                              nativeAmount: r.top_buy_value,
+                            },
+                            gross: {
+                              amount: r.top_buy_currency_price,
+                              nativeAmount: r.top_buy_price,
+                            },
+                          },
+                          fromBuffer(r.top_buy_currency)
+                        )
+                      : null,
                     maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
                     validFrom: r.top_buy_valid_from,
                     validUntil: r.top_buy_value ? r.top_buy_valid_until : null,

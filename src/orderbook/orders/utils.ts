@@ -45,6 +45,9 @@ export type DbOrder = {
   taker: Buffer;
   price: string;
   value: string;
+  currency?: Buffer;
+  currency_price: string;
+  currency_value: string;
   quantity_remaining?: string;
   valid_between: string;
   nonce: string | null;
@@ -55,6 +58,7 @@ export type DbOrder = {
   fee_bps: number;
   fee_breakdown?: object | null;
   dynamic?: boolean | null;
+  needs_conversion: boolean | null;
   raw_data: object;
   expiration: string;
 };

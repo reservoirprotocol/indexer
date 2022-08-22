@@ -3,7 +3,7 @@
 import _ from "lodash";
 
 import { idb, redb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
+import { toBuffer, now } from "@/common/utils";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import {
   CollectionsEntity,
@@ -161,11 +161,12 @@ export class Collections {
     );
 
     if (result) {
+      const currentTime = now();
       await orderUpdatesById.addToQueue(
         result.map(({ token_id }) => {
           const tokenSetId = `token:${contract}:${token_id}`;
           return {
-            context: `revalidate-sell-${tokenSetId}-${Math.floor(Date.now() / 1000)}`,
+            context: `revalidate-sell-${tokenSetId}-${currentTime}`,
             tokenSetId,
             side: "sell",
             trigger: { kind: "revalidation" },
@@ -190,11 +191,12 @@ export class Collections {
     );
 
     if (result) {
+      const currentTime = now();
       await orderUpdatesById.addToQueue(
         result.map(({ token_id }) => {
           const tokenSetId = `token:${contract}:${token_id}`;
           return {
-            context: `revalidate-buy-${tokenSetId}-${Math.floor(Date.now() / 1000)}`,
+            context: `revalidate-buy-${tokenSetId}-${currentTime}`,
             tokenSetId,
             side: "buy",
             trigger: { kind: "revalidation" },

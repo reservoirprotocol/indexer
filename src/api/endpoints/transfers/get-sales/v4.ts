@@ -9,29 +9,21 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import {
-  buildContinuation,
-  formatEth,
-  formatPrice,
-  formatUsd,
-  fromBuffer,
-  regex,
-  splitContinuation,
-  toBuffer,
-} from "@/common/utils";
+import { JoiPrice, getJoiPriceObject } from "@/common/joi";
+import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 
-const version = "v3";
+const version = "v4";
 
-export const getSalesV3Options: RouteOptions = {
+export const getSalesV4Options: RouteOptions = {
   description: "Historical sales",
   notes:
     "Get recent sales for a contract or token. Note: this API is returns rich metadata, and has advanced filters, so is only designed for small amounts of recent sales. If you want access to sales in bulk, use the `Aggregator > Bulk Sales` API.",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Sales"],
   plugins: {
     "hapi-swagger": {
-      deprecated: true,
+      order: 8,
     },
   },
   validate: {
@@ -48,6 +40,9 @@ export const getSalesV3Options: RouteOptions = {
         .description(
           "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
+      includeTokenMetadata: Joi.boolean().description(
+        "If enabled, also include token metadata in the response."
+      ),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -71,8 +66,8 @@ export const getSalesV3Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(100)
-        .default(20)
+        .max(1000)
+        .default(100)
         .description("Amount of items returned in response."),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -98,7 +93,6 @@ export const getSalesV3Options: RouteOptions = {
             }),
           }),
           orderSource: Joi.string().allow(null, ""),
-          orderSourceDomain: Joi.string().allow(null, ""),
           orderSide: Joi.string().valid("ask", "bid"),
           orderKind: Joi.string(),
           from: Joi.string().lowercase().pattern(regex.address),
@@ -109,10 +103,7 @@ export const getSalesV3Options: RouteOptions = {
           logIndex: Joi.number(),
           batchIndex: Joi.number(),
           timestamp: Joi.number(),
-          price: Joi.number().unsafe().allow(null),
-          currency: Joi.string().pattern(regex.address),
-          currencyPrice: Joi.number().unsafe().allow(null),
-          usdPrice: Joi.number().unsafe().allow(null),
+          price: JoiPrice,
           washTradingScore: Joi.number(),
         })
       ),
@@ -229,11 +220,18 @@ export const getSalesV3Options: RouteOptions = {
     try {
       const baseQuery = `
         SELECT
-          fill_events_2_data.*,
-          tokens_data.name,
-          tokens_data.image,
-          tokens_data.collection_id,
-          tokens_data.collection_name
+          fill_events_2_data.*
+          ${
+            query.includeTokenMetadata
+              ? `
+                  ,
+                  tokens_data.name,
+                  tokens_data.image,
+                  tokens_data.collection_id,
+                  tokens_data.collection_name
+                `
+              : ""
+          }
         FROM (
           SELECT
             fill_events_2.contract,
@@ -271,18 +269,24 @@ export const getSalesV3Options: RouteOptions = {
             fill_events_2.batch_index DESC
           LIMIT $/limit/
         ) AS fill_events_2_data
-        JOIN LATERAL (
-          SELECT
-            tokens.name,
-            tokens.image,
-            tokens.collection_id,
-            collections.name AS collection_name
-          FROM tokens
-          LEFT JOIN collections 
-            ON tokens.collection_id = collections.id
-          WHERE fill_events_2_data.token_id = tokens.token_id
-            AND fill_events_2_data.contract = tokens.contract
-        ) tokens_data ON TRUE
+        ${
+          query.includeTokenMetadata
+            ? `
+                JOIN LATERAL (
+                  SELECT
+                    tokens.name,
+                    tokens.image,
+                    tokens.collection_id,
+                    collections.name AS collection_name
+                  FROM tokens
+                  LEFT JOIN collections 
+                    ON tokens.collection_id = collections.id
+                  WHERE fill_events_2_data.token_id = tokens.token_id
+                    AND fill_events_2_data.contract = tokens.contract
+                ) tokens_data ON TRUE
+              `
+            : ""
+        }
       `;
 
       const rawResult = await redb.manyOrNone(baseQuery, query);
@@ -299,7 +303,7 @@ export const getSalesV3Options: RouteOptions = {
       }
 
       const sources = await Sources.getInstance();
-      const result = rawResult.map((r) => {
+      const result = rawResult.map(async (r) => {
         const orderSource = sources.get(Number(r.order_source_id_int));
         const fillSource = sources.get(Number(r.fill_source_id));
 
@@ -317,15 +321,14 @@ export const getSalesV3Options: RouteOptions = {
           token: {
             contract: fromBuffer(r.contract),
             tokenId: r.token_id,
-            name: r.name,
-            image: r.image,
+            name: r.name ?? null,
+            image: r.image ?? null,
             collection: {
-              id: r.collection_id,
-              name: r.collection_name,
+              id: r.collection_id ?? null,
+              name: r.collection_name ?? null,
             },
           },
-          orderSource: orderSource?.name ?? null,
-          orderSourceDomain: orderSource?.domain ?? null,
+          orderSource: orderSource?.domain ?? null,
           orderSide: r.order_side === "sell" ? "ask" : "bid",
           orderKind: r.order_kind,
           from: r.order_side === "sell" ? fromBuffer(r.maker) : fromBuffer(r.taker),
@@ -336,25 +339,28 @@ export const getSalesV3Options: RouteOptions = {
           logIndex: r.log_index,
           batchIndex: r.batch_index,
           timestamp: r.timestamp,
-          price: r.price ? formatEth(r.price) : null,
-          currency:
+          price: await getJoiPriceObject(
+            {
+              gross: {
+                amount: r.price,
+                nativeAmount: r.currency_price ?? r.price,
+                usdAmount: r.usd_price,
+              },
+            },
+            // Properly handle historical sales with missing currency
+            // (remember, we only supported ETH/WETH initially)
             fromBuffer(r.currency) === AddressZero
               ? r.order_side === "sell"
                 ? Sdk.Common.Addresses.Eth[config.chainId]
                 : Sdk.Common.Addresses.Weth[config.chainId]
-              : fromBuffer(r.currency),
-          currencyPrice: r.currency_price
-            ? formatPrice(r.currency_price, r.decimals)
-            : r.price
-            ? formatEth(r.price)
-            : null,
-          usdPrice: r.usd_price ? formatUsd(r.usd_price) : null,
+              : fromBuffer(r.currency)
+          ),
           washTradingScore: r.wash_trading_score,
         };
       });
 
       return {
-        sales: result,
+        sales: await Promise.all(result),
         continuation,
       };
     } catch (error) {

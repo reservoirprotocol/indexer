@@ -148,6 +148,8 @@ if (config.doBackgroundWork) {
                     x.token_id,
                     y.order_id,
                     y.value,
+                    y.currency,
+                    y.currency_value,
                     y.maker,
                     y.valid_between,
                     y.nonce,
@@ -163,6 +165,8 @@ if (config.doBackgroundWork) {
                     SELECT
                       orders.id AS order_id,
                       orders.value,
+                      orders.currency,
+                      orders.currency_value,
                       orders.maker,
                       orders.valid_between,
                       orders.source_id_int,
@@ -185,6 +189,8 @@ if (config.doBackgroundWork) {
                   UPDATE tokens SET
                     floor_sell_id = z.order_id,
                     floor_sell_value = z.value,
+                    floor_sell_currency = z.currency,
+                    floor_sell_currency_value = z.currency_value,
                     floor_sell_maker = z.maker,
                     floor_sell_valid_from = least(
                       2147483647::NUMERIC,

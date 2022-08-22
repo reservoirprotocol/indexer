@@ -1,3 +1,41 @@
+## [5.172.1](https://github.com/reservoirprotocol/indexer/compare/v5.172.0...v5.172.1) (2022-08-22)
+
+
+### Bug Fixes
+
+* tweaks ([f2ea158](https://github.com/reservoirprotocol/indexer/commit/f2ea1583837df742c9bf6abaa4cf57b925dfbef8))
+
+
+
+# [5.172.0](https://github.com/reservoirprotocol/indexer/compare/v5.171.7...v5.172.0) (2022-08-22)
+
+
+### Bug Fixes
+
+* disable erc20 liquidity ingestion ([fc62dca](https://github.com/reservoirprotocol/indexer/commit/fc62dca15b4d8bcc02122cc51a16f15a44223bcb))
+* minor tweaks ([e45567f](https://github.com/reservoirprotocol/indexer/commit/e45567f9a58bf24bd5b582b5d8bbfff65a792d67))
+* minor tweaks ([d6e2f9f](https://github.com/reservoirprotocol/indexer/commit/d6e2f9f99b18456fb4fd599913a586fa369b8a31))
+* normalize zeroex-like exchanges currency ([6ba16b0](https://github.com/reservoirprotocol/indexer/commit/6ba16b0f7d2d8aaa4f0c36856c98641882da56e9))
+* query ([8ccc12d](https://github.com/reservoirprotocol/indexer/commit/8ccc12d021c67c501d250b7468a64ab3a50b88cd))
+* remove tokens v5 api ([a6141ed](https://github.com/reservoirprotocol/indexer/commit/a6141edb56aca736710d19965404b87252ae7694))
+* response validation errors ([9a22279](https://github.com/reservoirprotocol/indexer/commit/9a222793ba6dd01497ab7c95970ca0b1edaad2cd))
+* set proper valid from for x2y2 orders ([b32a3d9](https://github.com/reservoirprotocol/indexer/commit/b32a3d944b89f3ac9368b5b732e8802978777dea))
+* special rule for handling gem filling directly on seaport ([97cdca0](https://github.com/reservoirprotocol/indexer/commit/97cdca09965925541defebcc8c9382a05f5985f2))
+* tweaks ([8cc234b](https://github.com/reservoirprotocol/indexer/commit/8cc234b40db4d5415fde5e6a4406cdf04192d8db))
+* tweaks ([2312524](https://github.com/reservoirprotocol/indexer/commit/231252408404ef7ede23aaa4203ea99dfc0c59f1))
+* tweaks ([4295f1d](https://github.com/reservoirprotocol/indexer/commit/4295f1d6f2cac97e395f62d16ae87b1cbb337004))
+* wip ([e232a35](https://github.com/reservoirprotocol/indexer/commit/e232a357a3a4b81515e1950b9f38e0d6f0fe8068))
+* wip ([b6ec6e0](https://github.com/reservoirprotocol/indexer/commit/b6ec6e0beb9ed41b120fa381e273e7ee4a798c92))
+
+
+### Features
+
+* add cron for updating erc20 order prices ([66f7d04](https://github.com/reservoirprotocol/indexer/commit/66f7d04a101ba05556d1580ac18c7460e5554834))
+* basic support for erc20 orders ([1ec2e8c](https://github.com/reservoirprotocol/indexer/commit/1ec2e8c9cec6d9ac7da34831bdff39ebe5f91eef))
+* enable seaport erc20 listings ([ad13923](https://github.com/reservoirprotocol/indexer/commit/ad13923ed276127f22c9685d0adb7f998b54e28f))
+
+
+
 ## [5.171.7](https://github.com/reservoirprotocol/indexer/compare/v5.171.6...v5.171.7) (2022-08-19)
 
 

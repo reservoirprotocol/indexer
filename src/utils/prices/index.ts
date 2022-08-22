@@ -1,11 +1,14 @@
 import { AddressZero } from "@ethersproject/constants";
 import { parseUnits } from "@ethersproject/units";
+import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 import { getCurrency } from "@/utils/currencies";
+import { getNetworkSettings } from "@/config/network";
 
 const USD_DECIMALS = 6;
 // TODO: This should be a per-network setting
@@ -114,26 +117,35 @@ const getCachedUSDPrice = async (
     )
     .catch(() => undefined);
 
+const USD_PRICE_MEMORY_CACHE = new Map<string, Price>();
 const getAvailableUSDPrice = async (currencyAddress: string, timestamp: number) => {
   // At the moment, we support day-level granularity for prices
   const DAY = 24 * 3600;
 
-  // By default, use any available cached price
-  let cachedPrice = await getCachedUSDPrice(currencyAddress, timestamp);
-  if (
-    // If the cached price is not available
-    !cachedPrice ||
-    // Or if the cached price is stale (older than what is requested)
-    Math.floor(cachedPrice.timestamp / DAY) !== Math.floor(timestamp / DAY)
-  ) {
-    // Then try to fetch the price from upstream
-    const upstreamPrice = await getUpstreamUSDPrice(currencyAddress, timestamp);
-    if (upstreamPrice) {
-      cachedPrice = upstreamPrice;
+  const normalizedTimestamp = Math.floor(timestamp / DAY);
+  const key = `${currencyAddress}-${normalizedTimestamp}`.toLowerCase();
+  if (!USD_PRICE_MEMORY_CACHE.has(key)) {
+    // If the price is not available in the memory cache, use any available database cached price
+    let cachedPrice = await getCachedUSDPrice(currencyAddress, timestamp);
+    if (
+      // If the database cached price is not available
+      !cachedPrice ||
+      // Or if the database cached price is stale (older than what is requested)
+      Math.floor(cachedPrice.timestamp / DAY) !== normalizedTimestamp
+    ) {
+      // Then try to fetch the price from upstream
+      const upstreamPrice = await getUpstreamUSDPrice(currencyAddress, timestamp);
+      if (upstreamPrice) {
+        cachedPrice = upstreamPrice;
+      }
+    }
+
+    if (cachedPrice) {
+      USD_PRICE_MEMORY_CACHE.set(key, cachedPrice);
     }
   }
 
-  return cachedPrice;
+  return USD_PRICE_MEMORY_CACHE.get(key);
 };
 
 type USDAndNativePrices = {
@@ -143,27 +155,47 @@ type USDAndNativePrices = {
 
 export const getUSDAndNativePrices = async (
   currencyAddress: string,
-  amount: string,
-  timestamp: number
+  price: string,
+  timestamp: number,
+  options?: {
+    onlyUSD?: boolean;
+  }
 ): Promise<USDAndNativePrices> => {
-  const currencyUSDPrice = await getAvailableUSDPrice(currencyAddress, timestamp);
-  const nativeUSDPrice = await getAvailableUSDPrice(AddressZero, timestamp);
-
   let usdPrice: string | undefined;
   let nativePrice: string | undefined;
 
-  const currency = await getCurrency(currencyAddress);
-  if (currency.decimals && currencyUSDPrice) {
-    const currencyUnit = bn(10).pow(currency.decimals);
-    usdPrice = bn(amount).mul(currencyUSDPrice.value).div(currencyUnit).toString();
-    if (nativeUSDPrice) {
-      nativePrice = bn(amount)
-        .mul(currencyUSDPrice.value)
-        .mul(NATIVE_UNIT)
-        .div(nativeUSDPrice.value)
-        .div(currencyUnit)
-        .toString();
+  // Only try to get pricing data if the network supports it
+  if (getNetworkSettings().coingecko?.networkId) {
+    const currencyUSDPrice = await getAvailableUSDPrice(currencyAddress, timestamp);
+
+    let nativeUSDPrice: Price | undefined;
+    if (!options?.onlyUSD) {
+      nativeUSDPrice = await getAvailableUSDPrice(AddressZero, timestamp);
     }
+
+    const currency = await getCurrency(currencyAddress);
+    if (currency.decimals && currencyUSDPrice) {
+      const currencyUnit = bn(10).pow(currency.decimals);
+      usdPrice = bn(price).mul(currencyUSDPrice.value).div(currencyUnit).toString();
+      if (nativeUSDPrice) {
+        nativePrice = bn(price)
+          .mul(currencyUSDPrice.value)
+          .mul(NATIVE_UNIT)
+          .div(nativeUSDPrice.value)
+          .div(currencyUnit)
+          .toString();
+      }
+    }
+  }
+
+  // Make sure to handle the case where the currency is the native one (or the wrapped equivalent)
+  if (
+    !nativePrice &&
+    [Sdk.Common.Addresses.Eth[config.chainId], Sdk.Common.Addresses.Weth[config.chainId]].includes(
+      currencyAddress
+    )
+  ) {
+    nativePrice = price;
   }
 
   return { usdPrice, nativePrice };

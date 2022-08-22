@@ -6,31 +6,28 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import {
-  buildContinuation,
-  formatEth,
-  fromBuffer,
-  regex,
-  splitContinuation,
-  toBuffer,
-} from "@/common/utils";
+import { JoiPrice, getJoiPriceObject } from "@/common/joi";
+import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 
-const version = "v2";
+const version = "v3";
 
-export const getOrdersBidsV2Options: RouteOptions = {
+export const getOrdersBidsV3Options: RouteOptions = {
   description: "Bids (offers)",
   notes:
     "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
-      deprecated: true,
+      order: 5,
     },
   },
   validate: {
     query: Joi.object({
+      ids: Joi.alternatives(Joi.string(), Joi.array().items(Joi.string())).description(
+        "Order id(s) to search for."
+      ),
       token: Joi.string()
         .lowercase()
         .pattern(regex.token)
@@ -102,8 +99,7 @@ export const getOrdersBidsV2Options: RouteOptions = {
           contract: Joi.string().lowercase().pattern(regex.address),
           maker: Joi.string().lowercase().pattern(regex.address).required(),
           taker: Joi.string().lowercase().pattern(regex.address).required(),
-          price: Joi.number().unsafe().required(),
-          value: Joi.number().unsafe().required(),
+          price: JoiPrice,
           validFrom: Joi.number().required(),
           validUntil: Joi.number().required(),
           metadata: Joi.alternatives(
@@ -250,6 +246,9 @@ export const getOrdersBidsV2Options: RouteOptions = {
           orders.taker,
           orders.price,
           orders.value,
+          orders.currency,
+          orders.currency_price,
+          orders.currency_value,
           DATE_PART('epoch', LOWER(orders.valid_between)) AS valid_from,
           COALESCE(
             NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
@@ -272,6 +271,14 @@ export const getOrdersBidsV2Options: RouteOptions = {
       // Filters
       const conditions: string[] = [`orders.side = 'buy'`];
       let orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+
+      if (query.ids) {
+        if (Array.isArray(query.ids)) {
+          conditions.push(`orders.id IN ($/ids:csv/)`);
+        } else {
+          conditions.push(`orders.id = $/ids/`);
+        }
+      }
 
       if (query.token || query.tokenSetId) {
         if (query.token) {
@@ -390,12 +397,19 @@ export const getOrdersBidsV2Options: RouteOptions = {
           contract: fromBuffer(r.contract),
           maker: fromBuffer(r.maker),
           taker: fromBuffer(r.taker),
-          price: formatEth(r.price),
-          // For consistency, we set the value of "sell" orders as price - fee
-          value:
-            r.side === "buy"
-              ? formatEth(r.value)
-              : formatEth(r.value) - (formatEth(r.value) * Number(r.fee_bps)) / 10000,
+          price: await getJoiPriceObject(
+            {
+              gross: {
+                amount: r.price,
+                nativeAmount: r.currency_price,
+              },
+              net: {
+                amount: r.value,
+                nativeAmount: r.currency_value,
+              },
+            },
+            fromBuffer(r.currency)
+          ),
           validFrom: Number(r.valid_from),
           validUntil: Number(r.valid_until),
           metadata: r.metadata,

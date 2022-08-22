@@ -116,6 +116,11 @@ export const extractAttributionData = async (txHash: string, orderKind: OrderKin
   if (referrer) {
     aggregatorSource = await sources.getOrInsert("reservoir.tools");
     fillSource = await sources.getOrInsert(referrer);
+
+    // Special rule for handling Gem filling directly on Seaport
+    if (fillSource?.domain === "gem.xyz") {
+      aggregatorSource = fillSource;
+    }
   } else if (router === "reservoir.tools") {
     aggregatorSource = await sources.getOrInsert("reservoir.tools");
   } else if (router) {

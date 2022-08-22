@@ -103,12 +103,56 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         backfillBlockBatchSize: 128,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
       };
     // Goerli
     case 5: {
       return {
         ...defaultNetworkSettings,
         backfillBlockBatchSize: 128,
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
       };
     }
     // Optimism
