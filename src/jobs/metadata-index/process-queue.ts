@@ -96,7 +96,9 @@ if (config.doBackgroundWork) {
         if ((error as any).response?.status === 429) {
           logger.info(
             QUEUE_NAME,
-            `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
+            `Too Many Requests. useMetadataApiBaseUrlAlt=${useMetadataApiBaseUrlAlt}, error: ${JSON.stringify(
+              (error as any).response.data
+            )}`
           );
 
           await pendingRefreshTokens.add(refreshTokens, true);
