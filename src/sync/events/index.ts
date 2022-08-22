@@ -2090,6 +2090,8 @@ export const syncEvents = async (
               const fromAddress = args["fromAddress"].toLowerCase();
               let toAddress = args["toAddress"].toLowerCase();
 
+              const orderSide = toAddress === AddressZero ? "buy" : "sell";
+
               // Due to an issue with the cryptopunks smart contract, the
               // `PunkBought` event is emitted from `acceptBidForPunk`
               // with toAddress = 0x00...00 and value = 0
@@ -2128,10 +2130,10 @@ export const syncEvents = async (
                 baseEventParams.timestamp
               );
 
-              // We must always have the native price
-              if (!prices.nativePrice) break;
-
-              const orderSide = toAddress === AddressZero ? "buy" : "sell";
+              if (!prices.nativePrice) {
+                // We must always have the native price
+                break;
+              }
 
               const maker = orderSide === "sell" ? fromAddress : toAddress;
               const taker = orderSide === "sell" ? toAddress : fromAddress;
