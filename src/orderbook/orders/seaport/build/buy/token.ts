@@ -12,14 +12,16 @@ interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
 }
 
 export const build = async (options: BuildOrderOptions) => {
-  // TODO: Include `NOT is_flagged` filter in the query
+  const excludeFlaggedTokens = options.excludeFlaggedTokens ? "AND tokens.is_flagged = 0" : "";
+
   const collectionResult = await redb.oneOrNone(
     `
       SELECT
         tokens.collection_id
       FROM tokens
       WHERE tokens.contract = $/contract/
-        AND tokens.token_id = $/tokenId/
+      AND tokens.token_id = $/tokenId/
+      ${excludeFlaggedTokens}
     `,
     {
       contract: toBuffer(options.contract),

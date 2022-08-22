@@ -40,7 +40,9 @@ export class MetadataApi {
         tokenSetId: `contract:${contract}`,
       };
     } else {
-      const url = `${config.metadataApiBaseUrl}/v4/${getNetworkName()}/metadata/collection?method=${
+      const url = `${
+        config.metadataApiBaseUrlAlt
+      }/v4/${getNetworkName()}/metadata/collection?method=${
         config.metadataIndexingMethod
       }&token=${contract}:${tokenId}`;
 

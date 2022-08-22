@@ -5,3 +5,5 @@
 
 import "@/jobs/token-updates/mint-queue";
 import "@/jobs/token-updates/token-refresh-cache";
+import "@/jobs/token-updates/non-flagged-token-set";
+import "@/jobs/token-updates/fetch-collection-metadata";

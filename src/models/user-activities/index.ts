@@ -8,7 +8,7 @@ import {
   UserActivitiesEntity,
   UserActivitiesEntityInsertParams,
   UserActivitiesEntityParams,
-} from "@/models/user_activities/user-activities-entity";
+} from "@/models/user-activities/user-activities-entity";
 
 export class UserActivities {
   public static async addActivities(activities: UserActivitiesEntityInsertParams[]) {

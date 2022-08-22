@@ -7,6 +7,7 @@ import * as weth from "@/events-sync/data/weth";
 import * as element from "@/events-sync/data/element";
 import * as foundation from "@/events-sync/data/foundation";
 import * as looksRare from "@/events-sync/data/looks-rare";
+import * as nouns from "@/events-sync/data/nouns";
 import * as openDao from "@/events-sync/data/opendao";
 import * as quixotic from "@/events-sync/data/quixotic";
 import * as rarible from "@/events-sync/data/rarible";
@@ -60,6 +61,7 @@ export type EventDataKind =
   | "element-erc1155-sell-order-filled"
   | "element-erc1155-buy-order-filled"
   | "quixotic-order-filled"
+  | "nouns-auction-settled"
   | "cryptopunks-punk-bought"
   | "cryptopunks-transfer";
 
@@ -111,6 +113,7 @@ export const getEventData = (eventDataKinds: EventDataKind[] | undefined) => {
       element.erc1155BuyOrderFilled,
       element.erc1155SellOrderFilled,
       quixotic.orderFulfilled,
+      nouns.auctionSettled,
       cryptoPunks.punkBought,
       cryptoPunks.transfer,
     ];
@@ -201,6 +204,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return element.erc1155BuyOrderFilled;
     case "quixotic-order-filled":
       return quixotic.orderFulfilled;
+    case "nouns-auction-settled":
+      return nouns.auctionSettled;
     case "cryptopunks-punk-bought":
       return cryptoPunks.punkBought;
     case "cryptopunks-transfer":

@@ -69,7 +69,7 @@ export class AttributeKeysDataSource extends BaseDataSource {
         kind: r.kind,
         rank: r.rank,
         created_at: new Date(r.created_at).toISOString(),
-        updated_at: new Date(r.updated_ts).toISOString(),
+        updated_at: new Date(r.updated_ts * 1000).toISOString(),
         is_active: true,
       }));
 
@@ -91,7 +91,7 @@ export class AttributeKeysDataSource extends BaseDataSource {
         kind: r.kind,
         rank: r.rank,
         created_at: new Date(r.created_at).toISOString(),
-        updated_at: new Date(r.deleted_ts).toISOString(),
+        updated_at: new Date(r.deleted_ts * 1000).toISOString(),
         is_active: false,
       }));
 

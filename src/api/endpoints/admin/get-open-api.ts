@@ -47,6 +47,12 @@ export const getOpenApiOptions: RouteOptions = {
         {
           url: "https://api-optimism.reservoir.tools",
         },
+        {
+          url: "https://api-goerli.reservoir.tools",
+        },
+        {
+          url: "https://api-polygon.reservoir.tools",
+        },
       ];
 
       data.openapi["paths"] = Object.fromEntries(

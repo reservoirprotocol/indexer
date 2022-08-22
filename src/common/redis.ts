@@ -30,9 +30,16 @@ export type BullMQBulkJob = {
   opts?: BulkJobOptions;
 };
 
-export const acquireLock = async (name: string, expirationInSeconds: number) => {
+export const acquireLock = async (name: string, expirationInSeconds = 0) => {
   const id = randomUUID();
-  const acquired = await redis.set(name, id, "EX", expirationInSeconds, "NX");
+  let acquired;
+
+  if (expirationInSeconds) {
+    acquired = await redis.set(name, id, "EX", expirationInSeconds, "NX");
+  } else {
+    acquired = await redis.set(name, id, "NX");
+  }
+
   return acquired === "OK";
 };
 
@@ -44,4 +51,8 @@ export const extendLock = async (name: string, expirationInSeconds: number) => {
 
 export const releaseLock = async (name: string) => {
   await redis.del(name);
+};
+
+export const getLockExpiration = async (name: string) => {
+  return await redis.ttl(name);
 };

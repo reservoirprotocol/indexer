@@ -49,7 +49,7 @@ export const getSearchCollectionsV1Options: RouteOptions = {
           collectionId: Joi.string(),
           contract: Joi.string(),
           image: Joi.string().allow(null, ""),
-          name: Joi.string(),
+          name: Joi.string().allow(null, ""),
         })
       ),
     }).label(`getSearchCollections${version.toUpperCase()}Response`),

@@ -5,6 +5,7 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { Sources } from "@/models/sources";
+import _ from "lodash";
 
 const version = "v2";
 
@@ -22,7 +23,7 @@ export const getRedirectTokenV2Options: RouteOptions = {
   },
   validate: {
     params: Joi.object({
-      source: Joi.string().required().description("Name of the order source. Example `OpenSea`"),
+      source: Joi.string().required().description("Name of the order source. Example `opensea.io`"),
       token: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
@@ -45,7 +46,16 @@ export const getRedirectTokenV2Options: RouteOptions = {
       const [contract, tokenId] = params.token.split(":");
       const tokenUrl = sources.getTokenUrl(source, contract, tokenId);
 
-      return response.redirect(tokenUrl);
+      if (tokenUrl) {
+        return response.redirect(tokenUrl);
+      }
+
+      let redirectUrl = source.domain;
+      if (!_.startsWith(redirectUrl, "http")) {
+        redirectUrl = `https://${redirectUrl}`;
+      }
+
+      return response.redirect(redirectUrl);
     } catch (error) {
       logger.error(`get-redirect-token-${version}-handler`, `Handler failure: ${error}`);
       throw error;

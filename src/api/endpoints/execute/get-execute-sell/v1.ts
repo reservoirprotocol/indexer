@@ -9,7 +9,7 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { slowProvider } from "@/common/provider";
+import { baseProvider } from "@/common/provider";
 import { bn, formatEth, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -191,7 +191,7 @@ export const getExecuteSellV1Options: RouteOptions = {
         throw Boom.internal("Could not generate transaction(s)");
       }
 
-      const router = new Sdk.Router.Router(config.chainId, slowProvider);
+      const router = new Sdk.Router.Router(config.chainId, baseProvider);
       const tx = await router.fillBidTx(bidDetails, query.taker, {
         referrer: query.source,
       });

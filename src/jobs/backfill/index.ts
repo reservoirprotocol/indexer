@@ -7,3 +7,4 @@ import "@/jobs/backfill/backfill-fill-events-wash-trading-score";
 import "@/jobs/backfill/backfill-looks-rare-fills";
 import "@/jobs/backfill/backfill-transaction-block-fields";
 import "@/jobs/backfill/backfill-transactions";
+import "@/jobs/backfill/backfill-collections-top-bid";

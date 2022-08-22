@@ -3,7 +3,7 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, toBuffer } from "@/common/utils";
+import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
@@ -57,7 +57,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      const currentTime = Math.floor(Date.now() / 1000);
+      const currentTime = now();
 
       // Check: order is not expired
       const expirationTime = order.params.deadline;
@@ -68,17 +68,21 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      if (order.params.type !== "sell") {
-        return results.push({
-          id,
-          status: "unsupported-side",
-        });
-      }
-
       // Check: sell order has Eth as payment token
       if (
         order.params.type === "sell" &&
         order.params.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+      ) {
+        return results.push({
+          id,
+          status: "unsupported-payment-token",
+        });
+      }
+
+      // Check: buy order has Weth as payment token
+      if (
+        order.params.type === "buy" &&
+        order.params.currency !== Sdk.Common.Addresses.Weth[config.chainId]
       ) {
         return results.push({
           id,
@@ -117,10 +121,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         case "single-token": {
           [{ id: tokenSetId }] = await tokenSet.singleToken.save([
             {
-              id: `token:${order.params.nft.token}:${order.params.nft.tokenId}`,
+              id: `token:${order.params.nft.token}:${order.params.nft.tokenId!}`,
               schemaHash,
               contract: order.params.nft.token,
-              tokenId: order.params.nft.tokenId,
+              tokenId: order.params.nft.tokenId!,
+            },
+          ]);
+
+          break;
+        }
+
+        case "collection-wide": {
+          [{ id: tokenSetId }] = await tokenSet.contractWide.save([
+            {
+              id: `contract:${order.params.nft.token}`,
+              schemaHash,
+              contract: order.params.nft.token,
             },
           ]);
 
@@ -136,14 +152,25 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       // Handle: fees
-      const feeBps = 50;
-      const feeBreakdown = [
+      let feeBreakdown = [
         {
-          kind: "royalty",
+          kind: "marketplace",
           recipient: Sdk.X2Y2.Addresses.FeeManager[config.chainId],
-          bps: feeBps,
+          bps: 50,
         },
       ];
+
+      // Handle: royalties
+      const royalties = await commonHelpers.getRoyalties(order.params.nft.token);
+      feeBreakdown = [
+        ...feeBreakdown,
+        ...royalties.map(({ bps, recipient }) => ({
+          kind: "royalty",
+          recipient,
+          bps,
+        })),
+      ];
+      const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
 
       // Handle: price and value
       const price = bn(order.params.price);
@@ -157,14 +184,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const isReservoir = false;
 
       // Handle: conduit
-      const conduit = Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId];
+      let conduit = Sdk.X2Y2.Addresses.Exchange[config.chainId];
+      if (order.params.type === "sell") {
+        conduit = Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId];
+      }
 
-      const validFrom = `date_trunc('seconds', to_timestamp(0))`;
+      const validFrom = `date_trunc('seconds', to_timestamp(${currentTime}))`;
       const validTo = `date_trunc('seconds', to_timestamp(${order.params.deadline}))`;
       orderValues.push({
         id,
         kind: "x2y2",
-        side: "sell",
+        side: order.params.type === "sell" ? "sell" : "buy",
         fillability_status: fillabilityStatus,
         approval_status: approvalStatus,
         token_set_id: tokenSetId,
@@ -173,6 +203,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         taker: toBuffer(order.params.taker),
         price: price.toString(),
         value: value.toString(),
+        currency: toBuffer(order.params.currency),
+        currency_price: price.toString(),
+        currency_value: value.toString(),
+        needs_conversion: null,
         quantity_remaining: "1",
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: null,
@@ -223,6 +257,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "taker",
         "price",
         "value",
+        "currency",
+        "currency_price",
+        "currency_value",
+        "needs_conversion",
         "quantity_remaining",
         { name: "valid_between", mod: ":raw" },
         "nonce",

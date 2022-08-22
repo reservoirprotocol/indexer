@@ -26,10 +26,10 @@ export const getSalesBulkV1Options: RouteOptions = {
   description: "Bulk historical sales",
   notes:
     "Note: this API is optimized for bulk access, and offers minimal filters/metadata. If you need more flexibility, try the `NFT API > Sales` endpoint",
-  tags: ["api", "Sales"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 8,
+      deprecated: true,
     },
   },
   validate: {
@@ -74,6 +74,7 @@ export const getSalesBulkV1Options: RouteOptions = {
             tokenId: Joi.string().pattern(regex.number),
           }),
           orderSource: Joi.string().allow(null, ""),
+          orderSourceDomain: Joi.string().allow(null, ""),
           orderSide: Joi.string().valid("ask", "bid"),
           orderKind: Joi.string(),
           from: Joi.string().lowercase().pattern(regex.address),
@@ -160,7 +161,7 @@ export const getSalesBulkV1Options: RouteOptions = {
             fill_events_2.maker,
             fill_events_2.taker,
             fill_events_2.amount,
-            fill_events_2.fill_source,
+            fill_events_2.fill_source_id,
             fill_events_2.tx_hash,
             fill_events_2.timestamp,
             fill_events_2.price,
@@ -192,7 +193,8 @@ export const getSalesBulkV1Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map((r) => {
-        const orderSource = r.order_source_id_int ? sources.get(r.order_source_id_int)?.name : null;
+        const orderSource = sources.get(Number(r.order_source_id_int));
+        const fillSource = sources.get(Number(r.fill_source_id));
 
         return {
           id: crypto
@@ -209,13 +211,14 @@ export const getSalesBulkV1Options: RouteOptions = {
             contract: fromBuffer(r.contract),
             tokenId: r.token_id,
           },
-          orderSource,
+          orderSource: orderSource?.name ?? null,
+          orderSourceDomain: orderSource?.domain ?? null,
           orderSide: r.order_side === "sell" ? "ask" : "bid",
           orderKind: r.order_kind,
           from: r.order_side === "sell" ? fromBuffer(r.maker) : fromBuffer(r.taker),
           to: r.order_side === "sell" ? fromBuffer(r.taker) : fromBuffer(r.maker),
           amount: String(r.amount),
-          fillSource: r.fill_source ? String(r.fill_source) : orderSource,
+          fillSource: fillSource?.domain ?? orderSource?.domain ?? null,
           txHash: fromBuffer(r.tx_hash),
           logIndex: r.log_index,
           batchIndex: r.batch_index,

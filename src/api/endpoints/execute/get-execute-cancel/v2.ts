@@ -3,6 +3,7 @@
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import { TxData } from "@reservoir0x/sdk/dist/utils";
 import Joi from "joi";
 
 import { redb } from "@/common/db";
@@ -24,6 +25,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
+      // TODO: Add support for batch cancellations (where possible)
       id: Joi.string()
         .required()
         .description("Collection ID. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63``"),
@@ -92,189 +94,89 @@ export const getExecuteCancelV2Options: RouteOptions = {
         throw Boom.badData("No matching order");
       }
 
-      // Set up generic cancellation steps
-      // TODO: We should remove the "listing"/"offer" distinction once we get to bundles
-      const generateSteps = (side: "buy" | "sell") => [
-        {
-          action: side === "sell" ? "Submit cancellation" : "Cancel offer",
-          description: `To cancel this ${
-            side === "sell" ? "listing" : "offer"
-          } you must confirm the transaction and pay the gas fee`,
-          kind: "transaction",
-        },
-      ];
+      let cancelTx: TxData;
+      let orderSide: "sell" | "buy";
 
+      // REFACTOR: Move to SDK and handle X2Y2
       switch (orderResult.kind) {
         case "seaport": {
           const order = new Sdk.Seaport.Order(config.chainId, orderResult.raw_data);
-
-          // Generate exchange-specific cancellation transaction
           const exchange = new Sdk.Seaport.Exchange(config.chainId);
-          const cancelTx = exchange.cancelOrderTx(query.maker, order);
 
-          const steps = generateSteps(order.getInfo()!.side);
-          return {
-            steps: [
-              {
-                ...steps[0],
-                items: [
-                  {
-                    status: "incomplete",
-                    data: {
-                      ...cancelTx,
-                      maxFeePerGas: query.maxFeePerGas
-                        ? bn(query.maxFeePerGas).toHexString()
-                        : undefined,
-                      maxPriorityFeePerGas: query.maxPriorityFeePerGas
-                        ? bn(query.maxPriorityFeePerGas).toHexString()
-                        : undefined,
-                    },
-                    orderIndex: 0,
-                  },
-                ],
-              },
-            ],
-          };
+          cancelTx = exchange.cancelOrderTx(query.maker, order);
+          orderSide = order.getInfo()!.side;
+
+          break;
         }
 
         case "looks-rare": {
           const order = new Sdk.LooksRare.Order(config.chainId, orderResult.raw_data);
-
-          // Generate exchange-specific cancellation transaction
           const exchange = new Sdk.LooksRare.Exchange(config.chainId);
-          const cancelTx = exchange.cancelOrderTx(query.maker, order);
 
-          const steps = generateSteps(order.params.isOrderAsk ? "sell" : "buy");
-          return {
-            steps: [
-              {
-                ...steps[0],
-                items: [
-                  {
-                    status: "incomplete",
-                    data: {
-                      ...cancelTx,
-                      maxFeePerGas: query.maxFeePerGas
-                        ? bn(query.maxFeePerGas).toHexString()
-                        : undefined,
-                      maxPriorityFeePerGas: query.maxPriorityFeePerGas
-                        ? bn(query.maxPriorityFeePerGas).toHexString()
-                        : undefined,
-                    },
-                    orderIndex: 0,
-                  },
-                ],
-              },
-            ],
-          };
+          cancelTx = exchange.cancelOrderTx(query.maker, order);
+          orderSide = order.params.isOrderAsk ? "sell" : "buy";
+
+          break;
         }
 
         case "opendao-erc721":
         case "opendao-erc1155": {
           const order = new Sdk.OpenDao.Order(config.chainId, orderResult.raw_data);
-
-          // Generate exchange-specific cancellation transaction
           const exchange = new Sdk.OpenDao.Exchange(config.chainId);
-          const cancelTx = exchange.cancelOrderTx(query.maker, order);
 
-          const steps = generateSteps(
-            order.params.direction === Sdk.OpenDao.Types.TradeDirection.SELL ? "sell" : "buy"
-          );
-          return {
-            steps: [
-              {
-                ...steps[0],
-                items: [
-                  {
-                    status: "incomplete",
-                    data: {
-                      ...cancelTx,
-                      maxFeePerGas: query.maxFeePerGas
-                        ? bn(query.maxFeePerGas).toHexString()
-                        : undefined,
-                      maxPriorityFeePerGas: query.maxPriorityFeePerGas
-                        ? bn(query.maxPriorityFeePerGas).toHexString()
-                        : undefined,
-                    },
-                    orderIndex: 0,
-                  },
-                ],
-              },
-            ],
-          };
+          cancelTx = exchange.cancelOrderTx(query.maker, order);
+          orderSide =
+            order.params.direction === Sdk.OpenDao.Types.TradeDirection.SELL ? "sell" : "buy";
+
+          break;
         }
 
         case "zeroex-v4-erc721":
         case "zeroex-v4-erc1155": {
           const order = new Sdk.ZeroExV4.Order(config.chainId, orderResult.raw_data);
-
-          // Generate exchange-specific cancellation transaction
           const exchange = new Sdk.ZeroExV4.Exchange(config.chainId);
-          const cancelTx = exchange.cancelOrderTx(query.maker, order);
 
-          const steps = generateSteps(
-            order.params.direction === Sdk.ZeroExV4.Types.TradeDirection.SELL ? "sell" : "buy"
-          );
-          return {
-            steps: [
-              {
-                ...steps[0],
-                items: [
-                  {
-                    status: "incomplete",
-                    data: {
-                      ...cancelTx,
-                      maxFeePerGas: query.maxFeePerGas
-                        ? bn(query.maxFeePerGas).toHexString()
-                        : undefined,
-                      maxPriorityFeePerGas: query.maxPriorityFeePerGas
-                        ? bn(query.maxPriorityFeePerGas).toHexString()
-                        : undefined,
-                    },
-                    orderIndex: 0,
-                  },
-                ],
-              },
-            ],
-          };
+          cancelTx = exchange.cancelOrderTx(query.maker, order);
+          orderSide =
+            order.params.direction === Sdk.ZeroExV4.Types.TradeDirection.SELL ? "sell" : "buy";
+
+          break;
         }
 
-        case "x2y2": {
-          const order = new Sdk.X2Y2.Order(config.chainId, orderResult.raw_data);
-
-          // Generate exchange-specific cancellation transaction
-          const exchange = new Sdk.X2Y2.Exchange(config.chainId, process.env.X2Y2_API_KEY!);
-          const cancelTx = exchange.cancelOrderTx(query.maker, order);
-
-          const steps = generateSteps(order.params.type as "sell" | "buy");
-          return {
-            steps: [
-              {
-                ...steps[0],
-                items: [
-                  {
-                    status: "incomplete",
-                    data: {
-                      ...cancelTx,
-                      maxFeePerGas: query.maxFeePerGas
-                        ? bn(query.maxFeePerGas).toHexString()
-                        : undefined,
-                      maxPriorityFeePerGas: query.maxPriorityFeePerGas
-                        ? bn(query.maxPriorityFeePerGas).toHexString()
-                        : undefined,
-                    },
-                    orderIndex: 0,
-                  },
-                ],
-              },
-            ],
-          };
-        }
+        // TODO: Add support for X2Y2 (it's tricky because of the signature requirement)
 
         default: {
           throw Boom.notImplemented("Unsupported order kind");
         }
       }
+
+      // TODO: We should remove the "listing"/"offer" distinction once we get to bundles
+      return {
+        steps: [
+          {
+            action: orderSide === "sell" ? "Submit cancellation" : "Cancel offer",
+            description: `To cancel this ${
+              orderSide === "sell" ? "listing" : "offer"
+            } you must confirm the transaction and pay the gas fee`,
+            kind: "transaction",
+            items: [
+              {
+                status: "incomplete",
+                data: {
+                  ...cancelTx,
+                  maxFeePerGas: query.maxFeePerGas
+                    ? bn(query.maxFeePerGas).toHexString()
+                    : undefined,
+                  maxPriorityFeePerGas: query.maxPriorityFeePerGas
+                    ? bn(query.maxPriorityFeePerGas).toHexString()
+                    : undefined,
+                },
+                orderIndex: 0,
+              },
+            ],
+          },
+        ],
+      };
     } catch (error) {
       logger.error(`get-execute-cancel-${version}-handler`, `Handler failure: ${error}`);
       throw error;

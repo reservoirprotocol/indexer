@@ -14,10 +14,11 @@ const version = "v1";
 export const getStatsV1Options: RouteOptions = {
   description: "Stats",
   notes: "Get aggregate stats for a particular set (collection, attribute or single token)",
-  tags: ["api", "Stats"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 7,
+      deprecated: true,
     },
   },
   validate: {

@@ -7,7 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { formatEth, regex } from "@/common/utils";
 import { ActivityType } from "@/models/activities/activities-entity";
-import { UserActivities } from "@/models/user_activities";
+import { UserActivities } from "@/models/user-activities";
 
 const version = "v1";
 

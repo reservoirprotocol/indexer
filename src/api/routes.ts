@@ -272,6 +272,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collection/v4",
+    options: collectionsEndpoints.getCollectionV4Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/collections/{collection}/top-bids/v1",
     options: collectionsEndpoints.getCollectionTopBidsV1Options,
   });
@@ -333,10 +339,23 @@ export const setupRoutes = (server: Server) => {
     path: "/events/orders/v1",
     options: eventsEndpoints.getOrderEventsV1Options,
   });
+
   server.route({
     method: "GET",
     path: "/events/tokens/floor-ask/v2",
     options: eventsEndpoints.getTokensFloorAskV2Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/events/bids/v1",
+    options: eventsEndpoints.getBidEventsV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/events/collections/top-bid/v1",
+    options: eventsEndpoints.getCollectionsTopBidV1Options,
   });
 
   // Execute
@@ -474,6 +493,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/orders/asks/v3",
+    options: ordersEndpoints.getOrdersAsksV3Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/orders/bids/v1",
     options: ordersEndpoints.getOrdersBidsV1Options,
   });
@@ -482,6 +507,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/orders/bids/v2",
     options: ordersEndpoints.getOrdersBidsV2Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/orders/bids/v3",
+    options: ordersEndpoints.getOrdersBidsV3Options,
   });
 
   server.route({
@@ -606,7 +637,19 @@ export const setupRoutes = (server: Server) => {
     options: statsEndpoints.getStatsV1Options,
   });
 
+  server.route({
+    method: "GET",
+    path: "/stats/v2",
+    options: statsEndpoints.getStatsV2Options,
+  });
+
   // Tokens
+
+  server.route({
+    method: "POST",
+    path: "/tokens/flag/v1",
+    options: tokensEndpoints.postFlagTokenV1Options,
+  });
 
   server.route({
     method: "GET",
@@ -630,6 +673,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/tokens/v4",
     options: tokensEndpoints.getTokensV4Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/tokens/v5",
+    options: tokensEndpoints.getTokensV5Options,
   });
 
   server.route({
@@ -692,6 +741,12 @@ export const setupRoutes = (server: Server) => {
     options: tokensEndpoints.postSimulateFloorV1Options,
   });
 
+  server.route({
+    method: "GET",
+    path: "/tokens/ids/v1",
+    options: tokensEndpoints.getTokensIdsV4Options,
+  });
+
   // Token sets
 
   server.route({
@@ -730,6 +785,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/sales/v4",
+    options: transfersEndpoints.getSalesV4Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/sales/bulk/v1",
     options: transfersEndpoints.getSalesBulkV1Options,
   });
@@ -744,5 +805,11 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/transfers/bulk/v1",
     options: transfersEndpoints.getTransfersBulkV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/received-bids/v1",
+    options: ordersEndpoints.getReceivedBidsV1Options,
   });
 };

@@ -31,13 +31,13 @@ export const postOrderV3Options: RouteOptions = {
       order: Joi.object({
         kind: Joi.string()
           .lowercase()
-          .valid("opensea", "looks-rare", "721ex", "zeroex-v4", "seaport")
+          .valid("opensea", "looks-rare", "721ex", "zeroex-v4", "seaport", "x2y2")
           .required(),
         data: Joi.object().required(),
       }),
       orderbook: Joi.string()
         .lowercase()
-        .valid("reservoir", "opensea", "looks-rare")
+        .valid("reservoir", "opensea", "looks-rare", "x2y2")
         .default("reservoir"),
       orderbookApiKey: Joi.string(),
       source: Joi.string()
@@ -174,6 +174,7 @@ export const postOrderV3Options: RouteOptions = {
 
           const orderInfo: orders.seaport.OrderInfo = {
             orderParams: order.data,
+            isReservoir: true,
             metadata: {
               schema,
               source,
@@ -232,6 +233,26 @@ export const postOrderV3Options: RouteOptions = {
           }
 
           return { message: "Success", orderId: result.id };
+        }
+
+        case "x2y2": {
+          if (!["x2y2"].includes(orderbook)) {
+            throw new Error("Unsupported orderbook");
+          }
+
+          // We do not save the order directly since X2Y2 orders are not fillable
+          // unless their backend has processed them first. So we just need to be
+          // patient until the relayer acknowledges the order (via X2Y2's server)
+          // before us being able to ingest it.
+
+          await postOrderExternal.addToQueue(order.data, orderbook, orderbookApiKey);
+
+          logger.info(
+            `post-order-${version}-handler`,
+            `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}`
+          );
+
+          return { message: "Success" };
         }
       }
 

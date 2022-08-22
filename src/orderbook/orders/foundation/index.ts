@@ -1,10 +1,12 @@
 import { AddressZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
+import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
 import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
@@ -179,6 +181,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         taker: toBuffer(AddressZero),
         price: orderParams.price.toString(),
         value: orderParams.price.toString(),
+        currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+        currency_price: orderParams.price.toString(),
+        currency_value: orderParams.price.toString(),
+        needs_conversion: null,
         quantity_remaining: "1",
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: null,
@@ -224,6 +230,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "taker",
         "price",
         "value",
+        "currency",
+        "currency_price",
+        "currency_value",
+        "needs_conversion",
         "quantity_remaining",
         { name: "valid_between", mod: ":raw" },
         "nonce",

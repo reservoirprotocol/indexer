@@ -23,6 +23,8 @@ export type TokensEntityUpdateParams = {
   updatedAt?: string;
   attributes?: Buffer;
   lastMetadataSync?: string;
+  isFlagged?: number;
+  lastFlagUpdate?: string;
 };
 
 // Define the fields need to instantiate the entity
@@ -48,6 +50,8 @@ export type TokensEntityParams = {
   updated_at: string;
   attributes: Buffer;
   last_metadata_sync: string;
+  is_flagged: number;
+  last_flag_update: string;
 };
 
 export class TokensEntity {
@@ -72,6 +76,8 @@ export class TokensEntity {
   updatedAt: string;
   attributes: string;
   lastMetadataSync: string;
+  isFlagged: number;
+  lastFlagUpdate: string;
 
   constructor(params: TokensEntityParams) {
     this.contract = fromBuffer(params.contract);
@@ -99,5 +105,7 @@ export class TokensEntity {
     this.updatedAt = params.updated_at;
     this.attributes = params.attributes ? fromBuffer(params.attributes) : params.attributes;
     this.lastMetadataSync = params.last_metadata_sync;
+    this.isFlagged = Number(params.is_flagged);
+    this.lastFlagUpdate = params.last_flag_update;
   }
 }

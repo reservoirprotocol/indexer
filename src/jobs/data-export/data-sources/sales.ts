@@ -73,7 +73,7 @@ export class SalesDataSource extends BaseDataSource {
           tx_log_index: r.log_index,
           tx_batch_index: r.batch_index,
           tx_timestamp: r.timestamp,
-          created_at: new Date(r.created_ts).toISOString(),
+          created_at: new Date(r.created_ts * 1000).toISOString(),
         };
       });
 

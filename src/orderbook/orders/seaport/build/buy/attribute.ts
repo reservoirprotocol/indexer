@@ -61,20 +61,20 @@ export const build = async (options: BuildOrderOptions) => {
       "buy"
     );
 
+    const excludeFlaggedTokens = options.excludeFlaggedTokens ? "AND tokens.is_flagged = 0" : "";
+
     // Fetch all tokens matching the attributes
-    // TODO: Include `NOT is_flagged` filter in the query
     const tokens = await redb.manyOrNone(
       `
-        SELECT
-          token_attributes.token_id
+        SELECT token_attributes.token_id
         FROM token_attributes
-        JOIN attributes
-          ON token_attributes.attribute_id = attributes.id
-        JOIN attribute_keys
-          ON attributes.attribute_key_id = attribute_keys.id
+        JOIN attributes ON token_attributes.attribute_id = attributes.id
+        JOIN attribute_keys ON attributes.attribute_key_id = attribute_keys.id
+        JOIN tokens ON token_attributes.contract = tokens.contract AND token_attributes.token_id = tokens.token_id
         WHERE attribute_keys.collection_id = $/collection/
-          AND attribute_keys.key = $/key/
-          AND attributes.value = $/value/
+        AND attribute_keys.key = $/key/
+        AND attributes.value = $/value/
+        ${excludeFlaggedTokens}
         ORDER BY token_attributes.token_id
       `,
       {

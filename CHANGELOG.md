@@ -1,3 +1,472 @@
+## [5.172.1](https://github.com/reservoirprotocol/indexer/compare/v5.172.0...v5.172.1) (2022-08-22)
+
+
+### Bug Fixes
+
+* tweaks ([f2ea158](https://github.com/reservoirprotocol/indexer/commit/f2ea1583837df742c9bf6abaa4cf57b925dfbef8))
+
+
+
+# [5.172.0](https://github.com/reservoirprotocol/indexer/compare/v5.171.7...v5.172.0) (2022-08-22)
+
+
+### Bug Fixes
+
+* disable erc20 liquidity ingestion ([fc62dca](https://github.com/reservoirprotocol/indexer/commit/fc62dca15b4d8bcc02122cc51a16f15a44223bcb))
+* minor tweaks ([e45567f](https://github.com/reservoirprotocol/indexer/commit/e45567f9a58bf24bd5b582b5d8bbfff65a792d67))
+* minor tweaks ([d6e2f9f](https://github.com/reservoirprotocol/indexer/commit/d6e2f9f99b18456fb4fd599913a586fa369b8a31))
+* normalize zeroex-like exchanges currency ([6ba16b0](https://github.com/reservoirprotocol/indexer/commit/6ba16b0f7d2d8aaa4f0c36856c98641882da56e9))
+* query ([8ccc12d](https://github.com/reservoirprotocol/indexer/commit/8ccc12d021c67c501d250b7468a64ab3a50b88cd))
+* remove tokens v5 api ([a6141ed](https://github.com/reservoirprotocol/indexer/commit/a6141edb56aca736710d19965404b87252ae7694))
+* response validation errors ([9a22279](https://github.com/reservoirprotocol/indexer/commit/9a222793ba6dd01497ab7c95970ca0b1edaad2cd))
+* set proper valid from for x2y2 orders ([b32a3d9](https://github.com/reservoirprotocol/indexer/commit/b32a3d944b89f3ac9368b5b732e8802978777dea))
+* special rule for handling gem filling directly on seaport ([97cdca0](https://github.com/reservoirprotocol/indexer/commit/97cdca09965925541defebcc8c9382a05f5985f2))
+* tweaks ([8cc234b](https://github.com/reservoirprotocol/indexer/commit/8cc234b40db4d5415fde5e6a4406cdf04192d8db))
+* tweaks ([2312524](https://github.com/reservoirprotocol/indexer/commit/231252408404ef7ede23aaa4203ea99dfc0c59f1))
+* tweaks ([4295f1d](https://github.com/reservoirprotocol/indexer/commit/4295f1d6f2cac97e395f62d16ae87b1cbb337004))
+* wip ([e232a35](https://github.com/reservoirprotocol/indexer/commit/e232a357a3a4b81515e1950b9f38e0d6f0fe8068))
+* wip ([b6ec6e0](https://github.com/reservoirprotocol/indexer/commit/b6ec6e0beb9ed41b120fa381e273e7ee4a798c92))
+
+
+### Features
+
+* add cron for updating erc20 order prices ([66f7d04](https://github.com/reservoirprotocol/indexer/commit/66f7d04a101ba05556d1580ac18c7460e5554834))
+* basic support for erc20 orders ([1ec2e8c](https://github.com/reservoirprotocol/indexer/commit/1ec2e8c9cec6d9ac7da34831bdff39ebe5f91eef))
+* enable seaport erc20 listings ([ad13923](https://github.com/reservoirprotocol/indexer/commit/ad13923ed276127f22c9685d0adb7f998b54e28f))
+
+
+
+## [5.171.7](https://github.com/reservoirprotocol/indexer/compare/v5.171.6...v5.171.7) (2022-08-19)
+
+
+### Bug Fixes
+
+* orders response validation ([56277eb](https://github.com/reservoirprotocol/indexer/commit/56277eb438e13c684ed7620e18f5617feda797af))
+* properly set sales fill source ([2363809](https://github.com/reservoirprotocol/indexer/commit/23638096dcfc0eded50a511c240926a4e6cec380))
+
+
+
+## [5.171.6](https://github.com/reservoirprotocol/indexer/compare/v5.171.5...v5.171.6) (2022-08-18)
+
+
+### Bug Fixes
+
+* added migration ([cd8c1eb](https://github.com/reservoirprotocol/indexer/commit/cd8c1eb2c804514888c11c0df1a0ac7a73ff7400))
+
+
+
+## [5.171.5](https://github.com/reservoirprotocol/indexer/compare/v5.171.4...v5.171.5) (2022-08-18)
+
+
+### Bug Fixes
+
+* various tweaks ([ea9bce1](https://github.com/reservoirprotocol/indexer/commit/ea9bce1f68fb22cba102d3387e25c4fec5b2a77c))
+
+
+
+## [5.171.4](https://github.com/reservoirprotocol/indexer/compare/v5.171.3...v5.171.4) (2022-08-18)
+
+
+### Bug Fixes
+
+* always use a default source for opensea ([1e14263](https://github.com/reservoirprotocol/indexer/commit/1e14263fd793bdb7f65a974e6bbb288ce3a5e267))
+
+
+
+## [5.171.3](https://github.com/reservoirprotocol/indexer/compare/v5.171.2...v5.171.3) (2022-08-17)
+
+
+### Bug Fixes
+
+* preserve backwards-compatibility ([4ecbce6](https://github.com/reservoirprotocol/indexer/commit/4ecbce6203ef4895ec7ef794f3a058019fab1f29))
+
+
+
+## [5.171.2](https://github.com/reservoirprotocol/indexer/compare/v5.171.1...v5.171.2) (2022-08-17)
+
+
+### Bug Fixes
+
+* added default source for nouns ([68c8c9f](https://github.com/reservoirprotocol/indexer/commit/68c8c9fc5f967c52a622fbc3cc5493d869b8ec0a))
+* added nouns ([41e8ea0](https://github.com/reservoirprotocol/indexer/commit/41e8ea01a2760996bcf124642d00c106dee715f6))
+* added price data ([2a279d3](https://github.com/reservoirprotocol/indexer/commit/2a279d3dacb50d78dab93dc5197b8dc2208b16a9))
+
+
+
+## [5.171.1](https://github.com/reservoirprotocol/indexer/compare/v5.171.0...v5.171.1) (2022-08-17)
+
+
+### Bug Fixes
+
+* missing sources ([ecd8248](https://github.com/reservoirprotocol/indexer/commit/ecd8248629f28ba3d7f32f6826b7a908960bc471))
+
+
+
+# [5.171.0](https://github.com/reservoirprotocol/indexer/compare/v5.170.0...v5.171.0) (2022-08-17)
+
+
+### Bug Fixes
+
+* x2y2 listings ([69e1d91](https://github.com/reservoirprotocol/indexer/commit/69e1d91e6bc6bc56939edea3ff43aa69b20c21ce))
+* x2y2 marketplace fee ([9b6021a](https://github.com/reservoirprotocol/indexer/commit/9b6021a930507d1bf179db5f251388b66b722961))
+
+
+### Features
+
+* wip ([b0f8bd1](https://github.com/reservoirprotocol/indexer/commit/b0f8bd18923f58126792274916429e0f48978ced))
+
+
+
+# [5.170.0](https://github.com/reservoirprotocol/indexer/compare/v5.169.0...v5.170.0) (2022-08-17)
+
+
+### Bug Fixes
+
+* add orderbook and orderKind for x2y2 marketplace ([4b623ac](https://github.com/reservoirprotocol/indexer/commit/4b623ac4c80449497448850ff99c089eb7165d97))
+
+
+### Features
+
+* dynamic listing enabled field for marketplaces based on chain id ([80e9c8b](https://github.com/reservoirprotocol/indexer/commit/80e9c8b66719c7dc1ed1e5b0dfd65ac9514b5b66))
+* enable x2y2 marketplace listing ([26f94bb](https://github.com/reservoirprotocol/indexer/commit/26f94bbdf3f055830c4a14714bab54fdb99dd1eb))
+
+
+
+# [5.169.0](https://github.com/reservoirprotocol/indexer/compare/v5.168.0...v5.169.0) (2022-08-17)
+
+
+### Features
+
+* add job queue for retrying failed currency fetch attempts ([99cd2a2](https://github.com/reservoirprotocol/indexer/commit/99cd2a23874e628ce158763302e56467a77912e9))
+
+
+
+# [5.168.0](https://github.com/reservoirprotocol/indexer/compare/v5.167.1...v5.168.0) (2022-08-17)
+
+
+### Features
+
+* support ingesting x2y2 collection offers ([811e97e](https://github.com/reservoirprotocol/indexer/commit/811e97e800d48b87cf3ca530c3da4af61f8710f7))
+
+
+
+## [5.167.1](https://github.com/reservoirprotocol/indexer/compare/v5.167.0...v5.167.1) (2022-08-17)
+
+
+### Bug Fixes
+
+* update looksrare sell order currency from eth to weth ([c03fe10](https://github.com/reservoirprotocol/indexer/commit/c03fe10f8fbf81ef746c3ae6e78c1c984e984fcb))
+
+
+
+# [5.167.0](https://github.com/reservoirprotocol/indexer/compare/v5.166.0...v5.167.0) (2022-08-16)
+
+
+### Features
+
+* add support for creating x2y2 bids ([d6a110e](https://github.com/reservoirprotocol/indexer/commit/d6a110e4fb9e93575e2d3dc9a10c0e1451d5ba55))
+
+
+
+# [5.166.0](https://github.com/reservoirprotocol/indexer/compare/v5.165.0...v5.166.0) (2022-08-16)
+
+
+### Features
+
+* add support for creating and posting x2y2 orders ([dea4614](https://github.com/reservoirprotocol/indexer/commit/dea4614207c494cc742520231c958d78847dbbb7))
+
+
+
+# [5.165.0](https://github.com/reservoirprotocol/indexer/compare/v5.164.1...v5.165.0) (2022-08-15)
+
+
+### Features
+
+* add support for creating looks-rare bids ([ffbf45f](https://github.com/reservoirprotocol/indexer/commit/ffbf45fbe4d34a80e0a6d78086842ccb7f219385))
+
+
+
+## [5.164.1](https://github.com/reservoirprotocol/indexer/compare/v5.164.0...v5.164.1) (2022-08-15)
+
+
+### Bug Fixes
+
+* call order v3 ([#1473](https://github.com/reservoirprotocol/indexer/issues/1473)) ([5876622](https://github.com/reservoirprotocol/indexer/commit/5876622288513a2342b05e4feb1c92dcba32464f))
+
+
+
+# [5.164.0](https://github.com/reservoirprotocol/indexer/compare/v5.163.2...v5.164.0) (2022-08-15)
+
+
+### Features
+
+* support ingesting orders without coresponding token sets ([2738fdc](https://github.com/reservoirprotocol/indexer/commit/2738fdc808d66430b085db7ebd2ac6fb2cd15f75))
+
+
+
+## [5.163.2](https://github.com/reservoirprotocol/indexer/compare/v5.163.1...v5.163.2) (2022-08-15)
+
+
+### Bug Fixes
+
+* build ([c0beb98](https://github.com/reservoirprotocol/indexer/commit/c0beb9869c96740e70f76b4ac65301708487ac00))
+
+
+
+## [5.163.1](https://github.com/reservoirprotocol/indexer/compare/v5.163.0...v5.163.1) (2022-08-15)
+
+
+### Bug Fixes
+
+* properly invalidate x2y2 orders ([21ac13d](https://github.com/reservoirprotocol/indexer/commit/21ac13d83b5b720d11877e188e8c9579d4c0365d))
+* x2y2 order simulation ([e87fa48](https://github.com/reservoirprotocol/indexer/commit/e87fa4840aefb6b54c5bc51e66a4a7daa0f0d481))
+
+
+
+# [5.163.0](https://github.com/reservoirprotocol/indexer/compare/v5.162.0...v5.163.0) (2022-08-15)
+
+
+### Bug Fixes
+
+* collection update query ([0af368d](https://github.com/reservoirprotocol/indexer/commit/0af368d46a2e118b4365cb7e8af6f78a9001008f))
+* properly invalidate x2y2 orders ([26f7d35](https://github.com/reservoirprotocol/indexer/commit/26f7d35d2e8ca35741d795e603c13513563f747f))
+
+
+### Features
+
+* added log ([67f1de1](https://github.com/reservoirprotocol/indexer/commit/67f1de1be8bdbd0a80e6d3bedbd8ca944e743c8b))
+* update collection metadata refresh locking ([5627249](https://github.com/reservoirprotocol/indexer/commit/562724971a658d8faaca53e0382de2dd2d08e9cd))
+
+
+
+# [5.162.0](https://github.com/reservoirprotocol/indexer/compare/v5.161.0...v5.162.0) (2022-08-12)
+
+
+### Features
+
+* update collection metadata refresh locking ([fc92186](https://github.com/reservoirprotocol/indexer/commit/fc92186a5864d8b8d3e11eca7835429becfa942e))
+
+
+
+# [5.161.0](https://github.com/reservoirprotocol/indexer/compare/v5.160.0...v5.161.0) (2022-08-12)
+
+
+### Features
+
+* search by source name first in orders/all ([5a98d92](https://github.com/reservoirprotocol/indexer/commit/5a98d9274c2fa34aa9419d6126fcb41fab72d063))
+* update collection metadata refresh locking ([aa23e3c](https://github.com/reservoirprotocol/indexer/commit/aa23e3ce1ef16f236037f6c5cc202cf642e0329b))
+* update collection metadata refresh locking ([1da17b2](https://github.com/reservoirprotocol/indexer/commit/1da17b20ed64737c0446f4f04447523776195176))
+* update docs examples for sources ([2dddbd3](https://github.com/reservoirprotocol/indexer/commit/2dddbd31138f31e31435261ccba97a37b7cdf0cb))
+* update token redirect to root domain if no schema ([5c89f54](https://github.com/reservoirprotocol/indexer/commit/5c89f542b869031b18827fcc177cd35c7d79648f))
+
+
+
+# [5.160.0](https://github.com/reservoirprotocol/indexer/compare/v5.159.0...v5.160.0) (2022-08-11)
+
+
+### Features
+
+* on conflict api key just return ([94a476b](https://github.com/reservoirprotocol/indexer/commit/94a476bc2a73296f4ed77293ed2d8f5c7fb005ad))
+
+
+
+# [5.159.0](https://github.com/reservoirprotocol/indexer/compare/v5.158.0...v5.159.0) (2022-08-11)
+
+
+### Features
+
+* return default source if null ([a244fc8](https://github.com/reservoirprotocol/indexer/commit/a244fc88449b1d961feae613636b7ead005ccbc8))
+
+
+
+# [5.158.0](https://github.com/reservoirprotocol/indexer/compare/v5.157.0...v5.158.0) (2022-08-11)
+
+
+### Bug Fixes
+
+* source icon fetching ([f4056ca](https://github.com/reservoirprotocol/indexer/commit/f4056ca9be8fe3b95b270c4a5de17104a77d76f0))
+* source icon fetching ([32bac76](https://github.com/reservoirprotocol/indexer/commit/32bac7606f89b1ca8e6f5362cc70320c2a5f8022))
+
+
+### Features
+
+* fix fetch source icon ([8c9f1f7](https://github.com/reservoirprotocol/indexer/commit/8c9f1f73061560ff793ae1889a03747842a9a274))
+* fix fetch source icon ([2a73212](https://github.com/reservoirprotocol/indexer/commit/2a73212c6b634b90ab4e0d6c5a6a02967d2e1640))
+* redirect to domain if no token schema ([266a24c](https://github.com/reservoirprotocol/indexer/commit/266a24c4d8a13fe7f30ac600c09c7b61b89f8de0))
+
+
+
+# [5.157.0](https://github.com/reservoirprotocol/indexer/compare/v5.156.0...v5.157.0) (2022-08-11)
+
+
+### Features
+
+* added api v1 ([#1441](https://github.com/reservoirprotocol/indexer/issues/1441)) ([61aed0e](https://github.com/reservoirprotocol/indexer/commit/61aed0e709feef4878d7861e699dcd199e73ee38))
+
+
+
+# [5.156.0](https://github.com/reservoirprotocol/indexer/compare/v5.155.0...v5.156.0) (2022-08-10)
+
+
+### Bug Fixes
+
+* generate UUID based on params passed ([b129b7a](https://github.com/reservoirprotocol/indexer/commit/b129b7a803080730aeb67c518aef79a08adf1c19))
+
+
+
+# [5.155.0](https://github.com/reservoirprotocol/indexer/compare/v5.154.0...v5.155.0) (2022-08-10)
+
+
+### Bug Fixes
+
+* currency price in sales/v3 ([ba6d52b](https://github.com/reservoirprotocol/indexer/commit/ba6d52bce6ada28c773fffbbefb39ae535b9df37))
+* currency price in sales/v3 ([edcbde5](https://github.com/reservoirprotocol/indexer/commit/edcbde5db35ead6a63811a0da79449a963c5221d))
+
+
+### Features
+
+* allow sort tokens by token id (desc/asc) ([fbe9689](https://github.com/reservoirprotocol/indexer/commit/fbe96896eb1b5652bf2f28cc636860cf376a3baf))
+
+
+
+# [5.154.0](https://github.com/reservoirprotocol/indexer/compare/v5.153.0...v5.154.0) (2022-08-10)
+
+
+### Features
+
+* fix sources ([7c9eac5](https://github.com/reservoirprotocol/indexer/commit/7c9eac543b8dbb91dd8bda7464a3bd73e03dcbf8))
+* get token url tags from custom tags ([8209ee9](https://github.com/reservoirprotocol/indexer/commit/8209ee909115a8625e70de5149b4c65ab8cada3c))
+* parse custom tags for token url ([238c65b](https://github.com/reservoirprotocol/indexer/commit/238c65b5a6e5a0f4a07c8eef8e907b5ca0ace177))
+
+
+
+# [5.153.0](https://github.com/reservoirprotocol/indexer/compare/v5.152.0...v5.153.0) (2022-08-10)
+
+
+### Features
+
+* added score to sales api, added whitelisting / blacklisting ([#1437](https://github.com/reservoirprotocol/indexer/issues/1437)) ([110272f](https://github.com/reservoirprotocol/indexer/commit/110272fda39b9942111b8448275dcb5a8652991e))
+* fix sources ([9ddbd07](https://github.com/reservoirprotocol/indexer/commit/9ddbd073a4a92012cb03f6d45ef50d109e9d9b43))
+
+
+
+# [5.152.0](https://github.com/reservoirprotocol/indexer/compare/v5.151.0...v5.152.0) (2022-08-10)
+
+
+### Features
+
+* ability to flag tokens ([f9fc3e8](https://github.com/reservoirprotocol/indexer/commit/f9fc3e83f1e57e5ec427e99f7485d91b44216df3))
+* build token set only for tokens within the relevant collection ([a235a3d](https://github.com/reservoirprotocol/indexer/commit/a235a3dcab61a23c688240ed918541039bbccbb8))
+* filter flagged tokens ([05cde99](https://github.com/reservoirprotocol/indexer/commit/05cde9967305e1706791401b83999025908c02f6))
+* fix error ([510335b](https://github.com/reservoirprotocol/indexer/commit/510335ba1889943b476221c9da300195139920d9))
+* fix migration ([ba8f856](https://github.com/reservoirprotocol/indexer/commit/ba8f856d40bee5b6dbabed2b77b1d41215ee4e93))
+* read from master ([36fdbc3](https://github.com/reservoirprotocol/indexer/commit/36fdbc3fd0928a45c0779f73bfcc2342d67c7dcb))
+* read from replica ([665e2c5](https://github.com/reservoirprotocol/indexer/commit/665e2c559a826b31a3566f54019f6d5f8a18ae7e))
+* set is_flagged behind a flag ([9ac84b2](https://github.com/reservoirprotocol/indexer/commit/9ac84b283a8d93ab130f5040c9527c52702f51b2))
+
+
+
+# [5.151.0](https://github.com/reservoirprotocol/indexer/compare/v5.150.1...v5.151.0) (2022-08-10)
+
+
+### Features
+
+* detect opensea as source from the fee ([d058586](https://github.com/reservoirprotocol/indexer/commit/d0585869339541cc6001af88b7f4e9e7fbad52c6))
+* update default source domain ([15dd168](https://github.com/reservoirprotocol/indexer/commit/15dd168c3f2c25d2e253d41c374ebcf2bc5f708e))
+
+
+
+## [5.150.1](https://github.com/reservoirprotocol/indexer/compare/v5.150.0...v5.150.1) (2022-08-10)
+
+
+### Bug Fixes
+
+* properly update all relevant order statuses on approval revokes ([5d7e180](https://github.com/reservoirprotocol/indexer/commit/5d7e180f03bf4beefac9125370212611ff3513f6))
+
+
+
+# [5.150.0](https://github.com/reservoirprotocol/indexer/compare/v5.149.0...v5.150.0) (2022-08-09)
+
+
+### Features
+
+* added source domain to collection/v3 response ([de03324](https://github.com/reservoirprotocol/indexer/commit/de0332496b7ccdec1c5db8019f94643bd7ff813b))
+
+
+
+# [5.149.0](https://github.com/reservoirprotocol/indexer/compare/v5.148.1...v5.149.0) (2022-08-09)
+
+
+### Features
+
+* return source domain ([f576a0d](https://github.com/reservoirprotocol/indexer/commit/f576a0dfe670f4c00c859f26604e91966f7896b1))
+
+
+
+## [5.148.1](https://github.com/reservoirprotocol/indexer/compare/v5.148.0...v5.148.1) (2022-08-08)
+
+
+### Bug Fixes
+
+* added null support ([#1417](https://github.com/reservoirprotocol/indexer/issues/1417)) ([0cc3e01](https://github.com/reservoirprotocol/indexer/commit/0cc3e01287fdd576b18e915aca2e5ec91b5eaadc))
+
+
+
+# [5.148.0](https://github.com/reservoirprotocol/indexer/compare/v5.147.3...v5.148.0) (2022-08-08)
+
+
+### Features
+
+* validate timestamps ([520d305](https://github.com/reservoirprotocol/indexer/commit/520d305f6bae49085bd4ff5b5ecf598eec773cd9))
+* validate unix timestamps are no more than 10 numbers ([698c2a6](https://github.com/reservoirprotocol/indexer/commit/698c2a6b9eec90fbb6ebf7a4f9d85a8e46e8e6f0))
+
+
+
+## [5.147.3](https://github.com/reservoirprotocol/indexer/compare/v5.147.2...v5.147.3) (2022-08-06)
+
+
+### Bug Fixes
+
+* change optimism native token to eth ([799761f](https://github.com/reservoirprotocol/indexer/commit/799761f48ee4d76b83b9a6e6defcab3e8efdf620))
+
+
+
+## [5.147.2](https://github.com/reservoirprotocol/indexer/compare/v5.147.1...v5.147.2) (2022-08-06)
+
+
+### Bug Fixes
+
+* use get or insert for sources ([d203880](https://github.com/reservoirprotocol/indexer/commit/d203880f2a2951a802b8f132fd71e9db22f02387))
+
+
+
+## [5.147.1](https://github.com/reservoirprotocol/indexer/compare/v5.147.0...v5.147.1) (2022-08-06)
+
+
+### Bug Fixes
+
+* undefined access ([9ae1018](https://github.com/reservoirprotocol/indexer/commit/9ae101832b1cf02ee22805b0f61b37105510f417))
+
+
+
+# [5.147.0](https://github.com/reservoirprotocol/indexer/compare/v5.146.0...v5.147.0) (2022-08-06)
+
+
+### Features
+
+* bids cleanup lock per server ([d55733f](https://github.com/reservoirprotocol/indexer/commit/d55733f2f2f9334318ba920c91fdf6d79abc234d))
+* clean 5k bids each time ([d9f7a0f](https://github.com/reservoirprotocol/indexer/commit/d9f7a0fe0dcf406bebaeb1fd516b6c5329d0cda4))
+* do not update source name ([6129e4a](https://github.com/reservoirprotocol/indexer/commit/6129e4a3a41e217ff226f628a5d118bfaf893d16))
+* increase bids cleanup frequency ([242d066](https://github.com/reservoirprotocol/indexer/commit/242d06661d8a1a1727451de73363d1b70156bed1))
+* increase bids cleanup frequency ([91c6e7e](https://github.com/reservoirprotocol/indexer/commit/91c6e7e92fe0ec0d5ecda3ff0f898422319b0aef))
+* increase bids cleanup frequency ([080048f](https://github.com/reservoirprotocol/indexer/commit/080048fd68059c9e6941d53b71067daf7c81e8d4))
+* increase bids cleanup frequency ([0cf3a19](https://github.com/reservoirprotocol/indexer/commit/0cf3a191bc3e374e49d27e5c366e96bf3e8b3440))
+* increase bids cleanup frequency ([0cc09c3](https://github.com/reservoirprotocol/indexer/commit/0cc09c3d799316daab7e3ff09a1b4be57f5bac6f))
+* increase bids cleanup limit ([17654cd](https://github.com/reservoirprotocol/indexer/commit/17654cdd37e8f94be5c68ee86f511bcb00f6c86e))
+* update bids locks ([291be5e](https://github.com/reservoirprotocol/indexer/commit/291be5e714551d47a864a6a3d34fadb93427d259))
+
+
+
 # [5.146.0](https://github.com/reservoirprotocol/indexer/compare/v5.145.0...v5.146.0) (2022-08-04)
 
 

@@ -3,7 +3,7 @@
 import _ from "lodash";
 
 import { idb, redb } from "@/common/db";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { fromBuffer, now, toBuffer } from "@/common/utils";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import {
   TokensEntity,
@@ -122,6 +122,50 @@ export class Tokens {
       .then((result) => (result ? result.count : 0));
   }
 
+  public static async getNonFlaggedTokenIdsInCollection(
+    contract: string,
+    collectionId: string,
+    readReplica = false
+  ) {
+    const dbInstance = readReplica ? redb : idb;
+    const limit = 5000;
+    let checkForMore = true;
+    let continuation = "";
+    let tokenIds: string[] = [];
+
+    while (checkForMore) {
+      const query = `
+        SELECT token_id
+        FROM tokens
+        WHERE contract = $/contract/
+        AND collection_id = $/collectionId/
+        AND is_flagged = 0
+        ${continuation}
+        ORDER BY token_id ASC
+        LIMIT ${limit}
+      `;
+
+      const result = await dbInstance.manyOrNone(query, {
+        contract: toBuffer(contract),
+        collectionId,
+      });
+
+      if (!_.isEmpty(result)) {
+        tokenIds = _.concat(
+          tokenIds,
+          _.map(result, (r) => r.token_id)
+        );
+        continuation = `AND token_id > ${_.last(result).token_id}`;
+      }
+
+      if (limit > _.size(result)) {
+        checkForMore = false;
+      }
+    }
+
+    return tokenIds;
+  }
+
   /**
    * Return the lowest sell price and number of tokens on sale for the given attribute
    * @param collection
@@ -158,7 +202,7 @@ export class Tokens {
     const tokenSetId = `token:${contract}:${tokenId}`;
     await orderUpdatesById.addToQueue([
       {
-        context: `revalidate-sell-${tokenSetId}-${Math.floor(Date.now() / 1000)}`,
+        context: `revalidate-sell-${tokenSetId}-${now()}`,
         tokenSetId,
         side: "sell",
         trigger: { kind: "revalidation" },
@@ -171,7 +215,7 @@ export class Tokens {
 
     await orderUpdatesById.addToQueue([
       {
-        context: `revalidate-buy-${tokenSetId}-${Math.floor(Date.now() / 1000)}`,
+        context: `revalidate-buy-${tokenSetId}-${now()}`,
         tokenSetId,
         side: "buy",
         trigger: { kind: "revalidation" },

@@ -1,6 +1,7 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
+import _ from "lodash";
 import { logger } from "@/common/logger";
 import { redis, acquireLock } from "@/common/redis";
 import { config } from "@/config/index";
@@ -27,13 +28,26 @@ if (config.doBackgroundWork) {
 
       if (await acquireLock(QUEUE_NAME, 1)) {
         logger.info(QUEUE_NAME, `Refresh collection metadata=${contract}`);
-        await Collections.updateCollectionCache(contract, tokenId);
+        await acquireLock(`${QUEUE_NAME}:${contract}`, 60 * 60); // lock this contract for the next hour
+
+        try {
+          await Collections.updateCollectionCache(contract, tokenId);
+        } catch (error) {
+          logger.error(QUEUE_NAME, `Failed to update collection metadata=${error}`);
+        }
       } else {
-        await addToQueue(contract, tokenId, 1000);
+        job.data.addToQueue = true;
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
+
+  worker.on("completed", async (job: Job) => {
+    if (job.data.addToQueue) {
+      const { contract, tokenId } = job.data;
+      await addToQueue(contract, tokenId, 1000);
+    }
+  });
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
@@ -41,5 +55,7 @@ if (config.doBackgroundWork) {
 }
 
 export const addToQueue = async (contract: string, tokenId = "1", delay = 0) => {
-  await queue.add(randomUUID(), { contract, tokenId }, { delay });
+  if (_.isNull(await redis.get(`${QUEUE_NAME}:${contract}`))) {
+    await queue.add(randomUUID(), { contract, tokenId }, { delay });
+  }
 };

@@ -78,7 +78,7 @@ export class Sources {
   public static getDefaultSource(): SourcesEntity {
     return new SourcesEntity({
       id: 0,
-      domain: "reservoir.market",
+      domain: "reservoir.tools",
       address: AddressZero,
       name: "Reservoir",
       metadata: {
@@ -105,7 +105,7 @@ export class Sources {
     const query = `INSERT INTO sources_v2 (id, domain, name, address, metadata)
                    VALUES ($/id/, $/domain/, $/name/, $/address/, $/metadata:json/)
                    ON CONFLICT (id) DO UPDATE
-                   SET metadata = $/metadata:json/, name = $/name/, domain = $/domain/`;
+                   SET metadata = $/metadata:json/, domain = $/domain/`;
 
     const values = {
       id,

@@ -9,10 +9,11 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { slowProvider } from "@/common/provider";
-import { bn, formatEth, regex, toBuffer } from "@/common/utils";
+import { baseProvider } from "@/common/provider";
+import { bn, formatPrice, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
+import { getCurrency } from "@/utils/currencies";
 
 const version = "v3";
 
@@ -60,6 +61,9 @@ export const getExecuteBuyV3Options: RouteOptions = {
       forceRouter: Joi.boolean().description(
         "If true, all fills will be executed through the router."
       ),
+      currency: Joi.string()
+        .pattern(regex.address)
+        .default(Sdk.Common.Addresses.Eth[config.chainId]),
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)
@@ -168,6 +172,7 @@ export const getExecuteBuyV3Options: RouteOptions = {
         contractKind: "erc721" | "erc1155",
         contract: string,
         tokenId: string,
+        currency: string,
         amount: number,
         rawData: any
       ) => {
@@ -175,6 +180,7 @@ export const getExecuteBuyV3Options: RouteOptions = {
           contractKind,
           contract,
           tokenId,
+          currency,
           amount,
         };
 
@@ -242,9 +248,10 @@ export const getExecuteBuyV3Options: RouteOptions = {
                 orders.id,
                 orders.kind,
                 contracts.kind AS token_kind,
-                orders.price,
+                coalesce(orders.currency_price, orders.price) AS price,
                 orders.raw_data,
-                orders.source_id_int
+                orders.source_id_int,
+                orders.currency
               FROM orders
               JOIN contracts
                 ON orders.contract = contracts.address
@@ -253,17 +260,22 @@ export const getExecuteBuyV3Options: RouteOptions = {
                 AND orders.fillability_status = 'fillable'
                 AND orders.approval_status = 'approved'
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                AND orders.currency = $/currency/
               ORDER BY orders.value
               LIMIT 1
             `,
-            { tokenSetId: `token:${contract}:${tokenId}` }
+            {
+              tokenSetId: `token:${contract}:${tokenId}`,
+              currency: toBuffer(query.currency),
+            }
           );
           if (!bestOrderResult) {
             // Return early in case no listing is available
             throw Boom.badRequest("No available orders");
           }
 
-          const { id, kind, token_kind, price, source_id_int, raw_data } = bestOrderResult;
+          const { id, kind, token_kind, price, source_id_int, currency, raw_data } =
+            bestOrderResult;
 
           const rawQuote = bn(price).add(bn(price).mul(query.referrerFeeBps).div(10000));
           path.push({
@@ -272,9 +284,8 @@ export const getExecuteBuyV3Options: RouteOptions = {
             tokenId,
             quantity: 1,
             source: source_id_int ? sources.get(source_id_int)?.domain : null,
-            // TODO: Add support for multiple currencies
-            currency: Sdk.Common.Addresses.Eth[config.chainId],
-            quote: formatEth(rawQuote),
+            currency: fromBuffer(currency),
+            quote: formatPrice(rawQuote, (await getCurrency(fromBuffer(currency))).decimals),
             rawQuote: rawQuote.toString(),
           });
           if (query.onlyPath) {
@@ -282,7 +293,7 @@ export const getExecuteBuyV3Options: RouteOptions = {
             continue;
           }
 
-          addListingDetail(kind, token_kind, contract, tokenId, 1, raw_data);
+          addListingDetail(kind, token_kind, contract, tokenId, fromBuffer(currency), 1, raw_data);
         } else {
           // Only ERC1155 tokens support a quantity greater than 1
           const kindResult = await redb.one(
@@ -302,9 +313,10 @@ export const getExecuteBuyV3Options: RouteOptions = {
               SELECT
                 x.id,
                 x.kind,
-                x.price,
+                coalesce(x.currency_price, x.price) AS price,
                 x.quantity_remaining,
                 x.source_id_int,
+                x.currency,
                 x.raw_data
               FROM (
                 SELECT
@@ -315,11 +327,13 @@ export const getExecuteBuyV3Options: RouteOptions = {
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
                   AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                  AND orders.currency = $/currency/
               ) x WHERE x.quantity < $/quantity/
             `,
             {
               tokenSetId: `token:${query.token}`,
               quantity: query.quantity,
+              currency: toBuffer(query.currency),
             }
           );
           if (!bestOrdersResult?.length) {
@@ -333,6 +347,7 @@ export const getExecuteBuyV3Options: RouteOptions = {
             quantity_remaining,
             price,
             source_id_int,
+            currency,
             raw_data,
           } of bestOrdersResult) {
             const quantityFilled = Math.min(Number(quantity_remaining), totalQuantityToFill);
@@ -346,9 +361,8 @@ export const getExecuteBuyV3Options: RouteOptions = {
               tokenId,
               quantity: quantityFilled,
               source: source_id_int ? sources.get(source_id_int)?.name : null,
-              // TODO: Add support for multiple currencies
-              currency: Sdk.Common.Addresses.Eth[config.chainId],
-              quote: formatEth(rawQuote),
+              currency: fromBuffer(currency),
+              quote: formatPrice(rawQuote, (await getCurrency(fromBuffer(currency))).decimals),
               rawQuote: rawQuote.toString(),
             });
             if (query.onlyPath) {
@@ -356,7 +370,15 @@ export const getExecuteBuyV3Options: RouteOptions = {
               continue;
             }
 
-            addListingDetail(kind, "erc1155", contract, tokenId, quantityFilled, raw_data);
+            addListingDetail(
+              kind,
+              "erc1155",
+              contract,
+              tokenId,
+              fromBuffer(currency),
+              quantityFilled,
+              raw_data
+            );
           }
 
           // No available orders to fill the requested quantity
@@ -371,7 +393,7 @@ export const getExecuteBuyV3Options: RouteOptions = {
         return { path };
       }
 
-      const router = new Sdk.Router.Router(config.chainId, slowProvider);
+      const router = new Sdk.Router.Router(config.chainId, baseProvider);
       const tx = await router.fillListingsTx(listingDetails, query.taker, {
         referrer: query.source,
         fee: {
@@ -381,12 +403,6 @@ export const getExecuteBuyV3Options: RouteOptions = {
         partial: query.partial,
         forceRouter: query.forceRouter,
       });
-
-      // Check that the taker has enough funds to fill all requested tokens
-      const balance = await slowProvider.getBalance(query.taker);
-      if (!query.skipBalanceCheck && bn(balance).lt(tx.value!)) {
-        throw Boom.badData("ETH balance too low to proceed with transaction");
-      }
 
       // Set up generic filling steps
       const steps: {
@@ -399,6 +415,12 @@ export const getExecuteBuyV3Options: RouteOptions = {
         }[];
       }[] = [
         {
+          action: "Approve exchange contract",
+          description: "A one-time setup transaction to enable trading",
+          kind: "transaction",
+          items: [],
+        },
+        {
           action: "Confirm purchase",
           description: "To purchase this item you must confirm the transaction and pay the gas fee",
           kind: "transaction",
@@ -406,7 +428,47 @@ export const getExecuteBuyV3Options: RouteOptions = {
         },
       ];
 
-      steps[0].items.push({
+      // Check that the taker has enough funds to fill all requested tokens
+      const totalPrice = path.map(({ rawQuote }) => bn(rawQuote)).reduce((a, b) => a.add(b));
+      if (query.currency === Sdk.Common.Addresses.Eth[config.chainId]) {
+        const balance = await baseProvider.getBalance(query.taker);
+        if (!query.skipBalanceCheck && bn(balance).lt(totalPrice)) {
+          throw Boom.badData("Balance too low to proceed with transaction");
+        }
+      } else {
+        const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, query.currency);
+
+        const balance = await erc20.getBalance(query.taker);
+        if (!query.skipBalanceCheck && bn(balance).lt(totalPrice)) {
+          throw Boom.badData("Balance too low to proceed with transaction");
+        }
+
+        if (!listingDetails.every((d) => d.kind === "seaport")) {
+          throw new Error("Only Seaport ERC20 listings are supported");
+        }
+
+        const conduit =
+          config.chainId === 1
+            ? // Use OpenSea's conduit for sharing approvals
+              "0x1e0049783f008a0085193e00003d00cd54003c71"
+            : Sdk.Seaport.Addresses.Exchange[config.chainId];
+        const allowance = await erc20.getAllowance(query.taker, conduit);
+        if (bn(allowance).lt(totalPrice)) {
+          const tx = erc20.approveTransaction(query.taker, conduit);
+          steps[0].items.push({
+            status: "incomplete",
+            data: {
+              ...tx,
+              maxFeePerGas: query.maxFeePerGas ? bn(query.maxFeePerGas).toHexString() : undefined,
+              maxPriorityFeePerGas: query.maxPriorityFeePerGas
+                ? bn(query.maxPriorityFeePerGas).toHexString()
+                : undefined,
+            },
+          });
+        }
+      }
+
+      steps[1].items.push({
         status: "incomplete",
         data: {
           ...tx,

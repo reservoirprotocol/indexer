@@ -1,9 +1,11 @@
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { formatEther, formatUnits } from "@ethersproject/units";
 
-// --- BigNumbers and prices ---
+// --- BigNumbers ---
 
 export const bn = (value: BigNumberish) => BigNumber.from(value);
+
+// --- Prices ---
 
 export const formatEth = (value: BigNumberish) => Number(Number(formatEther(value)).toFixed(5));
 
@@ -12,11 +14,18 @@ export const formatUsd = (value: BigNumberish) => Number(Number(formatUnits(valu
 export const formatPrice = (value: BigNumberish, decimals = 18) =>
   Number(Number(formatUnits(value, decimals)).toFixed(5));
 
+export const getNetAmount = (value: BigNumberish, bps: number) =>
+  bn(value).sub(bn(value).mul(bps).div(10000)).toString();
+
 // --- Buffers ---
 
 export const fromBuffer = (buffer: Buffer) => "0x" + buffer.toString("hex");
 
 export const toBuffer = (hexValue: string) => Buffer.from(hexValue.slice(2), "hex");
+
+// --- Time ---
+
+export const now = () => Math.floor(Date.now() / 1000);
 
 // --- Continuations ---
 
@@ -47,4 +56,5 @@ export const regex = {
   bytes32: /^0x[a-fA-F0-9]{64}$/,
   token: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
   number: /^[0-9]+$/,
+  unixTimestamp: /^[0-9]{10}$/,
 };

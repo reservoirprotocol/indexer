@@ -8,7 +8,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
 import { Activities } from "@/models/activities";
-import { UserActivities } from "@/models/user_activities";
+import { UserActivities } from "@/models/user-activities";
 
 const QUEUE_NAME = "remove-unsynced-events-activities-queue";
 

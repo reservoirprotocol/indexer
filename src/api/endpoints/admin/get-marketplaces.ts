@@ -1,5 +1,6 @@
 import { RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
+import { config } from "@/config/index";
 
 type Marketplace = {
   name: string;
@@ -51,7 +52,7 @@ export const getMarketplaces: RouteOptions = {
         feeBps: 0.025,
         orderbook: "opensea",
         orderKind: "seaport",
-        listingEnabled: true,
+        listingEnabled: false,
       },
       {
         name: "LooksRare",
@@ -59,14 +60,14 @@ export const getMarketplaces: RouteOptions = {
         feeBps: 0.02,
         orderbook: "looks-rare",
         orderKind: "looks-rare",
-        listingEnabled: true,
+        listingEnabled: false,
       },
       {
-        name: "x2y2",
+        name: "X2Y2",
         imageUrl: "https://api.reservoir.tools/redirect/sources/x2y2/logo/v2",
-        feeBps: 0.05,
-        orderbook: null,
-        orderKind: null,
+        feeBps: 0.005,
+        orderbook: "x2y2",
+        orderKind: "x2y2",
         listingEnabled: false,
       },
       {
@@ -78,6 +79,23 @@ export const getMarketplaces: RouteOptions = {
         listingEnabled: false,
       },
     ];
+
+    marketplaces.forEach((marketplace) => {
+      let listableOrderbooks = ["reservoir"];
+      switch (config.chainId) {
+        case 1: {
+          listableOrderbooks = ["reservoir", "opensea", "looks-rare", "x2y2"];
+          break;
+        }
+        case 4: {
+          listableOrderbooks = ["reservoir", "opensea", "looks-rare"];
+          break;
+        }
+      }
+      marketplace.listingEnabled =
+        marketplace.orderbook && listableOrderbooks.includes(marketplace.orderbook) ? true : false;
+    });
+
     return {
       marketplaces: marketplaces,
     };

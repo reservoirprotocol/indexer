@@ -1,7 +1,9 @@
+import * as Sdk from "@reservoir0x/sdk";
 import { BaseBuildParams } from "@reservoir0x/sdk/dist/zeroex-v4/builders/base";
 
 import { redb } from "@/common/db";
 import { bn } from "@/common/utils";
+import { config } from "@/config/index";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -26,7 +28,7 @@ export const getBuildInfo = async (
   options: BaseOrderBuildOptions,
   collection: string,
   side: "sell" | "buy"
-): Promise<OrderBuildInfo | undefined> => {
+): Promise<OrderBuildInfo> => {
   const collectionResult = await redb.oneOrNone(
     `
       SELECT
@@ -41,14 +43,17 @@ export const getBuildInfo = async (
     { collection }
   );
   if (!collectionResult) {
-    // Skip if we cannot retrieve the collection.
-    return undefined;
+    throw new Error("Could not fetch collection");
   }
 
   const buildParams: BaseBuildParams = {
     direction: side,
     contract: options.contract,
     maker: options.maker,
+    paymentToken:
+      side === "sell"
+        ? Sdk.ZeroExV4.Addresses.Eth[config.chainId]
+        : Sdk.Common.Addresses.Weth[config.chainId],
     price: options.weiPrice,
     fees: [],
     amount: collectionResult.kind === "erc1155" ? options.quantity ?? "1" : undefined,
@@ -56,11 +61,11 @@ export const getBuildInfo = async (
     nonce: options.nonce,
   };
 
-  // Keep track of the total amount of fees.
+  // Keep track of the total amount of fees
   let totalFees = bn(0);
 
   if (options.automatedRoyalties) {
-    // Include the royalties.
+    // Include the royalties
     for (const { recipient, bps } of collectionResult.royalties || []) {
       if (recipient && Number(bps) > 0) {
         const fee = bn(bps).mul(options.weiPrice).div(10000).toString();

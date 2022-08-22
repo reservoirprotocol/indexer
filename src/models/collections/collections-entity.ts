@@ -10,6 +10,7 @@ export type CollectionsEntityUpdateParams = {
   contract?: string;
   tokenIdRange?: string;
   tokenSetId?: string;
+  nonFlaggedTokenSetId?: string;
   tokenCount?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -44,6 +45,7 @@ export type CollectionsEntityParams = {
   contract: Buffer;
   token_id_range: string;
   token_set_id: string;
+  non_flagged_token_set_id: string;
   token_count: number;
   created_at: string;
   updated_at: string;
@@ -70,6 +72,7 @@ export class CollectionsEntity {
   contract: string;
   tokenIdRange: number[];
   tokenSetId: string;
+  nonFlaggedTokenSetId: string;
   tokenCount: number;
   createdAt: string;
   updatedAt: string;
@@ -95,6 +98,7 @@ export class CollectionsEntity {
     this.contract = fromBuffer(params.contract);
     this.tokenIdRange = params.token_id_range != "(,)" ? JSON.parse(params.token_id_range) : [];
     this.tokenSetId = params.token_set_id;
+    this.nonFlaggedTokenSetId = params.non_flagged_token_set_id;
     this.tokenCount = params.token_count;
     this.createdAt = params.created_at;
     this.updatedAt = params.updated_at;

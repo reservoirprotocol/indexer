@@ -6,7 +6,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
-import { redis, extendLock, releaseLock } from "@/common/redis";
+import { redis, extendLock, releaseLock, acquireLock, getLockExpiration } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
@@ -51,6 +51,16 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { method } = job.data;
 
+      let useMetadataApiBaseUrlAlt = false;
+
+      const rateLimitExpiresIn = await getLockExpiration(getRateLimitLockName(method));
+
+      if (rateLimitExpiresIn > 0) {
+        logger.info(QUEUE_NAME, `Rate Limited. rateLimitExpiresIn: ${rateLimitExpiresIn}`);
+
+        useMetadataApiBaseUrlAlt = true;
+      }
+
       const count = 20;
 
       const queryParams = new URLSearchParams();
@@ -75,10 +85,35 @@ if (config.doBackgroundWork) {
 
       // Get the metadata for the tokens
       const url = `${
-        config.metadataApiBaseUrl
+        useMetadataApiBaseUrlAlt ? config.metadataApiBaseUrlAlt : config.metadataApiBaseUrl
       }/v4/${getNetworkName()}/metadata/token?${queryParams.toString()}`;
 
-      const metadataResult = await axios.get(url, { timeout: 60 * 1000 }).then(({ data }) => data);
+      let metadataResult;
+
+      try {
+        metadataResult = await axios.get(url, { timeout: 60 * 1000 }).then(({ data }) => data);
+      } catch (error) {
+        if ((error as any).response?.status === 429) {
+          logger.info(
+            QUEUE_NAME,
+            `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
+          );
+
+          await pendingRefreshTokens.add(refreshTokens, true);
+
+          if (!useMetadataApiBaseUrlAlt) {
+            await acquireLock(getRateLimitLockName(method), 5);
+          }
+
+          if (await extendLock(getLockName(method), 60 * 5)) {
+            await addToQueue(method);
+          }
+
+          return;
+        }
+
+        throw error;
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const metadata: TokenMetadata[] = (metadataResult as any).metadata;
@@ -111,6 +146,10 @@ export const getLockName = (method: string) => {
   return `${QUEUE_NAME}:${method}`;
 };
 
-export const addToQueue = async (method: string) => {
-  await queue.add(randomUUID(), { method });
+export const getRateLimitLockName = (method: string) => {
+  return `${QUEUE_NAME}:rate-limit:${method}`;
+};
+
+export const addToQueue = async (method: string, delay = 0) => {
+  await queue.add(randomUUID(), { method }, { delay });
 };

@@ -23,9 +23,8 @@ export const build = async (options: BuildOrderOptions) => {
     { collection: options.collection }
   );
   if (!collectionResult) {
-    throw new Error("Could not retrieve token's collection");
+    throw new Error("Could not retrieve collection");
   }
-
   if (Number(collectionResult.token_count) > config.maxItemsPerBid) {
     throw new Error("Collection has too many items");
   }
@@ -50,15 +49,16 @@ export const build = async (options: BuildOrderOptions) => {
     return builder?.build(buildInfo.params);
   } else {
     // Use token-list order
+    const excludeFlaggedTokens = options.excludeFlaggedTokens ? "AND tokens.is_flagged = 0" : "";
 
     // Fetch all non-flagged tokens from the collection
-    // TODO: Include `NOT is_flagged` filter in the query
     const tokens = await redb.manyOrNone(
       `
         SELECT
           tokens.token_id
         FROM tokens
         WHERE tokens.collection_id = $/collection/
+        ${excludeFlaggedTokens}
       `,
       {
         collection: options.collection,

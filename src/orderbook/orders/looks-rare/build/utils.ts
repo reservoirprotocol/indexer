@@ -1,3 +1,4 @@
+import * as Sdk from "@reservoir0x/sdk";
 import { BaseBuildParams } from "@reservoir0x/sdk/dist/looks-rare/builders/base";
 import axios from "axios";
 
@@ -43,6 +44,8 @@ export const getBuildInfo = async (
     collection: options.contract,
     signer: options.maker,
     price: options.weiPrice,
+    // LooksRare uses WETH instead of ETH for sell orders too
+    currency: Sdk.Common.Addresses.Weth[config.chainId],
     // TODO: We should only use LooksRare's nonce when cross-posting to their orderbook
     nonce: await axios
       .get(

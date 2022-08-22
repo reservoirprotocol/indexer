@@ -4,7 +4,7 @@ import { BaseBuildParams } from "@reservoir0x/sdk/dist/seaport/builders/base";
 
 import { redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
-import { bn } from "@/common/utils";
+import { bn, now } from "@/common/utils";
 import { config } from "@/config/index";
 
 export interface BaseOrderBuildOptions {
@@ -72,8 +72,8 @@ export const getBuildInfo = async (
     conduitKey: [1, 4].includes(config.chainId)
       ? "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000"
       : HashZero,
-    startTime: options.listingTime || Math.floor(Date.now() / 1000),
-    endTime: options.expirationTime || Math.floor(Date.now() / 1000) + 6 * 30 * 24 * 3600,
+    startTime: options.listingTime || now(),
+    endTime: options.expirationTime || now() + 6 * 30 * 24 * 3600,
     salt: options.salt,
     counter: (await exchange.getCounter(baseProvider, options.maker)).toString(),
   };
@@ -104,7 +104,7 @@ export const getBuildInfo = async (
 
     options.fee.push(250);
     // OpenSea's Seaport fee recipient
-    options.feeRecipient.push("0x8de9c5a032463c561423387a9648c5c7bcc5bc90");
+    options.feeRecipient.push("0x0000a26b00c1f0df003000390027140000faa719");
   }
 
   if (options.fee && options.feeRecipient) {
