@@ -1,3 +1,12 @@
+## [5.175.1](https://github.com/reservoirprotocol/indexer/compare/v5.175.0...v5.175.1) (2022-08-23)
+
+
+### Bug Fixes
+
+* get marketplaces fee unit ([14a77e2](https://github.com/reservoirprotocol/indexer/commit/14a77e207c50ecf4f265da9486a9a3b2398176d0))
+
+
+
 # [5.175.0](https://github.com/reservoirprotocol/indexer/compare/v5.174.3...v5.175.0) (2022-08-23)
 
 
