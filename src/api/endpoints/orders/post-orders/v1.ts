@@ -12,7 +12,12 @@ const version = "v1";
 
 export const postOrdersV1Options: RouteOptions = {
   description: "Submit order batch",
-  tags: ["api", "Orderbook"],
+  tags: ["api", "x-deprecated"],
+  plugins: {
+    "hapi-swagger": {
+      deprecated: true,
+    },
+  },
   validate: {
     headers: Joi.object({
       "x-admin-api-key": Joi.string().required(),

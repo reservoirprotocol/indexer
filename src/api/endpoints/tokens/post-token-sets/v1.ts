@@ -12,8 +12,8 @@ import * as tokenSet from "@/orderbook/token-sets";
 const version = "v1";
 
 export const postTokenSetsV1Options: RouteOptions = {
-  description: "Create a token set",
-  tags: ["api", "Management"],
+  description: "Create Token Set",
+  tags: ["api", "Tokens"],
   plugins: {
     "hapi-swagger": {
       order: 13,

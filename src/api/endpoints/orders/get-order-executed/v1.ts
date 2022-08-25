@@ -11,8 +11,8 @@ import { fromBuffer } from "@/common/utils";
 const version = "v1";
 
 export const getOrderExecutedV1Options: RouteOptions = {
-  description: "Check order status",
-  tags: ["api", "Orders"],
+  description: "Order status",
+  tags: ["api", "Router"],
   plugins: {
     "hapi-swagger": {
       order: 5,
