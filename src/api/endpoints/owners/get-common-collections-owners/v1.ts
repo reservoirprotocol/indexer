@@ -15,7 +15,7 @@ export const getCommonCollectionsOwnersV1Options: RouteOptions = {
     privacy: "public",
     expiresIn: 60 * 60 * 1000,
   },
-  description: "Common collections",
+  description: "Common Collections",
   notes: "This API can be used to find top common collections among the given owners",
   tags: ["api", "Owners"],
   plugins: {

@@ -17,7 +17,7 @@ import { generateBidDetails } from "@/orderbook/orders";
 const version = "v3";
 
 export const getExecuteSellV3Options: RouteOptions = {
-  description: "Sell a token at the best price (accept bid)",
+  description: "Sell tokens (accept bids)",
   tags: ["api", "Router"],
   plugins: {
     "hapi-swagger": {

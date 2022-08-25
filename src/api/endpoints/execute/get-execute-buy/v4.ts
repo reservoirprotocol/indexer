@@ -21,7 +21,7 @@ import { getCurrency } from "@/utils/currencies";
 const version = "v4";
 
 export const getExecuteBuyV4Options: RouteOptions = {
-  description: "Buy tokens at the best price",
+  description: "Buy tokens",
   tags: ["api", "Router"],
   plugins: {
     "hapi-swagger": {

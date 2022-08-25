@@ -19,7 +19,7 @@ import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 const version = "v1";
 
 export const postTokensRefreshV1Options: RouteOptions = {
-  description: "Refresh a token's orders and metadata",
+  description: "Refresh Token",
   tags: ["api", "Management"],
   plugins: {
     "hapi-swagger": {
