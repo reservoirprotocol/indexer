@@ -25,9 +25,8 @@ import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 import * as blocksModel from "@/models/blocks";
-import { OrderKind } from "@/orderbook/orders";
+import { OrderKind, getOrderSourceByOrderKind } from "@/orderbook/orders";
 import * as Foundation from "@/orderbook/orders/foundation";
-import { getOrderSourceByOrderKind } from "@/orderbook/orders/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
 // TODO: Split into multiple files (by exchange)
@@ -2063,6 +2062,85 @@ export const syncEvents = async (
                   txHash: baseEventParams.txHash,
                   txTimestamp: baseEventParams.timestamp,
                 },
+              });
+
+              break;
+            }
+
+            case "zora-ask-filled": {
+              const { args } = eventData.abi.parseLog(log);
+              const tokenContract = args["tokenContract"].toLowerCase();
+              const tokenId = args["tokenId"].toString();
+              const buyer = args["buyer"].toLowerCase();
+              const ask = args["ask"];
+
+              const seller = ask["seller"].toLowerCase();
+              const askCurrency = ask["askCurrency"].toLowerCase();
+              const askPrice = ask["askPrice"].toString();
+
+              const prices = await getUSDAndNativePrices(
+                askCurrency,
+                askPrice,
+                baseEventParams.timestamp
+              );
+
+              if (!prices.nativePrice) {
+                // We must always have the native price
+                break;
+              }
+
+              fillEvents.push({
+                orderKind: "zora-v3",
+                currency: askCurrency,
+                orderSide: "sell",
+                maker: seller,
+                taker: buyer,
+                price: prices.nativePrice,
+                usdPrice: prices.usdPrice,
+                contract: tokenContract,
+                tokenId,
+                amount: "1",
+                baseEventParams,
+              });
+
+              break;
+            }
+
+            case "zora-auction-ended": {
+              const { args } = eventData.abi.parseLog(log);
+              // const auctionId = args["auctionId"].toString();
+              const tokenId = args["tokenId"].toString();
+              const tokenContract = args["tokenContract"].toLowerCase();
+              const tokenOwner = args["tokenOwner"].toLowerCase();
+              // const curator = args["curator"].toLowerCase();
+              const winner = args["winner"].toLowerCase();
+              const amount = args["amount"].toString();
+              // const curatorFee = args["curatorFee"].toString();
+              const auctionCurrency = args["auctionCurrency"].toLowerCase();
+
+              const prices = await getUSDAndNativePrices(
+                auctionCurrency,
+                amount,
+                baseEventParams.timestamp
+              );
+
+              if (!prices.nativePrice) {
+                // We must always have the native price
+                break;
+              }
+
+              fillEvents.push({
+                orderKind: "zora-v3",
+                currency: auctionCurrency,
+                orderSide: "sell",
+                taker: winner,
+                maker: tokenOwner,
+                price: prices.nativePrice,
+                usdPrice: prices.usdPrice,
+                contract: tokenContract,
+                tokenId,
+                amount: "1",
+                baseEventParams,
               });
 
               break;

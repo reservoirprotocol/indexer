@@ -29,7 +29,7 @@ export const getAttributesStaticV1Options: RouteOptions = {
     schema: Joi.object({
       attributes: Joi.array().items(
         Joi.object({
-          key: Joi.string().required(),
+          key: Joi.string().allow("").required(),
           kind: Joi.string().valid("string", "number", "date", "range").required(),
           values: Joi.array().items(
             Joi.object({
