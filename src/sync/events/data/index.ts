@@ -18,7 +18,6 @@ import * as x2y2 from "@/events-sync/data/x2y2";
 import * as zeroExV4 from "@/events-sync/data/zeroex-v4";
 import * as zora from "@/events-sync/data/zora";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
-import * as zora from "@/events-sync/data/zora";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -67,9 +66,7 @@ export type EventDataKind =
   | "zora-auction-ended"
   | "nouns-auction-settled"
   | "cryptopunks-punk-bought"
-  | "cryptopunks-transfer"
-  | "zora-ask-filled"
-  | "zora-auction-ended";
+  | "cryptopunks-transfer";
 
 export type EventData = {
   kind: EventDataKind;
@@ -222,10 +219,6 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return cryptoPunks.punkBought;
     case "cryptopunks-transfer":
       return cryptoPunks.transfer;
-    case "zora-ask-filled":
-      return zora.askFilled;
-    case "zora-auction-ended":
-      return zora.auctionEnded;
     default:
       return undefined;
   }
