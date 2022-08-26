@@ -324,7 +324,7 @@ export const getSalesV3Options: RouteOptions = {
               name: r.collection_name,
             },
           },
-          orderSource: orderSource?.name ?? null,
+          orderSource: (orderSource?.metadata.title || orderSource?.name) ?? null,
           orderSourceDomain: orderSource?.domain ?? null,
           orderSide: r.order_side === "sell" ? "ask" : "bid",
           orderKind: r.order_kind,

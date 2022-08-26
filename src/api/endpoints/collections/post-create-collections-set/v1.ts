@@ -8,8 +8,8 @@ import { CollectionSets } from "@/models/collection-sets";
 const version = "v1";
 
 export const postCreateCollectionsSetV1Options: RouteOptions = {
-  description: "Create a collection set",
-  tags: ["api", "Management"],
+  description: "Create Collection Set",
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
       order: 13,

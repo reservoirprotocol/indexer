@@ -12,8 +12,8 @@ import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/u
 import { offChainCheck } from "@/orderbook/orders/seaport/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
-import * as addUserReceivedBids from "@/jobs/user-received-bids/add-user-received-bids";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import { BigNumber } from "@ethersproject/bignumber";
 
 export type OrderInfo = {
   orderParams: Sdk.Seaport.Types.OrderComponents;
@@ -33,7 +33,6 @@ export const save = async (
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
-  const fillableBuyOrdersIds: string[] = [];
 
   const arweaveData: {
     order: Sdk.Seaport.Order | Sdk.Seaport.BundleOrder;
@@ -217,8 +216,9 @@ export const save = async (
           const typedInfo = info as typeof info & { merkleRoot: string };
           const merkleRoot = typedInfo.merkleRoot;
 
-          tokenSetId = `list:${info.contract}:${merkleRoot}`;
           if (merkleRoot) {
+            tokenSetId = `list:${info.contract}:${BigNumber.from(merkleRoot).toHexString()}`;
+
             await tokenSet.tokenList.save([
               {
                 id: tokenSetId,
@@ -376,10 +376,6 @@ export const save = async (
         status: "success",
         unfillable,
       });
-
-      if (info.side === "buy" && !unfillable) {
-        fillableBuyOrdersIds.push(id);
-      }
 
       if (relayToArweave) {
         arweaveData.push({ order, schemaHash, source: source?.domain });
@@ -718,15 +714,6 @@ export const save = async (
               },
             } as ordersUpdateById.OrderInfo)
         )
-    );
-
-    await addUserReceivedBids.addToQueue(
-      fillableBuyOrdersIds.map(
-        (id) =>
-          ({
-            orderId: id,
-          } as addUserReceivedBids.AddUserReceivedBidsParams)
-      )
     );
 
     if (relayToArweave) {

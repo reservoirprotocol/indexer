@@ -18,9 +18,9 @@ import { Sources } from "@/models/sources";
 const version = "v1";
 
 export const getTokensBootstrapV1Options: RouteOptions = {
-  description: "All listed tokens in a collection",
+  description: "Token Events Bootstrap",
   notes:
-    "This API will return the best price of every token in a collection that is currently on sale",
+    "Get the latest price event per token in a collection, so that you can listen to future events and keep track of prices",
   tags: ["api", "Tokens"],
   plugins: {
     "hapi-swagger": {

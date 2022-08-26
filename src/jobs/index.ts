@@ -96,6 +96,8 @@ import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
 import * as nonFlaggedTokenSet from "@/jobs/token-updates/non-flagged-token-set";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
+import * as syncTokensFlagStatus from "@/jobs/token-updates/sync-tokens-flag-status";
+import * as syncCollectionsFlagStatus from "@/jobs/token-updates/sync-collection-flag-status";
 
 import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-order";
 import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
@@ -178,6 +180,8 @@ export const allJobQueues = [
   tokenRefreshCache.queue,
   nonFlaggedTokenSet.queue,
   fetchCollectionMetadata.queue,
+  syncTokensFlagStatus.queue,
+  syncCollectionsFlagStatus.queue,
 
   handleNewSellOrder.queue,
   handleNewBuyOrder.queue,

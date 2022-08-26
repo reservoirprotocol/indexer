@@ -14,7 +14,6 @@ import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/u
 import { offChainCheck } from "@/orderbook/orders/opendao/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
-import * as addUserReceivedBids from "@/jobs/user-received-bids/add-user-received-bids";
 
 export type OrderInfo = {
   orderParams: Sdk.OpenDao.Types.BaseOrder;
@@ -33,7 +32,6 @@ export const save = async (
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
-  const fillableBuyOrdersIds: string[] = [];
 
   const arweaveData: {
     order: Sdk.OpenDao.Order;
@@ -375,10 +373,6 @@ export const save = async (
         unfillable,
       });
 
-      if (side === "buy" && !unfillable) {
-        fillableBuyOrdersIds.push(id);
-      }
-
       if (relayToArweave) {
         arweaveData.push({ order, schemaHash, source: source?.domain });
       }
@@ -444,15 +438,6 @@ export const save = async (
               },
             } as ordersUpdateById.OrderInfo)
         )
-    );
-
-    await addUserReceivedBids.addToQueue(
-      fillableBuyOrdersIds.map(
-        (id) =>
-          ({
-            orderId: id,
-          } as addUserReceivedBids.AddUserReceivedBidsParams)
-      )
     );
 
     if (relayToArweave) {

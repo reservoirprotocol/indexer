@@ -16,7 +16,7 @@ export const getUserTokensV3Options: RouteOptions = {
     privacy: "public",
     expiresIn: 60000,
   },
-  description: "User tokens",
+  description: "User Tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
   tags: ["api", "Tokens"],
@@ -70,7 +70,7 @@ export const getUserTokensV3Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(20)
+        .max(100)
         .default(20)
         .description("Amount of items returned in response."),
       includeTopBid: Joi.boolean()

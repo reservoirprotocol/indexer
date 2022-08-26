@@ -39,7 +39,7 @@ if (config.doBackgroundWork) {
         return;
       }
 
-      const tokenIds = await Tokens.getNonFlaggedTokenIdsInCollection(contract, collectionId, true);
+      const tokenIds = await Tokens.getTokenIdsInCollection(collectionId, contract, true);
       if (_.isEmpty(tokenIds)) {
         logger.warn(QUEUE_NAME, `No tokens for contract=${contract}, collectionId=${collectionId}`);
       }
@@ -54,7 +54,7 @@ if (config.doBackgroundWork) {
       };
 
       // Create new token set for non flagged tokens
-      await tokenSet.tokenList.save([
+      const ts = await tokenSet.tokenList.save([
         {
           id: tokenSetId,
           schema,
@@ -66,8 +66,20 @@ if (config.doBackgroundWork) {
         } as TokenSet,
       ]);
 
-      // Set the new non flagged tokens token set
-      await Collections.update(collectionId, { nonFlaggedTokenSetId: tokenSetId });
+      if (ts.length !== 1) {
+        logger.warn(
+          QUEUE_NAME,
+          `No tokens for contract=${contract}, collectionId=${collectionId}, tokenSetId=${tokenSetId}`
+        );
+      } else {
+        logger.info(
+          QUEUE_NAME,
+          `Non Flagged Token set generated for contract=${contract}, collectionId=${collectionId}, tokenSetId=${collection.tokenSetId}, nonFlaggedTokenSetId=${collection.nonFlaggedTokenSetId}, generatedMonFlaggedTokenSetId=${tokenSetId}`
+        );
+
+        // Set the new non flagged tokens token set
+        await Collections.update(collectionId, { nonFlaggedTokenSetId: tokenSetId });
+      }
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

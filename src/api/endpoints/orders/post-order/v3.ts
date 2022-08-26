@@ -14,7 +14,7 @@ import * as postOrderExternal from "@/jobs/orderbook/post-order-external";
 const version = "v3";
 
 export const postOrderV3Options: RouteOptions = {
-  description: "Submit single order",
+  description: "Submit signed order",
   tags: ["api", "Orderbook"],
   plugins: {
     "hapi-swagger": {

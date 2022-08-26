@@ -66,6 +66,12 @@ export const getOrdersBidsV3Options: RouteOptions = {
         .description(
           "active = currently valid, inactive = temporarily invalid, expired = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
+      includeMetadata: Joi.boolean()
+        .default(false)
+        .description("If true, metadata is included in the response."),
+      includeRawData: Joi.boolean()
+        .default(false)
+        .description("If true, raw data is included in the response."),
       sortBy: Joi.string()
         .when("token", {
           is: Joi.exist(),
@@ -130,7 +136,9 @@ export const getOrdersBidsV3Options: RouteOptions = {
                 image: Joi.string().allow("", null),
               }),
             })
-          ).allow(null),
+          )
+            .allow(null)
+            .optional(),
           source: Joi.object().allow(null),
           feeBps: Joi.number().allow(null),
           feeBreakdown: Joi.array()
@@ -145,7 +153,7 @@ export const getOrdersBidsV3Options: RouteOptions = {
           expiration: Joi.number().required(),
           createdAt: Joi.string().required(),
           updatedAt: Joi.string().required(),
-          rawData: Joi.object(),
+          rawData: Joi.object().optional(),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
@@ -264,9 +272,9 @@ export const getOrdersBidsV3Options: RouteOptions = {
             0
           ) AS expiration,
           extract(epoch from orders.created_at) AS created_at,
-          orders.updated_at,
-          orders.raw_data,
-          ${metadataBuildQuery}
+          orders.updated_at
+          ${query.includeRawData ? ", orders.raw_data" : ""}
+          ${query.includeMetadata ? `, ${metadataBuildQuery}` : ""}
         FROM orders
       `;
 
@@ -418,10 +426,10 @@ export const getOrdersBidsV3Options: RouteOptions = {
           ),
           validFrom: Number(r.valid_from),
           validUntil: Number(r.valid_until),
-          metadata: r.metadata,
+          metadata: query.includeMetadata ? r.metadata : undefined,
           source: {
             id: source?.address,
-            name: source?.name,
+            name: source?.metadata.title || source?.name,
             icon: source?.metadata.icon,
             url: source?.metadata.url,
           },
@@ -430,7 +438,7 @@ export const getOrdersBidsV3Options: RouteOptions = {
           expiration: Number(r.expiration),
           createdAt: new Date(r.created_at * 1000).toISOString(),
           updatedAt: new Date(r.updated_at).toISOString(),
-          rawData: r.raw_data,
+          rawData: query.includeRawData ? r.raw_data : undefined,
         };
       });
 

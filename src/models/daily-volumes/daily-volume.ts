@@ -595,7 +595,7 @@ export class DailyVolume {
       queries.push({
         query: `
             UPDATE collections
-            SET day${period}_floor_sell_value = $/floor_sell_value/,
+            SET day${period}_floor_sell_value = $/floor_sell_value/${valuesPostfix},
                 updated_at = now()                              
             WHERE id = $/collection_id/`,
         values: row,

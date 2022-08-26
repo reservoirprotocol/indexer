@@ -10,8 +10,7 @@ import { getBlocks, saveBlock } from "@/models/blocks";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getTransaction, saveTransaction } from "@/models/transactions";
-import { OrderKind } from "@/orderbook/orders";
-import { getOrderSourceByOrderKind } from "@/orderbook/orders/utils";
+import { OrderKind, getOrderSourceByOrderKind } from "@/orderbook/orders";
 
 export const fetchBlock = async (blockNumber: number, force = false) =>
   getBlocks(blockNumber)

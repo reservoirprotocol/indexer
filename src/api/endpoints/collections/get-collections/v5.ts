@@ -8,7 +8,14 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
-import { buildContinuation, formatEth, fromBuffer, regex, splitContinuation } from "@/common/utils";
+import {
+  buildContinuation,
+  formatEth,
+  fromBuffer,
+  regex,
+  splitContinuation,
+  toBuffer,
+} from "@/common/utils";
 import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
@@ -315,6 +322,7 @@ export const getCollectionsV5Options: RouteOptions = {
         if (!Array.isArray(query.contract)) {
           query.contract = [query.contract];
         }
+        query.contract = query.contract.map((contract: string) => toBuffer(contract));
         conditions.push(`collections.contract IN ($/contract:csv/)`);
       }
       if (query.name) {

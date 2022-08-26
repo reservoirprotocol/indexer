@@ -493,7 +493,7 @@ export const getTokensV5Options: RouteOptions = {
             media: r.media,
             kind: r.kind,
             isFlagged: Boolean(Number(r.is_flagged)),
-            lastFlagUpdate: r.last_flag_update,
+            lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
             collection: {
               id: r.collection_id,
               name: r.collection_name,
@@ -546,35 +546,33 @@ export const getTokensV5Options: RouteOptions = {
               source: {
                 id: source?.address,
                 domain: source?.domain,
-                name: source?.name,
+                name: source?.metadata.title || source?.name,
                 icon: source?.metadata.icon,
                 url: source?.metadata.url,
               },
             },
             topBid: query.includeTopBid
-              ? r.top_buy_id
-                ? {
-                    id: r.top_buy_id,
-                    price: r.top_buy_value
-                      ? await getJoiPriceObject(
-                          {
-                            net: {
-                              amount: r.top_buy_currency_value ?? r.top_buy_value,
-                              nativeAmount: r.top_buy_value,
-                            },
-                            gross: {
-                              amount: r.top_buy_currency_price ?? r.top_buy_price,
-                              nativeAmount: r.top_buy_price,
-                            },
+              ? {
+                  id: r.top_buy_id,
+                  price: r.top_buy_value
+                    ? await getJoiPriceObject(
+                        {
+                          net: {
+                            amount: r.top_buy_currency_value ?? r.top_buy_value,
+                            nativeAmount: r.top_buy_value,
                           },
-                          topBidCurrency
-                        )
-                      : null,
-                    maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
-                    validFrom: r.top_buy_valid_from,
-                    validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
-                  }
-                : null
+                          gross: {
+                            amount: r.top_buy_currency_price ?? r.top_buy_price,
+                            nativeAmount: r.top_buy_price,
+                          },
+                        },
+                        topBidCurrency
+                      )
+                    : null,
+                  maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
+                  validFrom: r.top_buy_valid_from,
+                  validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
+                }
               : undefined,
           },
         };
