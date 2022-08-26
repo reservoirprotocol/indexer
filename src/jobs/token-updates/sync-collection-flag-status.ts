@@ -15,10 +15,10 @@ import {
   PendingFlagStatusSyncTokens,
 } from "@/models/pending-flag-status-sync-tokens";
 import * as syncTokensFlagStatus from "@/jobs/token-updates/sync-tokens-flag-status";
+import _ from "lodash";
 
 const QUEUE_NAME = "sync-collection-flag-status";
 const LOWEST_FLOOR_ASK_QUERY_LIMIT = 20;
-const RECENT_TRANSFERS_QUERY_DAYS_BACK = 14;
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -65,7 +65,7 @@ if (config.doBackgroundWork) {
             SELECT token_id, is_flagged
             FROM tokens
             WHERE collection_id = $/collectionId/
-          `;
+        `;
 
         const tokens = await idb.manyOrNone(tokensQuery, {
           collectionId,
@@ -83,7 +83,7 @@ if (config.doBackgroundWork) {
             FROM tokens
             WHERE collection_id = $/collectionId/
             AND is_flagged = 1
-          `;
+        `;
 
         const flaggedTokens = await idb.manyOrNone(flaggedTokensQuery, {
           collectionId,
@@ -97,13 +97,14 @@ if (config.doBackgroundWork) {
         );
 
         const lowestFloorAskQuery = `
-        SELECT token_id
-        FROM tokens
-        WHERE collection_id = $/collectionId/
-        AND floor_sell_value IS NOT NULL
-        ORDER BY floor_sell_value ASC
-        LIMIT $/limit/
-      `;
+            SELECT token_id
+            FROM tokens
+            WHERE collection_id = $/collectionId/
+            AND floor_sell_value IS NOT NULL
+            AND is_flagged = 0
+            ORDER BY floor_sell_value ASC
+            LIMIT $/limit/
+        `;
 
         const lowestFloorAskTokens = await idb.manyOrNone(lowestFloorAskQuery, {
           collectionId,
@@ -119,9 +120,7 @@ if (config.doBackgroundWork) {
 
         let tokensRangeFilter = "";
 
-        const values = {
-          daysBack: RECENT_TRANSFERS_QUERY_DAYS_BACK,
-        };
+        const values = {};
 
         if (collectionId.match(/^0x[a-f0-9]{40}:\d+:\d+$/g)) {
           const [contract, startTokenId, endTokenId] = collectionId.split(":");
@@ -139,14 +138,16 @@ if (config.doBackgroundWork) {
         }
 
         const recentTransfersQuery = `
-        SELECT
-            DISTINCT ON (nft_transfer_events.token_id) nft_transfer_events.token_id,
-            nft_transfer_events.timestamp
-        FROM nft_transfer_events
-        WHERE nft_transfer_events.address = $/contract/
-        AND nft_transfer_events.timestamp > extract(epoch from now() - interval '$/daysBack/ days')
-        ${tokensRangeFilter}
-        ORDER BY nft_transfer_events.token_id, nft_transfer_events.timestamp DESC
+            SELECT
+                DISTINCT ON (nft_transfer_events.token_id) nft_transfer_events.token_id,
+                nft_transfer_events.timestamp
+            FROM nft_transfer_events
+            JOIN tokens ON nft_transfer_events.address = tokens.contract AND nft_transfer_events.token_id = tokens.token_id
+            WHERE nft_transfer_events.address = $/contract/
+            ${tokensRangeFilter}
+            AND (nft_transfer_events.timestamp > extract(epoch from tokens.last_flag_update) OR tokens.last_flag_update IS NULL)
+            AND tokens.is_flagged = 0
+            ORDER BY nft_transfer_events.token_id, nft_transfer_events.timestamp DESC
       `;
 
         const recentTransfersTokens = await idb.manyOrNone(recentTransfersQuery, values);
@@ -159,9 +160,11 @@ if (config.doBackgroundWork) {
         );
       }
 
+      const uniquePendingSyncFlagStatusTokens = _.uniqBy(pendingSyncFlagStatusTokens, "tokenId");
+
       // Add the tokens to the list
       const pendingCount = await pendingFlagStatusSyncTokensQueue.add(
-        pendingSyncFlagStatusTokens.map(
+        uniquePendingSyncFlagStatusTokens.map(
           (r) =>
             ({
               collectionId: collectionId,

@@ -220,10 +220,5 @@ export type AddUserReceivedBidsParams = {
 };
 
 export const addToQueue = async (jobs: AddUserReceivedBidsParams[]) => {
-  await queue.addBulk(
-    jobs.map((job) => ({
-      name: job.orderId,
-      data: job,
-    }))
-  );
+  return jobs;
 };

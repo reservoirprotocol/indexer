@@ -13,6 +13,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, formatEth, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
+import { generateListingDetails } from "@/orderbook/orders";
 
 const version = "v1";
 
@@ -33,7 +34,7 @@ export const getExecuteBuyV1Options: RouteOptions = {
       onlyQuote: Joi.boolean().default(false),
       source: Joi.string().lowercase(),
       referrer: Joi.string().lowercase().pattern(regex.address).default(AddressZero),
-      referrerFeeBps: Joi.number().integer().positive().min(0).max(10000).default(0),
+      referrerFeeBps: Joi.number().integer().min(0).max(10000).default(0),
       partial: Joi.boolean().default(false),
       maxFeePerGas: Joi.string().pattern(regex.number),
       maxPriorityFeePerGas: Joi.string().pattern(regex.number),
@@ -107,76 +108,6 @@ export const getExecuteBuyV1Options: RouteOptions = {
       }
 
       const listingDetails: ListingDetails[] = [];
-      const addListingDetail = (
-        kind: string,
-        contractKind: "erc721" | "erc1155",
-        contract: string,
-        tokenId: string,
-        currency: string,
-        amount: number,
-        rawData: any
-      ) => {
-        const common = {
-          contractKind,
-          contract,
-          tokenId,
-          currency,
-          amount,
-        };
-
-        switch (kind) {
-          case "foundation": {
-            return listingDetails.push({
-              kind: "foundation",
-              ...common,
-              order: new Sdk.Foundation.Order(config.chainId, rawData),
-            });
-          }
-
-          case "looks-rare": {
-            return listingDetails.push({
-              kind: "looks-rare",
-              ...common,
-              order: new Sdk.LooksRare.Order(config.chainId, rawData),
-            });
-          }
-
-          case "opendao-erc721":
-          case "opendao-erc1155": {
-            return listingDetails.push({
-              kind: "opendao",
-              ...common,
-              order: new Sdk.OpenDao.Order(config.chainId, rawData),
-            });
-          }
-
-          case "x2y2": {
-            return listingDetails.push({
-              kind: "x2y2",
-              ...common,
-              order: new Sdk.X2Y2.Order(config.chainId, rawData),
-            });
-          }
-
-          case "zeroex-v4-erc721":
-          case "zeroex-v4-erc1155": {
-            return listingDetails.push({
-              kind: "zeroex-v4",
-              ...common,
-              order: new Sdk.ZeroExV4.Order(config.chainId, rawData),
-            });
-          }
-
-          case "seaport": {
-            return listingDetails.push({
-              kind: "seaport",
-              ...common,
-              order: new Sdk.Seaport.Order(config.chainId, rawData),
-            });
-          }
-        }
-      };
-
       for (const token of tokens) {
         const [contract, tokenId] = token.split(":");
 
@@ -201,7 +132,7 @@ export const getExecuteBuyV1Options: RouteOptions = {
                 AND orders.approval_status = 'approved'
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
                 AND orders.currency = '\\x0000000000000000000000000000000000000000'
-              ORDER BY orders.value
+              ORDER BY orders.value, orders.fee_bps
               LIMIT 1
             `,
             { tokenSetId: `token:${contract}:${tokenId}` }
@@ -226,7 +157,20 @@ export const getExecuteBuyV1Options: RouteOptions = {
             continue;
           }
 
-          addListingDetail(kind, token_kind, contract, tokenId, fromBuffer(currency), 1, raw_data);
+          listingDetails.push(
+            generateListingDetails(
+              {
+                kind,
+                currency: fromBuffer(currency),
+                rawData: raw_data,
+              },
+              {
+                kind: token_kind,
+                contract,
+                tokenId,
+              }
+            )
+          );
           confirmationQuery = `?ids=${id}`;
         } else {
           // Only ERC1155 tokens support a quantity greater than 1
@@ -255,7 +199,7 @@ export const getExecuteBuyV1Options: RouteOptions = {
               FROM (
                 SELECT
                   orders.*,
-                  SUM(orders.quantity_remaining) OVER (ORDER BY price, id) - orders.quantity_remaining AS quantity
+                  SUM(orders.quantity_remaining) OVER (ORDER BY price, fee_bps, id) - orders.quantity_remaining AS quantity
                 FROM orders
                 WHERE orders.token_set_id = $/tokenSetId/
                   AND orders.side = 'sell'
@@ -300,14 +244,20 @@ export const getExecuteBuyV1Options: RouteOptions = {
               continue;
             }
 
-            addListingDetail(
-              kind,
-              "erc1155",
-              contract,
-              tokenId,
-              fromBuffer(currency),
-              quantityFilled,
-              raw_data
+            listingDetails.push(
+              generateListingDetails(
+                {
+                  kind,
+                  currency: fromBuffer(currency),
+                  rawData: raw_data,
+                },
+                {
+                  kind: "erc1155",
+                  contract,
+                  tokenId,
+                  amount: quantityFilled,
+                }
+              )
             );
             confirmationQuery = `?ids=${id}`;
           }

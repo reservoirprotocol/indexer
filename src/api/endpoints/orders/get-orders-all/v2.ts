@@ -23,10 +23,10 @@ export const getOrdersAllV2Options: RouteOptions = {
   description: "Bulk historical orders",
   notes:
     "This API is designed for efficiently ingesting large volumes of orders, for external processing",
-  tags: ["api", "Orders"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 5,
+      deprecated: true,
     },
   },
   validate: {

@@ -175,9 +175,9 @@ export class Sources {
     let sourceEntity;
 
     if (id in this.sources) {
-      sourceEntity = (this.sources as any)[id];
+      sourceEntity = _.cloneDeep((this.sources as any)[id]);
     } else {
-      sourceEntity = Sources.getDefaultSource();
+      sourceEntity = _.cloneDeep(Sources.getDefaultSource());
     }
 
     if (sourceEntity && contract && tokenId) {

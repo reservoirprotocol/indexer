@@ -13,10 +13,10 @@ import _ from "lodash";
 const version = "v1";
 
 export const getReceivedBidsV1Options: RouteOptions = {
-  description: "Received Bids (offers)",
+  description: "User Bids Received",
   notes:
     "Get a list of received bids (offers), filtered by address. This API is designed for efficiently receiving all bids, for real-time ingestion.",
-  tags: ["api", "Orders"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 5,

@@ -64,7 +64,13 @@ export const getOrdersAsksV3Options: RouteOptions = {
         ),
       includePrivate: Joi.boolean()
         .default(false)
-        .description("When true, private orders are included in the response."),
+        .description("If true, private orders are included in the response."),
+      includeMetadata: Joi.boolean()
+        .default(false)
+        .description("If true, metadata is included in the response."),
+      includeRawData: Joi.boolean()
+        .default(false)
+        .description("If true, raw data is included in the response."),
       sortBy: Joi.string()
         .when("token", {
           is: Joi.exist(),
@@ -127,7 +133,9 @@ export const getOrdersAsksV3Options: RouteOptions = {
                 image: Joi.string().allow("", null),
               }),
             })
-          ).allow(null),
+          )
+            .allow(null)
+            .optional(),
           status: Joi.string(),
           source: Joi.object().allow(null),
           feeBps: Joi.number().allow(null),
@@ -143,7 +151,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
           expiration: Joi.number().required(),
           createdAt: Joi.string().required(),
           updatedAt: Joi.string().required(),
-          rawData: Joi.object(),
+          rawData: Joi.object().optional(),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
@@ -262,9 +270,9 @@ export const getOrdersAsksV3Options: RouteOptions = {
               ELSE 'active'
             END
           ) AS status,
-          orders.updated_at,
-          orders.raw_data,
-          ${metadataBuildQuery}
+          orders.updated_at
+          ${query.includeRawData ? ", orders.raw_data" : ""}
+          ${query.includeMetadata ? `, ${metadataBuildQuery}` : ""}
         FROM orders
       `;
 
@@ -413,7 +421,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
           ),
           validFrom: Number(r.valid_from),
           validUntil: Number(r.valid_until),
-          metadata: r.metadata,
+          metadata: query.includeMetadata ? r.metadata : undefined,
           source: {
             id: source?.address,
             name: source?.metadata.title || source?.name,
@@ -425,7 +433,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
           expiration: Number(r.expiration),
           createdAt: new Date(r.created_at * 1000).toISOString(),
           updatedAt: new Date(r.updated_at).toISOString(),
-          rawData: r.raw_data,
+          rawData: query.includeRawData ? r.raw_data : undefined,
         };
       });
 

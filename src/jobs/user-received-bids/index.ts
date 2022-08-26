@@ -13,7 +13,7 @@ if (config.doBackgroundWork) {
     logger.info(cleanUserReceivedBids.queue.name, "Clean user received bids");
 
     try {
-      await cleanUserReceivedBids.addToQueue();
+      // await cleanUserReceivedBids.addToQueue();
     } catch (error) {
       logger.error(
         cleanUserReceivedBids.queue.name,

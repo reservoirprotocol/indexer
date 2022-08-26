@@ -17,7 +17,7 @@ import { Sources } from "@/models/sources";
 const version = "v4";
 
 export const getSalesV4Options: RouteOptions = {
-  description: "Historical sales",
+  description: "Sales",
   notes: "Get recent sales for a contract or token.",
   tags: ["api", "Sales"],
   plugins: {

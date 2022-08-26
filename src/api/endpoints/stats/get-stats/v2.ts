@@ -112,7 +112,7 @@ export const getStatsV2Options: RouteOptions = {
               0
             ) AS "floor_sell_valid_until",
             os.currency AS floor_sell_currency,
-            os.currency_value AS floor_sell_currency_value,
+            coalesce(os.currency_value, os.value) AS floor_sell_currency_value,
             os.fee_bps AS floor_sell_fee_bps,
             "t"."contract",
             "t"."token_id",
@@ -196,7 +196,7 @@ export const getStatsV2Options: RouteOptions = {
               0
             ) AS "floor_sell_valid_until",
             os.currency AS floor_sell_currency,
-            os.currency_value AS floor_sell_currency_value,
+            coalesce(os.currency_value, os.value) AS floor_sell_currency_value,
             os.fee_bps AS floor_sell_fee_bps
           FROM "x"
           LEFT JOIN "orders" "os"
@@ -219,8 +219,8 @@ export const getStatsV2Options: RouteOptions = {
               ) AS "top_buy_valid_until",
               ob.price AS top_buy_price,
               ob.currency AS top_buy_currency,
-              ob.currency_price AS top_buy_currency_price,
-              ob.currency_value AS top_buy_currency_value
+              coalesce(ob.currency_price, ob.price) AS top_buy_currency_price,
+              coalesce(ob.currency_value, ob.value) AS top_buy_currency_value
             FROM "token_sets" "ts"
             LEFT JOIN "orders" "ob"
               ON "ts"."top_buy_id" = "ob"."id"
@@ -287,7 +287,7 @@ export const getStatsV2Options: RouteOptions = {
                 0
               ) AS "floor_sell_valid_until",
               os.currency AS floor_sell_currency,
-              os.currency_value AS floor_sell_currency_value,
+              coalesce(os.currency_value, os.value) AS floor_sell_currency_value,
               os.fee_bps AS floor_sell_fee_bps
             FROM "tokens" "t"
             LEFT JOIN "orders" "os"
@@ -327,8 +327,8 @@ export const getStatsV2Options: RouteOptions = {
               ) AS "top_buy_valid_until",
               ob.price AS top_buy_price,
               ob.currency AS top_buy_currency,
-              ob.currency_price AS top_buy_currency_price,
-              ob.currency_value AS top_buy_currency_value
+              coalesce(ob.currency_price, ob.price) AS top_buy_currency_price,
+              coalesce(ob.currency_value, ob.value) AS top_buy_currency_value
             FROM "token_sets" "ts"
             LEFT JOIN "orders" "ob"
               ON "ts"."top_buy_id" = "ob"."id"
