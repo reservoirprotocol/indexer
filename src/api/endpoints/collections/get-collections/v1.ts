@@ -10,13 +10,16 @@ import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 const version = "v1";
 
 export const getCollectionsV1Options: RouteOptions = {
+  cache: {
+    privacy: "public",
+    expiresIn: 60000,
+  },
   description: "List of collections",
   notes:
     "Useful for getting multiple collections to show in a marketplace, or search for particular collections.",
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 11,
       deprecated: true,
     },
   },
@@ -47,7 +50,7 @@ export const getCollectionsV1Options: RouteOptions = {
       collections: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          slug: Joi.string(),
+          slug: Joi.string().allow(null, ""),
           name: Joi.string().allow(null, ""),
           metadata: Joi.object().allow(null),
           sampleImages: Joi.array().items(Joi.string().allow(null, "")),

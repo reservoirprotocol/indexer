@@ -3,7 +3,7 @@
 import _ from "lodash";
 
 import { idb, redb } from "@/common/db";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { fromBuffer, now, toBuffer } from "@/common/utils";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import {
   TokensEntity,
@@ -122,24 +122,35 @@ export class Tokens {
       .then((result) => (result ? result.count : 0));
   }
 
-  public static async getNonFlaggedTokenIdsInCollection(
-    contract: string,
+  public static async getTokenIdsInCollection(
     collectionId: string,
-    readReplica = false
+    contract = "",
+    nonFlaggedOnly = false,
+    readReplica = true
   ) {
     const dbInstance = readReplica ? redb : idb;
     const limit = 5000;
     let checkForMore = true;
     let continuation = "";
     let tokenIds: string[] = [];
+    let flagFilter = "";
+    let contractFilter = "";
+
+    if (nonFlaggedOnly) {
+      flagFilter = "AND is_flagged = 0";
+    }
+
+    if (contract) {
+      contractFilter = "AND contract = $/contract/";
+    }
 
     while (checkForMore) {
       const query = `
         SELECT token_id
         FROM tokens
-        WHERE contract = $/contract/
-        AND collection_id = $/collectionId/
-        AND is_flagged = 0
+        WHERE collection_id = $/collectionId/
+        ${contractFilter}
+        ${flagFilter}
         ${continuation}
         ORDER BY token_id ASC
         LIMIT ${limit}
@@ -202,7 +213,7 @@ export class Tokens {
     const tokenSetId = `token:${contract}:${tokenId}`;
     await orderUpdatesById.addToQueue([
       {
-        context: `revalidate-sell-${tokenSetId}-${Math.floor(Date.now() / 1000)}`,
+        context: `revalidate-sell-${tokenSetId}-${now()}`,
         tokenSetId,
         side: "sell",
         trigger: { kind: "revalidation" },
@@ -215,7 +226,7 @@ export class Tokens {
 
     await orderUpdatesById.addToQueue([
       {
-        context: `revalidate-buy-${tokenSetId}-${Math.floor(Date.now() / 1000)}`,
+        context: `revalidate-buy-${tokenSetId}-${now()}`,
         tokenSetId,
         side: "buy",
         trigger: { kind: "revalidation" },

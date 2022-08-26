@@ -13,7 +13,7 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, formatPrice } from "@/common/utils";
+import { bn, formatPrice, now } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v1";
@@ -233,7 +233,7 @@ export const getCollectionFloorAskOracleV1Options: RouteOptions = {
       } = {
         id,
         payload: defaultAbiCoder.encode(["address", "uint256"], [query.currency, price]),
-        timestamp: Math.floor(Date.now() / 1000),
+        timestamp: now(),
       };
 
       if (config.oraclePrivateKey) {

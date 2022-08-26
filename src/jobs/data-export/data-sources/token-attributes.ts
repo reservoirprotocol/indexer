@@ -82,7 +82,7 @@ export class TokenAttributesDataSource extends BaseDataSource {
         key: r.key,
         value: r.value,
         created_at: new Date(r.created_at).toISOString(),
-        updated_at: new Date(r.updated_ts).toISOString(),
+        updated_at: new Date(r.updated_ts * 1000).toISOString(),
         is_active: true,
       }));
 
@@ -111,7 +111,7 @@ export class TokenAttributesDataSource extends BaseDataSource {
         key: r.key,
         value: r.value,
         created_at: new Date(r.created_at).toISOString(),
-        updated_at: new Date(r.deleted_ts).toISOString(),
+        updated_at: new Date(r.deleted_ts * 1000).toISOString(),
         is_active: false,
       }));
 

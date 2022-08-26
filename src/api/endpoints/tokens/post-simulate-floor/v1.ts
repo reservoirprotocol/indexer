@@ -6,14 +6,14 @@ import Joi from "joi";
 import { inject } from "@/api/index";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { toBuffer } from "@/common/utils";
+import { regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { genericTaker, ensureBuyTxSucceeds } from "@/utils/simulation";
 
 const version = "v1";
 
 export const postSimulateFloorV1Options: RouteOptions = {
-  description: "Simulate the floor ask of any token for guaranteed fillability coverage",
+  description: "Simulate the floor ask of any token",
   tags: ["api", "Management"],
   plugins: {
     "hapi-swagger": {
@@ -25,9 +25,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
   },
   validate: {
     payload: Joi.object({
-      token: Joi.string()
-        .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/),
+      token: Joi.string().lowercase().pattern(regex.token),
     }),
   },
   response: {
@@ -42,6 +40,23 @@ export const postSimulateFloorV1Options: RouteOptions = {
   handler: async (request: Request) => {
     const payload = request.payload as any;
 
+    const invalidateOrder = async (orderId: string) => {
+      logger.warn(`post-simulate-floor-${version}-handler`, `Detected unfillable order ${orderId}`);
+
+      // Invalidate the order if the simulation failed
+      await inject({
+        method: "POST",
+        url: `/admin/invalidate-order`,
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Api-Key": config.adminApiKey,
+        },
+        payload: {
+          id: orderId,
+        },
+      });
+    };
+
     try {
       const token = payload.token;
 
@@ -52,6 +67,34 @@ export const postSimulateFloorV1Options: RouteOptions = {
           "Content-Type": "application/json",
         },
       });
+
+      if (JSON.parse(response.payload).statusCode === 500) {
+        const floorAsk = await redb.oneOrNone(
+          `
+            SELECT
+              tokens.floor_sell_id
+            FROM tokens
+            LEFT JOIN orders
+              ON tokens.floor_sell_id = orders.id
+            WHERE tokens.contract = $/contract/
+              AND tokens.token_id = $/tokenId/
+              AND orders.kind = 'x2y2'
+          `,
+          {
+            contract: toBuffer(token.split(":")[0]),
+            tokenId: token.split(":")[1],
+          }
+        );
+
+        // If the "/execute/buy" API failed, most of the time it's because of
+        // failing to generate the fill signature for X2Y2 orders since their
+        // backend sees that particular order as unfillable (usually it's off
+        // chain cancelled). In those cases, we cancel the floor ask order.
+        if (floorAsk?.floor_sell_id) {
+          await invalidateOrder(floorAsk.floor_sell_id);
+          return { message: "Floor order is not fillable (got invalidated)" };
+        }
+      }
 
       if (response.payload.includes("No available orders")) {
         return { message: "No orders to simulate" };
@@ -84,26 +127,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
       if (success) {
         return { message: "Floor order is fillable" };
       } else {
-        const orderId = (groups as any).orderId;
-
-        logger.warn(
-          `post-simulate-floor-${version}-handler`,
-          `Detected unfillable order ${orderId}`
-        );
-
-        // Invalidate the order if the simulation failed
-        await inject({
-          method: "POST",
-          url: `/admin/invalidate-order`,
-          headers: {
-            "Content-Type": "application/json",
-            "X-Admin-Api-Key": config.adminApiKey,
-          },
-          payload: {
-            id: orderId,
-          },
-        });
-
+        await invalidateOrder((groups as any).orderId);
         return { message: "Floor order is not fillable (got invalidated)" };
       }
     } catch (error) {

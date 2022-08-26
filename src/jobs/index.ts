@@ -9,6 +9,7 @@ import "@/jobs/bid-updates";
 import "@/jobs/cache-check";
 import "@/jobs/collections-refresh";
 import "@/jobs/collection-updates";
+import "@/jobs/currencies";
 import "@/jobs/daily-volumes";
 import "@/jobs/data-export";
 import "@/jobs/events-sync";
@@ -42,6 +43,7 @@ import * as backfillFillEventsWashTradingScore from "@/jobs/backfill/backfill-fi
 import * as backfillLooksRareFills from "@/jobs/backfill/backfill-looks-rare-fills";
 import * as backfillTransactionBlockFields from "@/jobs/backfill/backfill-transaction-block-fields";
 import * as backfillTransactions from "@/jobs/backfill/backfill-transactions";
+import * as backfillCollectionsTopBid from "@/jobs/backfill/backfill-collections-top-bid";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -51,6 +53,9 @@ import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
+import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
+
+import * as currencies from "@/jobs/currencies/index";
 
 import * as dailyVolumes from "@/jobs/daily-volumes/daily-volumes";
 
@@ -81,12 +86,18 @@ import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle
 import * as removeBuyOrderEvents from "@/jobs/order-updates/remove-buy-order-events";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
+import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
 import * as resyncOrdersSource from "@/jobs/orderbook/resync-orders-source";
 import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
+
+import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
 
 import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
 import * as nonFlaggedTokenSet from "@/jobs/token-updates/non-flagged-token-set";
+import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
+import * as syncTokensFlagStatus from "@/jobs/token-updates/sync-tokens-flag-status";
+import * as syncCollectionsFlagStatus from "@/jobs/token-updates/sync-collection-flag-status";
 
 import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-order";
 import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
@@ -95,10 +106,6 @@ import * as resyncAttributeCollection from "@/jobs/update-attribute/resync-attri
 import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attribute-floor-sell";
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
-
-import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
-
-import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
 
 import * as addUserReceivedBids from "@/jobs/user-received-bids/add-user-received-bids";
 import * as cleanUserReceivedBids from "@/jobs/user-received-bids/clean-user-received-bids";
@@ -120,6 +127,9 @@ export const allJobQueues = [
   backfillLooksRareFills.queue,
   backfillTransactionBlockFields.queue,
   backfillTransactions.queue,
+  backfillCollectionsTopBid.queue,
+
+  currencies.queue,
 
   topBidUpdate.queue,
 
@@ -129,6 +139,7 @@ export const allJobQueues = [
   collectionUpdatesFloorAsk.queue,
   collectionUpdatesMetadata.queue,
   rarity.queue,
+  collectionUpdatesTopBid.queue,
 
   dailyVolumes.queue,
 
@@ -159,12 +170,18 @@ export const allJobQueues = [
   removeBuyOrderEvents.queue,
 
   orderbookOrders.queue,
+  orderbookPostOrderExternal.queue,
   orderbookTokenSets.queue,
   resyncOrdersSource.queue,
+
+  fetchSourceInfo.queue,
 
   tokenUpdatesMint.queue,
   tokenRefreshCache.queue,
   nonFlaggedTokenSet.queue,
+  fetchCollectionMetadata.queue,
+  syncTokensFlagStatus.queue,
+  syncCollectionsFlagStatus.queue,
 
   handleNewSellOrder.queue,
   handleNewBuyOrder.queue,
@@ -173,10 +190,6 @@ export const allJobQueues = [
   resyncAttributeFloorSell.queue,
   resyncAttributeKeyCounts.queue,
   resyncAttributeValueCounts.queue,
-
-  orderbookPostOrderExternal.queue,
-
-  fetchSourceInfo.queue,
 
   addUserReceivedBids.queue,
   cleanUserReceivedBids.queue,

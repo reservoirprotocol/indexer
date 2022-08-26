@@ -98,6 +98,7 @@ CREATE INDEX "orders_not_expired_maker_side_created_at_id_index"
   INCLUDE ("approval_status")
   WHERE ("fillability_status" = 'fillable' OR "fillability_status" = 'no-balance');
 
+-- TODO: Only index active orders (fillable + approved)
 CREATE INDEX "orders_dynamic_index"
   ON "orders" ("id")
   WHERE ("dynamic" AND ("fillability_status" = 'fillable' OR "fillability_status" = 'no-balance'));

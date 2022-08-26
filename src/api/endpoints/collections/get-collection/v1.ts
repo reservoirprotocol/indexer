@@ -15,7 +15,6 @@ export const getCollectionV1Options: RouteOptions = {
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 11,
       deprecated: true,
     },
   },
@@ -37,7 +36,7 @@ export const getCollectionV1Options: RouteOptions = {
     schema: Joi.object({
       collection: Joi.object({
         id: Joi.string(),
-        slug: Joi.string(),
+        slug: Joi.string().allow(null, ""),
         name: Joi.string().allow(null, ""),
         metadata: Joi.object().allow(null),
         sampleImages: Joi.array().items(Joi.string().allow(null, "")),

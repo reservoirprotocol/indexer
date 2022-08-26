@@ -2,9 +2,9 @@ import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
-import { idb, pgp, redb } from "@/common/db";
+import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, toBuffer } from "@/common/utils";
+import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
@@ -56,7 +56,7 @@ export const save = async (
         });
       }
 
-      const currentTime = Math.floor(Date.now() / 1000);
+      const currentTime = now();
 
       // Check: order has a valid listing time
       const listingTime = order.params.startTime;
@@ -168,21 +168,33 @@ export const save = async (
 
       const side = order.params.isOrderAsk ? "sell" : "buy";
 
+      // Handle: currency
+      let currency = order.params.currency;
+      if (side === "sell" && currency === Sdk.Common.Addresses.Weth[config.chainId]) {
+        // LooksRare sell orders are always in WETH (although fillable in ETH)
+        currency = Sdk.Common.Addresses.Eth[config.chainId];
+      }
+
       // Handle: fees
-      let feeBps = 200;
+      let feeBreakdown = [
+        {
+          kind: "marketplace",
+          recipient: "0x5924a28caaf1cc016617874a2f0c3710d881f3c1",
+          bps: 200,
+        },
+      ];
 
       // Handle: royalties
-      const royaltiesResult = await redb.oneOrNone(
-        `
-          SELECT collections.royalties FROM collections
-          WHERE collections.contract = $/contract/
-          LIMIT 1
-        `,
-        { contract: toBuffer(order.params.collection) }
-      );
-      for (const { bps } of royaltiesResult?.royalties || []) {
-        feeBps += Number(bps);
-      }
+      const royalties = await commonHelpers.getRoyalties(order.params.collection);
+      feeBreakdown = [
+        ...feeBreakdown,
+        ...royalties.map(({ bps, recipient }) => ({
+          kind: "royalty",
+          recipient,
+          bps,
+        })),
+      ];
+      const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
 
       // Handle: price and value
       const price = order.params.price;
@@ -205,16 +217,6 @@ export const save = async (
       if (metadata.source) {
         source = await sources.getOrInsert(metadata.source);
       }
-
-      // Handle fee breakdown
-      const feeBreakdown = [
-        {
-          kind: "marketplace",
-          recipient: "0x5924a28caaf1cc016617874a2f0c3710d881f3c1",
-          bps: 200,
-        },
-        // TODO: Include royalty fees as well (looksrare has on-chain royalties)
-      ];
 
       // Handle: native Reservoir orders
       const isReservoir = false;
@@ -243,6 +245,10 @@ export const save = async (
         taker: toBuffer(AddressZero),
         price,
         value,
+        currency: toBuffer(currency),
+        currency_price: price,
+        currency_value: value,
+        needs_conversion: null,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.nonce,
         source_id_int: source?.id,
@@ -298,6 +304,10 @@ export const save = async (
         "taker",
         "price",
         "value",
+        "currency",
+        "currency_price",
+        "currency_value",
+        "needs_conversion",
         { name: "valid_between", mod: ":raw" },
         "nonce",
         "source_id_int",

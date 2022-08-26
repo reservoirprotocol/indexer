@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Request, RouteOptions } from "@hapi/hapi";
+import _ from "lodash";
 import Joi from "joi";
 
 import { redb } from "@/common/db";
@@ -15,7 +16,6 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import _ from "lodash";
 
 const version = "v2";
 
@@ -23,10 +23,10 @@ export const getOrdersAsksV2Options: RouteOptions = {
   description: "Asks (listings)",
   notes:
     "Get a list of asks (listings), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
-  tags: ["api", "Orders"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 5,
+      deprecated: true,
     },
   },
   validate: {
@@ -130,7 +130,7 @@ export const getOrdersAsksV2Options: RouteOptions = {
             .items(
               Joi.object({
                 kind: Joi.string(),
-                recipient: Joi.string().lowercase().pattern(regex.address).allow(null),
+                recipient: Joi.string().allow("", null),
                 bps: Joi.number(),
               })
             )
@@ -389,7 +389,7 @@ export const getOrdersAsksV2Options: RouteOptions = {
           metadata: r.metadata,
           source: {
             id: source?.address,
-            name: source?.name,
+            name: source?.metadata.title || source?.name,
             icon: source?.metadata.icon,
             url: source?.metadata.url,
           },

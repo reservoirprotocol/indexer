@@ -3,13 +3,14 @@ import * as Sdk from "@reservoir0x/sdk";
 import { getReferrer } from "@reservoir0x/sdk/dist/utils";
 import pLimit from "p-limit";
 
-import { baseProvider, slowProvider } from "@/common/provider";
+import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { getBlocks, saveBlock } from "@/models/blocks";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getTransaction, saveTransaction } from "@/models/transactions";
+import { OrderKind, getOrderSourceByOrderKind } from "@/orderbook/orders";
 
 export const fetchBlock = async (blockNumber: number, force = false) =>
   getBlocks(blockNumber)
@@ -69,7 +70,7 @@ export const fetchTransaction = async (txHash: string) =>
 
     let tx = await baseProvider.getTransaction(txHash);
     if (!tx) {
-      tx = await slowProvider.getTransaction(txHash);
+      tx = await baseProvider.getTransaction(txHash);
     }
 
     // Also fetch all transactions within the block
@@ -94,40 +95,7 @@ export const fetchTransaction = async (txHash: string) =>
     });
   });
 
-export const getOrderSourceByOrderKind = async (
-  orderKind: string
-): Promise<SourcesEntity | null> => {
-  try {
-    const sources = await Sources.getInstance();
-
-    switch (orderKind) {
-      case "x2y2":
-        return sources.getOrInsert("x2y2.io");
-      case "foundation":
-        return sources.getOrInsert("foundation.app");
-      case "looks-rare":
-        return sources.getOrInsert("looksrare.org");
-      case "seaport":
-      case "wyvern-v2":
-      case "wyvern-v2.3":
-        return sources.getOrInsert("opensea.io");
-      case "rarible":
-        return sources.getOrInsert("rarible.com");
-      case "element-erc721":
-      case "element-erc1155":
-        return sources.getOrInsert("element.market");
-      case "quixotic":
-        return sources.getOrInsert("quixotic.io");
-      default:
-        // For all other order kinds we cannot default the source
-        return null;
-    }
-  } catch (error) {
-    return null;
-  }
-};
-
-export const extractAttributionData = async (txHash: string, orderKind: string) => {
+export const extractAttributionData = async (txHash: string, orderKind: OrderKind) => {
   const sources = await Sources.getInstance();
 
   let aggregatorSource: SourcesEntity | undefined;
@@ -147,6 +115,11 @@ export const extractAttributionData = async (txHash: string, orderKind: string) 
   if (referrer) {
     aggregatorSource = await sources.getOrInsert("reservoir.tools");
     fillSource = await sources.getOrInsert(referrer);
+
+    // Special rule for handling Gem filling directly on Seaport
+    if (fillSource?.domain === "gem.xyz") {
+      aggregatorSource = fillSource;
+    }
   } else if (router === "reservoir.tools") {
     aggregatorSource = await sources.getOrInsert("reservoir.tools");
   } else if (router) {

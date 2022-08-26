@@ -14,10 +14,10 @@ const version = "v3";
 export const getCollectionV3Options: RouteOptions = {
   description: "Single Collection",
   notes: "Get detailed information about a single collection, including real-time stats.",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 3,
+      deprecated: true,
     },
   },
   validate: {
@@ -41,7 +41,7 @@ export const getCollectionV3Options: RouteOptions = {
     schema: Joi.object({
       collection: Joi.object({
         id: Joi.string(),
-        slug: Joi.string().description("Open Sea slug"),
+        slug: Joi.string().allow(null, "").description("Open Sea slug"),
         name: Joi.string().allow(null, ""),
         metadata: Joi.object().allow(null),
         sampleImages: Joi.array().items(Joi.string().allow(null, "")),
@@ -122,9 +122,9 @@ export const getCollectionV3Options: RouteOptions = {
         ownerCount: Joi.number(),
         attributes: Joi.array().items(
           Joi.object({
-            key: Joi.string().allow(null),
-            kind: Joi.string().allow(null),
-            count: Joi.number().allow(null),
+            key: Joi.string().allow(null, ""),
+            kind: Joi.string().allow(null, ""),
+            count: Joi.number().allow(null, ""),
           })
         ),
       }).allow(null),

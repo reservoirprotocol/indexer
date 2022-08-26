@@ -15,6 +15,7 @@ import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-ord
 import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
+import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -112,6 +113,7 @@ if (config.doBackgroundWork) {
                 WHERE token_sets.id = x.token_set_id
                   AND token_sets.top_buy_id IS DISTINCT FROM x.order_id
                 RETURNING
+                  collection_id AS "collectionId",
                   attribute_id AS "attributeId",
                   top_buy_value AS "topBuyValue"
               `,
@@ -121,6 +123,17 @@ if (config.doBackgroundWork) {
             for (const result of buyOrderResult) {
               if (!_.isNull(result.attributeId)) {
                 await handleNewBuyOrder.addToQueue(result);
+              }
+
+              if (!_.isNull(result.collectionId)) {
+                await collectionUpdatesTopBid.addToQueue([
+                  {
+                    collectionId: result.collectionId,
+                    kind: trigger.kind,
+                    txHash: trigger.txHash || null,
+                    txTimestamp: trigger.txTimestamp || null,
+                  } as collectionUpdatesTopBid.TopBidInfo,
+                ]);
               }
             }
           }
@@ -135,6 +148,8 @@ if (config.doBackgroundWork) {
                     x.token_id,
                     y.order_id,
                     y.value,
+                    y.currency,
+                    y.currency_value,
                     y.maker,
                     y.valid_between,
                     y.nonce,
@@ -150,6 +165,8 @@ if (config.doBackgroundWork) {
                     SELECT
                       orders.id AS order_id,
                       orders.value,
+                      orders.currency,
+                      orders.currency_value,
                       orders.maker,
                       orders.valid_between,
                       orders.source_id_int,
@@ -172,6 +189,8 @@ if (config.doBackgroundWork) {
                   UPDATE tokens SET
                     floor_sell_id = z.order_id,
                     floor_sell_value = z.value,
+                    floor_sell_currency = z.currency,
+                    floor_sell_currency_value = z.currency_value,
                     floor_sell_maker = z.maker,
                     floor_sell_valid_from = least(
                       2147483647::NUMERIC,

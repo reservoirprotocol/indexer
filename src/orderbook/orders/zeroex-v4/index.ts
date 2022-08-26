@@ -5,7 +5,7 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, toBuffer } from "@/common/utils";
+import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
@@ -117,7 +117,7 @@ export const save = async (
         }
       }
 
-      const currentTime = Math.floor(Date.now() / 1000);
+      const currentTime = now();
 
       // Check: order is not expired
       const expirationTime = order.params.expiry;
@@ -328,6 +328,13 @@ export const save = async (
         bps: price.eq(0) ? bn(0) : bn(amount).mul(10000).div(price).toNumber(),
       }));
 
+      // Handle: currency
+      let currency = order.params.erc20Token;
+      if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+        // ZeroEx-like exchanges use a non-standard ETH address
+        currency = Sdk.Common.Addresses.Eth[config.chainId];
+      }
+
       const validFrom = `date_trunc('seconds', to_timestamp(0))`;
       const validTo = `date_trunc('seconds', to_timestamp(${order.params.expiry}))`;
       orderValues.push({
@@ -342,6 +349,10 @@ export const save = async (
         taker: toBuffer(order.params.taker),
         price: price.toString(),
         value: value.toString(),
+        currency: toBuffer(currency),
+        currency_price: price.toString(),
+        currency_value: value.toString(),
+        needs_conversion: null,
         quantity_remaining: order.params.nftAmount,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.nonce,
@@ -398,6 +409,10 @@ export const save = async (
         "taker",
         "price",
         "value",
+        "currency",
+        "currency_price",
+        "currency_value",
+        "needs_conversion",
         "quantity_remaining",
         { name: "valid_between", mod: ":raw" },
         "nonce",

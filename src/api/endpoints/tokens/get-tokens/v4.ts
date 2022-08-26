@@ -22,10 +22,10 @@ export const getTokensV4Options: RouteOptions = {
   description: "Tokens",
   notes:
     "This API is optimized for quickly fetching a list of tokens in a collection, sorted by price, with only the most important information returned. If you need more metadata, use the tokens/details API",
-  tags: ["api", "Tokens"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 9,
+      deprecated: true,
     },
   },
   validate: {
@@ -441,7 +441,7 @@ export const getTokensV4Options: RouteOptions = {
           rarityRank: r.rarity_rank,
           owner: r.owner ? fromBuffer(r.owner) : null,
           isFlagged: Boolean(Number(r.is_flagged)),
-          lastFlagUpdate: r.last_flag_update,
+          lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
         };
       });
 

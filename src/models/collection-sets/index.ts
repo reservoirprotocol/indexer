@@ -47,7 +47,7 @@ export class CollectionSets {
     return collectionsHash;
   }
 
-  public static async getCollectionsIds(collectionsSetId: string) {
+  public static async getCollectionsIds(collectionsSetId: string): Promise<string[]> {
     const query = `
       SELECT collection_id
       FROM collections_sets_collections

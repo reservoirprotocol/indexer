@@ -72,7 +72,7 @@ export class TokensDataSource extends BaseDataSource {
         last_sale_value: r.last_sell_value ? r.last_sell_value.toString() : null,
         last_sale_timestamp: r.last_sell_timestamp,
         created_at: new Date(r.created_at).toISOString(),
-        updated_at: new Date(r.updated_ts).toISOString(),
+        updated_at: new Date(r.updated_ts * 1000).toISOString(),
       }));
 
       const lastResult = result[result.length - 1];

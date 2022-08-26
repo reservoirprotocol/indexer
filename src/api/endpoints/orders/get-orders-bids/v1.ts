@@ -110,7 +110,7 @@ export const getOrdersBidsV1Options: RouteOptions = {
             .items(
               Joi.object({
                 kind: Joi.string(),
-                recipient: Joi.string().lowercase().pattern(regex.address).allow(null),
+                recipient: Joi.string().allow("", null),
                 bps: Joi.number(),
               })
             )
@@ -366,7 +366,7 @@ export const getOrdersBidsV1Options: RouteOptions = {
           metadata: r.metadata,
           source: {
             id: source?.address,
-            name: source?.name,
+            name: source?.metadata.title || source?.name,
             icon: source?.metadata.icon,
             url: source?.metadata.url,
           },

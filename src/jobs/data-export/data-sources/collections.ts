@@ -82,7 +82,7 @@ export class CollectionsDataSource extends BaseDataSource {
           ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
           : null,
         created_at: new Date(r.created_at).toISOString(),
-        updated_at: new Date(r.updated_ts).toISOString(),
+        updated_at: new Date(r.updated_ts * 1000).toISOString(),
       }));
 
       const lastResult = result[result.length - 1];

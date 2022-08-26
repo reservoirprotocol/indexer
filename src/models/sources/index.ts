@@ -175,9 +175,9 @@ export class Sources {
     let sourceEntity;
 
     if (id in this.sources) {
-      sourceEntity = (this.sources as any)[id];
+      sourceEntity = _.cloneDeep((this.sources as any)[id]);
     } else {
-      sourceEntity = Sources.getDefaultSource();
+      sourceEntity = _.cloneDeep(Sources.getDefaultSource());
     }
 
     if (sourceEntity && contract && tokenId) {
@@ -213,45 +213,48 @@ export class Sources {
 
   public getByAddress(
     address: string,
-    contract?: string,
-    tokenId?: string,
-    returnDefault = true
-  ): SourcesEntity {
-    let sourceEntity;
+    options?: {
+      contract?: string;
+      tokenId?: string;
+      returnDefault?: boolean;
+    }
+  ): SourcesEntity | undefined {
+    let sourceEntity: SourcesEntity | undefined;
 
-    if (_.toLower(address) in this.sourcesByAddress) {
-      sourceEntity = (this.sourcesByAddress as any)[_.toLower(address)];
-    } else if (returnDefault) {
+    address = _.toLower(address);
+    if (address in this.sourcesByAddress) {
+      sourceEntity = (this.sourcesByAddress as any)[address];
+    } else if (options?.returnDefault) {
       sourceEntity = Sources.getDefaultSource();
     }
 
-    if (sourceEntity && contract && tokenId) {
-      sourceEntity.metadata.url = this.getTokenUrl(sourceEntity, contract, tokenId);
+    if (sourceEntity && options?.contract && options?.tokenId) {
+      sourceEntity.metadata.url = this.getTokenUrl(sourceEntity, options.contract, options.tokenId);
     }
 
     return sourceEntity;
   }
 
   public async getOrInsert(source: string): Promise<SourcesEntity> {
-    let sourceEntity;
+    let sourceEntity: SourcesEntity | undefined;
 
-    // If the passed source is an address
     if (source.match(regex.address)) {
-      sourceEntity = this.getByAddress(source, undefined, undefined, false); // This is an address
+      // Case 1: source is an address (deprecated)
 
+      sourceEntity = this.getByAddress(source);
       if (!sourceEntity) {
         sourceEntity = await this.create(source, source);
       }
     } else {
-      // Try to get the source by name
+      // Case 2: source is a name (deprecated)
       sourceEntity = this.getByName(source, false);
 
-      // If the source was not found try to get it by domain
+      // Case 3: source is a domain
       if (!sourceEntity) {
         sourceEntity = this.getByDomain(source, false);
       }
 
-      // If source was not found by name nor domain create one
+      // Create the source if nothing is available
       if (!sourceEntity) {
         const address = "0x" + randomBytes(20).toString("hex");
         sourceEntity = await this.create(source, address);
@@ -261,6 +264,7 @@ export class Sources {
     return sourceEntity;
   }
 
+  // TODO: Are we using this anymore? What about support for other chains?
   public getTokenUrl(sourceEntity: SourcesEntity, contract: string, tokenId: string) {
     if (config.chainId == 1) {
       if (sourceEntity.metadata.tokenUrlMainnet && contract && tokenId) {

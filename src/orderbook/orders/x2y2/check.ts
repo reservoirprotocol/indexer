@@ -47,7 +47,7 @@ export const offChainCheck = async (
   if (order.params.type === "buy") {
     // Check: maker has enough balance
     const ftBalance = await commonHelpers.getFtBalance(order.params.currency, order.params.maker);
-    if (ftBalance.lt(order.params.currency)) {
+    if (ftBalance.lt(order.params.price)) {
       hasBalance = false;
     }
 
@@ -61,7 +61,7 @@ export const offChainCheck = async (
               Sdk.X2Y2.Addresses.Exchange[config.chainId]
             )
             .then((a) => a.value)
-        ).lt(order.params.currency)
+        ).lt(order.params.price)
       ) {
         hasApproval = false;
       }
@@ -70,7 +70,7 @@ export const offChainCheck = async (
     // Check: maker has enough balance
     const nftBalance = await commonHelpers.getNftBalance(
       order.params.nft.token,
-      order.params.nft.tokenId,
+      order.params.nft.tokenId!,
       order.params.maker
     );
     if (nftBalance.lt(1)) {

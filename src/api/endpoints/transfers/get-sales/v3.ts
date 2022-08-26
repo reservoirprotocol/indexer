@@ -28,10 +28,10 @@ export const getSalesV3Options: RouteOptions = {
   description: "Historical sales",
   notes:
     "Get recent sales for a contract or token. Note: this API is returns rich metadata, and has advanced filters, so is only designed for small amounts of recent sales. If you want access to sales in bulk, use the `Aggregator > Bulk Sales` API.",
-  tags: ["api", "Sales"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 8,
+      deprecated: true,
     },
   },
   validate: {
@@ -244,12 +244,12 @@ export const getSalesV3Options: RouteOptions = {
             fill_events_2.maker,
             fill_events_2.taker,
             fill_events_2.amount,
-            fill_events_2.fill_source,
+            fill_events_2.fill_source_id,
             fill_events_2.tx_hash,
             fill_events_2.timestamp,
             fill_events_2.price,
             fill_events_2.currency,
-            TRUNC(fill_events_2.currency_price, 0),
+            TRUNC(fill_events_2.currency_price, 0) AS currency_price,
             currencies.decimals,
             fill_events_2.usd_price,
             fill_events_2.block,
@@ -300,8 +300,8 @@ export const getSalesV3Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map((r) => {
-        const orderSource = sources.get(Number(r.order_source_id_int))?.name;
-        const orderSourceDomain = sources.get(Number(r.order_source_id_int))?.domain;
+        const orderSource = sources.get(Number(r.order_source_id_int));
+        const fillSource = sources.get(Number(r.fill_source_id));
 
         return {
           id: crypto
@@ -324,14 +324,14 @@ export const getSalesV3Options: RouteOptions = {
               name: r.collection_name,
             },
           },
-          orderSource,
-          orderSourceDomain,
+          orderSource: (orderSource?.metadata.title || orderSource?.name) ?? null,
+          orderSourceDomain: orderSource?.domain ?? null,
           orderSide: r.order_side === "sell" ? "ask" : "bid",
           orderKind: r.order_kind,
           from: r.order_side === "sell" ? fromBuffer(r.maker) : fromBuffer(r.taker),
           to: r.order_side === "sell" ? fromBuffer(r.taker) : fromBuffer(r.maker),
           amount: String(r.amount),
-          fillSource: r.fill_source ? String(r.fill_source) : orderSource,
+          fillSource: fillSource?.domain ?? orderSource?.domain ?? null,
           txHash: fromBuffer(r.tx_hash),
           logIndex: r.log_index,
           batchIndex: r.batch_index,

@@ -11,7 +11,7 @@ import { CollectionSets } from "@/models/collection-sets";
 const version = "v2";
 
 export const getUserCollectionsV2Options: RouteOptions = {
-  description: "User owned collections",
+  description: "User collections",
   notes:
     "Get aggregate stats for a user, grouped by collection. Useful for showing total portfolio information.",
   tags: ["api", "Collections"],
@@ -68,7 +68,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
         Joi.object({
           collection: Joi.object({
             id: Joi.string(),
-            slug: Joi.string(),
+            slug: Joi.string().allow(null, ""),
             name: Joi.string().allow(null, ""),
             image: Joi.string().allow(null, ""),
             banner: Joi.string().allow(null, ""),

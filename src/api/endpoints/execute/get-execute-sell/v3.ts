@@ -4,25 +4,24 @@ import { AddressZero } from "@ethersproject/constants";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import { BidDetails } from "@reservoir0x/sdk/dist/router/types";
 import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { slowProvider } from "@/common/provider";
+import { baseProvider } from "@/common/provider";
 import { bn, formatEth, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
+import { generateBidDetails } from "@/orderbook/orders";
 
 const version = "v3";
 
 export const getExecuteSellV3Options: RouteOptions = {
-  description: "Sell a token at the best price (accept bid)",
-  tags: ["api", "x-deprecated"],
+  description: "Sell tokens (accept bids)",
+  tags: ["api", "Router"],
   plugins: {
     "hapi-swagger": {
-      order: 1,
-      deprecated: true,
+      order: 10,
     },
   },
   validate: {
@@ -164,94 +163,19 @@ export const getExecuteSellV3Options: RouteOptions = {
         return { path };
       }
 
-      let bidDetails: BidDetails;
-      switch (bestOrderResult.kind) {
-        case "seaport": {
-          const extraArgs: any = {};
-
-          const order = new Sdk.Seaport.Order(config.chainId, bestOrderResult.raw_data);
-          if (order.params.kind?.includes("token-list")) {
-            // When filling an attribute order, we also need to pass
-            // in the full list of tokens the order is made on (that
-            // is, the underlying token set tokens)
-            const tokens = await redb.manyOrNone(
-              `
-                SELECT
-                  token_sets_tokens.token_id
-                FROM token_sets_tokens
-                WHERE token_sets_tokens.token_set_id = $/tokenSetId/
-              `,
-              { tokenSetId: bestOrderResult.token_set_id }
-            );
-            extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
-          }
-
-          bidDetails = {
-            kind: "seaport",
-            contractKind: bestOrderResult.token_kind,
-            contract,
-            tokenId,
-            extraArgs,
-            order,
-          };
-
-          break;
+      const bidDetails = await generateBidDetails(
+        {
+          kind: bestOrderResult.kind,
+          rawData: bestOrderResult.raw_data,
+        },
+        {
+          kind: bestOrderResult.token_kind,
+          contract,
+          tokenId,
         }
+      );
 
-        case "looks-rare": {
-          const order = new Sdk.LooksRare.Order(config.chainId, bestOrderResult.raw_data);
-
-          bidDetails = {
-            kind: "looks-rare",
-            contractKind: bestOrderResult.token_kind,
-            contract,
-            tokenId,
-            order,
-          };
-
-          break;
-        }
-
-        case "opendao-erc721":
-        case "opendao-erc1155": {
-          const order = new Sdk.OpenDao.Order(config.chainId, bestOrderResult.raw_data);
-
-          bidDetails = {
-            kind: "opendao",
-            contractKind: bestOrderResult.token_kind,
-            contract,
-            tokenId,
-            order,
-          };
-
-          break;
-        }
-
-        case "zeroex-v4-erc721":
-        case "zeroex-v4-erc1155": {
-          const order = new Sdk.ZeroExV4.Order(config.chainId, bestOrderResult.raw_data);
-
-          bidDetails = {
-            kind: "zeroex-v4",
-            contractKind: bestOrderResult.token_kind,
-            contract,
-            tokenId,
-            order,
-          };
-
-          break;
-        }
-
-        default: {
-          throw Boom.notImplemented("Unsupported order kind");
-        }
-      }
-
-      if (!bidDetails) {
-        throw Boom.internal("Could not generate transaction(s)");
-      }
-
-      const router = new Sdk.Router.Router(config.chainId, slowProvider);
+      const router = new Sdk.Router.Router(config.chainId, baseProvider);
       const tx = await router.fillBidTx(bidDetails, query.taker, {
         referrer: query.source,
       });

@@ -23,9 +23,8 @@ export const build = async (options: BuildOrderOptions) => {
     { collection: options.collection }
   );
   if (!collectionResult) {
-    throw new Error("Could not retrieve token's collection");
+    throw new Error("Could not retrieve collection");
   }
-
   if (Number(collectionResult.token_count) > config.maxItemsPerBid) {
     throw new Error("Collection has too many items");
   }

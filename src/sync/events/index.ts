@@ -1,4 +1,4 @@
-import { defaultAbiCoder } from "@ethersproject/abi";
+import { Interface, defaultAbiCoder } from "@ethersproject/abi";
 import { Log } from "@ethersproject/abstract-provider";
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
@@ -8,14 +8,14 @@ import pLimit from "p-limit";
 
 import { logger } from "@/common/logger";
 import { idb, pgp, redb } from "@/common/db";
-import { baseProvider, slowProvider } from "@/common/provider";
+import { baseProvider } from "@/common/provider";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { EventDataKind, getEventData } from "@/events-sync/data";
 import * as es from "@/events-sync/storage";
 import * as syncEventsUtils from "@/events-sync/utils";
-import { parseEvent } from "@/events-sync/parser";
+import { BaseEventParams, parseEvent } from "@/events-sync/parser";
 import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
@@ -25,7 +25,7 @@ import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 import * as blocksModel from "@/models/blocks";
-import { OrderKind } from "@/orderbook/orders";
+import { OrderKind, getOrderSourceByOrderKind } from "@/orderbook/orders";
 import * as Foundation from "@/orderbook/orders/foundation";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
@@ -46,6 +46,7 @@ export const syncEvents = async (
   }
 ) => {
   // --- Handle: fetch and process events ---
+  const excludedNFTMintAddresses = getNetworkSettings().excludedNFTMintAddresses;
 
   // Cache blocks for efficiency
   const blocksCache = new Map<number, blocksModel.Block>();
@@ -58,7 +59,23 @@ export const syncEvents = async (
   const makerInfos: orderUpdatesByMaker.MakerInfo[] = [];
   const mintInfos: tokenUpdatesMint.MintInfo[] = [];
 
-  const provider = options?.useSlowProvider ? slowProvider : baseProvider;
+  const cryptopunksTransferEvents: {
+    to: string;
+    txHash: string;
+  }[] = [];
+
+  const tokensMinted = new Map<
+    string,
+    {
+      contract: string;
+      from: string;
+      tokenId: string;
+      amount: string;
+      baseEventParams: BaseEventParams;
+    }[]
+  >();
+
+  const provider = options?.useSlowProvider ? baseProvider : baseProvider;
 
   // Before proceeding, fetch all individual blocks within the current range
   const limit = pLimit(5);
@@ -210,6 +227,20 @@ export const syncEvents = async (
                   tokenId,
                   mintedTimestamp: baseEventParams.timestamp,
                 });
+
+                if (!tokensMinted.has(baseEventParams.txHash)) {
+                  tokensMinted.set(baseEventParams.txHash, []);
+                }
+                // Exclude NFT mints from the blacklist
+                if (!excludedNFTMintAddresses.includes(baseEventParams.address)) {
+                  tokensMinted.get(baseEventParams.txHash)!.push({
+                    contract: baseEventParams.address,
+                    tokenId,
+                    from,
+                    amount: "1",
+                    baseEventParams,
+                  });
+                }
               }
 
               break;
@@ -271,6 +302,20 @@ export const syncEvents = async (
                   tokenId,
                   mintedTimestamp: baseEventParams.timestamp,
                 });
+
+                if (!tokensMinted.has(baseEventParams.txHash)) {
+                  tokensMinted.set(baseEventParams.txHash, []);
+                }
+                // Exclude NFT mints from the blacklist
+                if (!excludedNFTMintAddresses.includes(baseEventParams.address)) {
+                  tokensMinted.get(baseEventParams.txHash)!.push({
+                    contract: baseEventParams.address,
+                    tokenId,
+                    from,
+                    amount,
+                    baseEventParams,
+                  });
+                }
               }
 
               break;
@@ -284,6 +329,11 @@ export const syncEvents = async (
               const amounts = parsedLog.args["amounts"].map(String);
 
               const count = Math.min(tokenIds.length, amounts.length);
+
+              if (!tokensMinted.has(baseEventParams.txHash)) {
+                tokensMinted.set(baseEventParams.txHash, []);
+              }
+
               for (let i = 0; i < count; i++) {
                 nftTransferEvents.push({
                   kind: "erc1155",
@@ -335,6 +385,17 @@ export const syncEvents = async (
                     tokenId: tokenIds[i],
                     mintedTimestamp: baseEventParams.timestamp,
                   });
+
+                  // Exclude NFT mints from the blacklist
+                  if (!excludedNFTMintAddresses.includes(baseEventParams.address)) {
+                    tokensMinted.get(baseEventParams.txHash)!.push({
+                      contract: baseEventParams.address,
+                      tokenId: tokenIds[i],
+                      amount: amounts[i],
+                      from,
+                      baseEventParams,
+                    });
+                  }
                 }
               }
 
@@ -374,7 +435,6 @@ export const syncEvents = async (
                   kind: "sell-approval",
                   contract: baseEventParams.address,
                   operator,
-                  approved,
                 },
               });
 
@@ -557,16 +617,6 @@ export const syncEvents = async (
               const item = parsedLog.args["item"];
               const op = parsedLog.args["detail"].op;
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.Common.Addresses.Eth[config.chainId],
-                ].includes(currency)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               // 1 - COMPLETE_SELL_OFFER
               // 2 - COMPLETE_BUY_OFFER
               // 5 - COMPLETE_AUCTION
@@ -605,11 +655,15 @@ export const syncEvents = async (
               }
 
               const orderSide = [1, 5].includes(op) ? "sell" : "buy";
-              const orderSource = await syncEventsUtils.getOrderSourceByOrderKind(orderKind);
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
 
               // Handle: prices
               const currencyPrice = item.price.toString();
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
@@ -722,13 +776,17 @@ export const syncEvents = async (
                 taker = data.taker;
               }
 
-              const orderSource = await syncEventsUtils.getOrderSourceByOrderKind(orderKind);
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
 
               // Handle: prices
               const currency = Sdk.Common.Addresses.Eth[config.chainId];
               // Deduce the price from the protocol fee (which is 5%)
               const currencyPrice = bn(protocolFee).mul(10000).div(50).toString();
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
@@ -859,11 +917,6 @@ export const syncEvents = async (
               const tokenId = parsedLog.args["tokenId"].toString();
               const amount = parsedLog.args["amount"].toString();
 
-              if (![Sdk.Common.Addresses.Weth[config.chainId]].includes(currency)) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               const orderKind = "looks-rare";
 
               // Handle attribution
@@ -875,11 +928,15 @@ export const syncEvents = async (
                 taker = data.taker;
               }
 
-              const orderSource = await syncEventsUtils.getOrderSourceByOrderKind(orderKind);
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
 
               // Handle: prices
               currencyPrice = bn(currencyPrice).div(amount).toString();
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
@@ -965,11 +1022,6 @@ export const syncEvents = async (
               const tokenId = parsedLog.args["tokenId"].toString();
               const amount = parsedLog.args["amount"].toString();
 
-              if (![Sdk.Common.Addresses.Weth[config.chainId]].includes(currency)) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               const orderKind = "looks-rare";
 
               // Handle attribution
@@ -981,11 +1033,15 @@ export const syncEvents = async (
                 taker = data.taker;
               }
 
-              const orderSource = await syncEventsUtils.getOrderSourceByOrderKind(orderKind);
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
 
               // Handle: prices
               currencyPrice = bn(currencyPrice).div(amount).toString();
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
@@ -1136,16 +1192,6 @@ export const syncEvents = async (
                 }
               }
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Eth[config.chainId],
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                ].includes(currency)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               const orderKind = eventData.kind.startsWith("wyvern-v2.3")
                 ? "wyvern-v2.3"
                 : "wyvern-v2";
@@ -1160,13 +1206,17 @@ export const syncEvents = async (
               }
 
               // Handle: prices
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
               }
 
-              const orderSource = await syncEventsUtils.getOrderSourceByOrderKind(orderKind);
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
 
               let batchIndex = 1;
               if (buyOrderId !== HashZero) {
@@ -1251,16 +1301,6 @@ export const syncEvents = async (
               const erc721Token = parsedLog.args["erc721Token"].toLowerCase();
               const erc721TokenId = parsedLog.args["erc721TokenId"].toString();
 
-              if (
-                ![
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               const orderKind = eventData!.kind.split("-").slice(0, -2).join("-") as OrderKind;
 
               // Handle attribution
@@ -1319,14 +1359,18 @@ export const syncEvents = async (
                 currency = Sdk.Common.Addresses.Eth[config.chainId];
               }
 
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
               }
 
               const orderSide = direction === 0 ? "sell" : "buy";
-              const orderSource = await syncEventsUtils.getOrderSourceByOrderKind(orderKind);
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
 
               fillEvents.push({
                 orderKind,
@@ -1411,16 +1455,6 @@ export const syncEvents = async (
               const erc1155TokenId = parsedLog.args["erc1155TokenId"].toString();
               const erc1155FillAmount = parsedLog.args["erc1155FillAmount"].toString();
 
-              if (
-                ![
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               const orderKind = eventData!.kind.split("-").slice(0, -2).join("-") as OrderKind;
 
               // Handle attribution
@@ -1478,14 +1512,18 @@ export const syncEvents = async (
                 currency = Sdk.Common.Addresses.Eth[config.chainId];
               }
 
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
               }
 
               const orderSide = direction === 0 ? "sell" : "buy";
-              const orderSource = await syncEventsUtils.getOrderSourceByOrderKind(orderKind);
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
 
               // Custom handling to support partial filling
               fillEventsPartial.push({
@@ -1610,7 +1648,11 @@ export const syncEvents = async (
                 // Handle: prices
                 const currency = saleInfo.paymentToken;
                 const currencyPrice = bn(saleInfo.price).div(saleInfo.amount).toString();
-                const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+                const prices = await getUSDAndNativePrices(
+                  currency,
+                  currencyPrice,
+                  baseEventParams.timestamp
+                );
                 if (!prices.nativePrice) {
                   // We must always have the native price
                   break;
@@ -1629,7 +1671,7 @@ export const syncEvents = async (
                   taker = saleInfo.recipientOverride;
                 }
 
-                const orderSource = await syncEventsUtils.getOrderSourceByOrderKind(orderKind);
+                const orderSource = await getOrderSourceByOrderKind(orderKind);
 
                 // Custom handling to support partial filling
                 fillEventsPartial.push({
@@ -1686,7 +1728,6 @@ export const syncEvents = async (
               const leftAsset = args["leftAsset"];
               const rightAsset = args["rightAsset"];
 
-              // Keccak-256 hash
               const ERC20 = "0x8ae85d84";
               const ETH = "0xaaaebeba";
               const ERC721 = "0x73ad2146";
@@ -1694,50 +1735,57 @@ export const syncEvents = async (
 
               const assetTypes = [ERC721, ERC1155, ERC20, ETH];
 
-              if (
-                ([ERC20].includes(leftAsset[0]) &&
-                  ![Sdk.Common.Addresses.Weth[config.chainId]].includes(leftAsset[1])) ||
-                ([ERC20].includes(rightAsset[0]) &&
-                  ![Sdk.Common.Addresses.Weth[config.chainId]].includes(rightAsset[1]))
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               // Exclude orders with exotic asset types
-              if (!assetTypes.includes(leftAsset[0]) || !assetTypes.includes(rightAsset[0])) {
+              if (
+                !assetTypes.includes(leftAsset.assetClass) ||
+                !assetTypes.includes(rightAsset.assetClass)
+              ) {
                 break;
               }
 
               // Assume the left order is the maker's order
-              const side = [ERC721, ERC1155].includes(leftAsset[0]) ? "sell" : "buy";
+              const side = [ERC721, ERC1155].includes(leftAsset.assetClass) ? "sell" : "buy";
 
-              const decodedAsset = defaultAbiCoder.decode(
+              const currencyAsset = side === "sell" ? rightAsset : leftAsset;
+              const nftAsset = side === "sell" ? leftAsset : rightAsset;
+
+              let currency: string;
+              if (currencyAsset.assetClass === ETH) {
+                currency = Sdk.Common.Addresses.Eth[config.chainId];
+              } else if (currencyAsset.assetClass === ERC20) {
+                const decodedCurrencyAsset = defaultAbiCoder.decode(
+                  ["(address token)"],
+                  currencyAsset.data
+                );
+                currency = decodedCurrencyAsset[0][0];
+              } else {
+                break;
+              }
+
+              const decodedNftAsset = defaultAbiCoder.decode(
                 ["(address token, uint tokenId)"],
-                side === "sell" ? leftAsset.data : rightAsset.data
+                nftAsset.data
               );
 
-              const contract = decodedAsset[0][0].toLowerCase();
-              const tokenId = decodedAsset[0][1].toString();
-
-              // Handle: prices
-              const currency =
-                side === "sell"
-                  ? Sdk.Common.Addresses.Eth[config.chainId]
-                  : Sdk.Common.Addresses.Weth[config.chainId];
+              const contract = decodedNftAsset[0][0].toLowerCase();
+              const tokenId = decodedNftAsset[0][1].toString();
 
               let currencyPrice = side === "sell" ? newLeftFill : newRightFill;
               const amount = side === "sell" ? newRightFill : newLeftFill;
-
               currencyPrice = bn(currencyPrice).div(amount).toString();
 
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
               }
 
               const orderKind = "rarible";
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
 
               let taker = rightMaker;
 
@@ -1755,6 +1803,7 @@ export const syncEvents = async (
                 orderKind: "rarible",
                 orderId: leftHash,
                 orderSide: side,
+                orderSourceIdInt: orderSource?.id,
                 maker: leftMaker,
                 taker,
                 price: prices.nativePrice,
@@ -1780,16 +1829,6 @@ export const syncEvents = async (
               const erc721TokenId = args["erc721TokenId"].toString();
               const orderHash = args["orderHash"].toLowerCase();
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               // Handle: prices
               let currency = erc20Token;
               if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
@@ -1798,16 +1837,24 @@ export const syncEvents = async (
               }
               const currencyPrice = erc20TokenAmount;
 
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
               }
 
+              const orderKind = "element-erc721";
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
+
               fillEventsPartial.push({
-                orderKind: "element-erc721",
+                orderKind,
                 orderId: orderHash,
                 orderSide: "sell",
+                orderSourceIdInt: orderSource?.id,
                 maker,
                 taker,
                 price: prices.nativePrice,
@@ -1833,16 +1880,6 @@ export const syncEvents = async (
               const erc721TokenId = args["erc721TokenId"].toString();
               const orderHash = args["orderHash"].toLowerCase();
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               // Handle: prices
               let currency = erc20Token;
               if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
@@ -1851,16 +1888,24 @@ export const syncEvents = async (
               }
               const currencyPrice = erc20TokenAmount;
 
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
               }
 
+              const orderKind = "element-erc721";
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
+
               fillEventsPartial.push({
-                orderKind: "element-erc721",
+                orderKind,
                 orderId: orderHash,
                 orderSide: "buy",
+                orderSourceIdInt: orderSource?.id,
                 maker,
                 taker,
                 price: prices.nativePrice,
@@ -1887,16 +1932,6 @@ export const syncEvents = async (
               const erc1155FillAmount = args["erc1155FillAmount"].toString();
               const orderHash = args["orderHash"].toLowerCase();
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported.
-                break;
-              }
-
               // Handle: prices
               let currency = erc20Token;
               if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
@@ -1905,16 +1940,24 @@ export const syncEvents = async (
               }
               const currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
 
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
               }
 
+              const orderKind = "element-erc1155";
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
+
               fillEventsPartial.push({
-                orderKind: "element-erc1155",
+                orderKind,
                 orderId: orderHash,
                 orderSide: "sell",
+                orderSourceIdInt: orderSource?.id,
                 maker,
                 taker,
                 price: prices.nativePrice,
@@ -1941,16 +1984,6 @@ export const syncEvents = async (
               const erc1155FillAmount = args["erc1155FillAmount"].toString();
               const orderHash = args["orderHash"].toLowerCase();
 
-              if (
-                ![
-                  Sdk.Common.Addresses.Weth[config.chainId],
-                  Sdk.ZeroExV4.Addresses.Eth[config.chainId],
-                ].includes(erc20Token)
-              ) {
-                // Skip if the payment token is not supported
-                break;
-              }
-
               // Handle: prices
               let currency = erc20Token;
               if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
@@ -1959,16 +1992,24 @@ export const syncEvents = async (
               }
               const currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
 
-              const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
               if (!prices.nativePrice) {
                 // We must always have the native price
                 break;
               }
 
+              const orderKind = "element-erc1155";
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
+
               fillEventsPartial.push({
-                orderKind: "element-erc1155",
+                orderKind,
                 orderId: orderHash,
                 orderSide: "buy",
+                orderSourceIdInt: orderSource?.id,
                 maker,
                 taker,
                 price: prices.nativePrice,
@@ -2025,13 +2066,17 @@ export const syncEvents = async (
                 // Handle: prices
                 const currency = saleInfo.paymentToken;
                 const currencyPrice = bn(saleInfo.price).div(saleInfo.amount).toString();
-                const prices = await getPrices(currency, currencyPrice, baseEventParams.timestamp);
+                const prices = await getUSDAndNativePrices(
+                  currency,
+                  currencyPrice,
+                  baseEventParams.timestamp
+                );
                 if (!prices.nativePrice) {
                   // We must always have the native price
                   break;
                 }
 
-                const orderSource = await syncEventsUtils.getOrderSourceByOrderKind(orderKind);
+                const orderSource = await getOrderSourceByOrderKind(orderKind);
 
                 // Custom handling to support partial filling
                 fillEventsPartial.push({
@@ -2077,6 +2122,209 @@ export const syncEvents = async (
 
               break;
             }
+
+            case "zora-ask-filled": {
+              const { args } = eventData.abi.parseLog(log);
+              const tokenContract = args["tokenContract"].toLowerCase();
+              const tokenId = args["tokenId"].toString();
+              const buyer = args["buyer"].toLowerCase();
+              const ask = args["ask"];
+
+              const seller = ask["seller"].toLowerCase();
+              const askCurrency = ask["askCurrency"].toLowerCase();
+              const askPrice = ask["askPrice"].toString();
+
+              const prices = await getUSDAndNativePrices(
+                askCurrency,
+                askPrice,
+                baseEventParams.timestamp
+              );
+
+              if (!prices.nativePrice) {
+                // We must always have the native price
+                break;
+              }
+
+              fillEvents.push({
+                orderKind: "zora-v3",
+                currency: askCurrency,
+                orderSide: "sell",
+                maker: seller,
+                taker: buyer,
+                price: prices.nativePrice,
+                usdPrice: prices.usdPrice,
+                contract: tokenContract,
+                tokenId,
+                amount: "1",
+                baseEventParams,
+              });
+
+              break;
+            }
+
+            case "zora-auction-ended": {
+              const { args } = eventData.abi.parseLog(log);
+              // const auctionId = args["auctionId"].toString();
+              const tokenId = args["tokenId"].toString();
+              const tokenContract = args["tokenContract"].toLowerCase();
+              const tokenOwner = args["tokenOwner"].toLowerCase();
+              // const curator = args["curator"].toLowerCase();
+              const winner = args["winner"].toLowerCase();
+              const amount = args["amount"].toString();
+              // const curatorFee = args["curatorFee"].toString();
+              const auctionCurrency = args["auctionCurrency"].toLowerCase();
+
+              const prices = await getUSDAndNativePrices(
+                auctionCurrency,
+                amount,
+                baseEventParams.timestamp
+              );
+
+              if (!prices.nativePrice) {
+                // We must always have the native price
+                break;
+              }
+
+              fillEvents.push({
+                orderKind: "zora-v3",
+                currency: auctionCurrency,
+                orderSide: "sell",
+                taker: winner,
+                maker: tokenOwner,
+                price: prices.nativePrice,
+                usdPrice: prices.usdPrice,
+                contract: tokenContract,
+                tokenId,
+                amount: "1",
+                baseEventParams,
+              });
+
+              break;
+            }
+
+            case "nouns-auction-settled": {
+              const { args } = eventData.abi.parseLog(log);
+              const nounId = args["nounId"].toString();
+              const winner = args["winner"].toLowerCase();
+              const amount = args["amount"].toString();
+
+              const currency = Sdk.Common.Addresses.Eth[config.chainId];
+
+              const prices = await getUSDAndNativePrices(
+                currency,
+                amount,
+                baseEventParams.timestamp
+              );
+
+              if (!prices.nativePrice) {
+                // We must always have the native price
+                break;
+              }
+
+              const orderKind = "nouns";
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
+
+              fillEvents.push({
+                orderKind,
+                orderSourceIdInt: orderSource?.id,
+                orderSide: "sell",
+                maker: Sdk.Nouns.Addresses.AuctionHouse[config.chainId]?.toLowerCase(),
+                taker: winner,
+                amount: "1",
+                currency,
+                price: prices.nativePrice,
+                usdPrice: prices.usdPrice,
+                contract: Sdk.Nouns.Addresses.TokenContract[config.chainId]?.toLowerCase(),
+                tokenId: nounId,
+                baseEventParams,
+              });
+
+              break;
+            }
+
+            case "cryptopunks-punk-bought": {
+              const { args } = eventData.abi.parseLog(log);
+              const punkIndex = args["punkIndex"].toString();
+              let value = args["value"].toString();
+              const fromAddress = args["fromAddress"].toLowerCase();
+              let toAddress = args["toAddress"].toLowerCase();
+
+              const orderSide = toAddress === AddressZero ? "buy" : "sell";
+
+              // Due to an issue with the cryptopunks smart contract, the
+              // `PunkBought` event is emitted from `acceptBidForPunk`
+              // with toAddress = 0x00...00 and value = 0
+              // https://github.com/larvalabs/cryptopunks/issues/19
+
+              // To get the correct `toAddress` we take the `to` value
+              // the `Transfer` event emitted before `PunkBought` in the
+              // `acceptBidForPunk` function
+              // https://github.com/larvalabs/cryptopunks/blob/master/contracts/CryptoPunksMarket.sol#L223-L229
+              //
+              if (
+                cryptopunksTransferEvents.length &&
+                cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].txHash ===
+                  baseEventParams.txHash
+              ) {
+                toAddress = cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].to;
+              }
+
+              // To get the correct `price` that the bid was settled at
+              // We extract the `minPrice` from the `acceptBidForPunk` function
+              const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
+              const iface = new Interface([
+                "function acceptBidForPunk(uint punkIndex, uint minPrice)",
+              ]);
+
+              try {
+                const result = iface.decodeFunctionData("acceptBidForPunk", tx.data);
+                value = result.minPrice.toString();
+              } catch {
+                // Skip any errors
+              }
+
+              const prices = await getUSDAndNativePrices(
+                Sdk.Common.Addresses.Eth[config.chainId],
+                value,
+                baseEventParams.timestamp
+              );
+
+              if (!prices.nativePrice) {
+                // We must always have the native price
+                break;
+              }
+
+              const maker = orderSide === "sell" ? fromAddress : toAddress;
+              const taker = orderSide === "sell" ? toAddress : fromAddress;
+
+              fillEventsPartial.push({
+                orderKind: "cryptopunks",
+                orderSide,
+                maker,
+                taker,
+                price: prices.nativePrice,
+                usdPrice: prices.usdPrice,
+                currency: Sdk.Common.Addresses.Eth[config.chainId],
+                contract: baseEventParams.address?.toLowerCase(),
+                tokenId: punkIndex,
+                amount: "1",
+                baseEventParams,
+              });
+
+              break;
+            }
+
+            case "cryptopunks-transfer": {
+              const { args } = eventData.abi.parseLog(log);
+              const to = args["to"].toLowerCase();
+
+              cryptopunksTransferEvents.push({
+                to,
+                txHash: baseEventParams.txHash,
+              });
+
+              break;
+            }
           }
         } catch (error) {
           logger.info("sync-events", `Failed to handle events: ${error}`);
@@ -2099,6 +2347,46 @@ export const syncEvents = async (
         ]);
       } else {
         logger.warn("sync-events", `Skipping assigning orders source assigned to fill events`);
+      }
+
+      for (const [txHash, mints] of tokensMinted.entries()) {
+        if (mints.length > 0) {
+          const tx = await syncEventsUtils.fetchTransaction(txHash);
+
+          if (tx.value === "0") {
+            continue;
+          }
+
+          const totalAmount = mints
+            .map(({ amount }) => amount)
+            .reduce((a, b) => bn(a).add(b).toString());
+
+          const price = bn(tx.value).div(totalAmount).toString();
+
+          const currency = Sdk.Common.Addresses.Eth[config.chainId];
+
+          for (const mint of mints) {
+            const prices = await getUSDAndNativePrices(
+              currency,
+              price,
+              mint.baseEventParams.timestamp
+            );
+
+            fillEvents.push({
+              orderKind: "mint",
+              orderSide: "sell",
+              taker: tx.from,
+              maker: mint.from,
+              amount: mint.amount,
+              currency,
+              price: price,
+              usdPrice: prices.usdPrice,
+              contract: mint.contract,
+              tokenId: mint.tokenId,
+              baseEventParams: mint.baseEventParams,
+            });
+          }
+        }
       }
 
       // WARNING! Ordering matters (fills should come in front of cancels).
@@ -2150,8 +2438,6 @@ export const syncEvents = async (
         }
 
         // Put all fetched blocks on a queue for handling block reorgs
-        // (recheck each block in 1m, 5m, 10m and 60m).
-        // TODO: The check frequency should be a per-chain setting
         await Promise.all(
           [...blocksSet.values()].map(async (blockData) => {
             const block = Number(blockData.split("-")[0]);
@@ -2382,30 +2668,4 @@ const assignWashTradingScoreToFillEvents = async (fillEvents: es.fills.Event[]) 
   } catch (e) {
     logger.error("sync-events", `Failed to assign wash trading score to fill events: ${e}`);
   }
-};
-
-type Prices = {
-  nativePrice?: string;
-  usdPrice?: string;
-};
-
-const getPrices = async (
-  currency: string,
-  currencyPrice: string,
-  timestamp: number
-): Promise<Prices> => {
-  const prices = await getUSDAndNativePrices(currency, currencyPrice, timestamp);
-
-  const nativePrice = [
-    Sdk.Common.Addresses.Eth[config.chainId],
-    Sdk.Common.Addresses.Weth[config.chainId],
-  ].includes(currency)
-    ? currencyPrice
-    : prices.nativePrice;
-  const usdPrice = prices.usdPrice;
-
-  return {
-    nativePrice,
-    usdPrice,
-  };
 };

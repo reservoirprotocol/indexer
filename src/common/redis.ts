@@ -52,3 +52,7 @@ export const extendLock = async (name: string, expirationInSeconds: number) => {
 export const releaseLock = async (name: string) => {
   await redis.del(name);
 };
+
+export const getLockExpiration = async (name: string) => {
+  return await redis.ttl(name);
+};

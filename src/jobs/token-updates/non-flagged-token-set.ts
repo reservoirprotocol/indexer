@@ -13,6 +13,7 @@ import { Collections } from "@/models/collections";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import * as tokenSet from "@/orderbook/token-sets";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
+import { TokenSet } from "@/orderbook/token-sets/token-list";
 
 const QUEUE_NAME = "non-flagged-token-set";
 
@@ -38,28 +39,47 @@ if (config.doBackgroundWork) {
         return;
       }
 
-      const tokenIds = await Tokens.getNonFlaggedTokenIdsInCollection(contract, collectionId, true);
+      const tokenIds = await Tokens.getTokenIdsInCollection(collectionId, contract, true);
       if (_.isEmpty(tokenIds)) {
         logger.warn(QUEUE_NAME, `No tokens for contract=${contract}, collectionId=${collectionId}`);
       }
 
       const merkleTree = generateMerkleTree(tokenIds);
       const tokenSetId = `list:${contract}:${merkleTree.getHexRoot()}`;
+      const schema = {
+        kind: "collection-non-flagged",
+        data: {
+          collection: collection.id,
+        },
+      };
 
       // Create new token set for non flagged tokens
-      await tokenSet.tokenList.save([
+      const ts = await tokenSet.tokenList.save([
         {
           id: tokenSetId,
-          schemaHash: generateSchemaHash(undefined),
+          schema,
+          schemaHash: generateSchemaHash(schema),
           items: {
             contract,
             tokenIds,
           },
-        },
+        } as TokenSet,
       ]);
 
-      // Set the new non flagged tokens token set
-      await Collections.update(collectionId, { nonFlaggedTokenSetId: tokenSetId });
+      if (ts.length !== 1) {
+        logger.warn(
+          QUEUE_NAME,
+          `No tokens for contract=${contract}, collectionId=${collectionId}, tokenSetId=${tokenSetId}`
+        );
+      } else {
+        logger.info(
+          QUEUE_NAME,
+          `Non Flagged Token set generated for contract=${contract}, collectionId=${collectionId}, tokenSetId=${collection.tokenSetId}, nonFlaggedTokenSetId=${collection.nonFlaggedTokenSetId}, generatedMonFlaggedTokenSetId=${tokenSetId}`
+        );
+
+        // Set the new non flagged tokens token set
+        await Collections.update(collectionId, { nonFlaggedTokenSetId: tokenSetId });
+      }
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

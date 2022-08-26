@@ -26,6 +26,9 @@ export const config = {
   liquidityOnly: !process.env.METADATA_API_BASE_URL,
   metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
   metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
+  metadataApiBaseUrlAlt: String(
+    process.env.METADATA_API_BASE_URL_ALT || process.env.METADATA_API_BASE_URL
+  ),
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
 
   databaseUrl: String(process.env.DATABASE_URL),
@@ -52,6 +55,7 @@ export const config = {
 
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
+  x2y2ApiKey: String(process.env.X2Y2_API_KEY),
 
   railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL),
 };
