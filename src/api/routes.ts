@@ -379,6 +379,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "POST",
+    path: "/execute/bid/v4",
+    options: executeEndpoints.getExecuteBidV4Options,
+  });
+
+  server.route({
     method: "GET",
     path: "/execute/buy/v1",
     options: executeEndpoints.getExecuteBuyV1Options,
@@ -427,6 +433,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "POST",
+    path: "/execute/list/v4",
+    options: executeEndpoints.getExecuteListV4Options,
+  });
+
+  server.route({
     method: "GET",
     path: "/execute/sell/v1",
     options: executeEndpoints.getExecuteSellV1Options,
@@ -442,6 +454,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/execute/sell/v3",
     options: executeEndpoints.getExecuteSellV3Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/execute/sell/v4",
+    options: executeEndpoints.getExecuteSellV4Options,
   });
 
   // Health

@@ -173,10 +173,10 @@ export const postOrderV2Options: RouteOptions = {
 
           const orderInfo: orders.seaport.OrderInfo = {
             orderParams: order.data,
-            isReservoir: true,
+            isReservoir: orderbook === "reservoir",
             metadata: {
               schema,
-              source,
+              source: orderbook === "reservoir" ? source : undefined,
             },
           };
 
@@ -209,7 +209,7 @@ export const postOrderV2Options: RouteOptions = {
             orderParams: order.data,
             metadata: {
               schema,
-              source,
+              source: orderbook === "reservoir" ? source : undefined,
             },
           };
 
@@ -247,7 +247,6 @@ export const postOrderV2Options: RouteOptions = {
             orderParams: orderObject.params,
             metadata: {
               schema,
-              source,
             },
           };
 

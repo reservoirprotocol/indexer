@@ -29,20 +29,18 @@ const getUpstreamUSDPrice = async (
     const coingeckoCurrencyId = currency?.metadata?.coingeckoCurrencyId;
     if (coingeckoCurrencyId) {
       const date = new Date(timestamp * 1000);
-      const day = date.getDay();
+      const day = date.getDate();
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
+
+      const url = `https://api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}`;
+      logger.info("prices", `Fetching price from Coingecko: ${url}`);
 
       const result: {
         market_data: {
           current_price: { [symbol: string]: number };
         };
-      } = await axios
-        .get(
-          `https://api.coingecko.com/api/v3/coins/${coingeckoCurrencyId}/history?date=${day}-${month}-${year}`,
-          { timeout: 10 * 1000 }
-        )
-        .then((response) => response.data);
+      } = await axios.get(url, { timeout: 10 * 1000 }).then((response) => response.data);
 
       const usdPrice = result?.market_data?.current_price?.["usd"];
       if (usdPrice) {

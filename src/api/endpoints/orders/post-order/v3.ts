@@ -174,10 +174,10 @@ export const postOrderV3Options: RouteOptions = {
 
           const orderInfo: orders.seaport.OrderInfo = {
             orderParams: order.data,
-            isReservoir: true,
+            isReservoir: orderbook === "reservoir",
             metadata: {
               schema,
-              source,
+              source: orderbook === "reservoir" ? source : undefined,
             },
           };
 
@@ -202,7 +202,6 @@ export const postOrderV3Options: RouteOptions = {
         }
 
         case "looks-rare": {
-          // Only Reservoir and LooksRare are supported as orderbooks
           if (!["looks-rare", "reservoir"].includes(orderbook)) {
             throw new Error("Unknown orderbook");
           }
@@ -211,7 +210,7 @@ export const postOrderV3Options: RouteOptions = {
             orderParams: order.data,
             metadata: {
               schema,
-              source,
+              source: orderbook === "reservoir" ? source : undefined,
             },
           };
 

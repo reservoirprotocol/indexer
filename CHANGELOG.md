@@ -1,3 +1,140 @@
+## [5.184.5](https://github.com/reservoirprotocol/indexer/compare/v5.184.4...v5.184.5) (2022-08-29)
+
+
+### Bug Fixes
+
+* price retrieval ([34d4c97](https://github.com/reservoirprotocol/indexer/commit/34d4c976f4a1598e34ea67072ce72484af38a7df))
+
+
+
+## [5.184.4](https://github.com/reservoirprotocol/indexer/compare/v5.184.3...v5.184.4) (2022-08-29)
+
+
+### Performance Improvements
+
+* various tweaks for backfilling performance ([120fa4e](https://github.com/reservoirprotocol/indexer/commit/120fa4ea0b0c4668a279f49e013e0216af7fd3a3))
+
+
+
+## [5.184.3](https://github.com/reservoirprotocol/indexer/compare/v5.184.2...v5.184.3) (2022-08-29)
+
+
+### Performance Improvements
+
+* restrict backfilling to selected processes ([00887b5](https://github.com/reservoirprotocol/indexer/commit/00887b5b387dde35efff3c969b99be011aba0ddc))
+
+
+
+## [5.184.2](https://github.com/reservoirprotocol/indexer/compare/v5.184.1...v5.184.2) (2022-08-29)
+
+
+### Bug Fixes
+
+* set a default source for cryptopunks ([ff05728](https://github.com/reservoirprotocol/indexer/commit/ff057289dca8bf277b9c0f4f17ad112a55d118e7))
+
+
+
+## [5.184.1](https://github.com/reservoirprotocol/indexer/compare/v5.184.0...v5.184.1) (2022-08-29)
+
+
+### Bug Fixes
+
+* execute buy v4 referrer fees ([137efd7](https://github.com/reservoirprotocol/indexer/commit/137efd7312c6085df68535ac2467c4a34ac75840))
+
+
+
+# [5.184.0](https://github.com/reservoirprotocol/indexer/compare/v5.183.6...v5.184.0) (2022-08-29)
+
+
+### Features
+
+* add support for direct filling x2y2 bids ([0709abd](https://github.com/reservoirprotocol/indexer/commit/0709abdb2252d13b1fa46b4d493792113a69e6a2))
+
+
+
+## [5.183.6](https://github.com/reservoirprotocol/indexer/compare/v5.183.5...v5.183.6) (2022-08-29)
+
+
+### Bug Fixes
+
+* collection floor sale change computation ([495acb4](https://github.com/reservoirprotocol/indexer/commit/495acb4c9b1e49de045c4be57f838159a020cd4a))
+
+
+
+## [5.183.5](https://github.com/reservoirprotocol/indexer/compare/v5.183.4...v5.183.5) (2022-08-28)
+
+
+### Bug Fixes
+
+* execute bid weth wrapping ([4237072](https://github.com/reservoirprotocol/indexer/commit/42370727ccdda8d6617a7f88829d9592531b33ac))
+
+
+
+## [5.183.4](https://github.com/reservoirprotocol/indexer/compare/v5.183.3...v5.183.4) (2022-08-28)
+
+
+### Bug Fixes
+
+* use fees to detect and avoid overriding sources ([3a8f799](https://github.com/reservoirprotocol/indexer/commit/3a8f7996b9519964a2e10604fab35a2d6ff5fc95))
+
+
+
+## [5.183.3](https://github.com/reservoirprotocol/indexer/compare/v5.183.2...v5.183.3) (2022-08-28)
+
+
+### Bug Fixes
+
+* is reservoir field for cross-posted orders ([acf96bf](https://github.com/reservoirprotocol/indexer/commit/acf96bf302f4325fe53c34dece0dc66fe312da6b))
+* skip saving the source for cross-posted orders ([fcca46a](https://github.com/reservoirprotocol/indexer/commit/fcca46aa1456d874d9d61869c647135235616d02))
+
+
+
+## [5.183.2](https://github.com/reservoirprotocol/indexer/compare/v5.183.1...v5.183.2) (2022-08-27)
+
+
+### Bug Fixes
+
+* response validation ([ca69ebe](https://github.com/reservoirprotocol/indexer/commit/ca69ebea9cdd4fecadc740540a539b421fff0003))
+
+
+
+## [5.183.1](https://github.com/reservoirprotocol/indexer/compare/v5.183.0...v5.183.1) (2022-08-27)
+
+
+### Bug Fixes
+
+* prices ([193d20b](https://github.com/reservoirprotocol/indexer/commit/193d20b85b9627c74f71abdcd0cc688074af5061))
+
+
+
+# [5.183.0](https://github.com/reservoirprotocol/indexer/compare/v5.182.0...v5.183.0) (2022-08-27)
+
+
+### Features
+
+* add new execute sell v4 api ([a9324c3](https://github.com/reservoirprotocol/indexer/commit/a9324c355da0eac6efbf4d91c28180117cfc2a6a))
+
+
+
+# [5.182.0](https://github.com/reservoirprotocol/indexer/compare/v5.181.0...v5.182.0) (2022-08-27)
+
+
+### Features
+
+* add new refactored execute list and bid apis ([20e0008](https://github.com/reservoirprotocol/indexer/commit/20e00088dd3530554c435847267416072f5d82e2))
+
+
+
+# [5.181.0](https://github.com/reservoirprotocol/indexer/compare/v5.180.4...v5.181.0) (2022-08-27)
+
+
+### Features
+
+* include order nonce in the order event tables ([61569d1](https://github.com/reservoirprotocol/indexer/commit/61569d1798985a23f9bfdb159d8c64946da64eb5))
+* updated doc ([9fd423d](https://github.com/reservoirprotocol/indexer/commit/9fd423dfffdde0295aa4a8522faf2584695815e3))
+
+
+
 ## [5.180.4](https://github.com/reservoirprotocol/indexer/compare/v5.180.3...v5.180.4) (2022-08-26)
 
 

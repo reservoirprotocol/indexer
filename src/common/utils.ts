@@ -57,6 +57,7 @@ export const regex = {
   address: /^0x[a-fA-F0-9]{40}$/,
   bytes32: /^0x[a-fA-F0-9]{64}$/,
   token: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
+  fee: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
   number: /^[0-9]+$/,
   unixTimestamp: /^[0-9]{10}$/,
 };

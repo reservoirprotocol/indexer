@@ -1,5 +1,6 @@
 import { Interface } from "@ethersproject/abi";
 import { Rarible } from "@reservoir0x/sdk";
+
 import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
 
@@ -14,8 +15,8 @@ export const match: EventData = {
       bytes32 rightHash,
       address leftMaker,
       address rightMaker,
-      uint newLeftFill,
-      uint newRightFill,
+      uint256 newLeftFill,
+      uint256 newRightFill,
       (bytes4 assetClass, bytes data) leftAsset,
       (bytes4 assetClass, bytes data) rightAsset
     )`,

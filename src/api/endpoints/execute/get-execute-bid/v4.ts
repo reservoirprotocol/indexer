@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { AddressZero } from "@ethersproject/constants";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -36,16 +35,16 @@ import * as zeroExV4BuyAttribute from "@/orderbook/orders/zeroex-v4/build/buy/at
 import * as zeroExV4BuyToken from "@/orderbook/orders/zeroex-v4/build/buy/token";
 import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/collection";
 
-const version = "v3";
+const version = "v4";
 
-export const getExecuteBidV3Options: RouteOptions = {
+export const getExecuteBidV4Options: RouteOptions = {
   description: "Create bid (offer)",
   notes: "Generate a bid and submit it to multiple marketplaces",
   timeout: { server: 60000 },
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Orderbook"],
   plugins: {
     "hapi-swagger": {
-      deprecated: true,
+      order: 11,
     },
   },
   validate: {
@@ -99,19 +98,14 @@ export const getExecuteBidV3Options: RouteOptions = {
           automatedRoyalties: Joi.boolean()
             .default(true)
             .description("If true, royalties will be automatically included."),
-          fee: Joi.alternatives(Joi.string().pattern(regex.number), Joi.number()).description(
-            "Fee amount in BPS. Example: `100`"
-          ),
+          fees: Joi.array()
+            .items(Joi.string().pattern(regex.fee))
+            .description(
+              "List of fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
+            ),
           excludeFlaggedTokens: Joi.boolean()
             .default(false)
             .description("If true flagged tokens will be excluded"),
-          feeRecipient: Joi.string()
-            .lowercase()
-            .pattern(regex.address)
-            .description(
-              "Wallet address of fee recipient. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
-            )
-            .disallow(AddressZero),
           listingTime: Joi.string()
             .pattern(regex.unixTimestamp)
             .description(
@@ -132,8 +126,6 @@ export const getExecuteBidV3Options: RouteOptions = {
           .with("attributeValue", "attributeKey")
           .with("attributeKey", "attributeValue")
           .with("attributeKey", "collection")
-          .with("feeRecipient", "fee")
-          .with("fee", "feeRecipient")
       ),
     }),
   },
@@ -214,6 +206,17 @@ export const getExecuteBidV3Options: RouteOptions = {
           params.orderKind = "721ex";
         }
 
+        // Handle fees
+        // TODO: Refactor the builders to get rid of the separate fee/feeRecipient arrays
+        // TODO: Refactor the builders to get rid of the API params naming dependency
+        params.fee = [];
+        params.feeRecipient = [];
+        for (const feeData of params.fees ?? []) {
+          const [feeRecipient, fee] = feeData.split(":");
+          params.fee.push(fee);
+          params.feeRecipient.push(feeRecipient);
+        }
+
         // Check the maker's Weth/Eth balance
         let wrapEthTx: TxData | undefined;
         const weth = new Sdk.Common.Helpers.Weth(baseProvider, config.chainId);
@@ -230,18 +233,7 @@ export const getExecuteBidV3Options: RouteOptions = {
         switch (params.orderKind) {
           case "seaport": {
             if (!["reservoir", "opensea"].includes(params.orderbook)) {
-              throw Boom.badRequest("Unsupported orderbook");
-            }
-
-            // We want the fee params as arrays
-            if (params.fee && !Array.isArray(params.fee)) {
-              params.fee = [params.fee];
-            }
-            if (params.feeRecipient && !Array.isArray(params.feeRecipient)) {
-              params.feeRecipient = [params.feeRecipient];
-            }
-            if (params.fee?.length !== params.feeRecipient?.length) {
-              throw Boom.badRequest("Invalid fee info");
+              throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
             }
 
             let order: Sdk.Seaport.Order;
@@ -337,18 +329,7 @@ export const getExecuteBidV3Options: RouteOptions = {
 
           case "721ex": {
             if (!["reservoir"].includes(params.orderbook)) {
-              throw Boom.badRequest("Unsupported orderbook");
-            }
-
-            // Make sure the fee information is correctly typed
-            if (params.fee && !Array.isArray(params.fee)) {
-              params.fee = [params.fee];
-            }
-            if (params.feeRecipient && !Array.isArray(params.feeRecipient)) {
-              params.feeRecipient = [params.feeRecipient];
-            }
-            if (params.fee?.length !== params.feeRecipient?.length) {
-              throw Boom.badRequest("Invalid fee information");
+              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
             }
 
             let order: Sdk.OpenDao.Order | undefined;
@@ -449,18 +430,7 @@ export const getExecuteBidV3Options: RouteOptions = {
 
           case "zeroex-v4": {
             if (!["reservoir"].includes(params.orderbook)) {
-              throw Boom.badRequest("Unsupported orderbook");
-            }
-
-            // Make sure the fee information is correctly typed
-            if (params.fee && !Array.isArray(params.fee)) {
-              params.fee = [params.fee];
-            }
-            if (params.feeRecipient && !Array.isArray(params.feeRecipient)) {
-              params.feeRecipient = [params.feeRecipient];
-            }
-            if (params.fee?.length !== params.feeRecipient?.length) {
-              throw Boom.badRequest("Invalid fee information");
+              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
             }
 
             let order: Sdk.ZeroExV4.Order | undefined;
@@ -561,13 +531,13 @@ export const getExecuteBidV3Options: RouteOptions = {
 
           case "looks-rare": {
             if (!["reservoir", "looks-rare"].includes(params.orderbook)) {
-              throw Boom.badRequest("Unsupported orderbook");
+              throw Boom.badRequest(
+                "Only `reservoir` and `looks-rare` are supported as orderbooks"
+              );
             }
-
-            if (params.fee || params.feeRecipient) {
-              throw Boom.badRequest("LooksRare does not support explicit fees");
+            if (params.fees?.length) {
+              throw Boom.badRequest("LooksRare does not support custom fees");
             }
-
             if (params.excludeFlaggedTokens) {
               throw Boom.badRequest("LooksRare does not support token-list bids");
             }
@@ -649,9 +619,9 @@ export const getExecuteBidV3Options: RouteOptions = {
 
           case "x2y2": {
             if (!["x2y2"].includes(params.orderbook)) {
-              throw Boom.badRequest("Unsupported orderbook");
+              throw Boom.badRequest("Only `x2y2` is supported as orderbook");
             }
-            if (params.fee || params.feeRecipient) {
+            if (params.fees?.length) {
               throw Boom.badRequest("X2Y2 does not support explicit fees");
             }
             if (params.excludeFlaggedTokens) {

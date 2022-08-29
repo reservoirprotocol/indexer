@@ -1,7 +1,8 @@
 import { Interface } from "@ethersproject/abi";
-import { EventData } from "@/events-sync/data";
 import { Nouns } from "@reservoir0x/sdk";
+
 import { config } from "@/config/index";
+import { EventData } from "@/events-sync/data";
 
 export const auctionSettled: EventData = {
   kind: "nouns-auction-settled",
@@ -13,6 +14,6 @@ export const auctionSettled: EventData = {
       uint256 indexed nounId,
       address winner,
       uint256 amount
-      )`,
+    )`,
   ]),
 };

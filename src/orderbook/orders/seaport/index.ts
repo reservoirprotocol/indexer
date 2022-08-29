@@ -284,7 +284,12 @@ export const save = async (
       const sources = await Sources.getInstance();
       let source = await sources.getOrInsert("opensea.io");
 
-      if (metadata.source) {
+      // Override any defaulted source
+      if (
+        metadata.source &&
+        // If we can detect the marketplace (only OpenSea for now) do not override
+        !feeBreakdown.map(({ kind }) => kind).includes("marketplace")
+      ) {
         source = await sources.getOrInsert(metadata.source);
       }
 

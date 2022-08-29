@@ -149,6 +149,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             )
             .allow(null),
           expiration: Joi.number().required(),
+          isReservoir: Joi.boolean().allow(null),
           createdAt: Joi.string().required(),
           updatedAt: Joi.string().required(),
           rawData: Joi.object().optional(),
@@ -259,6 +260,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'),
             0
           ) AS expiration,
+          orders.is_reservoir,
           extract(epoch from orders.created_at) AS created_at,
           (
             CASE
@@ -405,12 +407,12 @@ export const getOrdersAsksV3Options: RouteOptions = {
           price: await getJoiPriceObject(
             {
               gross: {
-                amount: r.price,
-                nativeAmount: r.currency_price ?? r.price,
+                amount: r.currency_price ?? r.price,
+                nativeAmount: r.price,
               },
               net: {
-                amount: getNetAmount(r.price, r.fee_bps),
-                nativeAmount: getNetAmount(r.currency_price ?? r.price, r.fee_bps),
+                amount: getNetAmount(r.currency_price ?? r.price, r.fee_bps),
+                nativeAmount: getNetAmount(r.price, r.fee_bps),
               },
             },
             r.currency
@@ -431,6 +433,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
           feeBps: Number(r.fee_bps),
           feeBreakdown: r.fee_breakdown,
           expiration: Number(r.expiration),
+          isReservoir: r.is_reservoir,
           createdAt: new Date(r.created_at * 1000).toISOString(),
           updatedAt: new Date(r.updated_at).toISOString(),
           rawData: query.includeRawData ? r.raw_data : undefined,

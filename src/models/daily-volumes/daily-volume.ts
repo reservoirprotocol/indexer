@@ -558,7 +558,7 @@ export class DailyVolume {
     const query = `
         SELECT 
                collection_id,               
-               floor_sell_value${valuesPostfix}
+               floor_sell_value${valuesPostfix} AS floor_sell_value
         FROM daily_volumes
         WHERE timestamp = $1              
             AND collection_id != '-1'        
@@ -595,7 +595,7 @@ export class DailyVolume {
       queries.push({
         query: `
             UPDATE collections
-            SET day${period}_floor_sell_value = $/floor_sell_value/${valuesPostfix},
+            SET day${period}_floor_sell_value = $/floor_sell_value/,
                 updated_at = now()                              
             WHERE id = $/collection_id/`,
         values: row,

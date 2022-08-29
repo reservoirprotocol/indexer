@@ -1,5 +1,6 @@
 import { Interface } from "@ethersproject/abi";
 import { CryptoPunks } from "@reservoir0x/sdk";
+
 import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
 
@@ -10,11 +11,11 @@ export const punkBought: EventData = {
   numTopics: 4,
   abi: new Interface([
     `event PunkBought(
-      uint indexed punkIndex,
-      uint value,
+      uint256 indexed punkIndex,
+      uint256 value,
       address indexed fromAddress,
       address indexed toAddress
-      )`,
+    )`,
   ]),
 };
 
@@ -28,6 +29,6 @@ export const transfer: EventData = {
       address indexed from,
       address indexed to,
       uint256 value
-      );`,
+    )`,
   ]),
 };

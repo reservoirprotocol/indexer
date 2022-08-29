@@ -343,8 +343,8 @@ export const getSalesV4Options: RouteOptions = {
           price: await getJoiPriceObject(
             {
               gross: {
-                amount: r.price,
-                nativeAmount: r.currency_price ?? r.price,
+                amount: r.currency_price ?? r.price,
+                nativeAmount: r.price,
                 usdAmount: r.usd_price,
               },
             },

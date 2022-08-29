@@ -111,12 +111,14 @@ export const getBuildInfo = async (
 
   if (options.fee && options.feeRecipient) {
     for (let i = 0; i < options.fee.length; i++) {
-      const fee = bn(options.fee[i]).mul(options.weiPrice).div(10000).toString();
-      buildParams.fees!.push({
-        recipient: options.feeRecipient[i],
-        amount: fee,
-      });
-      totalFees = totalFees.add(fee);
+      if (Number(options.fee[i]) > 0) {
+        const fee = bn(options.fee[i]).mul(options.weiPrice).div(10000).toString();
+        buildParams.fees!.push({
+          recipient: options.feeRecipient[i],
+          amount: fee,
+        });
+        totalFees = totalFees.add(fee);
+      }
     }
   }
 

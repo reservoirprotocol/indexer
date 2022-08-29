@@ -52,7 +52,7 @@ if (config.doBackgroundWork && config.catchup) {
         })
   );
 
-  // ONLY MASTER
+  // MASTER ONLY
   if (config.master && networkSettings.enableWebSocket) {
     // Besides the manual polling of events via the above cron job
     // we're also integrating WebSocket subscriptions to fetch the

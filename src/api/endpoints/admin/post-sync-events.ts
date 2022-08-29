@@ -19,13 +19,12 @@ export const postSyncEventsOptions: RouteOptions = {
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     payload: Joi.object({
-      // WARNING! Some events should always be fetched together (eg.
-      // wyvern-v2/v2.3 sales + erc20/721/1155 transfers) so that we
-      // properly fill the tables.
+      // WARNING: Some events should always be fetched together!
       eventDataKinds: Joi.array().items(Joi.string()),
       fromBlock: Joi.number().integer().positive().required(),
       toBlock: Joi.number().integer().positive().required(),
       blocksPerBatch: Joi.number().integer().positive(),
+      skipNonFillWrites: Joi.boolean().default(false),
       backfill: Joi.boolean().default(true),
     }),
   },
@@ -41,13 +40,14 @@ export const postSyncEventsOptions: RouteOptions = {
       const fromBlock = payload.fromBlock;
       const toBlock = payload.toBlock;
       const blocksPerBatch = payload.blocksPerBatch;
+      const skipNonFillWrites = payload.skipNonFillWrites;
       const backfill = payload.backfill;
 
       await eventsSyncBackfill.addToQueue(fromBlock, toBlock, {
         backfill,
         eventDataKinds,
         blocksPerBatch,
-        useSlowProvider: true,
+        skipNonFillWrites,
       });
 
       return { message: "Request accepted" };

@@ -289,12 +289,12 @@ export const getOrdersAllV2Options: RouteOptions = {
         price: await getJoiPriceObject(
           {
             gross: {
-              amount: r.price,
-              nativeAmount: r.currency_price ?? r.price,
+              amount: r.currency_price ?? r.price,
+              nativeAmount: r.price,
             },
             net: {
-              amount: getNetAmount(r.price, r.fee_bps),
-              nativeAmount: getNetAmount(r.currency_price ?? r.price, r.fee_bps),
+              amount: getNetAmount(r.currency_price ?? r.price, r.fee_bps),
+              nativeAmount: getNetAmount(r.price, r.fee_bps),
             },
           },
           r.currency

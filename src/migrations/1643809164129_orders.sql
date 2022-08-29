@@ -89,10 +89,6 @@ CREATE INDEX "orders_kind_maker_nonce_full_index"
   ON "orders" ("kind", "maker", "nonce")
   WHERE ("contract" IS NOT NULL);
 
-CREATE INDEX "orders_expired_maker_side_created_at_id_index"
-  ON "orders" ("maker", "side", "created_at" DESC, "id" DESC)
-  WHERE ("fillability_status" != 'fillable' AND "fillability_status" != 'no-balance' AND "maker" IS NOT NULL);
-
 CREATE INDEX "orders_not_expired_maker_side_created_at_id_index"
   ON "orders" ("maker", "side", "created_at" DESC, "id" DESC)
   INCLUDE ("approval_status")
@@ -110,10 +106,6 @@ CREATE INDEX "orders_side_created_at_id_index"
 CREATE INDEX "orders_side_source_id_created_at_id_index"
   ON "orders" ("side", "source_id", "created_at" DESC, "id" DESC)
   WHERE ("fillability_status" = 'fillable' OR "fillability_status" = 'no-balance');
-
-CREATE INDEX "orders_side_is_reservoir_created_at_id_index"
-  ON "orders" ("side", "created_at" DESC, "id" DESC)
-  WHERE ("is_reservoir" AND ("fillability_status" = 'fillable' OR "fillability_status" = 'no-balance'));
 
 CREATE INDEX "orders_side_contract_created_at_id_index"
   ON "orders" ("side", "contract", "created_at" DESC, "id" DESC)

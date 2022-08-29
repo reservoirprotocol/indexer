@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { AddressZero } from "@ethersproject/constants";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -15,18 +14,19 @@ import { Sources } from "@/models/sources";
 import { generateBidDetails } from "@/orderbook/orders";
 import { getNftApproval } from "@/orderbook/orders/common/helpers";
 
-const version = "v3";
+const version = "v4";
 
-export const getExecuteSellV3Options: RouteOptions = {
+export const getExecuteSellV4Options: RouteOptions = {
   description: "Sell tokens (accept bids)",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Router"],
   plugins: {
     "hapi-swagger": {
-      deprecated: true,
+      order: 10,
     },
   },
   validate: {
-    query: Joi.object({
+    payload: Joi.object({
+      orderId: Joi.string().lowercase(),
       token: Joi.string()
         .lowercase()
         .pattern(regex.token)
@@ -46,13 +46,6 @@ export const getExecuteSellV3Options: RouteOptions = {
         .pattern(regex.domain)
         .required()
         .description("Filling source used for attribution. Example: `reservoir.market`"),
-      referrer: Joi.string()
-        .lowercase()
-        .pattern(regex.address)
-        .default(AddressZero)
-        .description(
-          "Wallet address of referrer. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
-        ),
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
@@ -100,85 +93,120 @@ export const getExecuteSellV3Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    const query = request.query as any;
+    const payload = request.payload as any;
 
     try {
-      const [contract, tokenId] = query.token.split(":");
+      let orderResult: any;
 
-      // Fetch the best offer on the current token
-      const bestOrderResult = await redb.oneOrNone(
-        `
-          SELECT
-            orders.id,
-            orders.kind,
-            contracts.kind AS token_kind,
-            orders.price,
-            orders.raw_data,
-            orders.source_id_int,
-            orders.maker,
-            orders.token_set_id
-          FROM orders
-          JOIN contracts
-            ON orders.contract = contracts.address
-          JOIN token_sets_tokens
-            ON orders.token_set_id = token_sets_tokens.token_set_id
-          WHERE token_sets_tokens.contract = $/contract/
-            AND token_sets_tokens.token_id = $/tokenId/
-            AND orders.side = 'buy'
-            AND orders.fillability_status = 'fillable'
-            AND orders.approval_status = 'approved'
-            AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-          ORDER BY orders.value DESC
-          LIMIT 1
-        `,
-        {
-          contract: toBuffer(contract),
-          tokenId,
-        }
-      );
+      const [contract, tokenId] = payload.token.split(":");
 
-      // Return early in case no offer is available
-      if (!bestOrderResult) {
+      // Scenario 1: explicitly passing an existing order to fill
+      if (payload.orderId) {
+        orderResult = await redb.oneOrNone(
+          `
+            SELECT
+              orders.id,
+              orders.kind,
+              contracts.kind AS token_kind,
+              orders.price,
+              orders.raw_data,
+              orders.source_id_int,
+              orders.maker,
+              orders.token_set_id
+            FROM orders
+            JOIN contracts
+              ON orders.contract = contracts.address
+            JOIN token_sets_tokens
+              ON orders.token_set_id = token_sets_tokens.token_set_id
+            WHERE orders.id = $/id/
+              AND token_sets_tokens.contract = $/contract/
+              AND token_sets_tokens.token_id = $/tokenId/
+              AND orders.side = 'buy'
+              AND orders.fillability_status = 'fillable'
+              AND orders.approval_status = 'approved'
+              AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+            LIMIT 1
+          `,
+          {
+            id: payload.orderId,
+            contract: toBuffer(contract),
+            tokenId,
+          }
+        );
+      } else {
+        // Fetch the best offer on specified current token
+        orderResult = await redb.oneOrNone(
+          `
+            SELECT
+              orders.id,
+              orders.kind,
+              contracts.kind AS token_kind,
+              orders.price,
+              orders.raw_data,
+              orders.source_id_int,
+              orders.maker,
+              orders.token_set_id
+            FROM orders
+            JOIN contracts
+              ON orders.contract = contracts.address
+            JOIN token_sets_tokens
+              ON orders.token_set_id = token_sets_tokens.token_set_id
+            WHERE token_sets_tokens.contract = $/contract/
+              AND token_sets_tokens.token_id = $/tokenId/
+              AND orders.side = 'buy'
+              AND orders.fillability_status = 'fillable'
+              AND orders.approval_status = 'approved'
+              AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+            ORDER BY orders.value DESC
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(contract),
+            tokenId,
+          }
+        );
+      }
+
+      if (!orderResult) {
         throw Boom.badRequest("No available orders");
       }
 
       const sources = await Sources.getInstance();
-      const sourceId = bestOrderResult.source_id_int;
+      const sourceId = orderResult.source_id_int;
 
       const path = [
         {
-          orderId: bestOrderResult.id,
+          orderId: orderResult.id,
           contract,
           tokenId,
           quantity: 1,
           source: sourceId ? sources.get(sourceId).domain : null,
           // TODO: Add support for multiple currencies
           currency: Sdk.Common.Addresses.Weth[config.chainId],
-          quote: formatEth(bestOrderResult.price),
-          rawQuote: bestOrderResult.price,
+          quote: formatEth(orderResult.price),
+          rawQuote: orderResult.price,
         },
       ];
-
-      if (query.onlyPath) {
-        // Skip generating any transactions if only the path was requested
-        return { path };
-      }
-
       const bidDetails = await generateBidDetails(
         {
-          kind: bestOrderResult.kind,
-          rawData: bestOrderResult.raw_data,
+          kind: orderResult.kind,
+          rawData: orderResult.raw_data,
         },
         {
-          kind: bestOrderResult.token_kind,
+          kind: orderResult.token_kind,
           contract,
           tokenId,
         }
       );
 
+      if (payload.onlyPath) {
+        // Skip generating any transactions if only the path was requested
+        return { path };
+      }
+
       const router = new Sdk.Router.Router(config.chainId, baseProvider);
-      const tx = await router.fillBidTx(bidDetails, query.taker, {
-        referrer: query.source,
+      const tx = await router.fillBidTx(bidDetails!, payload.taker, {
+        referrer: payload.source,
       });
 
       // Set up generic filling steps
@@ -210,7 +238,7 @@ export const getExecuteSellV3Options: RouteOptions = {
       if (bidDetails.kind === "x2y2") {
         const isApproved = await getNftApproval(
           bidDetails.contract,
-          query.taker,
+          payload.taker,
           Sdk.X2Y2.Addresses.Exchange[config.chainId]
         );
         if (!isApproved) {
@@ -218,15 +246,17 @@ export const getExecuteSellV3Options: RouteOptions = {
           const approveTx = new Sdk.Common.Helpers.Erc721(
             baseProvider,
             bidDetails.contract
-          ).approveTransaction(query.taker, Sdk.X2Y2.Addresses.Exchange[config.chainId]);
+          ).approveTransaction(payload.taker, Sdk.X2Y2.Addresses.Exchange[config.chainId]);
 
           steps[0].items.push({
             status: "incomplete",
             data: {
               ...approveTx,
-              maxFeePerGas: query.maxFeePerGas ? bn(query.maxFeePerGas).toHexString() : undefined,
-              maxPriorityFeePerGas: query.maxPriorityFeePerGas
-                ? bn(query.maxPriorityFeePerGas).toHexString()
+              maxFeePerGas: payload.maxFeePerGas
+                ? bn(payload.maxFeePerGas).toHexString()
+                : undefined,
+              maxPriorityFeePerGas: payload.maxPriorityFeePerGas
+                ? bn(payload.maxPriorityFeePerGas).toHexString()
                 : undefined,
             },
           });
@@ -237,9 +267,9 @@ export const getExecuteSellV3Options: RouteOptions = {
         status: "incomplete",
         data: {
           ...tx,
-          maxFeePerGas: query.maxFeePerGas ? bn(query.maxFeePerGas).toHexString() : undefined,
-          maxPriorityFeePerGas: query.maxPriorityFeePerGas
-            ? bn(query.maxPriorityFeePerGas).toHexString()
+          maxFeePerGas: payload.maxFeePerGas ? bn(payload.maxFeePerGas).toHexString() : undefined,
+          maxPriorityFeePerGas: payload.maxPriorityFeePerGas
+            ? bn(payload.maxPriorityFeePerGas).toHexString()
             : undefined,
         },
       });

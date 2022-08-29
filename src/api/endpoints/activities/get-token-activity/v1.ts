@@ -67,13 +67,13 @@ export const getTokenActivityV1Options: RouteOptions = {
           timestamp: Joi.number(),
           token: Joi.object({
             tokenId: Joi.string().allow(null),
-            tokenName: Joi.string().allow(null),
-            tokenImage: Joi.string().allow(null),
+            tokenName: Joi.string().allow("", null),
+            tokenImage: Joi.string().allow("", null),
           }),
           collection: Joi.object({
             collectionId: Joi.string().allow(null),
-            collectionName: Joi.string().allow(null),
-            collectionImage: Joi.string().allow(null),
+            collectionName: Joi.string().allow("", null),
+            collectionImage: Joi.string().allow("", null),
           }),
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
           logIndex: Joi.number().allow(null),

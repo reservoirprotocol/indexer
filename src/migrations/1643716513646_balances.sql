@@ -31,10 +31,6 @@ CREATE INDEX "nft_balances_owner_acquired_at_index"
   ON "nft_balances" ("owner", "acquired_at" DESC)
   WHERE ("amount" > 0);
 
-CREATE INDEX "nft_balances_owner_top_buy_value_index"
-  ON "nft_balances" ("owner", "top_buy_value" DESC NULLS LAST)
-  WHERE ("amount" > 0);
-
 -- https://www.lob.com/blog/supercharge-your-postgresql-performance
 -- https://klotzandrew.com/blog/posgres-per-table-autovacuum-management
 ALTER TABLE "nft_balances" SET (autovacuum_vacuum_scale_factor = 0.0);

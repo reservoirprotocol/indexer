@@ -1,7 +1,8 @@
 import { Interface } from "@ethersproject/abi";
-import { EventData } from "@/events-sync/data";
 import { Element } from "@reservoir0x/sdk";
+
 import { config } from "@/config/index";
+import { EventData } from "@/events-sync/data";
 
 export const erc721SellOrderFilled: EventData = {
   kind: "element-erc721-sell-order-filled",
