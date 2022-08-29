@@ -35,12 +35,8 @@ if (config.doBackgroundWork) {
       const pendingFlagStatusSyncTokensQueue = new PendingFlagStatusSyncTokens(collectionId);
       const pendingSyncFlagStatusTokens = await pendingFlagStatusSyncTokensQueue.get(LIMIT);
 
-      // If no more tokens
       if (_.isEmpty(pendingSyncFlagStatusTokens)) {
-        logger.info(QUEUE_NAME, `Recalc TokenSet. contract:${contract}`);
-
-        await nonFlaggedTokenSet.addToQueue(contract, collectionId);
-
+        logger.info(QUEUE_NAME, `No pending tokens. contract:${contract}`);
         return;
       }
 
@@ -87,6 +83,9 @@ if (config.doBackgroundWork) {
 
       if (_.size(pendingSyncFlagStatusTokens) == LIMIT) {
         job.data.addToQueue = true;
+      } else {
+        logger.info(QUEUE_NAME, `Recalc TokenSet. contract:${contract}`);
+        await nonFlaggedTokenSet.addToQueue(contract, collectionId);
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
