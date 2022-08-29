@@ -23,7 +23,6 @@ import "@/jobs/orderbook";
 import "@/jobs/sources";
 import "@/jobs/token-updates";
 import "@/jobs/update-attribute";
-import "@/jobs/user-received-bids";
 
 // Export all job queues for monitoring through the BullMQ UI
 
@@ -107,9 +106,6 @@ import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attrib
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
 
-import * as addUserReceivedBids from "@/jobs/user-received-bids/add-user-received-bids";
-import * as cleanUserReceivedBids from "@/jobs/user-received-bids/clean-user-received-bids";
-
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,
   processActivityEvent.queue,
@@ -190,7 +186,4 @@ export const allJobQueues = [
   resyncAttributeFloorSell.queue,
   resyncAttributeKeyCounts.queue,
   resyncAttributeValueCounts.queue,
-
-  addUserReceivedBids.queue,
-  cleanUserReceivedBids.queue,
 ];
