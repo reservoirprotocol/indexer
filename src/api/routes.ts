@@ -848,10 +848,4 @@ export const setupRoutes = (server: Server) => {
     path: "/transfers/bulk/v1",
     options: transfersEndpoints.getTransfersBulkV1Options,
   });
-
-  server.route({
-    method: "GET",
-    path: "/received-bids/v1",
-    options: ordersEndpoints.getReceivedBidsV1Options,
-  });
 };
