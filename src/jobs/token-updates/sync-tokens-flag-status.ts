@@ -31,6 +31,9 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { collectionId, contract } = job.data;
 
+      job.data.addToQueue = false;
+      job.data.addToQueueDelay = 1000;
+
       // Get the tokens from the list
       const pendingFlagStatusSyncTokensQueue = new PendingFlagStatusSyncTokens(collectionId);
       const pendingSyncFlagStatusTokens = await pendingFlagStatusSyncTokensQueue.get(LIMIT);
@@ -39,9 +42,6 @@ if (config.doBackgroundWork) {
         logger.info(QUEUE_NAME, `No pending tokens. contract:${contract}`);
         return;
       }
-
-      job.data.addToQueue = false;
-      job.data.addToQueueDelay = 1000;
 
       for (const pendingSyncFlagStatusToken of pendingSyncFlagStatusTokens) {
         try {
