@@ -2363,6 +2363,135 @@ export const syncEvents = async (
 
               break;
             }
+
+            case "universe-match": {
+              const { args } = eventData.abi.parseLog(log);
+              const leftHash = args["leftHash"].toLowerCase();
+              const leftMaker = args["leftMaker"].toLowerCase();
+              const rightMaker = args["rightMaker"].toLowerCase();
+              const newLeftFill = args["newLeftFill"].toString();
+              const newRightFill = args["newRightFill"].toString();
+              const leftAsset = args["leftAsset"];
+              const rightAsset = args["rightAsset"];
+
+              const ERC20 = "0x8ae85d84";
+              const ETH = "0xaaaebeba";
+              const ERC721 = "0x73ad2146";
+              const ERC1155 = "0x973bb640";
+
+              const assetTypes = [ERC721, ERC1155, ERC20, ETH];
+
+              // Exclude orders with exotic asset types
+              if (
+                !assetTypes.includes(leftAsset.assetClass) ||
+                !assetTypes.includes(rightAsset.assetClass)
+              ) {
+                break;
+              }
+
+              // Assume the left order is the maker's order
+              const side = [ERC721, ERC1155].includes(leftAsset.assetClass) ? "sell" : "buy";
+
+              const currencyAsset = side === "sell" ? rightAsset : leftAsset;
+              const nftAsset = side === "sell" ? leftAsset : rightAsset;
+
+              let currency: string;
+              if (currencyAsset.assetClass === ETH) {
+                currency = Sdk.Common.Addresses.Eth[config.chainId];
+              } else if (currencyAsset.assetClass === ERC20) {
+                const decodedCurrencyAsset = defaultAbiCoder.decode(
+                  ["(address token)"],
+                  currencyAsset.data
+                );
+                currency = decodedCurrencyAsset[0][0];
+              } else {
+                break;
+              }
+
+              const decodedNftAsset = defaultAbiCoder.decode(
+                ["(address token, uint tokenId)"],
+                nftAsset.data
+              );
+
+              const contract = decodedNftAsset[0][0].toLowerCase();
+              const tokenId = decodedNftAsset[0][1].toString();
+
+              let currencyPrice = side === "sell" ? newLeftFill : newRightFill;
+              const amount = side === "sell" ? newRightFill : newLeftFill;
+              currencyPrice = bn(currencyPrice).div(amount).toString();
+
+              const prices = await getUSDAndNativePrices(
+                currency,
+                currencyPrice,
+                baseEventParams.timestamp
+              );
+              if (!prices.nativePrice) {
+                // We must always have the native price
+                break;
+              }
+
+              const orderKind = "universe";
+              const orderSource = await getOrderSourceByOrderKind(orderKind);
+
+              let taker = rightMaker;
+
+              // Handle attribution
+              const data = await syncEventsUtils.extractAttributionData(
+                baseEventParams.txHash,
+                orderKind
+              );
+
+              if (data.taker) {
+                taker = data.taker;
+              }
+
+              fillEventsPartial.push({
+                orderKind: "universe",
+                orderId: leftHash,
+                orderSide: side,
+                orderSourceIdInt: orderSource?.id,
+                maker: leftMaker,
+                taker,
+                price: prices.nativePrice,
+                currency,
+                currencyPrice,
+                usdPrice: prices.usdPrice,
+                contract,
+                tokenId,
+                amount,
+                baseEventParams,
+              });
+
+              break;
+            }
+            case "universe-cancel": {
+              const { args } = eventData.abi.parseLog(log);
+              const orderId = args["hash"].toLowerCase();
+              // const maker = args["maker"].toLowerCase();
+              // const makeAssetType = args["makeAssetType"].toLowerCase();
+              // const takeAssetType = args["takeAssetType"].toLowerCase();
+
+              cancelEvents.push({
+                orderKind: "universe",
+                orderId,
+                baseEventParams,
+              });
+
+              orderInfos.push({
+                context: `cancelled-${orderId}`,
+                id: orderId,
+                trigger: {
+                  kind: "cancel",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                  logIndex: baseEventParams.logIndex,
+                  batchIndex: baseEventParams.batchIndex,
+                  blockHash: baseEventParams.blockHash,
+                },
+              });
+
+              break;
+            }
           }
         } catch (error) {
           logger.info("sync-events", `Failed to handle events: ${error}`);
