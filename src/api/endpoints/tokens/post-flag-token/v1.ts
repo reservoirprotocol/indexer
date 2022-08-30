@@ -8,7 +8,11 @@ import _ from "lodash";
 import { logger } from "@/common/logger";
 import { Tokens } from "@/models/tokens";
 import { ApiKeyManager } from "@/models/api-keys";
-import * as nonFlaggedTokenSet from "@/jobs/token-updates/non-flagged-token-set";
+import {
+  PendingFlagStatusSyncToken,
+  PendingFlagStatusSyncTokens,
+} from "@/models/pending-flag-status-sync-tokens";
+import * as syncTokensFlagStatus from "@/jobs/token-updates/sync-tokens-flag-status";
 
 const version = "v1";
 
@@ -62,6 +66,10 @@ export const postFlagTokenV1Options: RouteOptions = {
       throw Boom.badData(`Token ${payload.token} not found`);
     }
 
+    if (token.isFlagged === payload.flag) {
+      return { message: "Success" };
+    }
+
     try {
       const currentUtcTime = new Date().toISOString();
 
@@ -70,7 +78,22 @@ export const postFlagTokenV1Options: RouteOptions = {
         lastFlagUpdate: currentUtcTime,
       });
 
-      await nonFlaggedTokenSet.addToQueue(contract, token.collectionId);
+      const pendingFlagStatusSyncTokensQueue = new PendingFlagStatusSyncTokens(token.collectionId);
+
+      // Add the tokens to the list
+      await pendingFlagStatusSyncTokensQueue.add(
+        [
+          {
+            collectionId: token.collectionId,
+            contract: contract,
+            tokenId: tokenId,
+            isFlagged: payload.flag,
+          } as PendingFlagStatusSyncToken,
+        ],
+        true
+      );
+
+      await syncTokensFlagStatus.addToQueue(token.collectionId, contract);
 
       logger.info(
         `post-flag-token-${version}-handler`,
