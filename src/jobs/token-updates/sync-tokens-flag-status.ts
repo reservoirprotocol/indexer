@@ -43,43 +43,83 @@ if (config.doBackgroundWork) {
         return;
       }
 
-      for (const pendingSyncFlagStatusToken of pendingSyncFlagStatusTokens) {
-        try {
-          const metadata = await MetadataApi.getTokenMetadata(
-            [{ contract, tokenId: pendingSyncFlagStatusToken.tokenId }],
-            true
-          );
+      await Promise.all(
+        pendingSyncFlagStatusTokens.map(async (pendingSyncFlagStatusToken) => {
+          try {
+            const metadata = await MetadataApi.getTokenMetadata(
+              [{ contract, tokenId: pendingSyncFlagStatusToken.tokenId }],
+              true
+            );
 
-          const metadataIsFlagged = Number(metadata[0].flagged);
-          const flagStatusDiff = pendingSyncFlagStatusToken.isFlagged != metadataIsFlagged;
+            const metadataIsFlagged = Number(metadata[0].flagged);
+            const flagStatusDiff = pendingSyncFlagStatusToken.isFlagged != metadataIsFlagged;
 
-          logger.info(
-            QUEUE_NAME,
-            `Flag Status. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, isFlagged:${pendingSyncFlagStatusToken.isFlagged}, metadataIsFlagged:${metadataIsFlagged}, flagStatusDiff=${flagStatusDiff}`
-          );
-
-          await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, {
-            isFlagged: metadataIsFlagged,
-            lastFlagUpdate: new Date().toISOString(),
-          });
-        } catch (error) {
-          if ((error as any).response?.status === 429) {
             logger.info(
               QUEUE_NAME,
-              `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
+              `Flag Status. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, isFlagged:${pendingSyncFlagStatusToken.isFlagged}, metadataIsFlagged:${metadataIsFlagged}, flagStatusDiff=${flagStatusDiff}`
             );
 
-            job.data.addToQueueDelay = 5000;
+            await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, {
+              isFlagged: metadataIsFlagged,
+              lastFlagUpdate: new Date().toISOString(),
+            });
+          } catch (error) {
+            if ((error as any).response?.status === 429) {
+              logger.info(
+                QUEUE_NAME,
+                `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
+              );
 
-            await pendingFlagStatusSyncTokensQueue.add([pendingSyncFlagStatusToken], true);
-          } else {
-            logger.error(
-              QUEUE_NAME,
-              `getTokenMetadata error. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, error:${error}`
-            );
+              job.data.addToQueueDelay = 5000;
+
+              await pendingFlagStatusSyncTokensQueue.add([pendingSyncFlagStatusToken], true);
+            } else {
+              logger.error(
+                QUEUE_NAME,
+                `getTokenMetadata error. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, error:${error}`
+              );
+            }
           }
-        }
-      }
+        })
+      );
+
+      // for (const pendingSyncFlagStatusToken of pendingSyncFlagStatusTokens) {
+      //   try {
+      //     const metadata = await MetadataApi.getTokenMetadata(
+      //       [{ contract, tokenId: pendingSyncFlagStatusToken.tokenId }],
+      //       true
+      //     );
+      //
+      //     const metadataIsFlagged = Number(metadata[0].flagged);
+      //     const flagStatusDiff = pendingSyncFlagStatusToken.isFlagged != metadataIsFlagged;
+      //
+      //     logger.info(
+      //       QUEUE_NAME,
+      //       `Flag Status. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, isFlagged:${pendingSyncFlagStatusToken.isFlagged}, metadataIsFlagged:${metadataIsFlagged}, flagStatusDiff=${flagStatusDiff}`
+      //     );
+      //
+      //     await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, {
+      //       isFlagged: metadataIsFlagged,
+      //       lastFlagUpdate: new Date().toISOString(),
+      //     });
+      //   } catch (error) {
+      //     if ((error as any).response?.status === 429) {
+      //       logger.info(
+      //         QUEUE_NAME,
+      //         `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
+      //       );
+      //
+      //       job.data.addToQueueDelay = 5000;
+      //
+      //       await pendingFlagStatusSyncTokensQueue.add([pendingSyncFlagStatusToken], true);
+      //     } else {
+      //       logger.error(
+      //         QUEUE_NAME,
+      //         `getTokenMetadata error. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, error:${error}`
+      //       );
+      //     }
+      //   }
+      // }
 
       if (_.size(pendingSyncFlagStatusTokens) == LIMIT) {
         job.data.addToQueue = true;
