@@ -6,11 +6,11 @@ import _ from "lodash";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-const QUEUE_NAME = "backfill-fill-events-order-source-queue";
+const QUEUE_NAME = "backfill-fill-events-updated-at-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -41,7 +41,7 @@ if (config.doBackgroundWork) {
       }
 
       if (cursor) {
-        continuationFilter = `WHERE (fill_events_2.created_at, fill_events_2.tx_hash, fill_events_2.log_index, fill_events_2.batch_index) > (to_timestamp($/createdAt/), $/txHash/, $/logIndex/, $/batchIndex/)`;
+        continuationFilter = `WHERE (fill_events_2.created_at, fill_events_2.tx_hash, fill_events_2.log_index, fill_events_2.batch_index) > (to_timestamp($/createdTs/), $/txHash/, $/logIndex/, $/batchIndex/)`;
       }
 
       const results = await idb.manyOrNone(
@@ -51,38 +51,23 @@ if (config.doBackgroundWork) {
             fill_events_2.tx_hash,
             fill_events_2.log_index,
             fill_events_2.batch_index,
-            extract(epoch from fill_events_2.created_at) created_at,
-            fill_events_2.order_kind,
-            CASE
-                  WHEN (o.source_id_int IS NOT NULL) THEN o.source_id_int
-                  WHEN (o.source_id_int IS NULL AND fill_events_2.order_kind = 'x2y2') THEN 17
-                  WHEN (o.source_id_int IS NULL AND fill_events_2.order_kind = 'foundation') THEN 12
-                  WHEN (o.source_id_int IS NULL AND fill_events_2.order_kind = 'looks-rare') THEN 3
-                  WHEN (o.source_id_int IS NULL AND fill_events_2.order_kind = 'seaport') THEN 1
-                  WHEN (o.source_id_int IS NULL AND fill_events_2.order_kind = 'wyvern-v2') THEN 1
-                  WHEN (o.source_id_int IS NULL AND fill_events_2.order_kind = 'wyvern-v2.3') THEN 1
-                  ELSE NULL
-             END AS order_source_id_int
+            fill_events_2.created_at,
+            extract(epoch from fill_events_2.created_at) created_ts
           FROM fill_events_2
-          LEFT JOIN LATERAL (
-            SELECT source_id_int
-            FROM orders
-            WHERE orders.id = fill_events_2.order_id
-          ) o ON TRUE
           ${continuationFilter}
           ORDER BY fill_events_2.created_at, fill_events_2.tx_hash, fill_events_2.log_index, fill_events_2.batch_index
           LIMIT $/limit/
           )
           UPDATE fill_events_2 SET
-              order_source_id_int = x.order_source_id_int
+              updated_at = x.created_at
           FROM x
           WHERE fill_events_2.tx_hash = x.tx_hash
           AND fill_events_2.log_index = x.log_index
           AND fill_events_2.batch_index = x.batch_index
-          RETURNING x.created_at, x.tx_hash, x.log_index, x.batch_index
+          RETURNING x.created_ts, x.tx_hash, x.log_index, x.batch_index
           `,
         {
-          createdAt: cursor?.createdAt,
+          createdTs: cursor?.createdTs,
           txHash: cursor?.txHash ? toBuffer(cursor.txHash) : null,
           logIndex: cursor?.logIndex,
           batchIndex: cursor?.batchIndex,
@@ -97,7 +82,7 @@ if (config.doBackgroundWork) {
           txHash: fromBuffer(lastResult.tx_hash),
           logIndex: lastResult.log_index,
           batchIndex: lastResult.batch_index,
-          createdAt: lastResult.created_at,
+          createdTs: lastResult.created_ts,
         };
 
         await redis.set(`${QUEUE_NAME}-next-cursor`, JSON.stringify(nextCursor));
@@ -117,23 +102,21 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  // !!! DISABLED
-
-  // redlock
-  //   .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
-  //   .then(async () => {
-  //     await addToQueue();
-  //   })
-  //   .catch(() => {
-  //     // Skip on any errors
-  //   });
+  redlock
+    .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      await addToQueue();
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
 }
 
 export type CursorInfo = {
   txHash: string;
   logIndex: number;
   batchIndex: number;
-  createdAt: string;
+  createdTs: number;
 };
 
 export const addToQueue = async (cursor?: CursorInfo) => {

@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { HashZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as syncEventsUtils from "@/events-sync/utils";
@@ -101,16 +100,18 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  if (config.chainId === 1) {
-    redlock
-      .acquire([`${QUEUE_NAME}-lock-3`], 60 * 60 * 24 * 30 * 1000)
-      .then(async () => {
-        await addToQueue(14860000, HashZero);
-      })
-      .catch(() => {
-        // Skip on any errors
-      });
-  }
+  // !!! DISABLED
+
+  // if (config.chainId === 1) {
+  //   redlock
+  //     .acquire([`${QUEUE_NAME}-lock-3`], 60 * 60 * 24 * 30 * 1000)
+  //     .then(async () => {
+  //       await addToQueue(14860000, HashZero);
+  //     })
+  //     .catch(() => {
+  //       // Skip on any errors
+  //     });
+  // }
 }
 
 export const addToQueue = async (block: number, txHash: string) => {

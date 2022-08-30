@@ -1,3 +1,61 @@
+## [5.185.2](https://github.com/reservoirprotocol/indexer/compare/v5.185.1...v5.185.2) (2022-08-30)
+
+
+### Bug Fixes
+
+* disable backfill job ([f275fb6](https://github.com/reservoirprotocol/indexer/commit/f275fb624bb03a1ca03eabe7b5b044a8c1fdf290))
+
+
+
+## [5.185.1](https://github.com/reservoirprotocol/indexer/compare/v5.185.0...v5.185.1) (2022-08-30)
+
+
+### Bug Fixes
+
+* add backfill script for wrong opensea order source ([d03fce7](https://github.com/reservoirprotocol/indexer/commit/d03fce7c19424b13a17d51decde351a45125b049))
+
+
+
+# [5.185.0](https://github.com/reservoirprotocol/indexer/compare/v5.184.7...v5.185.0) (2022-08-30)
+
+
+### Bug Fixes
+
+* minor tweaks ([0817913](https://github.com/reservoirprotocol/indexer/commit/08179134641ca7f785060925aa1a4515f8ffa1f9))
+* minor tweaks ([aa79ab6](https://github.com/reservoirprotocol/indexer/commit/aa79ab60e890b4039af83317399b46e9cea0af4f))
+* minor tweaks ([87e6e6b](https://github.com/reservoirprotocol/indexer/commit/87e6e6bf545d444d9ac0d6e0460f24b243a3305e))
+* set currency price ([9709e32](https://github.com/reservoirprotocol/indexer/commit/9709e320f6df1bb733640c4b47c16fb5166f7b2d))
+
+
+### Features
+
+* add backfill job for populating old sales usd and currency prices ([3a17e1b](https://github.com/reservoirprotocol/indexer/commit/3a17e1b8199454cd92031c016b37689c817fbb95))
+
+
+### Performance Improvements
+
+* increase limit ([4b50fd6](https://github.com/reservoirprotocol/indexer/commit/4b50fd63ee82663ab76889899ada68390f1d0ea2))
+
+
+
+## [5.184.7](https://github.com/reservoirprotocol/indexer/compare/v5.184.6...v5.184.7) (2022-08-30)
+
+
+### Bug Fixes
+
+* orders api query params validation ([556f878](https://github.com/reservoirprotocol/indexer/commit/556f8784edeb921b58ca013e7bef9380cdbd838c))
+
+
+
+## [5.184.6](https://github.com/reservoirprotocol/indexer/compare/v5.184.5...v5.184.6) (2022-08-30)
+
+
+### Bug Fixes
+
+* collections v5 api filtering by collection set id ([92d8299](https://github.com/reservoirprotocol/indexer/commit/92d82991d2f9adb137250b4062f803afa0346d2d))
+
+
+
 ## [5.184.5](https://github.com/reservoirprotocol/indexer/compare/v5.184.4...v5.184.5) (2022-08-29)
 
 

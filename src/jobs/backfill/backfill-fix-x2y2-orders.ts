@@ -1,9 +1,8 @@
-import { AddressZero } from "@ethersproject/constants";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
@@ -112,14 +111,16 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  redlock
-    .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await addToQueue([{ maker: AddressZero, tokenSetId: "" }]);
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
+  // !!! DISABLED
+
+  // redlock
+  //   .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
+  //   .then(async () => {
+  //     await addToQueue([{ maker: AddressZero, tokenSetId: "" }]);
+  //   })
+  //   .catch(() => {
+  //     // Skip on any errors
+  //   });
 }
 
 export type Info = {

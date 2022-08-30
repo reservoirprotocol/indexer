@@ -33,16 +33,8 @@ import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsync
 import * as arweaveSyncBackfill from "@/jobs/arweave-sync/backfill-queue";
 import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
-import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
-import * as backfillCancelWyvernV23Orders from "@/jobs/backfill/backfill-cancel-wyvern-v23-orders";
-import * as backfillFillEventsCreatedAt from "@/jobs/backfill/backfill-fill-events-created-at";
-import * as backfillFillEventsFillSource from "@/jobs/backfill/backfill-fill-events-fill-source";
-import * as backfillFillEventsOrderSource from "@/jobs/backfill/backfill-fill-events-order-source";
-import * as backfillFillEventsWashTradingScore from "@/jobs/backfill/backfill-fill-events-wash-trading-score";
-import * as backfillLooksRareFills from "@/jobs/backfill/backfill-looks-rare-fills";
-import * as backfillTransactionBlockFields from "@/jobs/backfill/backfill-transaction-block-fields";
-import * as backfillTransactions from "@/jobs/backfill/backfill-transactions";
-import * as backfillCollectionsTopBid from "@/jobs/backfill/backfill-collections-top-bid";
+import * as backfillSalesUsdPrice from "@/jobs/backfill/backfill-sales-usd-price";
+import * as backfillFillEventsUpdatedAt from "@/jobs/backfill/backfill-fill-events-updated-at";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -72,9 +64,6 @@ import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 
-import * as backfillAcquiredAt from "@/jobs/nft-balance-updates/backfill-acquired-at-queue";
-import * as backfillNftBalanceFloorAskPrice from "@/jobs/nft-balance-updates/backfill-floor-ask-price-queue";
-import * as backfillNftBalanceTopBid from "@/jobs/nft-balance-updates/backfill-top-bid-queue";
 import * as updateNftBalanceFloorAskPrice from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as updateNftBalanceTopBid from "@/jobs/nft-balance-updates/update-top-bid-queue";
 
@@ -82,11 +71,9 @@ import * as orderFixes from "@/jobs/order-fixes/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle-queue";
-import * as removeBuyOrderEvents from "@/jobs/order-updates/remove-buy-order-events";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
-import * as resyncOrdersSource from "@/jobs/orderbook/resync-orders-source";
 import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
 
 import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
@@ -114,16 +101,8 @@ export const allJobQueues = [
   arweaveSyncBackfill.queue,
   arweaveSyncRealtime.queue,
 
-  backfillBlockTimestamps.queue,
-  backfillCancelWyvernV23Orders.queue,
-  backfillFillEventsCreatedAt.queue,
-  backfillFillEventsFillSource.queue,
-  backfillFillEventsOrderSource.queue,
-  backfillFillEventsWashTradingScore.queue,
-  backfillLooksRareFills.queue,
-  backfillTransactionBlockFields.queue,
-  backfillTransactions.queue,
-  backfillCollectionsTopBid.queue,
+  backfillSalesUsdPrice.queue,
+  backfillFillEventsUpdatedAt.queue,
 
   currencies.queue,
 
@@ -153,9 +132,6 @@ export const allJobQueues = [
   metadataIndexProcess.queue,
   metadataIndexWrite.queue,
 
-  backfillAcquiredAt.queue,
-  backfillNftBalanceFloorAskPrice.queue,
-  backfillNftBalanceTopBid.queue,
   updateNftBalanceFloorAskPrice.queue,
   updateNftBalanceTopBid.queue,
 
@@ -163,12 +139,10 @@ export const allJobQueues = [
   orderUpdatesById.queue,
   orderUpdatesByMaker.queue,
   bundleOrderUpdatesByMaker.queue,
-  removeBuyOrderEvents.queue,
 
   orderbookOrders.queue,
   orderbookPostOrderExternal.queue,
   orderbookTokenSets.queue,
-  resyncOrdersSource.queue,
 
   fetchSourceInfo.queue,
 

@@ -1,14 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import _ from "lodash";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
-
-import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
-import { config } from "@/config/index";
+import _ from "lodash";
 
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
+import { redis } from "@/common/redis";
+import { config } from "@/config/index";
 
 const QUEUE_NAME = "backfill-collections-top-bid-queue";
 
@@ -111,14 +110,16 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  redlock
-    .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await addToQueue();
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
+  // !!! DISABLED
+
+  // redlock
+  //   .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
+  //   .then(async () => {
+  //     await addToQueue();
+  //   })
+  //   .catch(() => {
+  //     // Skip on any errors
+  //   });
 }
 
 export type CursorInfo = {

@@ -316,7 +316,7 @@ export const getCollectionsV5Options: RouteOptions = {
       }
       if (query.collectionsSetId) {
         query.collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
-        conditions.push(`collections.id IN ($/collectionsIds:csv/')`);
+        conditions.push(`collections.id IN ($/collectionsIds:csv/)`);
       }
       if (query.contract) {
         if (!Array.isArray(query.contract)) {
@@ -335,8 +335,6 @@ export const getCollectionsV5Options: RouteOptions = {
       if (query.continuation) {
         query.continuation = splitContinuation(query.continuation)[0];
       }
-
-      // TODO: Should we have the collection volume indexes on `NULLS LAST`?
 
       let orderBy = "";
       switch (query.sortBy) {

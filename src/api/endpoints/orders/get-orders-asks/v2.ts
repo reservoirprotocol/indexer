@@ -52,7 +52,11 @@ export const getOrdersAsksV2Options: RouteOptions = {
           "Filter to an array of contracts. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       status: Joi.string()
-        .valid("active", "inactive")
+        .when("maker", {
+          is: Joi.exist(),
+          then: Joi.valid("active", "inactive"),
+          otherwise: Joi.valid("active"),
+        })
         .description(
           "active = currently valid, inactive = temporarily invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
@@ -76,9 +80,7 @@ export const getOrdersAsksV2Options: RouteOptions = {
         .max(1000)
         .default(50)
         .description("Amount of items returned in response."),
-    })
-      .or("token", "contracts", "maker")
-      .with("status", "maker"),
+    }).or("token", "contracts", "maker"),
   },
   response: {
     schema: Joi.object({

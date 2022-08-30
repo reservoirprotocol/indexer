@@ -14,11 +14,13 @@ export const askFilled: EventData = {
       uint256 indexed tokenId,
       address indexed buyer,
       address finder,
-      (address seller,
+      (
+        address seller,
         address sellerFundsRecipient,
         address askCurrency,
         uint16 findersFeeBps,
-        uint256 askPrice) ask
+        uint256 askPrice
+      ) ask
     )`,
   ]),
 };
@@ -39,6 +41,6 @@ export const auctionEnded: EventData = {
       uint256 amount,
       uint256 curatorFee,
       address auctionCurrency
-  )`,
+    )`,
   ]),
 };

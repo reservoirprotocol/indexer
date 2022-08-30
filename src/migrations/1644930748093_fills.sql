@@ -54,6 +54,9 @@ CREATE INDEX "fill_events_2_created_at_tx_hash_index"
 CREATE INDEX "fill_events_2_maker_taker_contract"
   ON "fill_events_2" ("maker", "taker", "contract");
 
+CREATE INDEX "fill_events_2_updated_at_tx_hash_index"
+  ON "fill_events_2" ("updated_at", "tx_hash", "log_index", "batch_index");
+
 -- Down Migration
 
 DROP TABLE "fill_events_2";

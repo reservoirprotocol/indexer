@@ -63,7 +63,11 @@ export const getOrdersBidsV2Options: RouteOptions = {
           )
       ),
       status: Joi.string()
-        .valid("active", "inactive", "expired")
+        .when("maker", {
+          is: Joi.exist(),
+          then: Joi.valid("active", "inactive"),
+          otherwise: Joi.valid("active"),
+        })
         .description(
           "active = currently valid, inactive = temporarily invalid, expired = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
@@ -86,8 +90,7 @@ export const getOrdersBidsV2Options: RouteOptions = {
         .description("Amount of items returned in response."),
     })
       .or("token", "tokenSetId", "maker", "contracts")
-      .oxor("token", "tokenSetId")
-      .with("status", "maker"),
+      .oxor("token", "tokenSetId"),
   },
   response: {
     schema: Joi.object({
@@ -305,12 +308,6 @@ export const getOrdersBidsV2Options: RouteOptions = {
           case "inactive": {
             // Potentially-valid orders
             orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved')`;
-            break;
-          }
-
-          case "expired": {
-            // Invalid orders
-            orderStatusFilter = `orders.fillability_status != 'fillable' AND orders.fillability_status != 'no-balance'`;
             break;
           }
         }

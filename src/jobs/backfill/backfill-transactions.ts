@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
 import pLimit from "p-limit";
 
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { baseProvider } from "@/common/provider";
@@ -72,14 +72,16 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  redlock
-    .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await addToQueue(15050000);
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
+  // !!! DISABLED
+
+  // redlock
+  //   .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
+  //   .then(async () => {
+  //     await addToQueue(15050000);
+  //   })
+  //   .catch(() => {
+  //     // Skip on any errors
+  //   });
 }
 
 export const addToQueue = async (block: number) => {
