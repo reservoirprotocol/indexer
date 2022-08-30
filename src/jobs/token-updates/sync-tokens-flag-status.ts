@@ -12,7 +12,7 @@ import _ from "lodash";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 
 const QUEUE_NAME = "sync-tokens-flag-status";
-const LIMIT = 4;
+const LIMIT = 1;
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
