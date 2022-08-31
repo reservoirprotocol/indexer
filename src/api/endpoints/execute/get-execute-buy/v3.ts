@@ -67,7 +67,6 @@ export const getExecuteBuyV3Options: RouteOptions = {
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)
-        .required()
         .description("Filling source used for attribution. Example: `reservoir.market`"),
       referrer: Joi.string()
         .lowercase()

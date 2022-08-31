@@ -57,7 +57,6 @@ export const getExecuteListV3Options: RouteOptions = {
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)
-        .required()
         .description("Domain of the platform that created the order. Example: `chimpers.xyz`"),
       params: Joi.array().items(
         Joi.object({

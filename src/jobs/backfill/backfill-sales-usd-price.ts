@@ -1,14 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
-import { fromBuffer, now, toBuffer } from "@/common/utils";
+import { redis } from "@/common/redis";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { getUSDAndNativePrices } from "@/utils/prices";
@@ -175,14 +174,16 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  redlock
-    .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await addToQueue(now(), HashZero, 0, 0);
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
+  // !!! DISABLED
+
+  // redlock
+  //   .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
+  //   .then(async () => {
+  //     await addToQueue(now(), HashZero, 0, 0);
+  //   })
+  //   .catch(() => {
+  //     // Skip on any errors
+  //   });
 }
 
 export const addToQueue = async (

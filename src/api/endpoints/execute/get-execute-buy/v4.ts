@@ -74,7 +74,6 @@ export const getExecuteBuyV4Options: RouteOptions = {
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)
-        .required()
         .description("Filling source used for attribution. Example: `reservoir.market`"),
       feesOnTop: Joi.array()
         .items(Joi.string().pattern(regex.fee))

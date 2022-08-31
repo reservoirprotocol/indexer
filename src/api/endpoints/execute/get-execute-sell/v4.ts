@@ -44,7 +44,6 @@ export const getExecuteSellV4Options: RouteOptions = {
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)
-        .required()
         .description("Filling source used for attribution. Example: `reservoir.market`"),
       onlyPath: Joi.boolean()
         .default(false)

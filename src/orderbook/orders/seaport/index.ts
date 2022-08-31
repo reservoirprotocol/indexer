@@ -12,8 +12,8 @@ import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/u
 import { offChainCheck } from "@/orderbook/orders/seaport/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { BigNumber } from "@ethersproject/bignumber";
 
 export type OrderInfo = {
   orderParams: Sdk.Seaport.Types.OrderComponents;
@@ -217,7 +217,7 @@ export const save = async (
           const merkleRoot = typedInfo.merkleRoot;
 
           if (merkleRoot) {
-            tokenSetId = `list:${info.contract}:${BigNumber.from(merkleRoot).toHexString()}`;
+            tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
 
             await tokenSet.tokenList.save([
               {
@@ -282,15 +282,20 @@ export const save = async (
 
       // Handle: source
       const sources = await Sources.getInstance();
-      let source = await sources.getOrInsert("opensea.io");
+      let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
 
-      // Override any defaulted source
-      if (
-        metadata.source &&
-        // If we can detect the marketplace (only OpenSea for now) do not override
-        !feeBreakdown.map(({ kind }) => kind).includes("marketplace")
-      ) {
-        source = await sources.getOrInsert(metadata.source);
+      // If the order is native, override any default source
+      if (isReservoir) {
+        if (metadata.source) {
+          if (
+            // If we can detect the marketplace (only OpenSea for now) do not override
+            !feeBreakdown.map(({ kind }) => kind).includes("marketplace")
+          ) {
+            source = await sources.getOrInsert(metadata.source);
+          }
+        } else {
+          source = undefined;
+        }
       }
 
       // Handle: price conversion
