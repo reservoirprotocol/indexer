@@ -105,6 +105,22 @@ export class MetadataApi {
 
     return tokenMetadata;
   }
+
+  public static async getTokenFlagStatus(contract: string, tokenId: string) {
+    const queryParams = new URLSearchParams();
+
+    queryParams.append("token", `${contract}:${tokenId}`);
+
+    const url = `${
+      config.metadataApiBaseUrlFlagStatus
+    }/v4/${getNetworkName()}/metadata/token?method=${
+      config.metadataIndexingMethod
+    }&${queryParams.toString()}`;
+
+    const { data } = await axios.get(url);
+
+    return Number((data as any).metadata[0].flagged);
+  }
 }
 
 export { MetadataApi as default };

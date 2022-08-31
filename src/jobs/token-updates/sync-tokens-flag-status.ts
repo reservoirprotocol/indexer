@@ -31,7 +31,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { collectionId, contract } = job.data;
 
-      job.data.addToQueue = false;
+      job.data.addToQueue = true;
       job.data.addToQueueDelay = 1000;
 
       // Get the tokens from the list
@@ -39,28 +39,35 @@ if (config.doBackgroundWork) {
       const pendingSyncFlagStatusTokens = await pendingFlagStatusSyncTokensQueue.get(LIMIT);
 
       if (_.isEmpty(pendingSyncFlagStatusTokens)) {
-        logger.info(QUEUE_NAME, `No pending tokens. contract:${contract}`);
+        logger.info(QUEUE_NAME, `Recalc TokenSet. contract:${contract}`);
+
+        job.data.addToQueue = false;
+        await nonFlaggedTokenSet.addToQueue(contract, collectionId);
+
         return;
       }
 
       await Promise.all(
         pendingSyncFlagStatusTokens.map(async (pendingSyncFlagStatusToken) => {
           try {
-            const metadata = await MetadataApi.getTokenMetadata(
-              [{ contract, tokenId: pendingSyncFlagStatusToken.tokenId }],
-              true
+            const isFlagged = await MetadataApi.getTokenFlagStatus(
+              contract,
+              pendingSyncFlagStatusToken.tokenId
             );
-
-            const metadataIsFlagged = Number(metadata[0].flagged);
-            const flagStatusDiff = pendingSyncFlagStatusToken.isFlagged != metadataIsFlagged;
 
             logger.info(
               QUEUE_NAME,
-              `Flag Status. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, isFlagged:${pendingSyncFlagStatusToken.isFlagged}, metadataIsFlagged:${metadataIsFlagged}, flagStatusDiff=${flagStatusDiff}`
+              `Flag Status. contract:${contract}, tokenId: ${
+                pendingSyncFlagStatusToken.tokenId
+              }, tokenIsFlagged:${
+                pendingSyncFlagStatusToken.isFlagged
+              }, isFlagged:${isFlagged}, flagStatusDiff=${
+                pendingSyncFlagStatusToken.isFlagged != isFlagged
+              }`
             );
 
             await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, {
-              isFlagged: metadataIsFlagged,
+              isFlagged,
               lastFlagUpdate: new Date().toISOString(),
             });
           } catch (error) {
@@ -72,7 +79,7 @@ if (config.doBackgroundWork) {
 
               job.data.addToQueueDelay = 5000;
 
-              await pendingFlagStatusSyncTokensQueue.add([pendingSyncFlagStatusToken], true);
+              await pendingFlagStatusSyncTokensQueue.add([pendingSyncFlagStatusToken]);
             } else {
               logger.error(
                 QUEUE_NAME,
@@ -82,51 +89,6 @@ if (config.doBackgroundWork) {
           }
         })
       );
-
-      // for (const pendingSyncFlagStatusToken of pendingSyncFlagStatusTokens) {
-      //   try {
-      //     const metadata = await MetadataApi.getTokenMetadata(
-      //       [{ contract, tokenId: pendingSyncFlagStatusToken.tokenId }],
-      //       true
-      //     );
-      //
-      //     const metadataIsFlagged = Number(metadata[0].flagged);
-      //     const flagStatusDiff = pendingSyncFlagStatusToken.isFlagged != metadataIsFlagged;
-      //
-      //     logger.info(
-      //       QUEUE_NAME,
-      //       `Flag Status. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, isFlagged:${pendingSyncFlagStatusToken.isFlagged}, metadataIsFlagged:${metadataIsFlagged}, flagStatusDiff=${flagStatusDiff}`
-      //     );
-      //
-      //     await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, {
-      //       isFlagged: metadataIsFlagged,
-      //       lastFlagUpdate: new Date().toISOString(),
-      //     });
-      //   } catch (error) {
-      //     if ((error as any).response?.status === 429) {
-      //       logger.info(
-      //         QUEUE_NAME,
-      //         `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
-      //       );
-      //
-      //       job.data.addToQueueDelay = 5000;
-      //
-      //       await pendingFlagStatusSyncTokensQueue.add([pendingSyncFlagStatusToken], true);
-      //     } else {
-      //       logger.error(
-      //         QUEUE_NAME,
-      //         `getTokenMetadata error. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, error:${error}`
-      //       );
-      //     }
-      //   }
-      // }
-
-      if (_.size(pendingSyncFlagStatusTokens) == LIMIT) {
-        job.data.addToQueue = true;
-      } else {
-        logger.info(QUEUE_NAME, `Recalc TokenSet. contract:${contract}`);
-        await nonFlaggedTokenSet.addToQueue(contract, collectionId);
-      }
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

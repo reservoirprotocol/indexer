@@ -26,6 +26,10 @@ export const config = {
   metadataApiBaseUrlAlt: String(
     process.env.METADATA_API_BASE_URL_ALT || process.env.METADATA_API_BASE_URL
   ),
+  metadataApiBaseUrlFlagStatus: String(
+    process.env.METADATA_API_BASE_URL_FLAG_STATUS || process.env.METADATA_API_BASE_URL
+  ),
+
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
 
   databaseUrl: String(process.env.DATABASE_URL),
