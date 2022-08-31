@@ -32,7 +32,7 @@ if (config.doBackgroundWork) {
       const { collectionId, contract } = job.data;
 
       job.data.addToQueue = true;
-      job.data.addToQueueDelay = 1000;
+      job.data.addToQueueDelay = 0;
 
       // Get the tokens from the list
       const pendingFlagStatusSyncTokensQueue = new PendingFlagStatusSyncTokens(collectionId);
