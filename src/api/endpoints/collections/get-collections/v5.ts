@@ -537,7 +537,7 @@ export const getCollectionsV5Options: RouteOptions = {
                 ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
                 : null,
             },
-            collectionBidSupported: Number(r.token_count) <= config.maxItemsPerBid,
+            collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
             ownerCount: query.includeOwnerCount ? Number(r.owner_count) : undefined,
             attributes: query.includeAttributes
               ? _.map(_.sortBy(r.attributes, ["rank", "key"]), (attribute) => ({

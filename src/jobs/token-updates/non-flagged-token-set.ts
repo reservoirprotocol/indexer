@@ -35,7 +35,7 @@ if (config.doBackgroundWork) {
       const { contract, collectionId } = job.data;
       const collection = await Collections.getById(collectionId);
 
-      if (!collection || collection.tokenCount > config.maxItemsPerBid) {
+      if (!collection || collection.tokenCount > config.maxTokenSetSize) {
         return;
       }
 

@@ -45,7 +45,7 @@ if (config.doBackgroundWork) {
       const collection = await Collections.getById(collectionId);
 
       // Don't check collections with too many tokens
-      if (!collection || collection.tokenCount > config.maxItemsPerBid) {
+      if (!collection || collection.tokenCount > config.maxTokenSetSize) {
         return;
       }
 

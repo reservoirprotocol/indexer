@@ -1,16 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import * as Sdk from "@reservoir0x/sdk";
+import { HashZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { redis, redlock } from "@/common/redis";
+import { fromBuffer, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { extractAttributionData } from "@/events-sync/utils";
 
-const QUEUE_NAME = "backfill-sales-currency-price";
+const QUEUE_NAME = "backfill-sales-fill-source";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -27,7 +28,7 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
-      const { createdAt, txHash, logIndex, batchIndex } = job.data;
+      const { timestamp, txHash, logIndex, batchIndex } = job.data;
       const limit = 1000;
 
       const results = await idb.manyOrNone(
@@ -36,25 +37,25 @@ if (config.doBackgroundWork) {
             fill_events_2.tx_hash,
             fill_events_2.log_index,
             fill_events_2.batch_index,
-            floor(extract('epoch' from fill_events_2.created_at)) AS created_at,
-            fill_events_2.currency,
-            fill_events_2.price,
-            fill_events_2.currency_price
+            fill_events_2.timestamp,
+            fill_events_2.taker,
+            fill_events_2.order_kind,
+            fill_events_2.order_source_id_int,
+            fill_events_2.fill_source_id
           FROM fill_events_2
           WHERE (
-            fill_events_2.created_at,
+            fill_events_2.timestamp,
             fill_events_2.tx_hash,
             fill_events_2.log_index,
             fill_events_2.batch_index
           ) < (
-            to_timestamp($/createdAt/),
+            $/timestamp/,
             $/txHash/,
             $/logIndex/,
             $/batchIndex/
           )
-            AND fill_events_2.created_at > now() - interval '30 days'
           ORDER BY
-            fill_events_2.created_at DESC,
+            fill_events_2.timestamp DESC,
             fill_events_2.tx_hash DESC,
             fill_events_2.log_index DESC,
             fill_events_2.batch_index DESC
@@ -62,7 +63,7 @@ if (config.doBackgroundWork) {
         `,
         {
           limit,
-          createdAt,
+          timestamp,
           txHash: toBuffer(txHash),
           logIndex,
           batchIndex,
@@ -71,26 +72,29 @@ if (config.doBackgroundWork) {
 
       const values: any[] = [];
       const columns = new pgp.helpers.ColumnSet(
-        ["tx_hash", "log_index", "batch_index", "currency_price"],
+        ["tx_hash", "log_index", "batch_index", "fill_source_id", "taker"],
         {
           table: "fill_events_2",
         }
       );
-      for (const { tx_hash, log_index, batch_index, currency, currency_price, price } of results) {
-        if (!currency_price) {
-          if (
-            fromBuffer(currency) === Sdk.Common.Addresses.Eth[config.chainId] ||
-            fromBuffer(currency) === Sdk.Common.Addresses.Weth[config.chainId]
-          ) {
-            values.push({
-              tx_hash,
-              log_index,
-              batch_index,
-              currency_price: price,
-            });
-          } else {
-            logger.error(QUEUE_NAME, `Transaction ${fromBuffer(tx_hash)} needs a resync`);
-          }
+      for (const {
+        tx_hash,
+        log_index,
+        batch_index,
+        order_kind,
+        order_source_id_int,
+        taker,
+        fill_source_id,
+      } of results) {
+        if (order_source_id_int && !fill_source_id) {
+          const data = await extractAttributionData(fromBuffer(tx_hash), order_kind);
+          values.push({
+            tx_hash,
+            log_index,
+            batch_index,
+            fill_source_id: data.fillSource?.id ?? order_source_id_int,
+            taker: data.taker ? toBuffer(data.taker) : taker,
+          });
         }
       }
 
@@ -98,10 +102,11 @@ if (config.doBackgroundWork) {
         await idb.none(
           `
           UPDATE fill_events_2 SET
-            currency_price = x.currency_price::NUMERIC(78, 0)
+            fill_source_id = x.fill_source_id::INT,
+            taker = x.taker::BYTEA
           FROM (
             VALUES ${pgp.helpers.values(values, columns)}
-          ) AS x(tx_hash, log_index, batch_index, currency_price)
+          ) AS x(tx_hash, log_index, batch_index, fill_source_id, taker)
           WHERE fill_events_2.tx_hash = x.tx_hash::BYTEA
             AND fill_events_2.log_index = x.log_index::INT
             AND fill_events_2.batch_index = x.batch_index::INT
@@ -112,7 +117,7 @@ if (config.doBackgroundWork) {
       if (results.length >= limit) {
         const lastResult = results[results.length - 1];
         await addToQueue(
-          lastResult.created_at,
+          lastResult.timestamp,
           fromBuffer(lastResult.tx_hash),
           lastResult.log_index,
           lastResult.batch_index
@@ -126,23 +131,21 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  // !!! DISABLED
-
-  // redlock
-  //   .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
-  //   .then(async () => {
-  //     await addToQueue(now(), HashZero, 0, 0);
-  //   })
-  //   .catch(() => {
-  //     // Skip on any errors
-  //   });
+  redlock
+    .acquire([`${QUEUE_NAME}-lock-4`], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      await addToQueue(now(), HashZero, 0, 0);
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
 }
 
 export const addToQueue = async (
-  createdAt: number,
+  timestamp: number,
   txHash: string,
   logIndex: number,
   batchIndex: number
 ) => {
-  await queue.add(randomUUID(), { createdAt, txHash, logIndex, batchIndex });
+  await queue.add(randomUUID(), { timestamp, txHash, logIndex, batchIndex });
 };

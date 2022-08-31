@@ -45,7 +45,7 @@ export const config = {
   doEventsSyncBackfill: Boolean(Number(process.env.DO_EVENTS_SYNC_BACKFILL)),
   disableOrders: Boolean(Number(process.env.DISABLE_ORDERS)),
 
-  maxItemsPerBid: 50000,
+  maxTokenSetSize: 100000,
 
   awsAccessKeyId: String(process.env.AWS_ACCESS_KEY_ID),
   awsSecretAccessKey: String(process.env.AWS_SECRET_ACCESS_KEY),

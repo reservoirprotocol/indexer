@@ -54,7 +54,7 @@ export const build = async (options: BuildOrderOptions) => {
       throw new Error("Could not retrieve attribute info");
     }
 
-    if (Number(attributeResult.token_count) > config.maxItemsPerBid) {
+    if (Number(attributeResult.token_count) > config.maxTokenSetSize) {
       // We don't support attribute orders on large token sets
       throw new Error("Attribute has too many items");
     }

@@ -2,7 +2,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { BaseBuildParams } from "@reservoir0x/sdk/dist/x2y2/builders/base";
 
 import { redb } from "@/common/db";
-import { now } from "@/common/utils";
+import { fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 
 export interface BaseOrderBuildOptions {
@@ -26,6 +26,7 @@ export const getBuildInfo = async (
   const collectionResult = await redb.oneOrNone(
     `
       SELECT
+        contracts.address,
         contracts.kind
       FROM collections
       JOIN contracts
@@ -46,7 +47,7 @@ export const getBuildInfo = async (
     user: options.maker,
     network: config.chainId,
     side,
-    contract: options.contract,
+    contract: fromBuffer(collectionResult.address),
     price: options.weiPrice,
     currency:
       side === "buy"
