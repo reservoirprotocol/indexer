@@ -1,4 +1,5 @@
 import { AddressZero } from "@ethersproject/constants";
+import { getTxTrace } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 import { getReferrer } from "@reservoir0x/sdk/dist/utils";
 import pLimit from "p-limit";
@@ -10,6 +11,7 @@ import { getBlocks, saveBlock } from "@/models/blocks";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getTransaction, saveTransaction } from "@/models/transactions";
+import { getTransactionTrace, saveTransactionTrace } from "@/models/transaction-traces";
 import { OrderKind, getOrderSourceByOrderKind } from "@/orderbook/orders";
 
 export const fetchBlock = async (blockNumber: number, force = false) =>
@@ -95,12 +97,30 @@ export const fetchTransaction = async (txHash: string) =>
     });
   });
 
-export const extractAttributionData = async (txHash: string, orderKind: OrderKind) => {
+export const fetchTransactionTrace = async (txHash: string) =>
+  getTransactionTrace(txHash)
+    .catch(async () => {
+      const transactionTrace = await getTxTrace({ hash: txHash }, baseProvider);
+
+      return saveTransactionTrace({
+        hash: txHash,
+        calls: transactionTrace,
+      });
+    })
+    .catch(() => undefined);
+
+export const extractAttributionData = async (
+  txHash: string,
+  orderKind: OrderKind,
+  address?: string
+) => {
   const sources = await Sources.getInstance();
 
   let aggregatorSource: SourcesEntity | undefined;
   let fillSource: SourcesEntity | undefined;
   let taker: string | undefined;
+
+  const orderSource = await getOrderSourceByOrderKind(orderKind, address);
 
   // Properly set the taker when filling through router contracts
   const tx = await fetchTransaction(txHash);
@@ -126,13 +146,11 @@ export const extractAttributionData = async (txHash: string, orderKind: OrderKin
     aggregatorSource = await sources.getOrInsert(router);
     fillSource = await sources.getOrInsert(router);
   } else {
-    const defaultSourceId = await getOrderSourceByOrderKind(orderKind);
-    if (defaultSourceId) {
-      fillSource = defaultSourceId;
-    }
+    fillSource = orderSource;
   }
 
   return {
+    orderSource,
     fillSource,
     aggregatorSource,
     taker,

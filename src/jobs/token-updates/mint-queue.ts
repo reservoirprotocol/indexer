@@ -134,7 +134,7 @@ if (config.doBackgroundWork) {
             );
           }
         } else {
-          // we fetch the collection metadata from upstream
+          // We fetch the collection metadata from upstream
           await fetchCollectionMetadata.addToQueue([
             {
               contract,
@@ -144,7 +144,7 @@ if (config.doBackgroundWork) {
           ]);
         }
 
-        // Set any cached information (eg. floor sell, top buy)
+        // Set any cached information (eg. floor sell)
         await tokenRefreshCache.addToQueue(contract, tokenId);
       } catch (error) {
         logger.error(

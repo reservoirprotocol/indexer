@@ -17,7 +17,7 @@ export const addEvents = async (events: Event[]) => {
       order_kind: event.orderKind,
       order_id: event.orderId || null,
       order_side: event.orderSide,
-      order_source_id_int: event.orderSourceIdInt || null,
+      order_source_id_int: event.orderSourceId || null,
       maker: toBuffer(event.maker),
       taker: toBuffer(event.taker),
       price: event.price,
@@ -30,6 +30,7 @@ export const addEvents = async (events: Event[]) => {
       currency: toBuffer(event.currency),
       currency_price: event.currencyPrice || null,
       usd_price: event.usdPrice || null,
+      is_primary: event.isPrimary || null,
     });
   }
 
@@ -62,6 +63,7 @@ export const addEvents = async (events: Event[]) => {
         "currency",
         "currency_price",
         "usd_price",
+        "is_primary",
       ],
       { table: "fill_events_2" }
     );
@@ -93,7 +95,8 @@ export const addEvents = async (events: Event[]) => {
           "wash_trading_score",
           "currency",
           "currency_price",
-          "usd_price"
+          "usd_price",
+          "is_primary"
         ) VALUES ${pgp.helpers.values(fillValues, columns)}
         ON CONFLICT DO NOTHING
         RETURNING "order_kind", "order_id", "timestamp"

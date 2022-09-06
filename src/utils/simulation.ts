@@ -2,7 +2,7 @@
 
 import { BigNumberish } from "@ethersproject/bignumber";
 import { JsonRpcProvider } from "@ethersproject/providers";
-import { simulateTx } from "@georgeroman/evm-tx-simulator";
+import { getCallTrace, parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 
 import { bn } from "@/common/utils";
@@ -22,19 +22,21 @@ export const ensureBuyTxSucceeds = async (
   // Simulate the buy transaction
   try {
     const provider = new JsonRpcProvider(config.traceNetworkHttpUrl);
-    const result = await simulateTx(
-      {
-        from: tx.from,
-        to: tx.to,
-        data: tx.data,
-        value: tx.value ?? 0,
-        gas: 10000000,
-        gasPrice: 0,
-        balanceOverrides: {
-          [genericTaker]: tx.value ?? 0,
+    const result = parseCallTrace(
+      await getCallTrace(
+        {
+          from: tx.from,
+          to: tx.to,
+          data: tx.data,
+          value: tx.value ?? 0,
+          gas: 10000000,
+          gasPrice: 0,
+          balanceOverrides: {
+            [genericTaker]: tx.value ?? 0,
+          },
         },
-      },
-      provider
+        provider
+      )
     );
 
     if (

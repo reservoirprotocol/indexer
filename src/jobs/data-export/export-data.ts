@@ -19,12 +19,17 @@ import { AttributeKeysDataSource } from "@/jobs/data-export/data-sources/attribu
 import { AttributesDataSource } from "@/jobs/data-export/data-sources/attributes";
 import { TokenAttributesDataSource } from "@/jobs/data-export/data-sources/token-attributes";
 
-const QUEUE_NAME = "export-data-queue-v4";
+const QUEUE_NAME = "export-data-queue";
 const QUERY_LIMIT = 1000;
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
+    attempts: 10,
+    backoff: {
+      type: "fixed",
+      delay: 5000,
+    },
     removeOnComplete: true,
     removeOnFail: true,
     timeout: 60000,
@@ -38,8 +43,6 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const { kind } = job.data;
-
-      logger.info(QUEUE_NAME, `Export started. kind:${kind}`);
 
       try {
         const { cursor, sequenceNumber } = await getSequenceInfo(kind);
@@ -64,13 +67,6 @@ if (config.doBackgroundWork) {
 
         // Trigger next sequence only if there are more results
         job.data.addToQueue = data.length >= QUERY_LIMIT;
-
-        logger.info(
-          QUEUE_NAME,
-          `Export finished. kind:${kind}, cursor:${JSON.stringify(
-            cursor
-          )}, sequenceNumber:${sequenceNumber}`
-        );
       } catch (error) {
         logger.error(QUEUE_NAME, `Export ${kind} failed: ${error}`);
       }
@@ -82,6 +78,10 @@ if (config.doBackgroundWork) {
     if (job.data.addToQueue) {
       await addToQueue(job.data.kind);
     }
+  });
+
+  worker.on("failed", async (job) => {
+    logger.error(QUEUE_NAME, `Worker failed: ${job}`);
   });
 
   worker.on("error", (error) => {

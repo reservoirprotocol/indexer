@@ -30,8 +30,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/{collection}/activity/v2",
+    options: activitiesEndpoints.getCollectionActivityV2Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/tokens/{token}/activity/v1",
     options: activitiesEndpoints.getTokenActivityV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/tokens/{token}/activity/v2",
+    options: activitiesEndpoints.getTokenActivityV2Options,
   });
 
   server.route({
@@ -44,6 +56,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/users/activity/v2",
     options: activitiesEndpoints.getUserActivityV2Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/users/activity/v3",
+    options: activitiesEndpoints.getUserActivityV3Options,
   });
 
   server.route({
@@ -661,6 +679,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/redirect/collections/{collection}/image/v1",
     options: redirectsEndpoints.getRedirectCollectionImageV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/redirect/currency/{address}/icon/v1",
+    options: redirectsEndpoints.getRedirectCurrencyIconV1Options,
   });
 
   // Search

@@ -350,6 +350,12 @@ export const getExecuteBuyV3Options: RouteOptions = {
         },
         partial: query.partial,
         forceRouter: query.forceRouter,
+        directFillingData: {
+          conduitKey:
+            config.chainId === 1
+              ? "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000"
+              : undefined,
+        },
       });
 
       // Set up generic filling steps

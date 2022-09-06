@@ -3,13 +3,17 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { BaseDataSource } from "@/jobs/data-export/data-sources/index";
 import { Sources } from "@/models/sources";
 import crypto from "crypto";
+import { AddressZero } from "@ethersproject/constants";
+import * as Sdk from "@reservoir0x/sdk";
+import { config } from "@/config/index";
+import { getCurrency } from "@/utils/currencies";
 
 export class SalesDataSource extends BaseDataSource {
   public async getSequenceData(cursor: CursorInfo | null, limit: number) {
     let continuationFilter = "";
 
     if (cursor) {
-      continuationFilter = `AND (created_at, tx_hash, log_index, batch_index) > (to_timestamp($/createdAt/), $/txHash/, $/logIndex/, $/batchIndex/)`;
+      continuationFilter = `AND (updated_at, tx_hash, log_index, batch_index) > (to_timestamp($/updatedAt/), $/txHash/, $/logIndex/, $/batchIndex/)`;
     }
 
     //Only get records that are older than 5 min to take removed blocks into consideration.
@@ -24,23 +28,30 @@ export class SalesDataSource extends BaseDataSource {
           maker,
           taker,
           amount,
-          fill_source,
+          fill_source_id,
+          aggregator_source_id,
           tx_hash,
           timestamp,
+          currency,
           price,
+          currency_price,
+          usd_price,
           block,
           log_index,
           batch_index,
-          extract(epoch from created_at) created_ts
+          wash_trading_score,
+          is_primary,
+          created_at,
+          extract(epoch from updated_at) updated_ts
         FROM fill_events_2
         WHERE created_at < NOW() - INTERVAL '5 minutes'
         ${continuationFilter}
-        ORDER BY created_at, tx_hash, log_index, batch_index
+        ORDER BY updated_at, tx_hash, log_index, batch_index
         LIMIT $/limit/;  
       `;
 
     const result = await redb.manyOrNone(query, {
-      createdAt: cursor?.createdAt,
+      updatedAt: cursor?.updatedAt,
       txHash: cursor?.txHash ? toBuffer(cursor.txHash) : null,
       logIndex: cursor?.logIndex,
       batchIndex: cursor?.batchIndex,
@@ -50,39 +61,67 @@ export class SalesDataSource extends BaseDataSource {
     if (result.length) {
       const sources = await Sources.getInstance();
 
-      const data = result.map((r) => {
-        const orderSource = r.order_source_id_int ? sources.get(r.order_source_id_int)?.name : null;
+      const data = [];
 
-        return {
+      for (const r of result) {
+        const orderSource =
+          r.order_source_id_int !== null ? sources.get(Number(r.order_source_id_int)) : null;
+
+        const fillSource = r.fill_source_id !== null ? sources.get(Number(r.fill_source_id)) : null;
+
+        const aggregatorSource =
+          r.aggregator_source_id !== null ? sources.get(Number(r.aggregator_source_id)) : null;
+
+        const currency = await getCurrency(
+          fromBuffer(r.currency) === AddressZero
+            ? r.order_side === "sell"
+              ? Sdk.Common.Addresses.Eth[config.chainId]
+              : Sdk.Common.Addresses.Weth[config.chainId]
+            : fromBuffer(r.currency)
+        );
+
+        const currencyPrice = r.currency_price ?? r.price;
+
+        data.push({
           id: crypto
             .createHash("sha256")
-            .update(`${fromBuffer(r.tx_hash)}${r.log_index}${r.batch_index}`)
+            .update(
+              `${fromBuffer(r.tx_hash)}${r.maker}${r.taker}${r.contract}${r.token_id}${r.price}`
+            )
             .digest("hex"),
           contract: fromBuffer(r.contract),
           token_id: r.token_id,
           order_id: r.order_id,
           order_kind: r.order_kind,
           order_side: r.order_side === "sell" ? "ask" : "bid",
-          order_source: orderSource,
+          order_source: orderSource?.domain ?? null,
           from: r.order_side === "sell" ? fromBuffer(r.maker) : fromBuffer(r.taker),
           to: r.order_side === "sell" ? fromBuffer(r.taker) : fromBuffer(r.maker),
           price: r.price ? r.price.toString() : null,
+          usd_price: r.usd_price,
+          currency_address: currency.contract,
+          currency_symbol: currency.symbol,
+          currency_price: currencyPrice ? currencyPrice.toString() : null,
           amount: Number(r.amount),
-          fill_source: r.fill_source ? String(r.fill_source) : orderSource,
+          fill_source: fillSource?.domain ?? orderSource?.domain,
+          aggregator_source: aggregatorSource?.domain,
+          wash_trading_score: Number(r.wash_trading_score),
+          is_primary: Boolean(r.is_primary),
           tx_hash: fromBuffer(r.tx_hash),
           tx_log_index: r.log_index,
           tx_batch_index: r.batch_index,
           tx_timestamp: r.timestamp,
-          created_at: new Date(r.created_ts * 1000).toISOString(),
-        };
-      });
+          created_at: new Date(r.created_at).toISOString(),
+          updated_at: new Date(r.updated_ts * 1000).toISOString(),
+        });
+      }
 
       const lastResult = result[result.length - 1];
 
       return {
         data,
         nextCursor: {
-          createdAt: lastResult.created_ts,
+          updatedAt: lastResult.updated_ts,
           txHash: fromBuffer(lastResult.tx_hash),
           logIndex: lastResult.log_index,
           batchIndex: lastResult.batch_index,
@@ -95,7 +134,7 @@ export class SalesDataSource extends BaseDataSource {
 }
 
 type CursorInfo = {
-  createdAt: string;
+  updatedAt: string;
   txHash: string;
   logIndex: number;
   batchIndex: string;

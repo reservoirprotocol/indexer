@@ -11,6 +11,7 @@ import * as currenciesQueue from "@/jobs/currencies/index";
 
 type CurrencyMetadata = {
   coingeckoCurrencyId?: string;
+  image?: string;
 };
 
 export type Currency = {
@@ -124,7 +125,7 @@ export const tryGetCurrencyDetails = async (currencyAddress: string) => {
 
   const coingeckoNetworkId = getNetworkSettings().coingecko?.networkId;
   if (coingeckoNetworkId) {
-    const result: { id?: string } = await axios
+    const result: { id?: string; image?: { large?: string } } = await axios
       .get(
         `https://api.coingecko.com/api/v3/coins/${coingeckoNetworkId}/contract/${currencyAddress}`,
         { timeout: 10 * 1000 }
@@ -132,6 +133,9 @@ export const tryGetCurrencyDetails = async (currencyAddress: string) => {
       .then((response) => response.data);
     if (result.id) {
       metadata.coingeckoCurrencyId = result.id;
+    }
+    if (result.image?.large) {
+      metadata.image = result.image.large;
     }
   }
 

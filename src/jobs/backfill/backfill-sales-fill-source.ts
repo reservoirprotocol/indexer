@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { HashZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
+import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
-import { fromBuffer, now, toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { extractAttributionData } from "@/events-sync/utils";
 
@@ -29,7 +29,7 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job) => {
       const { timestamp, txHash, logIndex, batchIndex } = job.data;
-      const limit = 1000;
+      const limit = 300;
 
       const results = await idb.manyOrNone(
         `
@@ -38,10 +38,12 @@ if (config.doBackgroundWork) {
             fill_events_2.log_index,
             fill_events_2.batch_index,
             fill_events_2.timestamp,
+            fill_events_2.address,
             fill_events_2.taker,
             fill_events_2.order_kind,
             fill_events_2.order_source_id_int,
-            fill_events_2.fill_source_id
+            fill_events_2.fill_source_id,
+            fill_events_2.aggregator_source_id
           FROM fill_events_2
           WHERE (
             fill_events_2.timestamp,
@@ -72,41 +74,69 @@ if (config.doBackgroundWork) {
 
       const values: any[] = [];
       const columns = new pgp.helpers.ColumnSet(
-        ["tx_hash", "log_index", "batch_index", "fill_source_id", "taker"],
+        ["tx_hash", "log_index", "batch_index", "fill_source_id", "aggregator_source_id", "taker"],
         {
           table: "fill_events_2",
         }
       );
-      for (const {
-        tx_hash,
-        log_index,
-        batch_index,
-        order_kind,
-        order_source_id_int,
-        taker,
-        fill_source_id,
-      } of results) {
-        if (order_source_id_int && !fill_source_id) {
-          const data = await extractAttributionData(fromBuffer(tx_hash), order_kind);
-          values.push({
+
+      const timeBefore = performance.now();
+
+      const plimit = pLimit(50);
+      await Promise.all(
+        results.map(
+          ({
             tx_hash,
             log_index,
             batch_index,
-            fill_source_id: data.fillSource?.id ?? order_source_id_int,
-            taker: data.taker ? toBuffer(data.taker) : taker,
-          });
-        }
-      }
+            address,
+            order_kind,
+            order_source_id_int,
+            aggregator_source_id,
+            taker,
+            fill_source_id,
+          }) =>
+            plimit(async () => {
+              if (order_source_id_int && (!fill_source_id || !aggregator_source_id)) {
+                const data = await extractAttributionData(
+                  fromBuffer(tx_hash),
+                  order_kind,
+                  fromBuffer(address)
+                );
+                if (data.fillSource || data.aggregatorSource || data.taker) {
+                  values.push({
+                    tx_hash,
+                    log_index,
+                    batch_index,
+                    fill_source_id: data.fillSource ? data.fillSource.id : fill_source_id,
+                    aggregator_source_id: data.aggregatorSource
+                      ? data.aggregatorSource.id
+                      : aggregator_source_id,
+                    taker: data.taker ? toBuffer(data.taker) : taker,
+                  });
+                }
+              }
+            })
+        )
+      );
+
+      const timeAfter = performance.now();
+
+      logger.info(
+        QUEUE_NAME,
+        `Processed ${results.length} results in ${timeAfter - timeBefore} milliseconds`
+      );
 
       if (values.length) {
         await idb.none(
           `
           UPDATE fill_events_2 SET
             fill_source_id = x.fill_source_id::INT,
+            aggregator_source_id = x.aggregator_source_id::INT,
             taker = x.taker::BYTEA
           FROM (
             VALUES ${pgp.helpers.values(values, columns)}
-          ) AS x(tx_hash, log_index, batch_index, fill_source_id, taker)
+          ) AS x(tx_hash, log_index, batch_index, fill_source_id, aggregator_source_id, taker)
           WHERE fill_events_2.tx_hash = x.tx_hash::BYTEA
             AND fill_events_2.log_index = x.log_index::INT
             AND fill_events_2.batch_index = x.batch_index::INT
@@ -132,9 +162,14 @@ if (config.doBackgroundWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-4`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-7`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
-      await addToQueue(now(), HashZero, 0, 0);
+      await addToQueue(
+        1650422378,
+        "0xdb0bca5017162b442bbe11e53c3209f0030f5e43842fe841d40977f93391d614",
+        156,
+        1
+      );
     })
     .catch(() => {
       // Skip on any errors

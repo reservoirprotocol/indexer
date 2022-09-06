@@ -352,11 +352,14 @@ export const getStatsV2Options: RouteOptions = {
                     ? await getJoiPriceObject(
                         {
                           net: {
-                            amount: getNetAmount(r.floor_sell_currency_value, r.floor_sell_fee_bps),
+                            amount: getNetAmount(
+                              r.floor_sell_currency_value ?? r.floor_sell_value,
+                              r.floor_sell_fee_bps
+                            ),
                             nativeAmount: getNetAmount(r.floor_sell_value, r.floor_sell_fee_bps),
                           },
                           gross: {
-                            amount: r.floor_sell_currency_value,
+                            amount: r.floor_sell_currency_value ?? r.floor_sell_value,
                             nativeAmount: r.floor_sell_value,
                           },
                         },
@@ -379,11 +382,11 @@ export const getStatsV2Options: RouteOptions = {
                     ? await getJoiPriceObject(
                         {
                           net: {
-                            amount: r.top_buy_currency_value,
+                            amount: r.top_buy_currency_value ?? r.top_buy_value,
                             nativeAmount: r.top_buy_value,
                           },
                           gross: {
-                            amount: r.top_buy_currency_price,
+                            amount: r.top_buy_currency_price ?? r.top_buy_price,
                             nativeAmount: r.top_buy_price,
                           },
                         },

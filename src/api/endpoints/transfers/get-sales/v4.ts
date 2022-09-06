@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { AddressZero } from "@ethersproject/constants";
 import { Request, RouteOptions } from "@hapi/hapi";
-import * as Sdk from "@reservoir0x/sdk";
 import crypto from "crypto";
 import Joi from "joi";
 import _ from "lodash";
@@ -11,7 +9,6 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
-import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 
 const version = "v4";
@@ -98,6 +95,7 @@ export const getSalesV4Options: RouteOptions = {
           to: Joi.string().lowercase().pattern(regex.address),
           amount: Joi.string(),
           fillSource: Joi.string().allow(null),
+          block: Joi.number(),
           txHash: Joi.string().lowercase().pattern(regex.bytes32),
           logIndex: Joi.number(),
           batchIndex: Joi.number(),
@@ -242,6 +240,7 @@ export const getSalesV4Options: RouteOptions = {
             fill_events_2.taker,
             fill_events_2.amount,
             fill_events_2.fill_source_id,
+            fill_events_2.block,
             fill_events_2.tx_hash,
             fill_events_2.timestamp,
             fill_events_2.price,
@@ -336,6 +335,7 @@ export const getSalesV4Options: RouteOptions = {
           to: r.order_side === "sell" ? fromBuffer(r.taker) : fromBuffer(r.maker),
           amount: String(r.amount),
           fillSource: fillSource?.domain ?? orderSource?.domain ?? null,
+          block: r.block,
           txHash: fromBuffer(r.tx_hash),
           logIndex: r.log_index,
           batchIndex: r.batch_index,
@@ -348,13 +348,7 @@ export const getSalesV4Options: RouteOptions = {
                 usdAmount: r.usd_price,
               },
             },
-            // Properly handle historical sales with missing currency
-            // (remember, we only supported ETH/WETH initially)
-            fromBuffer(r.currency) === AddressZero
-              ? r.order_side === "sell"
-                ? Sdk.Common.Addresses.Eth[config.chainId]
-                : Sdk.Common.Addresses.Weth[config.chainId]
-              : fromBuffer(r.currency)
+            fromBuffer(r.currency)
           ),
           washTradingScore: r.wash_trading_score,
         };

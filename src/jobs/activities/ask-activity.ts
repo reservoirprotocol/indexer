@@ -23,6 +23,7 @@ export class AskActivity {
       eventTimestamp: data.timestamp,
       metadata: {
         orderId: data.orderId,
+        orderSourceIdInt: data.orderSourceIdInt,
       },
     } as ActivitiesEntityInsertParams;
 
@@ -46,4 +47,5 @@ export type NewSellOrderEventData = {
   price: number;
   amount: number;
   timestamp: number;
+  orderSourceIdInt: number;
 };

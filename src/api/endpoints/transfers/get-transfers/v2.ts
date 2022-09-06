@@ -72,6 +72,7 @@ export const getTransfersV2Options: RouteOptions = {
           to: Joi.string().lowercase().pattern(regex.address),
           amount: Joi.string(),
           txHash: Joi.string().lowercase().pattern(regex.bytes32),
+          block: Joi.number(),
           logIndex: Joi.number(),
           batchIndex: Joi.number(),
           timestamp: Joi.number(),
@@ -200,7 +201,12 @@ export const getTransfersV2Options: RouteOptions = {
       }
 
       // Sorting
-      baseQuery += ` ORDER BY nft_transfer_events.timestamp DESC`;
+      baseQuery += `
+        ORDER BY
+          nft_transfer_events.timestamp DESC,
+          nft_transfer_events.log_index DESC,
+          nft_transfer_events.batch_index DESC
+      `;
 
       // Pagination
       baseQuery += ` LIMIT $/limit/`;
@@ -232,6 +238,7 @@ export const getTransfersV2Options: RouteOptions = {
         from: fromBuffer(r.from),
         to: fromBuffer(r.to),
         amount: String(r.amount),
+        block: r.block,
         txHash: fromBuffer(r.tx_hash),
         logIndex: r.log_index,
         batchIndex: r.batch_index,

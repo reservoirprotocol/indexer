@@ -97,12 +97,13 @@ if (config.doBackgroundWork) {
             let done = false;
             while (!done) {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const dynamicOrders: { kind: string; id: string; raw_data: any }[] =
+              const dynamicOrders: { id: string; kind: string; currency: Buffer; raw_data: any }[] =
                 await idb.manyOrNone(
                   `
                     SELECT
-                      orders.kind,
                       orders.id,
+                      orders.kind,
+                      orders.currency,
                       orders.raw_data
                     FROM orders
                     WHERE orders.dynamic
@@ -116,24 +117,36 @@ if (config.doBackgroundWork) {
 
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const values: any[] = [];
-              for (const { kind, id, raw_data } of dynamicOrders) {
+              for (const { id, kind, currency, raw_data } of dynamicOrders) {
                 if (kind === "seaport") {
                   const order = new Sdk.Seaport.Order(config.chainId, raw_data);
-                  const newPrice = order.getMatchingPrice().toString();
-                  values.push({
-                    id,
-                    price: newPrice,
-                    // TODO: We should have a generic method for deriving the `value` from `price`.
-                    value: newPrice,
-                  });
+                  const newCurrencyPrice = order.getMatchingPrice().toString();
+
+                  const prices = await getUSDAndNativePrices(
+                    fromBuffer(currency),
+                    newCurrencyPrice,
+                    now()
+                  );
+                  if (prices.nativePrice) {
+                    values.push({
+                      id,
+                      price: prices.nativePrice,
+                      currency_price: newCurrencyPrice,
+                      // TODO: We should have a generic method for deriving the `value` from `price`
+                      value: prices.nativePrice,
+                      currency_value: newCurrencyPrice,
+                    });
+                  }
                 }
               }
 
               const columns = new pgp.helpers.ColumnSet(
                 [
                   "?id",
-                  { name: "price", cast: "numeric(78, 0)" },
-                  { name: "value", cast: "numeric(78, 0)" },
+                  { name: "price", cast: "NUMERIC(78, 0)" },
+                  { name: "currency_price", cast: "NUMERIC(78, 0)" },
+                  { name: "value", cast: "NUMERIC(78, 0)" },
+                  { name: "currency_value", cast: "NUMERIC(78, 0) " },
                 ],
                 {
                   table: "orders",

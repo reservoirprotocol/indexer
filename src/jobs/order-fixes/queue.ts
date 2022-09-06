@@ -13,7 +13,7 @@ import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
 import * as opendaoCheck from "@/orderbook/orders/opendao/check";
 import * as seaportCheck from "@/orderbook/orders/seaport/check";
 import * as x2y2Check from "@/orderbook/orders/x2y2/check";
-import * as zeroExV4 from "@/orderbook/orders/zeroex-v4/check";
+import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 
 const QUEUE_NAME = "order-fixes";
 
@@ -42,7 +42,7 @@ if (config.doBackgroundWork) {
       try {
         switch (by) {
           case "id": {
-            // If the order is valid, recheck is status.
+            // If the order is valid or potentially valid, recheck it's status
             const result = await redb.oneOrNone(
               `
                 SELECT
@@ -50,8 +50,8 @@ if (config.doBackgroundWork) {
                   orders.raw_data
                 FROM orders
                 WHERE orders.id = $/id/
-                  AND orders.fillability_status = 'fillable'
-                  AND orders.approval_status = 'approved'
+                  AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
+                  AND (orders.approval_status = 'approved' OR orders.approval_status = 'no-approval')
               `,
               { id: data.id }
             );
@@ -141,7 +141,7 @@ if (config.doBackgroundWork) {
                 case "zeroex-v4-erc1155": {
                   const order = new Sdk.ZeroExV4.Order(config.chainId, result.raw_data);
                   try {
-                    await zeroExV4.offChainCheck(order, {
+                    await zeroExV4Check.offChainCheck(order, {
                       onChainApprovalRecheck: true,
                       checkFilledOrCancelled: true,
                     });
@@ -207,7 +207,7 @@ if (config.doBackgroundWork) {
               );
 
               if (fixResult) {
-                // Update any wrong caches.
+                // Update any wrong caches
                 await orderUpdatesById.addToQueue([
                   {
                     context: `revalidation-${Date.now()}-${fixResult.id}`,
@@ -224,7 +224,7 @@ if (config.doBackgroundWork) {
           }
 
           case "token": {
-            // Trigger a fix for all valid orders on the token.
+            // Trigger a fix for all valid orders on the token
             const result = await redb.manyOrNone(
               `
                 SELECT "o"."id" FROM "orders" "o"
@@ -242,8 +242,8 @@ if (config.doBackgroundWork) {
           }
 
           case "maker": {
-            // Trigger a fix for all of valid orders from the maker.
-            // TODO: Use keyset pagination to be able to handle large amounts of orders.
+            // Trigger a fix for all of valid orders from the maker
+            // TODO: Use keyset pagination to be able to handle large amounts of orders
             const result = await redb.manyOrNone(
               `
                 SELECT "o"."id" FROM "orders" "o"
@@ -262,9 +262,9 @@ if (config.doBackgroundWork) {
           }
 
           case "contract": {
-            // Trigger a fix for all valid orders on the contract.
+            // Trigger a fix for all valid orders on the contract
             for (const side of ["sell", "buy"]) {
-              // TODO: Use keyset pagination to be able to handle large amounts of orders.
+              // TODO: Use keyset pagination to be able to handle large amounts of orders
               const result = await redb.manyOrNone(
                 `
                   SELECT "o"."id" FROM "orders" "o"

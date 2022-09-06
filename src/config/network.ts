@@ -26,7 +26,6 @@ export const getNetworkName = () => {
 type NetworkSettings = {
   enableWebSocket: boolean;
   enableReorgCheck: boolean;
-  backfillFetchAllBlocks: boolean;
   reorgCheckFrequency: number[];
   realtimeSyncFrequencySeconds: number;
   realtimeSyncMaxBlockLag: number;
@@ -48,7 +47,6 @@ export const getNetworkSettings = (): NetworkSettings => {
   const defaultNetworkSettings: NetworkSettings = {
     enableWebSocket: true,
     enableReorgCheck: true,
-    backfillFetchAllBlocks: true,
     realtimeSyncFrequencySeconds: 15,
     realtimeSyncMaxBlockLag: 16,
     backfillBlockBatchSize: 16,
@@ -103,7 +101,7 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'Ether',
                   'ETH',
                   18,
-                  '{"coingeckoCurrencyId": "ethereum"}'
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),
@@ -195,7 +193,7 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'Ether',
                   'ETH',
                   18,
-                  '{"coingeckoCurrencyId": "ethereum"}'
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),
@@ -209,7 +207,6 @@ export const getNetworkSettings = (): NetworkSettings => {
         ...defaultNetworkSettings,
         enableWebSocket: false,
         enableReorgCheck: true,
-        backfillFetchAllBlocks: false,
         realtimeSyncFrequencySeconds: 10,
         realtimeSyncMaxBlockLag: 128,
         backfillBlockBatchSize: 512,

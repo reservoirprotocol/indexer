@@ -14,10 +14,10 @@ const getTasks = async () => {
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
   cron.schedule(
-    "*/10 * * * *",
+    "*/5 * * * *",
     async () =>
       await redlock
-        .acquire([`data-export-cron-lock`], (10 * 60 - 5) * 1000)
+        .acquire([`data-export-cron-lock`], (5 * 60 - 5) * 1000)
         .then(async () => {
           getTasks()
             .then(async (tasks) => {

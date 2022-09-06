@@ -5,6 +5,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orderFixes from "@/jobs/order-fixes/queue";
 
@@ -25,30 +26,21 @@ export const postFixOrdersOptions: RouteOptions = {
         then: Joi.required(),
         otherwise: Joi.forbidden(),
       }),
-      token: Joi.string()
-        .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}:\d+$/)
-        .when("by", {
-          is: "token",
-          then: Joi.required(),
-          otherwise: Joi.forbidden(),
-        }),
-      maker: Joi.string()
-        .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/)
-        .when("by", {
-          is: "maker",
-          then: Joi.required(),
-          otherwise: Joi.forbidden(),
-        }),
-      contract: Joi.string()
-        .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/)
-        .when("by", {
-          is: "contract",
-          then: Joi.required(),
-          otherwise: Joi.forbidden(),
-        }),
+      token: Joi.string().lowercase().pattern(regex.token).when("by", {
+        is: "token",
+        then: Joi.required(),
+        otherwise: Joi.forbidden(),
+      }),
+      maker: Joi.string().lowercase().pattern(regex.address).when("by", {
+        is: "maker",
+        then: Joi.required(),
+        otherwise: Joi.forbidden(),
+      }),
+      contract: Joi.string().lowercase().pattern(regex.address).when("by", {
+        is: "contract",
+        then: Joi.required(),
+        otherwise: Joi.forbidden(),
+      }),
     }),
   },
   handler: async (request: Request) => {

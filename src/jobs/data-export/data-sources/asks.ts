@@ -4,6 +4,8 @@ import { fromBuffer } from "@/common/utils";
 import { BaseDataSource } from "@/jobs/data-export/data-sources/index";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
+import { getCurrency } from "@/utils/currencies";
+import { AddressZero } from "@ethersproject/constants";
 
 export class AsksDataSource extends BaseDataSource {
   public async getSequenceData(cursor: CursorInfo | null, limit: number) {
@@ -23,6 +25,8 @@ export class AsksDataSource extends BaseDataSource {
           orders.maker,
           orders.taker,
           orders.price,
+          orders.currency,
+          orders.currency_price,
           COALESCE(orders.dynamic, FALSE) AS dynamic,
           orders.quantity_filled,
           orders.quantity_remaining,
@@ -67,7 +71,17 @@ export class AsksDataSource extends BaseDataSource {
     if (result.length) {
       const sources = await Sources.getInstance();
 
-      const data = result.map((r) => {
+      const data = [];
+
+      for (const r of result) {
+        const currency = await getCurrency(
+          fromBuffer(r.currency) === AddressZero
+            ? Sdk.Common.Addresses.Eth[config.chainId]
+            : fromBuffer(r.currency)
+        );
+
+        const currencyPrice = r.currency_price ?? r.price;
+
         const [, , tokenId] = r.token_set_id.split(":");
 
         let startPrice = r.price;
@@ -88,7 +102,7 @@ export class AsksDataSource extends BaseDataSource {
           }
         }
 
-        return {
+        data.push({
           id: r.id,
           kind: r.kind,
           status: r.status,
@@ -97,6 +111,9 @@ export class AsksDataSource extends BaseDataSource {
           maker: fromBuffer(r.maker),
           taker: fromBuffer(r.taker),
           price: r.price.toString(),
+          currency_address: currency.contract,
+          currency_symbol: currency.symbol,
+          currency_price: currencyPrice ? currencyPrice.toString() : null,
           start_price: startPrice.toString(),
           end_price: endPrice.toString(),
           dynamic: r.dynamic,
@@ -106,14 +123,14 @@ export class AsksDataSource extends BaseDataSource {
           valid_from: Number(r.valid_from),
           valid_until: Number(r.valid_until),
           nonce: Number(r.nonce),
-          source: sources.get(r.source_id_int)?.name,
+          source: sources.get(r.source_id_int)?.domain,
           fee_bps: Number(r.fee_bps),
           expiration: Number(r.expiration),
           raw_data: r.raw_data ?? null,
           created_at: new Date(r.created_at).toISOString(),
           updated_at: new Date(r.updated_ts * 1000).toISOString(),
-        };
-      });
+        });
+      }
 
       const lastResult = result[result.length - 1];
 

@@ -31,6 +31,7 @@ export class BidActivity {
       eventTimestamp: data.timestamp,
       metadata: {
         orderId: data.orderId,
+        orderSourceIdInt: data.orderSourceIdInt,
       },
     } as ActivitiesEntityInsertParams;
 
@@ -53,4 +54,5 @@ export type NewBuyOrderEventData = {
   price: number;
   amount: number;
   timestamp: number;
+  orderSourceIdInt: number;
 };

@@ -22,6 +22,9 @@ CREATE TABLE user_activities (
 CREATE INDEX user_activities_address_event_timestamp_type_index
     ON user_activities (address, event_timestamp DESC NULLS LAST, type);
 
+CREATE INDEX user_activities_address_created_at_type_index
+    ON user_activities (address, created_at DESC NULLS LAST, type);
+
 CREATE UNIQUE INDEX user_activities_hash_address_unique_index
     ON user_activities (hash, address);
 
