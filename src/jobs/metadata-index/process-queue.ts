@@ -105,10 +105,12 @@ if (config.doBackgroundWork) {
 
           if (!useMetadataApiBaseUrlAlt) {
             await acquireLock(getRateLimitLockName(method), 5);
-          }
 
-          if (await extendLock(getLockName(method), 60 * 5)) {
-            await addToQueue(method);
+            if (await extendLock(getLockName(method), 60 * 5)) {
+              await addToQueue(method);
+            }
+          } else {
+            await releaseLock(getLockName(method));
           }
 
           return;
