@@ -12,7 +12,7 @@ import _ from "lodash";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 
 const QUEUE_NAME = "sync-tokens-flag-status";
-const LIMIT = 2;
+const LIMIT = 4;
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -32,7 +32,7 @@ if (config.doBackgroundWork) {
       const { collectionId, contract } = job.data;
 
       job.data.addToQueue = true;
-      job.data.addToQueueDelay = 0;
+      job.data.addToQueueDelay = 5000;
 
       // Get the tokens from the list
       const pendingFlagStatusSyncTokensQueue = new PendingFlagStatusSyncTokens(collectionId);
@@ -77,7 +77,7 @@ if (config.doBackgroundWork) {
                 `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
               );
 
-              job.data.addToQueueDelay = 5000;
+              job.data.addToQueueDelay = 60 * 1000;
 
               await pendingFlagStatusSyncTokensQueue.add([pendingSyncFlagStatusToken]);
             } else {
