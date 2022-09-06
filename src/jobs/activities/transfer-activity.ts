@@ -15,7 +15,7 @@ export class TransferActivity {
 
     // If no token found
     if (_.isNull(token)) {
-      logger.error("transfer-activity", `No token found for ${JSON.stringify(data)}`);
+      logger.warn("transfer-activity", `No token found for ${JSON.stringify(data)}`);
       return;
     }
 

@@ -38,6 +38,7 @@ export class BidCancelActivity {
         transactionHash: data.transactionHash,
         logIndex: data.logIndex,
         batchIndex: data.batchIndex,
+        orderSourceIdInt: data.orderSourceIdInt,
       },
     } as ActivitiesEntityInsertParams;
 
@@ -64,4 +65,5 @@ export type BuyOrderCancelledEventData = {
   batchIndex: number;
   blockHash: string;
   timestamp: number;
+  orderSourceIdInt: number;
 };

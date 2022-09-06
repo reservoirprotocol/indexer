@@ -54,7 +54,7 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
           id: contract,
         }
       );
-      if (!collectionResult || Number(collectionResult.token_count) > config.maxItemsPerBid) {
+      if (!collectionResult || Number(collectionResult.token_count) > config.maxTokenSetSize) {
         // We don't support collection orders on large collections.
         continue;
       }

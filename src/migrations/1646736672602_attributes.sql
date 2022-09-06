@@ -57,14 +57,8 @@ CREATE UNIQUE INDEX "attributes_attribute_key_id_value_unique_index"
 CREATE INDEX "attributes_collection_id_floor_sell_value_index"
   ON "attributes" ("collection_id" ASC NULLS LAST, "floor_sell_value" DESC NULLS LAST);
 
-CREATE INDEX "attributes_collection_id_top_buy_value_index"
-  ON "attributes" ("collection_id" ASC NULLS LAST, "top_buy_value" DESC NULLS LAST);
-
 CREATE INDEX attributes_key_collection_id_floor_sell_value_index
   ON attributes (key ASC NULLS LAST, collection_id ASC NULLS LAST, floor_sell_value DESC NULLS LAST);
-
-CREATE INDEX attributes_kind_collection_id_index
-  ON attributes (kind, collection_id ASC NULLS LAST);
 
 CREATE INDEX "attributes_updated_at_id_index"
   ON "attributes" ("updated_at", "id");

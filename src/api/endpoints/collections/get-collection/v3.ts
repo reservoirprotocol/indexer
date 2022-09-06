@@ -7,16 +7,17 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer } from "@/common/utils";
+import { Sources } from "@/models/sources";
 
 const version = "v3";
 
 export const getCollectionV3Options: RouteOptions = {
   description: "Single Collection",
   notes: "Get detailed information about a single collection, including real-time stats.",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 3,
+      deprecated: true,
     },
   },
   validate: {
@@ -40,7 +41,7 @@ export const getCollectionV3Options: RouteOptions = {
     schema: Joi.object({
       collection: Joi.object({
         id: Joi.string(),
-        slug: Joi.string().description("Open Sea slug"),
+        slug: Joi.string().allow(null, "").description("Open Sea slug"),
         name: Joi.string().allow(null, ""),
         metadata: Joi.object().allow(null),
         sampleImages: Joi.array().items(Joi.string().allow(null, "")),
@@ -60,6 +61,7 @@ export const getCollectionV3Options: RouteOptions = {
         },
         floorAsk: {
           id: Joi.string().allow(null),
+          sourceDomain: Joi.string().allow(null, ""),
           price: Joi.number().unsafe().allow(null),
           maker: Joi.string()
             .lowercase()
@@ -120,9 +122,9 @@ export const getCollectionV3Options: RouteOptions = {
         ownerCount: Joi.number(),
         attributes: Joi.array().items(
           Joi.object({
-            key: Joi.string().allow(null),
-            kind: Joi.string().allow(null),
-            count: Joi.number().allow(null),
+            key: Joi.string().allow(null, ""),
+            kind: Joi.string().allow(null, ""),
+            count: Joi.number().allow(null, ""),
           })
         ),
       }).allow(null),
@@ -217,6 +219,7 @@ export const getCollectionV3Options: RouteOptions = {
         FROM "x"
         LEFT JOIN LATERAL (
           SELECT
+            "t"."floor_sell_source_id_int",
             "t"."contract" AS "floor_sell_token_contract",
             "t"."token_id" AS "floor_sell_token_id",
             "t"."name" AS "floor_sell_token_name",
@@ -252,6 +255,7 @@ export const getCollectionV3Options: RouteOptions = {
          ) "attr_key" ON TRUE
       `;
 
+      const sources = await Sources.getInstance();
       const result = await redb.oneOrNone(baseQuery, query).then((r) =>
         !r
           ? null
@@ -276,6 +280,7 @@ export const getCollectionV3Options: RouteOptions = {
               },
               floorAsk: {
                 id: r.floor_sell_id,
+                sourceDomain: sources.get(r.floor_sell_source_id_int)?.domain,
                 price: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,
                 maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
                 validFrom: r.floor_sell_valid_from,
@@ -321,13 +326,13 @@ export const getCollectionV3Options: RouteOptions = {
                 "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
               },
               floorSaleChange: {
-                "1day": r.day1_floor_sell_value
+                "1day": Number(r.day1_floor_sell_value)
                   ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
                   : null,
-                "7day": r.day7_floor_sell_value
+                "7day": Number(r.day7_floor_sell_value)
                   ? Number(r.floor_sell_value) / Number(r.day7_floor_sell_value)
                   : null,
-                "30day": r.day30_floor_sell_value
+                "30day": Number(r.day30_floor_sell_value)
                   ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
                   : null,
               },

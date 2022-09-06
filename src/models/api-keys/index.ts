@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// TODO: Fix `any` types
-
 import { Request } from "@hapi/hapi";
-import { randomUUID } from "crypto";
 
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
+import { ApiKeyEntity } from "@/models/api-keys/api-key-entity";
+import getUuidByString from "uuid-by-string";
 
 export type ApiKeyRecord = {
   app_name: string;
@@ -29,12 +28,15 @@ export class ApiKeyManager {
   public async create(values: ApiKeyRecord): Promise<NewApiKeyResponse | boolean> {
     // Create a new key if none was set
     if (!values.key) {
-      values.key = randomUUID();
+      values.key = getUuidByString(`${values.key}${values.email}${values.website}`);
     }
 
     // Create the record in the database
     try {
-      await idb.none("insert into api_keys (${this:name}) values (${this:csv})", values);
+      await idb.none(
+        "INSERT INTO api_keys (${this:name}) values (${this:csv}) ON CONFLICT DO NOTHING",
+        values
+      );
     } catch (e) {
       logger.error("api-key", `Unable to create a new apikeys record: ${e}`);
       return false;
@@ -62,28 +64,32 @@ export class ApiKeyManager {
    *
    * @param key
    */
-  public static async getApiKey(key: string): Promise<null | any> {
-    const redisKey = `apikey:${key}`;
-    const apiKey: any = await redis.hgetall(redisKey);
+  public static async getApiKey(key: string): Promise<ApiKeyEntity | null> {
+    const redisKey = `api-key:${key}`;
 
-    if (apiKey && Object.keys(apiKey).length) {
-      if (apiKey.empty) {
-        return null;
+    try {
+      const apiKey = await redis.get(redisKey);
+
+      if (apiKey) {
+        if (apiKey == "empty") {
+          return null;
+        } else {
+          return new ApiKeyEntity(JSON.parse(apiKey));
+        }
       } else {
-        return apiKey;
+        // check if it exists in the database
+        const fromDb = await redb.oneOrNone(`SELECT * FROM api_keys WHERE key = $/key/`, { key });
+
+        if (fromDb) {
+          await redis.set(redisKey, JSON.stringify(fromDb));
+          return new ApiKeyEntity(fromDb);
+        } else {
+          await redis.set(redisKey, "empty");
+          await redis.expire(redisKey, 3600 * 24);
+        }
       }
-    } else {
-      // check if it exists in the database
-      const fromDb = await redb.oneOrNone(`SELECT * FROM api_keys WHERE key = $/key/`, { key });
-      if (fromDb) {
-        await redis.hset(redisKey, new Map(Object.entries(fromDb)));
-        return fromDb;
-      } else {
-        const map = new Map();
-        map.set("empty", true);
-        await redis.hset(redisKey, map);
-        await redis.expire(redisKey, 3600 * 24);
-      }
+    } catch (error) {
+      logger.error("get-api-key", `Failed to get ${key} error: ${error}`);
     }
 
     return null;

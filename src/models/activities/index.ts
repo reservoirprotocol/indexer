@@ -108,13 +108,15 @@ export class Activities {
     collectionId: string,
     createdBefore: null | string = null,
     types: string[] = [],
-    limit = 20
+    limit = 20,
+    sortBy = "eventTimestamp"
   ) {
+    const sortByColumn = sortBy == "eventTimestamp" ? "event_timestamp" : "created_at";
     let continuation = "";
     let typesFilter = "";
 
     if (!_.isNull(createdBefore)) {
-      continuation = `AND event_timestamp < $/createdBefore/`;
+      continuation = `AND ${sortByColumn} < $/createdBefore/`;
     }
 
     if (!_.isEmpty(types)) {
@@ -138,12 +140,12 @@ export class Activities {
              WHERE collection_id = $/collectionId/
              ${continuation}
              ${typesFilter}
-             ORDER BY event_timestamp DESC NULLS LAST
+             ORDER BY ${sortByColumn} DESC NULLS LAST
              LIMIT $/limit/`,
       {
         collectionId,
         limit,
-        createdBefore,
+        createdBefore: sortBy == "eventTimestamp" ? Number(createdBefore) : createdBefore,
         types: _.join(types, "','"),
       }
     );
@@ -160,13 +162,15 @@ export class Activities {
     tokenId: string,
     createdBefore: null | string = null,
     types: string[] = [],
-    limit = 20
+    limit = 20,
+    sortBy = "eventTimestamp"
   ) {
+    const sortByColumn = sortBy == "eventTimestamp" ? "event_timestamp" : "created_at";
     let continuation = "";
     let typesFilter = "";
 
     if (!_.isNull(createdBefore)) {
-      continuation = `AND event_timestamp < $/createdBefore/`;
+      continuation = `AND ${sortByColumn} < $/createdBefore/`;
     }
 
     if (!_.isEmpty(types)) {
@@ -191,13 +195,13 @@ export class Activities {
              AND token_id = $/tokenId/
              ${continuation}
              ${typesFilter}
-             ORDER BY event_timestamp DESC NULLS LAST
+             ORDER BY ${sortByColumn} DESC NULLS LAST
              LIMIT $/limit/`,
       {
         contract: toBuffer(contract),
         tokenId,
         limit,
-        createdBefore,
+        createdBefore: sortBy == "eventTimestamp" ? Number(createdBefore) : createdBefore,
         types: _.join(types, "','"),
       }
     );

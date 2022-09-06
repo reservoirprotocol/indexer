@@ -20,7 +20,6 @@ export const getCollectionsV3Options: RouteOptions = {
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 12,
       deprecated: true,
     },
   },
@@ -174,20 +173,20 @@ export const getCollectionsV3Options: RouteOptions = {
       if (query.sortBy) {
         switch (query.sortBy) {
           case "1DayVolume":
-            baseQuery += ` ORDER BY collections.day1_volume DESC NULLS LAST`;
+            baseQuery += ` ORDER BY collections.day1_volume DESC`;
             break;
 
           case "7DayVolume":
-            baseQuery += ` ORDER BY collections.day7_volume DESC NULLS LAST`;
+            baseQuery += ` ORDER BY collections.day7_volume DESC`;
             break;
 
           case "30DayVolume":
-            baseQuery += ` ORDER BY collections.day30_volume DESC NULLS LAST`;
+            baseQuery += ` ORDER BY collections.day30_volume DESC`;
             break;
 
           case "allTimeVolume":
           default:
-            baseQuery += ` ORDER BY collections.all_time_volume DESC NULLS LAST`;
+            baseQuery += ` ORDER BY collections.all_time_volume DESC`;
             break;
         }
       }

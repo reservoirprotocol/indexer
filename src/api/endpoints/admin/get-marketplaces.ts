@@ -1,10 +1,15 @@
 import { RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
+import { config } from "@/config/index";
 
 type Marketplace = {
   name: string;
   imageUrl: string;
   feeBps: number;
+  fee: {
+    bps: number;
+    percent: number;
+  };
   orderbook: string | null;
   orderKind: string | null;
   listingEnabled: boolean;
@@ -27,6 +32,10 @@ export const getMarketplaces: RouteOptions = {
         Joi.object({
           name: Joi.string(),
           imageUrl: Joi.string(),
+          fee: Joi.object({
+            bps: Joi.number(),
+            percent: Joi.number(),
+          }),
           feeBps: Joi.number(),
           orderbook: Joi.string().allow(null),
           orderKind: Joi.string().allow(null),
@@ -40,6 +49,10 @@ export const getMarketplaces: RouteOptions = {
       {
         name: "Reservoir",
         imageUrl: "https://api.reservoir.tools/redirect/sources/reservoir/logo/v2",
+        fee: {
+          percent: 0,
+          bps: 0,
+        },
         feeBps: 0,
         orderbook: "reservoir",
         orderKind: "seaport",
@@ -48,36 +61,69 @@ export const getMarketplaces: RouteOptions = {
       {
         name: "OpenSea",
         imageUrl: "https://api.reservoir.tools/redirect/sources/opensea/logo/v2",
+        fee: {
+          percent: 2.5,
+          bps: 250,
+        },
         feeBps: 0.025,
         orderbook: "opensea",
         orderKind: "seaport",
-        listingEnabled: true,
+        listingEnabled: false,
       },
       {
         name: "LooksRare",
         imageUrl: "https://api.reservoir.tools/redirect/sources/looksrare/logo/v2",
+        fee: {
+          percent: 2,
+          bps: 200,
+        },
         feeBps: 0.02,
         orderbook: "looks-rare",
         orderKind: "looks-rare",
-        listingEnabled: true,
+        listingEnabled: false,
       },
       {
-        name: "x2y2",
+        name: "X2Y2",
         imageUrl: "https://api.reservoir.tools/redirect/sources/x2y2/logo/v2",
-        feeBps: 0.05,
-        orderbook: null,
-        orderKind: null,
+        fee: {
+          percent: 0.5,
+          bps: 50,
+        },
+        feeBps: 0.005,
+        orderbook: "x2y2",
+        orderKind: "x2y2",
         listingEnabled: false,
       },
       {
         name: "Foundation",
         imageUrl: "https://api.reservoir.tools/redirect/sources/foundation/logo/v2",
+        fee: {
+          percent: 5,
+          bps: 500,
+        },
         feeBps: 0.05,
         orderbook: null,
         orderKind: null,
         listingEnabled: false,
       },
     ];
+
+    marketplaces.forEach((marketplace) => {
+      let listableOrderbooks = ["reservoir"];
+      switch (config.chainId) {
+        case 1: {
+          listableOrderbooks = ["reservoir", "opensea", "looks-rare", "x2y2"];
+          break;
+        }
+        case 4: {
+          listableOrderbooks = ["reservoir", "opensea", "looks-rare"];
+          break;
+        }
+      }
+      marketplace.listingEnabled =
+        marketplace.orderbook && listableOrderbooks.includes(marketplace.orderbook) ? true : false;
+    });
+
     return {
       marketplaces: marketplaces,
     };

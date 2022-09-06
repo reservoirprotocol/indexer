@@ -24,6 +24,12 @@ CREATE INDEX activities_collection_id_event_timestamp_type_index
 CREATE INDEX activities_contract_token_id_event_timestamp_type_index
     ON activities (contract, token_id, event_timestamp DESC NULLS LAST, type);
 
+CREATE INDEX activities_collection_id_created_at_type_index
+    ON activities (collection_id, created_at DESC NULLS LAST, type);
+
+CREATE INDEX activities_contract_token_id_created_at_type_index
+    ON activities (contract, token_id, created_at DESC NULLS LAST, type);
+
 CREATE INDEX activities_block_hash_index
     ON activities (block_hash);
 

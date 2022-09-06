@@ -16,7 +16,7 @@ export const getUserTokensV3Options: RouteOptions = {
     privacy: "public",
     expiresIn: 60000,
   },
-  description: "User tokens",
+  description: "User Tokens",
   notes:
     "Get tokens held by a user, along with ownership information such as associated orders and date acquired.",
   tags: ["api", "Tokens"],
@@ -70,7 +70,7 @@ export const getUserTokensV3Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(20)
+        .max(100)
         .default(20)
         .description("Amount of items returned in response."),
       includeTopBid: Joi.boolean()
@@ -184,7 +184,7 @@ export const getUserTokensV3Options: RouteOptions = {
 
     let tokensJoin = `
       JOIN LATERAL (
-        SELECT t.token_id, t.name, t.image, t.collection_id, null AS top_buy_id, null AS top_buy_value
+        SELECT t.token_id, t.name, t.image, t.collection_id, null AS top_bid_id, null AS top_bid_value
         FROM tokens t
         WHERE b.token_id = t.token_id
         AND b.contract = t.contract
@@ -200,7 +200,7 @@ export const getUserTokensV3Options: RouteOptions = {
           AND b.contract = t.contract
         ) t ON TRUE
         LEFT JOIN LATERAL (
-          SELECT "o"."id" AS "top_buy_id", o.value AS "top_buy_value"
+          SELECT "o"."id" AS "top_bid_id", o.value AS "top_bid_value"
           FROM "orders" "o"
           JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
           WHERE "tst"."contract" = "b"."contract"
@@ -224,8 +224,8 @@ export const getUserTokensV3Options: RouteOptions = {
     try {
       const baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, b.acquired_at, t.name,
-               t.image, t.collection_id, b.floor_sell_id, b.floor_sell_value, top_buy_id,
-               top_buy_value, c.name as collection_name, c.metadata,
+               t.image, t.collection_id, b.floor_sell_id, b.floor_sell_value, top_bid_id,
+               top_bid_value, c.name as collection_name, c.metadata,
                c.floor_sell_value AS "collection_floor_sell_value",
                (
                     CASE WHEN b.floor_sell_value IS NOT NULL
@@ -265,8 +265,8 @@ export const getUserTokensV3Options: RouteOptions = {
           },
           topBid: query.includeTopBid
             ? {
-                id: r.top_buy_id,
-                value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+                id: r.top_bid_id,
+                value: r.top_bid_value ? formatEth(r.top_bid_value) : null,
               }
             : undefined,
         },

@@ -15,10 +15,10 @@ const version = "v1";
 export const getExecuteCancelV1Options: RouteOptions = {
   description: "Cancel order",
   notes: "Cancel an existing order on any marketplace",
-  tags: ["api", "Router"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 11,
+      deprecated: true,
     },
   },
   validate: {

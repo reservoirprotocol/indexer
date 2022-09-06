@@ -10,7 +10,7 @@ import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
 
 export class MetadataApi {
-  static async getCollectionMetadata(
+  public static async getCollectionMetadata(
     contract: string,
     tokenId: string,
     options?: { allowFallback?: boolean }
@@ -40,7 +40,9 @@ export class MetadataApi {
         tokenSetId: `contract:${contract}`,
       };
     } else {
-      const url = `${config.metadataApiBaseUrl}/v4/${getNetworkName()}/metadata/collection?method=${
+      const url = `${
+        config.metadataApiBaseUrlAlt
+      }/v4/${getNetworkName()}/metadata/collection?method=${
         config.metadataIndexingMethod
       }&token=${contract}:${tokenId}`;
 
@@ -65,6 +67,59 @@ export class MetadataApi {
 
       return collection;
     }
+  }
+
+  public static async getTokenMetadata(
+    tokens: { contract: string; tokenId: string }[],
+    useAltUrl = false
+  ) {
+    const queryParams = new URLSearchParams();
+
+    for (const token of tokens) {
+      queryParams.append("token", `${token.contract}:${token.tokenId}`);
+    }
+
+    const url = `${
+      useAltUrl ? config.metadataApiBaseUrlAlt : config.metadataApiBaseUrl
+    }/v4/${getNetworkName()}/metadata/token?method=${
+      config.metadataIndexingMethod
+    }&${queryParams.toString()}`;
+
+    const { data } = await axios.get(url);
+
+    const tokenMetadata: {
+      contract: string;
+      tokenId: string;
+      flagged: boolean;
+      name?: string;
+      description?: string;
+      imageUrl?: string;
+      mediaUrl?: string;
+      attributes: {
+        key: string;
+        value: string;
+        kind: "string" | "number" | "date" | "range";
+        rank?: number;
+      }[];
+    }[] = (data as any).metadata;
+
+    return tokenMetadata;
+  }
+
+  public static async getTokenFlagStatus(contract: string, tokenId: string) {
+    const queryParams = new URLSearchParams();
+
+    queryParams.append("token", `${contract}:${tokenId}`);
+
+    const url = `${
+      config.metadataApiBaseUrlFlagStatus
+    }/v4/${getNetworkName()}/metadata/token?method=${
+      config.metadataIndexingMethod
+    }&${queryParams.toString()}`;
+
+    const { data } = await axios.get(url);
+
+    return Number((data as any).metadata[0].flagged);
   }
 }
 

@@ -9,10 +9,11 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { slowProvider } from "@/common/provider";
-import { bn, formatEth, regex, toBuffer } from "@/common/utils";
+import { baseProvider } from "@/common/provider";
+import { bn, formatEth, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
+import { generateListingDetails } from "@/orderbook/orders";
 
 const version = "v1";
 
@@ -33,7 +34,7 @@ export const getExecuteBuyV1Options: RouteOptions = {
       onlyQuote: Joi.boolean().default(false),
       source: Joi.string().lowercase(),
       referrer: Joi.string().lowercase().pattern(regex.address).default(AddressZero),
-      referrerFeeBps: Joi.number().integer().positive().min(0).max(10000).default(0),
+      referrerFeeBps: Joi.number().integer().min(0).max(10000).default(0),
       partial: Joi.boolean().default(false),
       maxFeePerGas: Joi.string().pattern(regex.number),
       maxPriorityFeePerGas: Joi.string().pattern(regex.number),
@@ -107,74 +108,6 @@ export const getExecuteBuyV1Options: RouteOptions = {
       }
 
       const listingDetails: ListingDetails[] = [];
-      const addListingDetail = (
-        kind: string,
-        contractKind: "erc721" | "erc1155",
-        contract: string,
-        tokenId: string,
-        amount: number,
-        rawData: any
-      ) => {
-        const common = {
-          contractKind,
-          contract,
-          tokenId,
-          amount,
-        };
-
-        switch (kind) {
-          case "foundation": {
-            return listingDetails.push({
-              kind: "foundation",
-              ...common,
-              order: new Sdk.Foundation.Order(config.chainId, rawData),
-            });
-          }
-
-          case "looks-rare": {
-            return listingDetails.push({
-              kind: "looks-rare",
-              ...common,
-              order: new Sdk.LooksRare.Order(config.chainId, rawData),
-            });
-          }
-
-          case "opendao-erc721":
-          case "opendao-erc1155": {
-            return listingDetails.push({
-              kind: "opendao",
-              ...common,
-              order: new Sdk.OpenDao.Order(config.chainId, rawData),
-            });
-          }
-
-          case "x2y2": {
-            return listingDetails.push({
-              kind: "x2y2",
-              ...common,
-              order: new Sdk.X2Y2.Order(config.chainId, rawData),
-            });
-          }
-
-          case "zeroex-v4-erc721":
-          case "zeroex-v4-erc1155": {
-            return listingDetails.push({
-              kind: "zeroex-v4",
-              ...common,
-              order: new Sdk.ZeroExV4.Order(config.chainId, rawData),
-            });
-          }
-
-          case "seaport": {
-            return listingDetails.push({
-              kind: "seaport",
-              ...common,
-              order: new Sdk.Seaport.Order(config.chainId, rawData),
-            });
-          }
-        }
-      };
-
       for (const token of tokens) {
         const [contract, tokenId] = token.split(":");
 
@@ -188,7 +121,8 @@ export const getExecuteBuyV1Options: RouteOptions = {
                 contracts.kind AS token_kind,
                 orders.price,
                 orders.raw_data,
-                orders.source_id_int
+                orders.source_id_int,
+                orders.currency
               FROM orders
               JOIN contracts
                 ON orders.contract = contracts.address
@@ -197,7 +131,8 @@ export const getExecuteBuyV1Options: RouteOptions = {
                 AND orders.fillability_status = 'fillable'
                 AND orders.approval_status = 'approved'
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-              ORDER BY orders.value
+                AND orders.currency = '\\x0000000000000000000000000000000000000000'
+              ORDER BY orders.value, orders.fee_bps
               LIMIT 1
             `,
             { tokenSetId: `token:${contract}:${tokenId}` }
@@ -207,7 +142,8 @@ export const getExecuteBuyV1Options: RouteOptions = {
             throw Boom.badRequest("No available orders");
           }
 
-          const { id, kind, token_kind, price, source_id_int, raw_data } = bestOrderResult;
+          const { id, kind, token_kind, price, source_id_int, currency, raw_data } =
+            bestOrderResult;
 
           path.push({
             contract,
@@ -221,7 +157,20 @@ export const getExecuteBuyV1Options: RouteOptions = {
             continue;
           }
 
-          addListingDetail(kind, token_kind, contract, tokenId, 1, raw_data);
+          listingDetails.push(
+            generateListingDetails(
+              {
+                kind,
+                currency: fromBuffer(currency),
+                rawData: raw_data,
+              },
+              {
+                kind: token_kind,
+                contract,
+                tokenId,
+              }
+            )
+          );
           confirmationQuery = `?ids=${id}`;
         } else {
           // Only ERC1155 tokens support a quantity greater than 1
@@ -245,16 +194,19 @@ export const getExecuteBuyV1Options: RouteOptions = {
                 x.price,
                 x.quantity_remaining,
                 x.source_id_int,
-                x.raw_data
+                x.raw_data,
+                x.currency
               FROM (
                 SELECT
                   orders.*,
-                  SUM(orders.quantity_remaining) OVER (ORDER BY price, id) - orders.quantity_remaining AS quantity
+                  SUM(orders.quantity_remaining) OVER (ORDER BY price, fee_bps, id) - orders.quantity_remaining AS quantity
                 FROM orders
                 WHERE orders.token_set_id = $/tokenSetId/
+                  AND orders.side = 'sell'
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
                   AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                  AND orders.currency = '\\x0000000000000000000000000000000000000000'
               ) x WHERE x.quantity < $/quantity/
             `,
             {
@@ -273,6 +225,7 @@ export const getExecuteBuyV1Options: RouteOptions = {
             quantity_remaining,
             price,
             source_id_int,
+            currency,
             raw_data,
           } of bestOrdersResult) {
             const quantityFilled = Math.min(Number(quantity_remaining), totalQuantityToFill);
@@ -291,7 +244,21 @@ export const getExecuteBuyV1Options: RouteOptions = {
               continue;
             }
 
-            addListingDetail(kind, "erc1155", contract, tokenId, quantityFilled, raw_data);
+            listingDetails.push(
+              generateListingDetails(
+                {
+                  kind,
+                  currency: fromBuffer(currency),
+                  rawData: raw_data,
+                },
+                {
+                  kind: "erc1155",
+                  contract,
+                  tokenId,
+                  amount: quantityFilled,
+                }
+              )
+            );
             confirmationQuery = `?ids=${id}`;
           }
 
@@ -308,7 +275,7 @@ export const getExecuteBuyV1Options: RouteOptions = {
         return { quote, path };
       }
 
-      const router = new Sdk.Router.Router(config.chainId, slowProvider);
+      const router = new Sdk.Router.Router(config.chainId, baseProvider);
       const tx = await router.fillListingsTx(listingDetails, query.taker, {
         referrer: query.source,
         fee: {
@@ -321,7 +288,7 @@ export const getExecuteBuyV1Options: RouteOptions = {
       });
 
       // Check that the taker has enough funds to fill all requested tokens
-      const balance = await slowProvider.getBalance(query.taker);
+      const balance = await baseProvider.getBalance(query.taker);
       if (!query.skipBalanceCheck && bn(balance).lt(tx.value!)) {
         throw Boom.badData("ETH balance too low to proceed with transaction");
       }

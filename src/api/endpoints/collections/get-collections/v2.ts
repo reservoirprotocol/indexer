@@ -10,6 +10,10 @@ import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
 const version = "v2";
 
 export const getCollectionsV2Options: RouteOptions = {
+  cache: {
+    privacy: "public",
+    expiresIn: 60000,
+  },
   description: "Get a filtered list of collections",
   notes:
     "Useful for getting multiple collections to show in a marketplace, or search for particular collections.",
@@ -48,7 +52,7 @@ export const getCollectionsV2Options: RouteOptions = {
       collections: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          slug: Joi.string(),
+          slug: Joi.string().allow(null, ""),
           name: Joi.string().allow(null, ""),
           image: Joi.string().allow(null, ""),
           banner: Joi.string().allow(null, ""),
@@ -135,20 +139,20 @@ export const getCollectionsV2Options: RouteOptions = {
       if (query.sortBy) {
         switch (query.sortBy) {
           case "1DayVolume":
-            baseQuery += ` ORDER BY collections.day1_volume DESC NULLS LAST`;
+            baseQuery += ` ORDER BY collections.day1_volume DESC`;
             break;
 
           case "7DayVolume":
-            baseQuery += ` ORDER BY collections.day7_volume DESC NULLS LAST`;
+            baseQuery += ` ORDER BY collections.day7_volume DESC`;
             break;
 
           case "30DayVolume":
-            baseQuery += ` ORDER BY collections.day30_volume DESC NULLS LAST`;
+            baseQuery += ` ORDER BY collections.day30_volume DESC`;
             break;
 
           case "allTimeVolume":
           default:
-            baseQuery += ` ORDER BY collections.all_time_volume DESC NULLS LAST`;
+            baseQuery += ` ORDER BY collections.all_time_volume DESC`;
             break;
         }
       }

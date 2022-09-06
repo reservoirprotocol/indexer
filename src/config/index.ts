@@ -14,9 +14,6 @@ export const config = {
 
   baseNetworkHttpUrl: String(process.env.BASE_NETWORK_HTTP_URL),
   baseNetworkWsUrl: String(process.env.BASE_NETWORK_WS_URL),
-  slowNetworkHttpUrl: String(
-    process.env.SLOW_NETWORK_HTTP_URL ?? process.env.BASE_NETWORK_HTTP_URL
-  ),
   traceNetworkHttpUrl: String(
     process.env.TRACE_NETWORK_HTTP_URL ?? process.env.BASE_NETWORK_HTTP_URL
   ),
@@ -26,6 +23,13 @@ export const config = {
   liquidityOnly: !process.env.METADATA_API_BASE_URL,
   metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
   metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
+  metadataApiBaseUrlAlt: String(
+    process.env.METADATA_API_BASE_URL_ALT || process.env.METADATA_API_BASE_URL
+  ),
+  metadataApiBaseUrlFlagStatus: String(
+    process.env.METADATA_API_BASE_URL_FLAG_STATUS || process.env.METADATA_API_BASE_URL
+  ),
+
   disableRealtimeMetadataRefresh: Boolean(Number(process.env.DISABLE_REALTIME_METADATA_REFRESH)),
 
   databaseUrl: String(process.env.DATABASE_URL),
@@ -38,9 +42,10 @@ export const config = {
   master: Boolean(Number(process.env.MASTER)),
   catchup: Boolean(Number(process.env.CATCHUP)),
   doBackgroundWork: Boolean(Number(process.env.DO_BACKGROUND_WORK)),
+  doEventsSyncBackfill: Boolean(Number(process.env.DO_EVENTS_SYNC_BACKFILL)),
   disableOrders: Boolean(Number(process.env.DISABLE_ORDERS)),
 
-  maxItemsPerBid: 50000,
+  maxTokenSetSize: 100000,
 
   awsAccessKeyId: String(process.env.AWS_ACCESS_KEY_ID),
   awsSecretAccessKey: String(process.env.AWS_SECRET_ACCESS_KEY),
@@ -52,6 +57,7 @@ export const config = {
 
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
+  x2y2ApiKey: String(process.env.X2Y2_API_KEY),
 
   railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL),
 };

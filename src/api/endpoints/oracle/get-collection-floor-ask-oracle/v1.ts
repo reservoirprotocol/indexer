@@ -13,14 +13,15 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, formatPrice } from "@/common/utils";
+import { bn, formatPrice, now } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v1";
 
 export const getCollectionFloorAskOracleV1Options: RouteOptions = {
   description: "Collection floor",
-  notes: "Get a signed message of any collection's floor price (spot or twap)",
+  notes:
+    "Get a signed message of any collection's floor price (spot or twap). The oracle signer address is 0x32da57e736e05f75aa4fae2e9be60fd904492726.",
   tags: ["api", "Oracle"],
   plugins: {
     "hapi-swagger": {
@@ -233,7 +234,7 @@ export const getCollectionFloorAskOracleV1Options: RouteOptions = {
       } = {
         id,
         payload: defaultAbiCoder.encode(["address", "uint256"], [query.currency, price]),
-        timestamp: Math.floor(Date.now() / 1000),
+        timestamp: now(),
       };
 
       if (config.oraclePrivateKey) {

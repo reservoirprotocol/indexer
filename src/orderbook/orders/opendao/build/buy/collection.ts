@@ -31,7 +31,7 @@ export const build = async (options: BuildOrderOptions) => {
       return undefined;
     }
 
-    if (Number(collectionResult.token_count) > config.maxItemsPerBid) {
+    if (Number(collectionResult.token_count) > config.maxTokenSetSize) {
       // We don't support collection orders on large collections.
       return undefined;
     }
@@ -72,14 +72,16 @@ export const build = async (options: BuildOrderOptions) => {
 
       return builder?.build(buildInfo.params);
     } else {
+      const excludeFlaggedTokens = options.excludeFlaggedTokens ? `AND tokens.is_flagged = 0` : "";
+
       // Fetch all non-flagged tokens from the collection
-      // TODO: Include `NOT is_flagged` filter in the query
       const tokens = await redb.manyOrNone(
         `
           SELECT
             tokens.token_id
           FROM tokens
           WHERE tokens.collection_id = $/collection/
+          ${excludeFlaggedTokens}
         `,
         {
           collection: options.collection,

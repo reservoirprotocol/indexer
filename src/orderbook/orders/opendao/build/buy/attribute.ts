@@ -54,7 +54,7 @@ export const build = async (options: BuildOrderOptions) => {
       throw new Error("Could not retrieve attribute info");
     }
 
-    if (Number(attributeResult.token_count) > config.maxItemsPerBid) {
+    if (Number(attributeResult.token_count) > config.maxTokenSetSize) {
       // We don't support attribute orders on large token sets
       throw new Error("Attribute has too many items");
     }
@@ -68,20 +68,20 @@ export const build = async (options: BuildOrderOptions) => {
       "buy"
     );
 
+    const excludeFlaggedTokens = options.excludeFlaggedTokens ? `AND "t"."is_flagged" = 0` : "";
+
     // Fetch all tokens matching the attributes
-    // TODO: Include `NOT is_flagged` filter in the query
     const tokens = await redb.manyOrNone(
       `
-        SELECT
-          "ta"."token_id"
+        SELECT "ta"."token_id"
         FROM "token_attributes" "ta"
-        JOIN "attributes" "a"
-          ON "ta"."attribute_id" = "a"."id"
-        JOIN "attribute_keys" "ak"
-          ON "a"."attribute_key_id" = "ak"."id"
+        JOIN "attributes" "a" ON "ta"."attribute_id" = "a"."id"
+        JOIN "attribute_keys" "ak" ON "a"."attribute_key_id" = "ak"."id"
+        JOIN "tokens" "t" ON "ta"."contract" = "t"."contract" AND "ta"."token_id" = "t"."token_id"
         WHERE "ak"."collection_id" = $/collection/
-          AND "ak"."key" = $/key/
-          AND "a"."value" = $/value/
+        AND "ak"."key" = $/key/
+        AND "a"."value" = $/value/
+        ${excludeFlaggedTokens}
         ORDER BY "ta"."token_id"
       `,
       {

@@ -15,6 +15,7 @@ import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-ord
 import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
+import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -56,7 +57,9 @@ if (config.doBackgroundWork) {
                 orders.source_id_int AS "sourceIdInt",
                 orders.valid_between AS "validBetween",
                 COALESCE(orders.quantity_remaining, 1) AS "quantityRemaining",
+                orders.nonce,
                 orders.maker,
+                orders.price,
                 orders.value,
                 orders.fillability_status AS "fillabilityStatus",
                 orders.approval_status AS "approvalStatus",
@@ -111,6 +114,7 @@ if (config.doBackgroundWork) {
                 WHERE token_sets.id = x.token_set_id
                   AND token_sets.top_buy_id IS DISTINCT FROM x.order_id
                 RETURNING
+                  collection_id AS "collectionId",
                   attribute_id AS "attributeId",
                   top_buy_value AS "topBuyValue"
               `,
@@ -120,6 +124,17 @@ if (config.doBackgroundWork) {
             for (const result of buyOrderResult) {
               if (!_.isNull(result.attributeId)) {
                 await handleNewBuyOrder.addToQueue(result);
+              }
+
+              if (!_.isNull(result.collectionId)) {
+                await collectionUpdatesTopBid.addToQueue([
+                  {
+                    collectionId: result.collectionId,
+                    kind: trigger.kind,
+                    txHash: trigger.txHash || null,
+                    txTimestamp: trigger.txTimestamp || null,
+                  } as collectionUpdatesTopBid.TopBidInfo,
+                ]);
               }
             }
           }
@@ -134,6 +149,8 @@ if (config.doBackgroundWork) {
                     x.token_id,
                     y.order_id,
                     y.value,
+                    y.currency,
+                    y.currency_value,
                     y.maker,
                     y.valid_between,
                     y.nonce,
@@ -149,6 +166,8 @@ if (config.doBackgroundWork) {
                     SELECT
                       orders.id AS order_id,
                       orders.value,
+                      orders.currency,
+                      orders.currency_value,
                       orders.maker,
                       orders.valid_between,
                       orders.source_id_int,
@@ -171,6 +190,8 @@ if (config.doBackgroundWork) {
                   UPDATE tokens SET
                     floor_sell_id = z.order_id,
                     floor_sell_value = z.value,
+                    floor_sell_currency = z.currency,
+                    floor_sell_currency_value = z.currency_value,
                     floor_sell_maker = z.maker,
                     floor_sell_valid_from = least(
                       2147483647::NUMERIC,
@@ -281,6 +302,7 @@ if (config.doBackgroundWork) {
                     order_source_id_int,
                     order_valid_between,
                     order_quantity_remaining,
+                    order_nonce,
                     maker,
                     price,
                     tx_hash,
@@ -304,6 +326,7 @@ if (config.doBackgroundWork) {
                     $/sourceIdInt/,
                     $/validBetween/,
                     $/quantityRemaining/,
+                    $/nonce/,
                     $/maker/,
                     $/value/,
                     $/txHash/,
@@ -319,6 +342,7 @@ if (config.doBackgroundWork) {
                   sourceIdInt: order.sourceIdInt,
                   validBetween: order.validBetween,
                   quantityRemaining: order.quantityRemaining,
+                  nonce: order.nonce,
                   maker: order.maker,
                   value: order.value,
                   kind: trigger.kind,
@@ -334,6 +358,70 @@ if (config.doBackgroundWork) {
               };
 
               await updateNftBalanceFloorAskPriceQueue.addToQueue([updateFloorAskPriceInfo]);
+            } else if (order.side === "buy") {
+              // Insert a corresponding bid event
+              await idb.none(
+                `
+                  INSERT INTO bid_events (
+                    kind,
+                    status,
+                    contract,
+                    token_set_id,
+                    order_id,
+                    order_source_id_int,
+                    order_valid_between,
+                    order_quantity_remaining,
+                    order_nonce,
+                    maker,
+                    price,
+                    value,
+                    tx_hash,
+                    tx_timestamp
+                  )
+                  VALUES (
+                    $/kind/,
+                    (
+                      CASE
+                        WHEN $/fillabilityStatus/ = 'filled' THEN 'filled'
+                        WHEN $/fillabilityStatus/ = 'cancelled' THEN 'cancelled'
+                        WHEN $/fillabilityStatus/ = 'expired' THEN 'expired'
+                        WHEN $/fillabilityStatus/ = 'no-balance' THEN 'inactive'
+                        WHEN $/approvalStatus/ = 'no-approval' THEN 'inactive'
+                        ELSE 'active'
+                      END
+                    )::order_event_status_t,
+                    $/contract/,
+                    $/tokenSetId/,
+                    $/orderId/,
+                    $/orderSourceIdInt/,
+                    $/validBetween/,
+                    $/quantityRemaining/,
+                    $/nonce/,
+                    $/maker/,
+                    $/price/,
+                    $/value/,
+                    $/txHash/,
+                    $/txTimestamp/
+                  )
+                `,
+                {
+                  fillabilityStatus: order.fillabilityStatus,
+                  approvalStatus: order.approvalStatus,
+                  contract: order.contract,
+                  tokenSetId: order.tokenSetId,
+                  orderId: order.id,
+                  orderSourceIdInt: order.sourceIdInt,
+                  validBetween: order.validBetween,
+                  quantityRemaining: order.quantityRemaining,
+                  nonce: order.nonce,
+                  maker: order.maker,
+                  price: order.price,
+                  value: order.value,
+                  kind: trigger.kind,
+                  txHash: trigger.txHash ? toBuffer(trigger.txHash) : null,
+                  txTimestamp: trigger.txTimestamp || null,
+                }
+              );
             }
 
             let eventInfo;
@@ -341,6 +429,7 @@ if (config.doBackgroundWork) {
             if (trigger.kind == "cancel") {
               const eventData = {
                 orderId: order.id,
+                orderSourceIdInt: order.sourceIdInt,
                 contract: fromBuffer(order.contract),
                 tokenId: order.tokenId,
                 maker: fromBuffer(order.maker),
@@ -371,6 +460,7 @@ if (config.doBackgroundWork) {
             ) {
               const eventData = {
                 orderId: order.id,
+                orderSourceIdInt: order.sourceIdInt,
                 contract: fromBuffer(order.contract),
                 tokenId: order.tokenId,
                 maker: fromBuffer(order.maker),
@@ -405,7 +495,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 15 }
+    { connection: redis.duplicate(), concurrency: 20 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

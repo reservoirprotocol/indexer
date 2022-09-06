@@ -16,7 +16,7 @@ export const getCollectionV2Options: RouteOptions = {
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 3,
+      deprecated: true,
     },
   },
   validate: {
@@ -37,7 +37,7 @@ export const getCollectionV2Options: RouteOptions = {
     schema: Joi.object({
       collection: Joi.object({
         id: Joi.string(),
-        slug: Joi.string().description("Open Sea slug"),
+        slug: Joi.string().allow(null, "").description("Open Sea slug"),
         name: Joi.string().allow(null, ""),
         metadata: Joi.object().allow(null),
         sampleImages: Joi.array().items(Joi.string().allow(null, "")),
@@ -117,9 +117,9 @@ export const getCollectionV2Options: RouteOptions = {
         ownerCount: Joi.number(),
         attributes: Joi.array().items(
           Joi.object({
-            key: Joi.string().allow(null),
-            kind: Joi.string().allow(null),
-            count: Joi.number().allow(null),
+            key: Joi.string().allow(null, ""),
+            kind: Joi.string().allow(null, ""),
+            count: Joi.number().allow(null, ""),
           })
         ),
       }).allow(null),
@@ -314,13 +314,13 @@ export const getCollectionV2Options: RouteOptions = {
                 "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
               },
               floorSaleChange: {
-                "1day": r.day1_floor_sell_value
+                "1day": Number(r.day1_floor_sell_value)
                   ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
                   : null,
-                "7day": r.day7_floor_sell_value
+                "7day": Number(r.day7_floor_sell_value)
                   ? Number(r.floor_sell_value) / Number(r.day7_floor_sell_value)
                   : null,
-                "30day": r.day30_floor_sell_value
+                "30day": Number(r.day30_floor_sell_value)
                   ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
                   : null,
               },

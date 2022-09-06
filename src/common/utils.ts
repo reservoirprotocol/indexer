@@ -1,9 +1,11 @@
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { formatEther, formatUnits } from "@ethersproject/units";
 
-// --- BigNumbers and prices ---
+// --- BigNumbers ---
 
 export const bn = (value: BigNumberish) => BigNumber.from(value);
+
+// --- Prices ---
 
 export const formatEth = (value: BigNumberish) => Number(Number(formatEther(value)).toFixed(5));
 
@@ -12,15 +14,22 @@ export const formatUsd = (value: BigNumberish) => Number(Number(formatUnits(valu
 export const formatPrice = (value: BigNumberish, decimals = 18) =>
   Number(Number(formatUnits(value, decimals)).toFixed(5));
 
+export const getNetAmount = (value: BigNumberish, bps: number) =>
+  bn(value).sub(bn(value).mul(bps).div(10000)).toString();
+
 // --- Buffers ---
 
 export const fromBuffer = (buffer: Buffer) => "0x" + buffer.toString("hex");
 
 export const toBuffer = (hexValue: string) => Buffer.from(hexValue.slice(2), "hex");
 
+// --- Time ---
+
+export const now = () => Math.floor(Date.now() / 1000);
+
 // --- Continuations ---
 
-export const splitContinuation = (c: string, regEx: RegExp) => {
+export const splitContinuation = (c: string, regEx?: RegExp) => {
   if (c.includes("_")) {
     return c.split("_");
   }
@@ -28,12 +37,14 @@ export const splitContinuation = (c: string, regEx: RegExp) => {
   c = decodeURIComponent(c);
   if (c.match(regex.base64)) {
     const decoded = Buffer.from(c, "base64").toString("ascii");
-    if (decoded.match(regEx)) {
+    if (regEx && decoded.match(regEx)) {
       return decoded.split("_");
+    } else {
+      return [decoded];
     }
+  } else {
+    return [c];
   }
-
-  return c;
 };
 
 export const buildContinuation = (c: string) => Buffer.from(c).toString("base64");
@@ -46,6 +57,7 @@ export const regex = {
   address: /^0x[a-fA-F0-9]{40}$/,
   bytes32: /^0x[a-fA-F0-9]{64}$/,
   token: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
+  fee: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
   number: /^[0-9]+$/,
-  unix_timestamp: /^[0-9]{10}$/,
+  unixTimestamp: /^[0-9]{10}$/,
 };

@@ -1,11 +1,14 @@
-import * as crypto from "crypto";
-import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-import { redis } from "@/common/redis";
-import { config } from "@/config/index";
-import { logger } from "@/common/logger";
-import axios from "axios";
-import * as Sdk from "@reservoir0x/sdk";
 import { joinSignature } from "@ethersproject/bytes";
+import * as Sdk from "@reservoir0x/sdk";
+import axios from "axios";
+import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import * as crypto from "crypto";
+
+import { redb } from "@/common/db";
+import { logger } from "@/common/logger";
+import { redis } from "@/common/redis";
+import { toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 import { OrderbookApiRateLimiter } from "@/jobs/orderbook/post-order-external/api-rate-limiter";
 import {
   RequestWasThrottledError,
@@ -22,6 +25,10 @@ const OPENSEA_RATE_LIMIT_INTERVAL = 1000;
 // Looks Rare default rate limit - 120 requests per minute
 const LOOKSRARE_RATE_LIMIT_REQUEST_COUNT = 120;
 const LOOKSRARE_RATE_LIMIT_INTERVAL = 1000 * 60;
+
+// X2Y2 default rate limit - 120 requests per minute
+const X2Y2_RATE_LIMIT_REQUEST_COUNT = 120;
+const X2Y2_RATE_LIMIT_INTERVAL = 1000 * 60;
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -45,7 +52,7 @@ if (config.doBackgroundWork) {
         throw new Error("Unsupported network");
       }
 
-      if (!["opensea", "looks-rare"].includes(orderbook)) {
+      if (!["opensea", "looks-rare", "x2y2"].includes(orderbook)) {
         throw new Error("Unsupported orderbook");
       }
 
@@ -139,6 +146,8 @@ const getOrderbookDefaultApiKey = (orderbook: string) => {
       return config.openSeaApiKey;
     case "looks-rare":
       return config.looksRareApiKey;
+    case "x2y2":
+      return config.x2y2ApiKey;
   }
 
   throw new Error(`Unsupported orderbook ${orderbook}`);
@@ -159,6 +168,13 @@ const getRateLimiter = (orderbook: string, orderbookApiKey: string) => {
         orderbookApiKey,
         OPENSEA_RATE_LIMIT_REQUEST_COUNT,
         OPENSEA_RATE_LIMIT_INTERVAL
+      );
+    case "x2y2":
+      return new OrderbookApiRateLimiter(
+        orderbook,
+        orderbookApiKey,
+        X2Y2_RATE_LIMIT_REQUEST_COUNT,
+        X2Y2_RATE_LIMIT_INTERVAL
       );
   }
 
@@ -185,6 +201,10 @@ const postOrder = async (
         orderData as Sdk.LooksRare.Types.MakerOrderParams
       );
       return postLooksRare(order, orderbookApiKey);
+    }
+
+    case "x2y2": {
+      return postX2Y2(orderData as Sdk.X2Y2.Types.LocalOrder, orderbookApiKey);
     }
   }
 
@@ -301,6 +321,54 @@ const postLooksRare = async (order: Sdk.LooksRare.Order, apiKey: string) => {
     });
 };
 
+const postX2Y2 = async (order: Sdk.X2Y2.Types.LocalOrder, apiKey: string) => {
+  const exchange = new Sdk.X2Y2.Exchange(config.chainId, apiKey);
+
+  // When lowering the price of an existing listing, X2Y2 requires
+  // passing the order id of the previous listing, so here we have
+  // this check in place so that we can cover such scenarios.
+  let orderId: number | undefined;
+  const upstreamOrder = Sdk.X2Y2.Order.fromLocalOrder(config.chainId, order);
+  if (upstreamOrder.params.type === "sell") {
+    const activeOrder = await redb.oneOrNone(
+      `
+        SELECT
+          (orders.raw_data ->> 'id')::INT AS id
+        FROM orders
+        WHERE orders.token_set_id = $/tokenSetId/
+          AND orders.fillability_status = 'fillable'
+          AND orders.approval_status = 'approved'
+          AND orders.side = 'sell'
+          AND orders.maker = $/maker/
+          AND orders.kind = 'x2y2'
+        LIMIT 1
+      `,
+      {
+        tokenSetId:
+          `token:${upstreamOrder.params.nft.token}:${upstreamOrder.params.nft.tokenId}`.toLowerCase(),
+        maker: toBuffer(upstreamOrder.params.maker),
+      }
+    );
+
+    if (activeOrder?.id) {
+      orderId = activeOrder.id;
+    }
+  }
+
+  await exchange.postOrder(order, orderId).catch((error) => {
+    if (error.response) {
+      logger.error(
+        QUEUE_NAME,
+        `Failed to post order to X2Y2. order=${JSON.stringify(order)}, status: ${
+          error.response.status
+        }, data:${JSON.stringify(error.response.data)}`
+      );
+    }
+
+    throw new Error("Failed to post order to X2Y2");
+  });
+};
+
 export type PostOrderExternalParams =
   | {
       orderData: Sdk.Seaport.Types.OrderComponents;
@@ -311,6 +379,12 @@ export type PostOrderExternalParams =
   | {
       orderData: Sdk.LooksRare.Types.MakerOrderParams;
       orderbook: "looks-rare";
+      orderbookApiKey: string;
+      retry: number;
+    }
+  | {
+      orderData: Sdk.X2Y2.Types.LocalOrder;
+      orderbook: "x2y2";
       orderbookApiKey: string;
       retry: number;
     };

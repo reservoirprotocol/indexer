@@ -1,8 +1,10 @@
+import * as Sdk from "@reservoir0x/sdk";
 import { BaseBuildParams } from "@reservoir0x/sdk/dist/looks-rare/builders/base";
 import axios from "axios";
 
-import { config } from "@/config/index";
 import { redb } from "@/common/db";
+import { fromBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -24,7 +26,7 @@ export const getBuildInfo = async (
   const collectionResult = await redb.oneOrNone(
     `
       SELECT
-        1
+        contracts.address
       FROM collections
       JOIN contracts
         ON collections.contract = contracts.address
@@ -40,9 +42,11 @@ export const getBuildInfo = async (
 
   const buildParams: BaseBuildParams = {
     isOrderAsk: side === "sell",
-    collection: options.contract,
+    collection: fromBuffer(collectionResult.address),
     signer: options.maker,
     price: options.weiPrice,
+    // LooksRare uses WETH instead of ETH for sell orders too
+    currency: Sdk.Common.Addresses.Weth[config.chainId],
     // TODO: We should only use LooksRare's nonce when cross-posting to their orderbook
     nonce: await axios
       .get(

@@ -50,10 +50,6 @@ if (config.doBackgroundWork) {
         // can potentially be more prone to not being able to handle all the
         // affected orders in a single batch).
 
-        // TODO: For validation efficiency, we should maybe store the status
-        // of every bundle item individually (eg. fillability and approval),
-        // so that there is no need to revalidate everything on each change.
-
         switch (data.kind) {
           // Handle changes in ERC20 balances (relevant for 'buy' orders)
           case "buy-balance": {
@@ -272,7 +268,7 @@ if (config.doBackgroundWork) {
                   (CASE
                     WHEN nft_balances.amount >= orders.quantity_remaining THEN upper(orders.valid_between)
                     ELSE to_timestamp($/timestamp/)
-                  END)::timestamptz AS expiration
+                  END)::TIMESTAMPTZ AS expiration
                 FROM orders
                 JOIN nft_balances
                   ON orders.maker = nft_balances.owner
@@ -297,6 +293,8 @@ if (config.doBackgroundWork) {
             // Filter any orders that didn't change status
             const values = fillabilityStatuses
               .filter(({ old_status, new_status }) => old_status !== new_status)
+              // Exclude 'foundation' orders (which need special rules because of the escrowed orderbook)
+              .filter(({ kind }) => kind !== "foundation")
               // When a token gets transferred, X2Y2 will off-chain cancel all the
               // orders from the initial owner, so that if they ever get the token
               // back in their wallet no order will get reactivated (they are able
@@ -319,7 +317,6 @@ if (config.doBackgroundWork) {
                 { table: "orders" }
               );
 
-              // Exclude 'foundation' orders (which need special rules because of the escrowed orderbook)
               await idb.none(
                 `
                   UPDATE orders SET
@@ -331,7 +328,6 @@ if (config.doBackgroundWork) {
                     columns
                   )}) AS x(id, fillability_status, expiration)
                   WHERE orders.id = x.id::TEXT
-                    AND orders.kind != 'foundation'::order_kind_t
                 `
               );
             }
@@ -353,41 +349,119 @@ if (config.doBackgroundWork) {
 
           // Handle changes in ERC721/ERC1155 approvals (relevant for 'sell' orders)
           case "sell-approval": {
-            const result: { id: string }[] = await idb.manyOrNone(
+            const approvalStatuses = await idb.manyOrNone(
               `
-                UPDATE orders SET
-                  approval_status = $/approvalStatus/,
-                  expiration = to_timestamp($/expiration/),
-                  updated_at = now()
-                FROM (
+                SELECT
+                  orders.id,
+                  orders.kind,
+                  orders.approval_status AS old_status,
+                  x.new_status,
+                  x.expiration
+                FROM orders
+                JOIN LATERAL (
                   SELECT
-                    orders.id
-                  FROM orders
-                  JOIN token_sets_tokens
-                    ON orders.token_set_id = token_sets_tokens.token_set_id
-                  WHERE token_sets_tokens.contract = $/contract/
-                    AND orders.maker = $/maker/
-                    AND orders.side = 'sell'
-                    AND orders.conduit = $/operator/
-                    AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
-                    AND orders.approval_status != $/approvalStatus/
+                    (CASE
+                      WHEN nft_approval_events.approved THEN 'approved'
+                      ELSE 'no-approval'
+                    END)::order_approval_status_t AS new_status,
+                    (CASE
+                      WHEN nft_approval_events.approved THEN upper(orders.valid_between)
+                      ELSE to_timestamp($/timestamp/)
+                    END)::TIMESTAMPTZ AS expiration
+                  FROM nft_approval_events
+                  WHERE nft_approval_events.address = orders.contract
+                    AND nft_approval_events.owner = orders.maker
+                    AND nft_approval_events.operator = orders.conduit
+                  ORDER BY nft_approval_events.block DESC
                   LIMIT 1
-                ) x
-                WHERE orders.id = x.id
-                RETURNING orders.id
+                ) x ON TRUE
+                WHERE orders.contract = $/contract/
+                  AND orders.maker = $/maker/
+                  AND orders.side = 'sell'
+                  AND orders.conduit = $/operator/
+                  AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
               `,
               {
                 maker: toBuffer(maker),
                 contract: toBuffer(data.contract),
                 operator: toBuffer(data.operator),
-                approvalStatus: data.approved ? "approved" : "no-approval",
-                expiration: trigger.txTimestamp,
+                timestamp: trigger.txTimestamp,
               }
             );
 
+            // Filter any orders that didn't change status
+            const values = approvalStatuses
+              .filter(({ old_status, new_status }) => old_status !== new_status)
+              // Exclude 'foundation' orders (which need special rules because of the escrowed orderbook)
+              .filter(({ kind }) => kind !== "foundation")
+              .map(({ id, new_status, expiration }) => ({
+                id,
+                approval_status: new_status,
+                expiration: expiration || "infinity",
+              }));
+
+            // Update any orders that did change status
+            if (values.length) {
+              const columns = new pgp.helpers.ColumnSet(["id", "approval_status", "expiration"], {
+                table: "orders",
+              });
+
+              await idb.none(
+                `
+                  UPDATE orders SET
+                    approval_status = x.approval_status::order_approval_status_t,
+                    expiration = x.expiration::TIMESTAMPTZ,
+                    updated_at = now()
+                  FROM (VALUES ${pgp.helpers.values(
+                    values,
+                    columns
+                  )}) AS x(id, approval_status, expiration)
+                  WHERE orders.id = x.id::TEXT
+                `
+              );
+            }
+
+            const cancelledValues = approvalStatuses
+              .filter(
+                // When an approval gets revoked, X2Y2 will off-chain cancel all the
+                // orders from the same owner, so that if they ever re-approve, none
+                // of these orders will get reactivated (they are able to do that by
+                // having their backend refuse to sign on such orders).
+                ({ kind, new_status }) => kind === "x2y2" && new_status === "no-approval"
+              )
+              .map(({ id, expiration }) => ({
+                id,
+                fillability_status: "cancelled",
+                expiration: expiration || "infinity",
+              }));
+
+            // Cancel any orders if needed
+            if (cancelledValues.length) {
+              const columns = new pgp.helpers.ColumnSet(
+                ["id", "fillability_status", "expiration"],
+                {
+                  table: "orders",
+                }
+              );
+
+              await idb.none(
+                `
+                  UPDATE orders SET
+                    fillability_status = x.fillability_status::order_fillability_status_t,
+                    expiration = x.expiration::TIMESTAMPTZ,
+                    updated_at = now()
+                  FROM (VALUES ${pgp.helpers.values(
+                    cancelledValues,
+                    columns
+                  )}) AS x(id, fillability_status, expiration)
+                  WHERE orders.id = x.id::TEXT
+                `
+              );
+            }
+
             // Recheck all affected orders
             await orderUpdatesById.addToQueue(
-              result.map(({ id }) => ({
+              approvalStatuses.map(({ id }) => ({
                 context: `${context}-${id}`,
                 id,
                 trigger,
@@ -447,8 +521,8 @@ export type MakerInfo = {
         // tokens, the allowance is reduced but no associated `Approval` event gets emitted
         // to be able to fully keep track of it off-chain). For this reason, we don't track
         // ERC20 approvals off-chain, but fetch them directly from the blockchain when it's
-        // detected than an approval might have changed. There are three scenarios where an
-        // an approval could have changed:
+        // detected than an approval might have changed. There are two cases when approvals
+        // could have changed (both in the context of a single maker):
         // - we detect an ERC20 `Approval` event (in this case `operator` will be set and
         //   so we recheck the approvals of all orders having that `operator` as conduit)
         // - a `Transfer` event and a sale occur within the same transaction (in this case
@@ -466,9 +540,6 @@ export type MakerInfo = {
         kind: "sell-approval";
         contract: string;
         operator: string;
-        // TODO: Replace explicitly passing the `approved` field with
-        // fetching the latest approval directly from the database
-        approved: boolean;
       };
 };
 

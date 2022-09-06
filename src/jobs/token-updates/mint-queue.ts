@@ -10,7 +10,7 @@ import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
-import MetadataApi from "@/utils/metadata-api";
+import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 
 const QUEUE_NAME = "token-updates-mint-queue";
 
@@ -56,8 +56,9 @@ if (config.doBackgroundWork) {
           }
         );
 
-        const queries: PgPromiseQuery[] = [];
         if (collection) {
+          const queries: PgPromiseQuery[] = [];
+
           // If the collection is readily available in the database then
           // all we needed to do is to associate it with the token
           queries.push({
@@ -112,103 +113,38 @@ if (config.doBackgroundWork) {
               },
             });
           }
-        } else {
-          // Otherwise, we fetch the collection metadata from upstream
-          const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, {
-            allowFallback: true,
-          });
 
-          const tokenIdRange = collection.tokenIdRange
-            ? `numrange(${collection.tokenIdRange[0]}, ${collection.tokenIdRange[1]}, '[]')`
-            : `'(,)'::numrange`;
-          queries.push({
-            query: `
-              INSERT INTO "collections" (
-                "id",
-                "slug",
-                "name",
-                "community",
-                "metadata",
-                "royalties",
-                "contract",
-                "token_id_range",
-                "token_set_id",
-                "minted_timestamp"
-              ) VALUES (
-                $/id/,
-                $/slug/,
-                $/name/,
-                $/community/,
-                $/metadata:json/,
-                $/royalties:json/,
-                $/contract/,
-                $/tokenIdRange:raw/,
-                $/tokenSetId/,
-                $/mintedTimestamp/
-              ) ON CONFLICT DO NOTHING
-            `,
-            values: {
-              id: collection.id,
-              slug: collection.slug,
-              name: collection.name,
-              community: collection.community,
-              metadata: collection.metadata,
-              royalties: collection.royalties,
-              contract: toBuffer(collection.contract),
-              tokenIdRange,
-              tokenSetId: collection.tokenSetId,
+          await idb.none(pgp.helpers.concat(queries));
+
+          if (!config.disableRealtimeMetadataRefresh) {
+            await metadataIndexFetch.addToQueue(
+              [
+                {
+                  kind: "single-token",
+                  data: {
+                    method: config.metadataIndexingMethod,
+                    contract,
+                    tokenId,
+                    collection: collection.id,
+                  },
+                },
+              ],
+              true,
+              getNetworkSettings().metadataMintDelay
+            );
+          }
+        } else {
+          // We fetch the collection metadata from upstream
+          await fetchCollectionMetadata.addToQueue([
+            {
+              contract,
+              tokenId,
               mintedTimestamp,
             },
-          });
-
-          // Since this is the first time we run into this collection,
-          // we update all tokens that match its token definition
-          queries.push({
-            query: `
-              WITH "x" AS (
-                UPDATE "tokens" SET 
-                  "collection_id" = $/collection/,
-                  "updated_at" = now()
-                WHERE "contract" = $/contract/
-                  AND "token_id" <@ $/tokenIdRange:raw/
-                RETURNING 1
-              )
-              UPDATE "collections" SET
-                "token_count" = (SELECT COUNT(*) FROM "x"),
-                "updated_at" = now()
-              WHERE "id" = $/collection/
-            `,
-            values: {
-              contract: toBuffer(collection.contract),
-              tokenIdRange,
-              collection: collection.id,
-            },
-          });
+          ]);
         }
 
-        if (queries.length) {
-          await idb.none(pgp.helpers.concat(queries));
-        }
-
-        if (collection?.id && !config.disableRealtimeMetadataRefresh) {
-          await metadataIndexFetch.addToQueue(
-            [
-              {
-                kind: "single-token",
-                data: {
-                  method: config.metadataIndexingMethod,
-                  contract,
-                  tokenId,
-                  collection: collection.id,
-                },
-              },
-            ],
-            true,
-            getNetworkSettings().metadataMintDelay
-          );
-        }
-
-        // Set any cached information (eg. floor sell, top buy)
+        // Set any cached information (eg. floor sell)
         await tokenRefreshCache.addToQueue(contract, tokenId);
       } catch (error) {
         logger.error(

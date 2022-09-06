@@ -45,6 +45,7 @@ export class SaleActivity {
         logIndex: data.logIndex,
         batchIndex: data.batchIndex,
         orderId: data.orderId,
+        orderSourceIdInt: data.orderSourceIdInt,
       },
     } as ActivitiesEntityInsertParams;
 
@@ -75,4 +76,5 @@ export type FillEventData = {
   blockHash: string;
   timestamp: number;
   orderId: string;
+  orderSourceIdInt: number;
 };

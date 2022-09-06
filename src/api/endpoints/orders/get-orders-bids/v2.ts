@@ -2,6 +2,7 @@
 
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
+import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -15,7 +16,6 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import _ from "lodash";
 
 const version = "v2";
 
@@ -23,10 +23,10 @@ export const getOrdersBidsV2Options: RouteOptions = {
   description: "Bids (offers)",
   notes:
     "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
-  tags: ["api", "Orders"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 5,
+      deprecated: true,
     },
   },
   validate: {
@@ -63,7 +63,11 @@ export const getOrdersBidsV2Options: RouteOptions = {
           )
       ),
       status: Joi.string()
-        .valid("active", "inactive", "expired")
+        .when("maker", {
+          is: Joi.exist(),
+          then: Joi.valid("active", "inactive"),
+          otherwise: Joi.valid("active"),
+        })
         .description(
           "active = currently valid, inactive = temporarily invalid, expired = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
@@ -86,8 +90,7 @@ export const getOrdersBidsV2Options: RouteOptions = {
         .description("Amount of items returned in response."),
     })
       .or("token", "tokenSetId", "maker", "contracts")
-      .oxor("token", "tokenSetId")
-      .with("status", "maker"),
+      .oxor("token", "tokenSetId"),
   },
   response: {
     schema: Joi.object({
@@ -139,7 +142,7 @@ export const getOrdersBidsV2Options: RouteOptions = {
             .items(
               Joi.object({
                 kind: Joi.string(),
-                recipient: Joi.string().lowercase().pattern(regex.address).allow(null),
+                recipient: Joi.string().allow("", null),
                 bps: Joi.number(),
               })
             )
@@ -307,12 +310,6 @@ export const getOrdersBidsV2Options: RouteOptions = {
             orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved')`;
             break;
           }
-
-          case "expired": {
-            // Invalid orders
-            orderStatusFilter = `orders.fillability_status != 'fillable' AND orders.fillability_status != 'no-balance'`;
-            break;
-          }
         }
 
         (query as any).maker = toBuffer(query.maker);
@@ -372,13 +369,12 @@ export const getOrdersBidsV2Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
         let source: SourcesEntity | undefined;
-        if (r.source_id_int !== null) {
-          if (r.token_set_id?.startsWith("token")) {
-            const [, contract, tokenId] = r.token_set_id.split(":");
-            source = sources.get(r.source_id_int, contract, tokenId);
-          } else {
-            source = sources.get(r.source_id_int);
-          }
+
+        if (r.token_set_id?.startsWith("token")) {
+          const [, contract, tokenId] = r.token_set_id.split(":");
+          source = sources.get(Number(r.source_id_int), contract, tokenId);
+        } else {
+          source = sources.get(Number(r.source_id_int));
         }
 
         return {
@@ -402,7 +398,7 @@ export const getOrdersBidsV2Options: RouteOptions = {
           metadata: r.metadata,
           source: {
             id: source?.address,
-            name: source?.name,
+            name: source?.metadata.title || source?.name,
             icon: source?.metadata.icon,
             url: source?.metadata.url,
           },

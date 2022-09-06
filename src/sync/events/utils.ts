@@ -1,15 +1,18 @@
 import { AddressZero } from "@ethersproject/constants";
+import { getTxTrace } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 import { getReferrer } from "@reservoir0x/sdk/dist/utils";
 import pLimit from "p-limit";
 
-import { baseProvider, slowProvider } from "@/common/provider";
+import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { getBlocks, saveBlock } from "@/models/blocks";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getTransaction, saveTransaction } from "@/models/transactions";
+import { getTransactionTrace, saveTransactionTrace } from "@/models/transaction-traces";
+import { OrderKind, getOrderSourceByOrderKind } from "@/orderbook/orders";
 
 export const fetchBlock = async (blockNumber: number, force = false) =>
   getBlocks(blockNumber)
@@ -69,7 +72,7 @@ export const fetchTransaction = async (txHash: string) =>
 
     let tx = await baseProvider.getTransaction(txHash);
     if (!tx) {
-      tx = await slowProvider.getTransaction(txHash);
+      tx = await baseProvider.getTransaction(txHash);
     }
 
     // Also fetch all transactions within the block
@@ -94,45 +97,30 @@ export const fetchTransaction = async (txHash: string) =>
     });
   });
 
-export const getOrderSourceByOrderKind = async (
-  orderKind: string
-): Promise<SourcesEntity | null> => {
-  try {
-    const sources = await Sources.getInstance();
+export const fetchTransactionTrace = async (txHash: string) =>
+  getTransactionTrace(txHash)
+    .catch(async () => {
+      const transactionTrace = await getTxTrace({ hash: txHash }, baseProvider);
 
-    switch (orderKind) {
-      case "x2y2":
-        return sources.getOrInsert("x2y2.io");
-      case "foundation":
-        return sources.getOrInsert("foundation.app");
-      case "looks-rare":
-        return sources.getOrInsert("looksrare.org");
-      case "seaport":
-      case "wyvern-v2":
-      case "wyvern-v2.3":
-        return sources.getOrInsert("opensea.io");
-      case "rarible":
-        return sources.getOrInsert("rarible.com");
-      case "element-erc721":
-      case "element-erc1155":
-        return sources.getOrInsert("element.market");
-      case "quixotic":
-        return sources.getOrInsert("quixotic.io");
-      default:
-        // For all other order kinds we cannot default the source
-        return null;
-    }
-  } catch (error) {
-    return null;
-  }
-};
+      return saveTransactionTrace({
+        hash: txHash,
+        calls: transactionTrace,
+      });
+    })
+    .catch(() => undefined);
 
-export const extractAttributionData = async (txHash: string, orderKind: string) => {
+export const extractAttributionData = async (
+  txHash: string,
+  orderKind: OrderKind,
+  address?: string
+) => {
   const sources = await Sources.getInstance();
 
   let aggregatorSource: SourcesEntity | undefined;
   let fillSource: SourcesEntity | undefined;
   let taker: string | undefined;
+
+  const orderSource = await getOrderSourceByOrderKind(orderKind, address);
 
   // Properly set the taker when filling through router contracts
   const tx = await fetchTransaction(txHash);
@@ -147,19 +135,22 @@ export const extractAttributionData = async (txHash: string, orderKind: string) 
   if (referrer) {
     aggregatorSource = await sources.getOrInsert("reservoir.tools");
     fillSource = await sources.getOrInsert(referrer);
+
+    // Special rule for handling Gem filling directly on Seaport
+    if (fillSource?.domain === "gem.xyz") {
+      aggregatorSource = fillSource;
+    }
   } else if (router === "reservoir.tools") {
     aggregatorSource = await sources.getOrInsert("reservoir.tools");
   } else if (router) {
     aggregatorSource = await sources.getOrInsert(router);
     fillSource = await sources.getOrInsert(router);
   } else {
-    const defaultSourceId = await getOrderSourceByOrderKind(orderKind);
-    if (defaultSourceId) {
-      fillSource = defaultSourceId;
-    }
+    fillSource = orderSource;
   }
 
   return {
+    orderSource,
     fillSource,
     aggregatorSource,
     taker,

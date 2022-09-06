@@ -5,6 +5,7 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { Sources } from "@/models/sources";
+import _ from "lodash";
 
 const version = "v1";
 
@@ -46,7 +47,16 @@ export const getRedirectTokenV1Options: RouteOptions = {
       const [contract, tokenId] = query.token.split(":");
       const tokenUrl = sources.getTokenUrl(source, contract, tokenId);
 
-      return response.redirect(tokenUrl);
+      if (tokenUrl) {
+        return response.redirect(tokenUrl);
+      }
+
+      let redirectUrl = source.domain;
+      if (!_.startsWith(redirectUrl, "http")) {
+        redirectUrl = `https://${redirectUrl}`;
+      }
+
+      return response.redirect(redirectUrl);
     } catch (error) {
       logger.error(`get-redirect-token-${version}-handler`, `Handler failure: ${error}`);
       throw error;

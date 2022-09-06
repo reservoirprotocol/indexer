@@ -55,6 +55,7 @@ export type ActivityMetadata = {
   logIndex?: number;
   batchIndex?: number;
   orderId?: string;
+  orderSourceIdInt?: number;
 };
 
 export type ActivityToken = {

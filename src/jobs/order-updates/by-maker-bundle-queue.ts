@@ -49,6 +49,10 @@ if (config.doBackgroundWork) {
       }
 
       try {
+        // TODO: For validation efficiency, we should maybe store the status
+        // of every bundle item individually (eg. fillability and approval),
+        // so that there is no need to revalidate everything on each change.
+
         switch (data.kind) {
           // Handle changes in ERC721/ERC1155 balances
           case "sell-balance": {

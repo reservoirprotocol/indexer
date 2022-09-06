@@ -3,6 +3,7 @@
 import { splitSignature } from "@ethersproject/bytes";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
+import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
@@ -167,14 +168,15 @@ export const postOrderV2Options: RouteOptions = {
 
         case "seaport": {
           if (!["opensea", "reservoir"].includes(orderbook)) {
-            throw new Error("Unknown orderbook");
+            throw new Error("Unsupported orderbook");
           }
 
           const orderInfo: orders.seaport.OrderInfo = {
             orderParams: order.data,
+            isReservoir: orderbook === "reservoir",
             metadata: {
               schema,
-              source,
+              source: orderbook === "reservoir" ? source : undefined,
             },
           };
 
@@ -199,16 +201,15 @@ export const postOrderV2Options: RouteOptions = {
         }
 
         case "looks-rare": {
-          // Only Reservoir and LooksRare are supported as orderbooks
           if (!["looks-rare", "reservoir"].includes(orderbook)) {
-            throw new Error("Unknown orderbook");
+            throw new Error("Unsupported orderbook");
           }
 
           const orderInfo: orders.looksRare.OrderInfo = {
             orderParams: order.data,
             metadata: {
               schema,
-              source,
+              source: orderbook === "reservoir" ? source : undefined,
             },
           };
 
@@ -227,6 +228,32 @@ export const postOrderV2Options: RouteOptions = {
                 result.id
               }`
             );
+          }
+
+          return { message: "Success", orderId: result.id };
+        }
+
+        case "opensea": {
+          if (orderbook !== "reservoir") {
+            throw new Error("Unsupported orderbook");
+          }
+
+          const orderObject = new Sdk.Seaport.Order(config.chainId, {
+            ...order.data.parameters,
+            signature: order.data.signature,
+          });
+
+          const orderInfo: orders.seaport.OrderInfo = {
+            orderParams: orderObject.params,
+            metadata: {
+              schema,
+            },
+          };
+
+          const [result] = await orders.seaport.save([orderInfo]);
+
+          if (result.status !== "success") {
+            throw Boom.badRequest(result.status);
           }
 
           return { message: "Success", orderId: result.id };

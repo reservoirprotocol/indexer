@@ -60,13 +60,15 @@ export class UserActivities {
     users: string[],
     createdBefore: null | string = null,
     types: string[] = [],
-    limit = 20
+    limit = 20,
+    sortBy = "eventTimestamp"
   ) {
+    const sortByColumn = sortBy == "eventTimestamp" ? "event_timestamp" : "created_at";
     let continuation = "";
     let typesFilter = "";
 
     if (!_.isNull(createdBefore)) {
-      continuation = `AND event_timestamp < $/createdBefore/`;
+      continuation = `AND ${sortByColumn} < $/createdBefore/`;
     }
 
     if (!_.isEmpty(types)) {
@@ -75,7 +77,7 @@ export class UserActivities {
 
     const values = {
       limit,
-      createdBefore,
+      createdBefore: sortBy == "eventTimestamp" ? Number(createdBefore) : createdBefore,
       types: _.join(types, "','"),
     };
 
@@ -108,7 +110,7 @@ export class UserActivities {
              WHERE ${usersFilter}
              ${continuation}
              ${typesFilter}
-             ORDER BY event_timestamp DESC NULLS LAST
+             ORDER BY ${sortByColumn} DESC NULLS LAST
              LIMIT $/limit/`,
       values
     );

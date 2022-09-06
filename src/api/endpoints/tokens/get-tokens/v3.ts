@@ -24,7 +24,6 @@ export const getTokensV3Options: RouteOptions = {
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 21,
       deprecated: true,
     },
   },

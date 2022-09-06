@@ -14,15 +14,15 @@ const version = "v4";
 export const getCollectionsV4Options: RouteOptions = {
   cache: {
     privacy: "public",
-    expiresIn: 10 * 1000,
+    expiresIn: 10000,
   },
   description: "Collections",
   notes:
     "Useful for getting multiple collections to show in a marketplace, or search for particular collections.",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 3,
+      deprecated: true,
     },
   },
   validate: {
@@ -221,7 +221,7 @@ export const getCollectionsV4Options: RouteOptions = {
         conditions.push(`collections.slug = $/slug/`);
       }
 
-      let orderBy = ` ORDER BY collections.all_time_volume DESC NULLS LAST`;
+      let orderBy = ` ORDER BY collections.all_time_volume DESC`;
 
       // Sorting
       switch (query.sortBy) {
@@ -230,7 +230,7 @@ export const getCollectionsV4Options: RouteOptions = {
             conditions.push(`collections.day1_volume < $/continuation/`);
           }
 
-          orderBy = ` ORDER BY collections.day1_volume DESC NULLS LAST`;
+          orderBy = ` ORDER BY collections.day1_volume DESC`;
           break;
 
         case "7DayVolume":
@@ -238,7 +238,7 @@ export const getCollectionsV4Options: RouteOptions = {
             conditions.push(`collections.day7_volume < $/continuation/`);
           }
 
-          orderBy = ` ORDER BY collections.day7_volume DESC NULLS LAST`;
+          orderBy = ` ORDER BY collections.day7_volume DESC`;
           break;
 
         case "30DayVolume":
@@ -246,7 +246,7 @@ export const getCollectionsV4Options: RouteOptions = {
             conditions.push(`collections.day30_volume < $/continuation/`);
           }
 
-          orderBy = ` ORDER BY collections.day30_volume DESC NULLS LAST`;
+          orderBy = ` ORDER BY collections.day30_volume DESC`;
           break;
 
         case "allTimeVolume":
@@ -328,13 +328,13 @@ export const getCollectionsV4Options: RouteOptions = {
               "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
             },
             floorSaleChange: {
-              "1day": r.day1_floor_sell_value
+              "1day": Number(r.day1_floor_sell_value)
                 ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
                 : null,
-              "7day": r.day7_floor_sell_value
+              "7day": Number(r.day7_floor_sell_value)
                 ? Number(r.floor_sell_value) / Number(r.day7_floor_sell_value)
                 : null,
-              "30day": r.day30_floor_sell_value
+              "30day": Number(r.day30_floor_sell_value)
                 ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
                 : null,
             },

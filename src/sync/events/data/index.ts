@@ -7,6 +7,7 @@ import * as weth from "@/events-sync/data/weth";
 import * as element from "@/events-sync/data/element";
 import * as foundation from "@/events-sync/data/foundation";
 import * as looksRare from "@/events-sync/data/looks-rare";
+import * as nouns from "@/events-sync/data/nouns";
 import * as openDao from "@/events-sync/data/opendao";
 import * as quixotic from "@/events-sync/data/quixotic";
 import * as rarible from "@/events-sync/data/rarible";
@@ -15,6 +16,10 @@ import * as wyvernV2 from "@/events-sync/data/wyvern-v2";
 import * as wyvernV23 from "@/events-sync/data/wyvern-v2.3";
 import * as x2y2 from "@/events-sync/data/x2y2";
 import * as zeroExV4 from "@/events-sync/data/zeroex-v4";
+import * as zora from "@/events-sync/data/zora";
+import * as cryptoPunks from "@/events-sync/data/cryptopunks";
+import * as sudoswap from "@/events-sync/data/sudoswap";
+import * as universe from "@/events-sync/data/universe";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -58,7 +63,15 @@ export type EventDataKind =
   | "element-erc721-buy-order-filled"
   | "element-erc1155-sell-order-filled"
   | "element-erc1155-buy-order-filled"
-  | "quixotic-order-filled";
+  | "quixotic-order-filled"
+  | "zora-ask-filled"
+  | "zora-auction-ended"
+  | "nouns-auction-settled"
+  | "cryptopunks-punk-bought"
+  | "cryptopunks-transfer"
+  | "sudoswap-buy"
+  | "sudoswap-sell"
+  | "universe-match";
 
 export type EventData = {
   kind: EventDataKind;
@@ -108,6 +121,14 @@ export const getEventData = (eventDataKinds: EventDataKind[] | undefined) => {
       element.erc1155BuyOrderFilled,
       element.erc1155SellOrderFilled,
       quixotic.orderFulfilled,
+      zora.askFilled,
+      zora.auctionEnded,
+      nouns.auctionSettled,
+      cryptoPunks.punkBought,
+      cryptoPunks.transfer,
+      sudoswap.buy,
+      sudoswap.sell,
+      universe.match,
     ];
   } else {
     return (
@@ -196,6 +217,22 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return element.erc1155BuyOrderFilled;
     case "quixotic-order-filled":
       return quixotic.orderFulfilled;
+    case "zora-ask-filled":
+      return zora.askFilled;
+    case "zora-auction-ended":
+      return zora.auctionEnded;
+    case "nouns-auction-settled":
+      return nouns.auctionSettled;
+    case "cryptopunks-punk-bought":
+      return cryptoPunks.punkBought;
+    case "cryptopunks-transfer":
+      return cryptoPunks.transfer;
+    case "sudoswap-buy":
+      return sudoswap.buy;
+    case "sudoswap-sell":
+      return sudoswap.sell;
+    case "universe-match":
+      return universe.match;
     default:
       return undefined;
   }

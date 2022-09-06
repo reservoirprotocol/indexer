@@ -27,12 +27,6 @@ export type OrderMetadata = {
   source?: string;
 };
 
-const defaultSchemaHash = HashZero;
-export const generateSchemaHash = (schema?: object) =>
-  schema
-    ? "0x" + crypto.createHash("sha256").update(stringify(schema)).digest("hex")
-    : defaultSchemaHash;
-
 // Underlying database model for an order
 export type DbOrder = {
   id: string;
@@ -49,6 +43,9 @@ export type DbOrder = {
   taker: Buffer;
   price: string;
   value: string;
+  currency?: Buffer;
+  currency_price: string;
+  currency_value: string;
   quantity_remaining?: string;
   valid_between: string;
   nonce: string | null;
@@ -59,6 +56,13 @@ export type DbOrder = {
   fee_bps: number;
   fee_breakdown?: object | null;
   dynamic?: boolean | null;
+  needs_conversion: boolean | null;
   raw_data: object;
   expiration: string;
 };
+
+const defaultSchemaHash = HashZero;
+export const generateSchemaHash = (schema?: object) =>
+  schema
+    ? "0x" + crypto.createHash("sha256").update(stringify(schema)).digest("hex")
+    : defaultSchemaHash;

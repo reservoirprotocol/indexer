@@ -24,17 +24,17 @@ export const queue = new Queue(QUEUE_NAME, {
 });
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
-// BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+// BACKGROUND WORKER AND EVENT SYNC BACKFILLER ONLY
+if (config.doBackgroundWork && config.doEventsSyncBackfill) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { fromBlock, toBlock, backfill, eventDataKinds, useSlowProvider } = job.data;
+      const { fromBlock, toBlock, backfill, eventDataKinds, skipNonFillWrites } = job.data;
 
       try {
         logger.info(QUEUE_NAME, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
 
-        await syncEvents(fromBlock, toBlock, { backfill, eventDataKinds, useSlowProvider });
+        await syncEvents(fromBlock, toBlock, { backfill, eventDataKinds, skipNonFillWrites });
       } catch (error) {
         logger.error(QUEUE_NAME, `Events backfill syncing failed: ${error}`);
         throw error;
@@ -54,8 +54,8 @@ export const addToQueue = async (
     blocksPerBatch?: number;
     prioritized?: boolean;
     backfill?: boolean;
+    skipNonFillWrites?: boolean;
     eventDataKinds?: EventDataKind[];
-    useSlowProvider?: boolean;
   }
 ) => {
   // Syncing is done in several batches since the requested block
@@ -76,6 +76,7 @@ export const addToQueue = async (
         fromBlock: from,
         toBlock: to,
         backfill: options?.backfill,
+        skipNonFillWrites: options?.skipNonFillWrites,
         eventDataKinds: options?.eventDataKinds,
       },
       opts: {
