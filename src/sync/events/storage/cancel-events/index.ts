@@ -2,7 +2,7 @@ import { BaseEventParams } from "@/events-sync/parser";
 import { OrderKind } from "@/orderbook/orders";
 
 export * from "@/events-sync/storage/cancel-events/common";
-export * from "@/events-sync/storage/cancel-events/foundation";
+export * from "@/events-sync/storage/cancel-events/on-chain";
 
 export type Event = {
   orderKind: OrderKind;

@@ -57,6 +57,10 @@ if (config.doBackgroundWork) {
 
         // Send any remaining blocks to the backfill queue
         if (localBlock < fromBlock) {
+          logger.info(
+            QUEUE_NAME,
+            `Out of sync: local block ${localBlock} and upstream block ${fromBlock}`
+          );
           await eventsSyncBackfill.addToQueue(localBlock, fromBlock - 1);
         }
 

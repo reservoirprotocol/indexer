@@ -8,7 +8,8 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { regex } from "@/common/utils";
 
-import * as syncCollectionFlagStatus from "@/jobs/token-updates/sync-collection-flag-status";
+import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
+import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 
 export const postRefreshCollectionFlagsOptions: RouteOptions = {
   description: "Refresh tokens flag status for the given collection",
@@ -36,7 +37,19 @@ export const postRefreshCollectionFlagsOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      await syncCollectionFlagStatus.addToQueue(payload.collection, payload.backfill);
+      const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
+      await pendingFlagStatusSyncJobs.add([
+        {
+          kind: "collection",
+          data: {
+            collectionId: payload.collection,
+            backfill: payload.backfill,
+          },
+        },
+      ]);
+
+      await flagStatusProcessQueue.addToQueue();
+
       return { message: "Request accepted" };
     } catch (error) {
       logger.error(`post-refresh-collection-flags-handler`, `Handler failure: ${error}`);

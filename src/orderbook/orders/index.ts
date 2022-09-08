@@ -1,5 +1,6 @@
 // Exports
 
+export * as cryptopunks from "@/orderbook/orders/cryptopunks";
 export * as foundation from "@/orderbook/orders/foundation";
 export * as looksRare from "@/orderbook/orders/looks-rare";
 export * as openDao from "@/orderbook/orders/opendao";

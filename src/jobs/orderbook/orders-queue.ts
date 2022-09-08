@@ -47,6 +47,13 @@ if (config.doBackgroundWork) {
             break;
           }
 
+          case "cryptopunks": {
+            const result = await orders.cryptopunks.save([info as orders.cryptopunks.OrderInfo]);
+            logger.info(QUEUE_NAME, `[cryptopunks] Order save result: ${JSON.stringify(result)}`);
+
+            break;
+          }
+
           case "looks-rare": {
             const result = await orders.looksRare.save(
               [info as orders.looksRare.OrderInfo],
@@ -78,7 +85,7 @@ if (config.doBackgroundWork) {
           }
 
           case "zeroex-v4": {
-            const result = await orders.openDao.save(
+            const result = await orders.zeroExV4.save(
               [info as orders.zeroExV4.OrderInfo],
               relayToArweave
             );
@@ -147,6 +154,11 @@ export type GenericOrderInfo =
   | {
       kind: "seaport";
       info: orders.seaport.OrderInfo;
+      relayToArweave?: boolean;
+    }
+  | {
+      kind: "cryptopunks";
+      info: orders.cryptopunks.OrderInfo;
       relayToArweave?: boolean;
     };
 

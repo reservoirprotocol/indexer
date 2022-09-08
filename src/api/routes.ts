@@ -623,6 +623,12 @@ export const setupRoutes = (server: Server) => {
     options: ordersEndpoints.postOrdersV1Options,
   });
 
+  server.route({
+    method: "POST",
+    path: "/seaport/offers",
+    options: ordersEndpoints.postSeaportOffersV1Options,
+  });
+
   // Owners
 
   server.route({

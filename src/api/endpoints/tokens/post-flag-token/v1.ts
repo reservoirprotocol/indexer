@@ -8,11 +8,9 @@ import _ from "lodash";
 import { logger } from "@/common/logger";
 import { Tokens } from "@/models/tokens";
 import { ApiKeyManager } from "@/models/api-keys";
-import {
-  PendingFlagStatusSyncToken,
-  PendingFlagStatusSyncTokens,
-} from "@/models/pending-flag-status-sync-tokens";
-import * as syncTokensFlagStatus from "@/jobs/token-updates/sync-tokens-flag-status";
+
+import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
+import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 
 const version = "v1";
 
@@ -78,22 +76,23 @@ export const postFlagTokenV1Options: RouteOptions = {
         lastFlagUpdate: currentUtcTime,
       });
 
-      const pendingFlagStatusSyncTokensQueue = new PendingFlagStatusSyncTokens(token.collectionId);
-
-      // Add the tokens to the list
-      await pendingFlagStatusSyncTokensQueue.add(
+      const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
+      await pendingFlagStatusSyncJobs.add(
         [
           {
-            collectionId: token.collectionId,
-            contract: contract,
-            tokenId: tokenId,
-            isFlagged: payload.flag,
-          } as PendingFlagStatusSyncToken,
+            kind: "token",
+            data: {
+              collectionId: token.collectionId,
+              contract: contract,
+              tokenId: tokenId,
+              tokenIsFlagged: payload.flag,
+            },
+          },
         ],
         true
       );
 
-      await syncTokensFlagStatus.addToQueue(token.collectionId, contract);
+      await flagStatusProcessQueue.addToQueue();
 
       logger.info(
         `post-flag-token-${version}-handler`,

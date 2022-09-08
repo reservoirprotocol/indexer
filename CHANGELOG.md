@@ -1,3 +1,71 @@
+# [5.203.0](https://github.com/reservoirprotocol/indexer/compare/v5.202.1...v5.203.0) (2022-09-08)
+
+
+### Features
+
+* updated logic to better handle queue ([#1777](https://github.com/reservoirprotocol/indexer/issues/1777)) ([dc22c60](https://github.com/reservoirprotocol/indexer/commit/dc22c60b22192c1d28410856348a9d13bc4fcac0))
+
+
+
+## [5.202.1](https://github.com/reservoirprotocol/indexer/compare/v5.202.0...v5.202.1) (2022-09-08)
+
+
+### Bug Fixes
+
+* handle cryptopunks as an on-chain orderbook ([1f999f8](https://github.com/reservoirprotocol/indexer/commit/1f999f87c4d2bb5b435abb89c1885e29b6c33c94))
+
+
+
+# [5.202.0](https://github.com/reservoirprotocol/indexer/compare/v5.201.0...v5.202.0) (2022-09-08)
+
+
+### Bug Fixes
+
+* minor tweaks ([a0805a0](https://github.com/reservoirprotocol/indexer/commit/a0805a0f5de09fecb6cf8eb7d462d3f5cf585bed))
+
+
+### Features
+
+* add support for cryptopunks liquidity ([0ced12a](https://github.com/reservoirprotocol/indexer/commit/0ced12a1bc2cf5888c4d35eb9959306adaddf788))
+
+
+
+# [5.201.0](https://github.com/reservoirprotocol/indexer/compare/v5.200.2...v5.201.0) (2022-09-08)
+
+
+### Features
+
+* add api for batch posting raw opensea seaport offers ([d464046](https://github.com/reservoirprotocol/indexer/commit/d464046baf14597bdf91e7370df3b4d429d06624))
+
+
+
+## [5.200.2](https://github.com/reservoirprotocol/indexer/compare/v5.200.1...v5.200.2) (2022-09-08)
+
+
+### Bug Fixes
+
+* debug ([8b9d78e](https://github.com/reservoirprotocol/indexer/commit/8b9d78ee452bc29e860d3f5777e3b2bf35e3880d))
+
+
+
+## [5.200.1](https://github.com/reservoirprotocol/indexer/compare/v5.200.0...v5.200.1) (2022-09-08)
+
+
+### Bug Fixes
+
+* workaround missing trace output ([80a5b2e](https://github.com/reservoirprotocol/indexer/commit/80a5b2e189bd054bbb78e9671eb7e99e5ceae87e))
+
+
+
+# [5.200.0](https://github.com/reservoirprotocol/indexer/compare/v5.199.2...v5.200.0) (2022-09-07)
+
+
+### Features
+
+* allow to sort top bids by expiry/date created ([b7dfc42](https://github.com/reservoirprotocol/indexer/commit/b7dfc42769da5df115f9d07c09537bf5401d90db))
+
+
+
 ## [5.199.2](https://github.com/reservoirprotocol/indexer/compare/v5.199.1...v5.199.2) (2022-09-07)
 
 

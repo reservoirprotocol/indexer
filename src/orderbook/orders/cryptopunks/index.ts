@@ -16,9 +16,10 @@ export type OrderInfo = {
   orderParams: {
     // SDK types
     maker: string;
-    contract: string;
+    side: "sell" | "buy";
     tokenId: string;
     price: string;
+    taker?: string;
     // Additional types for validation (eg. ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
@@ -38,9 +39,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
-      // TODO: Add the marketplace identifier to the order id (see Cryptopunks)
-      // On Foundation, we can only have a single currently active order per NFT
-      const id = keccak256(["address", "uint256"], [orderParams.contract, orderParams.tokenId]);
+      // We can only have a single currently active order per token
+      const id = keccak256(["string", "uint256"], ["cryptopunks", orderParams.tokenId]);
+
+      // We only support listings at the moment
+      if (orderParams.side !== "sell") {
+        return results.push({
+          id,
+          status: "unsupported-side",
+        });
+      }
 
       // Ensure that the order is not cancelled
       const cancelResult = await redb.oneOrNone(
@@ -129,61 +137,35 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Check and save: associated token set
       const schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
 
+      const contract = Sdk.CryptoPunks.Addresses.Exchange[config.chainId];
       const [{ id: tokenSetId }] = await tokenSet.singleToken.save([
         {
-          id: `token:${orderParams.contract}:${orderParams.tokenId}`,
+          id: `token:${contract}:${orderParams.tokenId}`,
           schemaHash,
-          contract: orderParams.contract,
+          contract: contract,
           tokenId: orderParams.tokenId,
         },
       ]);
 
       // Handle: source
       const sources = await Sources.getInstance();
-      let source = await sources.getOrInsert("foundation.app");
+      let source = await sources.getOrInsert("cryptopunks.app");
       if (metadata.source) {
         source = await sources.getOrInsert(metadata.source);
-      }
-
-      // Handle: marketplace fees
-      const feeBreakdown = [
-        // 5% of the price goes to the Foundation treasury.
-        {
-          kind: "marketplace",
-          recipient: "0x67df244584b67e8c51b10ad610aaffa9a402fdb6",
-          bps: 500,
-        },
-      ];
-
-      // Handle: royalties
-      const royaltiesResult = await redb.oneOrNone(
-        `
-          SELECT collections.royalties FROM collections
-          WHERE collections.contract = $/contract/
-          LIMIT 1
-        `,
-        { contract: toBuffer(orderParams.contract) }
-      );
-      for (const { bps, recipient } of royaltiesResult?.royalties || []) {
-        feeBreakdown.push({
-          kind: "royalty",
-          recipient,
-          bps: Number(bps),
-        });
       }
 
       const validFrom = `date_trunc('seconds', to_timestamp(${orderParams.txTimestamp}))`;
       const validTo = `'Infinity'`;
       orderValues.push({
         id,
-        kind: `foundation`,
-        side: "sell",
+        kind: `cryptopunks`,
+        side: orderParams.side,
         fillability_status: "fillable",
         approval_status: "approved",
         token_set_id: tokenSetId,
         token_set_schema_hash: toBuffer(schemaHash),
         maker: toBuffer(orderParams.maker),
-        taker: toBuffer(AddressZero),
+        taker: toBuffer(orderParams.taker ?? AddressZero),
         price: orderParams.price.toString(),
         value: orderParams.price.toString(),
         currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
@@ -195,10 +177,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         nonce: null,
         source_id_int: source?.id,
         is_reservoir: null,
-        contract: toBuffer(orderParams.contract),
+        contract: toBuffer(contract),
         conduit: null,
-        fee_bps: feeBreakdown.map((fb) => fb.bps).reduce((a, b) => a + b, 0),
-        fee_breakdown: feeBreakdown,
+        fee_bps: 0,
+        fee_breakdown: [],
         dynamic: null,
         raw_data: orderParams,
         expiration: validTo,
@@ -211,7 +193,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       });
     } catch (error) {
       logger.error(
-        "orders-foundation-save",
+        "orders-cryptopunks-save",
         `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
       );
     }

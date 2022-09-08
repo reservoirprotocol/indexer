@@ -81,8 +81,6 @@ import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
 import * as nonFlaggedTokenSet from "@/jobs/token-updates/non-flagged-token-set";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
-import * as syncTokensFlagStatus from "@/jobs/token-updates/sync-tokens-flag-status";
-import * as syncCollectionsFlagStatus from "@/jobs/token-updates/sync-collection-flag-status";
 
 import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-order";
 import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
@@ -91,6 +89,9 @@ import * as resyncAttributeCollection from "@/jobs/update-attribute/resync-attri
 import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attribute-floor-sell";
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
+
+import * as flagStatusProcessJob from "@/jobs/flag-status/process-queue";
+import * as flagStatusSyncJob from "@/jobs/flag-status/sync-queue";
 
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,
@@ -148,8 +149,9 @@ export const allJobQueues = [
   tokenRefreshCache.queue,
   nonFlaggedTokenSet.queue,
   fetchCollectionMetadata.queue,
-  syncTokensFlagStatus.queue,
-  syncCollectionsFlagStatus.queue,
+
+  flagStatusProcessJob.queue,
+  flagStatusSyncJob.queue,
 
   handleNewSellOrder.queue,
   handleNewBuyOrder.queue,

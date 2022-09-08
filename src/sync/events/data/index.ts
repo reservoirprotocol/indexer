@@ -68,6 +68,8 @@ export type EventDataKind =
   | "zora-ask-filled"
   | "zora-auction-ended"
   | "nouns-auction-settled"
+  | "cryptopunks-punk-offered"
+  | "cryptopunks-punk-no-longer-for-sale"
   | "cryptopunks-punk-bought"
   | "cryptopunks-transfer"
   | "sudoswap-buy"
@@ -127,6 +129,8 @@ export const getEventData = (eventDataKinds: EventDataKind[] | undefined) => {
       zora.askFilled,
       zora.auctionEnded,
       nouns.auctionSettled,
+      cryptoPunks.punkOffered,
+      cryptoPunks.punkNoLongerForSale,
       cryptoPunks.punkBought,
       cryptoPunks.transfer,
       sudoswap.buy,
@@ -228,6 +232,10 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return zora.auctionEnded;
     case "nouns-auction-settled":
       return nouns.auctionSettled;
+    case "cryptopunks-punk-offered":
+      return cryptoPunks.punkOffered;
+    case "cryptopunks-punk-no-longer-for-sale":
+      return cryptoPunks.punkNoLongerForSale;
     case "cryptopunks-punk-bought":
       return cryptoPunks.punkBought;
     case "cryptopunks-transfer":

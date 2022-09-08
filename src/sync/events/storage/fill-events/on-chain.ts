@@ -2,7 +2,7 @@ import { idb, pgp } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { DbEvent, Event } from "@/events-sync/storage/fill-events";
 
-export const addEventsFoundation = async (events: Event[]) => {
+export const addEventsOnChain = async (events: Event[]) => {
   const fillValues: DbEvent[] = [];
   for (const event of events) {
     fillValues.push({

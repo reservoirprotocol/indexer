@@ -39,6 +39,11 @@ export const getUserTopBidsV1Options: RouteOptions = {
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
+      sortBy: Joi.string()
+        .valid("topBidValue", "dateCreated", "orderExpiry")
+        .default("topBidValue")
+        .description("Order of the items are returned in the response."),
+      sortDirection: Joi.string().lowercase().valid("asc", "desc").default("desc"),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -113,14 +118,49 @@ export const getUserTopBidsV1Options: RouteOptions = {
     const params = request.params as any;
     const query = request.query as any;
     let continuationFilter = "";
+    let sortField = "top_bid_value";
 
     // Set the user value for the query
     (query as any).user = toBuffer(params.user);
 
-    // Check for continuation value
-    if (query.continuation) {
-      query.continuation = Number(splitContinuation(query.continuation)[0]);
-      continuationFilter = `AND top_bid_value < $/continuation/`;
+    switch (query.sortBy) {
+      case "dateCreated":
+        sortField = "order_created_at";
+
+        if (query.continuation) {
+          const contArr = splitContinuation(query.continuation)[0].split("_");
+
+          const sign = query.sortDirection == "desc" ? "<" : ">";
+          query.contColumn = Number(contArr[0]);
+          query.contTokenId = contArr[1];
+          continuationFilter = `AND (extract(epoch from order_created_at) * 1000000, t.token_id) ${sign} ($/contColumn/, $/contTokenId/)`;
+        }
+        break;
+
+      case "orderExpiry":
+        sortField = "top_bid_valid_until";
+
+        if (query.continuation) {
+          const contArr = splitContinuation(query.continuation)[0].split("_");
+
+          const sign = query.sortDirection == "desc" ? "<" : ">";
+          query.contColumn = Number(contArr[0]);
+          query.contTokenId = contArr[1];
+          continuationFilter = `AND (top_bid_valid_until, t.token_id) ${sign} ($/contColumn/, $/contTokenId/)`;
+        }
+        break;
+
+      case "topBidValue":
+      default:
+        if (query.continuation) {
+          const contArr = splitContinuation(query.continuation)[0].split("_");
+
+          const sign = query.sortDirection == "desc" ? "<" : ">";
+          query.contColumn = Number(contArr[0]);
+          query.contTokenId = contArr[1];
+          continuationFilter = `AND (top_bid_value, t.token_id) ${sign} ($/contColumn/, $/contTokenId/)`;
+        }
+        break;
     }
 
     try {
@@ -176,7 +216,8 @@ export const getUserTopBidsV1Options: RouteOptions = {
         FROM nft_balances nb
         JOIN LATERAL (
             SELECT o.token_set_id, o.id AS "top_bid_id", o.price AS "top_bid_price", o.value AS "top_bid_value",
-                   o.maker AS "top_bid_maker", source_id_int, o.created_at AS "order_created_at",
+                   o.maker AS "top_bid_maker", source_id_int, o.created_at "order_created_at",
+                   extract(epoch from o.created_at) * 1000000 AS "order_created_at_micro",
                    DATE_PART('epoch', LOWER(o.valid_between)) AS "top_bid_valid_from",
                    COALESCE(
                      NULLIF(DATE_PART('epoch', UPPER(o.valid_between)), 'Infinity'),
@@ -206,7 +247,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
         WHERE owner = $/user/
         AND amount > 0
         ${continuationFilter}
-        ORDER BY top_bid_value DESC
+        ORDER BY ${sortField} ${query.sortDirection}, token_id
         LIMIT $/limit/
       `;
 
@@ -252,11 +293,26 @@ export const getUserTopBidsV1Options: RouteOptions = {
         };
       });
 
-      let continuation: number | null = null;
+      let continuation: string | null = null;
       if (bids.length >= query.limit) {
         const lastBid = _.last(bids);
         if (lastBid) {
-          continuation = lastBid.top_bid_value;
+          switch (query.sortBy) {
+            case "dateCreated":
+              continuation = lastBid.order_created_at_micro;
+              break;
+
+            case "orderExpiry":
+              continuation = lastBid.top_bid_valid_until;
+              break;
+
+            case "topBidValue":
+            default:
+              continuation = lastBid.top_bid_value;
+              break;
+          }
+
+          continuation += "_" + lastBid.token_id;
         }
       }
 

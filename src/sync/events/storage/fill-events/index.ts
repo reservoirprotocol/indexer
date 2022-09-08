@@ -3,7 +3,7 @@ import { OrderKind } from "@/orderbook/orders";
 
 export * from "@/events-sync/storage/fill-events/common";
 export * from "@/events-sync/storage/fill-events/partial";
-export * from "@/events-sync/storage/fill-events/foundation";
+export * from "@/events-sync/storage/fill-events/on-chain";
 
 export type Event = {
   orderKind: OrderKind;

@@ -2,16 +2,17 @@
 
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { extendLock, redis, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 
 import { Tokens } from "@/models/tokens";
 import * as nonFlaggedTokenSet from "@/jobs/token-updates/non-flagged-token-set";
 import MetadataApi from "@/utils/metadata-api";
-import _ from "lodash";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
+import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
+import { randomUUID } from "crypto";
 
-const QUEUE_NAME = "sync-tokens-flag-status";
+const QUEUE_NAME = "flag-status-sync-queue";
 const LIMIT = 4;
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -31,17 +32,23 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { collectionId, contract } = job.data;
 
-      job.data.addToQueue = true;
-      job.data.addToQueueDelay = 5000;
+      logger.info(QUEUE_NAME, `Sync started. collectionId:${collectionId}, contract:${contract}`);
+
+      let delay = 5000;
 
       // Get the tokens from the list
       const pendingFlagStatusSyncTokensQueue = new PendingFlagStatusSyncTokens(collectionId);
       const pendingSyncFlagStatusTokens = await pendingFlagStatusSyncTokensQueue.get(LIMIT);
 
-      if (_.isEmpty(pendingSyncFlagStatusTokens)) {
-        logger.info(QUEUE_NAME, `Recalc TokenSet. contract:${contract}`);
+      if (pendingSyncFlagStatusTokens.length == 0) {
+        logger.info(
+          QUEUE_NAME,
+          `Sync completed. collectionId:${collectionId}, contract:${contract}`
+        );
 
-        job.data.addToQueue = false;
+        await releaseLock(getLockName());
+
+        await flagStatusProcessQueue.addToQueue();
         await nonFlaggedTokenSet.addToQueue(contract, collectionId);
 
         return;
@@ -73,7 +80,7 @@ if (config.doBackgroundWork) {
                 `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
               );
 
-              job.data.addToQueueDelay = 60 * 1000;
+              delay = 60 * 1000;
 
               await pendingFlagStatusSyncTokensQueue.add([pendingSyncFlagStatusToken]);
             } else {
@@ -85,22 +92,23 @@ if (config.doBackgroundWork) {
           }
         })
       );
+
+      if (await extendLock(getLockName(), 60 * 5)) {
+        await addToQueue(collectionId, contract, delay);
+      }
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
-
-  worker.on("completed", async (job) => {
-    if (job.data.addToQueue) {
-      await addToQueue(job.data.collectionId, job.data.contract, job.data.addToQueueDelay);
-    }
-  });
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 }
 
+export const getLockName = () => {
+  return `${QUEUE_NAME}-lock`;
+};
+
 export const addToQueue = async (collectionId: string, contract: string, delay = 0) => {
-  const jobId = `${collectionId}:${contract}`;
-  await queue.add(jobId, { collectionId, contract }, { jobId, delay });
+  await queue.add(randomUUID(), { collectionId, contract }, { delay });
 };

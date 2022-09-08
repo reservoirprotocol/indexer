@@ -17,3 +17,4 @@ export * from "@/api/endpoints/orders/post-order/v1";
 export * from "@/api/endpoints/orders/post-order/v2";
 export * from "@/api/endpoints/orders/post-order/v3";
 export * from "@/api/endpoints/orders/post-orders/v1";
+export * from "@/api/endpoints/orders/post-seaport-offers/v1";
