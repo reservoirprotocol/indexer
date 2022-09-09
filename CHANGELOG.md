@@ -1,3 +1,12 @@
+## [5.209.1](https://github.com/reservoirprotocol/indexer/compare/v5.209.0...v5.209.1) (2022-09-09)
+
+
+### Bug Fixes
+
+* source fetch icon ([e356935](https://github.com/reservoirprotocol/indexer/commit/e3569353708c447ff5fff814da8bd23a65ce0408))
+
+
+
 # [5.209.0](https://github.com/reservoirprotocol/indexer/compare/v5.208.1...v5.209.0) (2022-09-09)
 
 

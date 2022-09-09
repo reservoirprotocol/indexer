@@ -68,6 +68,8 @@ if (config.doBackgroundWork) {
         iconUrl = `https://${_.trimStart(iconUrl, "//")}`;
       } else if (iconUrl && _.startsWith(iconUrl, "/")) {
         iconUrl = `${url}${iconUrl}`;
+      } else if (iconUrl && !_.startsWith(iconUrl, "http")) {
+        iconUrl = `${url}/${iconUrl}`;
       }
 
       const tokenUrlMainnet = getTokenUrl(html, url, "mainnet");
