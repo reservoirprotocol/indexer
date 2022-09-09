@@ -16,6 +16,7 @@ import {
 import * as flagStatusSyncJob from "@/jobs/flag-status/sync-queue";
 import _ from "lodash";
 import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
+import { randomUUID } from "crypto";
 
 const QUEUE_NAME = "flag-status-process-queue";
 
@@ -234,5 +235,5 @@ const getRecentTransferredTokens = async (collectionId: string) => {
 };
 
 export const addToQueue = async () => {
-  await queue.add(QUEUE_NAME, {}, { jobId: QUEUE_NAME });
+  await queue.add(randomUUID(), {});
 };
