@@ -129,15 +129,15 @@ export const getEventData = (eventDataKinds: EventDataKind[] | undefined) => {
       zora.askFilled,
       zora.auctionEnded,
       nouns.auctionSettled,
-      cryptoPunks.punkOffered,
-      cryptoPunks.punkNoLongerForSale,
+      // cryptoPunks.punkOffered,
+      // cryptoPunks.punkNoLongerForSale,
       cryptoPunks.punkBought,
       cryptoPunks.transfer,
-      sudoswap.buy,
-      sudoswap.sell,
-      universe.match,
-      nftx.minted,
-      nftx.redeemed,
+      // sudoswap.buy,
+      // sudoswap.sell,
+      // universe.match,
+      // nftx.minted,
+      // nftx.redeemed,
     ];
   } else {
     return (
