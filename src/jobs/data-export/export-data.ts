@@ -41,8 +41,6 @@ if (config.doBackgroundWork) {
       const { kind } = job.data;
 
       if (await acquireLock(getLockName(kind), 60 * 5)) {
-        logger.info(QUEUE_NAME, `Lock acquired: ${kind}`);
-
         try {
           const { cursor, sequenceNumber } = await getSequenceInfo(kind);
           const { data, nextCursor } = await getDataSource(kind).getSequenceData(
@@ -74,10 +72,8 @@ if (config.doBackgroundWork) {
         }
 
         await releaseLock(getLockName(kind));
-
-        logger.info(QUEUE_NAME, `Lock released: ${kind}`);
       } else {
-        logger.info(QUEUE_NAME, `Lock NOT acquired: ${kind}`);
+        logger.info(QUEUE_NAME, `Unable to acquire lock: ${kind}`);
       }
     },
     { connection: redis.duplicate(), concurrency: 15 }
