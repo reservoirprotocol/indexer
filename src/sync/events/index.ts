@@ -1,5 +1,5 @@
 import { Interface, defaultAbiCoder } from "@ethersproject/abi";
-import { Log } from "@ethersproject/abstract-provider";
+import { Filter, Log } from "@ethersproject/abstract-provider";
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
 import { parseCallTrace, searchForCall } from "@georgeroman/evm-tx-simulator";
@@ -50,9 +50,24 @@ export const syncEvents = async (
   fromBlock: number,
   toBlock: number,
   options?: {
+    // When backfilling, certain further processes will be disabled
     backfill?: boolean;
+    // When true, writing of any non-sale event is disabled
     skipNonFillWrites?: boolean;
-    eventDataKinds?: EventDataKind[];
+    syncDetails:
+      | {
+          method: "event-data-kind";
+          eventDataKinds: EventDataKind[];
+        }
+      | {
+          method: "address";
+          // By default, ethers doesn't support filtering by multiple addresses.
+          // A workaround for that is included in the V2 indexer, but for now we
+          // simply skip it since there aren't many use-cases for filtering that
+          // includes multiple addresses.
+          // https://github.com/reservoirprotocol/indexer-v2/blob/main/src/syncer/base/index.ts
+          address: string;
+        };
   }
 ) => {
   // --- Handle: fetch and process events ---
@@ -89,198 +104,291 @@ export const syncEvents = async (
     _.range(fromBlock, toBlock + 1).map((block) => limit(() => syncEventsUtils.fetchBlock(block)))
   );
 
-  const eventDatas = getEventData(options?.eventDataKinds);
-  await baseProvider
-    .getLogs({
-      // Only keep unique topics (eg. an example of duplicated topics are
-      // erc721 and erc20 transfers which have the exact same signature)
-      topics: [[...new Set(eventDatas.map(({ topic }) => topic))]],
+  // --- Generate the event filtering parameters ---
+
+  // By default, we filter by all available topics
+  let eventFilter: Filter = {
+    // Convert to a set in order to skip duplicate topics
+    topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
+    fromBlock,
+    toBlock,
+  };
+
+  if (options?.syncDetails?.method === "event-data-kind") {
+    // Filter by a subset of topics
+    eventFilter = {
+      // Convert to a set in order to skip duplicate topics
+      topics: [
+        [...new Set(getEventData(options.syncDetails.eventDataKinds).map(({ topic }) => topic))],
+      ],
       fromBlock,
       toBlock,
-    })
-    .then(async (logs) => {
-      const ftTransferEvents: es.ftTransfers.Event[] = [];
-      const nftApprovalEvents: es.nftApprovals.Event[] = [];
-      const nftTransferEvents: es.nftTransfers.Event[] = [];
-      const bulkCancelEvents: es.bulkCancels.Event[] = [];
-      const nonceCancelEvents: es.nonceCancels.Event[] = [];
-      const cancelEvents: es.cancels.Event[] = [];
-      const cancelEventsOnChain: es.cancels.Event[] = [];
-      const fillEvents: es.fills.Event[] = [];
-      const fillEventsPartial: es.fills.Event[] = [];
-      const fillEventsOnChain: es.fills.Event[] = [];
-      const cryptopunksOrders: Cryptopunks.OrderInfo[] = [];
-      const foundationOrders: Foundation.OrderInfo[] = [];
+    };
+  } else if (options?.syncDetails?.method === "address") {
+    // Filter by contract address
+    eventFilter = {
+      address: options.syncDetails.address,
+      fromBlock,
+      toBlock,
+    };
+  }
 
-      // Keep track of all events within the currently processing transaction
-      let currentTx: string | undefined;
-      let currentTxEvents: {
-        log: Log;
-        address: string;
-        logIndex: number;
-      }[] = [];
+  const availableEventData = getEventData();
+  await baseProvider.getLogs(eventFilter).then(async (logs) => {
+    const ftTransferEvents: es.ftTransfers.Event[] = [];
+    const nftApprovalEvents: es.nftApprovals.Event[] = [];
+    const nftTransferEvents: es.nftTransfers.Event[] = [];
+    const bulkCancelEvents: es.bulkCancels.Event[] = [];
+    const nonceCancelEvents: es.nonceCancels.Event[] = [];
+    const cancelEvents: es.cancels.Event[] = [];
+    const cancelEventsOnChain: es.cancels.Event[] = [];
+    const fillEvents: es.fills.Event[] = [];
+    const fillEventsPartial: es.fills.Event[] = [];
+    const fillEventsOnChain: es.fills.Event[] = [];
+    const cryptopunksOrders: Cryptopunks.OrderInfo[] = [];
+    const foundationOrders: Foundation.OrderInfo[] = [];
 
-      const currentTxHasWethTransfer = () => {
-        for (const event of currentTxEvents.slice(0, -1).reverse()) {
-          const erc20EventData = getEventData(["erc20-transfer"])[0];
-          if (
-            event.log.topics[0] === erc20EventData.topic &&
-            event.log.topics.length === erc20EventData.numTopics &&
-            erc20EventData.addresses?.[event.log.address.toLowerCase()]
-          ) {
-            return true;
-          }
+    // Keep track of all events within the currently processing transaction
+    let currentTx: string | undefined;
+    let currentTxEvents: {
+      log: Log;
+      address: string;
+      logIndex: number;
+    }[] = [];
+
+    const currentTxHasWethTransfer = () => {
+      for (const event of currentTxEvents.slice(0, -1).reverse()) {
+        const erc20EventData = getEventData(["erc20-transfer"])[0];
+        if (
+          event.log.topics[0] === erc20EventData.topic &&
+          event.log.topics.length === erc20EventData.numTopics &&
+          erc20EventData.addresses?.[event.log.address.toLowerCase()]
+        ) {
+          return true;
         }
-        return false;
-      };
+      }
+      return false;
+    };
 
-      // For working around some bug in the CryptoPunks contract
-      const cryptopunksTransferEvents: {
-        to: string;
-        txHash: string;
-      }[] = [];
+    // For keeping track of individual Sudoswap trades per transaction
+    const sudoswapTrades = {
+      buy: new Map<string, number>(),
+      sell: new Map<string, number>(),
+    };
 
-      // For keeping track of individual Sudoswap trades per transaction
-      const sudoswapTrades = {
-        buy: new Map<string, number>(),
-        sell: new Map<string, number>(),
-      };
+    for (const log of logs) {
+      try {
+        const baseEventParams = await parseEvent(log, blocksCache);
+        blocksSet.add(`${log.blockNumber}-${log.blockHash}`);
 
-      for (const log of logs) {
-        try {
-          const baseEventParams = await parseEvent(log, blocksCache);
-          blocksSet.add(`${log.blockNumber}-${log.blockHash}`);
-
-          // It's quite important from a performance perspective to have
-          // the block data available before proceeding with the events
-          if (!blocksCache.has(baseEventParams.block)) {
-            blocksCache.set(
-              baseEventParams.block,
-              await blocksModel.saveBlock({
-                number: baseEventParams.block,
-                hash: baseEventParams.blockHash,
-                timestamp: baseEventParams.timestamp,
-              })
-            );
-          }
-
-          // Save the event in the currently processing transaction data
-          if (currentTx !== baseEventParams.txHash) {
-            currentTx = baseEventParams.txHash;
-            currentTxEvents = [];
-          }
-          currentTxEvents.push({
-            log,
-            address: baseEventParams.address,
-            logIndex: baseEventParams.logIndex,
-          });
-
-          // Find first matching event:
-          // - matching topic
-          // - matching number of topics (eg. indexed fields)
-          // - matching addresses
-          const eventData = eventDatas.find(
-            ({ addresses, topic, numTopics }) =>
-              log.topics[0] === topic &&
-              log.topics.length === numTopics &&
-              (addresses ? addresses[log.address.toLowerCase()] : true)
+        // It's quite important from a performance perspective to have
+        // the block data available before proceeding with the events
+        if (!blocksCache.has(baseEventParams.block)) {
+          blocksCache.set(
+            baseEventParams.block,
+            await blocksModel.saveBlock({
+              number: baseEventParams.block,
+              hash: baseEventParams.blockHash,
+              timestamp: baseEventParams.timestamp,
+            })
           );
+        }
 
-          switch (eventData?.kind) {
-            // Erc721
+        // Save the event in the currently processing transaction data
+        if (currentTx !== baseEventParams.txHash) {
+          currentTx = baseEventParams.txHash;
+          currentTxEvents = [];
+        }
+        currentTxEvents.push({
+          log,
+          address: baseEventParams.address,
+          logIndex: baseEventParams.logIndex,
+        });
 
-            case "erc721-transfer": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const from = parsedLog.args["from"].toLowerCase();
-              const to = parsedLog.args["to"].toLowerCase();
-              const tokenId = parsedLog.args["tokenId"].toString();
+        // Find first matching event:
+        // - matching topic
+        // - matching number of topics (eg. indexed fields)
+        // - matching addresses
+        const eventData = availableEventData.find(
+          ({ addresses, topic, numTopics }) =>
+            log.topics[0] === topic &&
+            log.topics.length === numTopics &&
+            (addresses ? addresses[log.address.toLowerCase()] : true)
+        );
 
-              nftTransferEvents.push({
-                kind: "erc721",
-                from,
-                to,
+        switch (eventData?.kind) {
+          // Erc721
+
+          case "erc721-transfer": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const from = parsedLog.args["from"].toLowerCase();
+            const to = parsedLog.args["to"].toLowerCase();
+            const tokenId = parsedLog.args["tokenId"].toString();
+
+            nftTransferEvents.push({
+              kind: "erc721",
+              from,
+              to,
+              tokenId,
+              amount: "1",
+              baseEventParams,
+            });
+
+            // Make sure to only handle the same data once per transaction
+            const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${tokenId}`;
+
+            makerInfos.push({
+              context: `${contextPrefix}-${from}-sell-balance`,
+              maker: from,
+              trigger: {
+                kind: "balance-change",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              data: {
+                kind: "sell-balance",
+                contract: baseEventParams.address,
                 tokenId,
-                amount: "1",
-                baseEventParams,
+              },
+            });
+            makerInfos.push({
+              context: `${contextPrefix}-${to}-sell-balance`,
+              maker: to,
+              trigger: {
+                kind: "balance-change",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              data: {
+                kind: "sell-balance",
+                contract: baseEventParams.address,
+                tokenId,
+              },
+            });
+
+            if (from === AddressZero) {
+              mintInfos.push({
+                contract: baseEventParams.address,
+                tokenId,
+                mintedTimestamp: baseEventParams.timestamp,
               });
 
-              // Make sure to only handle the same data once per transaction
-              const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${tokenId}`;
-
-              makerInfos.push({
-                context: `${contextPrefix}-${from}-sell-balance`,
-                maker: from,
-                trigger: {
-                  kind: "balance-change",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-                data: {
-                  kind: "sell-balance",
-                  contract: baseEventParams.address,
-                  tokenId,
-                },
-              });
-              makerInfos.push({
-                context: `${contextPrefix}-${to}-sell-balance`,
-                maker: to,
-                trigger: {
-                  kind: "balance-change",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-                data: {
-                  kind: "sell-balance",
-                  contract: baseEventParams.address,
-                  tokenId,
-                },
-              });
-
-              if (from === AddressZero) {
-                mintInfos.push({
-                  contract: baseEventParams.address,
-                  tokenId,
-                  mintedTimestamp: baseEventParams.timestamp,
-                });
-
-                // Treat mints as sales
-                if (!NS.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
-                  if (!tokensMinted.has(baseEventParams.txHash)) {
-                    tokensMinted.set(baseEventParams.txHash, []);
-                  }
-                  tokensMinted.get(baseEventParams.txHash)!.push({
-                    contract: baseEventParams.address,
-                    tokenId,
-                    from,
-                    amount: "1",
-                    baseEventParams,
-                  });
+              // Treat mints as sales
+              if (!NS.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
+                if (!tokensMinted.has(baseEventParams.txHash)) {
+                  tokensMinted.set(baseEventParams.txHash, []);
                 }
+                tokensMinted.get(baseEventParams.txHash)!.push({
+                  contract: baseEventParams.address,
+                  tokenId,
+                  from,
+                  amount: "1",
+                  baseEventParams,
+                });
               }
-
-              break;
             }
 
-            // Erc1155
+            break;
+          }
 
-            case "erc1155-transfer-single": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const from = parsedLog.args["from"].toLowerCase();
-              const to = parsedLog.args["to"].toLowerCase();
-              const tokenId = parsedLog.args["tokenId"].toString();
-              const amount = parsedLog.args["amount"].toString();
+          // Erc1155
 
+          case "erc1155-transfer-single": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const from = parsedLog.args["from"].toLowerCase();
+            const to = parsedLog.args["to"].toLowerCase();
+            const tokenId = parsedLog.args["tokenId"].toString();
+            const amount = parsedLog.args["amount"].toString();
+
+            nftTransferEvents.push({
+              kind: "erc1155",
+              from,
+              to,
+              tokenId,
+              amount,
+              baseEventParams,
+            });
+
+            // Make sure to only handle the same data once per transaction
+            const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${tokenId}`;
+
+            makerInfos.push({
+              context: `${contextPrefix}-${from}-sell-balance`,
+              maker: from,
+              trigger: {
+                kind: "balance-change",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              data: {
+                kind: "sell-balance",
+                contract: baseEventParams.address,
+                tokenId,
+              },
+            });
+            makerInfos.push({
+              context: `${contextPrefix}-${to}-sell-balance`,
+              maker: to,
+              trigger: {
+                kind: "balance-change",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              data: {
+                kind: "sell-balance",
+                contract: baseEventParams.address,
+                tokenId,
+              },
+            });
+
+            if (from === AddressZero) {
+              mintInfos.push({
+                contract: baseEventParams.address,
+                tokenId,
+                mintedTimestamp: baseEventParams.timestamp,
+              });
+
+              // Treat mints as sales
+              if (!NS.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
+                if (!tokensMinted.has(baseEventParams.txHash)) {
+                  tokensMinted.set(baseEventParams.txHash, []);
+                }
+                tokensMinted.get(baseEventParams.txHash)!.push({
+                  contract: baseEventParams.address,
+                  tokenId,
+                  from,
+                  amount,
+                  baseEventParams,
+                });
+              }
+            }
+
+            break;
+          }
+
+          case "erc1155-transfer-batch": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const from = parsedLog.args["from"].toLowerCase();
+            const to = parsedLog.args["to"].toLowerCase();
+            const tokenIds = parsedLog.args["tokenIds"].map(String);
+            const amounts = parsedLog.args["amounts"].map(String);
+
+            const count = Math.min(tokenIds.length, amounts.length);
+            for (let i = 0; i < count; i++) {
               nftTransferEvents.push({
                 kind: "erc1155",
                 from,
                 to,
-                tokenId,
-                amount,
-                baseEventParams,
+                tokenId: tokenIds[i],
+                amount: amounts[i],
+                baseEventParams: {
+                  ...baseEventParams,
+                  batchIndex: i + 1,
+                },
               });
 
               // Make sure to only handle the same data once per transaction
-              const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${tokenId}`;
+              const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${tokenIds[i]}`;
 
               makerInfos.push({
                 context: `${contextPrefix}-${from}-sell-balance`,
@@ -293,7 +401,7 @@ export const syncEvents = async (
                 data: {
                   kind: "sell-balance",
                   contract: baseEventParams.address,
-                  tokenId,
+                  tokenId: tokenIds[i],
                 },
               });
               makerInfos.push({
@@ -307,14 +415,14 @@ export const syncEvents = async (
                 data: {
                   kind: "sell-balance",
                   contract: baseEventParams.address,
-                  tokenId,
+                  tokenId: tokenIds[i],
                 },
               });
 
               if (from === AddressZero) {
                 mintInfos.push({
                   contract: baseEventParams.address,
-                  tokenId,
+                  tokenId: tokenIds[i],
                   mintedTimestamp: baseEventParams.timestamp,
                 });
 
@@ -325,194 +433,329 @@ export const syncEvents = async (
                   }
                   tokensMinted.get(baseEventParams.txHash)!.push({
                     contract: baseEventParams.address,
-                    tokenId,
+                    tokenId: tokenIds[i],
+                    amount: amounts[i],
                     from,
-                    amount,
                     baseEventParams,
                   });
                 }
               }
+            }
 
+            break;
+          }
+
+          // Erc721/Erc1155 common
+
+          case "erc721/1155-approval-for-all": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const owner = parsedLog.args["owner"].toLowerCase();
+            const operator = parsedLog.args["operator"].toLowerCase();
+            const approved = parsedLog.args["approved"];
+
+            nftApprovalEvents.push({
+              owner,
+              operator,
+              approved,
+              baseEventParams,
+            });
+
+            // Make sure to only handle the same data once per on-chain event
+            // (instead of once per transaction as we do with balance updates
+            // since we're handling nft approvals differently - checking them
+            // individually).
+            const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${baseEventParams.logIndex}`;
+
+            makerInfos.push({
+              context: `${contextPrefix}-${owner}-sell-approval`,
+              maker: owner,
+              trigger: {
+                kind: "approval-change",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              data: {
+                kind: "sell-approval",
+                contract: baseEventParams.address,
+                operator,
+              },
+            });
+
+            break;
+          }
+
+          // Erc20
+
+          case "erc20-transfer": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const from = parsedLog.args["from"].toLowerCase();
+            const to = parsedLog.args["to"].toLowerCase();
+            const amount = parsedLog.args["amount"].toString();
+
+            ftTransferEvents.push({
+              from,
+              to,
+              amount,
+              baseEventParams,
+            });
+
+            // Make sure to only handle the same data once per transaction
+            const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
+
+            makerInfos.push({
+              context: `${contextPrefix}-${from}-buy-balance`,
+              maker: from,
+              trigger: {
+                kind: "balance-change",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              data: {
+                kind: "buy-balance",
+                contract: baseEventParams.address,
+              },
+            });
+            makerInfos.push({
+              context: `${contextPrefix}-${to}-buy-balance`,
+              maker: to,
+              trigger: {
+                kind: "balance-change",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              data: {
+                kind: "buy-balance",
+                contract: baseEventParams.address,
+              },
+            });
+
+            break;
+          }
+
+          case "erc20-approval": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const owner = parsedLog.args["owner"].toLowerCase();
+            const spender = parsedLog.args["spender"].toLowerCase();
+
+            // Make sure to only handle the same data once per transaction
+            const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
+
+            makerInfos.push({
+              context: `${contextPrefix}-${owner}-${spender}-buy-approval`,
+              maker: owner,
+              trigger: {
+                kind: "approval-change",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              data: {
+                kind: "buy-approval",
+                contract: Sdk.Common.Addresses.Weth[config.chainId],
+                operator: spender,
+              },
+            });
+
+            break;
+          }
+
+          // Weth
+
+          case "weth-deposit": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const to = parsedLog.args["to"].toLowerCase();
+            const amount = parsedLog.args["amount"].toString();
+
+            ftTransferEvents.push({
+              from: AddressZero,
+              to,
+              amount,
+              baseEventParams,
+            });
+
+            // Make sure to only handle the same data once per transaction
+            const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
+
+            makerInfos.push({
+              context: `${contextPrefix}-${to}-buy-balance`,
+              maker: to,
+              trigger: {
+                kind: "balance-change",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              data: {
+                kind: "buy-balance",
+                contract: baseEventParams.address,
+              },
+            });
+
+            break;
+          }
+
+          case "weth-withdrawal": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const from = parsedLog.args["from"].toLowerCase();
+            const amount = parsedLog.args["amount"].toString();
+
+            ftTransferEvents.push({
+              from,
+              to: AddressZero,
+              amount,
+              baseEventParams,
+            });
+
+            // Make sure to only handle the same data once per transaction
+            const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
+
+            makerInfos.push({
+              context: `${contextPrefix}-${from}-buy-balance`,
+              maker: from,
+              trigger: {
+                kind: "balance-change",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              data: {
+                kind: "buy-balance",
+                contract: baseEventParams.address,
+              },
+            });
+
+            break;
+          }
+
+          // X2Y2
+
+          case "x2y2-order-cancelled": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const orderId = parsedLog.args["itemHash"].toLowerCase();
+
+            cancelEvents.push({
+              orderKind: "x2y2",
+              orderId,
+              baseEventParams,
+            });
+            orderInfos.push({
+              context: `cancelled-${orderId}-${baseEventParams.txHash}`,
+              id: orderId,
+              trigger: {
+                kind: "cancel",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+                logIndex: baseEventParams.logIndex,
+                batchIndex: baseEventParams.batchIndex,
+                blockHash: baseEventParams.blockHash,
+              },
+            });
+
+            break;
+          }
+
+          case "x2y2-order-inventory": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const orderId = parsedLog.args["itemHash"].toLowerCase();
+            const maker = parsedLog.args["maker"].toLowerCase();
+            let taker = parsedLog.args["taker"].toLowerCase();
+            const currency = parsedLog.args["currency"].toLowerCase();
+            const item = parsedLog.args["item"];
+            const op = parsedLog.args["detail"].op;
+
+            // 1 - COMPLETE_SELL_OFFER
+            // 2 - COMPLETE_BUY_OFFER
+            // 5 - COMPLETE_AUCTION
+            if (![1, 2, 5].includes(op)) {
+              // Skip any irrelevant events
               break;
             }
 
-            case "erc1155-transfer-batch": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const from = parsedLog.args["from"].toLowerCase();
-              const to = parsedLog.args["to"].toLowerCase();
-              const tokenIds = parsedLog.args["tokenIds"].map(String);
-              const amounts = parsedLog.args["amounts"].map(String);
+            // Handle: attribution
 
-              const count = Math.min(tokenIds.length, amounts.length);
-              for (let i = 0; i < count; i++) {
-                nftTransferEvents.push({
-                  kind: "erc1155",
-                  from,
-                  to,
-                  tokenId: tokenIds[i],
-                  amount: amounts[i],
-                  baseEventParams: {
-                    ...baseEventParams,
-                    batchIndex: i + 1,
-                  },
-                });
+            const orderKind = "x2y2";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
 
-                // Make sure to only handle the same data once per transaction
-                const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${tokenIds[i]}`;
+            // Handle: prices
 
-                makerInfos.push({
-                  context: `${contextPrefix}-${from}-sell-balance`,
-                  maker: from,
-                  trigger: {
-                    kind: "balance-change",
-                    txHash: baseEventParams.txHash,
-                    txTimestamp: baseEventParams.timestamp,
-                  },
-                  data: {
-                    kind: "sell-balance",
-                    contract: baseEventParams.address,
-                    tokenId: tokenIds[i],
-                  },
-                });
-                makerInfos.push({
-                  context: `${contextPrefix}-${to}-sell-balance`,
-                  maker: to,
-                  trigger: {
-                    kind: "balance-change",
-                    txHash: baseEventParams.txHash,
-                    txTimestamp: baseEventParams.timestamp,
-                  },
-                  data: {
-                    kind: "sell-balance",
-                    contract: baseEventParams.address,
-                    tokenId: tokenIds[i],
-                  },
-                });
+            const currencyPrice = item.price.toString();
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
+              break;
+            }
 
-                if (from === AddressZero) {
-                  mintInfos.push({
-                    contract: baseEventParams.address,
-                    tokenId: tokenIds[i],
-                    mintedTimestamp: baseEventParams.timestamp,
-                  });
-
-                  // Treat mints as sales
-                  if (!NS.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
-                    if (!tokensMinted.has(baseEventParams.txHash)) {
-                      tokensMinted.set(baseEventParams.txHash, []);
-                    }
-                    tokensMinted.get(baseEventParams.txHash)!.push({
-                      contract: baseEventParams.address,
-                      tokenId: tokenIds[i],
-                      amount: amounts[i],
-                      from,
-                      baseEventParams,
-                    });
-                  }
-                }
+            // Decode the sold token (ignoring bundles)
+            let contract: string;
+            let tokenId: string;
+            try {
+              const decodedItems = defaultAbiCoder.decode(
+                ["(address contract, uint256 tokenId)[]"],
+                item.data
+              );
+              if (decodedItems[0].length !== 1) {
+                break;
               }
 
+              contract = decodedItems[0][0].contract.toLowerCase();
+              tokenId = decodedItems[0][0].tokenId.toString();
+            } catch {
               break;
             }
 
-            // Erc721/Erc1155 common
+            const orderSide = [1, 5].includes(op) ? "sell" : "buy";
+            fillEvents.push({
+              orderKind,
+              orderId,
+              orderSide,
+              maker,
+              taker,
+              price: prices.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: prices.usdPrice,
+              contract,
+              tokenId,
+              // TODO: Support X2Y2 ERC1155 orders
+              amount: "1",
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
 
-            case "erc721/1155-approval-for-all": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const owner = parsedLog.args["owner"].toLowerCase();
-              const operator = parsedLog.args["operator"].toLowerCase();
-              const approved = parsedLog.args["approved"];
+            orderInfos.push({
+              context: `filled-${orderId}-${baseEventParams.txHash}`,
+              id: orderId,
+              trigger: {
+                kind: "sale",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+            });
 
-              nftApprovalEvents.push({
-                owner,
-                operator,
-                approved,
-                baseEventParams,
-              });
+            fillInfos.push({
+              context: `${orderId}-${baseEventParams.txHash}`,
+              orderId: orderId,
+              orderSide,
+              contract,
+              tokenId,
+              amount: "1",
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
 
-              // Make sure to only handle the same data once per on-chain event
-              // (instead of once per transaction as we do with balance updates
-              // since we're handling nft approvals differently - checking them
-              // individually).
-              const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${baseEventParams.logIndex}`;
-
+            if (currentTxHasWethTransfer()) {
               makerInfos.push({
-                context: `${contextPrefix}-${owner}-sell-approval`,
-                maker: owner,
-                trigger: {
-                  kind: "approval-change",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-                data: {
-                  kind: "sell-approval",
-                  contract: baseEventParams.address,
-                  operator,
-                },
-              });
-
-              break;
-            }
-
-            // Erc20
-
-            case "erc20-transfer": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const from = parsedLog.args["from"].toLowerCase();
-              const to = parsedLog.args["to"].toLowerCase();
-              const amount = parsedLog.args["amount"].toString();
-
-              ftTransferEvents.push({
-                from,
-                to,
-                amount,
-                baseEventParams,
-              });
-
-              // Make sure to only handle the same data once per transaction
-              const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
-
-              makerInfos.push({
-                context: `${contextPrefix}-${from}-buy-balance`,
-                maker: from,
-                trigger: {
-                  kind: "balance-change",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-                data: {
-                  kind: "buy-balance",
-                  contract: baseEventParams.address,
-                },
-              });
-              makerInfos.push({
-                context: `${contextPrefix}-${to}-buy-balance`,
-                maker: to,
-                trigger: {
-                  kind: "balance-change",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-                data: {
-                  kind: "buy-balance",
-                  contract: baseEventParams.address,
-                },
-              });
-
-              break;
-            }
-
-            case "erc20-approval": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const owner = parsedLog.args["owner"].toLowerCase();
-              const spender = parsedLog.args["spender"].toLowerCase();
-
-              // Make sure to only handle the same data once per transaction
-              const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
-
-              makerInfos.push({
-                context: `${contextPrefix}-${owner}-${spender}-buy-approval`,
-                maker: owner,
+                context: `${baseEventParams.txHash}-buy-approval`,
+                maker,
                 trigger: {
                   kind: "approval-change",
                   txHash: baseEventParams.txHash,
@@ -521,841 +764,628 @@ export const syncEvents = async (
                 data: {
                   kind: "buy-approval",
                   contract: Sdk.Common.Addresses.Weth[config.chainId],
-                  operator: spender,
+                  orderKind: "x2y2",
                 },
               });
-
-              break;
             }
 
-            // Weth
+            break;
+          }
 
-            case "weth-deposit": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const to = parsedLog.args["to"].toLowerCase();
-              const amount = parsedLog.args["amount"].toString();
+          // Foundation
 
-              ftTransferEvents.push({
-                from: AddressZero,
-                to,
-                amount,
-                baseEventParams,
-              });
+          case "foundation-buy-price-set": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const contract = parsedLog.args["nftContract"].toLowerCase();
+            const tokenId = parsedLog.args["tokenId"].toString();
+            const maker = parsedLog.args["seller"].toLowerCase();
+            const price = parsedLog.args["price"].toString();
 
-              // Make sure to only handle the same data once per transaction
-              const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
-
-              makerInfos.push({
-                context: `${contextPrefix}-${to}-buy-balance`,
-                maker: to,
-                trigger: {
-                  kind: "balance-change",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-                data: {
-                  kind: "buy-balance",
-                  contract: baseEventParams.address,
-                },
-              });
-
-              break;
-            }
-
-            case "weth-withdrawal": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const from = parsedLog.args["from"].toLowerCase();
-              const amount = parsedLog.args["amount"].toString();
-
-              ftTransferEvents.push({
-                from,
-                to: AddressZero,
-                amount,
-                baseEventParams,
-              });
-
-              // Make sure to only handle the same data once per transaction
-              const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
-
-              makerInfos.push({
-                context: `${contextPrefix}-${from}-buy-balance`,
-                maker: from,
-                trigger: {
-                  kind: "balance-change",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-                data: {
-                  kind: "buy-balance",
-                  contract: baseEventParams.address,
-                },
-              });
-
-              break;
-            }
-
-            // X2Y2
-
-            case "x2y2-order-cancelled": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const orderId = parsedLog.args["itemHash"].toLowerCase();
-
-              cancelEvents.push({
-                orderKind: "x2y2",
-                orderId,
-                baseEventParams,
-              });
-              orderInfos.push({
-                context: `cancelled-${orderId}-${baseEventParams.txHash}`,
-                id: orderId,
-                trigger: {
-                  kind: "cancel",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                  logIndex: baseEventParams.logIndex,
-                  batchIndex: baseEventParams.batchIndex,
-                  blockHash: baseEventParams.blockHash,
-                },
-              });
-
-              break;
-            }
-
-            case "x2y2-order-inventory": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const orderId = parsedLog.args["itemHash"].toLowerCase();
-              const maker = parsedLog.args["maker"].toLowerCase();
-              let taker = parsedLog.args["taker"].toLowerCase();
-              const currency = parsedLog.args["currency"].toLowerCase();
-              const item = parsedLog.args["item"];
-              const op = parsedLog.args["detail"].op;
-
-              // 1 - COMPLETE_SELL_OFFER
-              // 2 - COMPLETE_BUY_OFFER
-              // 5 - COMPLETE_AUCTION
-              if (![1, 2, 5].includes(op)) {
-                // Skip any irrelevant events
-                break;
-              }
-
-              // Handle: attribution
-
-              const orderKind = "x2y2";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
-
-              // Handle: prices
-
-              const currencyPrice = item.price.toString();
-              const prices = await getUSDAndNativePrices(
-                currency,
-                currencyPrice,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              // Decode the sold token (ignoring bundles)
-              let contract: string;
-              let tokenId: string;
-              try {
-                const decodedItems = defaultAbiCoder.decode(
-                  ["(address contract, uint256 tokenId)[]"],
-                  item.data
-                );
-                if (decodedItems[0].length !== 1) {
-                  break;
-                }
-
-                contract = decodedItems[0][0].contract.toLowerCase();
-                tokenId = decodedItems[0][0].tokenId.toString();
-              } catch {
-                break;
-              }
-
-              const orderSide = [1, 5].includes(op) ? "sell" : "buy";
-              fillEvents.push({
-                orderKind,
-                orderId,
-                orderSide,
+            foundationOrders.push({
+              orderParams: {
+                contract,
+                tokenId,
                 maker,
-                taker,
-                price: prices.nativePrice,
-                currency,
-                currencyPrice,
-                usdPrice: prices.usdPrice,
-                contract,
-                tokenId,
-                // TODO: Support X2Y2 ERC1155 orders
-                amount: "1",
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
-              });
+                price,
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              metadata: {},
+            });
 
-              orderInfos.push({
-                context: `filled-${orderId}-${baseEventParams.txHash}`,
-                id: orderId,
-                trigger: {
-                  kind: "sale",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-              });
+            break;
+          }
 
-              fillInfos.push({
-                context: `${orderId}-${baseEventParams.txHash}`,
-                orderId: orderId,
-                orderSide,
-                contract,
-                tokenId,
-                amount: "1",
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
+          case "foundation-buy-price-accepted": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const contract = parsedLog.args["nftContract"].toLowerCase();
+            const tokenId = parsedLog.args["tokenId"].toString();
+            const maker = parsedLog.args["seller"].toLowerCase();
+            let taker = parsedLog.args["buyer"].toLowerCase();
+            const protocolFee = parsedLog.args["protocolFee"].toString();
 
-              if (currentTxHasWethTransfer()) {
-                makerInfos.push({
-                  context: `${baseEventParams.txHash}-buy-approval`,
-                  maker,
-                  trigger: {
-                    kind: "approval-change",
-                    txHash: baseEventParams.txHash,
-                    txTimestamp: baseEventParams.timestamp,
-                  },
-                  data: {
-                    kind: "buy-approval",
-                    contract: Sdk.Common.Addresses.Weth[config.chainId],
-                    orderKind: "x2y2",
-                  },
-                });
-              }
+            const orderId = keccak256(["address", "uint256"], [contract, tokenId]);
 
+            // Handle: attribution
+
+            const orderKind = "foundation";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            const currency = Sdk.Common.Addresses.Eth[config.chainId];
+            // Deduce the price from the protocol fee (which is 5%)
+            const currencyPrice = bn(protocolFee).mul(10000).div(50).toString();
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
               break;
             }
 
-            // Foundation
+            // Custom handling to support on-chain orderbook quirks.
+            fillEventsOnChain.push({
+              orderKind,
+              orderId,
+              orderSide: "sell",
+              maker,
+              taker,
+              price: prices.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: prices.usdPrice,
+              contract,
+              tokenId,
+              // Foundation only supports ERC721
+              amount: "1",
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
 
-            case "foundation-buy-price-set": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const contract = parsedLog.args["nftContract"].toLowerCase();
-              const tokenId = parsedLog.args["tokenId"].toString();
-              const maker = parsedLog.args["seller"].toLowerCase();
-              const price = parsedLog.args["price"].toString();
+            orderInfos.push({
+              context: `filled-${orderId}-${baseEventParams.txHash}`,
+              id: orderId,
+              trigger: {
+                kind: "sale",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+            });
 
-              foundationOrders.push({
-                orderParams: {
-                  contract,
-                  tokenId,
-                  maker,
-                  price,
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-                metadata: {},
-              });
+            fillInfos.push({
+              context: `${orderId}-${baseEventParams.txHash}`,
+              orderId: orderId,
+              orderSide: "sell",
+              contract,
+              tokenId,
+              amount: "1",
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
 
-              break;
-            }
+            break;
+          }
 
-            case "foundation-buy-price-accepted": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const contract = parsedLog.args["nftContract"].toLowerCase();
-              const tokenId = parsedLog.args["tokenId"].toString();
-              const maker = parsedLog.args["seller"].toLowerCase();
-              let taker = parsedLog.args["buyer"].toLowerCase();
-              const protocolFee = parsedLog.args["protocolFee"].toString();
+          case "foundation-buy-price-invalidated":
+          case "foundation-buy-price-cancelled": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const contract = parsedLog.args["nftContract"].toLowerCase();
+            const tokenId = parsedLog.args["tokenId"].toString();
 
-              const orderId = keccak256(["address", "uint256"], [contract, tokenId]);
+            const orderId = keccak256(["address", "uint256"], [contract, tokenId]);
 
-              // Handle: attribution
+            // Custom handling to support on-chain orderbook quirks.
+            cancelEventsOnChain.push({
+              orderKind: "foundation",
+              orderId,
+              baseEventParams,
+            });
+            orderInfos.push({
+              context: `cancelled-${orderId}-${baseEventParams.txHash}`,
+              id: orderId,
+              trigger: {
+                kind: "cancel",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+                logIndex: baseEventParams.logIndex,
+                batchIndex: baseEventParams.batchIndex,
+                blockHash: baseEventParams.blockHash,
+              },
+            });
 
-              const orderKind = "foundation";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
+            break;
+          }
 
-              // Handle: prices
+          // LooksRare
 
-              const currency = Sdk.Common.Addresses.Eth[config.chainId];
-              // Deduce the price from the protocol fee (which is 5%)
-              const currencyPrice = bn(protocolFee).mul(10000).div(50).toString();
-              const prices = await getUSDAndNativePrices(
-                currency,
-                currencyPrice,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
+          case "looks-rare-cancel-all-orders": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const maker = parsedLog.args["user"].toLowerCase();
+            const newMinNonce = parsedLog.args["newMinNonce"].toString();
 
-              // Custom handling to support on-chain orderbook quirks.
-              fillEventsOnChain.push({
-                orderKind,
-                orderId,
-                orderSide: "sell",
-                maker,
-                taker,
-                price: prices.nativePrice,
-                currency,
-                currencyPrice,
-                usdPrice: prices.usdPrice,
-                contract,
-                tokenId,
-                // Foundation only supports ERC721
-                amount: "1",
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
-              });
+            bulkCancelEvents.push({
+              orderKind: "looks-rare",
+              maker,
+              minNonce: newMinNonce,
+              baseEventParams,
+            });
 
-              orderInfos.push({
-                context: `filled-${orderId}-${baseEventParams.txHash}`,
-                id: orderId,
-                trigger: {
-                  kind: "sale",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-              });
+            break;
+          }
 
-              fillInfos.push({
-                context: `${orderId}-${baseEventParams.txHash}`,
-                orderId: orderId,
-                orderSide: "sell",
-                contract,
-                tokenId,
-                amount: "1",
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
+          case "looks-rare-cancel-multiple-orders": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const maker = parsedLog.args["user"].toLowerCase();
+            const orderNonces = parsedLog.args["orderNonces"].map(String);
 
-              break;
-            }
-
-            case "foundation-buy-price-invalidated":
-            case "foundation-buy-price-cancelled": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const contract = parsedLog.args["nftContract"].toLowerCase();
-              const tokenId = parsedLog.args["tokenId"].toString();
-
-              const orderId = keccak256(["address", "uint256"], [contract, tokenId]);
-
-              // Custom handling to support on-chain orderbook quirks.
-              cancelEventsOnChain.push({
-                orderKind: "foundation",
-                orderId,
-                baseEventParams,
-              });
-              orderInfos.push({
-                context: `cancelled-${orderId}-${baseEventParams.txHash}`,
-                id: orderId,
-                trigger: {
-                  kind: "cancel",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                  logIndex: baseEventParams.logIndex,
-                  batchIndex: baseEventParams.batchIndex,
-                  blockHash: baseEventParams.blockHash,
-                },
-              });
-
-              break;
-            }
-
-            // LooksRare
-
-            case "looks-rare-cancel-all-orders": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const maker = parsedLog.args["user"].toLowerCase();
-              const newMinNonce = parsedLog.args["newMinNonce"].toString();
-
-              bulkCancelEvents.push({
+            let batchIndex = 1;
+            for (const orderNonce of orderNonces) {
+              nonceCancelEvents.push({
                 orderKind: "looks-rare",
                 maker,
-                minNonce: newMinNonce,
-                baseEventParams,
+                nonce: orderNonce,
+                baseEventParams: {
+                  ...baseEventParams,
+                  batchIndex: batchIndex++,
+                },
               });
+            }
 
+            break;
+          }
+
+          case "looks-rare-taker-ask": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const orderId = parsedLog.args["orderHash"].toLowerCase();
+            const orderNonce = parsedLog.args["orderNonce"].toString();
+            const maker = parsedLog.args["maker"].toLowerCase();
+            let taker = parsedLog.args["taker"].toLowerCase();
+            const currency = parsedLog.args["currency"].toLowerCase();
+            let currencyPrice = parsedLog.args["price"].toString();
+            const contract = parsedLog.args["collection"].toLowerCase();
+            const tokenId = parsedLog.args["tokenId"].toString();
+            const amount = parsedLog.args["amount"].toString();
+
+            // Handle: attribution
+
+            const orderKind = "looks-rare";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            currencyPrice = bn(currencyPrice).div(amount).toString();
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
               break;
             }
 
-            case "looks-rare-cancel-multiple-orders": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const maker = parsedLog.args["user"].toLowerCase();
-              const orderNonces = parsedLog.args["orderNonces"].map(String);
+            fillEvents.push({
+              orderKind,
+              orderId,
+              orderSide: "buy",
+              maker,
+              taker,
+              price: prices.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: prices.usdPrice,
+              contract,
+              tokenId,
+              amount,
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
 
-              let batchIndex = 1;
-              for (const orderNonce of orderNonces) {
-                nonceCancelEvents.push({
+            // Cancel all the other orders of the maker having the same nonce.
+            nonceCancelEvents.push({
+              orderKind: "looks-rare",
+              maker,
+              nonce: orderNonce,
+              baseEventParams,
+            });
+
+            orderInfos.push({
+              context: `filled-${orderId}`,
+              id: orderId,
+              trigger: {
+                kind: "sale",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+            });
+
+            fillInfos.push({
+              context: orderId,
+              orderId: orderId,
+              orderSide: "buy",
+              contract,
+              tokenId,
+              amount,
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
+
+            if (currentTxHasWethTransfer()) {
+              makerInfos.push({
+                context: `${baseEventParams.txHash}-buy-approval`,
+                maker,
+                trigger: {
+                  kind: "approval-change",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
+                data: {
+                  kind: "buy-approval",
+                  contract: Sdk.Common.Addresses.Weth[config.chainId],
                   orderKind: "looks-rare",
-                  maker,
-                  nonce: orderNonce,
-                  baseEventParams: {
-                    ...baseEventParams,
-                    batchIndex: batchIndex++,
-                  },
-                });
-              }
+                },
+              });
+            }
 
+            break;
+          }
+
+          case "looks-rare-taker-bid": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const orderId = parsedLog.args["orderHash"].toLowerCase();
+            const orderNonce = parsedLog.args["orderNonce"].toString();
+            const maker = parsedLog.args["maker"].toLowerCase();
+            let taker = parsedLog.args["taker"].toLowerCase();
+            const currency = parsedLog.args["currency"].toLowerCase();
+            let currencyPrice = parsedLog.args["price"].toString();
+            const contract = parsedLog.args["collection"].toLowerCase();
+            const tokenId = parsedLog.args["tokenId"].toString();
+            const amount = parsedLog.args["amount"].toString();
+
+            // Handle: attribution
+
+            const orderKind = "looks-rare";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            currencyPrice = bn(currencyPrice).div(amount).toString();
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
               break;
             }
 
-            case "looks-rare-taker-ask": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const orderId = parsedLog.args["orderHash"].toLowerCase();
-              const orderNonce = parsedLog.args["orderNonce"].toString();
-              const maker = parsedLog.args["maker"].toLowerCase();
-              let taker = parsedLog.args["taker"].toLowerCase();
-              const currency = parsedLog.args["currency"].toLowerCase();
-              let currencyPrice = parsedLog.args["price"].toString();
-              const contract = parsedLog.args["collection"].toLowerCase();
-              const tokenId = parsedLog.args["tokenId"].toString();
-              const amount = parsedLog.args["amount"].toString();
+            fillEvents.push({
+              orderKind,
+              orderId,
+              orderSide: "sell",
+              maker,
+              taker,
+              price: prices.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: prices.usdPrice,
+              contract,
+              tokenId,
+              amount,
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
 
-              // Handle: attribution
+            // Cancel all the other orders of the maker having the same nonce.
+            nonceCancelEvents.push({
+              orderKind: "looks-rare",
+              maker,
+              nonce: orderNonce,
+              baseEventParams,
+            });
 
-              const orderKind = "looks-rare";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
+            orderInfos.push({
+              context: `filled-${orderId}`,
+              id: orderId,
+              trigger: {
+                kind: "sale",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+            });
 
-              // Handle: prices
+            fillInfos.push({
+              context: orderId,
+              orderId: orderId,
+              orderSide: "sell",
+              contract,
+              tokenId,
+              amount,
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
 
-              currencyPrice = bn(currencyPrice).div(amount).toString();
-              const prices = await getUSDAndNativePrices(
-                currency,
-                currencyPrice,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              fillEvents.push({
-                orderKind,
-                orderId,
-                orderSide: "buy",
+            if (currentTxHasWethTransfer()) {
+              makerInfos.push({
+                context: `${baseEventParams.txHash}-buy-approval`,
                 maker,
-                taker,
-                price: prices.nativePrice,
-                currency,
-                currencyPrice,
-                usdPrice: prices.usdPrice,
-                contract,
-                tokenId,
-                amount,
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
-              });
-
-              // Cancel all the other orders of the maker having the same nonce.
-              nonceCancelEvents.push({
-                orderKind: "looks-rare",
-                maker,
-                nonce: orderNonce,
-                baseEventParams,
-              });
-
-              orderInfos.push({
-                context: `filled-${orderId}`,
-                id: orderId,
                 trigger: {
-                  kind: "sale",
+                  kind: "approval-change",
                   txHash: baseEventParams.txHash,
                   txTimestamp: baseEventParams.timestamp,
                 },
+                data: {
+                  kind: "buy-approval",
+                  contract: Sdk.Common.Addresses.Weth[config.chainId],
+                  orderKind: "looks-rare",
+                },
               });
+            }
 
-              fillInfos.push({
-                context: orderId,
-                orderId: orderId,
-                orderSide: "buy",
-                contract,
-                tokenId,
-                amount,
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
+            break;
+          }
 
-              if (currentTxHasWethTransfer()) {
-                makerInfos.push({
-                  context: `${baseEventParams.txHash}-buy-approval`,
-                  maker,
-                  trigger: {
-                    kind: "approval-change",
-                    txHash: baseEventParams.txHash,
-                    txTimestamp: baseEventParams.timestamp,
-                  },
-                  data: {
-                    kind: "buy-approval",
-                    contract: Sdk.Common.Addresses.Weth[config.chainId],
-                    orderKind: "looks-rare",
-                  },
-                });
+          // WyvernV2/WyvernV2.3
+
+          // Wyvern V2 and V2.3 are both decomissioned, but we still keep handling
+          // fill event from them in order to get access to historical sales. This
+          // is only relevant when backfilling though.
+
+          case "wyvern-v2-orders-matched":
+          case "wyvern-v2.3-orders-matched": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const buyOrderId = parsedLog.args["buyHash"].toLowerCase();
+            const sellOrderId = parsedLog.args["sellHash"].toLowerCase();
+            const maker = parsedLog.args["maker"].toLowerCase();
+            let taker = parsedLog.args["taker"].toLowerCase();
+            const currencyPrice = parsedLog.args["price"].toString();
+
+            // The code below assumes that events are retrieved in chronological
+            // order from the blockchain (this is safe to assume in most cases).
+
+            // With Wyvern, there are two main issues:
+            // - the traded token is not included in the fill event, so we have
+            // to deduce it by checking the nft transfer occured exactly before
+            // the fill event
+            // - the payment token is not included in the fill event, and we deduce
+            // it as well by checking any Erc20 transfers that occured close before
+            // the fill event (and default to native Eth if cannot find any)
+
+            // Detect the traded token
+            let associatedNftTransferEvent: es.nftTransfers.Event | undefined;
+            if (nftTransferEvents.length) {
+              // Ensure the last nft transfer event was part of the fill
+              const event = nftTransferEvents[nftTransferEvents.length - 1];
+              if (
+                event.baseEventParams.txHash === baseEventParams.txHash &&
+                event.baseEventParams.logIndex === baseEventParams.logIndex - 1 &&
+                // Only single token fills are supported and recognized
+                event.baseEventParams.batchIndex === 1
+              ) {
+                associatedNftTransferEvent = event;
               }
+            }
 
+            if (!associatedNftTransferEvent) {
+              // Skip if we can't associate to an nft transfer event
               break;
             }
 
-            case "looks-rare-taker-bid": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const orderId = parsedLog.args["orderHash"].toLowerCase();
-              const orderNonce = parsedLog.args["orderNonce"].toString();
-              const maker = parsedLog.args["maker"].toLowerCase();
-              let taker = parsedLog.args["taker"].toLowerCase();
-              const currency = parsedLog.args["currency"].toLowerCase();
-              let currencyPrice = parsedLog.args["price"].toString();
-              const contract = parsedLog.args["collection"].toLowerCase();
-              const tokenId = parsedLog.args["tokenId"].toString();
-              const amount = parsedLog.args["amount"].toString();
-
-              // Handle: attribution
-
-              const orderKind = "looks-rare";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
-
-              // Handle: prices
-
-              currencyPrice = bn(currencyPrice).div(amount).toString();
-              const prices = await getUSDAndNativePrices(
-                currency,
-                currencyPrice,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
+            // Detect the payment token
+            let currency = Sdk.Common.Addresses.Eth[config.chainId];
+            for (const event of currentTxEvents.slice(0, -1).reverse()) {
+              // Skip once we detect another fill in the same transaction
+              // (this will happen if filling through an aggregator).
+              if (event.log.topics[0] === getEventData([eventData.kind])[0].topic) {
                 break;
               }
 
-              fillEvents.push({
-                orderKind,
-                orderId,
-                orderSide: "sell",
-                maker,
-                taker,
-                price: prices.nativePrice,
-                currency,
-                currencyPrice,
-                usdPrice: prices.usdPrice,
-                contract,
-                tokenId,
-                amount,
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
-              });
-
-              // Cancel all the other orders of the maker having the same nonce.
-              nonceCancelEvents.push({
-                orderKind: "looks-rare",
-                maker,
-                nonce: orderNonce,
-                baseEventParams,
-              });
-
-              orderInfos.push({
-                context: `filled-${orderId}`,
-                id: orderId,
-                trigger: {
-                  kind: "sale",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-              });
-
-              fillInfos.push({
-                context: orderId,
-                orderId: orderId,
-                orderSide: "sell",
-                contract,
-                tokenId,
-                amount,
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
-
-              if (currentTxHasWethTransfer()) {
-                makerInfos.push({
-                  context: `${baseEventParams.txHash}-buy-approval`,
-                  maker,
-                  trigger: {
-                    kind: "approval-change",
-                    txHash: baseEventParams.txHash,
-                    txTimestamp: baseEventParams.timestamp,
-                  },
-                  data: {
-                    kind: "buy-approval",
-                    contract: Sdk.Common.Addresses.Weth[config.chainId],
-                    orderKind: "looks-rare",
-                  },
-                });
-              }
-
-              break;
-            }
-
-            // WyvernV2/WyvernV2.3
-
-            // Wyvern V2 and V2.3 are both decomissioned, but we still keep handling
-            // fill event from them in order to get access to historical sales. This
-            // is only relevant when backfilling though.
-
-            case "wyvern-v2-orders-matched":
-            case "wyvern-v2.3-orders-matched": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const buyOrderId = parsedLog.args["buyHash"].toLowerCase();
-              const sellOrderId = parsedLog.args["sellHash"].toLowerCase();
-              const maker = parsedLog.args["maker"].toLowerCase();
-              let taker = parsedLog.args["taker"].toLowerCase();
-              const currencyPrice = parsedLog.args["price"].toString();
-
-              // The code below assumes that events are retrieved in chronological
-              // order from the blockchain (this is safe to assume in most cases).
-
-              // With Wyvern, there are two main issues:
-              // - the traded token is not included in the fill event, so we have
-              // to deduce it by checking the nft transfer occured exactly before
-              // the fill event
-              // - the payment token is not included in the fill event, and we deduce
-              // it as well by checking any Erc20 transfers that occured close before
-              // the fill event (and default to native Eth if cannot find any)
-
-              // Detect the traded token
-              let associatedNftTransferEvent: es.nftTransfers.Event | undefined;
-              if (nftTransferEvents.length) {
-                // Ensure the last nft transfer event was part of the fill
-                const event = nftTransferEvents[nftTransferEvents.length - 1];
+              // If we detect an Erc20 transfer as part of the same transaction
+              // then we assume it's the payment for the current sale and so we
+              // only keep the sale if the payment token is Weth.
+              const erc20EventData = getEventData(["erc20-transfer"])[0];
+              if (
+                event.log.topics[0] === erc20EventData.topic &&
+                event.log.topics.length === erc20EventData.numTopics
+              ) {
+                const parsed = erc20EventData.abi.parseLog(event.log);
+                const from = parsed.args["from"].toLowerCase();
+                const to = parsed.args["to"].toLowerCase();
+                const amount = parsed.args["amount"].toString();
                 if (
-                  event.baseEventParams.txHash === baseEventParams.txHash &&
-                  event.baseEventParams.logIndex === baseEventParams.logIndex - 1 &&
-                  // Only single token fills are supported and recognized
-                  event.baseEventParams.batchIndex === 1
+                  ((maker === from && taker === to) || (maker === to && taker === from)) &&
+                  amount <= currencyPrice
                 ) {
-                  associatedNftTransferEvent = event;
-                }
-              }
-
-              if (!associatedNftTransferEvent) {
-                // Skip if we can't associate to an nft transfer event
-                break;
-              }
-
-              // Detect the payment token
-              let currency = Sdk.Common.Addresses.Eth[config.chainId];
-              for (const event of currentTxEvents.slice(0, -1).reverse()) {
-                // Skip once we detect another fill in the same transaction
-                // (this will happen if filling through an aggregator).
-                if (event.log.topics[0] === getEventData([eventData.kind])[0].topic) {
+                  currency = event.log.address.toLowerCase();
                   break;
                 }
-
-                // If we detect an Erc20 transfer as part of the same transaction
-                // then we assume it's the payment for the current sale and so we
-                // only keep the sale if the payment token is Weth.
-                const erc20EventData = getEventData(["erc20-transfer"])[0];
-                if (
-                  event.log.topics[0] === erc20EventData.topic &&
-                  event.log.topics.length === erc20EventData.numTopics
-                ) {
-                  const parsed = erc20EventData.abi.parseLog(event.log);
-                  const from = parsed.args["from"].toLowerCase();
-                  const to = parsed.args["to"].toLowerCase();
-                  const amount = parsed.args["amount"].toString();
-                  if (
-                    ((maker === from && taker === to) || (maker === to && taker === from)) &&
-                    amount <= currencyPrice
-                  ) {
-                    currency = event.log.address.toLowerCase();
-                    break;
-                  }
-                }
               }
+            }
 
-              // Handle: attribution
+            // Handle: attribution
 
-              const orderKind = eventData.kind.startsWith("wyvern-v2.3")
-                ? "wyvern-v2.3"
-                : "wyvern-v2";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
+            const orderKind = eventData.kind.startsWith("wyvern-v2.3")
+              ? "wyvern-v2.3"
+              : "wyvern-v2";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
 
-              // Handle: prices
+            // Handle: prices
 
-              const prices = await getUSDAndNativePrices(
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
+              break;
+            }
+
+            let batchIndex = 1;
+            if (buyOrderId !== HashZero) {
+              fillEvents.push({
+                orderKind,
+                orderId: buyOrderId,
+                orderSide: "buy",
+                maker,
+                taker,
+                price: prices.nativePrice,
                 currency,
                 currencyPrice,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              let batchIndex = 1;
-              if (buyOrderId !== HashZero) {
-                fillEvents.push({
-                  orderKind,
-                  orderId: buyOrderId,
-                  orderSide: "buy",
-                  maker,
-                  taker,
-                  price: prices.nativePrice,
-                  currency,
-                  currencyPrice,
-                  usdPrice: prices.usdPrice,
-                  contract: associatedNftTransferEvent.baseEventParams.address,
-                  tokenId: associatedNftTransferEvent.tokenId,
-                  amount: associatedNftTransferEvent.amount,
-                  orderSourceId: data.orderSource?.id,
-                  aggregatorSourceId: data.aggregatorSource?.id,
-                  fillSourceId: data.fillSource?.id,
-                  baseEventParams: {
-                    ...baseEventParams,
-                    batchIndex: batchIndex++,
-                  },
-                });
-
-                fillInfos.push({
-                  context: `${buyOrderId}-${baseEventParams.txHash}`,
-                  orderId: buyOrderId,
-                  orderSide: "buy",
-                  contract: associatedNftTransferEvent.baseEventParams.address,
-                  tokenId: associatedNftTransferEvent.tokenId,
-                  amount: associatedNftTransferEvent.amount,
-                  price: prices.nativePrice,
-                  timestamp: baseEventParams.timestamp,
-                });
-              }
-              if (sellOrderId !== HashZero) {
-                fillEvents.push({
-                  orderKind,
-                  orderId: sellOrderId,
-                  orderSide: "sell",
-                  maker,
-                  taker,
-                  price: prices.nativePrice,
-                  currency,
-                  currencyPrice,
-                  usdPrice: prices.usdPrice,
-                  contract: associatedNftTransferEvent.baseEventParams.address,
-                  tokenId: associatedNftTransferEvent.tokenId,
-                  amount: associatedNftTransferEvent.amount,
-                  orderSourceId: data.orderSource?.id,
-                  aggregatorSourceId: data.aggregatorSource?.id,
-                  fillSourceId: data.fillSource?.id,
-                  baseEventParams: {
-                    ...baseEventParams,
-                    batchIndex: batchIndex++,
-                  },
-                });
-
-                fillInfos.push({
-                  context: `${sellOrderId}-${baseEventParams.txHash}`,
-                  orderId: sellOrderId,
-                  orderSide: "sell",
-                  contract: associatedNftTransferEvent.baseEventParams.address,
-                  tokenId: associatedNftTransferEvent.tokenId,
-                  amount: associatedNftTransferEvent.amount,
-                  price: prices.nativePrice,
-                  timestamp: baseEventParams.timestamp,
-                });
-              }
-
-              break;
-            }
-
-            // ZeroExV4 + OpenDao
-
-            case "zeroex-v4-erc721-order-cancelled":
-            case "zeroex-v4-erc1155-order-cancelled":
-            case "opendao-erc721-order-cancelled":
-            case "opendao-erc1155-order-cancelled": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const maker = parsedLog.args["maker"].toLowerCase();
-              const nonce = parsedLog.args["nonce"].toString();
-
-              nonceCancelEvents.push({
-                orderKind: eventData!.kind.split("-").slice(0, -2).join("-") as OrderKind,
-                maker,
-                nonce,
-                baseEventParams,
+                usdPrice: prices.usdPrice,
+                contract: associatedNftTransferEvent.baseEventParams.address,
+                tokenId: associatedNftTransferEvent.tokenId,
+                amount: associatedNftTransferEvent.amount,
+                orderSourceId: data.orderSource?.id,
+                aggregatorSourceId: data.aggregatorSource?.id,
+                fillSourceId: data.fillSource?.id,
+                baseEventParams: {
+                  ...baseEventParams,
+                  batchIndex: batchIndex++,
+                },
               });
 
-              break;
+              fillInfos.push({
+                context: `${buyOrderId}-${baseEventParams.txHash}`,
+                orderId: buyOrderId,
+                orderSide: "buy",
+                contract: associatedNftTransferEvent.baseEventParams.address,
+                tokenId: associatedNftTransferEvent.tokenId,
+                amount: associatedNftTransferEvent.amount,
+                price: prices.nativePrice,
+                timestamp: baseEventParams.timestamp,
+              });
+            }
+            if (sellOrderId !== HashZero) {
+              fillEvents.push({
+                orderKind,
+                orderId: sellOrderId,
+                orderSide: "sell",
+                maker,
+                taker,
+                price: prices.nativePrice,
+                currency,
+                currencyPrice,
+                usdPrice: prices.usdPrice,
+                contract: associatedNftTransferEvent.baseEventParams.address,
+                tokenId: associatedNftTransferEvent.tokenId,
+                amount: associatedNftTransferEvent.amount,
+                orderSourceId: data.orderSource?.id,
+                aggregatorSourceId: data.aggregatorSource?.id,
+                fillSourceId: data.fillSource?.id,
+                baseEventParams: {
+                  ...baseEventParams,
+                  batchIndex: batchIndex++,
+                },
+              });
+
+              fillInfos.push({
+                context: `${sellOrderId}-${baseEventParams.txHash}`,
+                orderId: sellOrderId,
+                orderSide: "sell",
+                contract: associatedNftTransferEvent.baseEventParams.address,
+                tokenId: associatedNftTransferEvent.tokenId,
+                amount: associatedNftTransferEvent.amount,
+                price: prices.nativePrice,
+                timestamp: baseEventParams.timestamp,
+              });
             }
 
-            case "zeroex-v4-erc721-order-filled":
-            case "opendao-erc721-order-filled": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const direction = parsedLog.args["direction"];
-              const maker = parsedLog.args["maker"].toLowerCase();
-              let taker = parsedLog.args["taker"].toLowerCase();
-              const nonce = parsedLog.args["nonce"].toString();
-              const erc20Token = parsedLog.args["erc20Token"].toLowerCase();
-              const erc20TokenAmount = parsedLog.args["erc20TokenAmount"].toString();
-              const erc721Token = parsedLog.args["erc721Token"].toLowerCase();
-              const erc721TokenId = parsedLog.args["erc721TokenId"].toString();
+            break;
+          }
 
-              // Handle: attribution
+          // ZeroExV4 + OpenDao
 
-              const orderKind = eventData!.kind.split("-").slice(0, -2).join("-") as OrderKind;
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
+          case "zeroex-v4-erc721-order-cancelled":
+          case "zeroex-v4-erc1155-order-cancelled":
+          case "opendao-erc721-order-cancelled":
+          case "opendao-erc1155-order-cancelled": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const maker = parsedLog.args["maker"].toLowerCase();
+            const nonce = parsedLog.args["nonce"].toString();
 
-              // Handle: prices
+            nonceCancelEvents.push({
+              orderKind: eventData!.kind.split("-").slice(0, -2).join("-") as OrderKind,
+              maker,
+              nonce,
+              baseEventParams,
+            });
 
-              // By default, use the price without fees
-              let currencyPrice = erc20TokenAmount;
+            break;
+          }
 
-              let orderId: string | undefined;
-              if (!backfill) {
-                // Since the event doesn't include the exact order which got matched
-                // (it only includes the nonce, but we can potentially have multiple
-                // different orders sharing the same nonce off-chain), we attempt to
-                // detect the order id which got filled by checking the database for
-                // orders which have the exact nonce/contract/price combination.
-                await idb
-                  .oneOrNone(
-                    `
+          case "zeroex-v4-erc721-order-filled":
+          case "opendao-erc721-order-filled": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const direction = parsedLog.args["direction"];
+            const maker = parsedLog.args["maker"].toLowerCase();
+            let taker = parsedLog.args["taker"].toLowerCase();
+            const nonce = parsedLog.args["nonce"].toString();
+            const erc20Token = parsedLog.args["erc20Token"].toLowerCase();
+            const erc20TokenAmount = parsedLog.args["erc20TokenAmount"].toString();
+            const erc721Token = parsedLog.args["erc721Token"].toLowerCase();
+            const erc721TokenId = parsedLog.args["erc721TokenId"].toString();
+
+            // Handle: attribution
+
+            const orderKind = eventData!.kind.split("-").slice(0, -2).join("-") as OrderKind;
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            // By default, use the price without fees
+            let currencyPrice = erc20TokenAmount;
+
+            let orderId: string | undefined;
+            if (!backfill) {
+              // Since the event doesn't include the exact order which got matched
+              // (it only includes the nonce, but we can potentially have multiple
+              // different orders sharing the same nonce off-chain), we attempt to
+              // detect the order id which got filled by checking the database for
+              // orders which have the exact nonce/contract/price combination.
+              await idb
+                .oneOrNone(
+                  `
                       SELECT
                         orders.id,
                         orders.price
@@ -1367,147 +1397,147 @@ export const syncEvents = async (
                         AND (orders.raw_data ->> 'erc20TokenAmount')::NUMERIC = $/price/
                       LIMIT 1
                     `,
-                    {
-                      maker: toBuffer(maker),
-                      nonce,
-                      contract: toBuffer(erc721Token),
-                      price: erc20TokenAmount,
-                    }
-                  )
-                  .then((result) => {
-                    if (result) {
-                      orderId = result.id;
-                      // Workaround the fact that 0xv4 fill events exclude the fee from the price
-                      currencyPrice = result.price;
-                    }
-                  });
-              }
-
-              let currency = erc20Token;
-              if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
-                // Map the weird 0x ETH address
-                currency = Sdk.Common.Addresses.Eth[config.chainId];
-              }
-
-              const prices = await getUSDAndNativePrices(
-                currency,
-                currencyPrice,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              const orderSide = direction === 0 ? "sell" : "buy";
-              fillEvents.push({
-                orderKind,
-                orderId,
-                orderSide,
-                maker,
-                taker,
-                price: prices.nativePrice,
-                currency,
-                currencyPrice,
-                usdPrice: prices.usdPrice,
-                contract: erc721Token,
-                tokenId: erc721TokenId,
-                amount: "1",
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
-              });
-
-              // Cancel all the other orders of the maker having the same nonce.
-              nonceCancelEvents.push({
-                orderKind,
-                maker,
-                nonce,
-                baseEventParams,
-              });
-
-              if (orderId) {
-                orderInfos.push({
-                  context: `filled-${orderId}`,
-                  id: orderId,
-                  trigger: {
-                    kind: "sale",
-                    txHash: baseEventParams.txHash,
-                    txTimestamp: baseEventParams.timestamp,
-                  },
+                  {
+                    maker: toBuffer(maker),
+                    nonce,
+                    contract: toBuffer(erc721Token),
+                    price: erc20TokenAmount,
+                  }
+                )
+                .then((result) => {
+                  if (result) {
+                    orderId = result.id;
+                    // Workaround the fact that 0xv4 fill events exclude the fee from the price
+                    currencyPrice = result.price;
+                  }
                 });
-              }
+            }
 
-              fillInfos.push({
-                context: orderId || `${maker}-${nonce}`,
-                orderId: orderId,
-                orderSide,
-                contract: erc721Token,
-                tokenId: erc721TokenId,
-                amount: "1",
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
+            let currency = erc20Token;
+            if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+              // Map the weird 0x ETH address
+              currency = Sdk.Common.Addresses.Eth[config.chainId];
+            }
 
-              if (currentTxHasWethTransfer()) {
-                makerInfos.push({
-                  context: `${baseEventParams.txHash}-buy-approval`,
-                  maker,
-                  trigger: {
-                    kind: "approval-change",
-                    txHash: baseEventParams.txHash,
-                    txTimestamp: baseEventParams.timestamp,
-                  },
-                  data: {
-                    kind: "buy-approval",
-                    contract: Sdk.Common.Addresses.Weth[config.chainId],
-                    orderKind: orderKind,
-                  },
-                });
-              }
-
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
               break;
             }
 
-            case "zeroex-v4-erc1155-order-filled":
-            case "opendao-erc1155-order-filled": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const direction = parsedLog.args["direction"];
-              const maker = parsedLog.args["maker"].toLowerCase();
-              let taker = parsedLog.args["taker"].toLowerCase();
-              const nonce = parsedLog.args["nonce"].toString();
-              const erc20Token = parsedLog.args["erc20Token"].toLowerCase();
-              const erc20FillAmount = parsedLog.args["erc20FillAmount"].toString();
-              const erc1155Token = parsedLog.args["erc1155Token"].toLowerCase();
-              const erc1155TokenId = parsedLog.args["erc1155TokenId"].toString();
-              const erc1155FillAmount = parsedLog.args["erc1155FillAmount"].toString();
+            const orderSide = direction === 0 ? "sell" : "buy";
+            fillEvents.push({
+              orderKind,
+              orderId,
+              orderSide,
+              maker,
+              taker,
+              price: prices.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: prices.usdPrice,
+              contract: erc721Token,
+              tokenId: erc721TokenId,
+              amount: "1",
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
 
-              // Handle: attribution
+            // Cancel all the other orders of the maker having the same nonce.
+            nonceCancelEvents.push({
+              orderKind,
+              maker,
+              nonce,
+              baseEventParams,
+            });
 
-              const orderKind = eventData!.kind.split("-").slice(0, -2).join("-") as OrderKind;
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
+            if (orderId) {
+              orderInfos.push({
+                context: `filled-${orderId}`,
+                id: orderId,
+                trigger: {
+                  kind: "sale",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
+              });
+            }
 
-              // Handle: prices
+            fillInfos.push({
+              context: orderId || `${maker}-${nonce}`,
+              orderId: orderId,
+              orderSide,
+              contract: erc721Token,
+              tokenId: erc721TokenId,
+              amount: "1",
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
 
-              // By default, use the price without fees
-              let currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
+            if (currentTxHasWethTransfer()) {
+              makerInfos.push({
+                context: `${baseEventParams.txHash}-buy-approval`,
+                maker,
+                trigger: {
+                  kind: "approval-change",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
+                data: {
+                  kind: "buy-approval",
+                  contract: Sdk.Common.Addresses.Weth[config.chainId],
+                  orderKind: orderKind,
+                },
+              });
+            }
 
-              let orderId: string | undefined;
-              if (!backfill) {
-                // For erc1155 orders we only allow unique nonce/contract/price. Since erc1155
-                // orders are partially fillable, we have to detect the price of an individual
-                // item from the fill amount, which might result in imprecise results. However
-                // at the moment, we can live with it.
-                await idb
-                  .oneOrNone(
-                    `
+            break;
+          }
+
+          case "zeroex-v4-erc1155-order-filled":
+          case "opendao-erc1155-order-filled": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const direction = parsedLog.args["direction"];
+            const maker = parsedLog.args["maker"].toLowerCase();
+            let taker = parsedLog.args["taker"].toLowerCase();
+            const nonce = parsedLog.args["nonce"].toString();
+            const erc20Token = parsedLog.args["erc20Token"].toLowerCase();
+            const erc20FillAmount = parsedLog.args["erc20FillAmount"].toString();
+            const erc1155Token = parsedLog.args["erc1155Token"].toLowerCase();
+            const erc1155TokenId = parsedLog.args["erc1155TokenId"].toString();
+            const erc1155FillAmount = parsedLog.args["erc1155FillAmount"].toString();
+
+            // Handle: attribution
+
+            const orderKind = eventData!.kind.split("-").slice(0, -2).join("-") as OrderKind;
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            // By default, use the price without fees
+            let currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
+
+            let orderId: string | undefined;
+            if (!backfill) {
+              // For erc1155 orders we only allow unique nonce/contract/price. Since erc1155
+              // orders are partially fillable, we have to detect the price of an individual
+              // item from the fill amount, which might result in imprecise results. However
+              // at the moment, we can live with it.
+              await idb
+                .oneOrNone(
+                  `
                       SELECT
                         orders.id,
                         orders.price
@@ -1519,28 +1549,176 @@ export const syncEvents = async (
                         AND (orders.raw_data ->> 'erc20TokenAmount')::NUMERIC / (orders.raw_data ->> 'nftAmount')::NUMERIC = $/price/
                       LIMIT 1
                     `,
-                    {
-                      maker: toBuffer(maker),
-                      nonce,
-                      contract: toBuffer(erc1155Token),
-                      price: bn(erc20FillAmount).div(erc1155FillAmount).toString(),
-                    }
-                  )
-                  .then((result) => {
-                    if (result) {
-                      orderId = result.id;
-                      // Workaround the fact that 0xv4 fill events exclude the fee from the price
-                      currencyPrice = bn(result.price).mul(erc1155FillAmount).toString();
-                    }
-                  });
+                  {
+                    maker: toBuffer(maker),
+                    nonce,
+                    contract: toBuffer(erc1155Token),
+                    price: bn(erc20FillAmount).div(erc1155FillAmount).toString(),
+                  }
+                )
+                .then((result) => {
+                  if (result) {
+                    orderId = result.id;
+                    // Workaround the fact that 0xv4 fill events exclude the fee from the price
+                    currencyPrice = bn(result.price).mul(erc1155FillAmount).toString();
+                  }
+                });
+            }
+
+            let currency = erc20Token;
+            if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+              // Map the weird 0x ETH address
+              currency = Sdk.Common.Addresses.Eth[config.chainId];
+            }
+
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
+              break;
+            }
+
+            const orderSide = direction === 0 ? "sell" : "buy";
+            fillEventsPartial.push({
+              orderKind,
+              orderId,
+              orderSide,
+              maker,
+              taker,
+              price: prices.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: prices.usdPrice,
+              contract: erc1155Token,
+              tokenId: erc1155TokenId,
+              amount: erc1155FillAmount,
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
+
+            if (orderId) {
+              orderInfos.push({
+                context: `filled-${orderId}-${baseEventParams.txHash}`,
+                id: orderId,
+                trigger: {
+                  kind: "sale",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
+              });
+            }
+
+            fillInfos.push({
+              context: orderId || `${maker}-${nonce}`,
+              orderId: orderId,
+              orderSide,
+              contract: erc1155Token,
+              tokenId: erc1155TokenId,
+              amount: erc1155FillAmount,
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
+
+            if (currentTxHasWethTransfer()) {
+              makerInfos.push({
+                context: `${baseEventParams.txHash}-buy-approval`,
+                maker,
+                trigger: {
+                  kind: "approval-change",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
+                data: {
+                  kind: "buy-approval",
+                  contract: Sdk.Common.Addresses.Weth[config.chainId],
+                  orderKind: orderKind,
+                },
+              });
+            }
+
+            break;
+          }
+
+          // Seaport
+
+          case "seaport-order-cancelled": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const orderId = parsedLog.args["orderHash"].toLowerCase();
+
+            cancelEvents.push({
+              orderKind: "seaport",
+              orderId,
+              baseEventParams,
+            });
+
+            orderInfos.push({
+              context: `cancelled-${orderId}`,
+              id: orderId,
+              trigger: {
+                kind: "cancel",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+                logIndex: baseEventParams.logIndex,
+                batchIndex: baseEventParams.batchIndex,
+                blockHash: baseEventParams.blockHash,
+              },
+            });
+
+            break;
+          }
+
+          case "seaport-counter-incremented": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const maker = parsedLog.args["offerer"].toLowerCase();
+            const newCounter = parsedLog.args["newCounter"].toString();
+
+            bulkCancelEvents.push({
+              orderKind: "seaport",
+              maker,
+              minNonce: newCounter,
+              baseEventParams,
+            });
+
+            break;
+          }
+
+          case "seaport-order-filled": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const orderId = parsedLog.args["orderHash"].toLowerCase();
+            const maker = parsedLog.args["offerer"].toLowerCase();
+            let taker = parsedLog.args["recipient"].toLowerCase();
+            const offer = parsedLog.args["offer"];
+            const consideration = parsedLog.args["consideration"];
+
+            const saleInfo = new Sdk.Seaport.Exchange(config.chainId).deriveBasicSale(
+              offer,
+              consideration
+            );
+            if (saleInfo) {
+              // Handle: attribution
+
+              const orderKind = "seaport";
+              const data = await syncEventsUtils.extractAttributionData(
+                baseEventParams.txHash,
+                orderKind
+              );
+              if (data.taker) {
+                taker = data.taker;
               }
 
-              let currency = erc20Token;
-              if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
-                // Map the weird 0x ETH address
-                currency = Sdk.Common.Addresses.Eth[config.chainId];
+              if (saleInfo.recipientOverride) {
+                taker = saleInfo.recipientOverride;
               }
 
+              // Handle: prices
+
+              const currency = saleInfo.paymentToken;
+              const currencyPrice = bn(saleInfo.price).div(saleInfo.amount).toString();
               const prices = await getUSDAndNativePrices(
                 currency,
                 currencyPrice,
@@ -1551,7 +1729,7 @@ export const syncEvents = async (
                 break;
               }
 
-              const orderSide = direction === 0 ? "sell" : "buy";
+              const orderSide = saleInfo.side as "sell" | "buy";
               fillEventsPartial.push({
                 orderKind,
                 orderId,
@@ -1562,260 +1740,495 @@ export const syncEvents = async (
                 currency,
                 currencyPrice,
                 usdPrice: prices.usdPrice,
-                contract: erc1155Token,
-                tokenId: erc1155TokenId,
-                amount: erc1155FillAmount,
+                contract: saleInfo.contract,
+                tokenId: saleInfo.tokenId,
+                amount: saleInfo.amount,
                 orderSourceId: data.orderSource?.id,
                 aggregatorSourceId: data.aggregatorSource?.id,
                 fillSourceId: data.fillSource?.id,
                 baseEventParams,
               });
 
-              if (orderId) {
-                orderInfos.push({
-                  context: `filled-${orderId}-${baseEventParams.txHash}`,
-                  id: orderId,
-                  trigger: {
-                    kind: "sale",
-                    txHash: baseEventParams.txHash,
-                    txTimestamp: baseEventParams.timestamp,
-                  },
-                });
-              }
-
               fillInfos.push({
-                context: orderId || `${maker}-${nonce}`,
+                context: `${orderId}-${baseEventParams.txHash}`,
                 orderId: orderId,
                 orderSide,
-                contract: erc1155Token,
-                tokenId: erc1155TokenId,
-                amount: erc1155FillAmount,
+                contract: saleInfo.contract,
+                tokenId: saleInfo.tokenId,
+                amount: saleInfo.amount,
                 price: prices.nativePrice,
                 timestamp: baseEventParams.timestamp,
               });
+            }
 
-              if (currentTxHasWethTransfer()) {
-                makerInfos.push({
-                  context: `${baseEventParams.txHash}-buy-approval`,
-                  maker,
-                  trigger: {
-                    kind: "approval-change",
-                    txHash: baseEventParams.txHash,
-                    txTimestamp: baseEventParams.timestamp,
-                  },
-                  data: {
-                    kind: "buy-approval",
-                    contract: Sdk.Common.Addresses.Weth[config.chainId],
-                    orderKind: orderKind,
-                  },
-                });
-              }
+            orderInfos.push({
+              context: `filled-${orderId}-${baseEventParams.txHash}`,
+              id: orderId,
+              trigger: {
+                kind: "sale",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+            });
 
+            break;
+          }
+
+          // Rarible / Universe
+
+          case "universe-match":
+          case "rarible-match": {
+            const { args } = eventData.abi.parseLog(log);
+            const leftHash = args["leftHash"].toLowerCase();
+            const leftMaker = args["leftMaker"].toLowerCase();
+            let taker = args["rightMaker"].toLowerCase();
+            const newLeftFill = args["newLeftFill"].toString();
+            const newRightFill = args["newRightFill"].toString();
+            const leftAsset = args["leftAsset"];
+            const rightAsset = args["rightAsset"];
+
+            const ERC20 = "0x8ae85d84";
+            const ETH = "0xaaaebeba";
+            const ERC721 = "0x73ad2146";
+            const ERC1155 = "0x973bb640";
+
+            const assetTypes = [ERC721, ERC1155, ERC20, ETH];
+
+            // Exclude orders with exotic asset types
+            if (
+              !assetTypes.includes(leftAsset.assetClass) ||
+              !assetTypes.includes(rightAsset.assetClass)
+            ) {
               break;
             }
 
-            // Seaport
+            // Assume the left order is the maker's order
+            const side = [ERC721, ERC1155].includes(leftAsset.assetClass) ? "sell" : "buy";
 
-            case "seaport-order-cancelled": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const orderId = parsedLog.args["orderHash"].toLowerCase();
+            const currencyAsset = side === "sell" ? rightAsset : leftAsset;
+            const nftAsset = side === "sell" ? leftAsset : rightAsset;
 
-              cancelEvents.push({
-                orderKind: "seaport",
-                orderId,
-                baseEventParams,
-              });
+            // Handle: attribution
 
-              orderInfos.push({
-                context: `cancelled-${orderId}`,
-                id: orderId,
-                trigger: {
-                  kind: "cancel",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                  logIndex: baseEventParams.logIndex,
-                  batchIndex: baseEventParams.batchIndex,
-                  blockHash: baseEventParams.blockHash,
-                },
-              });
-
-              break;
+            const orderKind = eventData.kind.startsWith("universe") ? "universe" : "rarible";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
             }
 
-            case "seaport-counter-incremented": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const maker = parsedLog.args["offerer"].toLowerCase();
-              const newCounter = parsedLog.args["newCounter"].toString();
+            // Handle: prices
 
-              bulkCancelEvents.push({
-                orderKind: "seaport",
-                maker,
-                minNonce: newCounter,
-                baseEventParams,
-              });
-
-              break;
-            }
-
-            case "seaport-order-filled": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const orderId = parsedLog.args["orderHash"].toLowerCase();
-              const maker = parsedLog.args["offerer"].toLowerCase();
-              let taker = parsedLog.args["recipient"].toLowerCase();
-              const offer = parsedLog.args["offer"];
-              const consideration = parsedLog.args["consideration"];
-
-              const saleInfo = new Sdk.Seaport.Exchange(config.chainId).deriveBasicSale(
-                offer,
-                consideration
+            let currency: string;
+            if (currencyAsset.assetClass === ETH) {
+              currency = Sdk.Common.Addresses.Eth[config.chainId];
+            } else if (currencyAsset.assetClass === ERC20) {
+              const decodedCurrencyAsset = defaultAbiCoder.decode(
+                ["(address token)"],
+                currencyAsset.data
               );
-              if (saleInfo) {
-                // Handle: attribution
-
-                const orderKind = "seaport";
-                const data = await syncEventsUtils.extractAttributionData(
-                  baseEventParams.txHash,
-                  orderKind
-                );
-                if (data.taker) {
-                  taker = data.taker;
-                }
-
-                if (saleInfo.recipientOverride) {
-                  taker = saleInfo.recipientOverride;
-                }
-
-                // Handle: prices
-
-                const currency = saleInfo.paymentToken;
-                const currencyPrice = bn(saleInfo.price).div(saleInfo.amount).toString();
-                const prices = await getUSDAndNativePrices(
-                  currency,
-                  currencyPrice,
-                  baseEventParams.timestamp
-                );
-                if (!prices.nativePrice) {
-                  // We must always have the native price
-                  break;
-                }
-
-                const orderSide = saleInfo.side as "sell" | "buy";
-                fillEventsPartial.push({
-                  orderKind,
-                  orderId,
-                  orderSide,
-                  maker,
-                  taker,
-                  price: prices.nativePrice,
-                  currency,
-                  currencyPrice,
-                  usdPrice: prices.usdPrice,
-                  contract: saleInfo.contract,
-                  tokenId: saleInfo.tokenId,
-                  amount: saleInfo.amount,
-                  orderSourceId: data.orderSource?.id,
-                  aggregatorSourceId: data.aggregatorSource?.id,
-                  fillSourceId: data.fillSource?.id,
-                  baseEventParams,
-                });
-
-                fillInfos.push({
-                  context: `${orderId}-${baseEventParams.txHash}`,
-                  orderId: orderId,
-                  orderSide,
-                  contract: saleInfo.contract,
-                  tokenId: saleInfo.tokenId,
-                  amount: saleInfo.amount,
-                  price: prices.nativePrice,
-                  timestamp: baseEventParams.timestamp,
-                });
-              }
-
-              orderInfos.push({
-                context: `filled-${orderId}-${baseEventParams.txHash}`,
-                id: orderId,
-                trigger: {
-                  kind: "sale",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-              });
-
+              currency = decodedCurrencyAsset[0][0];
+            } else {
               break;
             }
 
-            // Rarible / Universe
+            const decodedNftAsset = defaultAbiCoder.decode(
+              ["(address token, uint tokenId)"],
+              nftAsset.data
+            );
 
-            case "universe-match":
-            case "rarible-match": {
-              const { args } = eventData.abi.parseLog(log);
-              const leftHash = args["leftHash"].toLowerCase();
-              const leftMaker = args["leftMaker"].toLowerCase();
-              let taker = args["rightMaker"].toLowerCase();
-              const newLeftFill = args["newLeftFill"].toString();
-              const newRightFill = args["newRightFill"].toString();
-              const leftAsset = args["leftAsset"];
-              const rightAsset = args["rightAsset"];
+            const contract = decodedNftAsset[0][0].toLowerCase();
+            const tokenId = decodedNftAsset[0][1].toString();
 
-              const ERC20 = "0x8ae85d84";
-              const ETH = "0xaaaebeba";
-              const ERC721 = "0x73ad2146";
-              const ERC1155 = "0x973bb640";
+            let currencyPrice = side === "sell" ? newLeftFill : newRightFill;
+            const amount = side === "sell" ? newRightFill : newLeftFill;
+            currencyPrice = bn(currencyPrice).div(amount).toString();
 
-              const assetTypes = [ERC721, ERC1155, ERC20, ETH];
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
+              break;
+            }
 
-              // Exclude orders with exotic asset types
-              if (
-                !assetTypes.includes(leftAsset.assetClass) ||
-                !assetTypes.includes(rightAsset.assetClass)
-              ) {
-                break;
-              }
+            fillEventsPartial.push({
+              orderKind,
+              orderId: leftHash,
+              orderSide: side,
+              maker: leftMaker,
+              taker,
+              price: prices.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: prices.usdPrice,
+              contract,
+              tokenId,
+              amount,
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
 
-              // Assume the left order is the maker's order
-              const side = [ERC721, ERC1155].includes(leftAsset.assetClass) ? "sell" : "buy";
+            fillInfos.push({
+              context: leftHash,
+              orderId: leftHash,
+              orderSide: side,
+              contract,
+              tokenId,
+              amount,
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
 
-              const currencyAsset = side === "sell" ? rightAsset : leftAsset;
-              const nftAsset = side === "sell" ? leftAsset : rightAsset;
+            break;
+          }
 
-              // Handle: attribution
+          // Element
 
-              const orderKind = eventData.kind.startsWith("universe") ? "universe" : "rarible";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
+          case "element-erc721-sell-order-filled": {
+            const { args } = eventData.abi.parseLog(log);
+            const maker = args["maker"].toLowerCase();
+            let taker = args["taker"].toLowerCase();
+            const erc20Token = args["erc20Token"].toLowerCase();
+            const erc20TokenAmount = args["erc20TokenAmount"].toString();
+            const erc721Token = args["erc721Token"].toLowerCase();
+            const erc721TokenId = args["erc721TokenId"].toString();
+            const orderHash = args["orderHash"].toLowerCase();
 
-              // Handle: prices
+            // Handle: attribution
 
-              let currency: string;
-              if (currencyAsset.assetClass === ETH) {
-                currency = Sdk.Common.Addresses.Eth[config.chainId];
-              } else if (currencyAsset.assetClass === ERC20) {
-                const decodedCurrencyAsset = defaultAbiCoder.decode(
-                  ["(address token)"],
-                  currencyAsset.data
-                );
-                currency = decodedCurrencyAsset[0][0];
+            const orderKind = "element-erc721";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            let currency = erc20Token;
+            if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+              // Map the weird 0x ETH address
+              currency = Sdk.Common.Addresses.Eth[config.chainId];
+            }
+            const currencyPrice = erc20TokenAmount;
+
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
+              break;
+            }
+
+            fillEventsPartial.push({
+              orderKind,
+              orderId: orderHash,
+              orderSide: "sell",
+              maker,
+              taker,
+              price: prices.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: prices.usdPrice,
+              contract: erc721Token,
+              tokenId: erc721TokenId,
+              amount: "1",
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
+
+            fillInfos.push({
+              context: orderHash,
+              orderId: orderHash,
+              orderSide: "sell",
+              contract: erc721Token,
+              tokenId: erc721TokenId,
+              amount: "1",
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
+
+            break;
+          }
+
+          case "element-erc721-buy-order-filled": {
+            const { args } = eventData.abi.parseLog(log);
+            const maker = args["maker"].toLowerCase();
+            let taker = args["taker"].toLowerCase();
+            const erc20Token = args["erc20Token"].toLowerCase();
+            const erc20TokenAmount = args["erc20TokenAmount"].toString();
+            const erc721Token = args["erc721Token"].toLowerCase();
+            const erc721TokenId = args["erc721TokenId"].toString();
+            const orderHash = args["orderHash"].toLowerCase();
+
+            // Handle: attribution
+
+            const orderKind = "element-erc721";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            let currency = erc20Token;
+            if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+              // Map the weird 0x ETH address
+              currency = Sdk.Common.Addresses.Eth[config.chainId];
+            }
+            const currencyPrice = erc20TokenAmount;
+
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
+              break;
+            }
+
+            fillEventsPartial.push({
+              orderKind,
+              orderId: orderHash,
+              orderSide: "buy",
+              maker,
+              taker,
+              price: prices.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: prices.usdPrice,
+              contract: erc721Token,
+              tokenId: erc721TokenId,
+              amount: "1",
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
+
+            fillInfos.push({
+              context: orderHash,
+              orderId: orderHash,
+              orderSide: "buy",
+              contract: erc721Token,
+              tokenId: erc721TokenId,
+              amount: "1",
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
+
+            break;
+          }
+
+          case "element-erc1155-sell-order-filled": {
+            const { args } = eventData.abi.parseLog(log);
+            const maker = args["maker"].toLowerCase();
+            let taker = args["taker"].toLowerCase();
+            const erc20Token = args["erc20Token"].toLowerCase();
+            const erc20FillAmount = args["erc20FillAmount"].toString();
+            const erc1155Token = args["erc1155Token"].toLowerCase();
+            const erc1155TokenId = args["erc1155TokenId"].toString();
+            const erc1155FillAmount = args["erc1155FillAmount"].toString();
+            const orderHash = args["orderHash"].toLowerCase();
+
+            // Handle: attribution
+
+            const orderKind = "element-erc1155";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            let currency = erc20Token;
+            if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+              // Map the weird 0x ETH address
+              currency = Sdk.Common.Addresses.Eth[config.chainId];
+            }
+            const currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
+
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
+              break;
+            }
+
+            fillEventsPartial.push({
+              orderKind,
+              orderId: orderHash,
+              orderSide: "sell",
+              maker,
+              taker,
+              price: prices.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: prices.usdPrice,
+              contract: erc1155Token,
+              tokenId: erc1155TokenId,
+              amount: erc1155FillAmount,
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
+
+            fillInfos.push({
+              context: orderHash,
+              orderId: orderHash,
+              orderSide: "sell",
+              contract: erc1155Token,
+              tokenId: erc1155TokenId,
+              amount: erc1155FillAmount,
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
+
+            break;
+          }
+
+          case "element-erc1155-buy-order-filled": {
+            const { args } = eventData.abi.parseLog(log);
+            const maker = args["maker"].toLowerCase();
+            let taker = args["taker"].toLowerCase();
+            const erc20Token = args["erc20Token"].toLowerCase();
+            const erc20FillAmount = args["erc20FillAmount"].toString();
+            const erc1155Token = args["erc1155Token"].toLowerCase();
+            const erc1155TokenId = args["erc1155TokenId"].toString();
+            const erc1155FillAmount = args["erc1155FillAmount"].toString();
+            const orderHash = args["orderHash"].toLowerCase();
+
+            // Handle: attribution
+
+            const orderKind = "element-erc1155";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            let currency = erc20Token;
+            if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+              // Map the weird 0x ETH address
+              currency = Sdk.Common.Addresses.Eth[config.chainId];
+            }
+            const currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
+
+            const prices = await getUSDAndNativePrices(
+              currency,
+              currencyPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
+              break;
+            }
+
+            fillEventsPartial.push({
+              orderKind,
+              orderId: orderHash,
+              orderSide: "buy",
+              maker,
+              taker,
+              price: prices.nativePrice,
+              currency,
+              currencyPrice,
+              usdPrice: prices.usdPrice,
+              contract: erc1155Token,
+              tokenId: erc1155TokenId,
+              amount: erc1155FillAmount,
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
+
+            fillInfos.push({
+              context: orderHash,
+              orderId: orderHash,
+              orderSide: "buy",
+              contract: erc1155Token,
+              tokenId: erc1155TokenId,
+              amount: erc1155FillAmount,
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
+
+            break;
+          }
+
+          // Quixotic
+
+          case "quixotic-order-filled": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const orderId = parsedLog.args["orderHash"].toLowerCase();
+            const maker = parsedLog.args["offerer"].toLowerCase();
+            let taker = parsedLog.args["recipient"].toLowerCase();
+            const offer = parsedLog.args["offer"];
+            const consideration = parsedLog.args["consideration"];
+
+            // TODO: Switch to `Quixotic` class once integrated
+            const saleInfo = new Sdk.Seaport.Exchange(config.chainId).deriveBasicSale(
+              offer,
+              consideration
+            );
+            if (saleInfo) {
+              let side: "sell" | "buy";
+              if (saleInfo.paymentToken === Sdk.Common.Addresses.Eth[config.chainId]) {
+                side = "sell";
+              } else if (saleInfo.paymentToken === Sdk.Common.Addresses.Weth[config.chainId]) {
+                side = "buy";
               } else {
                 break;
               }
 
-              const decodedNftAsset = defaultAbiCoder.decode(
-                ["(address token, uint tokenId)"],
-                nftAsset.data
+              // Handle: attribution
+
+              const orderKind = "quixotic";
+              const data = await syncEventsUtils.extractAttributionData(
+                baseEventParams.txHash,
+                orderKind
               );
+              if (data.taker) {
+                taker = data.taker;
+              }
 
-              const contract = decodedNftAsset[0][0].toLowerCase();
-              const tokenId = decodedNftAsset[0][1].toString();
+              if (saleInfo.recipientOverride) {
+                taker = saleInfo.recipientOverride;
+              }
 
-              let currencyPrice = side === "sell" ? newLeftFill : newRightFill;
-              const amount = side === "sell" ? newRightFill : newLeftFill;
-              currencyPrice = bn(currencyPrice).div(amount).toString();
+              // Handle: prices
 
+              const currency = saleInfo.paymentToken;
+              const currencyPrice = bn(saleInfo.price).div(saleInfo.amount).toString();
               const prices = await getUSDAndNativePrices(
                 currency,
                 currencyPrice,
@@ -1828,17 +2241,17 @@ export const syncEvents = async (
 
               fillEventsPartial.push({
                 orderKind,
-                orderId: leftHash,
+                orderId,
                 orderSide: side,
-                maker: leftMaker,
+                maker,
                 taker,
                 price: prices.nativePrice,
                 currency,
                 currencyPrice,
                 usdPrice: prices.usdPrice,
-                contract,
-                tokenId,
-                amount,
+                contract: saleInfo.contract,
+                tokenId: saleInfo.tokenId,
+                amount: saleInfo.amount,
                 orderSourceId: data.orderSource?.id,
                 aggregatorSourceId: data.aggregatorSource?.id,
                 fillSourceId: data.fillSource?.id,
@@ -1846,822 +2259,463 @@ export const syncEvents = async (
               });
 
               fillInfos.push({
-                context: leftHash,
-                orderId: leftHash,
+                context: `${orderId}-${baseEventParams.txHash}`,
+                orderId: orderId,
                 orderSide: side,
-                contract,
+                contract: saleInfo.contract,
+                tokenId: saleInfo.tokenId,
+                amount: saleInfo.amount,
+                price: prices.nativePrice,
+                timestamp: baseEventParams.timestamp,
+              });
+            }
+
+            orderInfos.push({
+              context: `filled-${orderId}-${baseEventParams.txHash}`,
+              id: orderId,
+              trigger: {
+                kind: "sale",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+            });
+
+            break;
+          }
+
+          // Zora
+
+          case "zora-ask-filled": {
+            const { args } = eventData.abi.parseLog(log);
+            const tokenContract = args["tokenContract"].toLowerCase();
+            const tokenId = args["tokenId"].toString();
+            let taker = args["buyer"].toLowerCase();
+            const ask = args["ask"];
+            const seller = ask["seller"].toLowerCase();
+            const askCurrency = ask["askCurrency"].toLowerCase();
+            const askPrice = ask["askPrice"].toString();
+
+            // Handle: attribution
+
+            const orderKind = "zora-v3";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            const prices = await getUSDAndNativePrices(
+              askCurrency,
+              askPrice,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
+              break;
+            }
+
+            fillEvents.push({
+              orderKind,
+              currency: askCurrency,
+              orderSide: "sell",
+              maker: seller,
+              taker,
+              price: prices.nativePrice,
+              currencyPrice: askPrice,
+              usdPrice: prices.usdPrice,
+              contract: tokenContract,
+              tokenId,
+              amount: "1",
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
+
+            fillInfos.push({
+              context: `zora-${tokenContract}-${tokenId}-${baseEventParams.txHash}`,
+              orderSide: "sell",
+              contract: tokenContract,
+              tokenId,
+              amount: "1",
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
+
+            break;
+          }
+
+          case "zora-auction-ended": {
+            const { args } = eventData.abi.parseLog(log);
+            const tokenId = args["tokenId"].toString();
+            const tokenContract = args["tokenContract"].toLowerCase();
+            const tokenOwner = args["tokenOwner"].toLowerCase();
+            let taker = args["winner"].toLowerCase();
+            const amount = args["amount"].toString();
+            const auctionCurrency = args["auctionCurrency"].toLowerCase();
+
+            // Handle: attribution
+
+            const orderKind = "zora-v3";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            const prices = await getUSDAndNativePrices(
+              auctionCurrency,
+              amount,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
+              break;
+            }
+
+            fillEvents.push({
+              orderKind,
+              currency: auctionCurrency,
+              orderSide: "sell",
+              taker,
+              maker: tokenOwner,
+              price: prices.nativePrice,
+              currencyPrice: amount,
+              usdPrice: prices.usdPrice,
+              contract: tokenContract,
+              tokenId,
+              amount: "1",
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
+
+            fillInfos.push({
+              context: `zora-${tokenContract}-${tokenId}-${baseEventParams.txHash}`,
+              orderSide: "sell",
+              contract: tokenContract,
+              tokenId,
+              amount: "1",
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
+
+            break;
+          }
+
+          // Nouns
+
+          case "nouns-auction-settled": {
+            const { args } = eventData.abi.parseLog(log);
+            const nounId = args["nounId"].toString();
+            const winner = args["winner"].toLowerCase();
+            const amount = args["amount"].toString();
+
+            // Handle: attribution
+
+            const orderKind = "nouns";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+
+            // Handle: prices
+
+            const currency = Sdk.Common.Addresses.Eth[config.chainId];
+            const prices = await getUSDAndNativePrices(currency, amount, baseEventParams.timestamp);
+            if (!prices.nativePrice) {
+              // We must always have the native price
+              break;
+            }
+
+            fillEvents.push({
+              orderKind,
+              orderSide: "sell",
+              maker: Sdk.Nouns.Addresses.AuctionHouse[config.chainId]?.toLowerCase(),
+              taker: winner,
+              amount: "1",
+              currency,
+              price: prices.nativePrice,
+              currencyPrice: amount,
+              usdPrice: prices.usdPrice,
+              contract: Sdk.Nouns.Addresses.TokenContract[config.chainId]?.toLowerCase(),
+              tokenId: nounId,
+              // Mints have matching order and fill sources but no aggregator source
+              orderSourceId: data.orderSource?.id,
+              fillSourceId: data.orderSource?.id,
+              isPrimary: true,
+              baseEventParams,
+            });
+
+            fillInfos.push({
+              context: `nouns-${nounId}-${baseEventParams.txHash}`,
+              orderSide: "sell",
+              contract: Sdk.Nouns.Addresses.TokenContract[config.chainId]?.toLowerCase(),
+              tokenId: nounId,
+              amount: "1",
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
+
+            break;
+          }
+
+          // Cryptopunks
+
+          case "cryptopunks-punk-offered": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const tokenId = parsedLog.args["punkIndex"].toString();
+            const price = parsedLog.args["minValue"].toString();
+            const taker = parsedLog.args["toAddress"].toLowerCase();
+
+            cryptopunksOrders.push({
+              orderParams: {
+                maker: (
+                  await syncEventsUtils.fetchTransaction(baseEventParams.txHash)
+                ).from.toLowerCase(),
+                side: "sell",
                 tokenId,
-                amount,
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
+                price,
+                taker: taker !== AddressZero ? taker : undefined,
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+              metadata: {},
+            });
 
+            break;
+          }
+
+          case "cryptopunks-punk-no-longer-for-sale": {
+            const parsedLog = eventData.abi.parseLog(log);
+            const tokenId = parsedLog.args["punkIndex"].toString();
+
+            const orderId = keccak256(["string", "uint256"], ["cryptopunks", tokenId]);
+
+            // Custom handling to support on-chain orderbook quirks
+            cancelEventsOnChain.push({
+              orderKind: "cryptopunks",
+              orderId,
+              baseEventParams,
+            });
+            orderInfos.push({
+              context: `cancelled-${orderId}-${baseEventParams.txHash}`,
+              id: orderId,
+              trigger: {
+                kind: "cancel",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+                logIndex: baseEventParams.logIndex,
+                batchIndex: baseEventParams.batchIndex,
+                blockHash: baseEventParams.blockHash,
+              },
+            });
+
+            break;
+          }
+
+          case "cryptopunks-punk-bought": {
+            const { args } = eventData.abi.parseLog(log);
+            const punkIndex = args["punkIndex"].toString();
+            let value = args["value"].toString();
+            const fromAddress = args["fromAddress"].toLowerCase();
+            let toAddress = args["toAddress"].toLowerCase();
+
+            // Due to an upstream issue with the Punks contract, the `PunkBought`
+            // event is emitted with zeroed `toAddress` and `value` fields when a
+            // bid acceptance transaction is triggered. See the following issue:
+            // https://github.com/larvalabs/cryptopunks/issues/19
+
+            // To work around this, we get the correct `toAddress` from the most
+            // recent `Transfer` event which includes the correct taker
+            if (
+              nftTransferEvents.length &&
+              nftTransferEvents[nftTransferEvents.length - 1].baseEventParams.txHash ===
+                baseEventParams.txHash
+            ) {
+              toAddress = nftTransferEvents[nftTransferEvents.length - 1].to;
+            }
+
+            // To get the correct price that the bid was settled at we have to
+            // parse the transaction's calldata and extract the `minPrice` arg
+            // where applicable (if the transaction was a bid acceptance one)
+            const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
+            const iface = new Interface([
+              "function acceptBidForPunk(uint punkIndex, uint minPrice)",
+            ]);
+            try {
+              const result = iface.decodeFunctionData("acceptBidForPunk", tx.data);
+              value = result.minPrice.toString();
+            } catch {
+              // Skip any errors
+            }
+
+            const orderSide = toAddress === AddressZero ? "buy" : "sell";
+            const maker = orderSide === "sell" ? fromAddress : toAddress;
+            let taker = orderSide === "sell" ? toAddress : fromAddress;
+
+            // Handle: attribution
+
+            const orderKind = "cryptopunks";
+            const data = await syncEventsUtils.extractAttributionData(
+              baseEventParams.txHash,
+              orderKind
+            );
+            if (data.taker) {
+              taker = data.taker;
+            }
+
+            // Handle: prices
+
+            const prices = await getUSDAndNativePrices(
+              Sdk.Common.Addresses.Eth[config.chainId],
+              value,
+              baseEventParams.timestamp
+            );
+            if (!prices.nativePrice) {
+              // We must always have the native price
               break;
             }
 
-            // Element
+            const orderId = keccak256(["string", "uint256"], ["cryptopunks", punkIndex]);
+            fillEventsOnChain.push({
+              orderId,
+              orderKind,
+              orderSide,
+              maker,
+              taker,
+              price: prices.nativePrice,
+              currencyPrice: value,
+              usdPrice: prices.usdPrice,
+              currency: Sdk.Common.Addresses.Eth[config.chainId],
+              contract: baseEventParams.address?.toLowerCase(),
+              tokenId: punkIndex,
+              amount: "1",
+              orderSourceId: data.orderSource?.id,
+              aggregatorSourceId: data.aggregatorSource?.id,
+              fillSourceId: data.fillSource?.id,
+              baseEventParams,
+            });
 
-            case "element-erc721-sell-order-filled": {
-              const { args } = eventData.abi.parseLog(log);
-              const maker = args["maker"].toLowerCase();
-              let taker = args["taker"].toLowerCase();
-              const erc20Token = args["erc20Token"].toLowerCase();
-              const erc20TokenAmount = args["erc20TokenAmount"].toString();
-              const erc721Token = args["erc721Token"].toLowerCase();
-              const erc721TokenId = args["erc721TokenId"].toString();
-              const orderHash = args["orderHash"].toLowerCase();
+            orderInfos.push({
+              context: `filled-${orderId}-${baseEventParams.txHash}`,
+              id: orderId,
+              trigger: {
+                kind: "sale",
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
+              },
+            });
 
-              // Handle: attribution
+            fillInfos.push({
+              context: orderId,
+              orderId: orderId,
+              orderSide: "sell",
+              contract: Sdk.CryptoPunks.Addresses.Exchange[config.chainId],
+              tokenId: punkIndex,
+              amount: "1",
+              price: prices.nativePrice,
+              timestamp: baseEventParams.timestamp,
+            });
 
-              const orderKind = "element-erc721";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
+            break;
+          }
 
-              // Handle: prices
+          case "cryptopunks-transfer": {
+            const { args } = eventData.abi.parseLog(log);
+            const from = args["from"].toLowerCase();
+            const to = args["to"].toLowerCase();
+            const tokenId = args["punkIndex"].toString();
 
-              let currency = erc20Token;
-              if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
-                // Map the weird 0x ETH address
-                currency = Sdk.Common.Addresses.Eth[config.chainId];
-              }
-              const currencyPrice = erc20TokenAmount;
+            nftTransferEvents.push({
+              kind: "cryptopunks",
+              from,
+              to,
+              tokenId,
+              amount: "1",
+              baseEventParams,
+            });
 
-              const prices = await getUSDAndNativePrices(
-                currency,
-                currencyPrice,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              fillEventsPartial.push({
-                orderKind,
-                orderId: orderHash,
-                orderSide: "sell",
-                maker,
-                taker,
-                price: prices.nativePrice,
-                currency,
-                currencyPrice,
-                usdPrice: prices.usdPrice,
-                contract: erc721Token,
-                tokenId: erc721TokenId,
-                amount: "1",
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
+            if (from === AddressZero) {
+              mintInfos.push({
+                contract: baseEventParams.address,
+                tokenId,
+                mintedTimestamp: baseEventParams.timestamp,
               });
 
-              fillInfos.push({
-                context: orderHash,
-                orderId: orderHash,
-                orderSide: "sell",
-                contract: erc721Token,
-                tokenId: erc721TokenId,
-                amount: "1",
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
-
-              break;
-            }
-
-            case "element-erc721-buy-order-filled": {
-              const { args } = eventData.abi.parseLog(log);
-              const maker = args["maker"].toLowerCase();
-              let taker = args["taker"].toLowerCase();
-              const erc20Token = args["erc20Token"].toLowerCase();
-              const erc20TokenAmount = args["erc20TokenAmount"].toString();
-              const erc721Token = args["erc721Token"].toLowerCase();
-              const erc721TokenId = args["erc721TokenId"].toString();
-              const orderHash = args["orderHash"].toLowerCase();
-
-              // Handle: attribution
-
-              const orderKind = "element-erc721";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
-
-              // Handle: prices
-
-              let currency = erc20Token;
-              if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
-                // Map the weird 0x ETH address
-                currency = Sdk.Common.Addresses.Eth[config.chainId];
-              }
-              const currencyPrice = erc20TokenAmount;
-
-              const prices = await getUSDAndNativePrices(
-                currency,
-                currencyPrice,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              fillEventsPartial.push({
-                orderKind,
-                orderId: orderHash,
-                orderSide: "buy",
-                maker,
-                taker,
-                price: prices.nativePrice,
-                currency,
-                currencyPrice,
-                usdPrice: prices.usdPrice,
-                contract: erc721Token,
-                tokenId: erc721TokenId,
-                amount: "1",
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
-              });
-
-              fillInfos.push({
-                context: orderHash,
-                orderId: orderHash,
-                orderSide: "buy",
-                contract: erc721Token,
-                tokenId: erc721TokenId,
-                amount: "1",
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
-
-              break;
-            }
-
-            case "element-erc1155-sell-order-filled": {
-              const { args } = eventData.abi.parseLog(log);
-              const maker = args["maker"].toLowerCase();
-              let taker = args["taker"].toLowerCase();
-              const erc20Token = args["erc20Token"].toLowerCase();
-              const erc20FillAmount = args["erc20FillAmount"].toString();
-              const erc1155Token = args["erc1155Token"].toLowerCase();
-              const erc1155TokenId = args["erc1155TokenId"].toString();
-              const erc1155FillAmount = args["erc1155FillAmount"].toString();
-              const orderHash = args["orderHash"].toLowerCase();
-
-              // Handle: attribution
-
-              const orderKind = "element-erc1155";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
-
-              // Handle: prices
-
-              let currency = erc20Token;
-              if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
-                // Map the weird 0x ETH address
-                currency = Sdk.Common.Addresses.Eth[config.chainId];
-              }
-              const currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
-
-              const prices = await getUSDAndNativePrices(
-                currency,
-                currencyPrice,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              fillEventsPartial.push({
-                orderKind,
-                orderId: orderHash,
-                orderSide: "sell",
-                maker,
-                taker,
-                price: prices.nativePrice,
-                currency,
-                currencyPrice,
-                usdPrice: prices.usdPrice,
-                contract: erc1155Token,
-                tokenId: erc1155TokenId,
-                amount: erc1155FillAmount,
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
-              });
-
-              fillInfos.push({
-                context: orderHash,
-                orderId: orderHash,
-                orderSide: "sell",
-                contract: erc1155Token,
-                tokenId: erc1155TokenId,
-                amount: erc1155FillAmount,
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
-
-              break;
-            }
-
-            case "element-erc1155-buy-order-filled": {
-              const { args } = eventData.abi.parseLog(log);
-              const maker = args["maker"].toLowerCase();
-              let taker = args["taker"].toLowerCase();
-              const erc20Token = args["erc20Token"].toLowerCase();
-              const erc20FillAmount = args["erc20FillAmount"].toString();
-              const erc1155Token = args["erc1155Token"].toLowerCase();
-              const erc1155TokenId = args["erc1155TokenId"].toString();
-              const erc1155FillAmount = args["erc1155FillAmount"].toString();
-              const orderHash = args["orderHash"].toLowerCase();
-
-              // Handle: attribution
-
-              const orderKind = "element-erc1155";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
-
-              // Handle: prices
-
-              let currency = erc20Token;
-              if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
-                // Map the weird 0x ETH address
-                currency = Sdk.Common.Addresses.Eth[config.chainId];
-              }
-              const currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
-
-              const prices = await getUSDAndNativePrices(
-                currency,
-                currencyPrice,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              fillEventsPartial.push({
-                orderKind,
-                orderId: orderHash,
-                orderSide: "buy",
-                maker,
-                taker,
-                price: prices.nativePrice,
-                currency,
-                currencyPrice,
-                usdPrice: prices.usdPrice,
-                contract: erc1155Token,
-                tokenId: erc1155TokenId,
-                amount: erc1155FillAmount,
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
-              });
-
-              fillInfos.push({
-                context: orderHash,
-                orderId: orderHash,
-                orderSide: "buy",
-                contract: erc1155Token,
-                tokenId: erc1155TokenId,
-                amount: erc1155FillAmount,
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
-
-              break;
-            }
-
-            // Quixotic
-
-            case "quixotic-order-filled": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const orderId = parsedLog.args["orderHash"].toLowerCase();
-              const maker = parsedLog.args["offerer"].toLowerCase();
-              let taker = parsedLog.args["recipient"].toLowerCase();
-              const offer = parsedLog.args["offer"];
-              const consideration = parsedLog.args["consideration"];
-
-              // TODO: Switch to `Quixotic` class once integrated
-              const saleInfo = new Sdk.Seaport.Exchange(config.chainId).deriveBasicSale(
-                offer,
-                consideration
-              );
-              if (saleInfo) {
-                let side: "sell" | "buy";
-                if (saleInfo.paymentToken === Sdk.Common.Addresses.Eth[config.chainId]) {
-                  side = "sell";
-                } else if (saleInfo.paymentToken === Sdk.Common.Addresses.Weth[config.chainId]) {
-                  side = "buy";
-                } else {
-                  break;
+              // Treat mints as sales
+              if (!NS.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
+                if (!tokensMinted.has(baseEventParams.txHash)) {
+                  tokensMinted.set(baseEventParams.txHash, []);
                 }
-
-                // Handle: attribution
-
-                const orderKind = "quixotic";
-                const data = await syncEventsUtils.extractAttributionData(
-                  baseEventParams.txHash,
-                  orderKind
-                );
-                if (data.taker) {
-                  taker = data.taker;
-                }
-
-                if (saleInfo.recipientOverride) {
-                  taker = saleInfo.recipientOverride;
-                }
-
-                // Handle: prices
-
-                const currency = saleInfo.paymentToken;
-                const currencyPrice = bn(saleInfo.price).div(saleInfo.amount).toString();
-                const prices = await getUSDAndNativePrices(
-                  currency,
-                  currencyPrice,
-                  baseEventParams.timestamp
-                );
-                if (!prices.nativePrice) {
-                  // We must always have the native price
-                  break;
-                }
-
-                fillEventsPartial.push({
-                  orderKind,
-                  orderId,
-                  orderSide: side,
-                  maker,
-                  taker,
-                  price: prices.nativePrice,
-                  currency,
-                  currencyPrice,
-                  usdPrice: prices.usdPrice,
-                  contract: saleInfo.contract,
-                  tokenId: saleInfo.tokenId,
-                  amount: saleInfo.amount,
-                  orderSourceId: data.orderSource?.id,
-                  aggregatorSourceId: data.aggregatorSource?.id,
-                  fillSourceId: data.fillSource?.id,
+                tokensMinted.get(baseEventParams.txHash)!.push({
+                  contract: baseEventParams.address,
+                  tokenId,
+                  from,
+                  amount: "1",
                   baseEventParams,
                 });
-
-                fillInfos.push({
-                  context: `${orderId}-${baseEventParams.txHash}`,
-                  orderId: orderId,
-                  orderSide: side,
-                  contract: saleInfo.contract,
-                  tokenId: saleInfo.tokenId,
-                  amount: saleInfo.amount,
-                  price: prices.nativePrice,
-                  timestamp: baseEventParams.timestamp,
-                });
               }
+            }
 
-              orderInfos.push({
-                context: `filled-${orderId}-${baseEventParams.txHash}`,
-                id: orderId,
-                trigger: {
-                  kind: "sale",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-              });
+            break;
+          }
 
+          // Sudoswap
+
+          // Sudoswap is extremely poorly designed from the perspective of events
+          // that get emitted on trades. As such, we use transaction tracing when
+          // we detect sales in order to get more detailed information.
+
+          case "sudoswap-buy": {
+            const swapTokenForAnyNFTs = "0x28b8aee1";
+            const swapTokenForSpecificNFTs = "0x6d8b99f7";
+
+            const txHash = baseEventParams.txHash;
+            const address = baseEventParams.address;
+
+            const txTrace = await syncEventsUtils.fetchTransactionTrace(txHash);
+            if (!txTrace) {
+              // Skip any failed attempts to get the trace
               break;
             }
 
-            // Zora
+            // Search for the corresponding internal call to the Sudoswap pool
+            const tradeRank = sudoswapTrades.buy.get(`${txHash}-${address}`) ?? 0;
+            const poolCallTrace = searchForCall(
+              txTrace.calls,
+              {
+                to: address,
+                type: "CALL",
+                sigHashes: [swapTokenForAnyNFTs, swapTokenForSpecificNFTs],
+              },
+              tradeRank
+            );
 
-            case "zora-ask-filled": {
-              const { args } = eventData.abi.parseLog(log);
-              const tokenContract = args["tokenContract"].toLowerCase();
-              const tokenId = args["tokenId"].toString();
-              let taker = args["buyer"].toLowerCase();
-              const ask = args["ask"];
-              const seller = ask["seller"].toLowerCase();
-              const askCurrency = ask["askCurrency"].toLowerCase();
-              const askPrice = ask["askPrice"].toString();
-
-              // Handle: attribution
-
-              const orderKind = "zora-v3";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
+            if (poolCallTrace?.output === "0x") {
+              // Sometimes there can be upstream bugs and the call's output gets truncated
+              logger.error(
+                COMPONENT_NAME,
+                `Trace missing output: ${baseEventParams.block} - ${baseEventParams.txHash}`
               );
-              if (data.taker) {
-                taker = data.taker;
-              }
-
-              // Handle: prices
-
-              const prices = await getUSDAndNativePrices(
-                askCurrency,
-                askPrice,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              fillEvents.push({
-                orderKind,
-                currency: askCurrency,
-                orderSide: "sell",
-                maker: seller,
-                taker,
-                price: prices.nativePrice,
-                currencyPrice: askPrice,
-                usdPrice: prices.usdPrice,
-                contract: tokenContract,
-                tokenId,
-                amount: "1",
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
-              });
-
-              fillInfos.push({
-                context: `zora-${tokenContract}-${tokenId}-${baseEventParams.txHash}`,
-                orderSide: "sell",
-                contract: tokenContract,
-                tokenId,
-                amount: "1",
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
-
-              break;
             }
 
-            case "zora-auction-ended": {
-              const { args } = eventData.abi.parseLog(log);
-              const tokenId = args["tokenId"].toString();
-              const tokenContract = args["tokenContract"].toLowerCase();
-              const tokenOwner = args["tokenOwner"].toLowerCase();
-              let taker = args["winner"].toLowerCase();
-              const amount = args["amount"].toString();
-              const auctionCurrency = args["auctionCurrency"].toLowerCase();
+            if (poolCallTrace) {
+              const sighash = poolCallTrace.input.slice(0, 10);
+              const pool = await sudoswapUtils.getPoolDetails(baseEventParams.address);
 
-              // Handle: attribution
-
-              const orderKind = "zora-v3";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
-
-              // Handle: prices
-
-              const prices = await getUSDAndNativePrices(
-                auctionCurrency,
-                amount,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              fillEvents.push({
-                orderKind,
-                currency: auctionCurrency,
-                orderSide: "sell",
-                taker,
-                maker: tokenOwner,
-                price: prices.nativePrice,
-                currencyPrice: amount,
-                usdPrice: prices.usdPrice,
-                contract: tokenContract,
-                tokenId,
-                amount: "1",
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
-              });
-
-              fillInfos.push({
-                context: `zora-${tokenContract}-${tokenId}-${baseEventParams.txHash}`,
-                orderSide: "sell",
-                contract: tokenContract,
-                tokenId,
-                amount: "1",
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
-
-              break;
-            }
-
-            // Nouns
-
-            case "nouns-auction-settled": {
-              const { args } = eventData.abi.parseLog(log);
-              const nounId = args["nounId"].toString();
-              const winner = args["winner"].toLowerCase();
-              const amount = args["amount"].toString();
-
-              // Handle: attribution
-
-              const orderKind = "nouns";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-
-              // Handle: prices
-
-              const currency = Sdk.Common.Addresses.Eth[config.chainId];
-              const prices = await getUSDAndNativePrices(
-                currency,
-                amount,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              fillEvents.push({
-                orderKind,
-                orderSide: "sell",
-                maker: Sdk.Nouns.Addresses.AuctionHouse[config.chainId]?.toLowerCase(),
-                taker: winner,
-                amount: "1",
-                currency,
-                price: prices.nativePrice,
-                currencyPrice: amount,
-                usdPrice: prices.usdPrice,
-                contract: Sdk.Nouns.Addresses.TokenContract[config.chainId]?.toLowerCase(),
-                tokenId: nounId,
-                // Mints have matching order and fill sources but no aggregator source
-                orderSourceId: data.orderSource?.id,
-                fillSourceId: data.orderSource?.id,
-                isPrimary: true,
-                baseEventParams,
-              });
-
-              fillInfos.push({
-                context: `nouns-${nounId}-${baseEventParams.txHash}`,
-                orderSide: "sell",
-                contract: Sdk.Nouns.Addresses.TokenContract[config.chainId]?.toLowerCase(),
-                tokenId: nounId,
-                amount: "1",
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
-
-              break;
-            }
-
-            // Cryptopunks
-
-            case "cryptopunks-punk-offered": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const tokenId = parsedLog.args["punkIndex"].toString();
-              const price = parsedLog.args["minValue"].toString();
-              const taker = parsedLog.args["toAddress"].toLowerCase();
-
-              cryptopunksOrders.push({
-                orderParams: {
-                  maker: (
-                    await syncEventsUtils.fetchTransaction(baseEventParams.txHash)
-                  ).from.toLowerCase(),
-                  side: "sell",
-                  tokenId,
-                  price,
-                  taker: taker !== AddressZero ? taker : undefined,
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-                metadata: {},
-              });
-
-              break;
-            }
-
-            case "cryptopunks-punk-no-longer-for-sale": {
-              const parsedLog = eventData.abi.parseLog(log);
-              const tokenId = parsedLog.args["punkIndex"].toString();
-
-              const orderId = keccak256(["string", "uint256"], ["cryptopunks", tokenId]);
-
-              // Custom handling to support on-chain orderbook quirks
-              cancelEventsOnChain.push({
-                orderKind: "cryptopunks",
-                orderId,
-                baseEventParams,
-              });
-              orderInfos.push({
-                context: `cancelled-${orderId}-${baseEventParams.txHash}`,
-                id: orderId,
-                trigger: {
-                  kind: "cancel",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                  logIndex: baseEventParams.logIndex,
-                  batchIndex: baseEventParams.batchIndex,
-                  blockHash: baseEventParams.blockHash,
-                },
-              });
-
-              break;
-            }
-
-            case "cryptopunks-punk-bought": {
-              const { args } = eventData.abi.parseLog(log);
-              const punkIndex = args["punkIndex"].toString();
-              let value = args["value"].toString();
-              const fromAddress = args["fromAddress"].toLowerCase();
-              let toAddress = args["toAddress"].toLowerCase();
-
-              // Due to an upstream issue with the Punks contract, the `PunkBought`
-              // event is emitted with zeroed `toAddress` and `value` fields when a
-              // bid acceptance transaction is triggered. See the following issue:
-              // https://github.com/larvalabs/cryptopunks/issues/19
-
-              // To work around this, we get the correct `toAddress` from the most
-              // recent `Transfer` event which includes the correct taker
-              if (
-                cryptopunksTransferEvents.length &&
-                cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].txHash ===
-                  baseEventParams.txHash
-              ) {
-                toAddress = cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].to;
-              }
-
-              // To get the correct price that the bid was settled at we have to
-              // parse the transaction's calldata and extract the `minPrice` arg
-              // where applicable (if the transaction was a bid acceptance one)
-              const tx = await syncEventsUtils.fetchTransaction(baseEventParams.txHash);
-              const iface = new Interface([
-                "function acceptBidForPunk(uint punkIndex, uint minPrice)",
-              ]);
-              try {
-                const result = iface.decodeFunctionData("acceptBidForPunk", tx.data);
-                value = result.minPrice.toString();
-              } catch {
-                // Skip any errors
-              }
-
-              const orderSide = toAddress === AddressZero ? "buy" : "sell";
-              const maker = orderSide === "sell" ? fromAddress : toAddress;
-              let taker = orderSide === "sell" ? toAddress : fromAddress;
-
-              // Handle: attribution
-
-              const orderKind = "cryptopunks";
-              const data = await syncEventsUtils.extractAttributionData(
-                baseEventParams.txHash,
-                orderKind
-              );
-              if (data.taker) {
-                taker = data.taker;
-              }
-
-              // Handle: prices
-
-              const prices = await getUSDAndNativePrices(
-                Sdk.Common.Addresses.Eth[config.chainId],
-                value,
-                baseEventParams.timestamp
-              );
-              if (!prices.nativePrice) {
-                // We must always have the native price
-                break;
-              }
-
-              const orderId = keccak256(["string", "uint256"], ["cryptopunks", punkIndex]);
-              fillEventsOnChain.push({
-                orderId,
-                orderKind,
-                orderSide,
-                maker,
-                taker,
-                price: prices.nativePrice,
-                currencyPrice: value,
-                usdPrice: prices.usdPrice,
-                currency: Sdk.Common.Addresses.Eth[config.chainId],
-                contract: baseEventParams.address?.toLowerCase(),
-                tokenId: punkIndex,
-                amount: "1",
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams,
-              });
-
-              orderInfos.push({
-                context: `filled-${orderId}-${baseEventParams.txHash}`,
-                id: orderId,
-                trigger: {
-                  kind: "sale",
-                  txHash: baseEventParams.txHash,
-                  txTimestamp: baseEventParams.timestamp,
-                },
-              });
-
-              fillInfos.push({
-                context: orderId,
-                orderId: orderId,
-                orderSide: "sell",
-                contract: Sdk.CryptoPunks.Addresses.Exchange[config.chainId],
-                tokenId: punkIndex,
-                amount: "1",
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
-
-              break;
-            }
-
-            case "cryptopunks-transfer": {
-              const { args } = eventData.abi.parseLog(log);
-              const to = args["to"].toLowerCase();
-
-              cryptopunksTransferEvents.push({
-                to,
-                txHash: baseEventParams.txHash,
-              });
-
-              break;
-            }
-
-            // Sudoswap
-
-            // Sudoswap is extremely poorly designed from the perspective of events
-            // that get emitted on trades. As such, we use transaction tracing when
-            // we detect sales in order to get more detailed information.
-
-            case "sudoswap-buy": {
-              const swapTokenForAnyNFTs = "0x28b8aee1";
-              const swapTokenForSpecificNFTs = "0x6d8b99f7";
-
-              const txHash = baseEventParams.txHash;
-              const address = baseEventParams.address;
-
-              const txTrace = await syncEventsUtils.fetchTransactionTrace(txHash);
-              if (!txTrace) {
-                // Skip any failed attempts to get the trace
-                break;
-              }
-
-              // Search for the corresponding internal call to the Sudoswap pool
-              const tradeRank = sudoswapTrades.buy.get(`${txHash}-${address}`) ?? 0;
-              const poolCallTrace = searchForCall(
-                txTrace.calls,
-                {
-                  to: address,
-                  type: "CALL",
-                  sigHashes: [swapTokenForAnyNFTs, swapTokenForSpecificNFTs],
-                },
-                tradeRank
-              );
-
-              if (poolCallTrace?.output === "0x") {
-                // Sometimes there can be upstream bugs and the call's output gets truncated
-                logger.error(
-                  COMPONENT_NAME,
-                  `Trace missing output: ${baseEventParams.block} - ${baseEventParams.txHash}`
-                );
-              }
-
-              if (poolCallTrace) {
-                const sighash = poolCallTrace.input.slice(0, 10);
-                const pool = await sudoswapUtils.getPoolDetails(baseEventParams.address);
-
-                if (pool && sighash === swapTokenForAnyNFTs) {
-                  const iface = new Interface([
-                    `
+              if (pool && sighash === swapTokenForAnyNFTs) {
+                const iface = new Interface([
+                  `
                       function swapTokenForAnyNFTs(
                         uint256 numNFTs,
                         uint256 maxExpectedTokenInput,
@@ -2670,100 +2724,100 @@ export const syncEvents = async (
                         address routerCaller
                       ) external returns (uint256 inputAmount)
                     `,
-                  ]);
-                  const decodedInput = iface.decodeFunctionData(
-                    "swapTokenForAnyNFTs",
-                    poolCallTrace.input
-                  );
+                ]);
+                const decodedInput = iface.decodeFunctionData(
+                  "swapTokenForAnyNFTs",
+                  poolCallTrace.input
+                );
 
-                  // Reference: https://github.com/ledgerwatch/erigon/issues/5308
-                  let estimatedInputAmount: string | undefined;
-                  if (poolCallTrace.output !== "0x") {
-                    // If the trace's output is available, decode the input amount from that
-                    estimatedInputAmount = iface
-                      .decodeFunctionResult("swapTokenForAnyNFTs", poolCallTrace.output)
-                      .inputAmount.toString();
-                  } else {
-                    // Otherwise, estimate the input amount
-                    estimatedInputAmount = decodedInput.maxExpectedTokenInput.toString();
+                // Reference: https://github.com/ledgerwatch/erigon/issues/5308
+                let estimatedInputAmount: string | undefined;
+                if (poolCallTrace.output !== "0x") {
+                  // If the trace's output is available, decode the input amount from that
+                  estimatedInputAmount = iface
+                    .decodeFunctionResult("swapTokenForAnyNFTs", poolCallTrace.output)
+                    .inputAmount.toString();
+                } else {
+                  // Otherwise, estimate the input amount
+                  estimatedInputAmount = decodedInput.maxExpectedTokenInput.toString();
+                }
+
+                if (!estimatedInputAmount) {
+                  // Skip if we can't extract the input amount
+                  break;
+                }
+
+                let taker = decodedInput.nftRecipient;
+                const price = bn(estimatedInputAmount).div(decodedInput.numNFTs).toString();
+
+                // Handle: attribution
+
+                const orderKind = "sudoswap";
+                const data = await syncEventsUtils.extractAttributionData(
+                  baseEventParams.txHash,
+                  orderKind
+                );
+                if (data.taker) {
+                  taker = data.taker;
+                }
+
+                // Handle: prices
+
+                const prices = await getUSDAndNativePrices(
+                  Sdk.Common.Addresses.Eth[config.chainId],
+                  price,
+                  baseEventParams.timestamp
+                );
+                if (!prices.nativePrice) {
+                  // We must always have the native price
+                  break;
+                }
+
+                // Detect the traded tokens from the trace's state changes
+                const state = parseCallTrace(poolCallTrace);
+
+                let i = 0;
+                for (const token of Object.keys(state[address].tokenBalanceState)) {
+                  if (token.startsWith("erc721")) {
+                    const tokenId = token.split(":")[2];
+                    fillEvents.push({
+                      orderKind,
+                      orderSide: "sell",
+                      maker: baseEventParams.address,
+                      taker,
+                      price: prices.nativePrice,
+                      currencyPrice: price,
+                      usdPrice: prices.usdPrice,
+                      currency: pool.token,
+                      contract: pool.nft,
+                      tokenId,
+                      amount: "1",
+                      orderSourceId: data.orderSource?.id,
+                      aggregatorSourceId: data.aggregatorSource?.id,
+                      fillSourceId: data.fillSource?.id,
+                      baseEventParams: {
+                        ...baseEventParams,
+                        batchIndex: i + 1,
+                      },
+                    });
+
+                    fillInfos.push({
+                      context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
+                      orderSide: "sell",
+                      contract: pool.nft,
+                      tokenId: tokenId,
+                      amount: "1",
+                      price: prices.nativePrice,
+                      timestamp: baseEventParams.timestamp,
+                    });
+
+                    // Make sure to increment the batch counter
+                    i++;
                   }
-
-                  if (!estimatedInputAmount) {
-                    // Skip if we can't extract the input amount
-                    break;
-                  }
-
-                  let taker = decodedInput.nftRecipient;
-                  const price = bn(estimatedInputAmount).div(decodedInput.numNFTs).toString();
-
-                  // Handle: attribution
-
-                  const orderKind = "sudoswap";
-                  const data = await syncEventsUtils.extractAttributionData(
-                    baseEventParams.txHash,
-                    orderKind
-                  );
-                  if (data.taker) {
-                    taker = data.taker;
-                  }
-
-                  // Handle: prices
-
-                  const prices = await getUSDAndNativePrices(
-                    Sdk.Common.Addresses.Eth[config.chainId],
-                    price,
-                    baseEventParams.timestamp
-                  );
-                  if (!prices.nativePrice) {
-                    // We must always have the native price
-                    break;
-                  }
-
-                  // Detect the traded tokens from the trace's state changes
-                  const state = parseCallTrace(poolCallTrace);
-
-                  let i = 0;
-                  for (const token of Object.keys(state[address].tokenBalanceState)) {
-                    if (token.startsWith("erc721")) {
-                      const tokenId = token.split(":")[2];
-                      fillEvents.push({
-                        orderKind,
-                        orderSide: "sell",
-                        maker: baseEventParams.address,
-                        taker,
-                        price: prices.nativePrice,
-                        currencyPrice: price,
-                        usdPrice: prices.usdPrice,
-                        currency: pool.token,
-                        contract: pool.nft,
-                        tokenId,
-                        amount: "1",
-                        orderSourceId: data.orderSource?.id,
-                        aggregatorSourceId: data.aggregatorSource?.id,
-                        fillSourceId: data.fillSource?.id,
-                        baseEventParams: {
-                          ...baseEventParams,
-                          batchIndex: i + 1,
-                        },
-                      });
-
-                      fillInfos.push({
-                        context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
-                        orderSide: "sell",
-                        contract: pool.nft,
-                        tokenId: tokenId,
-                        amount: "1",
-                        price: prices.nativePrice,
-                        timestamp: baseEventParams.timestamp,
-                      });
-
-                      // Make sure to increment the batch counter
-                      i++;
-                    }
-                  }
-                } else if (pool && sighash === swapTokenForSpecificNFTs) {
-                  const iface = new Interface([
-                    `
+                }
+              } else if (pool && sighash === swapTokenForSpecificNFTs) {
+                const iface = new Interface([
+                  `
                       function swapTokenForSpecificNFTs(
                         uint256[] calldata nftIds,
                         uint256 maxExpectedTokenInput,
@@ -2772,133 +2826,133 @@ export const syncEvents = async (
                         address routerCaller
                       ) external returns (uint256 inputAmount)
                     `,
-                  ]);
-                  const decodedInput = iface.decodeFunctionData(
-                    "swapTokenForSpecificNFTs",
-                    poolCallTrace.input
-                  );
+                ]);
+                const decodedInput = iface.decodeFunctionData(
+                  "swapTokenForSpecificNFTs",
+                  poolCallTrace.input
+                );
 
-                  // Reference: https://github.com/ledgerwatch/erigon/issues/5308
-                  let estimatedInputAmount: string | undefined;
-                  if (poolCallTrace.output !== "0x") {
-                    // If the trace's output is available, decode the input amount from that
-                    estimatedInputAmount = iface
-                      .decodeFunctionResult("swapTokenForSpecificNFTs", poolCallTrace.output)
-                      .inputAmount.toString();
-                  } else {
-                    // Otherwise, estimate the input amount
-                    estimatedInputAmount = decodedInput.maxExpectedTokenInput.toString();
-                  }
+                // Reference: https://github.com/ledgerwatch/erigon/issues/5308
+                let estimatedInputAmount: string | undefined;
+                if (poolCallTrace.output !== "0x") {
+                  // If the trace's output is available, decode the input amount from that
+                  estimatedInputAmount = iface
+                    .decodeFunctionResult("swapTokenForSpecificNFTs", poolCallTrace.output)
+                    .inputAmount.toString();
+                } else {
+                  // Otherwise, estimate the input amount
+                  estimatedInputAmount = decodedInput.maxExpectedTokenInput.toString();
+                }
 
-                  if (!estimatedInputAmount) {
-                    // Skip if we can't extract the input amount
-                    break;
-                  }
+                if (!estimatedInputAmount) {
+                  // Skip if we can't extract the input amount
+                  break;
+                }
 
-                  let taker = decodedInput.nftRecipient;
-                  const price = bn(estimatedInputAmount).div(decodedInput.nftIds.length).toString();
+                let taker = decodedInput.nftRecipient;
+                const price = bn(estimatedInputAmount).div(decodedInput.nftIds.length).toString();
 
-                  // Handle: attribution
+                // Handle: attribution
 
-                  const orderKind = "sudoswap";
-                  const data = await syncEventsUtils.extractAttributionData(
-                    baseEventParams.txHash,
-                    orderKind
-                  );
-                  if (data.taker) {
-                    taker = data.taker;
-                  }
+                const orderKind = "sudoswap";
+                const data = await syncEventsUtils.extractAttributionData(
+                  baseEventParams.txHash,
+                  orderKind
+                );
+                if (data.taker) {
+                  taker = data.taker;
+                }
 
-                  // Handle: prices
+                // Handle: prices
 
-                  const prices = await getUSDAndNativePrices(
-                    Sdk.Common.Addresses.Eth[config.chainId],
-                    price,
-                    baseEventParams.timestamp
-                  );
-                  if (!prices.nativePrice) {
-                    // We must always have the native price
-                    break;
-                  }
+                const prices = await getUSDAndNativePrices(
+                  Sdk.Common.Addresses.Eth[config.chainId],
+                  price,
+                  baseEventParams.timestamp
+                );
+                if (!prices.nativePrice) {
+                  // We must always have the native price
+                  break;
+                }
 
-                  for (let i = 0; i < decodedInput.nftIds.length; i++) {
-                    const tokenId = decodedInput.nftIds[i].toString();
+                for (let i = 0; i < decodedInput.nftIds.length; i++) {
+                  const tokenId = decodedInput.nftIds[i].toString();
 
-                    fillEvents.push({
-                      orderKind,
-                      orderSide: "sell",
-                      maker: baseEventParams.address,
-                      taker,
-                      price: prices.nativePrice,
-                      currencyPrice: price,
-                      usdPrice: prices.usdPrice,
-                      currency: pool.token,
-                      contract: pool.nft,
-                      tokenId,
-                      amount: "1",
-                      orderSourceId: data.orderSource?.id,
-                      aggregatorSourceId: data.aggregatorSource?.id,
-                      fillSourceId: data.fillSource?.id,
-                      baseEventParams: {
-                        ...baseEventParams,
-                        batchIndex: i + 1,
-                      },
-                    });
+                  fillEvents.push({
+                    orderKind,
+                    orderSide: "sell",
+                    maker: baseEventParams.address,
+                    taker,
+                    price: prices.nativePrice,
+                    currencyPrice: price,
+                    usdPrice: prices.usdPrice,
+                    currency: pool.token,
+                    contract: pool.nft,
+                    tokenId,
+                    amount: "1",
+                    orderSourceId: data.orderSource?.id,
+                    aggregatorSourceId: data.aggregatorSource?.id,
+                    fillSourceId: data.fillSource?.id,
+                    baseEventParams: {
+                      ...baseEventParams,
+                      batchIndex: i + 1,
+                    },
+                  });
 
-                    fillInfos.push({
-                      context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
-                      orderSide: "sell",
-                      contract: pool.nft,
-                      tokenId: tokenId,
-                      amount: "1",
-                      price: prices.nativePrice,
-                      timestamp: baseEventParams.timestamp,
-                    });
-                  }
+                  fillInfos.push({
+                    context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
+                    orderSide: "sell",
+                    contract: pool.nft,
+                    tokenId: tokenId,
+                    amount: "1",
+                    price: prices.nativePrice,
+                    timestamp: baseEventParams.timestamp,
+                  });
                 }
               }
+            }
 
-              // Keep track of the "buy" trade
-              sudoswapTrades.buy.set(`${txHash}-${address}`, tradeRank + 1);
+            // Keep track of the "buy" trade
+            sudoswapTrades.buy.set(`${txHash}-${address}`, tradeRank + 1);
 
+            break;
+          }
+
+          case "sudoswap-sell": {
+            const swapNFTsForToken = "0xb1d3f1c1";
+
+            const txHash = baseEventParams.txHash;
+            const address = baseEventParams.address;
+
+            const txTrace = await syncEventsUtils.fetchTransactionTrace(txHash);
+            if (!txTrace) {
+              // Skip any failed attempts to get the trace
               break;
             }
 
-            case "sudoswap-sell": {
-              const swapNFTsForToken = "0xb1d3f1c1";
+            // Search for the corresponding internal call to the Sudoswap pool
+            const tradeRank = sudoswapTrades.sell.get(`${txHash}-${address}`) ?? 0;
+            const poolCallTrace = searchForCall(
+              txTrace.calls,
+              { to: address, type: "CALL", sigHashes: [swapNFTsForToken] },
+              tradeRank
+            );
 
-              const txHash = baseEventParams.txHash;
-              const address = baseEventParams.address;
-
-              const txTrace = await syncEventsUtils.fetchTransactionTrace(txHash);
-              if (!txTrace) {
-                // Skip any failed attempts to get the trace
-                break;
-              }
-
-              // Search for the corresponding internal call to the Sudoswap pool
-              const tradeRank = sudoswapTrades.sell.get(`${txHash}-${address}`) ?? 0;
-              const poolCallTrace = searchForCall(
-                txTrace.calls,
-                { to: address, type: "CALL", sigHashes: [swapNFTsForToken] },
-                tradeRank
+            if (poolCallTrace?.output === "0x") {
+              // Sometimes there can be upstream bugs and the call's output gets truncated
+              logger.error(
+                COMPONENT_NAME,
+                `Trace missing output: ${baseEventParams.block} - ${baseEventParams.txHash}`
               );
+            }
 
-              if (poolCallTrace?.output === "0x") {
-                // Sometimes there can be upstream bugs and the call's output gets truncated
-                logger.error(
-                  COMPONENT_NAME,
-                  `Trace missing output: ${baseEventParams.block} - ${baseEventParams.txHash}`
-                );
-              }
+            if (poolCallTrace) {
+              const sighash = poolCallTrace.input.slice(0, 10);
+              const pool = await sudoswapUtils.getPoolDetails(baseEventParams.address);
 
-              if (poolCallTrace) {
-                const sighash = poolCallTrace.input.slice(0, 10);
-                const pool = await sudoswapUtils.getPoolDetails(baseEventParams.address);
-
-                if (pool && sighash === swapNFTsForToken) {
-                  const iface = new Interface([
-                    `
+              if (pool && sighash === swapNFTsForToken) {
+                const iface = new Interface([
+                  `
                       function swapNFTsForToken(
                         uint256[] calldata nftIds,
                         uint256 minExpectedTokenOutput,
@@ -2907,53 +2961,170 @@ export const syncEvents = async (
                         address routerCaller
                       ) external returns (uint256 outputAmount)
                     `,
-                  ]);
-                  const decodedInput = iface.decodeFunctionData(
-                    "swapNFTsForToken",
-                    poolCallTrace.input
-                  );
+                ]);
+                const decodedInput = iface.decodeFunctionData(
+                  "swapNFTsForToken",
+                  poolCallTrace.input
+                );
 
-                  // Reference: https://github.com/ledgerwatch/erigon/issues/5308
-                  let estimatedOutputAmount: string | undefined;
-                  if (poolCallTrace.output !== "0x") {
-                    // If the trace's output is available, decode the output amount from that
-                    estimatedOutputAmount = iface
-                      .decodeFunctionResult("swapNFTsForToken", poolCallTrace.output)
-                      .outputAmount.toString();
-                  } else {
-                    // Otherwise, estimate the output amount
-                    estimatedOutputAmount = decodedInput.minExpectedTokenOutput;
-                    if (estimatedOutputAmount === "0") {
-                      estimatedOutputAmount = undefined;
-                    }
+                // Reference: https://github.com/ledgerwatch/erigon/issues/5308
+                let estimatedOutputAmount: string | undefined;
+                if (poolCallTrace.output !== "0x") {
+                  // If the trace's output is available, decode the output amount from that
+                  estimatedOutputAmount = iface
+                    .decodeFunctionResult("swapNFTsForToken", poolCallTrace.output)
+                    .outputAmount.toString();
+                } else {
+                  // Otherwise, estimate the output amount
+                  estimatedOutputAmount = decodedInput.minExpectedTokenOutput;
+                  if (estimatedOutputAmount === "0") {
+                    estimatedOutputAmount = undefined;
                   }
+                }
 
-                  if (!estimatedOutputAmount) {
-                    // Skip if we can't extract the output amount
-                    break;
-                  }
+                if (!estimatedOutputAmount) {
+                  // Skip if we can't extract the output amount
+                  break;
+                }
 
-                  let taker = decodedInput.tokenRecipient;
-                  const price = bn(estimatedOutputAmount)
-                    .div(decodedInput.nftIds.length)
-                    .toString();
+                let taker = decodedInput.tokenRecipient;
+                const price = bn(estimatedOutputAmount).div(decodedInput.nftIds.length).toString();
 
+                // Handle: attribution
+
+                const orderKind = "sudoswap";
+                const data = await syncEventsUtils.extractAttributionData(
+                  baseEventParams.txHash,
+                  orderKind
+                );
+                if (data.taker) {
+                  taker = data.taker;
+                }
+
+                // Handle: prices
+
+                const prices = await getUSDAndNativePrices(
+                  Sdk.Common.Addresses.Eth[config.chainId],
+                  price,
+                  baseEventParams.timestamp
+                );
+                if (!prices.nativePrice) {
+                  // We must always have the native price
+                  break;
+                }
+
+                for (let i = 0; i < decodedInput.nftIds.length; i++) {
+                  const tokenId = decodedInput.nftIds[i].toString();
+
+                  fillEvents.push({
+                    orderKind,
+                    orderSide: "buy",
+                    maker: baseEventParams.address,
+                    taker,
+                    price: prices.nativePrice,
+                    currencyPrice: price,
+                    usdPrice: prices.usdPrice,
+                    currency: pool.token,
+                    contract: pool.nft,
+                    tokenId,
+                    amount: "1",
+                    orderSourceId: data.orderSource?.id,
+                    aggregatorSourceId: data.aggregatorSource?.id,
+                    fillSourceId: data.fillSource?.id,
+                    baseEventParams: {
+                      ...baseEventParams,
+                      batchIndex: i + 1,
+                    },
+                  });
+
+                  fillInfos.push({
+                    context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
+                    orderSide: "buy",
+                    contract: pool.nft,
+                    tokenId: tokenId,
+                    amount: "1",
+                    price: prices.nativePrice,
+                    timestamp: baseEventParams.timestamp,
+                  });
+                }
+              }
+            }
+
+            // Keep track of the "sell" trade
+            sudoswapTrades.sell.set(`${txHash}-${address}`, tradeRank + 1);
+
+            break;
+          }
+
+          // NFTX
+
+          case "nftx-minted": {
+            const { args } = eventData.abi.parseLog(log);
+            const tokenIds = args.nftIds.map(String);
+            const amounts = args.amounts.map(String);
+
+            // Determine the total quantity of NFTs sold
+            let nftCount = 0;
+            for (let i = 0; i < tokenIds.length; i++) {
+              nftCount += amounts.length ? Number(amounts[i]) : 1;
+            }
+
+            const nftPool = await nftxUtils.getNftPoolDetails(baseEventParams.address);
+            if (!nftPool) {
+              // Skip any failed attempts to get the pool details
+              break;
+            }
+
+            // Fetch all logs from the current transaction
+            const { logs } = await syncEventsUtils.fetchTransactionLogs(baseEventParams.txHash);
+
+            // Ensure there is a single `Minted` event for the same pool
+            const mintEventsCount = logs.filter((log) =>
+              nftxUtils.isMint(log, baseEventParams.address)
+            ).length;
+            if (mintEventsCount > 1) {
+              break;
+            }
+
+            // Ensure there is a single `Swap` event for the same pool
+            const swapEventsCount = logs.filter((log) => nftxUtils.isSwap(log)).length;
+            if (swapEventsCount > 1) {
+              break;
+            }
+
+            for (const log of logs) {
+              const result = await nftxUtils.tryParseSwap(log);
+              if (
+                result &&
+                // The swap occured after the mint
+                log.logIndex > baseEventParams.logIndex &&
+                // The swap included the nft pool token
+                [result.ftPool.token0, result.ftPool.token1].includes(nftPool.address)
+              ) {
+                let currency: string | undefined;
+                let currencyPrice: string | undefined;
+                if (nftPool.address === result.ftPool.token0 && result.amount1Out !== "0") {
+                  currency = result.ftPool.token1;
+                  currencyPrice = bn(result.amount1Out).div(nftCount).toString();
+                } else if (nftPool.address === result.ftPool.token1 && result.amount0Out !== "0") {
+                  currency = result.ftPool.token0;
+                  currencyPrice = bn(result.amount0Out).div(nftCount).toString();
+                }
+
+                if (currency && currencyPrice) {
                   // Handle: attribution
 
-                  const orderKind = "sudoswap";
+                  const orderKind = "nftx";
                   const data = await syncEventsUtils.extractAttributionData(
                     baseEventParams.txHash,
                     orderKind
                   );
-                  if (data.taker) {
-                    taker = data.taker;
-                  }
 
                   // Handle: prices
 
                   const prices = await getUSDAndNativePrices(
-                    Sdk.Common.Addresses.Eth[config.chainId],
-                    price,
+                    currency,
+                    currencyPrice,
                     baseEventParams.timestamp
                   );
                   if (!prices.nativePrice) {
@@ -2961,20 +3132,134 @@ export const syncEvents = async (
                     break;
                   }
 
-                  for (let i = 0; i < decodedInput.nftIds.length; i++) {
-                    const tokenId = decodedInput.nftIds[i].toString();
-
+                  // Always set the taker as the transaction's sender in order to cover
+                  // trades made through the default NFTX marketplace zap contract that
+                  // acts as a router
+                  const taker = (await syncEventsUtils.fetchTransaction(baseEventParams.txHash))
+                    .from;
+                  for (let i = 0; i < tokenIds.length; i++) {
                     fillEvents.push({
                       orderKind,
                       orderSide: "buy",
                       maker: baseEventParams.address,
                       taker,
                       price: prices.nativePrice,
-                      currencyPrice: price,
+                      currencyPrice,
                       usdPrice: prices.usdPrice,
-                      currency: pool.token,
-                      contract: pool.nft,
-                      tokenId,
+                      currency,
+                      contract: nftPool.nft,
+                      tokenId: tokenIds[i],
+                      amount: amounts.length ? amounts[i] : "1",
+                      orderSourceId: data.orderSource?.id,
+                      aggregatorSourceId: data.aggregatorSource?.id,
+                      fillSourceId: data.fillSource?.id,
+                      baseEventParams: {
+                        ...baseEventParams,
+                        batchIndex: i + 1,
+                      },
+                    });
+
+                    fillInfos.push({
+                      context: `nftx-${nftPool.nft}-${tokenIds[i]}-${baseEventParams.txHash}`,
+                      orderSide: "buy",
+                      contract: nftPool.nft,
+                      tokenId: tokenIds[i],
+                      amount: amounts.length ? amounts[i] : "1",
+                      price: prices.nativePrice,
+                      timestamp: baseEventParams.timestamp,
+                    });
+                  }
+                }
+              }
+            }
+
+            break;
+          }
+
+          case "nftx-redeemed": {
+            const { args } = eventData.abi.parseLog(log);
+            const tokenIds = args.nftIds.map(String);
+
+            const nftPool = await nftxUtils.getNftPoolDetails(baseEventParams.address);
+            if (!nftPool) {
+              // Skip any failed attempts to get the pool details
+              break;
+            }
+
+            // Fetch all logs from the current transaction
+            const { logs } = await syncEventsUtils.fetchTransactionLogs(baseEventParams.txHash);
+
+            // Ensure there is a single `Redeemed` event for the same pool
+            const redeemEventsCount = logs.filter((log) =>
+              nftxUtils.isRedeem(log, baseEventParams.address)
+            ).length;
+            if (redeemEventsCount > 1) {
+              break;
+            }
+
+            // Ensure there is a single `Swap` event for the same pool
+            const swapEventsCount = logs.filter((log) => nftxUtils.isSwap(log)).length;
+            if (swapEventsCount > 1) {
+              break;
+            }
+
+            for (const log of logs) {
+              const result = await nftxUtils.tryParseSwap(log);
+              if (
+                result &&
+                // The swap occured before the redeem
+                log.logIndex < baseEventParams.logIndex &&
+                // The swap included the nft pool token
+                [result.ftPool.token0, result.ftPool.token1].includes(nftPool.address)
+              ) {
+                let currency: string | undefined;
+                let currencyPrice: string | undefined;
+                if (nftPool.address === result.ftPool.token0 && result.amount1In !== "0") {
+                  currency = result.ftPool.token1;
+                  currencyPrice = bn(result.amount1In).div(tokenIds.length).toString();
+                } else if (nftPool.address === result.ftPool.token1 && result.amount0In !== "0") {
+                  currency = result.ftPool.token0;
+                  currencyPrice = bn(result.amount0In).div(tokenIds.length).toString();
+                }
+
+                if (currency && currencyPrice) {
+                  // Handle: attribution
+
+                  const orderKind = "nftx";
+                  const data = await syncEventsUtils.extractAttributionData(
+                    baseEventParams.txHash,
+                    orderKind
+                  );
+
+                  // Handle: prices
+
+                  const prices = await getUSDAndNativePrices(
+                    currency,
+                    currencyPrice,
+                    baseEventParams.timestamp
+                  );
+                  if (!prices.nativePrice) {
+                    // We must always have the native price
+                    break;
+                  }
+
+                  // Always set the taker as the transaction's sender in order to cover
+                  // trades made through the default NFTX marketplace zap contract that
+                  // acts as a router
+                  const taker = (await syncEventsUtils.fetchTransaction(baseEventParams.txHash))
+                    .from;
+                  for (let i = 0; i < tokenIds.length; i++) {
+                    fillEvents.push({
+                      orderKind,
+                      orderSide: "sell",
+                      maker: baseEventParams.address,
+                      taker,
+                      price: prices.nativePrice,
+                      currencyPrice,
+                      usdPrice: prices.usdPrice,
+                      currency,
+                      contract: nftPool.nft,
+                      tokenId: tokenIds[i],
                       amount: "1",
                       orderSourceId: data.orderSource?.id,
                       aggregatorSourceId: data.aggregatorSource?.id,
@@ -2986,10 +3271,10 @@ export const syncEvents = async (
                     });
 
                     fillInfos.push({
-                      context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
-                      orderSide: "buy",
-                      contract: pool.nft,
-                      tokenId: tokenId,
+                      context: `nftx-${nftPool.nft}-${tokenIds[i]}-${baseEventParams.txHash}`,
+                      orderSide: "sell",
+                      contract: nftPool.nft,
+                      tokenId: tokenIds[i],
                       amount: "1",
                       price: prices.nativePrice,
                       timestamp: baseEventParams.timestamp,
@@ -2997,472 +3282,236 @@ export const syncEvents = async (
                   }
                 }
               }
-
-              // Keep track of the "sell" trade
-              sudoswapTrades.sell.set(`${txHash}-${address}`, tradeRank + 1);
-
-              break;
             }
 
-            // NFTX
-
-            case "nftx-minted": {
-              const { args } = eventData.abi.parseLog(log);
-              const tokenIds = args.nftIds.map(String);
-              const amounts = args.amounts.map(String);
-
-              // Determine the total quantity of NFTs sold
-              let nftCount = 0;
-              for (let i = 0; i < tokenIds.length; i++) {
-                nftCount += amounts.length ? Number(amounts[i]) : 1;
-              }
-
-              const nftPool = await nftxUtils.getNftPoolDetails(baseEventParams.address);
-              if (!nftPool) {
-                // Skip any failed attempts to get the pool details
-                break;
-              }
-
-              // Fetch all logs from the current transaction
-              const { logs } = await syncEventsUtils.fetchTransactionLogs(baseEventParams.txHash);
-
-              // Ensure there is a single `Minted` event for the same pool
-              const mintEventsCount = logs.filter((log) =>
-                nftxUtils.isMint(log, baseEventParams.address)
-              ).length;
-              if (mintEventsCount > 1) {
-                break;
-              }
-
-              // Ensure there is a single `Swap` event for the same pool
-              const swapEventsCount = logs.filter((log) => nftxUtils.isSwap(log)).length;
-              if (swapEventsCount > 1) {
-                break;
-              }
-
-              for (const log of logs) {
-                const result = await nftxUtils.tryParseSwap(log);
-                if (
-                  result &&
-                  // The swap occured after the mint
-                  log.logIndex > baseEventParams.logIndex &&
-                  // The swap included the nft pool token
-                  [result.ftPool.token0, result.ftPool.token1].includes(nftPool.address)
-                ) {
-                  let currency: string | undefined;
-                  let currencyPrice: string | undefined;
-                  if (nftPool.address === result.ftPool.token0 && result.amount1Out !== "0") {
-                    currency = result.ftPool.token1;
-                    currencyPrice = bn(result.amount1Out).div(nftCount).toString();
-                  } else if (
-                    nftPool.address === result.ftPool.token1 &&
-                    result.amount0Out !== "0"
-                  ) {
-                    currency = result.ftPool.token0;
-                    currencyPrice = bn(result.amount0Out).div(nftCount).toString();
-                  }
-
-                  if (currency && currencyPrice) {
-                    // Handle: attribution
-
-                    const orderKind = "nftx";
-                    const data = await syncEventsUtils.extractAttributionData(
-                      baseEventParams.txHash,
-                      orderKind
-                    );
-
-                    // Handle: prices
-
-                    const prices = await getUSDAndNativePrices(
-                      currency,
-                      currencyPrice,
-                      baseEventParams.timestamp
-                    );
-                    if (!prices.nativePrice) {
-                      // We must always have the native price
-                      break;
-                    }
-
-                    // Always set the taker as the transaction's sender in order to cover
-                    // trades made through the default NFTX marketplace zap contract that
-                    // acts as a router
-                    const taker = (await syncEventsUtils.fetchTransaction(baseEventParams.txHash))
-                      .from;
-                    for (let i = 0; i < tokenIds.length; i++) {
-                      fillEvents.push({
-                        orderKind,
-                        orderSide: "buy",
-                        maker: baseEventParams.address,
-                        taker,
-                        price: prices.nativePrice,
-                        currencyPrice,
-                        usdPrice: prices.usdPrice,
-                        currency,
-                        contract: nftPool.nft,
-                        tokenId: tokenIds[i],
-                        amount: amounts.length ? amounts[i] : "1",
-                        orderSourceId: data.orderSource?.id,
-                        aggregatorSourceId: data.aggregatorSource?.id,
-                        fillSourceId: data.fillSource?.id,
-                        baseEventParams: {
-                          ...baseEventParams,
-                          batchIndex: i + 1,
-                        },
-                      });
-
-                      fillInfos.push({
-                        context: `nftx-${nftPool.nft}-${tokenIds[i]}-${baseEventParams.txHash}`,
-                        orderSide: "buy",
-                        contract: nftPool.nft,
-                        tokenId: tokenIds[i],
-                        amount: amounts.length ? amounts[i] : "1",
-                        price: prices.nativePrice,
-                        timestamp: baseEventParams.timestamp,
-                      });
-                    }
-                  }
-                }
-              }
-
-              break;
-            }
-
-            case "nftx-redeemed": {
-              const { args } = eventData.abi.parseLog(log);
-              const tokenIds = args.nftIds.map(String);
-
-              const nftPool = await nftxUtils.getNftPoolDetails(baseEventParams.address);
-              if (!nftPool) {
-                // Skip any failed attempts to get the pool details
-                break;
-              }
-
-              // Fetch all logs from the current transaction
-              const { logs } = await syncEventsUtils.fetchTransactionLogs(baseEventParams.txHash);
-
-              // Ensure there is a single `Redeemed` event for the same pool
-              const redeemEventsCount = logs.filter((log) =>
-                nftxUtils.isRedeem(log, baseEventParams.address)
-              ).length;
-              if (redeemEventsCount > 1) {
-                break;
-              }
-
-              // Ensure there is a single `Swap` event for the same pool
-              const swapEventsCount = logs.filter((log) => nftxUtils.isSwap(log)).length;
-              if (swapEventsCount > 1) {
-                break;
-              }
-
-              for (const log of logs) {
-                const result = await nftxUtils.tryParseSwap(log);
-                if (
-                  result &&
-                  // The swap occured before the redeem
-                  log.logIndex < baseEventParams.logIndex &&
-                  // The swap included the nft pool token
-                  [result.ftPool.token0, result.ftPool.token1].includes(nftPool.address)
-                ) {
-                  let currency: string | undefined;
-                  let currencyPrice: string | undefined;
-                  if (nftPool.address === result.ftPool.token0 && result.amount1In !== "0") {
-                    currency = result.ftPool.token1;
-                    currencyPrice = bn(result.amount1In).div(tokenIds.length).toString();
-                  } else if (nftPool.address === result.ftPool.token1 && result.amount0In !== "0") {
-                    currency = result.ftPool.token0;
-                    currencyPrice = bn(result.amount0In).div(tokenIds.length).toString();
-                  }
-
-                  if (currency && currencyPrice) {
-                    // Handle: attribution
-
-                    const orderKind = "nftx";
-                    const data = await syncEventsUtils.extractAttributionData(
-                      baseEventParams.txHash,
-                      orderKind
-                    );
-
-                    // Handle: prices
-
-                    const prices = await getUSDAndNativePrices(
-                      currency,
-                      currencyPrice,
-                      baseEventParams.timestamp
-                    );
-                    if (!prices.nativePrice) {
-                      // We must always have the native price
-                      break;
-                    }
-
-                    // Always set the taker as the transaction's sender in order to cover
-                    // trades made through the default NFTX marketplace zap contract that
-                    // acts as a router
-                    const taker = (await syncEventsUtils.fetchTransaction(baseEventParams.txHash))
-                      .from;
-                    for (let i = 0; i < tokenIds.length; i++) {
-                      fillEvents.push({
-                        orderKind,
-                        orderSide: "sell",
-                        maker: baseEventParams.address,
-                        taker,
-                        price: prices.nativePrice,
-                        currencyPrice,
-                        usdPrice: prices.usdPrice,
-                        currency,
-                        contract: nftPool.nft,
-                        tokenId: tokenIds[i],
-                        amount: "1",
-                        orderSourceId: data.orderSource?.id,
-                        aggregatorSourceId: data.aggregatorSource?.id,
-                        fillSourceId: data.fillSource?.id,
-                        baseEventParams: {
-                          ...baseEventParams,
-                          batchIndex: i + 1,
-                        },
-                      });
-
-                      fillInfos.push({
-                        context: `nftx-${nftPool.nft}-${tokenIds[i]}-${baseEventParams.txHash}`,
-                        orderSide: "sell",
-                        contract: nftPool.nft,
-                        tokenId: tokenIds[i],
-                        amount: "1",
-                        price: prices.nativePrice,
-                        timestamp: baseEventParams.timestamp,
-                      });
-                    }
-                  }
-                }
-              }
-
-              break;
-            }
+            break;
           }
-        } catch (error) {
-          logger.info(COMPONENT_NAME, `Failed to handle events: ${error}`);
-          throw error;
         }
+      } catch (error) {
+        logger.info(COMPONENT_NAME, `Failed to handle events: ${error}`);
+        throw error;
       }
+    }
 
-      // -- Handle: accurate data ---
+    // -- Handle: accurate data ---
 
-      if (!backfill) {
-        // Assign accurate sources to the fill events
-        await Promise.all([
-          assignSourceToFillEvents(fillEvents),
-          assignSourceToFillEvents(fillEventsPartial),
-          assignSourceToFillEvents(fillEventsOnChain),
-        ]);
+    if (!backfill) {
+      // Assign accurate sources to the fill events
+      await Promise.all([
+        assignSourceToFillEvents(fillEvents),
+        assignSourceToFillEvents(fillEventsPartial),
+        assignSourceToFillEvents(fillEventsOnChain),
+      ]);
 
-        // Assign wash trading scores to the fill events
-        await Promise.all([
-          assignWashTradingScoreToFillEvents(fillEvents),
-          assignWashTradingScoreToFillEvents(fillEventsPartial),
-          assignWashTradingScoreToFillEvents(fillEventsOnChain),
-        ]);
-      }
+      // Assign wash trading scores to the fill events
+      await Promise.all([
+        assignWashTradingScoreToFillEvents(fillEvents),
+        assignWashTradingScoreToFillEvents(fillEventsPartial),
+        assignWashTradingScoreToFillEvents(fillEventsOnChain),
+      ]);
+    }
 
-      // --- Handle: mints as sales ---
+    // --- Handle: mints as sales ---
 
-      for (const [txHash, mints] of tokensMinted.entries()) {
-        if (mints.length > 0) {
-          const tx = await syncEventsUtils.fetchTransaction(txHash);
+    for (const [txHash, mints] of tokensMinted.entries()) {
+      if (mints.length > 0) {
+        const tx = await syncEventsUtils.fetchTransaction(txHash);
 
-          // Skip free mints
-          if (tx.value === "0") {
+        // Skip free mints
+        if (tx.value === "0") {
+          continue;
+        }
+
+        const totalAmount = mints
+          .map(({ amount }) => amount)
+          .reduce((a, b) => bn(a).add(b).toString());
+        const price = bn(tx.value).div(totalAmount).toString();
+        const currency = Sdk.Common.Addresses.Eth[config.chainId];
+
+        for (const mint of mints) {
+          // Handle: attribution
+
+          const orderKind = "mint";
+          const orderSource = await getOrderSourceByOrderKind(
+            orderKind,
+            mint.baseEventParams.address
+          );
+
+          // Handle: prices
+
+          const prices = await getUSDAndNativePrices(
+            currency,
+            price,
+            mint.baseEventParams.timestamp
+          );
+          if (!prices.nativePrice) {
+            // We must always have the native price
             continue;
           }
 
-          const totalAmount = mints
-            .map(({ amount }) => amount)
-            .reduce((a, b) => bn(a).add(b).toString());
-          const price = bn(tx.value).div(totalAmount).toString();
-          const currency = Sdk.Common.Addresses.Eth[config.chainId];
+          fillEvents.push({
+            orderKind,
+            orderSide: "sell",
+            taker: tx.from,
+            maker: mint.from,
+            amount: mint.amount,
+            currency,
+            price: prices.nativePrice,
+            currencyPrice: price,
+            usdPrice: prices.usdPrice,
+            contract: mint.contract,
+            tokenId: mint.tokenId,
+            // Mints have matching order and fill sources but no aggregator source
+            orderSourceId: orderSource?.id,
+            fillSourceId: orderSource?.id,
+            isPrimary: true,
+            baseEventParams: mint.baseEventParams,
+          });
+        }
+      }
+    }
 
-          for (const mint of mints) {
-            // Handle: attribution
+    // --- Handle: trigger further jobs ---
 
-            const orderKind = "mint";
-            const orderSource = await getOrderSourceByOrderKind(
-              orderKind,
-              mint.baseEventParams.address
-            );
+    // WARNING! Ordering matters (fills should come in front of cancels).
+    await Promise.all([
+      es.fills.addEvents(fillEvents),
+      es.fills.addEventsPartial(fillEventsPartial),
+      es.fills.addEventsOnChain(fillEventsOnChain),
+    ]);
 
-            // Handle: prices
+    if (!options?.skipNonFillWrites) {
+      await Promise.all([
+        es.nonceCancels.addEvents(nonceCancelEvents, backfill),
+        es.bulkCancels.addEvents(bulkCancelEvents, backfill),
+        es.cancels.addEvents(cancelEvents),
+        es.cancels.addEventsOnChain(cancelEventsOnChain),
+        es.ftTransfers.addEvents(ftTransferEvents, backfill),
+        es.nftApprovals.addEvents(nftApprovalEvents),
+        es.nftTransfers.addEvents(nftTransferEvents, backfill),
+      ]);
+    }
 
-            const prices = await getUSDAndNativePrices(
-              currency,
-              price,
-              mint.baseEventParams.timestamp
-            );
-            if (!prices.nativePrice) {
-              // We must always have the native price
-              continue;
-            }
+    if (!backfill) {
+      // WARNING! It's very important to guarantee that the previous
+      // events are persisted to the database before any of the jobs
+      // below are executed. Otherwise, the jobs can potentially use
+      // stale data which will cause inconsistencies (eg. orders can
+      // have wrong statuses).
+      await Promise.all([
+        fillUpdates.addToQueue(fillInfos),
+        orderUpdatesById.addToQueue(orderInfos),
+        orderUpdatesByMaker.addToQueue(makerInfos),
+        orderbookOrders.addToQueue([
+          ...foundationOrders.map((info) => ({ kind: "foundation", info })),
+          ...cryptopunksOrders.map((info) => ({ kind: "cryptopunks", info })),
+        ] as orderbookOrders.GenericOrderInfo[]),
+      ]);
+    }
 
-            fillEvents.push({
-              orderKind,
-              orderSide: "sell",
-              taker: tx.from,
-              maker: mint.from,
-              amount: mint.amount,
-              currency,
-              price: prices.nativePrice,
-              currencyPrice: price,
-              usdPrice: prices.usdPrice,
-              contract: mint.contract,
-              tokenId: mint.tokenId,
-              // Mints have matching order and fill sources but no aggregator source
-              orderSourceId: orderSource?.id,
-              fillSourceId: orderSource?.id,
-              isPrimary: true,
-              baseEventParams: mint.baseEventParams,
-            });
-          }
+    // --- Handle: orphan blocks ---
+
+    if (!backfill && NS.enableReorgCheck) {
+      for (const blockData of blocksSet.values()) {
+        const block = Number(blockData.split("-")[0]);
+        const blockHash = blockData.split("-")[1];
+
+        // Act right away if the current block is a duplicate
+        if ((await blocksModel.getBlocks(block)).length > 1) {
+          blockCheck.addToQueue(block, blockHash, 10);
+          blockCheck.addToQueue(block, blockHash, 30);
         }
       }
 
-      // --- Handle: trigger further jobs ---
-
-      // WARNING! Ordering matters (fills should come in front of cancels).
-      await Promise.all([
-        es.fills.addEvents(fillEvents),
-        es.fills.addEventsPartial(fillEventsPartial),
-        es.fills.addEventsOnChain(fillEventsOnChain),
-      ]);
-
-      if (!options?.skipNonFillWrites) {
-        await Promise.all([
-          es.nonceCancels.addEvents(nonceCancelEvents, backfill),
-          es.bulkCancels.addEvents(bulkCancelEvents, backfill),
-          es.cancels.addEvents(cancelEvents),
-          es.cancels.addEventsOnChain(cancelEventsOnChain),
-          es.ftTransfers.addEvents(ftTransferEvents, backfill),
-          es.nftApprovals.addEvents(nftApprovalEvents),
-          es.nftTransfers.addEvents(nftTransferEvents, backfill),
-        ]);
-      }
-
-      if (!backfill) {
-        // WARNING! It's very important to guarantee that the previous
-        // events are persisted to the database before any of the jobs
-        // below are executed. Otherwise, the jobs can potentially use
-        // stale data which will cause inconsistencies (eg. orders can
-        // have wrong statuses).
-        await Promise.all([
-          fillUpdates.addToQueue(fillInfos),
-          orderUpdatesById.addToQueue(orderInfos),
-          orderUpdatesByMaker.addToQueue(makerInfos),
-          orderbookOrders.addToQueue([
-            ...foundationOrders.map((info) => ({ kind: "foundation", info })),
-            ...cryptopunksOrders.map((info) => ({ kind: "cryptopunks", info })),
-          ] as orderbookOrders.GenericOrderInfo[]),
-        ]);
-      }
-
-      // --- Handle: orphan blocks ---
-
-      if (!backfill && NS.enableReorgCheck) {
-        for (const blockData of blocksSet.values()) {
+      // Put all fetched blocks on a queue for handling block reorgs
+      await Promise.all(
+        [...blocksSet.values()].map(async (blockData) => {
           const block = Number(blockData.split("-")[0]);
           const blockHash = blockData.split("-")[1];
 
-          // Act right away if the current block is a duplicate
-          if ((await blocksModel.getBlocks(block)).length > 1) {
-            blockCheck.addToQueue(block, blockHash, 10);
-            blockCheck.addToQueue(block, blockHash, 30);
-          }
-        }
-
-        // Put all fetched blocks on a queue for handling block reorgs
-        await Promise.all(
-          [...blocksSet.values()].map(async (blockData) => {
-            const block = Number(blockData.split("-")[0]);
-            const blockHash = blockData.split("-")[1];
-
-            return Promise.all(
-              NS.reorgCheckFrequency.map((frequency) =>
-                blockCheck.addToQueue(block, blockHash, frequency * 60)
-              )
-            );
-          })
-        );
-      }
-
-      // --- Handle: activities ---
-
-      // Add all the fill events to the activity queue
-      const fillActivitiesInfo: processActivityEvent.EventInfo[] = _.map(
-        _.concat(fillEvents, fillEventsPartial, fillEventsOnChain),
-        (event) => {
-          let fromAddress = event.maker;
-          let toAddress = event.taker;
-
-          if (event.orderSide === "buy") {
-            fromAddress = event.taker;
-            toAddress = event.maker;
-          }
-
-          return {
-            kind: processActivityEvent.EventKind.fillEvent,
-            data: {
-              contract: event.contract,
-              tokenId: event.tokenId,
-              fromAddress,
-              toAddress,
-              price: Number(event.price),
-              amount: Number(event.amount),
-              transactionHash: event.baseEventParams.txHash,
-              logIndex: event.baseEventParams.logIndex,
-              batchIndex: event.baseEventParams.batchIndex,
-              blockHash: event.baseEventParams.blockHash,
-              timestamp: event.baseEventParams.timestamp,
-              orderId: event.orderId || "",
-              orderSourceIdInt: Number(event.orderSourceId),
-            },
-          };
-        }
+          return Promise.all(
+            NS.reorgCheckFrequency.map((frequency) =>
+              blockCheck.addToQueue(block, blockHash, frequency * 60)
+            )
+          );
+        })
       );
+    }
 
-      if (!_.isEmpty(fillActivitiesInfo)) {
-        await processActivityEvent.addToQueue(fillActivitiesInfo);
-      }
+    // --- Handle: activities ---
 
-      // Add all the transfer/mint events to the activity queue
-      const transferActivitiesInfo: processActivityEvent.EventInfo[] = _.map(
-        nftTransferEvents,
-        (event) => ({
-          context: [
-            processActivityEvent.EventKind.nftTransferEvent,
-            event.baseEventParams.txHash,
-            event.baseEventParams.logIndex,
-            event.baseEventParams.batchIndex,
-          ].join(":"),
-          kind: processActivityEvent.EventKind.nftTransferEvent,
+    // Add all the fill events to the activity queue
+    const fillActivitiesInfo: processActivityEvent.EventInfo[] = _.map(
+      _.concat(fillEvents, fillEventsPartial, fillEventsOnChain),
+      (event) => {
+        let fromAddress = event.maker;
+        let toAddress = event.taker;
+
+        if (event.orderSide === "buy") {
+          fromAddress = event.taker;
+          toAddress = event.maker;
+        }
+
+        return {
+          kind: processActivityEvent.EventKind.fillEvent,
           data: {
-            contract: event.baseEventParams.address,
+            contract: event.contract,
             tokenId: event.tokenId,
-            fromAddress: event.from,
-            toAddress: event.to,
+            fromAddress,
+            toAddress,
+            price: Number(event.price),
             amount: Number(event.amount),
             transactionHash: event.baseEventParams.txHash,
             logIndex: event.baseEventParams.logIndex,
             batchIndex: event.baseEventParams.batchIndex,
             blockHash: event.baseEventParams.blockHash,
             timestamp: event.baseEventParams.timestamp,
+            orderId: event.orderId || "",
+            orderSourceIdInt: Number(event.orderSourceId),
           },
-        })
-      );
-
-      if (!_.isEmpty(transferActivitiesInfo)) {
-        await processActivityEvent.addToQueue(transferActivitiesInfo);
+        };
       }
+    );
 
-      // --- Handle: mints ---
+    if (!_.isEmpty(fillActivitiesInfo)) {
+      await processActivityEvent.addToQueue(fillActivitiesInfo);
+    }
 
-      // We want to get metadata when backfilling as well
-      await tokenUpdatesMint.addToQueue(mintInfos);
-    });
+    // Add all the transfer/mint events to the activity queue
+    const transferActivitiesInfo: processActivityEvent.EventInfo[] = _.map(
+      nftTransferEvents,
+      (event) => ({
+        context: [
+          processActivityEvent.EventKind.nftTransferEvent,
+          event.baseEventParams.txHash,
+          event.baseEventParams.logIndex,
+          event.baseEventParams.batchIndex,
+        ].join(":"),
+        kind: processActivityEvent.EventKind.nftTransferEvent,
+        data: {
+          contract: event.baseEventParams.address,
+          tokenId: event.tokenId,
+          fromAddress: event.from,
+          toAddress: event.to,
+          amount: Number(event.amount),
+          transactionHash: event.baseEventParams.txHash,
+          logIndex: event.baseEventParams.logIndex,
+          batchIndex: event.baseEventParams.batchIndex,
+          blockHash: event.baseEventParams.blockHash,
+          timestamp: event.baseEventParams.timestamp,
+        },
+      })
+    );
+
+    if (!_.isEmpty(transferActivitiesInfo)) {
+      await processActivityEvent.addToQueue(transferActivitiesInfo);
+    }
+
+    // --- Handle: mints ---
+
+    // We want to get metadata when backfilling as well
+    await tokenUpdatesMint.addToQueue(mintInfos);
+  });
 };
 
 export const unsyncEvents = async (block: number, blockHash: string) => {

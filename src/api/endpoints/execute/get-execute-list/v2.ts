@@ -155,12 +155,6 @@ export const getExecuteListV2Options: RouteOptions = {
       // Set up generic listing steps
       const steps = [
         {
-          action: "Initialize wallet",
-          description:
-            "A one-time setup transaction to enable trading with the Wyvern Protocol (used by Open Sea)",
-          kind: "transaction",
-        },
-        {
           action: "Approve NFT contract",
           description:
             "Each NFT collection you want to trade requires a one-time approval transaction",
@@ -237,17 +231,17 @@ export const getExecuteListV2Options: RouteOptions = {
           return {
             steps: [
               {
-                ...steps[1],
+                ...steps[0],
                 status: approvalTx ? "incomplete" : "complete",
                 data: approvalTx,
               },
               {
-                ...steps[2],
+                ...steps[1],
                 status: hasSignature ? "complete" : "incomplete",
                 data: hasSignature ? undefined : order.getSignatureData(),
               },
               {
-                ...steps[3],
+                ...steps[2],
                 status: "incomplete",
                 data: !hasSignature
                   ? undefined
@@ -336,17 +330,17 @@ export const getExecuteListV2Options: RouteOptions = {
           return {
             steps: [
               {
-                ...steps[1],
+                ...steps[0],
                 status: approvalTx ? "incomplete" : "complete",
                 data: approvalTx,
               },
               {
-                ...steps[2],
+                ...steps[1],
                 status: hasSignature ? "complete" : "incomplete",
                 data: hasSignature ? undefined : order.getSignatureData(),
               },
               {
-                ...steps[3],
+                ...steps[2],
                 status: "incomplete",
                 data: !hasSignature
                   ? undefined
@@ -439,17 +433,17 @@ export const getExecuteListV2Options: RouteOptions = {
           return {
             steps: [
               {
-                ...steps[1],
+                ...steps[0],
                 status: approvalTx ? "incomplete" : "complete",
                 data: approvalTx,
               },
               {
-                ...steps[2],
+                ...steps[1],
                 status: hasSignature ? "complete" : "incomplete",
                 data: hasSignature ? undefined : order.getSignatureData(),
               },
               {
-                ...steps[3],
+                ...steps[2],
                 status: "incomplete",
                 data: !hasSignature
                   ? undefined
@@ -539,17 +533,17 @@ export const getExecuteListV2Options: RouteOptions = {
           return {
             steps: [
               {
-                ...steps[1],
+                ...steps[0],
                 status: approvalTx ? "incomplete" : "complete",
                 data: approvalTx,
               },
               {
-                ...steps[2],
+                ...steps[1],
                 status: hasSignature ? "complete" : "incomplete",
                 data: hasSignature ? undefined : order.getSignatureData(),
               },
               {
-                ...steps[3],
+                ...steps[2],
                 status: "incomplete",
                 data: !hasSignature
                   ? undefined
@@ -639,12 +633,12 @@ export const getExecuteListV2Options: RouteOptions = {
           return {
             steps: [
               {
-                ...steps[1],
+                ...steps[0],
                 status: approvalTx ? "incomplete" : "complete",
                 data: approvalTx,
               },
               {
-                ...steps[2],
+                ...steps[1],
                 status: hasSignature ? "complete" : "incomplete",
                 data: hasSignature
                   ? undefined
@@ -653,7 +647,7 @@ export const getExecuteListV2Options: RouteOptions = {
                     ),
               },
               {
-                ...steps[3],
+                ...steps[2],
                 status: "incomplete",
                 data: !hasSignature
                   ? undefined

@@ -96,18 +96,6 @@ export const save = async (
         });
       }
 
-      // Check: sell order has Eth as payment token
-      if (
-        info.side === "sell" &&
-        info.paymentToken !== Sdk.Common.Addresses.Eth[config.chainId] &&
-        !isReservoir
-      ) {
-        return results.push({
-          id,
-          status: "unsupported-payment-token",
-        });
-      }
-
       // Check: buy order has Weth as payment token
       if (info.side === "buy" && info.paymentToken !== Sdk.Common.Addresses.Weth[config.chainId]) {
         return results.push({

@@ -29,12 +29,12 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { fromBlock, toBlock, backfill, eventDataKinds, skipNonFillWrites } = job.data;
+      const { fromBlock, toBlock, backfill, syncDetails, skipNonFillWrites } = job.data;
 
       try {
         logger.info(QUEUE_NAME, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
 
-        await syncEvents(fromBlock, toBlock, { backfill, eventDataKinds, skipNonFillWrites });
+        await syncEvents(fromBlock, toBlock, { backfill, syncDetails, skipNonFillWrites });
       } catch (error) {
         logger.error(QUEUE_NAME, `Events backfill syncing failed: ${error}`);
         throw error;
@@ -55,7 +55,15 @@ export const addToQueue = async (
     prioritized?: boolean;
     backfill?: boolean;
     skipNonFillWrites?: boolean;
-    eventDataKinds?: EventDataKind[];
+    syncDetails?:
+      | {
+          method: "event-data-kind";
+          eventDataKinds: EventDataKind[];
+        }
+      | {
+          method: "address";
+          address: string;
+        };
   }
 ) => {
   // Syncing is done in several batches since the requested block
@@ -77,7 +85,7 @@ export const addToQueue = async (
         toBlock: to,
         backfill: options?.backfill,
         skipNonFillWrites: options?.skipNonFillWrites,
-        eventDataKinds: options?.eventDataKinds,
+        syncDetails: options?.syncDetails,
       },
       opts: {
         priority: prioritized ? 1 : undefined,

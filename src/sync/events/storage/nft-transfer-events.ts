@@ -5,7 +5,7 @@ import { BaseEventParams } from "@/events-sync/parser";
 import * as nftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
 
 export type Event = {
-  kind: "erc721" | "erc1155";
+  kind: "erc721" | "erc1155" | "cryptopunks";
   from: string;
   to: string;
   tokenId: string;
@@ -36,7 +36,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   const transferValues: DbEvent[] = [];
   const contractValues: {
     address: Buffer;
-    kind: "erc721" | "erc1155";
+    kind: "erc721" | "erc1155" | "cryptopunks";
   }[] = [];
   const tokenValues: {
     collection_id: string;

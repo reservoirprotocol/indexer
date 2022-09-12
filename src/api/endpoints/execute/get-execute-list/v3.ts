@@ -167,13 +167,6 @@ export const getExecuteListV3Options: RouteOptions = {
         }[];
       }[] = [
         {
-          action: "Initialize wallet",
-          description:
-            "A one-time setup transaction to enable trading with the Wyvern Protocol (used by Open Sea)",
-          kind: "transaction",
-          items: [],
-        },
-        {
           action: "Approve NFT contract",
           description:
             "Each NFT collection you want to trade requires a one-time approval transaction",
@@ -260,12 +253,12 @@ export const getExecuteListV3Options: RouteOptions = {
               }
             }
 
-            steps[1].items.push({
+            steps[0].items.push({
               status: approvalTx ? "incomplete" : "complete",
               data: approvalTx,
               orderIndex: i,
             });
-            steps[2].items.push({
+            steps[1].items.push({
               status: "incomplete",
               data: {
                 sign: order.getSignatureData(),
@@ -346,12 +339,12 @@ export const getExecuteListV3Options: RouteOptions = {
               }
             }
 
-            steps[1].items.push({
+            steps[0].items.push({
               status: approvalTx ? "incomplete" : "complete",
               data: approvalTx,
               orderIndex: i,
             });
-            steps[2].items.push({
+            steps[1].items.push({
               status: "incomplete",
               data: {
                 sign: order.getSignatureData(),
@@ -436,12 +429,12 @@ export const getExecuteListV3Options: RouteOptions = {
               }
             }
 
-            steps[1].items.push({
+            steps[0].items.push({
               status: approvalTx ? "incomplete" : "complete",
               data: approvalTx,
               orderIndex: i,
             });
-            steps[2].items.push({
+            steps[1].items.push({
               status: "incomplete",
               data: {
                 sign: order.getSignatureData(),
@@ -523,12 +516,12 @@ export const getExecuteListV3Options: RouteOptions = {
               }
             }
 
-            steps[1].items.push({
+            steps[0].items.push({
               status: approvalTx ? "incomplete" : "complete",
               data: approvalTx,
               orderIndex: i,
             });
-            steps[2].items.push({
+            steps[1].items.push({
               status: "incomplete",
               data: {
                 sign: order.getSignatureData(),
@@ -606,12 +599,12 @@ export const getExecuteListV3Options: RouteOptions = {
               }
             }
 
-            steps[1].items.push({
+            steps[0].items.push({
               status: approvalTx ? "incomplete" : "complete",
               data: approvalTx,
               orderIndex: i,
             });
-            steps[2].items.push({
+            steps[1].items.push({
               status: "incomplete",
               data: {
                 sign: new Sdk.X2Y2.Exchange(

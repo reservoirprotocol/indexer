@@ -1,3 +1,44 @@
+# [5.210.0](https://github.com/reservoirprotocol/indexer/compare/v5.209.4...v5.210.0) (2022-09-12)
+
+
+### Features
+
+* enable seaport erc20 listings ([52ed0a3](https://github.com/reservoirprotocol/indexer/commit/52ed0a31c508b2f7459a037c6305e956b7b85961))
+
+
+
+## [5.209.4](https://github.com/reservoirprotocol/indexer/compare/v5.209.3...v5.209.4) (2022-09-12)
+
+
+### Bug Fixes
+
+* payload types ([c51f0a9](https://github.com/reservoirprotocol/indexer/commit/c51f0a94833d3c018ace1f6eecbe231896fa0d3c))
+
+
+
+## [5.209.3](https://github.com/reservoirprotocol/indexer/compare/v5.209.2...v5.209.3) (2022-09-12)
+
+
+### Bug Fixes
+
+* undefined access ([fb6e8bc](https://github.com/reservoirprotocol/indexer/commit/fb6e8bc9e171ba9373b66c4632e2de2c63e4749f))
+
+
+
+## [5.209.2](https://github.com/reservoirprotocol/indexer/compare/v5.209.1...v5.209.2) (2022-09-12)
+
+
+### Bug Fixes
+
+* set seaport orders start time 1 minute in the past ([fee4202](https://github.com/reservoirprotocol/indexer/commit/fee420237f45b8b0d30a3d7bba6f0af79489b25c))
+
+
+### Performance Improvements
+
+* more efficient backfilling for single contracts ([954af57](https://github.com/reservoirprotocol/indexer/commit/954af57707e6347525858743e9fba14d509b96c3))
+
+
+
 ## [5.209.1](https://github.com/reservoirprotocol/indexer/compare/v5.209.0...v5.209.1) (2022-09-09)
 
 

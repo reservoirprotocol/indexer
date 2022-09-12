@@ -50,7 +50,7 @@ export const transfer: EventData = {
     `event Transfer(
       address indexed from,
       address indexed to,
-      uint256 value
+      uint256 punkIndex
     )`,
   ]),
 };

@@ -5,6 +5,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as eventsSyncBackfill from "@/jobs/events-sync/backfill-queue";
 
@@ -20,7 +21,16 @@ export const postSyncEventsOptions: RouteOptions = {
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       // WARNING: Some events should always be fetched together!
-      eventDataKinds: Joi.array().items(Joi.string()),
+      syncDetails: Joi.alternatives(
+        Joi.object({
+          method: Joi.string().valid("event-data-kind"),
+          eventDataKinds: Joi.array().items(Joi.string()),
+        }),
+        Joi.object({
+          method: Joi.string().valid("address"),
+          address: Joi.string().pattern(regex.address),
+        })
+      ),
       fromBlock: Joi.number().integer().positive().required(),
       toBlock: Joi.number().integer().positive().required(),
       blocksPerBatch: Joi.number().integer().positive(),
@@ -36,7 +46,7 @@ export const postSyncEventsOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      const eventDataKinds = payload.eventDataKinds;
+      const syncDetails = payload.syncDetails;
       const fromBlock = payload.fromBlock;
       const toBlock = payload.toBlock;
       const blocksPerBatch = payload.blocksPerBatch;
@@ -45,7 +55,7 @@ export const postSyncEventsOptions: RouteOptions = {
 
       await eventsSyncBackfill.addToQueue(fromBlock, toBlock, {
         backfill,
-        eventDataKinds,
+        syncDetails,
         blocksPerBatch,
         skipNonFillWrites,
       });

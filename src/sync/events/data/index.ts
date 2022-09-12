@@ -86,7 +86,7 @@ export type EventData = {
   abi: Interface;
 };
 
-export const getEventData = (eventDataKinds: EventDataKind[] | undefined) => {
+export const getEventData = (eventDataKinds?: EventDataKind[]) => {
   if (!eventDataKinds) {
     return [
       erc721.transfer,
