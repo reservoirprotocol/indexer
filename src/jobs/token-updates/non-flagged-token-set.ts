@@ -105,7 +105,7 @@ if (config.doBackgroundWork) {
 
           const ordersQuery = `
                 SELECT
-                  orders.id,
+                  orders.id
                 FROM orders
                 WHERE orders.side = 'buy'
                 AND orders.fillability_status = 'fillable'
