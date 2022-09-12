@@ -41,6 +41,20 @@ export const punkBought: EventData = {
   ]),
 };
 
+export const punkTransfer: EventData = {
+  kind: "cryptopunks-punk-transfer",
+  addresses: { [CryptoPunks.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x05af636b70da6819000c49f85b21fa82081c632069bb626f30932034099107d8",
+  numTopics: 3,
+  abi: new Interface([
+    `event PunkTransfer(
+      address indexed from,
+      address indexed to,
+      uint256 punkIndex
+    )`,
+  ]),
+};
+
 export const transfer: EventData = {
   kind: "cryptopunks-transfer",
   addresses: { [CryptoPunks.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
@@ -49,6 +63,19 @@ export const transfer: EventData = {
   abi: new Interface([
     `event Transfer(
       address indexed from,
+      address indexed to,
+      uint256 value
+    )`,
+  ]),
+};
+
+export const assign: EventData = {
+  kind: "cryptopunks-assign",
+  addresses: { [CryptoPunks.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x8a0e37b73a0d9c82e205d4d1a3ff3d0b57ce5f4d7bccf6bac03336dc101cb7ba",
+  numTopics: 2,
+  abi: new Interface([
+    `event Assign(
       address indexed to,
       uint256 punkIndex
     )`,

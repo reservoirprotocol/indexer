@@ -71,6 +71,8 @@ export type EventDataKind =
   | "cryptopunks-punk-offered"
   | "cryptopunks-punk-no-longer-for-sale"
   | "cryptopunks-punk-bought"
+  | "cryptopunks-punk-transfer"
+  | "cryptopunks-assign"
   | "cryptopunks-transfer"
   | "sudoswap-buy"
   | "sudoswap-sell"
@@ -132,6 +134,8 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       cryptoPunks.punkOffered,
       cryptoPunks.punkNoLongerForSale,
       cryptoPunks.punkBought,
+      cryptoPunks.punkTransfer,
+      cryptoPunks.assign,
       cryptoPunks.transfer,
       sudoswap.buy,
       sudoswap.sell,
@@ -238,6 +242,10 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return cryptoPunks.punkNoLongerForSale;
     case "cryptopunks-punk-bought":
       return cryptoPunks.punkBought;
+    case "cryptopunks-punk-transfer":
+      return cryptoPunks.punkTransfer;
+    case "cryptopunks-assign":
+      return cryptoPunks.assign;
     case "cryptopunks-transfer":
       return cryptoPunks.transfer;
     case "sudoswap-buy":

@@ -1,3 +1,12 @@
+## [5.210.1](https://github.com/reservoirprotocol/indexer/compare/v5.210.0...v5.210.1) (2022-09-12)
+
+
+### Bug Fixes
+
+* work in progress cryptopunks transfers ([913ddc8](https://github.com/reservoirprotocol/indexer/commit/913ddc8f5ad793a99951ddfb77d11edca705fc4a))
+
+
+
 # [5.210.0](https://github.com/reservoirprotocol/indexer/compare/v5.209.4...v5.210.0) (2022-09-12)
 
 

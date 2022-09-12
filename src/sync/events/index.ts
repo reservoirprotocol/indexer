@@ -170,6 +170,12 @@ export const syncEvents = async (
       return false;
     };
 
+    // For working around some bug in the CryptoPunks contract
+    const cryptopunksTransferEvents: {
+      to: string;
+      txHash: string;
+    }[] = [];
+
     // For keeping track of individual Sudoswap trades per transaction
     const sudoswapTrades = {
       buy: new Map<string, number>(),
@@ -2525,7 +2531,7 @@ export const syncEvents = async (
 
           case "cryptopunks-punk-bought": {
             const { args } = eventData.abi.parseLog(log);
-            const punkIndex = args["punkIndex"].toString();
+            const tokenId = args["punkIndex"].toString();
             let value = args["value"].toString();
             const fromAddress = args["fromAddress"].toLowerCase();
             let toAddress = args["toAddress"].toLowerCase();
@@ -2538,11 +2544,11 @@ export const syncEvents = async (
             // To work around this, we get the correct `toAddress` from the most
             // recent `Transfer` event which includes the correct taker
             if (
-              nftTransferEvents.length &&
-              nftTransferEvents[nftTransferEvents.length - 1].baseEventParams.txHash ===
+              cryptopunksTransferEvents.length &&
+              cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].txHash ===
                 baseEventParams.txHash
             ) {
-              toAddress = nftTransferEvents[nftTransferEvents.length - 1].to;
+              toAddress = cryptopunksTransferEvents[cryptopunksTransferEvents.length - 1].to;
             }
 
             // To get the correct price that the bid was settled at we have to
@@ -2586,7 +2592,16 @@ export const syncEvents = async (
               break;
             }
 
-            const orderId = keccak256(["string", "uint256"], ["cryptopunks", punkIndex]);
+            nftTransferEvents.push({
+              kind: "cryptopunks",
+              from: fromAddress,
+              to: toAddress,
+              tokenId,
+              amount: "1",
+              baseEventParams,
+            });
+
+            const orderId = keccak256(["string", "uint256"], ["cryptopunks", tokenId]);
             fillEventsOnChain.push({
               orderId,
               orderKind,
@@ -2598,7 +2613,7 @@ export const syncEvents = async (
               usdPrice: prices.usdPrice,
               currency: Sdk.Common.Addresses.Eth[config.chainId],
               contract: baseEventParams.address?.toLowerCase(),
-              tokenId: punkIndex,
+              tokenId,
               amount: "1",
               orderSourceId: data.orderSource?.id,
               aggregatorSourceId: data.aggregatorSource?.id,
@@ -2621,7 +2636,7 @@ export const syncEvents = async (
               orderId: orderId,
               orderSide: "sell",
               contract: Sdk.CryptoPunks.Addresses.Exchange[config.chainId],
-              tokenId: punkIndex,
+              tokenId,
               amount: "1",
               price: prices.nativePrice,
               timestamp: baseEventParams.timestamp,
@@ -2630,42 +2645,32 @@ export const syncEvents = async (
             break;
           }
 
+          // case "cryptopunks-punk-transfer": {
+          //   const { args } = eventData.abi.parseLog(log);
+          //   const from = args["from"].toLowerCase();
+          //   const to = args["to"].toLowerCase();
+          //   const tokenId = args["punkIndex"].toString();
+
+          //   nftTransferEvents.push({
+          //     kind: "cryptopunks",
+          //     from,
+          //     to,
+          //     tokenId,
+          //     amount: "1",
+          //     baseEventParams,
+          //   });
+
+          //   break;
+          // }
+
           case "cryptopunks-transfer": {
             const { args } = eventData.abi.parseLog(log);
-            const from = args["from"].toLowerCase();
             const to = args["to"].toLowerCase();
-            const tokenId = args["punkIndex"].toString();
 
-            nftTransferEvents.push({
-              kind: "cryptopunks",
-              from,
+            cryptopunksTransferEvents.push({
               to,
-              tokenId,
-              amount: "1",
-              baseEventParams,
+              txHash: baseEventParams.txHash,
             });
-
-            if (from === AddressZero) {
-              mintInfos.push({
-                contract: baseEventParams.address,
-                tokenId,
-                mintedTimestamp: baseEventParams.timestamp,
-              });
-
-              // Treat mints as sales
-              if (!NS.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
-                if (!tokensMinted.has(baseEventParams.txHash)) {
-                  tokensMinted.set(baseEventParams.txHash, []);
-                }
-                tokensMinted.get(baseEventParams.txHash)!.push({
-                  contract: baseEventParams.address,
-                  tokenId,
-                  from,
-                  amount: "1",
-                  baseEventParams,
-                });
-              }
-            }
 
             break;
           }
