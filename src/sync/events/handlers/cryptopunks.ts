@@ -118,6 +118,12 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           // Skip any errors
         }
 
+        if (value === "0") {
+          // Skip if the sell was for a price of zero (since in that case it was probably
+          // not even a sell, but a hacky way of setting an approval for Cryptopunks)
+          break;
+        }
+
         const orderSide = toAddress === AddressZero ? "buy" : "sell";
         const maker = orderSide === "sell" ? fromAddress : toAddress;
         let taker = orderSide === "sell" ? toAddress : fromAddress;

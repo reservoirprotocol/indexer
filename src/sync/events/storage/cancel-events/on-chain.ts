@@ -37,6 +37,10 @@ export const addEventsOnChain = async (events: Event[]) => {
     );
 
     // Atomically insert the cancel events and update order statuses
+    // NOTE: Ideally we have an `ON CONFLICT NO NOTHING` clause, but
+    // in order to be able to sync sales/cancels before orders we do
+    // a redundant update (so that the update on the orders table is
+    // triggered)
     queries.push(`
       WITH "x" AS (
         INSERT INTO "cancel_events" (
@@ -50,7 +54,8 @@ export const addEventsOnChain = async (events: Event[]) => {
           "order_kind",
           "order_id"
         ) VALUES ${pgp.helpers.values(cancelValues, columns)}
-        ON CONFLICT DO NOTHING
+        ON CONFLICT ("block_hash", "tx_hash", "log_index") DO UPDATE
+          SET "order_id" = EXCLUDED.order_id
         RETURNING "order_kind", "order_id", "timestamp"
       )
       UPDATE "orders" SET

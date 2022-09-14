@@ -1,10 +1,8 @@
 import { Interface } from "@ethersproject/abi";
 import { parseCallTrace, searchForCall } from "@georgeroman/evm-tx-simulator";
-import * as Sdk from "@reservoir0x/sdk";
 
 import { logger } from "@/common/logger";
 import { bn } from "@/common/utils";
-import { config } from "@/config/index";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
@@ -119,7 +117,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             // Handle: prices
 
             const priceData = await getUSDAndNativePrices(
-              Sdk.Common.Addresses.Eth[config.chainId],
+              pool.token,
               price,
               baseEventParams.timestamp
             );
@@ -221,7 +219,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             // Handle: prices
 
             const priceData = await getUSDAndNativePrices(
-              Sdk.Common.Addresses.Eth[config.chainId],
+              pool.token,
               price,
               baseEventParams.timestamp
             );
@@ -356,7 +354,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             // Handle: prices
 
             const priceData = await getUSDAndNativePrices(
-              Sdk.Common.Addresses.Eth[config.chainId],
+              pool.token,
               price,
               baseEventParams.timestamp
             );

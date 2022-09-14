@@ -216,23 +216,37 @@ export const getOrdersBidsV3Options: RouteOptions = {
 
             WHEN orders.token_set_id LIKE 'list:%' THEN
               (SELECT
-                json_build_object(
-                  'kind', 'attribute',
-                  'data', json_build_object(
-                    'collectionName', collections.name,
-                    'attributes', ARRAY[json_build_object('key', attribute_keys.key, 'value', attributes.value)],
-                    'image', (collections.metadata ->> 'imageUrl')::TEXT
-                  )
-                )
+                CASE
+                  WHEN token_sets.attribute_id IS NULL THEN
+                    (SELECT
+                      json_build_object(
+                        'kind', 'collection',
+                        'data', json_build_object(
+                          'collectionName', collections.name,
+                          'image', (collections.metadata ->> 'imageUrl')::TEXT
+                        )
+                      )
+                    FROM collections
+                    WHERE token_sets.collection_id = collections.id)
+                  ELSE
+                    (SELECT
+                      json_build_object(
+                        'kind', 'attribute',
+                        'data', json_build_object(
+                          'collectionName', collections.name,
+                          'attributes', ARRAY[json_build_object('key', attribute_keys.key, 'value', attributes.value)],
+                          'image', (collections.metadata ->> 'imageUrl')::TEXT
+                        )
+                      )
+                    FROM attributes
+                    JOIN attribute_keys
+                    ON attributes.attribute_key_id = attribute_keys.id
+                    JOIN collections
+                    ON attribute_keys.collection_id = collections.id
+                    WHERE token_sets.attribute_id = attributes.id)
+                END  
               FROM token_sets
-              JOIN attributes
-                ON token_sets.attribute_id = attributes.id
-              JOIN attribute_keys
-                ON attributes.attribute_key_id = attribute_keys.id
-              JOIN collections
-                ON attribute_keys.collection_id = collections.id
-              WHERE token_sets.id = orders.token_set_id)
-
+              WHERE token_sets.id = orders.token_set_id)        
             ELSE NULL
           END
         ) AS metadata

@@ -1,6 +1,6 @@
 import { defaultAbiCoder } from "@ethersproject/abi";
 import { Filter, Log } from "@ethersproject/abstract-provider";
-import { AddressZero, HashZero } from "@ethersproject/constants";
+import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import _ from "lodash";
 import pLimit from "p-limit";
@@ -95,21 +95,10 @@ export const syncEvents = async (
   const backfill = Boolean(options?.backfill);
 
   // Before proceeding, fetch all individual blocks within the current range
-  if (!backfill) {
+  if (toBlock - fromBlock + 1 <= 32) {
     const limit = pLimit(32);
-    const before = performance.now();
-    logger.info(COMPONENT_NAME, `Fetching blocks ${fromBlock} - ${toBlock + 1}`);
     await Promise.all(
-      _.range(fromBlock, toBlock + 1).map((block) =>
-        limit(async () => {
-          await syncEventsUtils.fetchBlock(block);
-        })
-      )
-    );
-    const after = performance.now();
-    logger.info(
-      COMPONENT_NAME,
-      `Fetched blocks ${fromBlock} - ${toBlock + 1} in ${after - before} milliseconds`
+      _.range(fromBlock, toBlock + 1).map((block) => limit(() => syncEventsUtils.fetchBlock(block)))
     );
   }
 
@@ -1019,181 +1008,6 @@ export const syncEvents = async (
                   contract: Sdk.Common.Addresses.Weth[config.chainId],
                   orderKind: "looks-rare",
                 },
-              });
-            }
-
-            break;
-          }
-
-          // WyvernV2/WyvernV2.3
-
-          // Wyvern V2 and V2.3 are both decomissioned, but we still keep handling
-          // fill event from them in order to get access to historical sales. This
-          // is only relevant when backfilling though.
-
-          case "wyvern-v2-orders-matched":
-          case "wyvern-v2.3-orders-matched": {
-            const parsedLog = eventData.abi.parseLog(log);
-            const buyOrderId = parsedLog.args["buyHash"].toLowerCase();
-            const sellOrderId = parsedLog.args["sellHash"].toLowerCase();
-            const maker = parsedLog.args["maker"].toLowerCase();
-            let taker = parsedLog.args["taker"].toLowerCase();
-            const currencyPrice = parsedLog.args["price"].toString();
-
-            // The code below assumes that events are retrieved in chronological
-            // order from the blockchain (this is safe to assume in most cases).
-
-            // With Wyvern, there are two main issues:
-            // - the traded token is not included in the fill event, so we have
-            // to deduce it by checking the nft transfer occured exactly before
-            // the fill event
-            // - the payment token is not included in the fill event, and we deduce
-            // it as well by checking any Erc20 transfers that occured close before
-            // the fill event (and default to native Eth if cannot find any)
-
-            // Detect the traded token
-            let associatedNftTransferEvent: es.nftTransfers.Event | undefined;
-            if (nftTransferEvents.length) {
-              // Ensure the last nft transfer event was part of the fill
-              const event = nftTransferEvents[nftTransferEvents.length - 1];
-              if (
-                event.baseEventParams.txHash === baseEventParams.txHash &&
-                event.baseEventParams.logIndex === baseEventParams.logIndex - 1 &&
-                // Only single token fills are supported and recognized
-                event.baseEventParams.batchIndex === 1
-              ) {
-                associatedNftTransferEvent = event;
-              }
-            }
-
-            if (!associatedNftTransferEvent) {
-              // Skip if we can't associate to an nft transfer event
-              break;
-            }
-
-            // Detect the payment token
-            let currency = Sdk.Common.Addresses.Eth[config.chainId];
-            for (const event of currentTxEvents.slice(0, -1).reverse()) {
-              // Skip once we detect another fill in the same transaction
-              // (this will happen if filling through an aggregator).
-              if (event.log.topics[0] === getEventData([eventData.kind])[0].topic) {
-                break;
-              }
-
-              // If we detect an Erc20 transfer as part of the same transaction
-              // then we assume it's the payment for the current sale and so we
-              // only keep the sale if the payment token is Weth.
-              const erc20EventData = getEventData(["erc20-transfer"])[0];
-              if (
-                event.log.topics[0] === erc20EventData.topic &&
-                event.log.topics.length === erc20EventData.numTopics
-              ) {
-                const parsed = erc20EventData.abi.parseLog(event.log);
-                const from = parsed.args["from"].toLowerCase();
-                const to = parsed.args["to"].toLowerCase();
-                const amount = parsed.args["amount"].toString();
-                if (
-                  ((maker === from && taker === to) || (maker === to && taker === from)) &&
-                  amount <= currencyPrice
-                ) {
-                  currency = event.log.address.toLowerCase();
-                  break;
-                }
-              }
-            }
-
-            // Handle: attribution
-
-            const orderKind = eventData.kind.startsWith("wyvern-v2.3")
-              ? "wyvern-v2.3"
-              : "wyvern-v2";
-            const data = await syncEventsUtils.extractAttributionData(
-              baseEventParams.txHash,
-              orderKind
-            );
-            if (data.taker) {
-              taker = data.taker;
-            }
-
-            // Handle: prices
-
-            const prices = await getUSDAndNativePrices(
-              currency,
-              currencyPrice,
-              baseEventParams.timestamp
-            );
-            if (!prices.nativePrice) {
-              // We must always have the native price
-              break;
-            }
-
-            let batchIndex = 1;
-            if (buyOrderId !== HashZero) {
-              fillEvents.push({
-                orderKind,
-                orderId: buyOrderId,
-                orderSide: "buy",
-                maker,
-                taker,
-                price: prices.nativePrice,
-                currency,
-                currencyPrice,
-                usdPrice: prices.usdPrice,
-                contract: associatedNftTransferEvent.baseEventParams.address,
-                tokenId: associatedNftTransferEvent.tokenId,
-                amount: associatedNftTransferEvent.amount,
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams: {
-                  ...baseEventParams,
-                  batchIndex: batchIndex++,
-                },
-              });
-
-              fillInfos.push({
-                context: `${buyOrderId}-${baseEventParams.txHash}`,
-                orderId: buyOrderId,
-                orderSide: "buy",
-                contract: associatedNftTransferEvent.baseEventParams.address,
-                tokenId: associatedNftTransferEvent.tokenId,
-                amount: associatedNftTransferEvent.amount,
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
-              });
-            }
-            if (sellOrderId !== HashZero) {
-              fillEvents.push({
-                orderKind,
-                orderId: sellOrderId,
-                orderSide: "sell",
-                maker,
-                taker,
-                price: prices.nativePrice,
-                currency,
-                currencyPrice,
-                usdPrice: prices.usdPrice,
-                contract: associatedNftTransferEvent.baseEventParams.address,
-                tokenId: associatedNftTransferEvent.tokenId,
-                amount: associatedNftTransferEvent.amount,
-                orderSourceId: data.orderSource?.id,
-                aggregatorSourceId: data.aggregatorSource?.id,
-                fillSourceId: data.fillSource?.id,
-                baseEventParams: {
-                  ...baseEventParams,
-                  batchIndex: batchIndex++,
-                },
-              });
-
-              fillInfos.push({
-                context: `${sellOrderId}-${baseEventParams.txHash}`,
-                orderId: sellOrderId,
-                orderSide: "sell",
-                contract: associatedNftTransferEvent.baseEventParams.address,
-                tokenId: associatedNftTransferEvent.tokenId,
-                amount: associatedNftTransferEvent.amount,
-                price: prices.nativePrice,
-                timestamp: baseEventParams.timestamp,
               });
             }
 
@@ -2228,7 +2042,10 @@ export const syncEvents = async (
             const tokenOwner = args["tokenOwner"].toLowerCase();
             let taker = args["winner"].toLowerCase();
             const amount = args["amount"].toString();
+            const curatorFee = args["curatorFee"].toString();
             const auctionCurrency = args["auctionCurrency"].toLowerCase();
+
+            const price = bn(amount).add(curatorFee).toString();
 
             // Handle: attribution
 
@@ -2245,7 +2062,7 @@ export const syncEvents = async (
 
             const prices = await getUSDAndNativePrices(
               auctionCurrency,
-              amount,
+              price,
               baseEventParams.timestamp
             );
             if (!prices.nativePrice) {
@@ -2260,7 +2077,7 @@ export const syncEvents = async (
               taker,
               maker: tokenOwner,
               price: prices.nativePrice,
-              currencyPrice: amount,
+              currencyPrice: price,
               usdPrice: prices.usdPrice,
               contract: tokenContract,
               tokenId,
@@ -2312,6 +2129,17 @@ export const syncEvents = async (
       {
         kind: "sudoswap",
         events: enhancedEvents.filter(({ kind }) => kind.startsWith("sudoswap")),
+      },
+      {
+        kind: "wyvern",
+        events: enhancedEvents.filter(
+          ({ kind }) =>
+            kind.startsWith("wyvern") ||
+            // To properly handle Wyvern sales, we need some additional events
+            kind === "erc721-transfer" ||
+            kind === "erc1155-transfer-single" ||
+            kind === "erc20-transfer"
+        ),
       },
     ]);
 
