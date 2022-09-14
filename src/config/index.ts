@@ -55,7 +55,9 @@ export const config = {
   dataExportAwsAccessRole: String(process.env.DATA_EXPORT_AWS_ACCESS_ROLE),
   dataExportAwsS3UploadRole: String(process.env.DATA_EXPORT_AWS_S3_UPLOAD_ROLE),
   dataExportAwsS3UploadExternalId: String(process.env.DATA_EXPORT_AWS_S3_UPLOAD_EXTERNAL_ID),
-  dataExportS3ArchiveBucketName: String(process.env.DATA_EXPORT_S3_ARCHIVE_BUCKET_NAME),
+  dataExportS3ArchiveBucketName: process.env.DATA_EXPORT_S3_ARCHIVE_BUCKET_NAME
+    ? String(process.env.DATA_EXPORT_S3_ARCHIVE_BUCKET_NAME)
+    : undefined,
 
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
