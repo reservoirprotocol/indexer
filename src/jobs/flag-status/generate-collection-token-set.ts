@@ -91,7 +91,7 @@ if (config.doBackgroundWork) {
         if (ts.length !== 1) {
           logger.warn(
             QUEUE_NAME,
-            `Invalid Token Set. contract=${contract}, collectionId=${collectionId}, tokenSetId=${tokenSetId}`
+            `Invalid Token Set. contract=${contract}, collectionId=${collectionId}, generatedNonFlaggedTokenSetId=${tokenSetId}`
           );
         } else {
           logger.info(
@@ -107,7 +107,7 @@ if (config.doBackgroundWork) {
             collectionId,
             flaggedTokens.map((r) => r.tokenId)
           );
-          await handleOrders(contract, collectionId, collectionId);
+          await handleOrders(contract, collectionId, tokenSetId);
         }
       } else {
         logger.info(
