@@ -1,3 +1,30 @@
+# [5.223.0](https://github.com/reservoirprotocol/indexer/compare/v5.222.0...v5.223.0) (2022-09-14)
+
+
+### Features
+
+* fixed block hash convestion ([#1856](https://github.com/reservoirprotocol/indexer/issues/1856)) ([2c2b810](https://github.com/reservoirprotocol/indexer/commit/2c2b810a06376cde8cc12ea923faf3a84e1168cf))
+
+
+
+# [5.222.0](https://github.com/reservoirprotocol/indexer/compare/v5.221.0...v5.222.0) (2022-09-14)
+
+
+### Features
+
+* added support for goerli ([#1854](https://github.com/reservoirprotocol/indexer/issues/1854)) ([1c52cad](https://github.com/reservoirprotocol/indexer/commit/1c52cad834d872d55f47457040e7fa148e772830))
+
+
+
+# [5.221.0](https://github.com/reservoirprotocol/indexer/compare/v5.220.10...v5.221.0) (2022-09-14)
+
+
+### Bug Fixes
+
+* tweak execute bid step descriptions ([27c0b28](https://github.com/reservoirprotocol/indexer/commit/27c0b28054657fe31a3039774a6780845fb6be73))
+
+
+
 ## [5.220.10](https://github.com/reservoirprotocol/indexer/compare/v5.220.9...v5.220.10) (2022-09-14)
 
 

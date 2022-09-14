@@ -41,7 +41,7 @@ export class Activities {
       to_address: activity.toAddress ? toBuffer(activity.toAddress) : null,
       price: activity.price,
       amount: activity.amount,
-      block_hash: activity.blockHash,
+      block_hash: activity.blockHash ? toBuffer(activity.blockHash) : null,
       event_timestamp: activity.eventTimestamp,
       metadata: activity.metadata,
     }));

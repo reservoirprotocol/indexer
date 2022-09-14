@@ -119,6 +119,10 @@ export const getMarketplaces: RouteOptions = {
           listableOrderbooks = ["reservoir", "opensea", "looks-rare"];
           break;
         }
+        case 5: {
+          listableOrderbooks = ["reservoir", "opensea", "looks-rare"];
+          break;
+        }
       }
       marketplace.listingEnabled =
         marketplace.orderbook && listableOrderbooks.includes(marketplace.orderbook) ? true : false;

@@ -175,12 +175,13 @@ export const getExecuteBidV2Options: RouteOptions = {
       const steps = [
         {
           action: "Wrapping ETH",
-          description: "Wrapping ETH required to make offer",
+          description: "We’ll ask your approval for converting ETH to WETH. Gas fee required.",
           kind: "transaction",
         },
         {
           action: "Approve WETH contract",
-          description: "A one-time setup transaction to enable trading with WETH",
+          description:
+            "We’ll ask your approval for the exchange to access your token. This is a one-time only operation per exchange.",
           kind: "transaction",
         },
         {
