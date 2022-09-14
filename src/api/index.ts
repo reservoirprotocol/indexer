@@ -44,7 +44,7 @@ export const start = async (): Promise<void> => {
       },
       cors: {
         origin: ["*"],
-        additionalHeaders: ["x-api-key"],
+        additionalHeaders: ["x-api-key", "x-rkc-version", "x-rkui-version"],
       },
       // Expose any validation errors
       // https://github.com/hapijs/hapi/issues/3706

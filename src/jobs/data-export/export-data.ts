@@ -205,10 +205,7 @@ const uploadSequenceToS3 = async (key: string, data: string) => {
         })
         .promise();
     } catch (error) {
-      logger.error(
-        QUEUE_NAME,
-        `Upload ${key} to ${config.dataExportS3ArchiveBucketName} failed: ${error}`
-      );
+      logger.error(QUEUE_NAME, `Upload ${key} to archive failed: ${error}`);
     }
   }
 };
