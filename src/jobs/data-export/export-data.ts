@@ -67,6 +67,13 @@ if (config.doBackgroundWork) {
 
           // Trigger next sequence only if there are more results
           job.data.addToQueue = data.length >= QUERY_LIMIT;
+
+          logger.info(
+            QUEUE_NAME,
+            `Export finished. kind:${kind}, cursor:${JSON.stringify(
+              cursor
+            )}, sequenceNumber:${sequenceNumber}, nextCursor:${JSON.stringify(nextCursor)}`
+          );
         } catch (error) {
           logger.error(QUEUE_NAME, `Export ${kind} failed: ${error}`);
         }
