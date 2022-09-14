@@ -75,6 +75,24 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/update-rate-limit-rule",
+    options: adminEndpoints.postUpdateRateLimitRuleOptions,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/admin/rate-limit-rules",
+    options: adminEndpoints.getRateLimitRulesOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/update-api-key-tier",
+    options: adminEndpoints.postUpdateApiKeyTierOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/refresh-collection-flags",
     options: adminEndpoints.postRefreshCollectionFlagsOptions,
   });

@@ -42,13 +42,10 @@ export const getOpenApiOptions: RouteOptions = {
           url: "https://api.reservoir.tools",
         },
         {
-          url: "https://api-rinkeby.reservoir.tools",
+          url: "https://api-goerli.reservoir.tools",
         },
         {
           url: "https://api-optimism.reservoir.tools",
-        },
-        {
-          url: "https://api-goerli.reservoir.tools",
         },
         {
           url: "https://api-polygon.reservoir.tools",

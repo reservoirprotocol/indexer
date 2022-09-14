@@ -23,7 +23,7 @@ export const getRedirectTokenV2Options: RouteOptions = {
   },
   validate: {
     params: Joi.object({
-      source: Joi.string().required().description("Name of the order source. Example `opensea.io`"),
+      source: Joi.string().required().description("Domain of the source. Example `opensea.io`"),
       token: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)

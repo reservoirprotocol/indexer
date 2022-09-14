@@ -53,11 +53,18 @@ import * as exportData from "@/jobs/data-export/export-data";
 
 import * as eventsSyncBackfill from "@/jobs/events-sync/backfill-queue";
 import * as eventsSyncBlockCheck from "@/jobs/events-sync/block-check-queue";
+import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
+import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
 import * as eventsSyncFtTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/ft-transfers";
 import * as eventsSyncNftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
 
 import * as fillUpdates from "@/jobs/fill-updates/queue";
+
+import * as flagStatusProcessJob from "@/jobs/flag-status/process-queue";
+import * as flagStatusSyncJob from "@/jobs/flag-status/sync-queue";
+import * as flagStatusGenerateAttributeTokenSet from "@/jobs/flag-status/generate-attribute-token-set";
+import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
 
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
@@ -79,7 +86,6 @@ import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
 
 import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
-import * as nonFlaggedTokenSet from "@/jobs/token-updates/non-flagged-token-set";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 
 import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-order";
@@ -89,9 +95,6 @@ import * as resyncAttributeCollection from "@/jobs/update-attribute/resync-attri
 import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attribute-floor-sell";
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
-
-import * as flagStatusProcessJob from "@/jobs/flag-status/process-queue";
-import * as flagStatusSyncJob from "@/jobs/flag-status/sync-queue";
 
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,
@@ -121,11 +124,18 @@ export const allJobQueues = [
 
   eventsSyncBackfill.queue,
   eventsSyncBlockCheck.queue,
+  eventsSyncBackfillProcess.queue,
+  eventsSyncRealtimeProcess.queue,
   eventsSyncRealtime.queue,
   eventsSyncFtTransfersWriteBuffer.queue,
   eventsSyncNftTransfersWriteBuffer.queue,
 
   fillUpdates.queue,
+
+  flagStatusProcessJob.queue,
+  flagStatusSyncJob.queue,
+  flagStatusGenerateAttributeTokenSet.queue,
+  flagStatusGenerateCollectionTokenSet.queue,
 
   metadataIndexFetch.queue,
   metadataIndexProcess.queue,
@@ -147,11 +157,7 @@ export const allJobQueues = [
 
   tokenUpdatesMint.queue,
   tokenRefreshCache.queue,
-  nonFlaggedTokenSet.queue,
   fetchCollectionMetadata.queue,
-
-  flagStatusProcessJob.queue,
-  flagStatusSyncJob.queue,
 
   handleNewSellOrder.queue,
   handleNewBuyOrder.queue,

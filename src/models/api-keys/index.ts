@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import _ from "lodash";
 import { Request } from "@hapi/hapi";
 
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { ApiKeyEntity } from "@/models/api-keys/api-key-entity";
+import { ApiKeyEntity, ApiKeyUpdateParams } from "@/models/api-keys/api-key-entity";
 import getUuidByString from "uuid-by-string";
+import { channels } from "@/pubsub/channels";
 
 export type ApiKeyRecord = {
   app_name: string;
@@ -20,6 +22,8 @@ export type NewApiKeyResponse = {
 };
 
 export class ApiKeyManager {
+  private static apiKeys: Map<string, ApiKeyEntity> = new Map();
+
   /**
    * Create a new key, leave the ApiKeyRecord.key empty to generate a new key (uuid) in this function
    *
@@ -56,6 +60,11 @@ export class ApiKeyManager {
     };
   }
 
+  public static async deleteCachedApiKey(key: string) {
+    ApiKeyManager.apiKeys.delete(key); // Delete from local memory cache
+    await redis.del(`api-key:${key}`); // Delete from redis cache
+  }
+
   /**
    * When a user passes an api key, we retrieve the details from redis
    * In case the details are not in redis (new redis, api key somehow disappeared from redis) we try to fetch it from
@@ -65,6 +74,11 @@ export class ApiKeyManager {
    * @param key
    */
   public static async getApiKey(key: string): Promise<ApiKeyEntity | null> {
+    const cachedApiKey = ApiKeyManager.apiKeys.get(key);
+    if (cachedApiKey) {
+      return cachedApiKey;
+    }
+
     const redisKey = `api-key:${key}`;
 
     try {
@@ -81,8 +95,10 @@ export class ApiKeyManager {
         const fromDb = await redb.oneOrNone(`SELECT * FROM api_keys WHERE key = $/key/`, { key });
 
         if (fromDb) {
-          await redis.set(redisKey, JSON.stringify(fromDb));
-          return new ApiKeyEntity(fromDb);
+          await redis.set(redisKey, JSON.stringify(fromDb)); // Set in redis
+          const apiKey = new ApiKeyEntity(fromDb);
+          ApiKeyManager.apiKeys.set(key, apiKey); // Set in local memory storage
+          return apiKey;
         } else {
           await redis.set(redisKey, "empty");
           await redis.expire(redisKey, 3600 * 24);
@@ -160,5 +176,28 @@ export class ApiKeyManager {
     }
 
     logger.info("metrics", JSON.stringify(log));
+  }
+
+  public static async update(key: string, fields: ApiKeyUpdateParams) {
+    let updateString = "";
+    const replacementValues = {
+      key,
+    };
+
+    _.forEach(fields, (value, fieldName) => {
+      updateString += `${_.snakeCase(fieldName)} = $/${fieldName}/,`;
+      (replacementValues as any)[fieldName] = value;
+    });
+
+    updateString = _.trimEnd(updateString, ",");
+
+    const query = `UPDATE api_keys
+                   SET ${updateString}
+                   WHERE key = $/key/`;
+
+    await idb.none(query, replacementValues);
+
+    await ApiKeyManager.deleteCachedApiKey(key); // reload the cache
+    await redis.publish(channels.apiKeyUpdated, JSON.stringify({ key }));
   }
 }

@@ -154,6 +154,18 @@ export const getTokensV5Options: RouteOptions = {
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
               source: Joi.object().allow(null),
+              feeBreakdown: Joi.array()
+                .items(
+                  Joi.object({
+                    kind: Joi.string(),
+                    recipient: Joi.string()
+                      .lowercase()
+                      .pattern(/^0x[a-fA-F0-9]{40}$/)
+                      .allow(null),
+                    bps: Joi.number(),
+                  })
+                )
+                .allow(null),
             }).optional(),
           }),
         })
@@ -179,6 +191,7 @@ export const getTokensV5Options: RouteOptions = {
             o.id AS top_buy_id,
             o.maker AS top_buy_maker,
             o.currency AS top_buy_currency,
+            o.fee_breakdown AS top_buy_fee_breakdown,
             o.currency_price AS top_buy_currency_price,
             o.currency_value AS top_buy_currency_value,
             o.price AS top_buy_price,
@@ -648,6 +661,7 @@ export const getTokensV5Options: RouteOptions = {
                     icon: topBuySource?.metadata.icon,
                     url: topBuySource?.metadata.url,
                   },
+                  feeBreakdown: r.top_buy_fee_breakdown,
                 }
               : undefined,
           },

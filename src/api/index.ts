@@ -7,6 +7,7 @@ import Inert from "@hapi/inert";
 import Vision from "@hapi/vision";
 import HapiSwagger from "hapi-swagger";
 import qs from "qs";
+import _ from "lodash";
 
 import { setupRoutes } from "@/api/routes";
 import { logger } from "@/common/logger";
@@ -15,6 +16,10 @@ import { getNetworkName } from "@/config/network";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
 import { allJobQueues } from "@/jobs/index";
+import { RateLimitRules } from "@/models/rate-limit-rules";
+import { RateLimiterRedis, RateLimiterRes } from "rate-limiter-flexible";
+import { rateLimitRedis } from "@/common/redis";
+import { Boom } from "@hapi/boom";
 
 let server: Hapi.Server;
 
@@ -87,6 +92,9 @@ export const start = async (): Promise<void> => {
   // Create all supported sources
   await Sources.syncSources();
 
+  // Getting rate limit instance will load rate limit rules into memory
+  await RateLimitRules.getInstance();
+
   const apiDescription =
     "You are viewing the reference docs for the Reservoir API.\
     \
@@ -128,6 +136,73 @@ export const start = async (): Promise<void> => {
     },
   ]);
 
+  server.ext("onPreAuth", async (request, reply) => {
+    const key = request.headers["x-api-key"];
+    const apiKey = await ApiKeyManager.getApiKey(key);
+    const tier = apiKey?.tier || 0;
+
+    const rateLimitRules = await RateLimitRules.getInstance();
+    const rateLimitRule = rateLimitRules.getRule(request.route.path, request.route.method, tier);
+
+    // If matching rule was found
+    if (rateLimitRule) {
+      const rateLimiterRedis = new RateLimiterRedis({
+        storeClient: rateLimitRedis,
+        points: rateLimitRule.options.points,
+        duration: rateLimitRule.options.duration,
+      });
+
+      const remoteAddress = request.headers["x-forwarded-for"]
+        ? _.split(request.headers["x-forwarded-for"], ",")[0]
+        : request.info.remoteAddress;
+      const rateLimitKey = _.isUndefined(key) || _.isEmpty(key) ? remoteAddress : key; // If no api key use IP
+
+      try {
+        const rateLimiterRes = await rateLimiterRedis.consume(rateLimitKey, 1);
+
+        // Generate the rate limiting header and add them to the request object to be added to the response in the onPreResponse event
+        request.headers["X-RateLimit-Limit"] = `${rateLimitRule.options.points}`;
+        request.headers["X-RateLimit-Remaining"] = `${rateLimiterRes.remainingPoints}`;
+        request.headers["X-RateLimit-Reset"] = `${new Date(
+          Date.now() + rateLimiterRes.msBeforeNext
+        )}`;
+      } catch (error) {
+        if (error instanceof RateLimiterRes) {
+          if (
+            error.consumedPoints == Number(rateLimitRule.options.points) + 1 ||
+            error.consumedPoints % 50 == 0
+          ) {
+            logger.warn(
+              "rate-limiter",
+              `${rateLimitKey} ${apiKey?.appName} reached allowed rate limit ${
+                rateLimitRule.options.points
+              } requests in ${rateLimitRule.options.duration}s by calling ${
+                error.consumedPoints
+              } times in rule ${JSON.stringify(rateLimitRule)}`
+            );
+          }
+
+          // const tooManyRequestsResponse = {
+          //   statusCode: 429,
+          //   error: "Too Many Requests",
+          //   message: `Max ${rateLimitRule.options.points} requests in ${rateLimitRule.options.duration}s reached`,
+          // };
+          //
+          // return reply
+          //   .response(tooManyRequestsResponse)
+          //   .header("x-cf-block", "true")
+          //   .type("application/json")
+          //   .code(429)
+          //   .takeover();
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    return reply.continue;
+  });
+
   server.ext("onPreHandler", (request, h) => {
     ApiKeyManager.logUsage(request);
     return h.continue;
@@ -147,6 +222,12 @@ export const start = async (): Promise<void> => {
 
         return reply.response(timeoutResponse).type("application/json").code(504);
       }
+    }
+
+    if (!(response instanceof Boom)) {
+      response.header("X-RateLimit-Limit", request.headers["X-RateLimit-Limit"]);
+      response.header("X-RateLimit-Remaining", request.headers["X-RateLimit-Remaining"]);
+      response.header("X-RateLimit-Reset", request.headers["X-RateLimit-Reset"]);
     }
 
     return reply.continue;

@@ -109,12 +109,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 currency_value = $/price/,
                 valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
                 expiration = 'Infinity',
-                updated_at = now()
+                updated_at = now(),
+                taker = $/taker/,
+                raw_data = $/orderParams:json/
               WHERE orders.id = $/id/
             `,
             {
               maker: toBuffer(orderParams.maker),
+              taker: toBuffer(orderParams.taker ?? AddressZero),
               price: orderParams.price,
+              orderParams,
               id,
             }
           );

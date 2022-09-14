@@ -6,7 +6,7 @@ import { extendLock, redis, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 
 import { Tokens } from "@/models/tokens";
-import * as nonFlaggedTokenSet from "@/jobs/token-updates/non-flagged-token-set";
+import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
 import MetadataApi from "@/utils/metadata-api";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
@@ -47,7 +47,7 @@ if (config.doBackgroundWork) {
         await releaseLock(getLockName());
 
         await flagStatusProcessQueue.addToQueue();
-        await nonFlaggedTokenSet.addToQueue(contract, collectionId);
+        await flagStatusGenerateCollectionTokenSet.addToQueue(contract, collectionId);
 
         return;
       }

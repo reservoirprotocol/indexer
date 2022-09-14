@@ -6,7 +6,7 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { redb } from "@/common/db";
-import { fromBuffer } from "@/common/utils";
+import { formatEth, fromBuffer } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import { Assets } from "@/utils/assets";
 
@@ -51,6 +51,8 @@ export const getSearchCollectionsV1Options: RouteOptions = {
           contract: Joi.string(),
           image: Joi.string().allow(null, ""),
           name: Joi.string().allow(null, ""),
+          allTimeVolume: Joi.number().unsafe().allow(null),
+          floorAskPrice: Joi.number().unsafe().allow(null),
         })
       ),
     }).label(`getSearchCollections${version.toUpperCase()}Response`),
@@ -87,7 +89,7 @@ export const getSearchCollectionsV1Options: RouteOptions = {
     }
 
     const baseQuery = `
-            SELECT id, name, contract, (metadata ->> 'imageUrl')::TEXT AS image
+            SELECT id, name, contract, (metadata ->> 'imageUrl')::TEXT AS image, all_time_volume, floor_sell_value
             FROM collections
             ${whereClause}
             ORDER BY all_time_volume DESC
@@ -102,6 +104,8 @@ export const getSearchCollectionsV1Options: RouteOptions = {
         name: collection.name,
         contract: fromBuffer(collection.contract),
         image: Assets.getLocalAssetsLink(collection.image),
+        allTimeVolume: collection.all_time_volume ? formatEth(collection.all_time_volume) : null,
+        floorAskPrice: collection.floor_sell_value ? formatEth(collection.floor_sell_value) : null,
       })),
     };
   },

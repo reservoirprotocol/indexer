@@ -7,6 +7,7 @@ import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as arweaveRelay from "@/jobs/arweave-relay";
+import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/seaport/check";
@@ -15,7 +16,6 @@ import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
-import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 
 export type OrderInfo = {
   orderParams: Sdk.Seaport.Types.OrderComponents;
@@ -109,9 +109,6 @@ export const save = async (
         ![
           // No zone
           AddressZero,
-          // Are these really used?
-          "0xf397619df7bfd4d1657ea9bdd9df7ff888731a11",
-          "0x9b814233894cd227f561b78cc65891aa55c62ad2",
           // Pausable zone
           Sdk.Seaport.Addresses.PausableZone[config.chainId],
         ].includes(order.params.zone)

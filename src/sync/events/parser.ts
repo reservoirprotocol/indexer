@@ -1,7 +1,7 @@
 import { Log } from "@ethersproject/abstract-provider";
 
-import * as blocksModel from "@/models/blocks";
 import * as syncEventsUtils from "@/events-sync/utils";
+import * as blocksModel from "@/models/blocks";
 
 export type BaseEventParams = {
   address: string;

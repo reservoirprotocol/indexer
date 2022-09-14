@@ -18,6 +18,12 @@ export const redisSubscriber = new Redis(config.redisUrl, {
   enableReadyCheck: false,
 });
 
+export const rateLimitRedis = new Redis(config.rateLimitRedisUrl, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+  enableOfflineQueue: false,
+});
+
 // https://redis.io/topics/distlock
 export const redlock = new Redlock([redis.duplicate()], { retryCount: 0 });
 

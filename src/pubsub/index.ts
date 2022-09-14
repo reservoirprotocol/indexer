@@ -8,6 +8,8 @@ import { channels } from "@/pubsub/channels";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { SourcesUpdatedEvent } from "@/pubsub/sources-updated-event";
+import { ApiKeyUpdatedEvent } from "@/pubsub/api-key-updated-event";
+import { RateLimitUpdatedEvent } from "@/pubsub/rate-limit-updated-event";
 
 redisSubscriber.subscribe(channels.sourcesUpdated, (err, count) => {
   if (err) {
@@ -21,6 +23,14 @@ redisSubscriber.on("message", async (channel, message) => {
   switch (channel) {
     case channels.sourcesUpdated:
       await SourcesUpdatedEvent.handleEvent(message);
+      break;
+
+    case channels.apiKeyUpdated:
+      await ApiKeyUpdatedEvent.handleEvent(message);
+      break;
+
+    case channels.rateLimitRuleUpdated:
+      await RateLimitUpdatedEvent.handleEvent(message);
       break;
   }
 });

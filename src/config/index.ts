@@ -38,6 +38,7 @@ export const config = {
     process.env.WRITE_REPLICA_DATABASE_URL || process.env.DATABASE_URL
   ),
   redisUrl: String(process.env.REDIS_URL),
+  rateLimitRedisUrl: String(process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL),
 
   master: Boolean(Number(process.env.MASTER)),
   catchup: Boolean(Number(process.env.CATCHUP)),

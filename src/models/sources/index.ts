@@ -61,17 +61,17 @@ export class Sources {
   }
 
   public static async getInstance() {
-    if (!this.instance) {
-      this.instance = new Sources();
-      await this.instance.loadData();
+    if (!Sources.instance) {
+      Sources.instance = new Sources();
+      await Sources.instance.loadData();
     }
 
-    return this.instance;
+    return Sources.instance;
   }
 
   public static async forceDataReload() {
-    if (this.instance) {
-      await this.instance.loadData(true);
+    if (Sources.instance) {
+      await Sources.instance.loadData(true);
     }
   }
 
