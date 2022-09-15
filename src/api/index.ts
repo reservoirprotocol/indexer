@@ -137,8 +137,14 @@ export const start = async (): Promise<void> => {
     const apiKey = await ApiKeyManager.getApiKey(key);
     const tier = apiKey?.tier || 0;
 
+    // Get the rule for the incoming request
     const rateLimitRules = await RateLimitRules.getInstance();
-    const rateLimitRule = rateLimitRules.getRule(request.route.path, request.route.method, tier);
+    const rateLimitRule = rateLimitRules.getRule(
+      request.route.path,
+      request.route.method,
+      tier,
+      apiKey?.key
+    );
 
     // If matching rule was found
     if (rateLimitRule) {

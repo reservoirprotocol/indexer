@@ -8,19 +8,20 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 
-export const postUpdateRateLimitRuleOptions: RouteOptions = {
-  description: "Update the rate limit for the given ID",
+export const postCreateRateLimitRuleOptions: RouteOptions = {
+  description: "Create rate limit",
   tags: ["api", "x-admin"],
   validate: {
     headers: Joi.object({
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     payload: Joi.object({
-      ruleId: Joi.number().description("The rule ID to update").required(),
-      tier: Joi.number().valid(0, 1, 2, 3, null).optional(),
-      points: Joi.number().optional(),
-      duration: Joi.number().optional(),
-      method: Joi.string().valid("get", "post", "delete", "put", "").optional(),
+      route: Joi.string().description("The route for which the rule is created").required(),
+      points: Joi.number().required(),
+      duration: Joi.number().required(),
+      tier: Joi.number().valid(0, 1, 2, 3, null).default(null).optional(),
+      apiKey: Joi.string().default("").uuid().optional(),
+      method: Joi.string().valid("get", "post", "delete", "put", "").default("").optional(),
     }),
   },
   handler: async (request: Request) => {
@@ -31,20 +32,23 @@ export const postUpdateRateLimitRuleOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      await RateLimitRules.update(payload.ruleId, {
-        tier: payload.tier,
-        method: payload.method,
-        options: {
+      const rateLimitRule = await RateLimitRules.create(
+        payload.route,
+        payload.apiKey,
+        payload.method,
+        payload.tier,
+        {
           points: payload.points,
           duration: payload.duration,
-        },
-      });
+        }
+      );
 
       return {
-        message: `Rule ID ${payload.ruleId} was updated with params=${JSON.stringify(payload)}`,
+        message: `New rule created ID ${rateLimitRule.id}`,
+        rateLimitRule,
       };
     } catch (error) {
-      logger.error("post-update-rate-limit-handler", `Handler failure: ${error}`);
+      logger.error("post-create-api-key-handler", `Handler failure: ${error}`);
       throw error;
     }
   },

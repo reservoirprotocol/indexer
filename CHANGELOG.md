@@ -1,3 +1,24 @@
+# [5.229.0](https://github.com/reservoirprotocol/indexer/compare/v5.228.0...v5.229.0) (2022-09-15)
+
+
+### Features
+
+* added logic to check if token set exists ([#1874](https://github.com/reservoirprotocol/indexer/issues/1874)) ([75fe76b](https://github.com/reservoirprotocol/indexer/commit/75fe76b2967f5bb3dd385be17faebd112ae338ed))
+
+
+
+# [5.228.0](https://github.com/reservoirprotocol/indexer/compare/v5.227.0...v5.228.0) (2022-09-15)
+
+
+### Features
+
+* added api to create/delete new rate limit rule and fetch limits per api key ([4ff07d7](https://github.com/reservoirprotocol/indexer/commit/4ff07d796aef1a6f4ed2b976dca9c60aa2eb24ea))
+* log all rate limits ([8ca41e5](https://github.com/reservoirprotocol/indexer/commit/8ca41e5bc0f2fbb317b4533a786760abe0b66b4e))
+* log only rate limit ([ff95197](https://github.com/reservoirprotocol/indexer/commit/ff9519798ecab9b14ddf0f58b3cd0ce70a50b4e0))
+* return x-cf-block header ([29be924](https://github.com/reservoirprotocol/indexer/commit/29be924111bf2ad2401ed42e1814aa0811919051))
+
+
+
 # [5.227.0](https://github.com/reservoirprotocol/indexer/compare/v5.226.2...v5.227.0) (2022-09-15)
 
 

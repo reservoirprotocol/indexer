@@ -6,9 +6,12 @@ import { idb, redb } from "@/common/db";
 import {
   RateLimitRuleEntity,
   RateLimitRuleEntityParams,
+  RateLimitRuleOptions,
   RateLimitRuleUpdateParams,
 } from "@/models/rate-limit-rules/rate-limit-rule-entity";
 import { channels } from "@/pubsub/channels";
+import { logger } from "@/common/logger";
+import { ApiKeyManager } from "@/models/api-keys";
 
 export class RateLimitRules {
   private static instance: RateLimitRules;
@@ -35,19 +38,26 @@ export class RateLimitRules {
     }
 
     for (const rule of rules) {
+      const rateLimitRule = new RateLimitRuleEntity(rule);
+
       this.rules.set(
-        RateLimitRules.getRuleKey(rule.route, rule.method, rule.tier),
-        new RateLimitRuleEntity(rule)
+        RateLimitRules.getRuleKey(
+          rateLimitRule.route,
+          rateLimitRule.method,
+          rateLimitRule.tier,
+          rateLimitRule.apiKey
+        ),
+        rateLimitRule
       );
     }
   }
 
-  public static getRuleKey(route: string, method: string, tier: number | null) {
-    return `${route}:${method}:${tier}`;
+  public static getRuleKey(route: string, method: string, tier: number | null, apiKey: string) {
+    return `${route}:${method}:${_.isNull(tier) ? "" : tier}:${apiKey}`;
   }
 
   public static getDefaultRuleKeyForTier(tier: number) {
-    return `/::${tier}`;
+    return RateLimitRules.getRuleKey("/", "", tier, "");
   }
 
   public static getCacheKey() {
@@ -67,6 +77,42 @@ export class RateLimitRules {
     }
 
     return this.instance;
+  }
+
+  public static async create(
+    route: string,
+    apiKey: string,
+    method: string,
+    tier: number | null,
+    options: RateLimitRuleOptions
+  ) {
+    const query = `INSERT INTO rate_limit_rules (route, api_key, method, tier, options)
+                   VALUES ($/route/, $/apiKey/, $/method/, $/tier/, $/options:json/)
+                   RETURNING *`;
+
+    const values = {
+      route,
+      apiKey,
+      method,
+      tier,
+      options,
+    };
+
+    const rateLimitRule = await idb.oneOrNone(query, values);
+    const rateLimitRuleEntity = new RateLimitRuleEntity(rateLimitRule);
+
+    await RateLimitRules.forceDataReload(); // reload the cache
+    await redis.publish(
+      channels.rateLimitRuleUpdated,
+      `New rate limit rule ${JSON.stringify(rateLimitRuleEntity)}`
+    );
+
+    logger.info(
+      "rate-limit-rules",
+      `New rate limit rule ${JSON.stringify(rateLimitRuleEntity)} was created`
+    );
+
+    return rateLimitRuleEntity;
   }
 
   public static async update(id: number, fields: RateLimitRuleUpdateParams) {
@@ -107,29 +153,71 @@ export class RateLimitRules {
     await redis.publish(channels.rateLimitRuleUpdated, `Updated rule id ${id}`);
   }
 
-  public getRule(route: string, method: string, tier: number) {
+  public static async delete(id: number) {
+    const query = `DELETE FROM rate_limit_rules
+                   WHERE id = $/id/`;
+
+    const values = {
+      id,
+    };
+
+    await idb.none(query, values);
+    await RateLimitRules.forceDataReload(); // reload the cache
+    await redis.publish(channels.rateLimitRuleUpdated, `Deleted rule id ${id}`);
+  }
+
+  public static async getApiKeyRateLimits(key: string) {
+    const apiKey = await ApiKeyManager.getApiKey(key);
+    const tier = apiKey?.tier || 0;
+
+    const query = `SELECT *
+                   FROM rate_limit_rules
+                   WHERE tier = $/tier/ OR tier IS NULL OR api_key = $/key/`;
+
+    const values = {
+      tier,
+      key,
+    };
+
+    const rules: RateLimitRuleEntityParams[] = await redb.manyOrNone(query, values);
+    return _.map(rules, (rule) => new RateLimitRuleEntity(rule));
+  }
+
+  public getRule(route: string, method: string, tier: number, apiKey = "") {
     let rule: RateLimitRuleEntity | undefined;
 
+    // Check for api key specific rule on the route method
+    rule = this.rules.get(RateLimitRules.getRuleKey(route, method, null, apiKey));
+    if (rule) {
+      return rule;
+    }
+
+    // Check for api key specific rule on the route
+    rule = this.rules.get(RateLimitRules.getRuleKey(route, "", null, apiKey));
+    if (rule) {
+      return rule;
+    }
+
     // Check for route method rule for the given tier
-    rule = this.rules.get(RateLimitRules.getRuleKey(route, method, tier));
+    rule = this.rules.get(RateLimitRules.getRuleKey(route, method, tier, ""));
     if (rule) {
       return rule;
     }
 
     // Check for route method rule for all tiers
-    rule = this.rules.get(RateLimitRules.getRuleKey(route, method, null));
+    rule = this.rules.get(RateLimitRules.getRuleKey(route, method, null, ""));
     if (rule) {
       return rule;
     }
 
     // Check for route all methods rule
-    rule = this.rules.get(RateLimitRules.getRuleKey(route, "", tier));
+    rule = this.rules.get(RateLimitRules.getRuleKey(route, "", tier, ""));
     if (rule) {
       return rule;
     }
 
     // Check for route all methods rule all tiers
-    rule = this.rules.get(RateLimitRules.getRuleKey(route, "", null));
+    rule = this.rules.get(RateLimitRules.getRuleKey(route, "", null, ""));
     if (rule) {
       return rule;
     }

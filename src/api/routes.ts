@@ -75,6 +75,18 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/delete-rate-limit-rule",
+    options: adminEndpoints.postDeleteRateLimitRuleOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/create-rate-limit-rule",
+    options: adminEndpoints.postCreateRateLimitRuleOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/update-rate-limit-rule",
     options: adminEndpoints.postUpdateRateLimitRuleOptions,
   });
@@ -211,6 +223,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/api-keys",
     options: apiKeysEndpoints.postApiKey,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/api-keys/{key}/rate-limits",
+    options: apiKeysEndpoints.getApuKeyRateLimits,
   });
 
   // Attributes
