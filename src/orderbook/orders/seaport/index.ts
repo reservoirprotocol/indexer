@@ -2,7 +2,7 @@ import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
-import { idb, pgp } from "@/common/db";
+import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -206,31 +206,44 @@ export const save = async (
           if (merkleRoot) {
             tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
 
-            const ts = await tokenSet.tokenList.save([
-              {
-                id: tokenSetId,
-                schemaHash,
-                schema: metadata.schema,
-              },
-            ]);
+            try {
+              const tokenSetTokensExist = await redb.oneOrNone(
+                `
+                  SELECT 1 FROM "token_sets" "ts"
+                  WHERE "ts"."id" = $/tokenSetId/
+                  LIMIT 1
+                `,
+                { tokenSetId }
+              );
 
-            if (ts.length !== 1) {
-              const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
-              await pendingFlagStatusSyncJobs.add([
-                {
-                  kind: "collection",
-                  data: {
-                    collectionId: info.contract,
-                    backfill: false,
+              if (!tokenSetTokensExist) {
+                const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
+                await pendingFlagStatusSyncJobs.add([
+                  {
+                    kind: "collection",
+                    data: {
+                      collectionId: info.contract,
+                      backfill: false,
+                    },
                   },
-                },
-              ]);
+                ]);
 
-              await flagStatusProcessQueue.addToQueue();
+                await flagStatusProcessQueue.addToQueue();
 
-              logger.info(
+                logger.warn(
+                  "orders-seaport-save",
+                  `Missing tokenSet. orderId=${id}, contract=${info.contract}, tokenSetId=${tokenSetId}`
+                );
+              } else {
+                logger.info(
+                  "orders-seaport-save",
+                  `TokenSet found. orderId=${id}, contract=${info.contract}, tokenSetId=${tokenSetId}`
+                );
+              }
+            } catch (error) {
+              logger.error(
                 "orders-seaport-save",
-                `Invalid tokenSet. orderId=${id}, contract=${info.contract}, tokenSetId=${tokenSetId}`
+                `tokenSet error. orderId=${id}, contract=${info.contract}, tokenSetId=${tokenSetId}, error=${error}`
               );
             }
           }
