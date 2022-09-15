@@ -44,7 +44,7 @@ export class SalesDataSource extends BaseDataSource {
           created_at,
           extract(epoch from updated_at) updated_ts
         FROM fill_events_2
-        WHERE created_at < NOW() - INTERVAL '5 minutes'
+        WHERE updated_at < NOW() - INTERVAL '5 minutes'
         ${continuationFilter}
         ORDER BY updated_at, tx_hash, log_index, batch_index
         LIMIT $/limit/;  
