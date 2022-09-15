@@ -5,6 +5,7 @@ CREATE TABLE "rate_limit_rules" (
   route TEXT NOT NULL,
   method TEXT NOT NULL DEFAULT '',
   tier INT,
+  api_key TEXT NOT NULL DEFAULT '',
   options JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

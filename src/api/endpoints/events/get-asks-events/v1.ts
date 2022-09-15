@@ -24,7 +24,7 @@ export const getOrderEventsV1Options: RouteOptions = {
   },
   description: "Order status changes",
   notes: "Get updates any time an order status changes",
-  tags: ["api", "Events"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 4,

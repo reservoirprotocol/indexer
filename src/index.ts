@@ -6,8 +6,10 @@ import "@/jobs/index";
 import "@/pubsub/index";
 
 import { start } from "@/api/index";
+import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { getNetworkSettings } from "@/config/network";
+import { Sources } from "@/models/sources";
 
 process.on("unhandledRejection", (error) => {
   logger.error("process", `Unhandled rejection: ${error}`);
@@ -17,9 +19,13 @@ process.on("unhandledRejection", (error) => {
 });
 
 const setup = async () => {
-  const networkSettings = getNetworkSettings();
-  if (networkSettings.onStartup) {
-    await networkSettings.onStartup();
+  if (config.doBackgroundWork) {
+    await Sources.syncSources();
+
+    const networkSettings = getNetworkSettings();
+    if (networkSettings.onStartup) {
+      await networkSettings.onStartup();
+    }
   }
 };
 

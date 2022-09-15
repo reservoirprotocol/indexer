@@ -8,19 +8,15 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 
-export const postUpdateRateLimitRuleOptions: RouteOptions = {
-  description: "Update the rate limit for the given ID",
+export const postDeleteRateLimitRuleOptions: RouteOptions = {
+  description: "Delete the rate limit with the given ID",
   tags: ["api", "x-admin"],
   validate: {
     headers: Joi.object({
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     payload: Joi.object({
-      ruleId: Joi.number().description("The rule ID to update").required(),
-      tier: Joi.number().valid(0, 1, 2, 3, null).optional(),
-      points: Joi.number().optional(),
-      duration: Joi.number().optional(),
-      method: Joi.string().valid("get", "post", "delete", "put", "").optional(),
+      ruleId: Joi.number().description("The rule ID to delete").required(),
     }),
   },
   handler: async (request: Request) => {
@@ -31,20 +27,13 @@ export const postUpdateRateLimitRuleOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      await RateLimitRules.update(payload.ruleId, {
-        tier: payload.tier,
-        method: payload.method,
-        options: {
-          points: payload.points,
-          duration: payload.duration,
-        },
-      });
+      await RateLimitRules.delete(payload.ruleId);
 
       return {
-        message: `Rule ID ${payload.ruleId} was updated with params=${JSON.stringify(payload)}`,
+        message: `Rule ID ${payload.ruleId} was deleted`,
       };
     } catch (error) {
-      logger.error("post-update-rate-limit-handler", `Handler failure: ${error}`);
+      logger.error("post-delete-rate-limit-handler", `Handler failure: ${error}`);
       throw error;
     }
   },

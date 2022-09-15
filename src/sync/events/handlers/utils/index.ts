@@ -10,6 +10,7 @@ import * as es from "@/events-sync/storage";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
 
@@ -22,16 +23,28 @@ export type EnhancedEvent = {
 
 // Data extracted from purely on-chain information
 export type OnChainData = {
+  // Fills
   fillEvents?: es.fills.Event[];
   fillEventsOnChain?: es.fills.Event[];
+
+  // Cancels
   cancelEvents?: es.cancels.Event[];
   cancelEventsOnChain?: es.cancels.Event[];
+  bulkCancelEvents?: es.bulkCancels.Event[];
+  nonceCancelEvents?: es.nonceCancels.Event[];
+
+  // Transfers
   nftTransferEvents?: es.nftTransfers.Event[];
 
+  // For keeping track of mints and last sales
   fillInfos?: fillUpdates.FillInfo[];
-  orderInfos?: orderUpdatesById.OrderInfo[];
   mintInfos?: tokenUpdatesMint.MintInfo[];
 
+  // For properly keeping orders validated on the go
+  orderInfos?: orderUpdatesById.OrderInfo[];
+  makerInfos?: orderUpdatesByMaker.MakerInfo[];
+
+  // Orders
   orders?: orderbookOrders.GenericOrderInfo[];
 };
 
@@ -56,6 +69,8 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   await Promise.all([
     es.cancels.addEvents(data.cancelEvents ?? []),
     es.cancels.addEventsOnChain(data.cancelEventsOnChain ?? []),
+    es.bulkCancels.addEvents(data.bulkCancelEvents ?? []),
+    es.nonceCancels.addEvents(data.nonceCancelEvents ?? []),
     es.nftTransfers.addEvents(data.nftTransferEvents ?? [], Boolean(backfill)),
   ]);
 
@@ -70,10 +85,13 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     // have wrong statuses)
     await Promise.all([
       orderUpdatesById.addToQueue(data.orderInfos ?? []),
+      orderUpdatesByMaker.addToQueue(data.makerInfos ?? []),
       orderbookOrders.addToQueue(data.orders ?? []),
     ]);
   }
 
+  // Mints and last sales
+  await tokenUpdatesMint.addToQueue(data.mintInfos ?? []);
   await fillUpdates.addToQueue(data.fillInfos ?? []);
 
   // Process fill activities
@@ -132,7 +150,4 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     },
   }));
   await processActivityEvent.addToQueue(transferActivityInfos);
-
-  // Process mints
-  await tokenUpdatesMint.addToQueue(data.mintInfos ?? []);
 };

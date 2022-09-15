@@ -81,8 +81,11 @@ export const getOrdersAsksV3Options: RouteOptions = {
           then: Joi.valid("price", "createdAt"),
           otherwise: Joi.valid("createdAt"),
         })
+        .valid("createdAt", "price")
         .default("createdAt")
-        .description("Order the items are returned in the response."),
+        .description(
+          "Order the items are returned in the response, Sorting by price allowed only when filtering by token"
+        ),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),

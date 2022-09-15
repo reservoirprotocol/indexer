@@ -20,23 +20,15 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
   // Keep track of all events within the currently processing transaction
   let currentTx: string | undefined;
-  let currentTxEvents: {
-    log: Log;
-    address: string;
-    logIndex: number;
-  }[] = [];
+  let currentTxLogs: Log[] = [];
 
   // Handle the events
   for (const { kind, baseEventParams, log } of events) {
     if (currentTx !== baseEventParams.txHash) {
       currentTx = baseEventParams.txHash;
-      currentTxEvents = [];
+      currentTxLogs = [];
     }
-    currentTxEvents.push({
-      log,
-      address: baseEventParams.address,
-      logIndex: baseEventParams.logIndex,
-    });
+    currentTxLogs.push(log);
 
     const eventData = getEventData([kind])[0];
     switch (kind) {
@@ -84,10 +76,10 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Detect the payment token
         let currency = Sdk.Common.Addresses.Eth[config.chainId];
-        for (const event of currentTxEvents.slice(0, -1).reverse()) {
+        for (const log of currentTxLogs.slice(0, -1).reverse()) {
           // Skip once we detect another fill in the same transaction
           // (this will happen if filling through an aggregator)
-          if (event.log.topics[0] === getEventData([eventData.kind])[0].topic) {
+          if (log.topics[0] === getEventData([eventData.kind])[0].topic) {
             break;
           }
 
@@ -95,10 +87,10 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           // then we assume it's the payment for the current sale
           const erc20EventData = getEventData(["erc20-transfer"])[0];
           if (
-            event.log.topics[0] === erc20EventData.topic &&
-            event.log.topics.length === erc20EventData.numTopics
+            log.topics[0] === erc20EventData.topic &&
+            log.topics.length === erc20EventData.numTopics
           ) {
-            const parsed = erc20EventData.abi.parseLog(event.log);
+            const parsed = erc20EventData.abi.parseLog(log);
             const from = parsed.args["from"].toLowerCase();
             const to = parsed.args["to"].toLowerCase();
             const amount = parsed.args["amount"].toString();
@@ -106,7 +98,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               ((maker === from && taker === to) || (maker === to && taker === from)) &&
               amount <= currencyPrice
             ) {
-              currency = event.log.address.toLowerCase();
+              currency = log.address.toLowerCase();
               break;
             }
           }

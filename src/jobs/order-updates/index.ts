@@ -202,15 +202,15 @@ if (config.doBackgroundWork) {
               const erc20Orders: {
                 id: string;
                 currency: Buffer;
-                price: string;
-                value: string;
+                currency_price: string;
+                currency_value: string;
               }[] = await idb.manyOrNone(
                 `
                   SELECT
                     orders.id,
                     orders.currency,
-                    orders.price,
-                    orders.value
+                    orders.currency_price,
+                    orders.currency_value
                   FROM orders
                   WHERE orders.needs_conversion
                     AND orders.fillability_status = 'fillable'
@@ -226,15 +226,15 @@ if (config.doBackgroundWork) {
               const values: any[] = [];
 
               const currentTime = now();
-              for (const { id, currency, price, value } of erc20Orders) {
+              for (const { id, currency, currency_price, currency_value } of erc20Orders) {
                 const dataForPrice = await getUSDAndNativePrices(
                   fromBuffer(currency),
-                  price,
+                  currency_price,
                   currentTime
                 );
                 const dataForValue = await getUSDAndNativePrices(
                   fromBuffer(currency),
-                  value,
+                  currency_value,
                   currentTime
                 );
                 if (dataForPrice.nativePrice && dataForValue.nativePrice) {

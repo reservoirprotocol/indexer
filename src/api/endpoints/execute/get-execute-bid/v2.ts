@@ -166,6 +166,11 @@ export const getExecuteBidV2Options: RouteOptions = {
       const attributeKey = query.attributeKey;
       const attributeValue = query.attributeValue;
 
+      // TODO: Re-enable collection/attribute bids on external orderbooks
+      if (!token && query.orderbook !== "reservoir") {
+        throw Boom.badRequest("Only single-token bids are supported on external orderbooks");
+      }
+
       // On Rinkeby, proxy ZeroEx V4 to 721ex
       if (query.orderKind === "zeroex-v4" && config.chainId === 4) {
         query.orderKind = "721ex";
@@ -175,13 +180,13 @@ export const getExecuteBidV2Options: RouteOptions = {
       const steps = [
         {
           action: "Wrapping ETH",
-          description: "We’ll ask your approval for converting ETH to WETH. Gas fee required.",
+          description: "We'll ask your approval for converting ETH to WETH. Gas fee required.",
           kind: "transaction",
         },
         {
           action: "Approve WETH contract",
           description:
-            "We’ll ask your approval for the exchange to access your token. This is a one-time only operation per exchange.",
+            "We'll ask your approval for the exchange to access your token. This is a one-time only operation per exchange.",
           kind: "transaction",
         },
         {
