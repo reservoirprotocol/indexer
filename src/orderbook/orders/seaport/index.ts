@@ -217,6 +217,11 @@ export const save = async (
               );
 
               if (!tokenSetTokensExist) {
+                logger.info(
+                  "orders-seaport-save",
+                  `Missing tokenSet. orderId=${id}, contract=${info.contract}, tokenSetId=${tokenSetId}`
+                );
+
                 const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
                 await pendingFlagStatusSyncJobs.add([
                   {
@@ -229,16 +234,6 @@ export const save = async (
                 ]);
 
                 await flagStatusProcessQueue.addToQueue();
-
-                logger.warn(
-                  "orders-seaport-save",
-                  `Missing tokenSet. orderId=${id}, contract=${info.contract}, tokenSetId=${tokenSetId}`
-                );
-              } else {
-                logger.info(
-                  "orders-seaport-save",
-                  `TokenSet found. orderId=${id}, contract=${info.contract}, tokenSetId=${tokenSetId}`
-                );
               }
             } catch (error) {
               logger.error(
