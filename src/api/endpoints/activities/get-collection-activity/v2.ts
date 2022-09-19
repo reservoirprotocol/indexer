@@ -35,7 +35,7 @@ export const getCollectionActivityV2Options: RouteOptions = {
         .integer()
         .min(1)
         .default(20)
-        .description("Amount of items returned in response.")
+        .description("Amount of items returned in response. If includeMetadata=true max limit is 20, otherwise max limit is 1,000.")
         .when("includeMetadata", {
           is: true,
           then: Joi.number().integer().max(20),
