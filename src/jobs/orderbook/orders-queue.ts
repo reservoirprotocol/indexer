@@ -64,16 +64,6 @@ if (config.doBackgroundWork) {
             break;
           }
 
-          case "opendao": {
-            const result = await orders.openDao.save(
-              [info as orders.openDao.OrderInfo],
-              relayToArweave
-            );
-            logger.info(QUEUE_NAME, `[opendao] Order save result: ${JSON.stringify(result)}`);
-
-            break;
-          }
-
           case "seaport": {
             const result = await orders.seaport.save(
               [info as orders.seaport.OrderInfo],
@@ -129,11 +119,6 @@ export type GenericOrderInfo =
   | {
       kind: "looks-rare";
       info: orders.looksRare.OrderInfo;
-      relayToArweave?: boolean;
-    }
-  | {
-      kind: "opendao";
-      info: orders.openDao.OrderInfo;
       relayToArweave?: boolean;
     }
   | {

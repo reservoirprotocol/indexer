@@ -3,7 +3,6 @@
 export * as cryptopunks from "@/orderbook/orders/cryptopunks";
 export * as foundation from "@/orderbook/orders/foundation";
 export * as looksRare from "@/orderbook/orders/looks-rare";
-export * as openDao from "@/orderbook/orders/opendao";
 export * as seaport from "@/orderbook/orders/seaport";
 export * as x2y2 from "@/orderbook/orders/x2y2";
 export * as zeroExV4 from "@/orderbook/orders/zeroex-v4";
@@ -28,8 +27,6 @@ export type OrderKind =
   | "looks-rare"
   | "zeroex-v4-erc721"
   | "zeroex-v4-erc1155"
-  | "opendao-erc721"
-  | "opendao-erc1155"
   | "foundation"
   | "x2y2"
   | "seaport"
@@ -149,15 +146,6 @@ export const generateListingDetails = (
       };
     }
 
-    case "opendao-erc721":
-    case "opendao-erc1155": {
-      return {
-        kind: "opendao",
-        ...common,
-        order: new Sdk.OpenDao.Order(config.chainId, order.rawData),
-      };
-    }
-
     case "x2y2": {
       return {
         kind: "x2y2",
@@ -247,16 +235,6 @@ export const generateBidDetails = async (
       const sdkOrder = new Sdk.LooksRare.Order(config.chainId, order.rawData);
       return {
         kind: "looks-rare",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
-    case "opendao-erc721":
-    case "opendao-erc1155": {
-      const sdkOrder = new Sdk.OpenDao.Order(config.chainId, order.rawData);
-      return {
-        kind: "opendao",
         ...common,
         order: sdkOrder,
       };

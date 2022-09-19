@@ -29,6 +29,12 @@ export type TokenSet = {
         };
       }
     | {
+        kind: "collection";
+        data: {
+          collection: string;
+        };
+      }
+    | {
         kind: "token-set";
         data: {
           tokenSetId: string;
@@ -82,34 +88,26 @@ const isValid = async (tokenSet: TokenSet) => {
 
         tokens = await redb.manyOrNone(
           `
-            SELECT token_attributes.contract, token_attributes.token_id
+            SELECT
+              token_attributes.contract,
+              token_attributes.token_id
             FROM token_attributes
-            JOIN attributes ON token_attributes.attribute_id = attributes.id
-            JOIN attribute_keys ON attributes.attribute_key_id = attribute_keys.id
-            JOIN tokens ON token_attributes.contract = tokens.contract AND token_attributes.token_id = tokens.token_id
+            JOIN attributes
+              ON token_attributes.attribute_id = attributes.id
+            JOIN attribute_keys
+              ON attributes.attribute_key_id = attribute_keys.id
+            JOIN tokens
+              ON token_attributes.contract = tokens.contract
+              AND token_attributes.token_id = tokens.token_id
             WHERE attribute_keys.collection_id = $/collection/
-            AND attribute_keys.key = $/key/
-            AND attributes.value = $/value/
-            ${excludeFlaggedTokens}
+              AND attribute_keys.key = $/key/
+              AND attributes.value = $/value/
+              ${excludeFlaggedTokens}
           `,
           {
             collection: tokenSet.schema!.data.collection,
             key: tokenSet.schema!.data.attributes[0].key,
             value: tokenSet.schema!.data.attributes[0].value,
-          }
-        );
-      } else if (tokenSet.schema.kind === "collection-non-flagged") {
-        tokens = await redb.manyOrNone(
-          `
-            SELECT
-              tokens.contract,
-              tokens.token_id
-            FROM tokens
-            WHERE tokens.collection_id = $/collection/
-            AND tokens.is_flagged = 0
-          `,
-          {
-            collection: tokenSet.schema!.data.collection,
           }
         );
       } else if (tokenSet.schema.kind === "token-set") {
@@ -123,6 +121,24 @@ const isValid = async (tokenSet: TokenSet) => {
           `,
           {
             tokenSetId: tokenSet.schema.data.tokenSetId,
+          }
+        );
+      } else if (tokenSet.schema.kind.startsWith("collection")) {
+        tokens = await redb.manyOrNone(
+          `
+            SELECT
+              tokens.contract,
+              tokens.token_id
+            FROM tokens
+            WHERE tokens.collection_id = $/collection/
+              ${
+                tokenSet.schema.kind === "collection-non-flagged"
+                  ? " AND tokens.is_flagged = 0"
+                  : ""
+              }
+          `,
+          {
+            collection: tokenSet.schema.data.collection,
           }
         );
       }
@@ -203,7 +219,10 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
         }
 
         attributeId = attributeResult.id;
-      } else if (schema && schema.kind === "collection-non-flagged") {
+      } else if (
+        schema &&
+        (schema.kind === "collection" || schema.kind === "collection-non-flagged")
+      ) {
         collectionId = schema.data.collection;
       }
 
@@ -236,8 +255,8 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
       // For efficiency, skip if data already exists
       const tokenSetTokensExist = await redb.oneOrNone(
         `
-          SELECT 1 FROM "token_sets_tokens" "tst"
-          WHERE "tst"."token_set_id" = $/tokenSetId/
+          SELECT 1 FROM token_sets_tokens
+          WHERE token_sets_tokens.token_set_id = $/tokenSetId/
           LIMIT 1
         `,
         { tokenSetId: id }
@@ -254,10 +273,10 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
 
         queries.push({
           query: `
-            INSERT INTO "token_sets_tokens" (
-              "token_set_id",
-              "contract",
-              "token_id"
+            INSERT INTO token_sets_tokens (
+              token_set_id,
+              contract,
+              token_id
             ) VALUES ${pgp.helpers.values(values, columns)}
             ON CONFLICT DO NOTHING
           `,

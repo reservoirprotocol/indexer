@@ -144,6 +144,14 @@ export class ApiKeyManager {
       log.origin = request.headers["origin"];
     }
 
+    if (request.headers["x-rkui-version"]) {
+      log.rkuiVersion = request.headers["x-rkui-version"];
+    }
+
+    if (request.headers["x-rkc-version"]) {
+      log.rkcVersion = request.headers["x-rkc-version"];
+    }
+
     if (request.info.referrer) {
       log.referrer = request.info.referrer;
     }

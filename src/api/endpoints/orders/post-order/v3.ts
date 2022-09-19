@@ -31,7 +31,7 @@ export const postOrderV3Options: RouteOptions = {
       order: Joi.object({
         kind: Joi.string()
           .lowercase()
-          .valid("opensea", "looks-rare", "721ex", "zeroex-v4", "seaport", "x2y2")
+          .valid("opensea", "looks-rare", "zeroex-v4", "seaport", "x2y2")
           .required(),
         data: Joi.object().required(),
       }),
@@ -117,6 +117,13 @@ export const postOrderV3Options: RouteOptions = {
             collection,
           },
         };
+      } else if (collection) {
+        schema = {
+          kind: "collection",
+          data: {
+            collection,
+          },
+        };
       } else if (tokenSetId) {
         schema = {
           kind: "token-set",
@@ -127,26 +134,6 @@ export const postOrderV3Options: RouteOptions = {
       }
 
       switch (order.kind) {
-        case "721ex": {
-          if (orderbook !== "reservoir") {
-            throw new Error("Unsupported orderbook");
-          }
-
-          const orderInfo: orders.openDao.OrderInfo = {
-            orderParams: order.data,
-            metadata: {
-              schema,
-              source,
-            },
-          };
-          const [result] = await orders.openDao.save([orderInfo]);
-          if (result.status === "success") {
-            return { message: "Success", orderId: result.id };
-          } else {
-            throw Boom.badRequest(result.status);
-          }
-        }
-
         case "zeroex-v4": {
           if (orderbook !== "reservoir") {
             throw new Error("Unsupported orderbook");

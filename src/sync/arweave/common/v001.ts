@@ -8,7 +8,7 @@ import * as tokenList from "@/orderbook/token-sets/token-list";
 // - `wyvern-v2` legacy orders (decomissioned, not supported anymore)
 // - `wyvern-v2.3` legacy orders (decomissioned, not supported anymore)
 // - `looks-rare` orders
-// - `opendao` orders
+// - `opendao` orders (decomissioned, not supported anymore)
 // - `zeroex-v4` orders
 // - `seaport` orders
 // - `list` token sets
@@ -24,7 +24,6 @@ export const processTransactionData = async (
     try {
       switch (kind) {
         case "looks-rare":
-        case "opendao":
         case "seaport":
         case "zeroex-v4": {
           orderInfos.push({

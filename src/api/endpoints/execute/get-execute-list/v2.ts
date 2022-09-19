@@ -18,10 +18,6 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as looksRareSellToken from "@/orderbook/orders/looks-rare/build/sell/token";
 import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
 
-// OpenDao
-import * as openDaoSellToken from "@/orderbook/orders/opendao/build/sell/token";
-import * as openDaoCheck from "@/orderbook/orders/opendao/check";
-
 // Seaport
 import * as seaportSellToken from "@/orderbook/orders/seaport/build/sell/token";
 import * as seaportCheck from "@/orderbook/orders/seaport/check";
@@ -69,7 +65,7 @@ export const getExecuteListV2Options: RouteOptions = {
         .required()
         .description("Amount seller is willing to sell for in wei. Example: `1000000000000000000`"),
       orderKind: Joi.string()
-        .valid("721ex", "looks-rare", "zeroex-v4", "seaport", "x2y2")
+        .valid("looks-rare", "zeroex-v4", "seaport", "x2y2")
         .default("seaport")
         .description("Exchange protocol used to create order. Example: `seaport`"),
       orderbook: Joi.string()
@@ -147,11 +143,6 @@ export const getExecuteListV2Options: RouteOptions = {
     try {
       const [contract, tokenId] = query.token.split(":");
 
-      // On Rinkeby, proxy ZeroEx V4 to 721ex
-      if (query.orderKind === "zeroex-v4" && config.chainId === 4) {
-        query.orderKind = "721ex";
-      }
-
       // Set up generic listing steps
       const steps = [
         {
@@ -173,105 +164,6 @@ export const getExecuteListV2Options: RouteOptions = {
       ];
 
       switch (query.orderKind) {
-        case "721ex": {
-          // Exchange-specific checks
-          if (!["reservoir"].includes(query.orderbook)) {
-            throw Boom.badRequest("Unsupported orderbook");
-          }
-
-          // Make sure the fee information is correctly types
-          if (query.fee && !Array.isArray(query.fee)) {
-            query.fee = [query.fee];
-          }
-          if (query.feeRecipient && !Array.isArray(query.feeRecipient)) {
-            query.feeRecipient = [query.feeRecipient];
-          }
-          if (query.fee?.length !== query.feeRecipient?.length) {
-            throw Boom.badRequest("Invalid fee information");
-          }
-
-          const order = await openDaoSellToken.build({
-            ...query,
-            contract,
-            tokenId,
-          });
-          if (!order) {
-            throw Boom.internal("Failed to generate order");
-          }
-
-          // Will be set if an approval is needed before listing
-          let approvalTx: TxData | undefined;
-
-          // Check the order's fillability
-          try {
-            await openDaoCheck.offChainCheck(order, { onChainApprovalRecheck: true });
-          } catch (error: any) {
-            switch (error.message) {
-              case "no-balance-no-approval":
-              case "no-balance": {
-                // We cannot do anything if the user doesn't own the listed token
-                throw Boom.badData("Maker does not own the listed token");
-              }
-
-              case "no-approval": {
-                // Generate an approval transaction
-                const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";
-                approvalTx = (
-                  kind === "erc721"
-                    ? new Sdk.Common.Helpers.Erc721(baseProvider, order.params.nft)
-                    : new Sdk.Common.Helpers.Erc1155(baseProvider, order.params.nft)
-                ).approveTransaction(query.maker, Sdk.OpenDao.Addresses.Exchange[config.chainId]);
-
-                break;
-              }
-            }
-          }
-
-          const hasSignature = query.v && query.r && query.s;
-          return {
-            steps: [
-              {
-                ...steps[0],
-                status: approvalTx ? "incomplete" : "complete",
-                data: approvalTx,
-              },
-              {
-                ...steps[1],
-                status: hasSignature ? "complete" : "incomplete",
-                data: hasSignature ? undefined : order.getSignatureData(),
-              },
-              {
-                ...steps[2],
-                status: "incomplete",
-                data: !hasSignature
-                  ? undefined
-                  : {
-                      endpoint: "/order/v2",
-                      method: "POST",
-                      body: {
-                        order: {
-                          kind: "721ex",
-                          data: {
-                            ...order.params,
-                            v: query.v,
-                            r: query.r,
-                            s: query.s,
-                          },
-                        },
-                        orderbook: query.orderbook,
-                        source: query.source,
-                      },
-                    },
-              },
-            ],
-            query: {
-              ...query,
-              expirationTime: order.params.expiry,
-              nonce: order.params.nonce,
-            },
-          };
-        }
-
         case "zeroex-v4": {
           // Exchange-specific checks
           if (!["reservoir"].includes(query.orderbook)) {

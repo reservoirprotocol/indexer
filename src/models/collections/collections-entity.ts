@@ -33,6 +33,7 @@ export type CollectionsMetadata = {
   externalUrl?: string | undefined;
   bannerImageUrl?: string | undefined;
   twitterUsername?: string | undefined;
+  openseaVerificationStatus?: string | undefined;
 };
 
 export type CollectionsEntityParams = {

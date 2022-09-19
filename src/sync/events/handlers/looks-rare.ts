@@ -35,8 +35,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
     const eventData = getEventData([kind])[0];
     switch (kind) {
-      // LooksRare
-
       case "looks-rare-cancel-all-orders": {
         const parsedLog = eventData.abi.parseLog(log);
         const maker = parsedLog.args["user"].toLowerCase();

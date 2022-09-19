@@ -205,6 +205,13 @@ export const save = async (
 
           if (merkleRoot) {
             tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
+            await tokenSet.tokenList.save([
+              {
+                id: tokenSetId,
+                schemaHash,
+                schema: metadata.schema,
+              },
+            ]);
 
             try {
               const tokenSetTokensExist = await redb.oneOrNone(

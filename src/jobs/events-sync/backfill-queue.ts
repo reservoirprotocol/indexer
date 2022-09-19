@@ -29,12 +29,12 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { fromBlock, toBlock, backfill, syncDetails, skipNonFillWrites } = job.data;
+      const { fromBlock, toBlock, backfill, syncDetails } = job.data;
 
       try {
         logger.info(QUEUE_NAME, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
 
-        await syncEvents(fromBlock, toBlock, { backfill, syncDetails, skipNonFillWrites });
+        await syncEvents(fromBlock, toBlock, { backfill, syncDetails });
       } catch (error) {
         logger.error(QUEUE_NAME, `Events backfill syncing failed: ${error}`);
         throw error;
@@ -54,11 +54,10 @@ export const addToQueue = async (
     blocksPerBatch?: number;
     prioritized?: boolean;
     backfill?: boolean;
-    skipNonFillWrites?: boolean;
     syncDetails?:
       | {
-          method: "event-data-kind";
-          eventDataKinds: EventDataKind[];
+          method: "events";
+          events: EventDataKind[];
         }
       | {
           method: "address";
@@ -68,7 +67,7 @@ export const addToQueue = async (
 ) => {
   // Syncing is done in several batches since the requested block
   // range might result in lots of events which could potentially
-  // not fit within a single provider response.
+  // not fit within a single provider response
   const blocksPerBatch = options?.blocksPerBatch ?? getNetworkSettings().backfillBlockBatchSize;
 
   // Important backfill processes should be prioritized
@@ -84,7 +83,6 @@ export const addToQueue = async (
         fromBlock: from,
         toBlock: to,
         backfill: options?.backfill,
-        skipNonFillWrites: options?.skipNonFillWrites,
         syncDetails: options?.syncDetails,
       },
       opts: {

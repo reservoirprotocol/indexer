@@ -157,7 +157,9 @@ export const start = async (): Promise<void> => {
       const remoteAddress = request.headers["x-forwarded-for"]
         ? _.split(request.headers["x-forwarded-for"], ",")[0]
         : request.info.remoteAddress;
-      const rateLimitKey = _.isUndefined(key) || _.isEmpty(key) ? remoteAddress : key; // If no api key use IP
+
+      const rateLimitKey =
+        _.isUndefined(key) || _.isEmpty(key) || _.isNull(apiKey) ? remoteAddress : key; // If no api key or the api key is invalid use IP
 
       try {
         const rateLimiterRes = await rateLimiterRedis.consume(rateLimitKey, 1);
@@ -176,11 +178,13 @@ export const start = async (): Promise<void> => {
           ) {
             logger.warn(
               "rate-limiter",
-              `${rateLimitKey} ${apiKey?.appName} reached allowed rate limit ${
+              `${rateLimitKey} ${apiKey?.appName || ""} reached allowed rate limit ${
                 rateLimitRule.options.points
               } requests in ${rateLimitRule.options.duration}s by calling ${
                 error.consumedPoints
-              } times in rule ${JSON.stringify(rateLimitRule)}`
+              } times on route ${request.route.path}${
+                request.info.referrer ? ` from referrer ${request.info.referrer} ` : " "
+              }for rule ${JSON.stringify(rateLimitRule)}`
             );
           }
 

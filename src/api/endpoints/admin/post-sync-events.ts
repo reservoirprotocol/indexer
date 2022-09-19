@@ -23,8 +23,8 @@ export const postSyncEventsOptions: RouteOptions = {
       // WARNING: Some events should always be fetched together!
       syncDetails: Joi.alternatives(
         Joi.object({
-          method: Joi.string().valid("event-data-kind"),
-          eventDataKinds: Joi.array().items(Joi.string()),
+          method: Joi.string().valid("events"),
+          events: Joi.array().items(Joi.string()),
         }),
         Joi.object({
           method: Joi.string().valid("address"),
@@ -50,14 +50,12 @@ export const postSyncEventsOptions: RouteOptions = {
       const fromBlock = payload.fromBlock;
       const toBlock = payload.toBlock;
       const blocksPerBatch = payload.blocksPerBatch;
-      const skipNonFillWrites = payload.skipNonFillWrites;
       const backfill = payload.backfill;
 
       await eventsSyncBackfill.addToQueue(fromBlock, toBlock, {
         backfill,
         syncDetails,
         blocksPerBatch,
-        skipNonFillWrites,
       });
 
       return { message: "Request accepted" };

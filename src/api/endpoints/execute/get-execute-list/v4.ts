@@ -17,10 +17,6 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as looksRareSellToken from "@/orderbook/orders/looks-rare/build/sell/token";
 import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
 
-// OpenDao
-import * as openDaoSellToken from "@/orderbook/orders/opendao/build/sell/token";
-import * as openDaoCheck from "@/orderbook/orders/opendao/check";
-
 // Seaport
 import * as seaportSellToken from "@/orderbook/orders/seaport/build/sell/token";
 import * as seaportCheck from "@/orderbook/orders/seaport/check";
@@ -76,7 +72,7 @@ export const getExecuteListV4Options: RouteOptions = {
               "Amount seller is willing to sell for in wei. Example: `1000000000000000000`"
             ),
           orderKind: Joi.string()
-            .valid("721ex", "looks-rare", "zeroex-v4", "seaport", "x2y2")
+            .valid("looks-rare", "zeroex-v4", "seaport", "x2y2")
             .default("seaport")
             .description("Exchange protocol used to create order. Example: `seaport`"),
           orderbook: Joi.string()
@@ -173,11 +169,6 @@ export const getExecuteListV4Options: RouteOptions = {
         const params = payload.params[i];
         const [contract, tokenId] = params.token.split(":");
 
-        // On Rinkeby, proxy ZeroEx V4 to 721ex
-        if (params.orderKind === "zeroex-v4" && config.chainId === 4) {
-          params.orderKind = "721ex";
-        }
-
         // For now, ERC20 listings are only supported on Seaport
         if (
           params.orderKind !== "seaport" &&
@@ -198,80 +189,6 @@ export const getExecuteListV4Options: RouteOptions = {
         }
 
         switch (params.orderKind) {
-          case "721ex": {
-            if (!["reservoir"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
-            }
-
-            const order = await openDaoSellToken.build({
-              ...params,
-              maker,
-              contract,
-              tokenId,
-            });
-            if (!order) {
-              throw Boom.internal("Failed to generate order");
-            }
-
-            // Will be set if an approval is needed before listing
-            let approvalTx: TxData | undefined;
-
-            // Check the order's fillability
-            try {
-              await openDaoCheck.offChainCheck(order, { onChainApprovalRecheck: true });
-            } catch (error: any) {
-              switch (error.message) {
-                case "no-balance-no-approval":
-                case "no-balance": {
-                  // We cannot do anything if the user doesn't own the listed token
-                  throw Boom.badData("Maker does not own the listed token");
-                }
-
-                case "no-approval": {
-                  // Generate an approval transaction
-                  const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";
-                  approvalTx = (
-                    kind === "erc721"
-                      ? new Sdk.Common.Helpers.Erc721(baseProvider, order.params.nft)
-                      : new Sdk.Common.Helpers.Erc1155(baseProvider, order.params.nft)
-                  ).approveTransaction(maker, Sdk.OpenDao.Addresses.Exchange[config.chainId]);
-
-                  break;
-                }
-              }
-            }
-
-            steps[0].items.push({
-              status: approvalTx ? "incomplete" : "complete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-            steps[1].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v3",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: "721ex",
-                      data: {
-                        ...order.params,
-                      },
-                    },
-                    orderbook: params.orderbook,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            // Go on with the next listing
-            continue;
-          }
-
           case "zeroex-v4": {
             if (!["reservoir"].includes(params.orderbook)) {
               throw Boom.badRequest("Only `reservoir` is supported as orderbook");

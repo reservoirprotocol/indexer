@@ -17,11 +17,6 @@ import { config } from "@/config/index";
 import * as looksRareBuyToken from "@/orderbook/orders/looks-rare/build/buy/token";
 import * as looksRareBuyCollection from "@/orderbook/orders/looks-rare/build/buy/collection";
 
-// OpenDao
-import * as openDaoBuyAttribute from "@/orderbook/orders/opendao/build/buy/attribute";
-import * as openDaoBuyToken from "@/orderbook/orders/opendao/build/buy/token";
-import * as openDaoBuyCollection from "@/orderbook/orders/opendao/build/buy/collection";
-
 // Seaport
 import * as seaportBuyAttribute from "@/orderbook/orders/seaport/build/buy/attribute";
 import * as seaportBuyToken from "@/orderbook/orders/seaport/build/buy/token";
@@ -78,7 +73,7 @@ export const getExecuteBidV2Options: RouteOptions = {
         .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
         .required(),
       orderKind: Joi.string()
-        .valid("721ex", "looks-rare", "zeroex-v4", "seaport")
+        .valid("looks-rare", "zeroex-v4", "seaport")
         .default("seaport")
         .description("Exchange protocol used to create order. Example: `seaport`"),
       orderbook: Joi.string()
@@ -169,11 +164,6 @@ export const getExecuteBidV2Options: RouteOptions = {
       // TODO: Re-enable collection/attribute bids on external orderbooks
       if (!token && query.orderbook !== "reservoir") {
         throw Boom.badRequest("Only single-token bids are supported on external orderbooks");
-      }
-
-      // On Rinkeby, proxy ZeroEx V4 to 721ex
-      if (query.orderKind === "zeroex-v4" && config.chainId === 4) {
-        query.orderKind = "721ex";
       }
 
       // Set up generic bid creation steps
@@ -315,12 +305,7 @@ export const getExecuteBidV2Options: RouteOptions = {
                               }
                             : undefined,
                         collection:
-                          collection &&
-                          query.excludeFlaggedTokens &&
-                          !attributeKey &&
-                          !attributeValue
-                            ? collection
-                            : undefined,
+                          collection && !attributeKey && !attributeValue ? collection : undefined,
                         isNonFlagged: query.excludeFlaggedTokens,
                         orderbook: query.orderbook,
                         source: query.source,
@@ -333,132 +318,6 @@ export const getExecuteBidV2Options: RouteOptions = {
               listingTime: order.params.startTime,
               expirationTime: order.params.endTime,
               salt: order.params.salt,
-            },
-          };
-        }
-
-        case "721ex": {
-          if (!["reservoir"].includes(query.orderbook)) {
-            throw Boom.badRequest("Unsupported orderbook");
-          }
-
-          // Make sure the fee information is correctly types
-          if (query.fee && !Array.isArray(query.fee)) {
-            query.fee = [query.fee];
-          }
-          if (query.feeRecipient && !Array.isArray(query.feeRecipient)) {
-            query.feeRecipient = [query.feeRecipient];
-          }
-          if (query.fee?.length !== query.feeRecipient?.length) {
-            throw Boom.badRequest("Invalid fee information");
-          }
-
-          let order: Sdk.OpenDao.Order | undefined;
-          if (token) {
-            const [contract, tokenId] = token.split(":");
-            order = await openDaoBuyToken.build({
-              ...query,
-              contract,
-              tokenId,
-            });
-          } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
-            order = await openDaoBuyAttribute.build({
-              ...query,
-              collection,
-              attributes: [
-                {
-                  key: attributeKey,
-                  value: attributeValue,
-                },
-              ],
-            });
-          } else if (collection) {
-            order = await openDaoBuyCollection.build({
-              ...query,
-              collection,
-            });
-          }
-
-          if (!order) {
-            throw Boom.internal("Failed to generate order");
-          }
-
-          // Check the maker's approval
-          let approvalTx: TxData | undefined;
-          const wethApproval = await weth.getAllowance(
-            query.maker,
-            Sdk.OpenDao.Addresses.Exchange[config.chainId]
-          );
-          if (bn(wethApproval).lt(bn(order.params.erc20TokenAmount).add(order.getFeeAmount()))) {
-            approvalTx = weth.approveTransaction(
-              query.maker,
-              Sdk.OpenDao.Addresses.Exchange[config.chainId]
-            );
-          }
-
-          const hasSignature = query.v && query.r && query.s;
-          return {
-            steps: [
-              {
-                ...steps[0],
-                status: !wrapEthTx ? "complete" : "incomplete",
-                data: wrapEthTx,
-              },
-              {
-                ...steps[1],
-                status: !approvalTx ? "complete" : "incomplete",
-                data: approvalTx,
-              },
-              {
-                ...steps[2],
-                status: hasSignature ? "complete" : "incomplete",
-                data: hasSignature ? undefined : order.getSignatureData(),
-              },
-              {
-                ...steps[3],
-                status: "incomplete",
-                data: !hasSignature
-                  ? undefined
-                  : {
-                      endpoint: "/order/v2",
-                      method: "POST",
-                      body: {
-                        order: {
-                          kind: "721ex",
-                          data: {
-                            ...order.params,
-                            v: query.v,
-                            r: query.r,
-                            s: query.s,
-                          },
-                        },
-                        tokenSetId,
-                        attribute:
-                          collection && attributeKey && attributeValue
-                            ? {
-                                collection,
-                                key: attributeKey,
-                                value: attributeValue,
-                              }
-                            : undefined,
-                        collection:
-                          collection &&
-                          query.excludeFlaggedTokens &&
-                          !attributeKey &&
-                          !attributeValue
-                            ? collection
-                            : undefined,
-                        isNonFlagged: query.excludeFlaggedTokens,
-                        orderbook: query.orderbook,
-                        source: query.source,
-                      },
-                    },
-              },
-            ],
-            query: {
-              ...query,
-              expirationTime: order.params.expiry,
-              nonce: order.params.nonce,
             },
           };
         }
@@ -568,12 +427,7 @@ export const getExecuteBidV2Options: RouteOptions = {
                               }
                             : undefined,
                         collection:
-                          collection &&
-                          query.excludeFlaggedTokens &&
-                          !attributeKey &&
-                          !attributeValue
-                            ? collection
-                            : undefined,
+                          collection && !attributeKey && !attributeValue ? collection : undefined,
                         isNonFlagged: query.excludeFlaggedTokens,
                         orderbook: query.orderbook,
                         source: query.source,

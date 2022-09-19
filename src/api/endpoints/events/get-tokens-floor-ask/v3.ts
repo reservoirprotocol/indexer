@@ -14,10 +14,11 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
+import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 
-const version = "v2";
+const version = "v3";
 
-export const getTokensFloorAskV2Options: RouteOptions = {
+export const getTokensFloorAskV3Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 1000,
@@ -25,7 +26,7 @@ export const getTokensFloorAskV2Options: RouteOptions = {
   description: "Token price changes",
   notes:
     "Every time the best price of a token changes (i.e. the 'floor ask'), an event is generated. This API is designed to be polled at high frequency, in order to keep an external system in sync with accurate prices for any token.\n\nThere are multiple event types, which describe what caused the change in price:\n\n- `new-order` > new listing at a lower price\n\n- `expiry` > the previous best listing expired\n\n- `sale` > the previous best listing was filled\n\n- `cancel` > the previous best listing was cancelled\n\n- `balance-change` > the best listing was invalidated due to no longer owning the NFT\n\n- `approval-change` > the best listing was invalidated due to revoked approval\n\n- `revalidation` > manual revalidation of orders (e.g. after a bug fixed)\n\n- `reprice` > price update for dynamic orders (e.g. dutch auctions)\n\n- `bootstrap` > initial loading of data, so that all tokens have a price associated\n\nSome considerations to keep in mind\n\n- Due to the complex nature of monitoring off-chain liquidity across multiple marketplaces, including dealing with block re-orgs, events should be considered 'relative' to the perspective of the indexer, ie _when they were discovered_, rather than _when they happened_. A more deterministic historical record of price changes is in development, but in the meantime, this method is sufficent for keeping an external system in sync with the best available prices.\n\n- Events are only generated if the best price changes. So if a new order or sale happens without changing the best price, no event is generated. This is more common with 1155 tokens, which have multiple owners and more depth. For this reason, if you need sales data, use the Sales API.",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Events"],
   plugins: {
     "hapi-swagger": {
       order: 4,
@@ -63,10 +64,11 @@ export const getTokensFloorAskV2Options: RouteOptions = {
             orderId: Joi.string().allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             nonce: Joi.string().pattern(regex.number).allow(null),
-            price: Joi.number().unsafe().allow(null),
+            price: JoiPrice.allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
             source: Joi.string().allow(null, ""),
+            isDynamic: Joi.boolean(),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),
@@ -118,8 +120,16 @@ export const getTokensFloorAskV2Options: RouteOptions = {
           token_floor_sell_events.previous_price,
           token_floor_sell_events.tx_hash,
           token_floor_sell_events.tx_timestamp,
+          orders.currency,
+          orders.dynamic,
+          TRUNC(orders.currency_price, 0) AS currency_price,
           extract(epoch from token_floor_sell_events.created_at) AS created_at
         FROM token_floor_sell_events
+        LEFT JOIN LATERAL (
+           SELECT currency, currency_price, dynamic
+           FROM orders
+           WHERE orders.id = token_floor_sell_events.order_id
+        ) orders ON TRUE
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -182,29 +192,43 @@ export const getTokensFloorAskV2Options: RouteOptions = {
       }
 
       const sources = await Sources.getInstance();
-      const result = rawResult.map((r) => ({
-        token: {
-          contract: fromBuffer(r.contract),
-          tokenId: r.token_id,
-        },
-        floorAsk: {
-          orderId: r.order_id,
-          maker: r.maker ? fromBuffer(r.maker) : null,
-          nonce: r.nonce,
-          price: r.price ? formatEth(r.price) : null,
-          validFrom: r.price ? Number(r.valid_from) : null,
-          validUntil: r.price ? Number(r.valid_until) : null,
-          source: sources.get(r.source_id_int)?.name,
-        },
-        event: {
-          id: r.id,
-          previousPrice: r.previous_price ? formatEth(r.previous_price) : null,
-          kind: r.kind,
-          txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
-          txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
-          createdAt: new Date(r.created_at * 1000).toISOString(),
-        },
-      }));
+      const result = await Promise.all(
+        rawResult.map(async (r) => ({
+          token: {
+            contract: fromBuffer(r.contract),
+            tokenId: r.token_id,
+          },
+          floorAsk: {
+            orderId: r.order_id,
+            maker: r.maker ? fromBuffer(r.maker) : null,
+            nonce: r.nonce,
+            price: r.price
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: r.currency_price ?? r.price,
+                      nativeAmount: r.price,
+                      usdAmount: r.usd_price,
+                    },
+                  },
+                  fromBuffer(r.currency)
+                )
+              : null,
+            validFrom: r.price ? Number(r.valid_from) : null,
+            validUntil: r.price ? Number(r.valid_until) : null,
+            source: sources.get(r.source_id_int)?.name,
+            isDynamic: Boolean(r.dynamic),
+          },
+          event: {
+            id: r.id,
+            previousPrice: r.previous_price ? formatEth(r.previous_price) : null,
+            kind: r.kind,
+            txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
+            txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
+            createdAt: new Date(r.created_at * 1000).toISOString(),
+          },
+        }))
+      );
 
       return {
         events: result,

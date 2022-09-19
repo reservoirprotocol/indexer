@@ -38,13 +38,9 @@ export const build = async (options: BuildOrderOptions) => {
     "buy"
   );
 
-  if (!options.excludeFlaggedTokens) {
-    // Use contract-wide/token-range order
-
-    if (!collectionResult.token_set_id.startsWith("contract:")) {
-      throw new Error("Token range collections are not supported");
-    }
-
+  const collectionIsContractWide = collectionResult.token_set_id.startsWith("contract:");
+  if (!options.excludeFlaggedTokens && collectionIsContractWide) {
+    // Use contract-wide order
     const builder: BaseBuilder = new Sdk.Seaport.Builders.ContractWide(config.chainId);
     return builder?.build(buildInfo.params);
   } else {
@@ -60,9 +56,7 @@ export const build = async (options: BuildOrderOptions) => {
         WHERE tokens.collection_id = $/collection/
         ${excludeFlaggedTokens}
       `,
-      {
-        collection: options.collection,
-      }
+      { collection: options.collection }
     );
 
     const builder: BaseBuilder = new Sdk.Seaport.Builders.TokenList(config.chainId);

@@ -92,6 +92,7 @@ export const getSalesV4Options: RouteOptions = {
           orderSource: Joi.string().allow(null, ""),
           orderSide: Joi.string().valid("ask", "bid"),
           orderKind: Joi.string(),
+          orderId: Joi.string().allow(null),
           from: Joi.string().lowercase().pattern(regex.address),
           to: Joi.string().lowercase().pattern(regex.address),
           amount: Joi.string(),
@@ -234,6 +235,7 @@ export const getSalesV4Options: RouteOptions = {
           SELECT
             fill_events_2.contract,
             fill_events_2.token_id,
+            fill_events_2.order_id,
             fill_events_2.order_side,
             fill_events_2.order_kind,
             fill_events_2.order_source_id_int,
@@ -329,6 +331,7 @@ export const getSalesV4Options: RouteOptions = {
               name: r.collection_name ?? null,
             },
           },
+          orderId: r.order_id,
           orderSource: orderSource?.domain ?? null,
           orderSide: r.order_side === "sell" ? "ask" : "bid",
           orderKind: r.order_kind,
