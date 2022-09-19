@@ -36,7 +36,7 @@ export const getCollectionActivityV2Options: RouteOptions = {
         .min(1)
         .default(20)
         .description(
-          "Amount of items returned in response. If includeMetadata=true max limit is 20, otherwise max limit is 1,000."
+          "Amount of items returned in response. If `includeMetadata=true` max limit is 20, otherwise max limit is 1,000."
         )
         .when("includeMetadata", {
           is: true,
