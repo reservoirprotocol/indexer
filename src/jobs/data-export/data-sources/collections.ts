@@ -66,7 +66,7 @@ export class CollectionsDataSource extends BaseDataSource {
         day1_volume_change: r.day1_volume_change,
         day7_volume_change: r.day7_volume_change,
         day30_volume_change: r.day30_volume_change,
-        floor_sale_value: r.floor_sell_value ? r.floor_sell_value.toString() : null,
+        floor_ask_value: r.floor_sell_value ? r.floor_sell_value.toString() : null,
         day1_floor_sale_value: r.day1_floor_sell_value ? r.day1_floor_sell_value.toString() : null,
         day7_floor_sale_value: r.day7_floor_sell_value ? r.day7_floor_sell_value.toString() : null,
         day30_floor_sale_value: r.day30_floor_sell_value
