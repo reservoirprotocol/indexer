@@ -176,16 +176,21 @@ export const start = async (): Promise<void> => {
             error.consumedPoints == Number(rateLimitRule.options.points) + 1 ||
             error.consumedPoints % 50 == 0
           ) {
-            logger.warn(
-              "rate-limiter",
-              `${rateLimitKey} ${apiKey?.appName || ""} reached allowed rate limit ${
+            const log = {
+              message: `${rateLimitKey} ${apiKey?.appName || ""} reached allowed rate limit ${
                 rateLimitRule.options.points
               } requests in ${rateLimitRule.options.duration}s by calling ${
                 error.consumedPoints
               } times on route ${request.route.path}${
                 request.info.referrer ? ` from referrer ${request.info.referrer} ` : " "
-              }for rule ${JSON.stringify(rateLimitRule)}`
-            );
+              }for rule ${JSON.stringify(rateLimitRule)}`,
+              route: request.route.path,
+              appName: apiKey?.appName || "",
+              key: rateLimitKey,
+              referrer: request.info.referrer,
+            };
+
+            logger.warn("rate-limiter", JSON.stringify(log));
           }
 
           // const tooManyRequestsResponse = {

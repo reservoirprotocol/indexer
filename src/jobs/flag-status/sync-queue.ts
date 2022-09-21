@@ -13,7 +13,7 @@ import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 import { randomUUID } from "crypto";
 
 const QUEUE_NAME = "flag-status-sync-queue";
-const LIMIT = 4;
+const LIMIT = 20;
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -52,44 +52,59 @@ if (config.doBackgroundWork) {
         return;
       }
 
-      await Promise.all(
-        pendingSyncFlagStatusTokens.map(async (pendingSyncFlagStatusToken) => {
-          try {
-            const isFlagged = await MetadataApi.getTokenFlagStatus(
-              contract,
-              pendingSyncFlagStatusToken.tokenId
+      try {
+        const tokensMetadata = await MetadataApi.getTokensMetadata(
+          pendingSyncFlagStatusTokens,
+          true
+        );
+
+        for (const pendingSyncFlagStatusToken of pendingSyncFlagStatusTokens) {
+          const tokenMetadata = tokensMetadata.find(
+            (tokenMetadata) => tokenMetadata.tokenId === pendingSyncFlagStatusToken.tokenId
+          );
+
+          if (!tokenMetadata) {
+            logger.warn(
+              QUEUE_NAME,
+              `Missing Token Metadata. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}`
             );
 
-            if (pendingSyncFlagStatusToken.isFlagged != isFlagged) {
-              logger.info(
-                QUEUE_NAME,
-                `Flag Status Diff. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}, isFlagged:${isFlagged}`
-              );
-            }
-
-            await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, {
-              isFlagged,
-              lastFlagUpdate: new Date().toISOString(),
-            });
-          } catch (error) {
-            if ((error as any).response?.status === 429) {
-              logger.info(
-                QUEUE_NAME,
-                `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
-              );
-
-              delay = 60 * 1000;
-
-              await pendingFlagStatusSyncTokensQueue.add([pendingSyncFlagStatusToken]);
-            } else {
-              logger.error(
-                QUEUE_NAME,
-                `getTokenMetadata error. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, error:${error}`
-              );
-            }
+            continue;
           }
-        })
-      );
+
+          const isFlagged = Number(tokenMetadata.flagged);
+
+          if (pendingSyncFlagStatusToken.isFlagged != isFlagged) {
+            logger.info(
+              QUEUE_NAME,
+              `Flag Status Diff. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}, isFlagged:${isFlagged}`
+            );
+          } else {
+            logger.info(
+              QUEUE_NAME,
+              `Flag Status Match. contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}, isFlagged:${isFlagged}`
+            );
+          }
+
+          await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, {
+            isFlagged,
+            lastFlagUpdate: new Date().toISOString(),
+          });
+        }
+      } catch (error) {
+        if ((error as any).response?.status === 429) {
+          logger.info(
+            QUEUE_NAME,
+            `Too Many Requests. error: ${JSON.stringify((error as any).response.data)}`
+          );
+
+          delay = 60 * 1000;
+
+          await pendingFlagStatusSyncTokensQueue.add(pendingSyncFlagStatusTokens);
+        } else {
+          logger.error(QUEUE_NAME, `getTokensMetadata error. contract:${contract}, error:${error}`);
+        }
+      }
 
       if (await extendLock(getLockName(), 60 * 5)) {
         await addToQueue(collectionId, contract, delay);

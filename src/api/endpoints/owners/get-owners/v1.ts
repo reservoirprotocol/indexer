@@ -64,7 +64,7 @@ export const getOwnersV1Options: RouteOptions = {
     })
       .oxor("collectionsSetId", "collection", "contract", "token")
       .or("collectionsSetId", "collection", "contract", "token")
-      .with("attributes", ["collectionsSetId", "collection"]),
+      .without("attributes", ["token", "contract"]),
   },
   response: {
     schema: Joi.object({

@@ -64,7 +64,7 @@ if (config.doBackgroundWork) {
                     ELSE 'no-balance'
                   END)::order_fillability_status_t AS new_status,
                   (CASE
-                    WHEN ft_balances.amount >= (orders.price * orders.quantity_remaining) THEN upper(orders.valid_between)
+                    WHEN ft_balances.amount >= (orders.price * orders.quantity_remaining) THEN nullif(upper(orders.valid_between), 'infinity')
                     ELSE to_timestamp($/timestamp/)
                   END)::timestamptz AS expiration
                 FROM orders
@@ -266,7 +266,7 @@ if (config.doBackgroundWork) {
                     ELSE 'no-balance'
                   END)::order_fillability_status_t AS new_status,
                   (CASE
-                    WHEN nft_balances.amount >= orders.quantity_remaining THEN upper(orders.valid_between)
+                    WHEN nft_balances.amount >= orders.quantity_remaining THEN nullif(upper(orders.valid_between), 'infinity')
                     ELSE to_timestamp($/timestamp/)
                   END)::TIMESTAMPTZ AS expiration
                 FROM orders
@@ -365,7 +365,7 @@ if (config.doBackgroundWork) {
                       ELSE 'no-approval'
                     END)::order_approval_status_t AS new_status,
                     (CASE
-                      WHEN nft_approval_events.approved THEN upper(orders.valid_between)
+                      WHEN nft_approval_events.approved THEN nullif(upper(orders.valid_between), 'infinity')
                       ELSE to_timestamp($/timestamp/)
                     END)::TIMESTAMPTZ AS expiration
                   FROM nft_approval_events

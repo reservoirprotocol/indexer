@@ -1,3 +1,47 @@
+# [5.246.0](https://github.com/reservoirprotocol/indexer/compare/v5.245.0...v5.246.0) (2022-09-21)
+
+
+### Features
+
+* update docs ([de25dcb](https://github.com/reservoirprotocol/indexer/commit/de25dcb302908639f3d437bfb865d4ec866992dd))
+* updated daily volume logic to exclude paid mints ([#1914](https://github.com/reservoirprotocol/indexer/issues/1914)) ([ba9b5c1](https://github.com/reservoirprotocol/indexer/commit/ba9b5c1a0a770fe453a749721fa8a8f3ad73cf07))
+
+
+
+# [5.245.0](https://github.com/reservoirprotocol/indexer/compare/v5.244.0...v5.245.0) (2022-09-21)
+
+
+### Features
+
+* update rate limit log ([1d0a4d5](https://github.com/reservoirprotocol/indexer/commit/1d0a4d566c03eccdf62b0233c80fbb2e6fd37467))
+* update rate limit log ([e028164](https://github.com/reservoirprotocol/indexer/commit/e028164148fedb707678426be587f013f24bab57))
+
+
+
+# [5.244.0](https://github.com/reservoirprotocol/indexer/compare/v5.243.1...v5.244.0) (2022-09-21)
+
+
+### Bug Fixes
+
+* properly handle infinity timestamps ([a24f390](https://github.com/reservoirprotocol/indexer/commit/a24f39086d144c14ffc2fb5d7fc650fd613201cb))
+
+
+### Features
+
+* added flightcontrol.json ([e12c741](https://github.com/reservoirprotocol/indexer/commit/e12c741cab88c43b64ee1761565515aee95b4018))
+* added flightcontrol.json ([c09077c](https://github.com/reservoirprotocol/indexer/commit/c09077c901db8b6108ec63a7f6a109b84ea0173c))
+* allow no filters on the orders apis ([f8edad3](https://github.com/reservoirprotocol/indexer/commit/f8edad3b82e005c1cb55e3d6e23e6a4277584528))
+* hide assets API ([0362498](https://github.com/reservoirprotocol/indexer/commit/03624986c59cdb74784bc094cda945505cbdf1e5))
+* update flightcontrol.json ([19f5ea1](https://github.com/reservoirprotocol/indexer/commit/19f5ea150864ebd1fcd1f1c649d4646eb4d6a1b0))
+* update flightcontrol.json ([c6c7774](https://github.com/reservoirprotocol/indexer/commit/c6c77748600c843a431bc07c694f58349052bb4b))
+* update flightcontrol.json ([fd5e4b8](https://github.com/reservoirprotocol/indexer/commit/fd5e4b8a49e02064739ecba209ccf6f8eda6f2c5))
+* update flightcontrol.json ([e6ea180](https://github.com/reservoirprotocol/indexer/commit/e6ea180f831df024ccc4480a435645d6f0797d82))
+* update flightcontrol.json ([998dce8](https://github.com/reservoirprotocol/indexer/commit/998dce8d4aa7d64b66fa8b3ccdc0bd4a0e77720f))
+* update flightcontrol.json ([821b4a9](https://github.com/reservoirprotocol/indexer/commit/821b4a933a67adfffac5dac8bc6e482e59a377a6))
+* update owners validation ([7d47942](https://github.com/reservoirprotocol/indexer/commit/7d479425c1e8974362877d235015f9c6277cda94))
+
+
+
 ## [5.243.1](https://github.com/reservoirprotocol/indexer/compare/v5.243.0...v5.243.1) (2022-09-20)
 
 

@@ -38,6 +38,7 @@ if (config.doBackgroundWork) {
     description?: string;
     imageUrl?: string;
     mediaUrl?: string;
+    flagged?: boolean;
     attributes: {
       key: string;
       value: string;

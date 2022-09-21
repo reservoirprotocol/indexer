@@ -67,10 +67,14 @@ export const getCollectionsV5Options: RouteOptions = {
         .description("If true, top bid will be returned in the response."),
       includeAttributes: Joi.boolean()
         .when("id", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
-        .description("If true, attributes will be included in the response."),
+        .description(
+          "If true, attributes will be included in the response. (supported only when filtering to a particular collection using `id`)"
+        ),
       includeOwnerCount: Joi.boolean()
         .when("id", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
-        .description("If true, owner count will be included in the response."),
+        .description(
+          "If true, owner count will be included in the response. (supported only when filtering to a particular collection using `id`)"
+        ),
       sortBy: Joi.string()
         .valid("1DayVolume", "7DayVolume", "30DayVolume", "allTimeVolume")
         .default("allTimeVolume")
