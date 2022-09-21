@@ -109,7 +109,7 @@ export class DailyVolume {
               "fe"."timestamp" >= $/startTime/
               AND "fe"."timestamp" < $/endTime/
               AND fe.price > 0
-              AND fe.is_primary IS NULL 
+              AND fe.is_primary IS NOT TRUE 
             GROUP BY "collection_id") t1
           LEFT JOIN
             (SELECT
@@ -125,7 +125,7 @@ export class DailyVolume {
               "fe"."timestamp" >= $/startTime/
               AND "fe"."timestamp" < $/endTime/
               AND fe.price > 0
-              AND fe.is_primary IS NULL 
+              AND fe.is_primary IS NOT TRUE 
               AND coalesce(fe.wash_trading_score, 0) = 0
             GROUP BY "collection_id") t2
           ON (t1.collection_id = t2.collection_id)
