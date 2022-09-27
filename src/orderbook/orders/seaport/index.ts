@@ -412,6 +412,13 @@ export const save = async (
                 status: "bid-too-low",
               });
             }
+          } else {
+            logger.info(
+              "orders-seaport-save",
+              `Bid value validation - skip. orderId=${id}, contract=${
+                info.contract
+              }, tokenId=${tokenId}, value=${value.toString()}`
+            );
           }
         } catch (error) {
           logger.error(
