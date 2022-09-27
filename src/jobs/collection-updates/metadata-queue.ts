@@ -6,6 +6,7 @@ import { logger } from "@/common/logger";
 import { redis, acquireLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { Collections } from "@/models/collections";
+import { refreshEIP2981Royalties } from "@/utils/royalties/eip2981";
 
 const QUEUE_NAME = "collections-metadata-queue";
 
@@ -32,6 +33,7 @@ if (config.doBackgroundWork) {
 
         try {
           await Collections.updateCollectionCache(contract, tokenId);
+          await refreshEIP2981Royalties(contract);
         } catch (error) {
           logger.error(QUEUE_NAME, `Failed to update collection metadata=${error}`);
         }
@@ -54,8 +56,18 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (contract: string, tokenId = "1", delay = 0) => {
-  if (_.isNull(await redis.get(`${QUEUE_NAME}:${contract}`))) {
-    await queue.add(randomUUID(), { contract, tokenId }, { delay });
+export const addToQueue = async (contract: string | string[], tokenId = "1", delay = 0) => {
+  if (_.isArray(contract)) {
+    await queue.addBulk(
+      _.map(contract, (c) => ({
+        name: randomUUID(),
+        data: { contract: c, tokenId },
+        opts: { delay },
+      }))
+    );
+  } else {
+    if (_.isNull(await redis.get(`${QUEUE_NAME}:${contract}`))) {
+      await queue.add(randomUUID(), { contract, tokenId }, { delay });
+    }
   }
 };

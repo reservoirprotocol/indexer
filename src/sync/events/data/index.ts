@@ -63,7 +63,7 @@ export type EventDataKind =
   | "zora-ask-filled"
   | "zora-ask-created"
   | "zora-ask-price-updated"
-  | "zora-ask-canceled"
+  | "zora-ask-cancelled"
   | "zora-auction-ended"
   | "nouns-auction-settled"
   | "cryptopunks-punk-offered"
@@ -126,7 +126,7 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       quixotic.orderFulfilled,
       zora.askFilled,
       zora.askCreated,
-      zora.askCanceled,
+      zora.askCancelled,
       zora.askPriceUpdated,
       zora.auctionEnded,
       nouns.auctionSettled,
@@ -227,8 +227,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return zora.askFilled;
     case "zora-ask-created":
       return zora.askCreated;
-    case "zora-ask-canceled":
-      return zora.askCanceled;
+    case "zora-ask-cancelled":
+      return zora.askCancelled;
     case "zora-ask-price-updated":
       return zora.askPriceUpdated;
     case "zora-auction-ended":

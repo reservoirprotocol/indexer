@@ -134,8 +134,8 @@ export const getTokensV5Options: RouteOptions = {
                   value: Joi.string(),
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
-                  floorAskPrice: Joi.number().allow(null),
-                  topBidValue: Joi.number().allow(null),
+                  floorAskPrice: Joi.number().unsafe().allow(null),
+                  topBidValue: Joi.number().unsafe().allow(null),
                 })
               )
               .optional(),

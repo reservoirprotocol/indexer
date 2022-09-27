@@ -408,6 +408,16 @@ export const getExecuteBuyV4Options: RouteOptions = {
               throw Boom.badRequest("No available orders");
             }
 
+            if (
+              bestOrdersResult.length &&
+              bestOrdersResult[0].token_kind === "erc1155" &&
+              payload.tokens.length > 1
+            ) {
+              throw Boom.badData(
+                "When specifying a quantity greater than one, only a single ERC1155 token can get filled"
+              );
+            }
+
             let totalQuantityToFill = Number(payload.quantity);
             for (const {
               id,
@@ -451,11 +461,6 @@ export const getExecuteBuyV4Options: RouteOptions = {
       if (payload.quantity > 1) {
         if (!listingDetails.every((d) => d.contractKind === "erc1155")) {
           throw Boom.badData("Only ERC1155 tokens support a quantity greater than one");
-        }
-        if (listingDetails.length > 1) {
-          throw Boom.badData(
-            "When specifying a quantity greater than one, only a single ERC1155 token can get filled"
-          );
         }
       }
 

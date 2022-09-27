@@ -146,7 +146,7 @@ export const getTokensFloorAskV3Options: RouteOptions = {
         `token_floor_sell_events.created_at <= to_timestamp($/endTimestamp/)`,
         // Fix for the issue with negative prices for dutch auction orders
         // (eg. due to orders not properly expired on time)
-        `token_floor_sell_events.price > 0`,
+        `coalesce(token_floor_sell_events.price, 0) >= 0`,
       ];
       if (query.contract) {
         (query as any).contract = toBuffer(query.contract);

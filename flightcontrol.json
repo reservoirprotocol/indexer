@@ -15,19 +15,24 @@
           "buildType": "docker",
           "cpu": 2,
           "memory": 4,
-          "minInstances": 4,
-          "maxInstances": 6,
+          "minInstances": 1,
+          "maxInstances": 1,
           "healthCheckPath": "/livez",
           "dockerLabels": {
-            "com.datadoghq.ad.instances": "[{\"host\": \"%%host%%\", \"port\": \"%%port%%\"}]",
-            "com.datadoghq.ad.check_names": "[\"flightcontrol\"]",
+            "com.datadoghq.ad.instances": "[{\"host\": \"%%host%%\", \"port\": 3000}]",
+            "com.datadoghq.ad.check_names": "[\"fc-indexer\"]",
             "com.datadoghq.ad.init_configs": "[{}]"
           },
           "experimental": {
             "datadog": {
               "enabled": true,
-              "datadogSite": "us5.datadoghq.com",
-              "datadogApiKey": "DD_API_KEY.from.parameter.store"
+              "datadogSite": "datadoghq.com",
+              "datadogApiKey": "fc.indexer-mainnet.env.production.d1ex0izx.DD_API_KEY",
+              "envVariables":{
+                "DD_APM_ENABLED": true,
+                "DD_LOGS_ENABLED": true,
+                "ECS_FARGATE": true
+              }
             }
           },
           "envVariables": {
@@ -75,9 +80,6 @@
             },
             "TENDERLY_PROJECT": {
               "fromParameterStore": "fc.indexer-mainnet.env.production.5zdm005j.TENDERLY_PROJECT"
-            },
-            "DATADOG_AGENT_URL": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zd100ca.DATADOG_AGENT_URL"
             },
             "LOOKSRARE_API_KEY": {
               "fromParameterStore": "fc.indexer-mainnet.env.production.5zd900y1.LOOKSRARE_API_KEY"

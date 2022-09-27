@@ -65,7 +65,7 @@ export const config = {
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
 
-  railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL),
+  railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 
   cipherSecret: String(process.env.CIPHER_SECRET),
 };

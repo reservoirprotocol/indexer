@@ -85,8 +85,8 @@ export const askPriceUpdated: EventData = {
   ]),
 };
 
-export const askCanceled: EventData = {
-  kind: "zora-ask-canceled",
+export const askCancelled: EventData = {
+  kind: "zora-ask-cancelled",
   addresses: { [Zora.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x871956abf85befb7c955eacd40fcabe7e01b1702d75764bf7f54bf481933fd35",
   numTopics: 3,

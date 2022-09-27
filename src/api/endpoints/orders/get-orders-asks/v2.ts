@@ -391,6 +391,7 @@ export const getOrdersAsksV2Options: RouteOptions = {
           metadata: r.metadata,
           source: {
             id: source?.address,
+            domain: source?.domain,
             name: source?.metadata.title || source?.name,
             icon: source?.metadata.icon,
             url: source?.metadata.url,

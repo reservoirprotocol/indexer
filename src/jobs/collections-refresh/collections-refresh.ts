@@ -61,11 +61,8 @@ if (config.doBackgroundWork) {
       // Get top collections by volume
       collections = collections.concat(await Collections.getTopCollectionsByVolume());
 
-      // Queue the collection for indexing.
-      _.map(collections, async (collection) => {
-        // Refresh the collection metadata
-        await collectionUpdatesMetadata.addToQueue(collection.contract);
-      });
+      const contracts = _.map(collections, (collection) => collection.contract);
+      await collectionUpdatesMetadata.addToQueue(contracts);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

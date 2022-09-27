@@ -4,7 +4,8 @@ import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
 
 if (process.env.DATADOG_AGENT_URL) {
-  const service = `indexer-${config.version}-${getNetworkName()}`;
+  const isRailway = config.railwayStaticUrl !== "";
+  const service = `indexer-${isRailway ? "" : "fc-"}${config.version}-${getNetworkName()}`;
 
   tracer.init({
     profiling: true,

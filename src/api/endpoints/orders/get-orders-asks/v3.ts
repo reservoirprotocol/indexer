@@ -99,7 +99,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
         .max(1000)
         .default(50)
         .description("Amount of items returned in response."),
-    }).oxor("ids", "token", "contracts", "maker"),
+    }).oxor("ids", "token", "contracts", "maker", "source", "native"),
   },
   response: {
     schema: Joi.object({
@@ -456,6 +456,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
           metadata: query.includeMetadata ? r.metadata : undefined,
           source: {
             id: source?.address,
+            domain: source?.domain,
             name: source?.metadata.title || source?.name,
             icon: source?.metadata.icon,
             url: source?.metadata.url,

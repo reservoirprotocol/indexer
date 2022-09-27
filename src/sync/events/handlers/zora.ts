@@ -130,7 +130,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
-      case "zora-ask-canceled": {
+      case "zora-ask-cancelled": {
         const { args } = eventData.abi.parseLog(log);
         const orderParams = getOrderParams(args);
         const orderId = getOrderId(orderParams);

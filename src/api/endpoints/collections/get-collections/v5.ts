@@ -342,9 +342,9 @@ export const getCollectionsV5Options: RouteOptions = {
       // Sorting and pagination
 
       if (query.continuation) {
-        const [contVolume, contName] = splitContinuation(query.continuation, /^\d+(.\d+)?_.+$/);
+        const [contVolume, contId] = splitContinuation(query.continuation, /^\d+(.\d+)?_.+$/);
         query.contVolume = contVolume;
-        query.contName = contName;
+        query.contId = contId;
       }
 
       let orderBy = "";
@@ -352,10 +352,10 @@ export const getCollectionsV5Options: RouteOptions = {
         case "1DayVolume": {
           if (query.continuation) {
             conditions.push(
-              `(collections.day1_volume, collections.name) < ($/contVolume/, $/contName/)`
+              `(collections.day1_volume, collections.id) < ($/contVolume/, $/contId/)`
             );
           }
-          orderBy = ` ORDER BY collections.day1_volume DESC, collections.name DESC`;
+          orderBy = ` ORDER BY collections.day1_volume DESC, collections.id DESC`;
 
           break;
         }
@@ -363,10 +363,10 @@ export const getCollectionsV5Options: RouteOptions = {
         case "7DayVolume": {
           if (query.continuation) {
             conditions.push(
-              `(collections.day7_volume, collections.name) < ($/contVolume/, $/contName/)`
+              `(collections.day7_volume, collections.id) < ($/contVolume/, $/contId/)`
             );
           }
-          orderBy = ` ORDER BY collections.day7_volume DESC, collections.name DESC`;
+          orderBy = ` ORDER BY collections.day7_volume DESC, collections.id DESC`;
 
           break;
         }
@@ -374,10 +374,10 @@ export const getCollectionsV5Options: RouteOptions = {
         case "30DayVolume": {
           if (query.continuation) {
             conditions.push(
-              `(collections.day30_volume, collections.name) < ($/contVolume/, $/contName/)`
+              `(collections.day30_volume, collections.id) < ($/contVolume/, $/contId/)`
             );
           }
-          orderBy = ` ORDER BY collections.day30_volume DESC, collections.name DESC`;
+          orderBy = ` ORDER BY collections.day30_volume DESC, collections.id DESC`;
 
           break;
         }
@@ -386,11 +386,11 @@ export const getCollectionsV5Options: RouteOptions = {
         default: {
           if (query.continuation) {
             conditions.push(
-              `(collections.all_time_volume, collections.name) < ($/contVolume/, $/contName/)`
+              `(collections.all_time_volume, collections.id) < ($/contVolume/, $/contId/)`
             );
           }
 
-          orderBy = ` ORDER BY collections.all_time_volume DESC, collections.name DESC`;
+          orderBy = ` ORDER BY collections.all_time_volume DESC, collections.id DESC`;
 
           break;
         }
@@ -584,21 +584,21 @@ export const getCollectionsV5Options: RouteOptions = {
           switch (query.sortBy) {
             case "1DayVolume": {
               continuation = buildContinuation(
-                `${lastCollection.day1_volume}_${lastCollection.name}`
+                `${lastCollection.day1_volume}_${lastCollection.id}`
               );
               break;
             }
 
             case "7DayVolume": {
               continuation = buildContinuation(
-                `${lastCollection.day7_volume}_${lastCollection.name}`
+                `${lastCollection.day7_volume}_${lastCollection.id}`
               );
               break;
             }
 
             case "30DayVolume": {
               continuation = buildContinuation(
-                `${lastCollection.day30_volume}_${lastCollection.name}`
+                `${lastCollection.day30_volume}_${lastCollection.id}`
               );
               break;
             }
@@ -606,7 +606,7 @@ export const getCollectionsV5Options: RouteOptions = {
             case "allTimeVolume":
             default: {
               continuation = buildContinuation(
-                `${lastCollection.all_time_volume}_${lastCollection.name}`
+                `${lastCollection.all_time_volume}_${lastCollection.id}`
               );
               break;
             }

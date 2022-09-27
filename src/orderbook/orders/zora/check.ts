@@ -1,11 +1,12 @@
 import * as Sdk from "@reservoir0x/sdk";
 
+import { redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
+import { OrderInfo, getOrderId } from "@/orderbook/orders/zora";
 import * as onChainData from "@/utils/on-chain-data";
-import { OrderInfo } from "./index";
 
 export const offChainCheck = async (
   order: OrderInfo["orderParams"],
@@ -13,6 +14,42 @@ export const offChainCheck = async (
     onChainApprovalRecheck?: boolean;
   }
 ) => {
+  const id = getOrderId(order);
+
+  // Fetch latest cancel event
+  const cancelResult = await redb.oneOrNone(
+    `
+      SELECT
+        cancel_events.timestamp
+      FROM cancel_events
+      WHERE cancel_events.order_id = $/orderId/
+      ORDER BY cancel_events.timestamp DESC
+      LIMIT 1
+    `,
+    { orderId: id }
+  );
+
+  // Fetch latest fill event
+  const fillResult = await redb.oneOrNone(
+    `
+      SELECT
+        fill_events_2.timestamp
+      FROM fill_events_2
+      WHERE fill_events_2.order_id = $/orderId/
+      ORDER BY fill_events_2.timestamp DESC
+      LIMIT 1
+    `,
+    { orderId: id }
+  );
+
+  // For now, it doesn't matter whether we return "cancelled" or "filled"
+  if (cancelResult && cancelResult.timestamp >= order.txTimestamp) {
+    throw new Error("cancelled");
+  }
+  if (fillResult && fillResult.timestamp >= order.txTimestamp) {
+    throw new Error("filled");
+  }
+
   let hasBalance = true;
   let hasApproval = true;
 

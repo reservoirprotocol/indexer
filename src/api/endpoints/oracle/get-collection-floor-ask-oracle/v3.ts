@@ -110,9 +110,9 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
             FROM z
           )
           SELECT
-            SUM(
-              w.price * (w.end_time - w.start_time)::NUMERIC(78, 0)) / ((MAX(w.end_time) - MIN(w.start_time))::NUMERIC(78, 0)
-            ) AS price
+            floor(
+              SUM(w.price * (w.end_time - w.start_time)) / (MAX(w.end_time) - MIN(w.start_time))
+            )::NUMERIC(78, 0) AS price
           FROM w
       `;
 

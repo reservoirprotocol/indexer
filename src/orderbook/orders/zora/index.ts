@@ -84,20 +84,20 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           // See https://github.com/reservoirprotocol/indexer/pull/1903/files#r976148340
           await idb.none(
             `
-            UPDATE orders SET
-              fillability_status = $/fillability_status/,
-              maker = $/maker/,
-              price = $/price/,
-              currency_price = $/price/,
-              value = $/price/,
-              currency_value = $/price/,
-              valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
-              expiration = 'Infinity',
-              updated_at = now(),
-              taker = $/taker/,
-              raw_data = $/orderParams:json/
-            WHERE orders.id = $/id/
-          `,
+              UPDATE orders SET
+                fillability_status = $/fillability_status/,
+                maker = $/maker/,
+                price = $/price/,
+                currency_price = $/price/,
+                value = $/price/,
+                currency_value = $/price/,
+                valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
+                expiration = 'Infinity',
+                updated_at = now(),
+                taker = $/taker/,
+                raw_data = $/orderParams:json/
+              WHERE orders.id = $/id/
+            `,
             {
               fillability_status: "cancelled",
               maker: toBuffer(orderParams.maker),
