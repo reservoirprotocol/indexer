@@ -404,7 +404,7 @@ export const save = async (
                 "orders-seaport-save",
                 `Bid value validation - too low. orderId=${id}, contract=${
                   info.contract
-                }, tokenId=${tokenId}, value=${value.toString()}, collectionFloorAskValue=${collectionFloorAskValue}, percentage=${percentage.toString()}, seaportBidPercentageThreshold=${seaportBidPercentageThreshold}`
+                }, tokenId=${tokenId}, value=${value.toString()}, collectionFloorAskValue=${collectionFloorAskValue}, percentage=${percentage.toString()}, threshold=${seaportBidPercentageThreshold}`
               );
 
               return results.push({
