@@ -390,13 +390,6 @@ export const save = async (
         const tokenId = typedInfo.tokenId;
         const seaportBidPercentageThreshold = 90;
 
-        logger.info(
-          "orders-seaport-save",
-          `Bid value validation - start. orderId=${id}, contract=${
-            info.contract
-          }, tokenId=${tokenId}, info=${JSON.stringify(info)}`
-        );
-
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
             info.contract,
@@ -406,16 +399,14 @@ export const save = async (
           if (collectionFloorAskValue) {
             const percentage = (Number(value.toString()) / collectionFloorAskValue) * 100;
 
-            logger.info(
-              "orders-seaport-save",
-              `Bid value validation - check. orderId=${id}, contract=${
-                info.contract
-              }, tokenId=${tokenId}, value=${value.toString()}, collectionFloorAskValue=${collectionFloorAskValue}, percentage=${percentage.toString()}, seaportBidPercentageThreshold=${seaportBidPercentageThreshold}. bitTooLow=${
-                percentage < seaportBidPercentageThreshold
-              }`
-            );
-
             if (percentage < seaportBidPercentageThreshold) {
+              logger.info(
+                "orders-seaport-save",
+                `Bid value validation - too low. orderId=${id}, contract=${
+                  info.contract
+                }, tokenId=${tokenId}, value=${value.toString()}, collectionFloorAskValue=${collectionFloorAskValue}, percentage=${percentage.toString()}, seaportBidPercentageThreshold=${seaportBidPercentageThreshold}`
+              );
+
               return results.push({
                 id,
                 status: "bid-too-low",
