@@ -34,7 +34,7 @@ export const getCommonCollectionsOwnersV1Options: RouteOptions = {
                 .pattern(/^0x[a-fA-F0-9]{40}$/)
             )
             .min(1)
-            .max(5)
+            .max(50)
             .description(
               "Array of owner addresses. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
             ),

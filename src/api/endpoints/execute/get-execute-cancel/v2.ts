@@ -27,7 +27,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
       // TODO: Add support for batch cancellations (where possible)
       id: Joi.string()
         .required()
-        .description("Collection ID. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63``"),
+        .description("Order Id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"),
       maker: Joi.string()
         .lowercase()
         .pattern(regex.address)
