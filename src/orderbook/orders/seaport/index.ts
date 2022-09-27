@@ -392,7 +392,7 @@ export const save = async (
 
         logger.info(
           "orders-seaport-save",
-          `Bid floor ask check - start. orderId=${id}, contract=${
+          `Bid value validation - start. orderId=${id}, contract=${
             info.contract
           }, tokenId=${tokenId}, info=${JSON.stringify(info)}`
         );
@@ -408,9 +408,9 @@ export const save = async (
 
             logger.info(
               "orders-seaport-save",
-              `Bid floor ask check - percentage threshold check. orderId=${id}, contract=${
+              `Bid value validation - check. orderId=${id}, contract=${
                 info.contract
-              }, tokenId=${tokenId}, value=${value.toString()}, percentage=${percentage.toString()}, seaportBidPercentageThreshold=${seaportBidPercentageThreshold}. bitTooLow=${
+              }, tokenId=${tokenId}, value=${value.toString()}, collectionFloorAskValue=${collectionFloorAskValue}, percentage=${percentage.toString()}, seaportBidPercentageThreshold=${seaportBidPercentageThreshold}. bitTooLow=${
                 percentage < seaportBidPercentageThreshold
               }`
             );
@@ -425,7 +425,7 @@ export const save = async (
         } catch (error) {
           logger.error(
             "orders-seaport-save",
-            `Bid floor ask check error. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}, error=${error}`
+            `Bid value validation - error. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}, error=${error}`
           );
         }
       }
@@ -829,31 +829,15 @@ export const save = async (
 export const getCollectionFloorAskValue = async (contract: string, tokenId: number) => {
   if (getNetworkSettings().multiCollectionContracts.includes(contract)) {
     const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-
-    logger.info(
-      "orders-seaport-save",
-      `Get collection floor ask - multi collection contract. contract=${contract}, tokenId=${tokenId}, collectionFloorAskValue=${collection?.floorSellValue}`
-    );
-
     return collection?.floorSellValue;
   } else {
     const collectionFloorAskValue = await redis.get(`collection-floor-ask:${contract}`);
 
     if (collectionFloorAskValue) {
-      logger.info(
-        "orders-seaport-save",
-        `Get collection floor ask - single collection contract - got from cache. contract=${contract}, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}`
-      );
-
       return Number(collectionFloorAskValue);
     } else {
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
       const collectionFloorAskValue = collection!.floorSellValue || 0;
-
-      logger.info(
-        "orders-seaport-save",
-        `Get collection floor ask - single collection contract - got from db. contract=${contract}, tokenId=${tokenId}, collectionFloorAskValue=${collectionFloorAskValue}`
-      );
 
       await redis.set(`collection-floor-ask:${contract}`, collectionFloorAskValue, "EX", 3600);
 
