@@ -9,6 +9,8 @@ import { redis } from "@/common/redis";
 import { ApiKeyEntity, ApiKeyUpdateParams } from "@/models/api-keys/api-key-entity";
 import getUuidByString from "uuid-by-string";
 import { channels } from "@/pubsub/channels";
+import axios from "axios";
+import { getNetworkName } from "@/config/network";
 
 export type ApiKeyRecord = {
   app_name: string;
@@ -36,10 +38,12 @@ export class ApiKeyManager {
       values.key = getUuidByString(`${values.key}${values.email}${values.website}`);
     }
 
+    let created;
+
     // Create the record in the database
     try {
-      await idb.none(
-        "INSERT INTO api_keys (${this:name}) VALUES (${this:csv}) ON CONFLICT DO NOTHING",
+      created = await idb.oneOrNone(
+        "INSERT INTO api_keys (${this:name}) VALUES (${this:csv}) ON CONFLICT DO NOTHING RETURNING 1",
         values
       );
     } catch (e) {
@@ -54,6 +58,10 @@ export class ApiKeyManager {
     } catch (e) {
       logger.error("api-key", `Unable to set the redis hash: ${e}`);
       // Let's continue here, even if we can't write to redis, we should be able to check the values against the db
+    }
+
+    if (created) {
+      await ApiKeyManager.notifyApiKeyCreated(values);
     }
 
     return {
@@ -216,5 +224,72 @@ export class ApiKeyManager {
 
     await ApiKeyManager.deleteCachedApiKey(key); // reload the cache
     await redis.publish(channels.apiKeyUpdated, JSON.stringify({ key }));
+  }
+
+  static async notifyApiKeyCreated(values: ApiKeyRecord) {
+    await axios
+      .post(
+        "https://hooks.slack.com/services/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",
+        JSON.stringify({
+          text: "API Key created",
+          blocks: [
+            {
+              type: "header",
+              text: {
+                type: "plain_text",
+                text: "API Key created",
+              },
+            },
+            {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `New API Key created on *${getNetworkName()}*`,
+              },
+            },
+            {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `*Key:* ${values.key}`,
+              },
+            },
+            {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `*AppName:* ${values.app_name}`,
+              },
+            },
+            {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `*Website:* ${values.website}`,
+              },
+            },
+            {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `*Email:* ${values.email}`,
+              },
+            },
+          ],
+        }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+      .catch((error) => {
+        logger.error(
+          "api-keys",
+          `Failed to notify slack. status: ${error.response.status}, data:${JSON.stringify(
+            error.response.data
+          )}`
+        );
+      });
   }
 }
