@@ -11,6 +11,7 @@ import getUuidByString from "uuid-by-string";
 import { channels } from "@/pubsub/channels";
 import axios from "axios";
 import { getNetworkName } from "@/config/network";
+import { config } from "@/config/index";
 
 export type ApiKeyRecord = {
   app_name: string;
@@ -229,7 +230,7 @@ export class ApiKeyManager {
   static async notifyApiKeyCreated(values: ApiKeyRecord) {
     await axios
       .post(
-        "https://hooks.slack.com/services/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",
+        config.slackApiKeyWebhookUrl,
         JSON.stringify({
           text: "API Key created",
           blocks: [
@@ -283,13 +284,8 @@ export class ApiKeyManager {
           },
         }
       )
-      .catch((error) => {
-        logger.error(
-          "api-keys",
-          `Failed to notify slack. status: ${error.response.status}, data:${JSON.stringify(
-            error.response.data
-          )}`
-        );
+      .catch(() => {
+        // Skip on any errors
       });
   }
 }

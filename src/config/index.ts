@@ -68,4 +68,6 @@ export const config = {
   railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 
   cipherSecret: String(process.env.CIPHER_SECRET),
+
+  slackApiKeyWebhookUrl: String(process.env.SLACK_API_KEY_WEBHOOK_URL),
 };
