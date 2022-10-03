@@ -40,9 +40,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         .required(),
       overrideCoolDown: Joi.boolean()
         .default(false)
-        .description(
-          "If true, will force a refresh regardless of cool down. Requires a valid api key to be passed."
-        ),
+        .description("If true, will force a refresh regardless of cooldown."),
     }),
   },
   response: {

@@ -482,6 +482,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             name: source?.metadata.title || source?.name,
             icon: source?.metadata.icon,
             url: source?.metadata.url,
+            domain: source?.domain,
           },
           feeBps: Number(r.fee_bps),
           feeBreakdown: r.fee_breakdown,
