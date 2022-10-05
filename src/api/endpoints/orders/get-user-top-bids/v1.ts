@@ -37,11 +37,12 @@ export const getUserTopBidsV1Options: RouteOptions = {
         ),
     }),
     query: Joi.object({
-      collection: Joi.string()
-        .lowercase()
-        .description(
-          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        ),
+      collection: Joi.alternatives(
+        Joi.string().lowercase(),
+        Joi.array().items(Joi.string().lowercase())
+      ).description(
+        "Filter to a particular collections. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+      ),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
@@ -181,7 +182,11 @@ export const getUserTopBidsV1Options: RouteOptions = {
     }
 
     if (query.collection) {
-      collectionFilter = `AND id = $/collection/`;
+      if (Array.isArray(query.collection)) {
+        collectionFilter = `AND id IN ($/collection:csv/)`;
+      } else {
+        collectionFilter = `AND id = $/collection/`;
+      }
     }
 
     try {
