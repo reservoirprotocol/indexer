@@ -219,79 +219,7 @@ export const save = async (
               },
             ]);
 
-            try {
-              const collectionDay30Rank = await redis.zscore(
-                "collections_day30_rank",
-                info.contract
-              );
-
-              if (!collectionDay30Rank || Number(collectionDay30Rank) <= 1000) {
-                logger.info(
-                  "orders-seaport-save",
-                  `TokenSet Check Start. orderId=${id}, contract=${info.contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}, collectionDay30Rank=${collectionDay30Rank}`
-                );
-
-                const tokenSetTokensExist = await redb.oneOrNone(
-                  `
-                  SELECT 1 FROM "token_sets" "ts"
-                  WHERE "ts"."id" = $/tokenSetId/
-                  LIMIT 1
-                `,
-                  { tokenSetId }
-                );
-
-                if (!tokenSetTokensExist) {
-                  logger.info(
-                    "orders-seaport-save",
-                    `Missing tokenSet. orderId=${id}, contract=${info.contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}`
-                  );
-
-                  const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
-
-                  if (getNetworkSettings().multiCollectionContracts.includes(info.contract)) {
-                    const collectionIds = await redb.manyOrNone(
-                      `
-                      SELECT id FROM "collections" "c"
-                      WHERE "c"."contract" = $/contract/
-                    `,
-                      { contract: toBuffer(info.contract) }
-                    );
-
-                    await pendingFlagStatusSyncJobs.add(
-                      collectionIds.map((c) => ({
-                        kind: "collection",
-                        data: {
-                          collectionId: c.id,
-                          backfill: false,
-                        },
-                      }))
-                    );
-                  } else {
-                    await pendingFlagStatusSyncJobs.add([
-                      {
-                        kind: "collection",
-                        data: {
-                          collectionId: info.contract,
-                          backfill: false,
-                        },
-                      },
-                    ]);
-                  }
-
-                  await flagStatusProcessQueue.addToQueue();
-                }
-              } else {
-                logger.info(
-                  "orders-seaport-save",
-                  `TokenSet Check Skip. orderId=${id}, contract=${info.contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}, collectionDay30Rank=${collectionDay30Rank}`
-                );
-              }
-            } catch (error) {
-              logger.error(
-                "orders-seaport-save",
-                `tokenSet error. orderId=${id}, contract=${info.contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}, error=${error}`
-              );
-            }
+            await handleTokenList(id, info.contract, tokenSetId, merkleRoot);
           }
 
           break;
@@ -861,6 +789,109 @@ export const save = async (
   }
 
   return results;
+};
+
+export const handleTokenList = async (
+  orderId: string,
+  contract: string,
+  tokenSetId: string,
+  merkleRoot: string
+) => {
+  try {
+    logger.info(
+      "orders-seaport-save",
+      `handleTokenList - Start. orderId=${orderId}, contract=${contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}`
+    );
+
+    const handleTokenSetId = await redis.set(
+      `seaport-handle-token-list:${tokenSetId}`,
+      Date.now(),
+      "EX",
+      86400,
+      "NX"
+    );
+
+    if (handleTokenSetId) {
+      logger.info(
+        "orders-seaport-save",
+        `handleTokenList - Rank Check - Start. orderId=${orderId}, contract=${contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}`
+      );
+
+      const collectionDay30Rank = await redis.zscore("collections_day30_rank", contract);
+
+      if (!collectionDay30Rank || Number(collectionDay30Rank) <= 1000) {
+        logger.info(
+          "orders-seaport-save",
+          `handleTokenList - Missing TokenSet Check - Start. orderId=${orderId}, contract=${contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}, collectionDay30Rank=${collectionDay30Rank}`
+        );
+
+        const tokenSetTokensExist = await redb.oneOrNone(
+          `
+                  SELECT 1 FROM "token_sets" "ts"
+                  WHERE "ts"."id" = $/tokenSetId/
+                  LIMIT 1
+                `,
+          { tokenSetId }
+        );
+
+        if (!tokenSetTokensExist) {
+          logger.info(
+            "orders-seaport-save",
+            `handleTokenList - Missing TokenSet Check - Missing tokenSet. orderId=${orderId}, contract=${contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}, collectionDay30Rank=${collectionDay30Rank}`
+          );
+
+          const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
+
+          if (getNetworkSettings().multiCollectionContracts.includes(contract)) {
+            const collectionIds = await redb.manyOrNone(
+              `
+                      SELECT id FROM "collections" "c"
+                      WHERE "c"."contract" = $/contract/
+                    `,
+              { contract: toBuffer(contract) }
+            );
+
+            await pendingFlagStatusSyncJobs.add(
+              collectionIds.map((c) => ({
+                kind: "collection",
+                data: {
+                  collectionId: c.id,
+                  backfill: false,
+                },
+              }))
+            );
+          } else {
+            await pendingFlagStatusSyncJobs.add([
+              {
+                kind: "collection",
+                data: {
+                  collectionId: contract,
+                  backfill: false,
+                },
+              },
+            ]);
+          }
+
+          await flagStatusProcessQueue.addToQueue();
+        }
+      } else {
+        logger.info(
+          "orders-seaport-save",
+          `handleTokenList - Rank Check - Skip. orderId=${orderId}, contract=${contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}, collectionDay30Rank=${collectionDay30Rank}`
+        );
+      }
+    } else {
+      logger.info(
+        "orders-seaport-save",
+        `handleTokenList - Skip. orderId=${orderId}, contract=${contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}`
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "orders-seaport-save",
+      `handleTokenList - Error. orderId=${orderId}, contract=${contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}, error=${error}`
+    );
+  }
 };
 
 export const getCollectionFloorAskValue = async (contract: string, tokenId: number) => {
