@@ -57,7 +57,9 @@ export const getExecuteBidV4Options: RouteOptions = {
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)
-        .description("Domain of the platform that created the order. Example: `chimpers.xyz`"),
+        .description(
+          `Domain of your app that is creating the order, e.g. \`myapp.xyz\`. This is used for filtering, and to attribute the "order source" of sales in on-chain analytics, to help your app get discovered. Lean more <a href='https://docs.reservoir.tools/docs/calldata-attribution'>here</a>`
+        ),
       params: Joi.array().items(
         Joi.object({
           token: Joi.string()

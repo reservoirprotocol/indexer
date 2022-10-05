@@ -27,7 +27,6 @@ if (config.doBackgroundWork) {
       const { sourceDomain } = job.data;
       let url = sourceDomain;
       let iconUrl;
-      let titleText;
 
       if (!_.startsWith(url, "http")) {
         url = `https://${url}`;
@@ -40,14 +39,9 @@ if (config.doBackgroundWork) {
       // First get the custom reservoir title tag
       const reservoirTitle = html.querySelector("meta[property='reservoir:title']");
 
+      let titleText = sourceDomain; // Default name for source is the domain
       if (reservoirTitle) {
         titleText = reservoirTitle.getAttribute("content");
-      } else {
-        // Get the domain default title
-        const title = html.querySelector("title");
-        if (title) {
-          titleText = title.text;
-        }
       }
 
       // First get the custom reservoir icon tag

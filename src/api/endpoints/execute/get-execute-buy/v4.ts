@@ -74,7 +74,9 @@ export const getExecuteBuyV4Options: RouteOptions = {
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)
-        .description("Filling source used for attribution. Example: `reservoir.market`"),
+        .description(
+          `Domain of your app that is filling the order, e.g. \`myapp.xyz\`. This is used to attribute the "fill source" of sales in on-chain analytics, to help your app get discovered. Learn more <a href='https://docs.reservoir.tools/docs/calldata-attribution'>here</a>`
+        ),
       feesOnTop: Joi.array()
         .items(Joi.string().pattern(regex.fee))
         .description(
