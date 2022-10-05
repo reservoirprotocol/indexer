@@ -19,8 +19,8 @@ export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
     attempts: 10,
-    removeOnComplete: 1,
-    removeOnFail: 1,
+    removeOnComplete: 1000,
+    removeOnFail: 1000,
   },
 });
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
@@ -32,7 +32,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { collectionId, contract } = job.data;
 
-      let delay = 5000;
+      let delay = 2500;
 
       // Get the tokens from the list
       const pendingFlagStatusSyncTokensQueue = new PendingFlagStatusSyncTokens(collectionId);
