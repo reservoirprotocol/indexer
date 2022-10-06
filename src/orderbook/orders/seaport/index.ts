@@ -823,6 +823,7 @@ export const handleTokenList = async (
               `
                       SELECT id FROM "collections" "c"
                       WHERE "c"."contract" = $/contract/
+                      AND day30_rank <= 1000
                     `,
               { contract: toBuffer(contract) }
             );
