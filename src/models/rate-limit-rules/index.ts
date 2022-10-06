@@ -176,7 +176,9 @@ export class RateLimitRules {
 
     const query = `SELECT DISTINCT ON (route) *
                    FROM rate_limit_rules
-                   WHERE tier = $/tier/ OR tier IS NULL OR api_key = $/key/
+                   WHERE (tier = $/tier/ AND api_key IN ('', $/key/))
+                   OR (tier IS NULL AND api_key IN ('', $/key/))
+                   OR (api_key = $/key/)
                    ORDER BY route, api_key DESC`;
 
     const values = {
