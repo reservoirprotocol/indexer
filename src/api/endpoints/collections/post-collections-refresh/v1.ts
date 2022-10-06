@@ -141,6 +141,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         await collectionUpdatesMetadata.addToQueue(
           collection.contract,
           tokenId,
+          0,
           payload.overrideCoolDown
         );
 
