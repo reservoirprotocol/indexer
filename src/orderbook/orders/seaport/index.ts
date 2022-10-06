@@ -219,7 +219,9 @@ export const save = async (
               },
             ]);
 
-            await handleTokenList(id, info.contract, tokenSetId, merkleRoot);
+            if (!isReservoir) {
+              await handleTokenList(id, info.contract, tokenSetId, merkleRoot);
+            }
           }
 
           break;
@@ -784,11 +786,6 @@ export const handleTokenList = async (
   merkleRoot: string
 ) => {
   try {
-    logger.info(
-      "orders-seaport-save",
-      `handleTokenList - Start. orderId=${orderId}, contract=${contract}, merkleRoot=${merkleRoot}, tokenSetId=${tokenSetId}`
-    );
-
     const handleTokenSetId = await redis.set(
       `seaport-handle-token-list:${tokenSetId}`,
       Date.now(),
