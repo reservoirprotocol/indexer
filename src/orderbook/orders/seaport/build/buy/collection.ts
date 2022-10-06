@@ -63,10 +63,10 @@ export const build = async (options: BuildOrderOptions) => {
           FROM collections
           WHERE collections.id = $/id/
         `,
-        { id: collectionResult.id }
+        { id: options.collection }
       );
       if (result?.non_flagged_token_set_id) {
-        cachedMerkleRoot = result?.non_flagged_token_set_id;
+        cachedMerkleRoot = result?.non_flagged_token_set_id.split(":")[2];
       }
     }
 
@@ -74,7 +74,7 @@ export const build = async (options: BuildOrderOptions) => {
     const schema = {
       kind: options.excludeFlaggedTokens ? "collection-non-flagged" : "collection",
       data: {
-        collection: collectionResult.id,
+        collection: options.collection,
       },
     };
     const schemaHash = generateSchemaHash(schema);
