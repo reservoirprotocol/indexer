@@ -1,6 +1,6 @@
 -- Up Migration
 
-ALTER TABLE "sources_v2" ADD COLUMN "optimized" BOOLEAN;
+ALTER TABLE "sources_v2" ADD COLUMN "optimized" BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Down Migration
 
