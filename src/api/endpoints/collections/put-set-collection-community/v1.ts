@@ -31,7 +31,7 @@ export const putSetCollectionCommunityV1Options: RouteOptions = {
         ),
     }),
     payload: Joi.object({
-      community: Joi.string().lowercase().required(),
+      community: Joi.string().lowercase().required().allow(""),
     }),
   },
   response: {
@@ -56,11 +56,22 @@ export const putSetCollectionCommunityV1Options: RouteOptions = {
       throw Boom.unauthorized("Invalid API key");
     }
 
-    if (apiKey.permissions?.assign_collection_to_community != payload.community) {
-      throw Boom.unauthorized("Not allowed");
-    }
-
     try {
+      if (payload.community === "") {
+        const collection = await Collections.getById(params.collection);
+
+        // If no collection found
+        if (_.isNull(collection)) {
+          throw Boom.badRequest(`Collection ${params.collection} not found`);
+        }
+
+        if (apiKey.permissions?.assign_collection_to_community != collection.community) {
+          throw Boom.unauthorized("Not allowed");
+        }
+      } else if (apiKey.permissions?.assign_collection_to_community != payload.community) {
+        throw Boom.unauthorized("Not allowed");
+      }
+
       await Collections.update(params.collection, { community: payload.community });
 
       return { message: "Success" };

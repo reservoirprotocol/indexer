@@ -17,7 +17,7 @@ export * from "@/api/endpoints/admin/post-resync-source";
 export * from "@/api/endpoints/admin/post-update-source";
 export * from "@/api/endpoints/admin/post-refresh-collection-flags";
 export * from "@/api/endpoints/admin/get-marketplaces";
-export * from "@/api/endpoints/admin/post-update-api-key-tier";
+export * from "@/api/endpoints/admin/post-update-api-key";
 export * from "@/api/endpoints/admin/get-rate-limit-rules";
 export * from "@/api/endpoints/admin/post-update-rate-limit-rule";
 export * from "@/api/endpoints/admin/post-create-rate-limit-rule";

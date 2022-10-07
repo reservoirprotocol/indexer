@@ -99,8 +99,8 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
-    path: "/admin/update-api-key-tier",
-    options: adminEndpoints.postUpdateApiKeyTierOptions,
+    path: "/admin/update-api-key",
+    options: adminEndpoints.postUpdateApiKeyOptions,
   });
 
   server.route({

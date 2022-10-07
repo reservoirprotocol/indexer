@@ -56,7 +56,12 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (contract: string | string[], tokenId = "1", delay = 0) => {
+export const addToQueue = async (
+  contract: string | string[],
+  tokenId = "1",
+  delay = 0,
+  forceRefresh = false
+) => {
   if (_.isArray(contract)) {
     await queue.addBulk(
       _.map(contract, (c) => ({
@@ -66,7 +71,7 @@ export const addToQueue = async (contract: string | string[], tokenId = "1", del
       }))
     );
   } else {
-    if (_.isNull(await redis.get(`${QUEUE_NAME}:${contract}`))) {
+    if (forceRefresh || _.isNull(await redis.get(`${QUEUE_NAME}:${contract}`))) {
       await queue.add(randomUUID(), { contract, tokenId }, { delay });
     }
   }

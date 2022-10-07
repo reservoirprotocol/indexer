@@ -7,6 +7,7 @@ export enum ApiKeyPermission {
 export type ApiKeyUpdateParams = {
   website?: string;
   tier?: number;
+  active?: boolean;
 };
 
 export type ApiKeyEntityParams = {

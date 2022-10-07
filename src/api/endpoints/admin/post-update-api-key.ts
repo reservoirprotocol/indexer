@@ -8,8 +8,8 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 
-export const postUpdateApiKeyTierOptions: RouteOptions = {
-  description: "Update the tier for the giver api key",
+export const postUpdateApiKeyOptions: RouteOptions = {
+  description: "Update the given api key",
   tags: ["api", "x-admin"],
   validate: {
     headers: Joi.object({
@@ -17,7 +17,8 @@ export const postUpdateApiKeyTierOptions: RouteOptions = {
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       apiKey: Joi.string().description("The api key to update"),
-      tier: Joi.number().valid(0, 1, 2, 3, 4).required(),
+      tier: Joi.number().valid(0, 1, 2, 3, 4).optional(),
+      active: Joi.boolean().optional(),
     }),
   },
   handler: async (request: Request) => {
@@ -28,13 +29,16 @@ export const postUpdateApiKeyTierOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      await ApiKeyManager.update(payload.apiKey, { tier: payload.tier });
+      await ApiKeyManager.update(payload.apiKey, {
+        tier: payload.tier,
+        active: payload.active,
+      });
 
       return {
-        message: `Api Key ${payload.apiKey} was updated with tier=${payload.tier}`,
+        message: `Api Key ${payload.apiKey} was updated with ${JSON.stringify(payload)}`,
       };
     } catch (error) {
-      logger.error("post-update-api-key-tier-handler", `Handler failure: ${error}`);
+      logger.error("post-update-api-key-handler", `Handler failure: ${error}`);
       throw error;
     }
   },

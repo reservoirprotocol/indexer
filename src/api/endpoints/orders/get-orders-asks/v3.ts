@@ -99,9 +99,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
         .max(1000)
         .default(50)
         .description("Amount of items returned in response."),
-    })
-      .oxor("token", "ids", "contracts", "maker", "native")
-      .oxor("source", "ids", "contracts", "maker", "native"),
+    }),
   },
   response: {
     schema: Joi.object({

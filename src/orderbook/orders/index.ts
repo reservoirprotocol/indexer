@@ -293,6 +293,9 @@ export const generateBidDetails = async (
         kind: "universe",
         ...common,
         order: sdkOrder,
+        extraArgs: {
+          amount: sdkOrder.params.take.value,
+        },
       };
     }
 

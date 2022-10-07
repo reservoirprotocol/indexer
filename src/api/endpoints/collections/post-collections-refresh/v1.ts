@@ -92,7 +92,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
       if (payload.metadataOnly) {
         // Refresh the collection metadata
         const tokenId = _.isEmpty(collection.tokenIdRange) ? "1" : `${collection.tokenIdRange[0]}`;
-        await collectionUpdatesMetadata.addToQueue(collection.contract, tokenId);
+        await collectionUpdatesMetadata.addToQueue(collection.contract, tokenId, 0, true);
       } else {
         const isLargeCollection = collection.tokenCount > 30000;
 
@@ -138,7 +138,12 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
 
         // Refresh the collection metadata
         const tokenId = _.isEmpty(collection.tokenIdRange) ? "1" : `${collection.tokenIdRange[0]}`;
-        await collectionUpdatesMetadata.addToQueue(collection.contract, tokenId);
+        await collectionUpdatesMetadata.addToQueue(
+          collection.contract,
+          tokenId,
+          0,
+          payload.overrideCoolDown
+        );
 
         // Refresh the contract floor sell and top bid
         await collectionsRefreshCache.addToQueue(collection.contract);

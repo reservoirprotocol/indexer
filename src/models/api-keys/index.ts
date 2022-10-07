@@ -109,7 +109,10 @@ export class ApiKeyManager {
         }
       } else {
         // check if it exists in the database
-        const fromDb = await redb.oneOrNone(`SELECT * FROM api_keys WHERE key = $/key/`, { key });
+        const fromDb = await redb.oneOrNone(
+          `SELECT * FROM api_keys WHERE key = $/key/ AND active = true`,
+          { key }
+        );
 
         if (fromDb) {
           Promise.race([redis.set(redisKey, JSON.stringify(fromDb)), timeout]); // Set in redis (no need to wait)
@@ -211,8 +214,10 @@ export class ApiKeyManager {
     };
 
     _.forEach(fields, (value, fieldName) => {
-      updateString += `${_.snakeCase(fieldName)} = $/${fieldName}/,`;
-      (replacementValues as any)[fieldName] = value;
+      if (!_.isUndefined(value)) {
+        updateString += `${_.snakeCase(fieldName)} = $/${fieldName}/,`;
+        (replacementValues as any)[fieldName] = value;
+      }
     });
 
     updateString = _.trimEnd(updateString, ",");
