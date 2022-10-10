@@ -46,7 +46,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
       optimizeCheckoutURL: Joi.boolean()
         .default(false)
         .description(
-          "If true, and marketplace isn't set to optimized in sources table, replace the marketplace URL with reservoir.market one"
+          "If true, urls will only be returned for optimized sources that support royalties."
         ),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
