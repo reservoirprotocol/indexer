@@ -3,12 +3,18 @@
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
+import * as Boom from "@hapi/boom";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { Collections } from "@/models/collections";
 
 const version = "v1";
 
 export const getAttributesStaticV1Options: RouteOptions = {
+  cache: {
+    privacy: "public",
+    expiresIn: 1000 * 60 * 60 * 24,
+  },
   description: "All attributes + token ids",
   tags: ["api", "Attributes"],
   plugins: {
@@ -49,6 +55,11 @@ export const getAttributesStaticV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const params = request.params as any;
+
+    const collection = await Collections.getById(params.collection);
+    if (!collection || collection?.tokenCount > 30000) {
+      throw Boom.badData("Collection not supported");
+    }
 
     try {
       const baseQuery = `

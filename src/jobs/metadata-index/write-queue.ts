@@ -11,6 +11,8 @@ import { config } from "@/config/index";
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
 import * as rarityQueue from "@/jobs/collection-updates/rarity-queue";
+import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
+import { getUnixTime } from "date-fns";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -65,10 +67,12 @@ if (config.doBackgroundWork) {
               image = $/image/,
               media = $/media/,
               ${flaggedQueryPart}
-              updated_at = now()
+              updated_at = now(),
+              collection_id = collection_id,
+              created_at = created_at
             WHERE tokens.contract = $/contract/
-              AND tokens.token_id = $/tokenId/
-            RETURNING 1
+            AND tokens.token_id = $/tokenId/
+            RETURNING collection_id, created_at
           `,
           {
             contract: toBuffer(contract),
@@ -80,8 +84,30 @@ if (config.doBackgroundWork) {
             isFlagged: flagged === undefined ? null : Number(flagged),
           }
         );
+
+        // Skip if there is no associated entry in the `tokens` table
         if (!result) {
-          // Skip if there is no associated entry in the `tokens` table
+          return;
+        }
+
+        // If the new collection ID is different from the collection ID currently stored
+        if (result.collection_id != collection) {
+          logger.info(
+            "new-collection",
+            `New collection ${collection} for contract=${contract}, tokenId=${tokenId}, old collection=${result.collection_id}`
+          );
+
+          await fetchCollectionMetadata.addToQueue(
+            [
+              {
+                contract,
+                tokenId,
+                mintedTimestamp: getUnixTime(new Date(result.created_at)),
+              },
+            ],
+            `${contract}-${tokenId}`
+          );
+
           return;
         }
 

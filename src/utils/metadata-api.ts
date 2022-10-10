@@ -57,7 +57,7 @@ export class MetadataApi {
         royalties: object | null;
         contract: string;
         tokenIdRange: [string, string] | null;
-        tokenSetId: string;
+        tokenSetId: string | null;
         isFallback?: boolean;
       } = (data as any).collection;
 
@@ -71,7 +71,8 @@ export class MetadataApi {
 
   public static async getTokensMetadata(
     tokens: { contract: string; tokenId: string }[],
-    useAltUrl = false
+    useAltUrl = false,
+    method = ""
   ) {
     const queryParams = new URLSearchParams();
 
@@ -79,17 +80,18 @@ export class MetadataApi {
       queryParams.append("token", `${token.contract}:${token.tokenId}`);
     }
 
+    method = method === "" ? config.metadataIndexingMethod : method;
+
     const url = `${
       useAltUrl ? config.metadataApiBaseUrlAlt : config.metadataApiBaseUrl
-    }/v4/${getNetworkName()}/metadata/token?method=${
-      config.metadataIndexingMethod
-    }&${queryParams.toString()}`;
+    }/v4/${getNetworkName()}/metadata/token?method=${method}&${queryParams.toString()}`;
 
     const { data } = await axios.get(url);
 
     const tokenMetadata: {
       contract: string;
       tokenId: string;
+      collection: string;
       flagged: boolean;
       name?: string;
       description?: string;

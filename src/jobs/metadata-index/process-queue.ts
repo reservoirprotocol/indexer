@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import axios from "axios";
 import _ from "lodash";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
@@ -8,9 +7,9 @@ import { randomUUID } from "crypto";
 import { logger } from "@/common/logger";
 import { redis, extendLock, releaseLock, acquireLock, getLockExpiration } from "@/common/redis";
 import { config } from "@/config/index";
-import { getNetworkName } from "@/config/network";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
+import MetadataApi from "@/utils/metadata-api";
 
 const QUEUE_NAME = "metadata-index-process-queue";
 
@@ -31,22 +30,6 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
-  type TokenMetadata = {
-    contract: string;
-    tokenId: string;
-    name?: string;
-    description?: string;
-    imageUrl?: string;
-    mediaUrl?: string;
-    flagged?: boolean;
-    attributes: {
-      key: string;
-      value: string;
-      kind: "string" | "number" | "date" | "range";
-      rank?: number;
-    }[];
-  };
-
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
@@ -64,35 +47,28 @@ if (config.doBackgroundWork) {
 
       const count = 20;
 
-      const queryParams = new URLSearchParams();
-      queryParams.append("method", method);
-
       // Get the tokens from the list
       const pendingRefreshTokens = new PendingRefreshTokens(method);
       const refreshTokens = await pendingRefreshTokens.get(count);
-      const tokenToCollections = {};
+      const tokens = [];
 
       // If no more tokens
       if (_.isEmpty(refreshTokens)) {
         return;
       }
 
-      // Build the query string and store the collection for each token
+      // Build the query string for each token
       for (const refreshToken of refreshTokens) {
-        queryParams.append("token", `${refreshToken.contract}:${refreshToken.tokenId}`);
-        (tokenToCollections as any)[`${refreshToken.contract}:${refreshToken.tokenId}`] =
-          refreshToken.collection;
+        tokens.push({
+          contract: refreshToken.contract,
+          tokenId: refreshToken.tokenId,
+        });
       }
 
-      // Get the metadata for the tokens
-      const url = `${
-        useMetadataApiBaseUrlAlt ? config.metadataApiBaseUrlAlt : config.metadataApiBaseUrl
-      }/v4/${getNetworkName()}/metadata/token?${queryParams.toString()}`;
-
-      let metadataResult;
+      let metadata;
 
       try {
-        metadataResult = await axios.get(url, { timeout: 60 * 1000 }).then(({ data }) => data);
+        metadata = await MetadataApi.getTokensMetadata(tokens, useMetadataApiBaseUrlAlt, method);
       } catch (error) {
         if ((error as any).response?.status === 429) {
           logger.info(
@@ -120,13 +96,9 @@ if (config.doBackgroundWork) {
         throw error;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const metadata: TokenMetadata[] = (metadataResult as any).metadata;
-
       await metadataIndexWrite.addToQueue(
         metadata.map((m) => ({
           ...m,
-          collection: (tokenToCollections as any)[`${m.contract.toLowerCase()}:${m.tokenId}`],
         }))
       );
 
