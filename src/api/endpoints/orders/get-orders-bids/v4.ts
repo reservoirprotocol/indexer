@@ -441,6 +441,9 @@ export const getOrdersBidsV4Options: RouteOptions = {
         if (r.token_set_id?.startsWith("token")) {
           const [, contract, tokenId] = r.token_set_id.split(":");
           source = sources.get(Number(r.source_id_int), contract, tokenId);
+        } else if (query.token) {
+          const [contract, tokenId] = query.token.split(":");
+          source = sources.get(Number(r.source_id_int), contract, tokenId);
         } else {
           source = sources.get(Number(r.source_id_int));
         }
