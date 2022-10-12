@@ -16,6 +16,8 @@ import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { redb } from "@/common/db";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import * as flagStatusGenerateAttributeTokenSet from "@/jobs/flag-status/generate-attribute-token-set";
+import { toBuffer } from "@/common/utils";
+import { HashZero } from "@ethersproject/constants";
 
 const QUEUE_NAME = "flag-status-generate-collection-token-set";
 
@@ -75,12 +77,14 @@ if (config.doBackgroundWork) {
           },
         };
 
+        const schemaHash = generateSchemaHash(schema);
+
         // Create new token set for non flagged tokens
         const ts = await tokenSet.tokenList.save([
           {
             id: tokenSetId,
             schema,
-            schemaHash: generateSchemaHash(schema),
+            schemaHash,
             items: {
               contract,
               tokenIds: nonFlaggedTokensIds,
@@ -107,7 +111,7 @@ if (config.doBackgroundWork) {
             collectionId,
             flaggedTokens.map((r) => r.tokenId)
           );
-          await handleOrders(contract, collectionId, tokenSetId);
+          await handleOrders(contract, collectionId, tokenSetId, schemaHash);
         }
       } else {
         logger.info(
@@ -164,19 +168,28 @@ const getCollectionTokens = async (collectionId: string) => {
   return tokens;
 };
 
-const handleOrders = async (contract: string, collectionId: string, tokenSetId: string) => {
+const handleOrders = async (
+  contract: string,
+  collectionId: string,
+  tokenSetId: string,
+  tokenSetSchemaHash: string
+) => {
   // Trigger new order flow for valid orders.
   const orders = await redb.manyOrNone(
     `
-                SELECT orders.id
-                FROM orders
+                UPDATE orders
+                SET token_set_schema_hash = $/tokenSetSchemaHash/
                 WHERE orders.side = 'buy'
                 AND orders.fillability_status = 'fillable'
                 AND orders.approval_status = 'approved'
                 AND orders.token_set_id = $/tokenSetId/
+                AND orders.token_set_schema_hash = $/defaultSchemaHash/
+                RETURNING orders.id
               `,
     {
       tokenSetId,
+      tokenSetSchemaHash: toBuffer(tokenSetSchemaHash),
+      defaultSchemaHash: toBuffer(HashZero),
     }
   );
 
