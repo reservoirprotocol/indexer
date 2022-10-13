@@ -146,6 +146,18 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         backfillBlockBatchSize: 128,
+        washTradingExcludedContracts: [
+          // ArtBlocks Contracts
+          "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
+          // Sound.xyz Contracts
+          "0xbe8f3dfce2fcbb6dd08a7e8109958355785c968b",
+        ],
+        multiCollectionContracts: [
+          // ArtBlocks Contracts
+          "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
+          // Sound.xyz Contracts
+          "0xbe8f3dfce2fcbb6dd08a7e8109958355785c968b",
+        ],
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
