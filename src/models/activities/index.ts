@@ -74,7 +74,8 @@ export class Activities {
             LEFT JOIN LATERAL (
                SELECT 
                    source_id_int AS "order_source_id_int",
-                   side AS "order_side"
+                   side AS "order_side",
+                   kind AS "order_kind"
                FROM orders
                WHERE activities.order_id = orders.id
             ) o ON TRUE
@@ -168,7 +169,8 @@ export class Activities {
              LEFT JOIN LATERAL (
                 SELECT 
                     source_id_int AS "order_source_id_int",
-                    side AS "order_side"
+                    side AS "order_side",
+                    kind AS "order_kind"
                 FROM orders
                 WHERE activities.order_id = orders.id
              ) o ON TRUE`;
@@ -235,7 +237,8 @@ export class Activities {
              LEFT JOIN LATERAL (
                 SELECT 
                     source_id_int AS "order_source_id_int",
-                    side AS "order_side"
+                    side AS "order_side",
+                    kind AS "order_kind"
                 FROM orders
                 WHERE activities.order_id = orders.id
              ) o ON TRUE
