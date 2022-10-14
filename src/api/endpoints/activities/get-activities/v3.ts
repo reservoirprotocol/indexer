@@ -61,7 +61,7 @@ export const getActivityV3Options: RouteOptions = {
     const query = request.query as any;
 
     try {
-      const activities = await Activities.getActivities(query.continuation, query.limit);
+      const activities = await Activities.getActivities(query.continuation, query.limit, true);
 
       // If no activities found
       if (!activities.length) {
@@ -111,7 +111,7 @@ export const getActivityV3Options: RouteOptions = {
         const lastActivity = _.last(activities);
 
         if (lastActivity) {
-          continuation = buildContinuation(`${lastActivity.eventTimestamp}`);
+          continuation = buildContinuation(`${lastActivity.eventTimestamp}_${lastActivity.id}`);
         }
       }
 
