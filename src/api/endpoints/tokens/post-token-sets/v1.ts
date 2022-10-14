@@ -33,9 +33,7 @@ export const postTokenSetsV1Options: RouteOptions = {
       contract: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description(
-          "Array of tokens to gather in a set. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
-        )
+        .description("Contract address. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`")
         .required(),
       tokenIds: Joi.array().items(Joi.string().lowercase().pattern(/^\d+$/)).required(),
     }),

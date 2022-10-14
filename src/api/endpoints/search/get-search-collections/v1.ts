@@ -65,7 +65,7 @@ export const getSearchCollectionsV1Options: RouteOptions = {
   handler: async (request: Request) => {
     const query = request.query as any;
     let whereClause = "";
-    const conditions: string[] = [];
+    const conditions: string[] = [`token_count > 0`];
 
     if (query.name) {
       query.name = `%${query.name}%`;
