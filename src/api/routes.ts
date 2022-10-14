@@ -530,6 +530,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "POST",
+    path: "/execute/buy/v6",
+    options: executeEndpoints.getExecuteBuyV6Options,
+  });
+
+  server.route({
     method: "GET",
     path: "/execute/cancel/v1",
     options: executeEndpoints.getExecuteCancelV1Options,
@@ -587,6 +593,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/execute/sell/v5",
     options: executeEndpoints.getExecuteSellV5Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/execute/sell/v6",
+    options: executeEndpoints.getExecuteSellV6Options,
   });
 
   // Health

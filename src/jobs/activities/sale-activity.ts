@@ -6,9 +6,15 @@ import { Activities } from "@/models/activities";
 import { getActivityHash } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
+import { AddressZero } from "@ethersproject/constants";
 
 export class SaleActivity {
   public static async handleEvent(data: FillEventData) {
+    // Paid mints will be recorded as mints
+    if (data.fromAddress == AddressZero) {
+      return;
+    }
+
     const token = await Tokens.getByContractAndTokenId(data.contract, data.tokenId, true);
 
     // If no token found
