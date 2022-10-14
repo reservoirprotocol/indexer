@@ -9,6 +9,7 @@ import { buildContinuation, formatEth, regex, splitContinuation } from "@/common
 import { ActivityType } from "@/models/activities/activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { Sources } from "@/models/sources";
+import { getOrderSourceByOrderKind, OrderKind } from "@/orderbook/orders";
 
 const version = "v4";
 
@@ -142,13 +143,20 @@ export const getUserActivityV4Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
 
-      // Iterate over the activities
-      const result = _.map(activities, (activity) => {
-        const orderSource = activity.order?.sourceIdInt
-          ? sources.get(activity.order.sourceIdInt)
-          : undefined;
+      const result = [];
 
-        return {
+      for (const activity of activities) {
+        let orderSource;
+
+        if (activity.order) {
+          const orderSourceIdInt =
+            activity.order.sourceIdInt ||
+            (await getOrderSourceByOrderKind(activity.order.kind! as OrderKind))?.id;
+
+          orderSource = orderSourceIdInt ? sources.get(orderSourceIdInt) : undefined;
+        }
+
+        result.push({
           type: activity.type,
           fromAddress: activity.fromAddress,
           toAddress: activity.toAddress,
@@ -175,8 +183,8 @@ export const getUserActivityV4Options: RouteOptions = {
                   : undefined,
               }
             : undefined,
-        };
-      });
+        });
+      }
 
       // Set the continuation node
       let continuation = null;

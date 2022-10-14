@@ -51,6 +51,7 @@ export type ActivitiesEntityParams = {
   collection_metadata: CollectionsMetadata;
   order_side: string;
   order_source_id_int: number;
+  order_kind: string;
 };
 
 // Possible fields to be found in the metadata
@@ -61,6 +62,7 @@ export type ActivityMetadata = {
   orderId?: string;
   orderSide?: string;
   orderSourceIdInt?: number;
+  orderKind?: string;
 };
 
 export type ActivityToken = {
@@ -79,6 +81,7 @@ export type ActivityOrder = {
   id: string | null;
   side: string | null;
   sourceIdInt: number | null;
+  kind: string | null;
 };
 
 export class ActivitiesEntity {
@@ -131,6 +134,7 @@ export class ActivitiesEntity {
       id: params.order_id,
       side: params.order_side,
       sourceIdInt: params.order_source_id_int,
+      kind: params.order_kind,
     };
   }
 }

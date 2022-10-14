@@ -112,7 +112,8 @@ export class UserActivities {
              LEFT JOIN LATERAL (
                 SELECT 
                     source_id_int AS "order_source_id_int",
-                    side AS "order_side"
+                    side AS "order_side",
+                    kind AS "order_kind"
                 FROM orders
                 WHERE user_activities.order_id = orders.id
              ) o ON TRUE
