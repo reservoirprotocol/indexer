@@ -60,6 +60,8 @@ export class UserActivities {
 
   public static async getActivities(
     users: string[],
+    collections: string[] = [],
+    community = "",
     createdBefore: null | string = null,
     types: string[] = [],
     limit = 20,
@@ -68,6 +70,8 @@ export class UserActivities {
     const sortByColumn = sortBy == "eventTimestamp" ? "event_timestamp" : "created_at";
     let continuation = "";
     let typesFilter = "";
+    let collectionFilter = "";
+    let communityFilter = "";
 
     if (!_.isNull(createdBefore)) {
       continuation = `AND ${sortByColumn} < $/createdBefore/`;
@@ -77,10 +81,24 @@ export class UserActivities {
       typesFilter = `AND type IN ('$/types:raw/')`;
     }
 
+    if (!_.isEmpty(collections)) {
+      if (Array.isArray(collections)) {
+        collectionFilter = `AND collections.id IN ($/collections:csv/)`;
+      } else {
+        collectionFilter = `AND collections.id = $/collections/`;
+      }
+    }
+
+    if (community) {
+      communityFilter = "AND collections.community = $/community/";
+    }
+
     const values = {
       limit,
       createdBefore: sortBy == "eventTimestamp" ? Number(createdBefore) : createdBefore,
       types: _.join(types, "','"),
+      collections,
+      community,
     };
 
     let usersFilter = "";
@@ -104,10 +122,12 @@ export class UserActivities {
                 WHERE user_activities.contract = tokens.contract
                 AND user_activities.token_id = tokens.token_id
              ) t ON TRUE
-             LEFT JOIN LATERAL (
+             ${!_.isEmpty(collections) || community ? "" : "LEFT"} JOIN LATERAL (
                 SELECT name AS "collection_name", metadata AS "collection_metadata"
                 FROM collections
                 WHERE user_activities.collection_id = collections.id
+                ${collectionFilter}
+                ${communityFilter}
              ) c ON TRUE
              LEFT JOIN LATERAL (
                 SELECT 

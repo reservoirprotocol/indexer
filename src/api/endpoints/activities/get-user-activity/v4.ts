@@ -10,6 +10,8 @@ import { ActivityType } from "@/models/activities/activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { Sources } from "@/models/sources";
 import { getOrderSourceByOrderKind, OrderKind } from "@/orderbook/orders";
+import { CollectionSets } from "@/models/collection-sets";
+import * as Boom from "@hapi/boom";
 
 const version = "v4";
 
@@ -41,6 +43,18 @@ export const getUserActivityV4Options: RouteOptions = {
             )
         )
         .required(),
+      collection: Joi.alternatives(
+        Joi.string().lowercase(),
+        Joi.array().items(Joi.string().lowercase())
+      ).description(
+        "Filter to one or more collections. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+      ),
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
+      community: Joi.string()
+        .lowercase()
+        .description("Filter to a particular community. Example: `artblocks`"),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -68,7 +82,7 @@ export const getUserActivityV4Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
-    }),
+    }).oxor("collection", "collectionsSetId", "community"),
   },
   response: {
     schema: Joi.object({
@@ -127,9 +141,18 @@ export const getUserActivityV4Options: RouteOptions = {
       query.continuation = splitContinuation(query.continuation)[0];
     }
 
+    if (query.collectionsSetId) {
+      query.collection = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+      if (_.isEmpty(query.collection)) {
+        throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+      }
+    }
+
     try {
       const activities = await UserActivities.getActivities(
         query.users,
+        query.collection,
+        query.community,
         query.continuation,
         query.types,
         query.limit,

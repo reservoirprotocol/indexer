@@ -121,6 +121,8 @@ export const getUserActivityV3Options: RouteOptions = {
     try {
       const activities = await UserActivities.getActivities(
         query.users,
+        [],
+        "",
         query.continuation,
         query.types,
         query.limit,
