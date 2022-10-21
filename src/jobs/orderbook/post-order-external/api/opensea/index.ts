@@ -66,54 +66,55 @@ export const buildCollectionOffer = async (
     config.chainId === 5 ? "testnets-api." : "api."
   }opensea.io/v2/offers/build`;
 
-  return (
-    axios
-      .post(
-        url,
-        JSON.stringify({
-          offerer,
-          quantity,
-          criteria: {
-            collection: {
-              slug: collectionSlug,
-            },
+  return axios
+    .post(
+      url,
+      JSON.stringify({
+        offerer,
+        quantity,
+        criteria: {
+          collection: {
+            slug: collectionSlug,
           },
-        }),
-        {
-          headers:
-            config.chainId === 1
-              ? {
-                  "Content-Type": "application/json",
-                  "X-Api-Key": apiKey || config.openSeaApiKey,
-                }
-              : {
-                  "Content-Type": "application/json",
-                  // The request will fail if passing the API key on Rinkeby
-                },
-        }
-      )
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .then((response) => response.data as any)
-      .catch((error) => {
+        },
+      }),
+      {
+        transformResponse: (x) => x,
+        headers:
+          config.chainId === 1
+            ? {
+                "Content-Type": "application/json",
+                "X-Api-Key": apiKey || config.openSeaApiKey,
+              }
+            : {
+                "Content-Type": "application/json",
+                // The request will fail if passing the API key on Rinkeby
+              },
+      }
+    )
+    .then((response) => {
+      const data = response.data.replace(/([[:])?(\d+)([,}\]])/g, '$1"$2"$3');
+      return JSON.parse(data);
+    })
+    .catch((error) => {
+      logger.error(
+        "OPENSEA_ORDERBOOK_API",
+        `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, error=${error}`
+      );
+
+      if (error.response) {
         logger.error(
           "OPENSEA_ORDERBOOK_API",
-          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, error=${error}`
+          `Failed to build OpenSea collection offer. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, status: ${
+            error.response.status
+          }, data:${JSON.stringify(error.response.data)}`
         );
 
-        if (error.response) {
-          logger.error(
-            "OPENSEA_ORDERBOOK_API",
-            `Failed to build OpenSea collection offer. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, status: ${
-              error.response.status
-            }, data:${JSON.stringify(error.response.data)}`
-          );
+        handleErrorResponse(error.response);
+      }
 
-          handleErrorResponse(error.response);
-        }
-
-        throw new Error(`Failed to build OpenSea collection offer`);
-      })
-  );
+      throw new Error(`Failed to build OpenSea collection offer`);
+    });
 };
 
 export const postCollectionOffer = async (
@@ -122,7 +123,7 @@ export const postCollectionOffer = async (
   apiKey: string
 ) => {
   const url = `https://${config.chainId === 5 ? "testnets-api." : "api."}opensea.io/v2/offers`;
-  const data = {
+  const data = JSON.stringify({
     criteria: {
       collection: {
         slug: collectionSlug,
@@ -135,7 +136,7 @@ export const postCollectionOffer = async (
       },
       signature: order.params.signature!,
     },
-  };
+  });
 
   await axios
     .post(url, data, {

@@ -255,8 +255,8 @@ const postOrder = async (
           )}`
         );
 
-        order.params.consideration[0] =
-          buildCollectionOfferParams.partialParameters.consideration[0];
+        order.params.consideration[0].identifierOrCriteria =
+          buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria;
 
         return OpenSeaApi.postCollectionOffer(order, collectionSlug, orderbookApiKey);
       }
