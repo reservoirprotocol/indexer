@@ -312,7 +312,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
         "orders.side = 'buy'",
       ];
 
-      let orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+      let orderStatusFilter;
 
       if (query.ids) {
         if (Array.isArray(query.ids)) {
@@ -320,6 +320,8 @@ export const getOrdersBidsV4Options: RouteOptions = {
         } else {
           conditions.push(`orders.id = $/ids/`);
         }
+      } else {
+        orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
       }
 
       if (query.tokenSetId) {
@@ -387,7 +389,9 @@ export const getOrdersBidsV4Options: RouteOptions = {
         conditions.push(`orders.is_reservoir`);
       }
 
-      conditions.push(orderStatusFilter);
+      if (orderStatusFilter) {
+        conditions.push(orderStatusFilter);
+      }
 
       if (query.continuation) {
         const [priceOrCreatedAt, id] = splitContinuation(
