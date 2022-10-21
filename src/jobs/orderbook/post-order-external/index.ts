@@ -202,6 +202,13 @@ const postOrder = async (
         orderData as Sdk.Seaport.Types.OrderComponents
       );
 
+      logger.info(
+        QUEUE_NAME,
+        `Post Order Seaport. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+          orderData
+        )}, side=${order.getInfo()?.side}, kind=${order.params.kind}`
+      );
+
       if (
         order.getInfo()?.side === "buy" &&
         ["contract-wide", "token-list"].includes(order.params.kind!)
