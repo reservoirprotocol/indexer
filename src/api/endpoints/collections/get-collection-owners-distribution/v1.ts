@@ -10,7 +10,7 @@ import { toBuffer } from "@/common/utils";
 const version = "v1";
 
 export const getCollectionOwnersDistributionV1Options: RouteOptions = {
-  description: "Owners Distribution",
+  description: "Owners Collection Distribution",
   notes: "This API can be used to show what the distribution of owners in a collection looks like.",
   tags: ["api", "Owners"],
   plugins: {

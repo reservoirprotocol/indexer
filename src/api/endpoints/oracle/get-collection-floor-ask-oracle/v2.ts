@@ -22,7 +22,7 @@ export const getCollectionFloorAskOracleV2Options: RouteOptions = {
   description: "Collection floor",
   notes:
     "Get a signed message of any collection's floor price (spot or twap). The oracle signer address is 0x32da57e736e05f75aa4fae2e9be60fd904492726.",
-  tags: ["api", "Oracle"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 12,

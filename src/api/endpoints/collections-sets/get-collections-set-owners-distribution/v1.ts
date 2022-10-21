@@ -11,7 +11,7 @@ import { CollectionSets } from "@/models/collection-sets";
 const version = "v1";
 
 export const getCollectionsSetOwnersDistributionV1Options: RouteOptions = {
-  description: "Owners distribution",
+  description: "Owners Collection Set Distribution",
   notes:
     "This API can be used to show what the distribution of owners in a collections set looks like.",
   tags: ["api", "Owners"],
