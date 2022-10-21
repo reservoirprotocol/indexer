@@ -129,6 +129,15 @@ async function getTokensForCollection(
   });
 }
 
+export function getIndexingMethod(community: string | null) {
+  switch (community) {
+    case "sound.xyz":
+      return "soundxyz";
+  }
+
+  return config.metadataIndexingMethod;
+}
+
 export type MetadataIndexInfo =
   | {
       kind: "full-collection";

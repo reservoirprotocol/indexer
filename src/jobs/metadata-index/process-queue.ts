@@ -45,7 +45,7 @@ if (config.doBackgroundWork) {
         useMetadataApiBaseUrlAlt = true;
       }
 
-      const count = 20;
+      const count = method == "soundxyz" ? 10 : 20;
 
       // Get the tokens from the list
       const pendingRefreshTokens = new PendingRefreshTokens(method);

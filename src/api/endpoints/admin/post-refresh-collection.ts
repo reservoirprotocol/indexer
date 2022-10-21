@@ -99,7 +99,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
           {
             kind: "full-collection",
             data: {
-              method: config.metadataIndexingMethod,
+              method: metadataIndexFetch.getIndexingMethod(collection.community),
               collection: collection.id,
             },
           },
