@@ -148,7 +148,7 @@ export const start = async (): Promise<void> => {
     // If matching rule was found
     if (rateLimitRule) {
       // If the requested path has no limit
-      if (rateLimitRule.points === 0) {
+      if (rateLimitRule.points == 0) {
         return reply.continue;
       }
 
