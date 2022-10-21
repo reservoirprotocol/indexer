@@ -216,36 +216,42 @@ export class RateLimitRules {
     // Check for api key specific rule on the route method
     rule = this.rules.get(RateLimitRules.getRuleKey(route, method, null, apiKey));
     if (rule) {
+      rule.keyPrefix = route;
       return rule;
     }
 
     // Check for api key specific rule on the route
     rule = this.rules.get(RateLimitRules.getRuleKey(route, "", null, apiKey));
     if (rule) {
+      rule.keyPrefix = route;
       return rule;
     }
 
     // Check for route method rule for the given tier
     rule = this.rules.get(RateLimitRules.getRuleKey(route, method, tier, ""));
     if (rule) {
+      rule.keyPrefix = route;
       return rule;
     }
 
     // Check for route method rule for all tiers
     rule = this.rules.get(RateLimitRules.getRuleKey(route, method, null, ""));
     if (rule) {
+      rule.keyPrefix = route;
       return rule;
     }
 
     // Check for route all methods rule
     rule = this.rules.get(RateLimitRules.getRuleKey(route, "", tier, ""));
     if (rule) {
+      rule.keyPrefix = route;
       return rule;
     }
 
     // Check for route all methods rule all tiers
     rule = this.rules.get(RateLimitRules.getRuleKey(route, "", null, ""));
     if (rule) {
+      rule.keyPrefix = route;
       return rule;
     }
 
