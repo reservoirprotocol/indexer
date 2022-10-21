@@ -93,6 +93,11 @@ export const buildCollectionOffer = async (
     )
     .then((response) => JSON.parse(response.data))
     .catch((error) => {
+      logger.error(
+        "OPENSEA_ORDERBOOK_API",
+        `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, error=${error}`
+      );
+
       if (error.response) {
         logger.error(
           "OPENSEA_ORDERBOOK_API",
@@ -146,6 +151,13 @@ export const postCollectionOffer = async (
       }
     )
     .catch((error) => {
+      logger.error(
+        "OPENSEA_ORDERBOOK_API",
+        `Post OpenSea collection offer error. order=${JSON.stringify(
+          order
+        )}, collectionSlug=${collectionSlug}, error=${error}`
+      );
+
       if (error.response) {
         logger.error(
           "OPENSEA_ORDERBOOK_API",
