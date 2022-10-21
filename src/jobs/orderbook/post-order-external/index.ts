@@ -242,6 +242,19 @@ const postOrder = async (
           orderbookApiKey
         );
 
+        logger.info(
+          QUEUE_NAME,
+          `Post Order Seaport consideration. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+            orderData
+          )}, side=${order.getInfo()?.side}, kind=${
+            order.params.kind
+          }, consideration=${JSON.stringify(
+            order.params.consideration[0]
+          )}, consideration=${JSON.stringify(
+            buildCollectionOfferParams.partialParameters.consideration[0]
+          )}`
+        );
+
         order.params.consideration[0] =
           buildCollectionOfferParams.partialParameters.consideration[0];
 
