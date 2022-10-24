@@ -56,10 +56,10 @@ export const getDailyVolumesV1Options: RouteOptions = {
         SELECT
           collection_id AS id,
           timestamp,
-          volume,
-          rank,
-          floor_sell_value,
-          sales_count                    
+          volume_clean AS "volume",
+          rank_clean AS "rank",
+          floor_sell_value_clean AS "floor_sell_value",
+          sales_count_clean AS "sales_count"                   
         FROM daily_volumes
       `;
 

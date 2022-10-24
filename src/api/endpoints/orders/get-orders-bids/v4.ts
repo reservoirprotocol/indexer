@@ -124,6 +124,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             Joi.object({
               kind: "token",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 tokenName: Joi.string().allow("", null),
                 image: Joi.string().allow("", null),
@@ -132,6 +133,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             Joi.object({
               kind: "collection",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 image: Joi.string().allow("", null),
               }),
@@ -139,6 +141,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             Joi.object({
               kind: "attribute",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 attributes: Joi.array().items(
                   Joi.object({ key: Joi.string(), value: Joi.string() })
@@ -186,6 +189,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                 json_build_object(
                   'kind', 'token',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'tokenName', tokens.name,
                     'image', tokens.image
@@ -202,6 +206,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                 json_build_object(
                   'kind', 'collection',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
                   )
@@ -214,6 +219,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                 json_build_object(
                   'kind', 'collection',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
                   )
@@ -229,6 +235,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                       json_build_object(
                         'kind', 'collection',
                         'data', json_build_object(
+                          'collectionId', collections.id,
                           'collectionName', collections.name,
                           'image', (collections.metadata ->> 'imageUrl')::TEXT
                         )
@@ -240,6 +247,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
                       json_build_object(
                         'kind', 'attribute',
                         'data', json_build_object(
+                          'collectionId', collections.id,
                           'collectionName', collections.name,
                           'attributes', ARRAY[json_build_object('key', attribute_keys.key, 'value', attributes.value)],
                           'image', (collections.metadata ->> 'imageUrl')::TEXT
