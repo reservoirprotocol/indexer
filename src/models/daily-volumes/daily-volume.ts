@@ -136,7 +136,7 @@ export class DailyVolume {
         }
       );
     } catch (error) {
-      logger.info(
+      logger.error(
         "daily-volumes",
         `Error while trying to fetch the calculations for the daily volume. startTime=${startTime}, endTime=${endTime}, error=${error}`
       );
