@@ -135,13 +135,18 @@ export class DailyVolume {
           endTime,
         }
       );
-    } catch (e) {
+    } catch (error) {
+      logger.info(
+        "daily-volumes",
+        `Error while trying to fetch the calculations for the daily volume. startTime=${startTime}, endTime=${endTime}, error=${error}`
+      );
+
       logger.error(
         "daily-volumes",
         JSON.stringify({
-          msg: `Error while trying to fetch the calculations for the daily volume. startTime=${startTime}`,
+          msg: `Error while trying to fetch the calculations for the daily volume. startTime=${startTime}, endTime=${endTime}`,
           timestamp: startTime,
-          exception: e,
+          exception: error,
         })
       );
 
