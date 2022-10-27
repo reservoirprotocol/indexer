@@ -61,7 +61,7 @@ export const syncEvents = async (
   // related to every of those blocks a priori for efficiency. Otherwise, it can be
   // too inefficient to do it and in this case we just proceed (and let any further
   // processes fetch those blocks as needed / if needed).
-  if (toBlock - fromBlock + 1 <= 32) {
+  if (!backfill && toBlock - fromBlock + 1 <= 32) {
     const limit = pLimit(32);
     await Promise.all(
       _.range(fromBlock, toBlock + 1).map((block) => limit(() => syncEventsUtils.fetchBlock(block)))

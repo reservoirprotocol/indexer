@@ -87,6 +87,7 @@ export const addToQueue = async (
       },
       opts: {
         priority: prioritized ? 1 : undefined,
+        jobId: `${from}-${to}`,
       },
     });
   }

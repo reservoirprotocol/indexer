@@ -5,15 +5,16 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
-import { offChainCheck } from "@/orderbook/orders/x2y2/check";
+import { offChainCheck } from "@/orderbook/orders/element/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
 
 export type OrderInfo = {
-  orderParams: Sdk.X2Y2.Types.Order;
+  orderParams: Sdk.Element.Types.BaseOrder;
   metadata: OrderMetadata;
 };
 
@@ -23,19 +24,26 @@ type SaveResult = {
   unfillable?: boolean;
 };
 
-export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
+export const save = async (
+  orderInfos: OrderInfo[],
+  relayToArweave?: boolean
+): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
 
-  // We don't relay X2Y2 orders to Arweave since there is no way to check
-  // the validity of those orders in a decentralized way (we fully depend
-  // on X2Y2's API for that).
+  const arweaveData: {
+    order: Sdk.Element.Order;
+    schemaHash?: string;
+    source?: string;
+  }[] = [];
 
-  const successOrders: Sdk.X2Y2.Types.Order[] = [];
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
-      const order = new Sdk.X2Y2.Order(config.chainId, orderParams);
-      const id = order.params.itemHash;
+      const order = new Sdk.Element.Order(config.chainId, orderParams);
+      const id = order.hash();
+
+      // order.expiry & 0xffffffff <= block.timestamp
+      const expirationTime = bn(order.params.expiry).and(bn("0xffffffff")).toString();
 
       // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(`SELECT 1 FROM orders WHERE orders.id = $/id/`, {
@@ -49,7 +57,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       // Handle: get order kind
-      const kind = await commonHelpers.getContractKind(order.params.nft.token);
+      const kind = await commonHelpers.getContractKind(order.params.nft);
       if (!kind) {
         return results.push({
           id,
@@ -60,18 +68,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const currentTime = now();
 
       // Check: order is not expired
-      const expirationTime = order.params.deadline;
-      if (currentTime >= expirationTime) {
+      if (currentTime >= Number(expirationTime)) {
         return results.push({
           id,
           status: "expired",
         });
       }
 
-      // Check: sell order has Eth as payment token
+      // Check: buy order has Weth as payment token
       if (
-        order.params.type === "sell" &&
-        order.params.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+        order.params.direction === Sdk.Element.Types.TradeDirection.BUY &&
+        order.params.erc20Token !== Sdk.Common.Addresses.Weth[config.chainId]
       ) {
         return results.push({
           id,
@@ -79,14 +86,34 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Check: buy order has Weth as payment token
+      // Check: sell order has Eth as payment token
       if (
-        order.params.type === "buy" &&
-        order.params.currency !== Sdk.Common.Addresses.Weth[config.chainId]
+        order.params.direction === Sdk.Element.Types.TradeDirection.SELL &&
+        order.params.erc20Token !== Sdk.Element.Addresses.Eth[config.chainId]
       ) {
         return results.push({
           id,
           status: "unsupported-payment-token",
+        });
+      }
+
+      // Check: order is valid
+      try {
+        order.checkValidity();
+      } catch {
+        return results.push({
+          id,
+          status: "invalid",
+        });
+      }
+
+      // Check: order has a valid signature
+      try {
+        order.checkSignature();
+      } catch {
+        return results.push({
+          id,
+          status: "invalid-signature",
         });
       }
 
@@ -117,26 +144,35 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       let tokenSetId: string | undefined;
       const schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
 
-      switch (order.params.kind) {
-        case "single-token": {
-          [{ id: tokenSetId }] = await tokenSet.singleToken.save([
+      const info = order.getInfo();
+      if (!info) {
+        return results.push({
+          id,
+          status: "unknown-info",
+        });
+      }
+
+      const orderKind = order.params.kind?.split("-").slice(1).join("-");
+      switch (orderKind) {
+        case "contract-wide": {
+          [{ id: tokenSetId }] = await tokenSet.contractWide.save([
             {
-              id: `token:${order.params.nft.token}:${order.params.nft.tokenId!}`,
+              id: `contract:${order.params.nft}`,
               schemaHash,
-              contract: order.params.nft.token,
-              tokenId: order.params.nft.tokenId!,
+              contract: order.params.nft,
             },
           ]);
 
           break;
         }
 
-        case "collection-wide": {
-          [{ id: tokenSetId }] = await tokenSet.contractWide.save([
+        case "single-token": {
+          [{ id: tokenSetId }] = await tokenSet.singleToken.save([
             {
-              id: `contract:${order.params.nft.token}`,
+              id: `token:${order.params.nft}:${order.params.nftId}`,
               schemaHash,
-              contract: order.params.nft.token,
+              contract: order.params.nft,
+              tokenId: order.params.nftId,
             },
           ]);
 
@@ -152,49 +188,61 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       // Handle: fees
-      let feeBreakdown = [
-        {
-          kind: "marketplace",
-          recipient: Sdk.X2Y2.Addresses.FeeManager[config.chainId],
-          bps: 50,
-        },
-      ];
+      const feeAmount = order.getFeeAmount();
 
-      // Handle: royalties
-      const royalties = await commonHelpers.getOpenSeaRoyalties(order.params.nft.token);
-      feeBreakdown = [
-        ...feeBreakdown,
-        ...royalties.map(({ bps, recipient }) => ({
-          kind: "royalty",
-          recipient,
-          bps,
-        })),
-      ];
-      const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
+      const side = order.params.direction === Sdk.Element.Types.TradeDirection.BUY ? "buy" : "sell";
 
       // Handle: price and value
-      const price = bn(order.params.price);
-      const value = order.params.type === "sell" ? price : price.sub(price.mul(feeBps).div(10000));
+      let price = bn(order.params.erc20TokenAmount).add(feeAmount);
+      let value = price;
+      if (side === "buy") {
+        // For buy orders, we set the value as `price - fee` since it
+        // is best for UX to show the user exactly what they're going
+        // to receive on offer acceptance.
+        value = bn(price).sub(feeAmount);
+      }
+
+      // The price and value are for a single item
+      if (order.params.kind?.startsWith("erc1155")) {
+        price = price.div(order.params.nftAmount!);
+        value = value.div(order.params.nftAmount!);
+      }
+
+      const feeBps = price.eq(0) ? bn(0) : feeAmount.mul(10000).div(price);
+      if (feeBps.gt(10000)) {
+        return results.push({
+          id,
+          status: "fees-too-high",
+        });
+      }
 
       // Handle: source
       const sources = await Sources.getInstance();
-      const source = await sources.getOrInsert("x2y2.io");
+      const source = metadata.source ? await sources.getOrInsert(metadata.source) : undefined;
 
       // Handle: native Reservoir orders
       const isReservoir = false;
 
-      // Handle: conduit
-      let conduit = Sdk.X2Y2.Addresses.Exchange[config.chainId];
-      if (order.params.type === "sell") {
-        conduit = Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId];
+      // Handle: fee breakdown
+      const feeBreakdown = order.params.fees.map(({ recipient, amount }) => ({
+        kind: "royalty",
+        recipient,
+        bps: price.eq(0) ? bn(0) : bn(amount).mul(10000).div(price).toNumber(),
+      }));
+
+      // Handle: currency
+      let currency = order.params.erc20Token;
+      if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
+        // ZeroEx-like exchanges use a non-standard ETH address
+        currency = Sdk.Common.Addresses.Eth[config.chainId];
       }
 
-      const validFrom = `date_trunc('seconds', to_timestamp(${currentTime}))`;
-      const validTo = `date_trunc('seconds', to_timestamp(${order.params.deadline}))`;
+      const validFrom = `date_trunc('seconds', to_timestamp(0))`;
+      const validTo = `date_trunc('seconds', to_timestamp(${expirationTime}))`;
       orderValues.push({
         id,
-        kind: "x2y2",
-        side: order.params.type === "sell" ? "sell" : "buy",
+        kind: `element-${kind}`,
+        side,
         fillability_status: fillabilityStatus,
         approval_status: approvalStatus,
         token_set_id: tokenSetId,
@@ -203,37 +251,39 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         taker: toBuffer(order.params.taker),
         price: price.toString(),
         value: value.toString(),
-        currency: toBuffer(order.params.currency),
+        currency: toBuffer(currency),
         currency_price: price.toString(),
         currency_value: value.toString(),
         needs_conversion: null,
-        quantity_remaining: "1",
+        quantity_remaining: order.params.nftAmount ?? "1",
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
-        nonce: null,
+        nonce: order.params.nonce,
         source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
-        contract: toBuffer(order.params.nft.token),
-        conduit: toBuffer(conduit),
-        fee_bps: feeBps,
+        contract: toBuffer(order.params.nft),
+        conduit: toBuffer(Sdk.Element.Addresses.Exchange[config.chainId]),
+        fee_bps: feeBps.toNumber(),
         fee_breakdown: feeBreakdown || null,
         dynamic: null,
         raw_data: order.params,
         expiration: validTo,
       });
 
+      const unfillable =
+        fillabilityStatus !== "fillable" || approvalStatus !== "approved" ? true : undefined;
+
       results.push({
         id,
         status: "success",
-        unfillable:
-          fillabilityStatus !== "fillable" || approvalStatus !== "approved" ? true : undefined,
+        unfillable,
       });
 
-      if (!results[results.length - 1].unfillable) {
-        successOrders.push(orderParams);
+      if (relayToArweave) {
+        arweaveData.push({ order, schemaHash, source: source?.domain });
       }
     } catch (error) {
       logger.error(
-        "orders-x2y2-save",
+        "orders-element-save",
         `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
       );
     }
@@ -295,51 +345,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         )
     );
 
-    // When lowering the price of a listing, X2Y2 will off-chain cancel
-    // all previous orders (they can do that by having their backend to
-    // refuse signing on any previous orders).
-    // https://discordapp.com/channels/977147775366082560/977189354738962463/987253907430449213
-    for (const orderParams of successOrders) {
-      if (orderParams.type === "sell") {
-        const result = await idb.manyOrNone(
-          `
-            WITH x AS (
-              SELECT
-                orders.id
-              FROM orders
-              WHERE orders.kind = 'x2y2'
-                AND orders.side = 'sell'
-                AND orders.maker = $/maker/
-                AND orders.token_set_id = $/tokenSetId/
-                AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
-                AND orders.price > $/price/
-            )
-            UPDATE orders AS o SET
-              fillability_status = 'cancelled'
-            FROM x
-            WHERE o.id = x.id
-            RETURNING o.id
-          `,
-          {
-            maker: toBuffer(orderParams.maker),
-            tokenSetId: `token:${orderParams.nft.token}:${orderParams.nft.tokenId}`.toLowerCase(),
-            price: orderParams.price,
-          }
-        );
-
-        await ordersUpdateById.addToQueue(
-          result.map(
-            ({ id }) =>
-              ({
-                context: `cancelled-${id}`,
-                id,
-                trigger: {
-                  kind: "new-order",
-                },
-              } as ordersUpdateById.OrderInfo)
-          )
-        );
-      }
+    if (relayToArweave) {
+      await arweaveRelay.addPendingOrdersElement(arweaveData);
     }
   }
 

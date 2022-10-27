@@ -44,6 +44,8 @@ export const getBuildInfo = async (
     isOrderAsk: side === "sell",
     collection: fromBuffer(collectionResult.address),
     signer: options.maker,
+    // Protocol fee (1.5%) + optional fixed royalties (0.5%)
+    minPercentageToAsk: 9800,
     price: options.weiPrice,
     // LooksRare uses WETH instead of ETH for sell orders too
     currency: Sdk.Common.Addresses.Weth[config.chainId],

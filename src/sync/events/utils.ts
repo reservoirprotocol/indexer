@@ -3,7 +3,6 @@ import { AddressZero } from "@ethersproject/constants";
 import { getTxTrace } from "@georgeroman/evm-tx-simulator";
 import * as SdkNew from "@reservoir0x/sdk-new";
 import { getReferrer } from "@reservoir0x/sdk/dist/utils";
-import pLimit from "p-limit";
 
 import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
@@ -11,7 +10,7 @@ import { config } from "@/config/index";
 import { getBlocks, saveBlock } from "@/models/blocks";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { getTransaction, saveTransaction } from "@/models/transactions";
+import { getTransaction, saveTransaction, saveTransactions } from "@/models/transactions";
 import { getTransactionLogs, saveTransactionLogs } from "@/models/transaction-logs";
 import { getTransactionTrace, saveTransactionTrace } from "@/models/transaction-traces";
 import { OrderKind, getOrderSourceByOrderKind } from "@/orderbook/orders";
@@ -25,33 +24,31 @@ export const fetchBlock = async (blockNumber: number, force = false) =>
       } else {
         const block = await baseProvider.getBlockWithTransactions(blockNumber);
 
+        // Create transactions array to store
+        const transactions = block.transactions.map((tx) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const rawTx = tx.raw as any;
+
+          const gasPrice = tx.gasPrice?.toString();
+          const gasUsed = rawTx?.gas ? bn(rawTx.gas).toString() : undefined;
+          const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
+
+          return {
+            hash: tx.hash.toLowerCase(),
+            from: tx.from.toLowerCase(),
+            to: (tx.to || AddressZero).toLowerCase(),
+            value: tx.value.toString(),
+            data: tx.data.toLowerCase(),
+            blockNumber: block.number,
+            blockTimestamp: block.timestamp,
+            gasPrice,
+            gasUsed,
+            gasFee,
+          };
+        });
+
         // Save all transactions within the block
-        const limit = pLimit(20);
-        await Promise.all(
-          block.transactions.map((tx) =>
-            limit(async () => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const rawTx = tx.raw as any;
-
-              const gasPrice = tx.gasPrice?.toString();
-              const gasUsed = rawTx?.gas ? bn(rawTx.gas).toString() : undefined;
-              const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
-
-              await saveTransaction({
-                hash: tx.hash.toLowerCase(),
-                from: tx.from.toLowerCase(),
-                to: (tx.to || AddressZero).toLowerCase(),
-                value: tx.value.toString(),
-                data: tx.data.toLowerCase(),
-                blockNumber: block.number,
-                blockTimestamp: block.timestamp,
-                gasPrice,
-                gasUsed,
-                gasFee,
-              });
-            })
-          )
-        );
+        await saveTransactions(transactions);
 
         return saveBlock({
           number: block.number,

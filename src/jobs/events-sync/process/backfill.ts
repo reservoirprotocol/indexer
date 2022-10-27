@@ -1,6 +1,7 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
+import _ from "lodash";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
@@ -45,5 +46,14 @@ if (config.doBackgroundWork) {
 }
 
 export const addToQueue = async (infos: EventsInfo[]) => {
-  await queue.addBulk(infos.map((info) => ({ name: randomUUID(), data: info })));
+  const jobs: { name: string; data: EventsInfo }[] = [];
+  infos.map((info) => {
+    if (!_.isEmpty(info.events)) {
+      jobs.push({ name: randomUUID(), data: info });
+    }
+  });
+
+  if (!_.isEmpty(jobs)) {
+    await queue.addBulk(jobs);
+  }
 };

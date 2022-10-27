@@ -8,11 +8,11 @@ import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
+import { Sources } from "@/models/sources";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/looks-rare/check";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as tokenSet from "@/orderbook/token-sets";
-import { Sources } from "@/models/sources";
 
 export type OrderInfo = {
   orderParams: Sdk.LooksRare.Types.MakerOrderParams;
@@ -178,18 +178,19 @@ export const save = async (
         {
           kind: "marketplace",
           recipient: "0x5924a28caaf1cc016617874a2f0c3710d881f3c1",
-          bps: 200,
+          bps: 150,
         },
       ];
 
       // Handle: royalties
-      const royalties = await commonHelpers.getRoyalties(order.params.collection);
+      const royalties = await commonHelpers.getOnChainRoyalties(order.params.collection);
       feeBreakdown = [
         ...feeBreakdown,
-        ...royalties.map(({ bps, recipient }) => ({
+        ...(royalties["eip2981"] ?? []).map(({ recipient }) => ({
           kind: "royalty",
           recipient,
-          bps,
+          // LooksRare has fixed 0.5% royalties
+          bps: 50,
         })),
       ];
       const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);

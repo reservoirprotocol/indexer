@@ -9,11 +9,16 @@ import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
 import * as fillUpdates from "@/jobs/fill-updates/queue";
+import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const fillEventsPartial: es.fills.Event[] = [];
 
   const fillInfos: fillUpdates.FillInfo[] = [];
+  const fillEvents: es.fills.Event[] = [];
+  const orderInfos: orderUpdatesById.OrderInfo[] = [];
+  const nonceCancelEvents: es.nonceCancels.Event[] = [];
+  const bulkCancelEvents: es.bulkCancels.Event[] = [];
 
   // Handle the events
   for (const { kind, baseEventParams, log } of events) {
@@ -21,6 +26,54 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
     switch (kind) {
       // Element
 
+      case "element-erc721-order-cancelled":
+      case "element-erc1155-order-cancelled": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const maker = parsedLog.args["maker"].toLowerCase();
+        const nonce = parsedLog.args["nonce"].toString();
+
+        nonceCancelEvents.push({
+          orderKind: eventData!.kind.startsWith("element-erc721")
+            ? "element-erc721"
+            : "element-erc1155",
+          maker,
+          nonce,
+          baseEventParams,
+        });
+
+        break;
+      }
+
+      case "element-hash-nonce-incremented": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const maker = parsedLog.args["maker"].toLowerCase();
+        const nonce = parsedLog.args["nonce"].toString();
+
+        // Cancel all related orders across maker
+        bulkCancelEvents.push({
+          orderKind: "element-erc721",
+          maker,
+          minNonce: nonce,
+          acrossAll: true,
+          baseEventParams,
+        });
+
+        bulkCancelEvents.push({
+          orderKind: "element-erc1155",
+          maker,
+          minNonce: nonce,
+          acrossAll: true,
+          baseEventParams: {
+            ...baseEventParams,
+            // Make sure unique in `bulk_cancel_events` table
+            batchIndex: baseEventParams.batchIndex + 1,
+          },
+        });
+
+        break;
+      }
+
+      case "element-erc721-sell-order-filled-v2":
       case "element-erc721-sell-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
@@ -32,7 +85,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderHash = args["orderHash"].toLowerCase();
 
         // Handle: attribution
-
         const orderKind = "element-erc721";
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
@@ -61,10 +113,22 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEventsPartial.push({
+        const orderSide = "sell";
+
+        orderInfos.push({
+          context: `filled-${orderHash}`,
+          id: orderHash,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+        });
+
+        fillEvents.push({
           orderKind,
           orderId: orderHash,
-          orderSide: "sell",
+          orderSide,
           maker,
           taker,
           price: priceData.nativePrice,
@@ -94,6 +158,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
+      case "element-erc721-buy-order-filled-v2":
       case "element-erc721-buy-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
@@ -111,6 +176,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams.txHash,
           orderKind
         );
+
         if (attributionData.taker) {
           taker = attributionData.taker;
         }
@@ -134,10 +200,31 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEventsPartial.push({
-          orderKind,
+        orderInfos.push({
+          context: `filled-${orderHash}`,
+          id: orderHash,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+        });
+
+        fillInfos.push({
+          context: orderHash,
           orderId: orderHash,
           orderSide: "buy",
+          contract: erc721Token,
+          tokenId: erc721TokenId,
+          amount: "1",
+          price: priceData.nativePrice,
+          timestamp: baseEventParams.timestamp,
+        });
+
+        fillEvents.push({
+          orderKind,
+          orderId: orderHash,
+          orderSide: "sell",
           maker,
           taker,
           price: priceData.nativePrice,
@@ -153,20 +240,10 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
-          context: orderHash,
-          orderId: orderHash,
-          orderSide: "buy",
-          contract: erc721Token,
-          tokenId: erc721TokenId,
-          amount: "1",
-          price: priceData.nativePrice,
-          timestamp: baseEventParams.timestamp,
-        });
-
         break;
       }
 
+      case "element-erc1155-sell-order-filled-v2":
       case "element-erc1155-sell-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
@@ -208,6 +285,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
+        orderInfos.push({
+          context: `filled-${orderHash}-${baseEventParams.txHash}`,
+          id: orderHash,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+        });
+
         fillEventsPartial.push({
           orderKind,
           orderId: orderHash,
@@ -241,6 +328,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
+      case "element-erc1155-buy-order-filled-v2":
       case "element-erc1155-buy-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
@@ -282,6 +370,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
+        orderInfos.push({
+          context: `filled-${orderHash}-${baseEventParams.txHash}`,
+          id: orderHash,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+        });
+
         fillEventsPartial.push({
           orderKind,
           orderId: orderHash,
@@ -318,8 +416,12 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   }
 
   return {
+    bulkCancelEvents,
+    nonceCancelEvents,
     fillEventsPartial,
+    fillEvents,
 
     fillInfos,
+    orderInfos,
   };
 };

@@ -57,9 +57,16 @@ export type EventDataKind =
   | "seaport-counter-incremented"
   | "rarible-match"
   | "element-erc721-sell-order-filled"
+  | "element-erc721-sell-order-filled-v2"
   | "element-erc721-buy-order-filled"
+  | "element-erc721-buy-order-filled-v2"
   | "element-erc1155-sell-order-filled"
+  | "element-erc1155-sell-order-filled-v2"
   | "element-erc1155-buy-order-filled"
+  | "element-erc1155-buy-order-filled-v2"
+  | "element-erc721-order-cancelled"
+  | "element-erc1155-order-cancelled"
+  | "element-hash-nonce-incremented"
   | "quixotic-order-filled"
   | "zora-ask-filled"
   | "zora-ask-created"
@@ -123,9 +130,16 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       x2y2.orderInventory,
       rarible.match,
       element.erc721BuyOrderFilled,
+      element.erc721BuyOrderFilledV2,
       element.erc721SellOrderFilled,
+      element.erc721SellOrderFilledV2,
       element.erc1155BuyOrderFilled,
+      element.erc1155BuyOrderFilledV2,
       element.erc1155SellOrderFilled,
+      element.erc1155SellOrderFilledV2,
+      element.erc721OrderCancelled,
+      element.erc1155OrderCancelled,
+      element.hashNonceIncremented,
       quixotic.orderFulfilled,
       zora.askFilled,
       zora.askCreated,
@@ -220,12 +234,26 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return rarible.match;
     case "element-erc721-sell-order-filled":
       return element.erc721SellOrderFilled;
+    case "element-erc721-sell-order-filled-v2":
+      return element.erc721SellOrderFilledV2;
     case "element-erc721-buy-order-filled":
       return element.erc721BuyOrderFilled;
+    case "element-erc721-buy-order-filled-v2":
+      return element.erc721BuyOrderFilledV2;
     case "element-erc1155-sell-order-filled":
       return element.erc1155SellOrderFilled;
+    case "element-erc1155-sell-order-filled-v2":
+      return element.erc1155SellOrderFilledV2;
     case "element-erc1155-buy-order-filled":
       return element.erc1155BuyOrderFilled;
+    case "element-erc1155-buy-order-filled-v2":
+      return element.erc1155BuyOrderFilledV2;
+    case "element-erc721-order-cancelled":
+      return element.erc721OrderCancelled;
+    case "element-erc1155-order-cancelled":
+      return element.erc1155OrderCancelled;
+    case "element-hash-nonce-incremented":
+      return element.hashNonceIncremented;
     case "quixotic-order-filled":
       return quixotic.orderFulfilled;
     case "zora-ask-filled":

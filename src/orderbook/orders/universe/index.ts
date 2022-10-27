@@ -201,7 +201,7 @@ export const save = async (
       const nftRoyalties: { bps: number; value: string }[] = [];
 
       // Handle: collection royalties
-      const collectionRoyalties = await commonHelpers.getRoyalties(collection);
+      const collectionRoyalties = await commonHelpers.getOpenSeaRoyalties(collection);
 
       let feeBreakdown = collectionRoyalties.map(({ bps, recipient }) => ({
         kind: "royalty",

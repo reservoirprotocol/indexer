@@ -91,6 +91,25 @@ export const addPendingOrdersZeroExV4 = async (
   }
 };
 
+export const addPendingOrdersElement = async (
+  data: { order: Sdk.Element.Order; schemaHash?: string; source?: string }[]
+) => {
+  if (config.arweaveRelayerKey && data.length) {
+    await redis.rpush(
+      PENDING_DATA_KEY,
+      ...data.map(({ order, schemaHash }) =>
+        JSON.stringify({
+          kind: "element",
+          data: {
+            ...order.params,
+            schemaHash,
+          },
+        })
+      )
+    );
+  }
+};
+
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.arweaveRelayerKey) {
   // Optimize as much as possible AR usage efficiency

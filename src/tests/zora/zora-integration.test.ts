@@ -124,8 +124,6 @@ describe("ZoraTestnet", () => {
     //   }
     // );
 
-    // console.log("nftBalance1", nftBalance1);
-
     const tokenOwner = await nftToken.ownerOf(tokenId);
     const indexInterval = 40 * 1000;
     if (tokenOwner == operatorProvider.address) {

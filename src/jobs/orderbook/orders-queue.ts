@@ -104,9 +104,19 @@ if (config.doBackgroundWork) {
 
             break;
           }
+
+          case "element": {
+            const result = await orders.element.save(
+              [info as orders.element.OrderInfo],
+              relayToArweave
+            );
+            logger.info(QUEUE_NAME, `[element] Order save result: ${JSON.stringify(result)}`);
+
+            break;
+          }
         }
       } catch (error) {
-        logger.error(QUEUE_NAME, `Failed to process order ${job.data}: ${error}`);
+        logger.error(QUEUE_NAME, `Failed to process order ${JSON.stringify(job.data)}: ${error}`);
         throw error;
       }
     },
@@ -188,6 +198,12 @@ export type GenericOrderInfo =
   | {
       kind: "universe";
       info: orders.universe.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "element";
+      info: orders.element.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     };
