@@ -33,7 +33,7 @@
     "@hapi/inert": "^6.0.4",
     "@hapi/vision": "^6.1.0",
     "@poprank/rankings": "^1.1.20",
-    "@reservoir0x/sdk": "0.0.209",
+    "@reservoir0x/sdk": "0.0.210",
     "@reservoir0x/sdk-new": "npm:@reservoir0x/sdk@^0.1.9",
     "@types/date-fns": "^2.6.0",
     "@types/hapi__basic": "^5.1.2",
