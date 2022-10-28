@@ -104,6 +104,13 @@ export const postTokensRefreshV1Options: RouteOptions = {
       // Refresh meta data
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
+      if (!collection) {
+        logger.warn(
+          `post-tokens-refresh-${version}-handler`,
+          `Collection does not exist. contract=${contract}, tokenId=${tokenId}`
+        );
+      }
+
       await metadataIndexFetch.addToQueue(
         [
           {
