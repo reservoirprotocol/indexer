@@ -104,22 +104,20 @@ export const postTokensRefreshV1Options: RouteOptions = {
       // Refresh meta data
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
-      if (collection) {
-        await metadataIndexFetch.addToQueue(
-          [
-            {
-              kind: "single-token",
-              data: {
-                method: metadataIndexFetch.getIndexingMethod(collection.community),
-                contract,
-                tokenId,
-                collection: collection.id,
-              },
+      await metadataIndexFetch.addToQueue(
+        [
+          {
+            kind: "single-token",
+            data: {
+              method: metadataIndexFetch.getIndexingMethod(collection?.community || null),
+              contract,
+              tokenId,
+              collection: collection?.id || contract,
             },
-          ],
-          true
-        );
-      }
+          },
+        ],
+        true
+      );
 
       // Revalidate the token orders
       await orderFixes.addToQueue([{ by: "token", data: { token: payload.token } }]);
