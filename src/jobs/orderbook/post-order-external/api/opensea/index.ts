@@ -66,55 +66,54 @@ export const buildCollectionOffer = async (
     config.chainId === 5 ? "testnets-api." : "api."
   }opensea.io/v2/offers/build`;
 
-  return axios
-    .post(
-      url,
-      JSON.stringify({
-        offerer,
-        quantity,
-        criteria: {
-          collection: {
-            slug: collectionSlug,
+  return (
+    axios
+      .post(
+        url,
+        JSON.stringify({
+          offerer,
+          quantity,
+          criteria: {
+            collection: {
+              slug: collectionSlug,
+            },
           },
-        },
-      }),
-      {
-        transformResponse: (x) => x,
-        headers:
-          config.chainId === 1
-            ? {
-                "Content-Type": "application/json",
-                "X-Api-Key": apiKey || config.openSeaApiKey,
-              }
-            : {
-                "Content-Type": "application/json",
-                // The request will fail if passing the API key on Rinkeby
-              },
-      }
-    )
-    .then((response) => {
-      const data = response.data.replace(/([[:])?(\d+)([,}\]])/g, '$1"$2"$3');
-      return JSON.parse(data);
-    })
-    .catch((error) => {
-      logger.error(
-        "OPENSEA_ORDERBOOK_API",
-        `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, error=${error}`
-      );
-
-      if (error.response) {
+        }),
+        {
+          headers:
+            config.chainId === 1
+              ? {
+                  "Content-Type": "application/json",
+                  "X-Api-Key": apiKey || config.openSeaApiKey,
+                }
+              : {
+                  "Content-Type": "application/json",
+                  // The request will fail if passing the API key on Rinkeby
+                },
+        }
+      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((response) => response.data as any)
+      .catch((error) => {
         logger.error(
           "OPENSEA_ORDERBOOK_API",
-          `Failed to build OpenSea collection offer. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, status: ${
-            error.response.status
-          }, data:${JSON.stringify(error.response.data)}`
+          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, error=${error}`
         );
 
-        handleErrorResponse(error.response);
-      }
+        if (error.response) {
+          logger.error(
+            "OPENSEA_ORDERBOOK_API",
+            `Failed to build OpenSea collection offer. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, status: ${
+              error.response.status
+            }, data:${JSON.stringify(error.response.data)}`
+          );
 
-      throw new Error(`Failed to build OpenSea collection offer`);
-    });
+          handleErrorResponse(error.response);
+        }
+
+        throw new Error(`Failed to build OpenSea collection offer`);
+      })
+  );
 };
 
 export const postCollectionOffer = async (
