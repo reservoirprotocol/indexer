@@ -75,8 +75,8 @@ const getUpstreamUSDPrice = async (
         };
       }
     } else if (getNetworkSettings().whitelistedCurrencies.has(currencyAddress)) {
-      const usdPrice = 0.000001;
-      const value = parseUnits(usdPrice.toFixed(USD_DECIMALS), USD_DECIMALS).toString();
+      //  Whitelisted currencies are 1:1 with USD
+      const value = "1";
 
       await idb.none(
         `
