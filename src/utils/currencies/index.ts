@@ -52,7 +52,7 @@ export const getCurrency = async (currencyAddress: string): Promise<Currency> =>
       let name: string | undefined;
       let symbol: string | undefined;
       let decimals: number | undefined;
-      let metadata: CurrencyMetadata = {};
+      let metadata: CurrencyMetadata | undefined;
 
       // If the currency is not available, then we try to retrieve its details
       try {
@@ -63,13 +63,20 @@ export const getCurrency = async (currencyAddress: string): Promise<Currency> =>
           `Failed to initially fetch ${currencyAddress} currency details: ${error}`
         );
 
-        // TODO: Although an edge case, we should ensure that when the job
-        // finally succeeds fetching the details of a currency, we also do
-        // update the memory cache (otherwise the cache will be stale).
+        if (getNetworkSettings().whitelistedCurrencies.has(currencyAddress)) {
+          ({ name, symbol, decimals, metadata } =
+            getNetworkSettings().whitelistedCurrencies.get(currencyAddress)!);
+        } else {
+          // TODO: Although an edge case, we should ensure that when the job
+          // finally succeeds fetching the details of a currency, we also do
+          // update the memory cache (otherwise the cache will be stale).
 
-        // Retry fetching the currency details
-        await currenciesQueue.addToQueue({ currency: currencyAddress });
+          // Retry fetching the currency details
+          await currenciesQueue.addToQueue({ currency: currencyAddress });
+        }
       }
+
+      metadata = metadata || {};
 
       await idb.none(
         `

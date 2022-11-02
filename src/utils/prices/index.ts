@@ -25,10 +25,13 @@ const getUpstreamUSDPrice = async (
   timestamp: number
 ): Promise<Price | undefined> => {
   try {
+    const date = new Date(timestamp * 1000);
+    const truncatedTimestamp = Math.floor(date.valueOf() / 1000);
+
     const currency = await getCurrency(currencyAddress);
     const coingeckoCurrencyId = currency?.metadata?.coingeckoCurrencyId;
+
     if (coingeckoCurrencyId) {
-      const date = new Date(timestamp * 1000);
       const day = date.getDate();
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
@@ -45,7 +48,6 @@ const getUpstreamUSDPrice = async (
       const usdPrice = result?.market_data?.current_price?.["usd"];
       if (usdPrice) {
         const value = parseUnits(usdPrice.toFixed(USD_DECIMALS), USD_DECIMALS).toString();
-        const truncatedTimestamp = Math.floor(date.valueOf() / 1000);
 
         await idb.none(
           `
@@ -72,6 +74,34 @@ const getUpstreamUSDPrice = async (
           value,
         };
       }
+    } else if (getNetworkSettings().whitelistedCurrencies.has(currencyAddress)) {
+      const usdPrice = 0.000001;
+      const value = parseUnits(usdPrice.toFixed(USD_DECIMALS), USD_DECIMALS).toString();
+
+      await idb.none(
+        `
+            INSERT INTO usd_prices (
+              currency,
+              timestamp,
+              value
+            ) VALUES (
+              $/currency/,
+              date_trunc('day', to_timestamp($/timestamp/)),
+              $/value/
+            ) ON CONFLICT DO NOTHING
+          `,
+        {
+          currency: toBuffer(currencyAddress),
+          timestamp: truncatedTimestamp,
+          value,
+        }
+      );
+
+      return {
+        currency: currencyAddress,
+        timestamp: truncatedTimestamp,
+        value,
+      };
     }
   } catch (error) {
     logger.error(
