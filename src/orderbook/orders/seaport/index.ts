@@ -376,7 +376,7 @@ export const save = async (
             }
           }
         } catch (error) {
-          logger.error(
+          logger.warn(
             "orders-seaport-save",
             `Bid value validation - error. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}, error=${error}`
           );
