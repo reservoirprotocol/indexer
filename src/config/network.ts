@@ -5,6 +5,7 @@
 
 import { idb } from "@/common/db";
 import { config } from "@/config/index";
+import { Currency } from "@/utils/currencies";
 
 export const getNetworkName = () => {
   switch (config.chainId) {
@@ -42,6 +43,7 @@ type NetworkSettings = {
   washTradingBlacklistedAddresses: string[];
   mintsAsSalesBlacklist: string[];
   multiCollectionContracts: string[];
+  whitelistedCurrencies: Map<string, Currency>;
   coingecko?: {
     networkId: string;
   };
@@ -62,7 +64,8 @@ export const getNetworkSettings = (): NetworkSettings => {
     washTradingBlacklistedAddresses: [],
     multiCollectionContracts: [],
     mintsAsSalesBlacklist: [],
-    reorgCheckFrequency: [1, 5, 10, 30, 60], // In Minutes
+    reorgCheckFrequency: [1, 5, 10, 30, 60], // In Minutes,
+    whitelistedCurrencies: new Map<string, Currency>(),
   };
 
   switch (config.chainId) {
@@ -105,6 +108,17 @@ export const getNetworkSettings = (): NetworkSettings => {
           // Uniswap V3: Positions NFT
           "0xc36442b4a4522e871399cd717abdd847ab11fe88",
         ],
+        whitelistedCurrencies: new Map([
+          [
+            "0xceb726e6383468dd8ac0b513c8330cc9fb4024a8",
+            {
+              contract: "0xceb726e6383468dd8ac0b513c8330cc9fb4024a8",
+              name: "Worms",
+              symbol: "WORMS",
+              decimals: 18,
+            },
+          ],
+        ]),
         coingecko: {
           networkId: "ethereum",
         },
