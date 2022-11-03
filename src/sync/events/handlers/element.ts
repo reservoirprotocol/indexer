@@ -12,13 +12,12 @@ import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
+  const bulkCancelEvents: es.bulkCancels.Event[] = [];
+  const nonceCancelEvents: es.nonceCancels.Event[] = [];
   const fillEventsPartial: es.fills.Event[] = [];
 
   const fillInfos: fillUpdates.FillInfo[] = [];
-  const fillEvents: es.fills.Event[] = [];
   const orderInfos: orderUpdatesById.OrderInfo[] = [];
-  const nonceCancelEvents: es.nonceCancels.Event[] = [];
-  const bulkCancelEvents: es.bulkCancels.Event[] = [];
 
   // Handle the events
   for (const { kind, baseEventParams, log } of events) {
@@ -125,7 +124,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        fillEvents.push({
+        fillEventsPartial.push({
           orderKind,
           orderId: orderHash,
           orderSide,
@@ -221,7 +220,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           timestamp: baseEventParams.timestamp,
         });
 
-        fillEvents.push({
+        fillEventsPartial.push({
           orderKind,
           orderId: orderHash,
           orderSide: "sell",
@@ -419,7 +418,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
     bulkCancelEvents,
     nonceCancelEvents,
     fillEventsPartial,
-    fillEvents,
 
     fillInfos,
     orderInfos,
