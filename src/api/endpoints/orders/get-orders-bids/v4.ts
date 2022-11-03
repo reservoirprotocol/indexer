@@ -175,7 +175,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
           isReservoir: Joi.boolean().allow(null),
           createdAt: Joi.string().required(),
           updatedAt: Joi.string().required(),
-          rawData: Joi.object().optional(),
+          rawData: Joi.object().optional().allow(null),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),

@@ -54,11 +54,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       };
 
       await orderbookOrders.addToQueue([orderInfo]);
-    } else {
-      logger.info(
-        "opensea-websocket",
-        `Ignored onItemListed Event. event=${JSON.stringify(event)}`
-      );
     }
   });
 }
