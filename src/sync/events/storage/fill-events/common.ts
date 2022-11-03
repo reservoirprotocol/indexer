@@ -9,6 +9,7 @@ export const addEvents = async (events: Event[]) => {
   for (const event of events) {
     if (event.orderId && !uniqueOrderIds.has(event.orderId)) {
       uniqueOrderIds.add(event.orderId);
+    } else if (event.orderId && uniqueOrderIds.has(event.orderId)) {
       continue;
     }
 
