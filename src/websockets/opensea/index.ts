@@ -26,8 +26,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
   logger.info("opensea-websocket", `Connected to opensea ${network} stream API`);
 
   client.onItemListed("*", async (event) => {
-    logger.info("opensea-websocket", `onItemListed Event. event=${JSON.stringify(event)}`);
-
     if (getSupportedChainName() === event.payload.item.chain.name) {
       const [, contract, tokenId] = event.payload.item.nft_id.split("/");
 
