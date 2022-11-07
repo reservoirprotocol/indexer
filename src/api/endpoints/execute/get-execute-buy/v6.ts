@@ -58,6 +58,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
         .description(
           "Address of wallet filling the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
         ),
+      relayer: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description("Address of wallet relaying the filling transaction"),
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
@@ -67,6 +71,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
       currency: Joi.string()
         .pattern(regex.address)
         .default(Sdk.Common.Addresses.Eth[config.chainId]),
+      normalizeRoyalties: Joi.boolean().default(false),
       preferredOrderSource: Joi.string()
         .lowercase()
         .pattern(regex.domain)
@@ -180,6 +185,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           sourceId: number | null;
           currency: string;
           rawData: string;
+          fees?: Sdk.RouterV6.Types.Fee[];
         },
         token: {
           kind: "erc721" | "erc1155";
@@ -188,7 +194,12 @@ export const getExecuteBuyV6Options: RouteOptions = {
           quantity?: number;
         }
       ) => {
-        const totalPrice = bn(order.price).mul(token.quantity ?? 1);
+        const fees = payload.normalizeRoyalties ? order.fees ?? [] : [];
+        const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+
+        const totalPrice = bn(order.price)
+          .add(totalFee)
+          .mul(token.quantity ?? 1);
         path.push({
           orderId: order.id,
           contract: token.contract,
@@ -207,6 +218,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               kind: order.kind,
               currency: order.currency,
               rawData: order.rawData,
+              fees,
             },
             {
               kind: token.kind,
@@ -259,6 +271,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 orders.raw_data,
                 orders.source_id_int,
                 orders.currency,
+                orders.missing_royalties,
                 token_sets_tokens.contract,
                 token_sets_tokens.token_id
               FROM orders
@@ -307,6 +320,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               sourceId: orderResult.source_id_int,
               currency: fromBuffer(orderResult.currency),
               rawData: orderResult.raw_data,
+              fees: orderResult.missing_royalties,
             },
             {
               kind: orderResult.token_kind,
@@ -335,7 +349,8 @@ export const getExecuteBuyV6Options: RouteOptions = {
                   coalesce(orders.currency_price, orders.price) AS price,
                   orders.raw_data,
                   orders.source_id_int,
-                  orders.currency
+                  orders.currency,
+                  orders.missing_royalties
                 FROM orders
                 JOIN contracts
                   ON orders.contract = contracts.address
@@ -367,8 +382,16 @@ export const getExecuteBuyV6Options: RouteOptions = {
               throw Boom.badRequest("No available orders");
             }
 
-            const { id, kind, token_kind, price, source_id_int, currency, raw_data } =
-              bestOrderResult;
+            const {
+              id,
+              kind,
+              token_kind,
+              price,
+              source_id_int,
+              currency,
+              missing_royalties,
+              raw_data,
+            } = bestOrderResult;
 
             await addToPath(
               {
@@ -378,6 +401,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 sourceId: source_id_int,
                 currency: fromBuffer(currency),
                 rawData: raw_data,
+                fees: missing_royalties,
               },
               {
                 kind: token_kind,
@@ -397,6 +421,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
                   x.quantity_remaining,
                   x.source_id_int,
                   x.currency,
+                  x.missing_royalties,
                   x.raw_data
                 FROM (
                   SELECT
@@ -458,6 +483,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               price,
               source_id_int,
               currency,
+              missing_royalties,
               raw_data,
             } of bestOrdersResult) {
               const quantityFilled = Math.min(Number(quantity_remaining), totalQuantityToFill);
@@ -471,6 +497,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
                   sourceId: source_id_int,
                   currency: fromBuffer(currency),
                   rawData: raw_data,
+                  fees: missing_royalties,
                 },
                 {
                   kind: token_kind,
@@ -584,6 +611,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
             status: "incomplete",
             data: {
               ...tx,
+              from: payload.relayer ? payload.relayer : tx.from,
               maxFeePerGas: payload.maxFeePerGas
                 ? bn(payload.maxFeePerGas).toHexString()
                 : undefined,
@@ -599,6 +627,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         status: "incomplete",
         data: {
           ...txData,
+          from: payload.relayer ? payload.relayer : txData.from,
           maxFeePerGas: payload.maxFeePerGas ? bn(payload.maxFeePerGas).toHexString() : undefined,
           maxPriorityFeePerGas: payload.maxPriorityFeePerGas
             ? bn(payload.maxPriorityFeePerGas).toHexString()

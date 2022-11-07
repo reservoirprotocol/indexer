@@ -6,6 +6,7 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import * as orders from "@/orderbook/orders";
+import { SaveResult } from "@/orderbook/orders/x2y2";
 
 const QUEUE_NAME = "orderbook-orders-queue";
 
@@ -30,94 +31,78 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const { kind, info, relayToArweave, validateBidValue } = job.data as GenericOrderInfo;
+      let result: SaveResult[] = [];
 
       try {
         switch (kind) {
           case "x2y2": {
-            const result = await orders.x2y2.save([info as orders.x2y2.OrderInfo]);
-            logger.info(QUEUE_NAME, `[x2y2] Order save result: ${JSON.stringify(result)}`);
-
+            result = await orders.x2y2.save([info as orders.x2y2.OrderInfo]);
             break;
           }
 
           case "foundation": {
-            const result = await orders.foundation.save([info as orders.foundation.OrderInfo]);
-            logger.info(QUEUE_NAME, `[foundation] Order save result: ${JSON.stringify(result)}`);
-
+            result = await orders.foundation.save([info as orders.foundation.OrderInfo]);
             break;
           }
 
           case "cryptopunks": {
-            const result = await orders.cryptopunks.save([info as orders.cryptopunks.OrderInfo]);
-            logger.info(QUEUE_NAME, `[cryptopunks] Order save result: ${JSON.stringify(result)}`);
-
+            result = await orders.cryptopunks.save([info as orders.cryptopunks.OrderInfo]);
             break;
           }
 
           case "zora-v3": {
-            const result = await orders.zora.save([info as orders.zora.OrderInfo]);
-            logger.info(QUEUE_NAME, `[zora-v3] Order save result: ${JSON.stringify(result)}`);
+            result = await orders.zora.save([info as orders.zora.OrderInfo]);
             break;
           }
 
           case "looks-rare": {
-            const result = await orders.looksRare.save(
+            result = await orders.looksRare.save(
               [info as orders.looksRare.OrderInfo],
               relayToArweave
             );
-            logger.info(QUEUE_NAME, `[looks-rare] Order save result: ${JSON.stringify(result)}`);
-
             break;
           }
 
           case "seaport": {
-            const result = await orders.seaport.save(
+            result = await orders.seaport.save(
               [info as orders.seaport.OrderInfo],
               relayToArweave,
               validateBidValue
             );
-            logger.info(QUEUE_NAME, `[seaport] Order save result: ${JSON.stringify(result)}`);
-
             break;
           }
 
           case "sudoswap": {
-            const result = await orders.sudoswap.save([info as orders.sudoswap.OrderInfo]);
-            logger.info(QUEUE_NAME, `[sudoswap] Order save result: ${JSON.stringify(result)}`);
-
+            result = await orders.sudoswap.save([info as orders.sudoswap.OrderInfo]);
             break;
           }
 
           case "zeroex-v4": {
-            const result = await orders.zeroExV4.save(
+            result = await orders.zeroExV4.save(
               [info as orders.zeroExV4.OrderInfo],
               relayToArweave
             );
-            logger.info(QUEUE_NAME, `[zeroex-v4] Order save result: ${JSON.stringify(result)}`);
-
             break;
           }
 
           case "universe": {
-            const result = await orders.universe.save([info as orders.universe.OrderInfo]);
-            logger.info(QUEUE_NAME, `[universe] Order save result: ${JSON.stringify(result)}`);
-
+            result = await orders.universe.save([info as orders.universe.OrderInfo]);
             break;
           }
 
           case "element": {
-            const result = await orders.element.save(
-              [info as orders.element.OrderInfo],
-              relayToArweave
-            );
-            logger.info(QUEUE_NAME, `[element] Order save result: ${JSON.stringify(result)}`);
-
+            result = await orders.element.save([info as orders.element.OrderInfo], relayToArweave);
             break;
           }
         }
       } catch (error) {
         logger.error(QUEUE_NAME, `Failed to process order ${JSON.stringify(job.data)}: ${error}`);
         throw error;
+      }
+
+      // Don't log already-exists
+      if (!(result[0]?.status === "already-exists")) {
+        logger.info(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
       }
     },
     { connection: redis.duplicate(), concurrency: 30 }

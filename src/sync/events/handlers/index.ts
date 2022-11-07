@@ -62,7 +62,7 @@ export const processEvents = async (info: EventsInfo) => {
     }
 
     case "blur": {
-      data = await blur.handleEvents(info.events);
+      data = await blur.handleEvents(info.events, info.backfill);
       break;
     }
 

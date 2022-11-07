@@ -183,21 +183,45 @@ export const save = async (
       ];
 
       // Handle: royalties
-      const royalties = await commonHelpers.getOnChainRoyalties(order.params.collection);
-      feeBreakdown = [
-        ...feeBreakdown,
-        ...(royalties["eip2981"] ?? []).map(({ recipient }) => ({
-          kind: "royalty",
-          recipient,
-          // LooksRare has fixed 0.5% royalties
-          bps: 50,
-        })),
-      ];
+      const onChainRoyalties = await commonHelpers.getOnChainRoyalties(order.params.collection);
+      const onChainRoyaltyRecipient = onChainRoyalties["eip2981"]?.[0].recipient;
+      if (onChainRoyaltyRecipient) {
+        feeBreakdown = [
+          ...feeBreakdown,
+          {
+            kind: "royalty",
+            recipient: onChainRoyaltyRecipient,
+            // LooksRare has fixed 0.5% royalties
+            bps: 50,
+          },
+        ];
+      }
+
+      const price = order.params.price;
+
+      // Handle: royalties on top
+      const missingRoyalties = [];
+      let missingRoyaltyAmount = bn(0);
+      if (side === "sell") {
+        const openSeaRoyalties = await commonHelpers.getOpenSeaRoyalties(order.params.collection);
+        for (const { bps, recipient } of openSeaRoyalties) {
+          // Deduce the 0.5% royalty LooksRare will pay if needed
+          const actualBps = recipient === onChainRoyaltyRecipient ? bps - 50 : bps;
+          const amount = bn(price).mul(actualBps).div(10000).toString();
+          missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+
+          missingRoyalties.push({
+            amount,
+            recipient,
+          });
+        }
+      }
+
       const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
 
       // Handle: price and value
-      const price = order.params.price;
       let value: string;
+      let normalizedValue: string | undefined;
       if (side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
         // is best for UX to show the user exactly what they're going
@@ -208,6 +232,8 @@ export const save = async (
       } else {
         // For sell orders, the value is the same as the price
         value = price;
+        // The normalized value includes the royalties on top of the price
+        normalizedValue = bn(value).add(missingRoyaltyAmount).toString();
       }
 
       // Handle: source
@@ -259,6 +285,8 @@ export const save = async (
         dynamic: null,
         raw_data: order.params,
         expiration: validTo,
+        missing_royalties: missingRoyalties,
+        normalized_value: normalizedValue || null,
       });
 
       const unfillable =
@@ -314,6 +342,8 @@ export const save = async (
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        { name: "missing_royalties", mod: ":json" },
+        "normalized_value",
       ],
       {
         table: "orders",

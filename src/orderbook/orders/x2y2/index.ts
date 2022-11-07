@@ -17,7 +17,7 @@ export type OrderInfo = {
   metadata: OrderMetadata;
 };
 
-type SaveResult = {
+export type SaveResult = {
   id: string;
   status: string;
   unfillable?: boolean;
@@ -219,6 +219,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         dynamic: null,
         raw_data: order.params,
         expiration: validTo,
+        missing_royalties: null,
+        normalized_value: null,
       });
 
       results.push({

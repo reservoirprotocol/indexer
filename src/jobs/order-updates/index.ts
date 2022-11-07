@@ -8,6 +8,7 @@ import { fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import _ from "lodash";
 
 // Whenever an order changes its state (eg. a new order comes in,
 // a fill/cancel happens, an order gets expired, or an order gets
@@ -118,7 +119,7 @@ if (config.doBackgroundWork) {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const values: any[] = [];
               for (const { id, kind, currency, raw_data } of dynamicOrders) {
-                if (kind === "seaport") {
+                if (!_.isNull(raw_data) && kind === "seaport") {
                   const order = new Sdk.Seaport.Order(config.chainId, raw_data);
                   const newCurrencyPrice = order.getMatchingPrice().toString();
 

@@ -6,6 +6,7 @@ import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
 import * as orders from "@/orderbook/orders";
 import { toTime } from "@/common/utils";
+import _ from "lodash";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
@@ -27,6 +28,20 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
   client.onItemListed("*", async (event) => {
     if (getSupportedChainName() === event.payload.item.chain.name) {
+      // For now we ingest only fixed price and dutch auctions
+      if (_.indexOf([null, "dutch"], event.payload.listing_type) === -1) {
+        logger.info(
+          "opensea-websocket",
+          `onItemListed Event. non supported price listing event=${JSON.stringify(event)}`
+        );
+        return;
+      }
+
+      const currenTime = Math.floor(Date.now() / 1000);
+      if (currenTime % 10 === 0) {
+        logger.info("opensea-websocket", `onItemListed Event. event=${JSON.stringify(event)}`);
+      }
+
       const [, contract, tokenId] = event.payload.item.nft_id.split("/");
 
       const orderInfo: orderbookOrders.GenericOrderInfo = {
@@ -45,6 +60,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
             contract,
             tokenId,
             offerer: event.payload.maker.address,
+            listingType: event.payload.listing_type,
           } as PartialOrderComponents,
         } as orders.seaport.OrderInfo,
         relayToArweave: false,

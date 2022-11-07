@@ -47,6 +47,7 @@ export declare type PartialOrderComponents = {
   contract: string;
   tokenId: string;
   offerer: string;
+  listingType: string | null;
 };
 
 type SaveResult = {
@@ -396,7 +397,7 @@ export const save = async (
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
-        const seaportBidPercentageThreshold = 75;
+        const seaportBidPercentageThreshold = 90;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
@@ -459,6 +460,8 @@ export const save = async (
         dynamic: info.isDynamic ?? null,
         raw_data: order.params,
         expiration: validTo,
+        missing_royalties: null,
+        normalized_value: null,
       });
 
       const unfillable =
@@ -748,9 +751,11 @@ export const save = async (
         conduit: toBuffer(new Sdk.Seaport.Exchange(config.chainId).deriveConduit(conduitKey)),
         fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
-        dynamic: null,
+        dynamic: _.isNull(orderParams.listingType) ? null : true,
         raw_data: null,
         expiration: validTo,
+        missing_royalties: null,
+        normalized_value: null,
       });
 
       const unfillable =

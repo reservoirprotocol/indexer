@@ -59,6 +59,8 @@ export type DbOrder = {
   needs_conversion: boolean | null;
   raw_data: object | null;
   expiration: string;
+  missing_royalties: object | null;
+  normalized_value: string | null;
 };
 
 const defaultSchemaHash = HashZero;
