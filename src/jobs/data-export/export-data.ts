@@ -7,6 +7,8 @@ import { idb } from "@/common/db";
 import { randomUUID } from "crypto";
 import { EOL } from "os";
 import AWS from "aws-sdk";
+import crypto from "crypto";
+import stringify from "json-stable-stringify";
 
 import { AskEventsDataSource } from "@/jobs/data-export/data-sources/ask-events";
 import { TokenFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/token-floor-ask-events";
@@ -53,6 +55,18 @@ if (config.doBackgroundWork) {
             )}, sequenceNumber:${sequenceNumber}`
           );
 
+          const cursorHash = crypto.createHash("sha256").update(stringify(cursor)).digest("hex");
+          const lastCursorHash = await redis.get(`${QUEUE_NAME}-${kind}-last-cursor`);
+
+          if (cursorHash === lastCursorHash) {
+            logger.warn(
+              QUEUE_NAME,
+              `Export invalid. kind:${kind}, cursor:${JSON.stringify(
+                cursor
+              )}, sequenceNumber:${sequenceNumber}, cursorHash=${cursorHash}, lastCursorHash=${lastCursorHash}`
+            );
+          }
+
           const { data, nextCursor } = await getDataSource(kind).getSequenceData(
             cursor,
             QUERY_LIMIT
@@ -73,6 +87,11 @@ if (config.doBackgroundWork) {
               sequence
             );
             await setNextSequenceInfo(kind, nextCursor);
+
+            await redis.set(
+              `${QUEUE_NAME}-${kind}-last-cursor`,
+              crypto.createHash("sha256").update(stringify(cursor)).digest("hex")
+            );
           }
 
           // Trigger next sequence only if there are more results
