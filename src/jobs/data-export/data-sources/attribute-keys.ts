@@ -1,4 +1,4 @@
-import { redb } from "@/common/db";
+import { ridb } from "@/common/db";
 import { BaseDataSource } from "@/jobs/data-export/data-sources/index";
 import _ from "lodash";
 
@@ -28,7 +28,7 @@ export class AttributeKeysDataSource extends BaseDataSource {
         LIMIT $/limit/;  
       `;
 
-    const updatedResult = await redb.manyOrNone(updatedQuery, {
+    const updatedResult = await ridb.manyOrNone(updatedQuery, {
       id: updatesCursor?.id,
       updatedAt: updatesCursor?.updatedAt,
       limit,
@@ -55,7 +55,7 @@ export class AttributeKeysDataSource extends BaseDataSource {
         LIMIT $/limit/;  
       `;
 
-    const removedResult = await redb.manyOrNone(removedQuery, {
+    const removedResult = await ridb.manyOrNone(removedQuery, {
       id: removalsCursor?.id,
       deletedAt: removalsCursor?.deletedAt,
       limit,

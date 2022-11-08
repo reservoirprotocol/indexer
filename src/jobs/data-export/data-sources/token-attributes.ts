@@ -1,4 +1,4 @@
-import { redb } from "@/common/db";
+import { ridb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { BaseDataSource } from "@/jobs/data-export/data-sources/index";
 import crypto from "crypto";
@@ -31,7 +31,7 @@ export class TokenAttributesDataSource extends BaseDataSource {
         LIMIT $/limit/;  
       `;
 
-    const updatedResult = await redb.manyOrNone(updatedQuery, {
+    const updatedResult = await ridb.manyOrNone(updatedQuery, {
       contract: updatesCursor?.contract ? toBuffer(updatesCursor.contract) : null,
       tokenId: updatesCursor?.tokenId,
       attributeId: updatesCursor?.attributeId,
@@ -61,7 +61,7 @@ export class TokenAttributesDataSource extends BaseDataSource {
         LIMIT $/limit/;  
       `;
 
-    const removedResult = await redb.manyOrNone(removedQuery, {
+    const removedResult = await ridb.manyOrNone(removedQuery, {
       contract: removalsCursor?.contract ? toBuffer(removalsCursor.contract) : null,
       tokenId: removalsCursor?.tokenId,
       attributeId: removalsCursor?.attributeId,

@@ -1,2 +1,2 @@
-import "@/jobs/backfill/backfill-bid-activities-collection-id";
-import "@/jobs/backfill/backfill-bid-user-activities-collection-id";
+// Prettier doesn't like empty files
+export const foo = 0;

@@ -1,4 +1,4 @@
-import { redb } from "@/common/db";
+import { ridb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { BaseDataSource } from "@/jobs/data-export/data-sources/index";
 import { Sources } from "@/models/sources";
@@ -50,7 +50,7 @@ export class SalesDataSource extends BaseDataSource {
         LIMIT $/limit/;  
       `;
 
-    const result = await redb.manyOrNone(query, {
+    const result = await ridb.manyOrNone(query, {
       updatedAt: cursor?.updatedAt,
       txHash: cursor?.txHash ? toBuffer(cursor.txHash) : null,
       logIndex: cursor?.logIndex,

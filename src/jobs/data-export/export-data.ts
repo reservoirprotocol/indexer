@@ -41,8 +41,18 @@ if (config.doBackgroundWork) {
       const { kind } = job.data;
 
       if (await acquireLock(getLockName(kind), 60 * 5)) {
+        const timeBefore = performance.now();
+
         try {
           const { cursor, sequenceNumber } = await getSequenceInfo(kind);
+
+          logger.info(
+            QUEUE_NAME,
+            `Export started. kind:${kind}, cursor:${JSON.stringify(
+              cursor
+            )}, sequenceNumber:${sequenceNumber}`
+          );
+
           const { data, nextCursor } = await getDataSource(kind).getSequenceData(
             cursor,
             QUERY_LIMIT
@@ -68,11 +78,15 @@ if (config.doBackgroundWork) {
           // Trigger next sequence only if there are more results
           job.data.addToQueue = data.length >= QUERY_LIMIT;
 
+          const timeElapsed = Math.floor((performance.now() - timeBefore) / 1000);
+
           logger.info(
             QUEUE_NAME,
             `Export finished. kind:${kind}, cursor:${JSON.stringify(
               cursor
-            )}, sequenceNumber:${sequenceNumber}, nextCursor:${JSON.stringify(nextCursor)}`
+            )}, sequenceNumber:${sequenceNumber}, nextCursor:${JSON.stringify(
+              nextCursor
+            )}, addToQueue=${data.length >= QUERY_LIMIT}, timeElapsed=${timeElapsed}`
           );
         } catch (error) {
           logger.error(QUEUE_NAME, `Export ${kind} failed: ${error}`);
