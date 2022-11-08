@@ -99,14 +99,25 @@ if (config.doBackgroundWork) {
 
           const timeElapsed = Math.floor((performance.now() - timeBefore) / 1000);
 
-          logger.info(
-            QUEUE_NAME,
-            `Export finished. kind:${kind}, cursor:${JSON.stringify(
-              cursor
-            )}, sequenceNumber:${sequenceNumber}, nextCursor:${JSON.stringify(
-              nextCursor
-            )}, addToQueue=${data.length >= QUERY_LIMIT}, timeElapsed=${timeElapsed}`
-          );
+          if (timeElapsed > 5) {
+            logger.warn(
+              QUEUE_NAME,
+              `Export finished. kind:${kind}, cursor:${JSON.stringify(
+                cursor
+              )}, sequenceNumber:${sequenceNumber}, nextCursor:${JSON.stringify(
+                nextCursor
+              )}, addToQueue=${data.length >= QUERY_LIMIT}, timeElapsed=${timeElapsed}`
+            );
+          } else {
+            logger.info(
+              QUEUE_NAME,
+              `Export finished. kind:${kind}, cursor:${JSON.stringify(
+                cursor
+              )}, sequenceNumber:${sequenceNumber}, nextCursor:${JSON.stringify(
+                nextCursor
+              )}, addToQueue=${data.length >= QUERY_LIMIT}, timeElapsed=${timeElapsed}`
+            );
+          }
         } catch (error) {
           logger.error(QUEUE_NAME, `Export ${kind} failed: ${error}`);
         }

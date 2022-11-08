@@ -55,7 +55,8 @@ if (config.doBackgroundWork) {
               { id: data.id }
             );
 
-            if (result) {
+            // TODO: Support validating orders for which `raw_data` is null
+            if (result && result.raw_data) {
               let fillabilityStatus = "fillable";
               let approvalStatus = "approved";
 
@@ -80,6 +81,8 @@ if (config.doBackgroundWork) {
                     } else if (error.message === "no-balance-no-approval") {
                       fillabilityStatus = "no-balance";
                       approvalStatus = "no-approval";
+                    } else {
+                      return;
                     }
                   }
                   break;
@@ -105,6 +108,8 @@ if (config.doBackgroundWork) {
                     } else if (error.message === "no-balance-no-approval") {
                       fillabilityStatus = "no-balance";
                       approvalStatus = "no-approval";
+                    } else {
+                      return;
                     }
                   }
                   break;
@@ -131,6 +136,8 @@ if (config.doBackgroundWork) {
                     } else if (error.message === "no-balance-no-approval") {
                       fillabilityStatus = "no-balance";
                       approvalStatus = "no-approval";
+                    } else {
+                      return;
                     }
                   }
                   break;
@@ -156,6 +163,8 @@ if (config.doBackgroundWork) {
                     } else if (error.message === "no-balance-no-approval") {
                       fillabilityStatus = "no-balance";
                       approvalStatus = "no-approval";
+                    } else {
+                      return;
                     }
                   }
                   break;

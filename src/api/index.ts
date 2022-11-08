@@ -47,6 +47,9 @@ export const start = async (): Promise<void> => {
       // Expose any validation errors
       // https://github.com/hapijs/hapi/issues/3706
       validate: {
+        options: {
+          stripUnknown: true,
+        },
         failAction: (_request, _h, error) => {
           // Remove any irrelevant information from the response
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

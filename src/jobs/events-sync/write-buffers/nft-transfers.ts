@@ -2,7 +2,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { acquireLock, redis, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { idb } from "@/common/db";
 
@@ -31,7 +31,11 @@ if (config.doBackgroundWork) {
       const { query } = job.data;
 
       try {
-        await idb.none(query);
+        if (await acquireLock(getLockName(), 60)) {
+          await idb.none(query);
+        } else {
+          await addToQueue(query);
+        }
       } catch (error) {
         logger.error(QUEUE_NAME, `Failed flushing nft transfer events to the database: ${error}`);
         throw error;
@@ -45,10 +49,19 @@ if (config.doBackgroundWork) {
       concurrency: 1,
     }
   );
+
+  worker.on("completed", async () => {
+    await releaseLock(getLockName());
+  });
+
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 }
+
+export const getLockName = () => {
+  return `${QUEUE_NAME}-lock`;
+};
 
 export const addToQueue = async (query: string) => {
   await queue.add(randomUUID(), { query });

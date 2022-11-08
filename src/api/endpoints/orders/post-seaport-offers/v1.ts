@@ -6,7 +6,6 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 
 const version = "v1";
 
@@ -42,24 +41,25 @@ export const postSeaportOffersV1Options: RouteOptions = {
 
       logger.info(`post-seaport-offers-${version}-handler`, `Got ${orders.length} offers`);
 
-      const orderInfos: orderbookOrders.GenericOrderInfo[] = [];
-      for (const { protocol_data } of orders) {
-        orderInfos.push({
-          kind: "seaport",
-          info: {
-            kind: "full",
-            orderParams: {
-              ...protocol_data.parameters,
-              signature: protocol_data.signature,
-            },
-            metadata: {},
-          },
-          relayToArweave: true,
-          validateBidValue: true,
-        });
-      }
-
-      await orderbookOrders.addToQueue(orderInfos);
+      // Disabled logic in order to support filling partial collection offers from OS Realtime API
+      // const orderInfos: orderbookOrders.GenericOrderInfo[] = [];
+      // for (const { protocol_data } of orders) {
+      //   orderInfos.push({
+      //     kind: "seaport",
+      //     info: {
+      //       kind: "full",
+      //       orderParams: {
+      //         ...protocol_data.parameters,
+      //         signature: protocol_data.signature,
+      //       },
+      //       metadata: {},
+      //     },
+      //     relayToArweave: true,
+      //     validateBidValue: true,
+      //   });
+      // }
+      //
+      // await orderbookOrders.addToQueue(orderInfos);
 
       return { message: "Request accepted" };
     } catch (error) {

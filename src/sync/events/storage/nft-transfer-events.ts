@@ -212,7 +212,9 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   if (queries.length) {
     if (backfill) {
       // When backfilling, use the write buffer to avoid deadlocks
-      await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(queries));
+      for (const query of _.chunk(queries, 1000)) {
+        await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(query));
+      }
     } else {
       // Otherwise write directly since there might be jobs that depend
       // on the events to have been written to the database at the time

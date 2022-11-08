@@ -28,6 +28,11 @@ export const getActivityV3Options: RouteOptions = {
         .description("If true, metadata is included in the response."),
       limit: Joi.number().integer().min(1).max(1000).default(20),
       continuation: Joi.string().pattern(regex.base64),
+      sortDirection: Joi.string()
+        .lowercase()
+        .valid("asc", "desc")
+        .default("desc")
+        .description("Order the items are returned in the response."),
     }),
   },
   response: {
@@ -70,7 +75,8 @@ export const getActivityV3Options: RouteOptions = {
         query.continuation,
         query.limit,
         true,
-        query.includeMetadata
+        query.includeMetadata,
+        query.sortDirection
       );
 
       // If no activities found

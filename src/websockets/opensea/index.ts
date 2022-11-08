@@ -1,12 +1,23 @@
-import { Network, OpenSeaStreamClient } from "@opensea/stream-js";
+import {
+  CollectionOfferEventPayload,
+  EventType,
+  ItemReceivedBidEventPayload,
+  Network,
+  OpenSeaStreamClient,
+  TraitOfferEventPayload,
+} from "@opensea/stream-js";
 import { WebSocket } from "ws";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
-import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
+import { ItemListedEventPayload } from "@opensea/stream-js/dist/types";
+import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handlers/item_listed";
+import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
+import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/handlers/collection_offer";
+import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
+
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
+import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orders from "@/orderbook/orders";
-import { toTime } from "@/common/utils";
-import _ from "lodash";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
@@ -18,7 +29,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       transport: WebSocket,
     },
     onError: async (error) => {
-      logger.error("opensea-websocket", `network=${network}, error=${error}`);
+      logger.error("opensea-websocket", `network=${network}, error=${JSON.stringify(error)}`);
     },
   });
 
@@ -26,61 +37,50 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
   logger.info("opensea-websocket", `Connected to opensea ${network} stream API`);
 
-  client.onItemListed("*", async (event) => {
-    if (getSupportedChainName() === event.payload.item.chain.name) {
-      // For now we ingest only fixed price and dutch auctions
-      if (_.indexOf([null, "dutch"], event.payload.listing_type) === -1) {
-        logger.info(
-          "opensea-websocket",
-          `onItemListed Event. non supported price listing event=${JSON.stringify(event)}`
-        );
-        return;
+  client.onEvents(
+    "*",
+    [
+      EventType.ITEM_LISTED,
+      // EventType.ITEM_RECEIVED_BID,
+      EventType.COLLECTION_OFFER,
+      // EventType.TRAIT_OFFER
+    ],
+    async (event) => {
+      logger.info(
+        "opensea-websocket",
+        `onEvents. event_type=${event.event_type}, event=${JSON.stringify(event)}`
+      );
+
+      const orderParams = handleEvent(event.event_type as EventType, event.payload);
+
+      if (orderParams) {
+        const orderInfo: orderbookOrders.GenericOrderInfo = {
+          kind: "seaport",
+          info: {
+            kind: "partial",
+            orderParams,
+          } as orders.seaport.OrderInfo,
+          relayToArweave: false,
+          validateBidValue: true,
+        };
+
+        await orderbookOrders.addToQueue([orderInfo]);
       }
-
-      const currenTime = Math.floor(Date.now() / 1000);
-      if (currenTime % 10 === 0) {
-        logger.info("opensea-websocket", `onItemListed Event. event=${JSON.stringify(event)}`);
-      }
-
-      const [, contract, tokenId] = event.payload.item.nft_id.split("/");
-
-      const orderInfo: orderbookOrders.GenericOrderInfo = {
-        kind: "seaport",
-        info: {
-          kind: "partial",
-          orderParams: {
-            kind: "single-token",
-            side: "sell",
-            hash: event.payload.order_hash,
-            price: event.payload.base_price,
-            paymentToken: event.payload.payment_token.address,
-            amount: event.payload.quantity,
-            startTime: toTime(event.payload.listing_date),
-            endTime: toTime(event.payload.expiration_date),
-            contract,
-            tokenId,
-            offerer: event.payload.maker.address,
-            listingType: event.payload.listing_type,
-          } as PartialOrderComponents,
-        } as orders.seaport.OrderInfo,
-        relayToArweave: false,
-        validateBidValue: true,
-      };
-
-      await orderbookOrders.addToQueue([orderInfo]);
     }
-  });
+  );
 }
 
-const getSupportedChainName = () => {
-  switch (config.chainId) {
-    case 1:
-      return "ethereum";
-    case 5:
-      return "goerli";
-    case 137:
-      return "polygon";
+const handleEvent = (type: EventType, payload: unknown): PartialOrderComponents | null => {
+  switch (type) {
+    case EventType.ITEM_LISTED:
+      return handleItemListedEvent(payload as ItemListedEventPayload);
+    case EventType.ITEM_RECEIVED_BID:
+      return handleItemReceivedBidEvent(payload as ItemReceivedBidEventPayload);
+    case EventType.COLLECTION_OFFER:
+      return handleCollectionOfferEvent(payload as CollectionOfferEventPayload);
+    case EventType.TRAIT_OFFER:
+      return handleTraitOfferEvent(payload as TraitOfferEventPayload);
     default:
-      return "unknown";
+      return null;
   }
 };
