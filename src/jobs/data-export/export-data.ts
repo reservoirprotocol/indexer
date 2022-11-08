@@ -40,9 +40,9 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { kind } = job.data;
 
-      if (await acquireLock(getLockName(kind), 60 * 5)) {
-        const timeBefore = performance.now();
+      const timeBefore = performance.now();
 
+      if (await acquireLock(getLockName(kind), 60 * 5)) {
         try {
           const { cursor, sequenceNumber } = await getSequenceInfo(kind);
 
