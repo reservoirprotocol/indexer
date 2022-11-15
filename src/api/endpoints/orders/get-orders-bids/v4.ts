@@ -167,8 +167,8 @@ export const getOrdersBidsV4Options: RouteOptions = {
               Joi.object({
                 kind: Joi.string(),
                 recipient: Joi.string().allow("", null),
-                // FIX: bps saved as an ethers.js BigNumber
-                bps: Joi.any(),
+                // FOR NOW REVERTING THIS -> FIX: bps saved as an ethers.js BigNumber
+                bps: Joi.number(),
               })
             )
             .allow(null),
