@@ -250,6 +250,8 @@ export const save = async (
         }
 
         case "token-list": {
+          // For collection offers, If the target orderbook is opensea, the token set should always be a contract wide.
+          // This is due to a mismatch between the collection flags in our system and os. the actual merkel root is returned by build collection offer OS Api (see logic in execute bid api)
           if (metadata?.target === "opensea") {
             tokenSetId = `contract:${info.contract}`;
             await tokenSet.contractWide.save([
