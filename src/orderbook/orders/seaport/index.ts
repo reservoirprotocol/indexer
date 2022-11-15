@@ -280,6 +280,13 @@ export const save = async (
             }
           }
 
+          logger.info(
+            "orders-seaport-save",
+            `debug cross posting. tokenSetId=${tokenSetId}, orderId=${id}, orderParams=${JSON.stringify(
+              orderParams
+            )}, metadata=${JSON.stringify(metadata)}`
+          );
+
           break;
         }
       }
