@@ -317,7 +317,20 @@ export const save = async (
       const isReservoir = false;
 
       // Handle: conduit
-      const conduit = Sdk.Rarible.Addresses.Exchange[config.chainId];
+      let conduit = "";
+      switch (side) {
+        case "buy":
+          conduit = Sdk.Rarible.Addresses.ERC20TransferProxy[config.chainId];
+          break;
+        case "sell":
+          conduit = Sdk.Rarible.Addresses.NFTTransferProxy[config.chainId];
+          break;
+        default:
+          return results.push({
+            id,
+            status: "invalid-order-side",
+          });
+      }
 
       const validFrom = `date_trunc('seconds', to_timestamp(${order.params.start}))`;
       const validTo = order.params.end

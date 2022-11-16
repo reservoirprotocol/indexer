@@ -273,7 +273,7 @@ export const getSalesV4Options: RouteOptions = {
         ${
           query.includeTokenMetadata
             ? `
-                JOIN LATERAL (
+                LEFT JOIN LATERAL (
                   SELECT
                     tokens.name,
                     tokens.image,

@@ -13,6 +13,7 @@ import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/u
 import { offChainCheck } from "@/orderbook/orders/looks-rare/check";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as tokenSet from "@/orderbook/token-sets";
+import * as royalties from "@/utils/royalties";
 
 export type OrderInfo = {
   orderParams: Sdk.LooksRare.Types.MakerOrderParams;
@@ -203,8 +204,8 @@ export const save = async (
       const missingRoyalties = [];
       let missingRoyaltyAmount = bn(0);
       if (side === "sell") {
-        const openSeaRoyalties = await commonHelpers.getOpenSeaRoyalties(order.params.collection);
-        for (const { bps, recipient } of openSeaRoyalties) {
+        const defaultRoyalties = await royalties.getDefaultRoyalties(order.params.collection);
+        for (const { bps, recipient } of defaultRoyalties) {
           // Deduce the 0.5% royalty LooksRare will pay if needed
           const actualBps = recipient === onChainRoyaltyRecipient ? bps - 50 : bps;
           const amount = bn(price).mul(actualBps).div(10000).toString();

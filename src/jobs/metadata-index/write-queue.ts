@@ -337,15 +337,6 @@ if (config.doBackgroundWork) {
           (tokenAttributeCounter as any)[attribute.attribute_id] = -1;
         });
 
-        logger.info(
-          QUEUE_NAME,
-          `Refresh. contract:${contract}, tokenId:${tokenId}, attributeCount:${_.size(
-            attributes
-          )}, addedTokenAttributes:${_.size(addedTokenAttributes)}, removedTokenAttributes:${_.size(
-            removedTokenAttributes
-          )}`
-        );
-
         const attributesToRefresh = addedTokenAttributes.concat(removedTokenAttributes);
 
         // Schedule attribute refresh

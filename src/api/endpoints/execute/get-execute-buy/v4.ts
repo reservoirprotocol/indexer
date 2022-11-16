@@ -13,7 +13,6 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
 import { OrderKind } from "@/orderbook/orders";
 import { generateListingDetailsV5 } from "@/orderbook/orders";
@@ -146,13 +145,6 @@ export const getExecuteBuyV4Options: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      // Terms of service not met
-      const key = request.headers["x-api-key"];
-      const apiKey = await ApiKeyManager.getApiKey(key);
-      if (apiKey?.appName === "NFTCLICK") {
-        throw Boom.badRequest("Terms of service not met");
-      }
-
       // Handle fees on top
       if (payload.feesOnTop?.length > 1) {
         throw Boom.badData("For now, only a single fee on top is supported");
@@ -511,7 +503,9 @@ export const getExecuteBuyV4Options: RouteOptions = {
       }
 
       const skippedIndexes: number[] = [];
-      const router = new Sdk.RouterV5.Router(config.chainId, baseProvider);
+      const router = new Sdk.RouterV5.Router(config.chainId, baseProvider, {
+        x2y2ApiKey: config.x2y2ApiKey,
+      });
       const tx = await router.fillListingsTx(listingDetails, payload.taker, {
         source: payload.source,
         fee: {

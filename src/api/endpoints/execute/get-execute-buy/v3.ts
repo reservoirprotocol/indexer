@@ -12,7 +12,6 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
 import { generateListingDetailsV5 } from "@/orderbook/orders";
 import { getCurrency } from "@/utils/currencies";
@@ -138,13 +137,6 @@ export const getExecuteBuyV3Options: RouteOptions = {
     const query = request.query as any;
 
     try {
-      // Terms of service not met
-      const key = request.headers["x-api-key"];
-      const apiKey = await ApiKeyManager.getApiKey(key);
-      if (apiKey?.appName === "NFTCLICK") {
-        throw Boom.badRequest("Terms of service not met");
-      }
-
       // We need each filled order's source for the path
       const sources = await Sources.getInstance();
 
@@ -351,7 +343,9 @@ export const getExecuteBuyV3Options: RouteOptions = {
         return { path };
       }
 
-      const router = new Sdk.RouterV5.Router(config.chainId, baseProvider);
+      const router = new Sdk.RouterV5.Router(config.chainId, baseProvider, {
+        x2y2ApiKey: config.x2y2ApiKey,
+      });
       const tx = await router.fillListingsTx(listingDetails, query.taker, {
         source: query.source,
         fee: {

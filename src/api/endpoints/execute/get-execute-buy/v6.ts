@@ -12,7 +12,6 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
 import { OrderKind } from "@/orderbook/orders";
 import { generateListingDetailsV6 } from "@/orderbook/orders";
@@ -100,6 +99,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
       skipBalanceCheck: Joi.boolean()
         .default(false)
         .description("If true, balance check will be skipped."),
+      x2y2ApiKey: Joi.string().description("Override the X2Y2 API key used for filling."),
     })
       .or("tokens", "orderIds", "rawOrders")
       .oxor("tokens", "orderIds", "rawOrders"),
@@ -143,13 +143,6 @@ export const getExecuteBuyV6Options: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      // Terms of service not met
-      const key = request.headers["x-api-key"];
-      const apiKey = await ApiKeyManager.getApiKey(key);
-      if (apiKey?.appName === "NFTCLICK") {
-        throw Boom.badRequest("Terms of service not met");
-      }
-
       // Handle fees on top
       const feesOnTop: {
         recipient: string;
@@ -531,7 +524,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
         return { path };
       }
 
-      const router = new Sdk.RouterV6.Router(config.chainId, baseProvider);
+      const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
+        x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
+        cbApiKey: config.cbApiKey,
+      });
       const { txData, success } = await router.fillListingsTx(
         listingDetails,
         payload.taker,

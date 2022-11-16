@@ -88,6 +88,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0xa319c382a702682129fcbf55d514e61a16f97f9c",
           "0xd10e3dee203579fcee90ed7d0bdd8086f7e53beb",
           "0x62e37f664b5945629b6549a87f8e10ed0b6d923b",
+          "0x99a9b7c1116f9ceeb1652de04d5969cce509b069",
         ],
         washTradingBlacklistedAddresses: ["0xac335e6855df862410f96f345f93af4f96351a87"],
         multiCollectionContracts: [
@@ -103,6 +104,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0xa319c382a702682129fcbf55d514e61a16f97f9c",
           "0xd10e3dee203579fcee90ed7d0bdd8086f7e53beb",
           "0x62e37f664b5945629b6549a87f8e10ed0b6d923b",
+          "0x99a9b7c1116f9ceeb1652de04d5969cce509b069",
         ],
         mintsAsSalesBlacklist: [
           // Uniswap V3: Positions NFT

@@ -65,6 +65,7 @@ export const config = {
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
+  cbApiKey: String(process.env.CB_API_KEY),
 
   railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 

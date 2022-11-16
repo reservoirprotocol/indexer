@@ -1,17 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-
 import _ from "lodash";
+
 import { PgPromiseQuery, idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
+import * as collectionRecalcFloorAsk from "@/jobs/collection-updates/recalc-floor-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import MetadataApi from "@/utils/metadata-api";
-import * as collectionRecalcFloorAsk from "@/jobs/collection-updates/recalc-floor-queue";
+import { refreshRegistryRoyalties } from "@/utils/royalties/registry";
 
 const QUEUE_NAME = "token-updates-fetch-collection-metadata-queue";
 
@@ -150,6 +151,9 @@ if (config.doBackgroundWork) {
             getNetworkSettings().metadataMintDelay
           );
         }
+
+        // Refresh the on-chain royalties from the registry
+        await refreshRegistryRoyalties(collection.id);
       } catch (error) {
         logger.error(
           QUEUE_NAME,

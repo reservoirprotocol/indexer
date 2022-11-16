@@ -13,9 +13,9 @@ import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import { SudoswapPoolKind } from "@/models/sudoswap-pools";
+import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
-import * as royalties from "@/utils/royalties";
 import * as sudoswap from "@/utils/sudoswap";
 
 export type OrderInfo = {
@@ -104,8 +104,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             },
           ];
 
-          const registryRoyalties = await royalties.registry.refreshRegistryRoyalties(pool.nft);
-          for (const { recipient, bps } of registryRoyalties) {
+          const onChainRoyalties = await commonHelpers.getOnChainRoyalties(pool.nft);
+          for (const { recipient, bps } of onChainRoyalties["eip2981"] ?? []) {
             feeBps += bps;
             feeBreakdown.push({
               kind: "royalty",
