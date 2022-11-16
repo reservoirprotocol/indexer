@@ -76,6 +76,11 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "If true, owner count will be included in the response. (supported only when filtering to a particular collection using `id`)"
         ),
+      includeSalesCount: Joi.boolean()
+        .when("id", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
+        .description(
+          "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. (supported only when filtering to a particular collection using `id`)"
+        ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -179,6 +184,12 @@ export const getCollectionsV5Options: RouteOptions = {
             "7day": Joi.string().allow(null),
             "30day": Joi.string().allow(null),
           },
+          salesCount: {
+            "1day": Joi.number().unsafe().allow(null),
+            "7day": Joi.number().unsafe().allow(null),
+            "30day": Joi.number().unsafe().allow(null),
+            allTime: Joi.number().unsafe().allow(null),
+          },
           collectionBidSupported: Joi.boolean(),
           ownerCount: Joi.number().optional(),
           attributes: Joi.array()
@@ -273,6 +284,35 @@ export const getCollectionsV5Options: RouteOptions = {
             AND amount > 0
           ) z ON TRUE
         `;
+      }
+
+      let saleCountSelectQuery = "";
+      let saleCountJoinQuery = "";
+      if (query.includeSalesCount) {
+        saleCountSelectQuery = ", s.*";
+        saleCountJoinQuery = `
+        LEFT JOIN LATERAL (
+          SELECT
+            SUM(CASE
+                  WHEN fe.created_at > NOW() - INTERVAL '24 HOURS'
+                  THEN 1
+                  ELSE 0
+                END) AS day_sale_count,
+            SUM(CASE
+                  WHEN fe.created_at > NOW() - INTERVAL '7 DAYS'
+                  THEN 1
+                  ELSE 0
+                END) AS week_sale_count,
+            SUM(CASE
+                  WHEN fe.created_at > NOW() - INTERVAL '30 DAYS'
+                  THEN 1
+                  ELSE 0
+                END) AS month_sale_count,
+            COUNT(*) AS total_sale_count
+          FROM fill_events_2 fe
+          WHERE fe.contract = x.contract
+        ) s ON TRUE
+      `;
       }
 
       let baseQuery = `
@@ -451,6 +491,7 @@ export const getCollectionsV5Options: RouteOptions = {
           ${ownerCountSelectQuery}
           ${attributesSelectQuery}
           ${topBidSelectQuery}
+          ${saleCountSelectQuery}
         FROM x
         LEFT JOIN LATERAL (
           SELECT
@@ -477,6 +518,7 @@ export const getCollectionsV5Options: RouteOptions = {
         ${ownerCountJoinQuery}
         ${attributesJoinQuery}
         ${topBidJoinQuery}
+        ${saleCountJoinQuery}
       `;
 
       // Any further joins might not preserve sorting
@@ -612,6 +654,14 @@ export const getCollectionsV5Options: RouteOptions = {
                 ? Number(r.floor_sell_value) / Number(r.day30_floor_sell_value)
                 : null,
             },
+            salesCount: query.includeSalesCount
+              ? {
+                  "1day": r.day_sale_count,
+                  "7day": r.week_sale_count,
+                  "30day": r.month_sale_count,
+                  allTime: r.total_sale_count,
+                }
+              : undefined,
             collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
             ownerCount: query.includeOwnerCount ? Number(r.owner_count) : undefined,
             attributes: query.includeAttributes

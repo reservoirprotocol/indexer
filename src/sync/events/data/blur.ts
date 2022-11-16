@@ -54,3 +54,19 @@ export const ordersMatched: EventData = {
     )`,
   ]),
 };
+
+export const orderCancelled: EventData = {
+  kind: "blur-order-cancelled",
+  addresses: { [Blur.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x5152abf959f6564662358c2e52b702259b78bac5ee7842a0f01937e670efcc7d",
+  numTopics: 1,
+  abi: new Interface([`event OrderCancelled(bytes32 hash)`]),
+};
+
+export const nonceIncremented: EventData = {
+  kind: "blur-nonce-incremented",
+  addresses: { [Blur.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0xa82a649bbd060c9099cd7b7326e2b0dc9e9af0836480e0f849dc9eaa79710b3b",
+  numTopics: 1,
+  abi: new Interface([`event NonceIncremented(address trader, uint256 newNonce)`]),
+};

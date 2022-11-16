@@ -7,11 +7,16 @@ import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const fillEvents: es.fills.Event[] = [];
+  const bulkCancelEvents: es.bulkCancels.Event[] = [];
+  const nonceCancelEvents: es.nonceCancels.Event[] = [];
+  const cancelEventsOnChain: es.cancels.Event[] = [];
 
   const fillInfos: fillUpdates.FillInfo[] = [];
+  const orderInfos: orderUpdatesById.OrderInfo[] = [];
 
   // Handle the events
   for (const { kind, baseEventParams, log } of events) {
@@ -56,6 +61,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderSide = maker === sell.trader.toLowerCase() ? "sell" : "buy";
         const orderId = orderSide === "sell" ? sellHash : buyHash;
 
+        orderInfos.push({
+          context: `filled-${orderId}`,
+          id: orderId,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+        });
+
         fillEvents.push({
           orderKind,
           orderId,
@@ -88,12 +103,45 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         break;
       }
+
+      case "blur-order-cancelled": {
+        const { args } = eventData.abi.parseLog(log);
+        const orderId = args.hash.toLowerCase();
+
+        cancelEventsOnChain.push({
+          orderKind: "blur",
+          orderId,
+          baseEventParams,
+        });
+
+        break;
+      }
+
+      case "blur-nonce-incremented": {
+        const { args } = eventData.abi.parseLog(log);
+        const maker = args.trader.toLowerCase();
+        const nonce = args.newNonce.toLowerCase();
+
+        bulkCancelEvents.push({
+          orderKind: "blur",
+          maker,
+          minNonce: nonce,
+          baseEventParams,
+        });
+
+        break;
+      }
     }
   }
 
   return {
-    fillEvents,
+    cancelEventsOnChain,
+    bulkCancelEvents,
+    nonceCancelEvents,
 
+    fillEvents,
     fillInfos,
+
+    orderInfos,
   };
 };

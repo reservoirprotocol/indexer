@@ -63,11 +63,11 @@ export const getOrdersAsksV3Options: RouteOptions = {
       status: Joi.string()
         .when("maker", {
           is: Joi.exist(),
-          then: Joi.valid("active", "inactive"),
+          then: Joi.valid("active", "inactive", "expired", "cancelled", "filled"),
           otherwise: Joi.valid("active"),
         })
         .description(
-          "active = currently valid, inactive = temporarily invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
+          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
       source: Joi.string()
         .pattern(regex.domain)
@@ -82,6 +82,12 @@ export const getOrdersAsksV3Options: RouteOptions = {
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
+      startTimestamp: Joi.number().description(
+        "Get events after a particular unix timestamp (inclusive)"
+      ),
+      endTimestamp: Joi.number().description(
+        "Get events before a particular unix timestamp (inclusive)"
+      ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -114,6 +120,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
           id: Joi.string().required(),
           kind: Joi.string().required(),
           side: Joi.string().valid("buy", "sell").required(),
+          status: Joi.string(),
           tokenSetId: Joi.string().required(),
           tokenSetSchemaHash: Joi.string().lowercase().pattern(regex.bytes32).required(),
           contract: Joi.string().lowercase().pattern(regex.address),
@@ -128,6 +135,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             Joi.object({
               kind: "token",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 tokenName: Joi.string().allow("", null),
                 image: Joi.string().allow("", null),
@@ -136,6 +144,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             Joi.object({
               kind: "collection",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 image: Joi.string().allow("", null),
               }),
@@ -143,6 +152,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             Joi.object({
               kind: "attribute",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 attributes: Joi.array().items(
                   Joi.object({ key: Joi.string(), value: Joi.string() })
@@ -153,7 +163,6 @@ export const getOrdersAsksV3Options: RouteOptions = {
           )
             .allow(null)
             .optional(),
-          status: Joi.string(),
           source: Joi.object().allow(null),
           feeBps: Joi.number().allow(null),
           feeBreakdown: Joi.array()
@@ -192,6 +201,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
                 json_build_object(
                   'kind', 'token',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'tokenName', tokens.name,
                     'image', tokens.image
@@ -208,6 +218,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
                 json_build_object(
                   'kind', 'collection',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
                   )
@@ -220,6 +231,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
                 json_build_object(
                   'kind', 'collection',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
                   )
@@ -232,6 +244,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
                 json_build_object(
                   'kind', 'attribute',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'attributes', ARRAY[json_build_object('key', attribute_keys.key, 'value', attributes.value)],
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
@@ -301,10 +314,23 @@ export const getOrdersAsksV3Options: RouteOptions = {
         FROM orders
       `;
 
+      // We default in the code so that these values don't appear in the docs
+      if (!query.startTimestamp) {
+        query.startTimestamp = 0;
+      }
+      if (!query.endTimestamp) {
+        query.endTimestamp = 9999999999;
+      }
+
       // Filters
-      const conditions: string[] = [`orders.side = 'sell'`];
-      let orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+      const conditions: string[] = [
+        `orders.created_at >= to_timestamp($/startTimestamp/)`,
+        `orders.created_at <= to_timestamp($/endTimestamp/)`,
+        `orders.side = 'sell'`,
+      ];
+
       let communityFilter = "";
+      let orderStatusFilter;
 
       if (query.ids) {
         if (Array.isArray(query.ids)) {
@@ -312,6 +338,8 @@ export const getOrdersAsksV3Options: RouteOptions = {
         } else {
           conditions.push(`orders.id = $/ids/`);
         }
+      } else {
+        orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
       }
 
       if (query.token) {
@@ -346,6 +374,18 @@ export const getOrdersAsksV3Options: RouteOptions = {
             orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved')`;
             break;
           }
+          case "expired": {
+            orderStatusFilter = `orders.fillability_status = 'expired'`;
+            break;
+          }
+          case "filled": {
+            orderStatusFilter = `orders.fillability_status = 'filled'`;
+            break;
+          }
+          case "cancelled": {
+            orderStatusFilter = `orders.fillability_status = 'cancelled'`;
+            break;
+          }
         }
 
         (query as any).maker = toBuffer(query.maker);
@@ -374,13 +414,19 @@ export const getOrdersAsksV3Options: RouteOptions = {
         conditions.push(`orders.is_reservoir`);
       }
 
+      if (orderStatusFilter) {
+        conditions.push(orderStatusFilter);
+      }
+
       if (!query.includePrivate) {
         conditions.push(
           `orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL`
         );
       }
 
-      conditions.push(orderStatusFilter);
+      if (orderStatusFilter) {
+        conditions.push(orderStatusFilter);
+      }
 
       if (query.continuation) {
         const [priceOrCreatedAt, id] = splitContinuation(

@@ -1,4 +1,4 @@
-import { bn, now, toTime } from "@/common/utils";
+import { now, toTime } from "@/common/utils";
 
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
 import { CollectionOfferEventPayload } from "@opensea/stream-js";
@@ -8,7 +8,7 @@ export const handleEvent = (payload: CollectionOfferEventPayload): PartialOrderC
     kind: "contract-wide",
     side: "buy",
     hash: payload.order_hash,
-    price: bn(payload.base_price).div(payload.quantity).toString(),
+    price: payload.base_price,
     paymentToken: payload.payment_token.address,
     amount: payload.quantity,
     startTime: now(),

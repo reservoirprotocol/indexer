@@ -15,6 +15,7 @@ import { testNFTAddr, erc1155NFT, operatorKey, operator2Key } from "./__fixtures
 
 import { setupNFTs, setupERC1155NFTs } from "../utils/nft";
 import { getOrder } from "../utils/order";
+import axios from "axios";
 
 const operatorProvider = new Wallet(operatorKey, baseProvider);
 const operator2Provider = new Wallet(operator2Key, baseProvider);
@@ -494,5 +495,56 @@ describe("ElementTestnet", () => {
     const orderAfter = await getOrder(orderId);
     logger.info("ElementTestnet", `Order status ${JSON.stringify(orderAfter)}`);
     expect(orderAfter?.fillability_status).toEqual("cancelled");
+  });
+
+  test("saveToAPI", async () => {
+    await setupNFTs(nftToken, seller, buyer, tokenId, operator);
+
+    const exchange = new Element.Exchange(chainId);
+    const builder = new Element.Builders.SingleToken(chainId);
+    const price = parseEther("0.001");
+
+    const hashNonce = await exchange.getHashNonce(baseProvider, seller.address);
+
+    // Build Sell order
+    const sellOrder = builder.build({
+      direction: "sell",
+      maker: seller.address,
+      contract: nftToken.address,
+      tokenId: tokenId,
+      paymentToken: Element.Addresses.Eth[config.chainId],
+      price,
+      hashNonce,
+      expiry: Math.floor(Date.now() / 1000) + 10000,
+    });
+
+    await sellOrder.sign(seller);
+
+    const orderId = sellOrder.hash();
+    const postData = {
+      orders: [
+        {
+          kind: "element",
+          data: sellOrder.params,
+        },
+      ],
+    };
+
+    const headers = {
+      "X-Admin-Api-Key": config.adminApiKey,
+    };
+
+    try {
+      await axios.post("http://localhost:3000/orders/v1", postData, {
+        headers,
+      });
+      // console.log("data", data)
+    } catch (e) {
+      // console.log("error", e)
+    }
+
+    await wait(10 * 1000);
+    const ordeStatus = await getOrder(orderId);
+    expect(ordeStatus).not.toBe(null);
   });
 });

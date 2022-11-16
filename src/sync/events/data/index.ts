@@ -91,6 +91,8 @@ export type EventDataKind =
   | "nftx-redeemed"
   | "nftx-minted"
   | "blur-orders-matched"
+  | "blur-order-cancelled"
+  | "blur-nonce-incremented"
   | "forward-order-filled"
   | "forward-order-cancelled"
   | "forward-counter-incremented";
@@ -168,6 +170,8 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       nftx.minted,
       nftx.redeemed,
       blur.ordersMatched,
+      blur.orderCancelled,
+      blur.nonceIncremented,
       forward.orderFilled,
       forward.orderCancelled,
       forward.counterIncremented,
@@ -309,6 +313,10 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return nftx.redeemed;
     case "blur-orders-matched":
       return blur.ordersMatched;
+    case "blur-order-cancelled":
+      return blur.orderCancelled;
+    case "blur-nonce-incremented":
+      return blur.nonceIncremented;
     case "forward-order-filled":
       return forward.orderFilled;
     case "forward-order-cancelled":

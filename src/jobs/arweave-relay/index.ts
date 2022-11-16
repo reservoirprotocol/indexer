@@ -148,6 +148,25 @@ export const addPendingOrdersRarible = async (
   }
 };
 
+export const addPendingOrdersBlur = async (
+  data: { order: Sdk.Blur.Order; schemaHash?: string; source?: string }[]
+) => {
+  if (config.arweaveRelayerKey && data.length) {
+    await redis.rpush(
+      PENDING_DATA_KEY,
+      ...data.map(({ order, schemaHash }) =>
+        JSON.stringify({
+          kind: "blur",
+          data: {
+            ...order.params,
+            schemaHash,
+          },
+        })
+      )
+    );
+  }
+};
+
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.arweaveRelayerKey) {
   // Optimize as much as possible AR usage efficiency

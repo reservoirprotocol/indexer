@@ -49,7 +49,7 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        await idb.none(
+        const collectionFloorAskChanged = await idb.oneOrNone(
           `
             WITH y AS (
               UPDATE collections SET
@@ -141,6 +141,7 @@ if (config.doBackgroundWork) {
               WHERE orders.id = y.floor_sell_id
               LIMIT 1
             ) z ON TRUE
+            RETURNING 1
           `,
           {
             kind,
@@ -151,6 +152,17 @@ if (config.doBackgroundWork) {
             txTimestamp,
           }
         );
+
+        if (collectionFloorAskChanged) {
+          logger.info(
+            QUEUE_NAME,
+            `collection floor-ask changed. collectionId=${
+              collectionResult.collection_id
+            }, jobData=${JSON.stringify(job.data)}`
+          );
+
+          await redis.del(`collection-floor-ask:${contract}`);
+        }
       } catch (error) {
         logger.error(
           QUEUE_NAME,

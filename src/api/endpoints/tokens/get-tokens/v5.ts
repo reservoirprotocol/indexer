@@ -93,6 +93,11 @@ export const getTokensV5Options: RouteOptions = {
       includeAttributes: Joi.boolean()
         .default(false)
         .description("If true, attributes will be returned in the response."),
+      includeQuantity: Joi.boolean()
+        .default(false)
+        .description(
+          "If true, quantity filled and quantity remaining will be returned in the response."
+        ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -155,6 +160,8 @@ export const getTokensV5Options: RouteOptions = {
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
               validFrom: Joi.string().allow(null),
               validUntil: Joi.string().allow(null),
+              quantityFilled: Joi.string().allow(null),
+              quantityRemaining: Joi.string().allow(null),
               source: Joi.object().allow(null),
             },
             topBid: Joi.object({
@@ -286,6 +293,23 @@ export const getTokensV5Options: RouteOptions = {
       `;
     }
 
+    let includeQuantityQuery = "";
+    let selectIncludeQuantity = "";
+    if (query.includeQuantity) {
+      selectIncludeQuantity = ", q.*";
+      includeQuantityQuery = `
+      LEFT JOIN LATERAL (
+        SELECT
+          o.quantity_filled AS floor_sell_quantity_filled,
+          o.quantity_remaining AS floor_sell_quantity_remaining
+        FROM
+          orders o
+        WHERE
+          o.id = t.floor_sell_id
+        ) q ON TRUE
+        `;
+    }
+
     let sourceQuery = "";
     if (query.source) {
       normalizeRoyaltiesQuery = "";
@@ -370,10 +394,12 @@ export const getTokensV5Options: RouteOptions = {
           ${selectNormalizeRoyaltiesData}
           ${selectAttributes}
           ${selectTopBid}
+          ${selectIncludeQuantity}
         FROM tokens t
         ${topBidQuery}
         ${sourceQuery}
         ${normalizeRoyaltiesQuery}
+        ${includeQuantityQuery}
         JOIN collections c ON t.collection_id = c.id
         JOIN contracts con ON t.contract = con.address
       `;
@@ -683,6 +709,14 @@ export const getTokensV5Options: RouteOptions = {
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
+              quantityFilled:
+                query.includeQuantity && r.floor_sell_value
+                  ? r.floor_sell_quantity_filled
+                  : undefined,
+              quantityRemaining:
+                query.includeQuantity && r.floor_sell_value
+                  ? r.floor_sell_quantity_remaining
+                  : undefined,
               source: {
                 id: floorSellSource?.address,
                 domain: floorSellSource?.domain,

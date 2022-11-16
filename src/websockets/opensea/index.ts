@@ -1,4 +1,5 @@
 import {
+  BaseStreamMessage,
   CollectionOfferEventPayload,
   EventType,
   ItemReceivedBidEventPayload,
@@ -18,6 +19,7 @@ import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handl
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orders from "@/orderbook/orders";
+import { idb, pgp } from "@/common/db";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
@@ -41,22 +43,12 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     "*",
     [
       EventType.ITEM_LISTED,
-      // EventType.ITEM_RECEIVED_BID,
+      EventType.ITEM_RECEIVED_BID,
       EventType.COLLECTION_OFFER,
-      // EventType.TRAIT_OFFER
+      EventType.TRAIT_OFFER,
     ],
     async (event) => {
-      const currentTime =
-        event.event_type === "item_listed" && config.chainId === 1
-          ? Math.floor(Date.now() / 1000)
-          : 0;
-
-      if (currentTime % 10 === 0) {
-        logger.info(
-          "opensea-websocket",
-          `onEvents. event_type=${event.event_type}, event=${JSON.stringify(event)}`
-        );
-      }
+      await saveEvent(event);
 
       const orderParams = handleEvent(event.event_type as EventType, event.payload);
 
@@ -76,6 +68,50 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     }
   );
 }
+
+const saveEvent = async (event: BaseStreamMessage<unknown>) => {
+  try {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const query = pgp.as.format(
+      `
+      INSERT INTO opensea_websocket_events (
+        event_type,
+        event_timestamp,
+        order_hash,
+        maker,
+        data
+      ) VALUES (
+        $/eventType/,
+        $/eventTimestamp/,
+        $/orderHash/,
+        $/maker/,
+        $/data:json/
+      )
+    `,
+      {
+        eventType: event.event_type,
+        eventTimestamp: (event.payload as any).event_timestamp,
+        orderHash: (event.payload as any).order_hash,
+        maker: (event.payload as any).maker?.address,
+        data: event,
+      }
+    );
+
+    const queryResult = await idb.result(query);
+
+    logger.info(
+      "opensea-websocket",
+      `saveEvent query. event=${JSON.stringify(
+        event
+      )}, query=${query}, queryResult=${JSON.stringify(queryResult)}`
+    );
+  } catch (error) {
+    logger.error(
+      "opensea-websocket",
+      `saveEvent error. event=${JSON.stringify(event)}, error=${error}`
+    );
+  }
+};
 
 export const handleEvent = (type: EventType, payload: unknown): PartialOrderComponents | null => {
   switch (type) {
