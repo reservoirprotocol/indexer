@@ -73,8 +73,8 @@ export const getOrdersBidsV1Options: RouteOptions = {
           contract: Joi.string().lowercase().pattern(regex.address),
           maker: Joi.string().lowercase().pattern(regex.address).required(),
           taker: Joi.string().lowercase().pattern(regex.address).required(),
-          price: Joi.number().unsafe().required(),
-          value: Joi.number().unsafe().required(),
+          price: Joi.string().required(),
+          value: Joi.string().required(),
           validFrom: Joi.number().required(),
           validUntil: Joi.number().required(),
           metadata: Joi.alternatives(

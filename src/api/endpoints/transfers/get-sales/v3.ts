@@ -109,10 +109,10 @@ export const getSalesV3Options: RouteOptions = {
           logIndex: Joi.number(),
           batchIndex: Joi.number(),
           timestamp: Joi.number(),
-          price: Joi.number().unsafe().allow(null),
+          price: Joi.string().allow(null),
           currency: Joi.string().pattern(regex.address),
-          currencyPrice: Joi.number().unsafe().allow(null),
-          usdPrice: Joi.number().unsafe().allow(null),
+          currencyPrice: Joi.string().allow(null),
+          usdPrice: Joi.string().allow(null),
           washTradingScore: Joi.number(),
         })
       ),

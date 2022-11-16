@@ -68,13 +68,13 @@ export const getTokensFloorAskV3Options: RouteOptions = {
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             nonce: Joi.string().pattern(regex.number).allow(null),
             price: JoiPrice.allow(null),
-            validFrom: Joi.number().unsafe().allow(null),
-            validUntil: Joi.number().unsafe().allow(null),
+            validFrom: Joi.string().allow(null),
+            validUntil: Joi.string().allow(null),
             source: Joi.string().allow(null, ""),
             isDynamic: Joi.boolean(),
           }),
           event: Joi.object({
-            id: Joi.number().unsafe(),
+            id: Joi.string(),
             kind: Joi.string().valid(
               "new-order",
               "expiry",
@@ -86,7 +86,7 @@ export const getTokensFloorAskV3Options: RouteOptions = {
               "revalidation",
               "reprice"
             ),
-            previousPrice: Joi.number().unsafe().allow(null),
+            previousPrice: Joi.string().allow(null),
             txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
             txTimestamp: Joi.number().allow(null),
             createdAt: Joi.string(),

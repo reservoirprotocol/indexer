@@ -32,8 +32,8 @@ export const getCollectionOwnersDistributionV1Options: RouteOptions = {
     schema: Joi.object({
       ownersDistribution: Joi.array().items(
         Joi.object({
-          tokenCount: Joi.number().unsafe(),
-          ownerCount: Joi.number().unsafe(),
+          tokenCount: Joi.string(),
+          ownerCount: Joi.string(),
         })
       ),
     }).label(`getCollectionOwnersDistribution${version.toUpperCase()}Response`),

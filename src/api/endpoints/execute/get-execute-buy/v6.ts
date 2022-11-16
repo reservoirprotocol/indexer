@@ -126,10 +126,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
           orderId: Joi.string(),
           contract: Joi.string().lowercase().pattern(regex.address),
           tokenId: Joi.string().lowercase().pattern(regex.number),
-          quantity: Joi.number().unsafe(),
+          quantity: Joi.string(),
           source: Joi.string().allow("", null),
           currency: Joi.string().lowercase().pattern(regex.address),
-          quote: Joi.number().unsafe(),
+          quote: Joi.string(),
           rawQuote: Joi.string().pattern(regex.number),
         })
       ),

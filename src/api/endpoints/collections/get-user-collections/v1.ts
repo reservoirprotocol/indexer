@@ -56,8 +56,8 @@ export const getUserCollectionsV1Options: RouteOptions = {
               bannerImageUrl: Joi.string().allow(null, ""),
               twitterUsername: Joi.string().allow(null, ""),
             }).allow(null),
-            floorAskPrice: Joi.number().unsafe().allow(null),
-            topBidValue: Joi.number().unsafe().allow(null),
+            floorAskPrice: Joi.string().allow(null),
+            topBidValue: Joi.string().allow(null),
           }),
           ownership: Joi.object({
             tokenCount: Joi.string(),

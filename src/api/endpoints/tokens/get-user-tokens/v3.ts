@@ -92,17 +92,17 @@ export const getUserTokensV3Options: RouteOptions = {
               id: Joi.string().allow(null),
               name: Joi.string().allow(null, ""),
               imageUrl: Joi.string().allow(null),
-              floorAskPrice: Joi.number().unsafe().allow(null),
+              floorAskPrice: Joi.string().allow(null),
             }),
             topBid: Joi.object({
               id: Joi.string().allow(null),
-              value: Joi.number().unsafe().allow(null),
+              value: Joi.string().allow(null),
             }).optional(),
           }),
           ownership: Joi.object({
             tokenCount: Joi.string(),
             onSaleCount: Joi.string(),
-            floorAskPrice: Joi.number().unsafe().allow(null),
+            floorAskPrice: Joi.string().allow(null),
             acquiredAt: Joi.string().allow(null),
           }),
         })

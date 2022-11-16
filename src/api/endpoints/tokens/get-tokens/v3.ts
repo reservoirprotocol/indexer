@@ -84,8 +84,8 @@ export const getTokensV3Options: RouteOptions = {
             image: Joi.string().allow(null, ""),
             slug: Joi.string().allow(null, ""),
           }),
-          topBidValue: Joi.number().unsafe().allow(null),
-          floorAskPrice: Joi.number().unsafe().allow(null),
+          topBidValue: Joi.string().allow(null),
+          floorAskPrice: Joi.string().allow(null),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),

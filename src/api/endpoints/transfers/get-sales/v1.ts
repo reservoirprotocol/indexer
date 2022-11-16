@@ -71,7 +71,7 @@ export const getSalesV1Options: RouteOptions = {
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{64}$/),
           timestamp: Joi.number(),
-          price: Joi.number().unsafe().allow(null),
+          price: Joi.string().allow(null),
         })
       ),
     }).label(`getSales${version.toUpperCase()}Response`),

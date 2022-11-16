@@ -69,13 +69,13 @@ export const getUserPositionsV1Options: RouteOptions = {
             ).allow(null),
             sampleImages: Joi.array().items(Joi.string().allow(null, "")),
             image: Joi.string().allow(null, ""),
-            floorAskPrice: Joi.number().unsafe().allow(null),
-            topBidValue: Joi.number().unsafe().allow(null),
+            floorAskPrice: Joi.string().allow(null),
+            topBidValue: Joi.string().allow(null),
           },
           primaryOrder: {
             id: Joi.string().allow(null),
-            value: Joi.number().unsafe().allow(null),
-            expiration: Joi.number().unsafe().allow(null),
+            value: Joi.string().allow(null),
+            expiration: Joi.string().allow(null),
           },
           totalValid: Joi.number().allow(null),
         })

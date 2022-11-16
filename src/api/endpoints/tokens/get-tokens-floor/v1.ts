@@ -42,7 +42,7 @@ export const getTokensFloorV1Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      tokens: Joi.object().pattern(/^[0-9]+$/, Joi.number().unsafe()),
+      tokens: Joi.object().pattern(/^[0-9]+$/, Joi.string()),
     }).label(`getTokensFloor${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`get-tokens-floor-${version}-handler`, `Wrong response schema: ${error}`);

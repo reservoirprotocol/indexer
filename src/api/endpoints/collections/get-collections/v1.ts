@@ -60,23 +60,23 @@ export const getCollectionsV1Options: RouteOptions = {
             recipient: Joi.string().allow(null, ""),
             bps: Joi.number(),
           }),
-          floorAskPrice: Joi.number().unsafe().allow(null),
-          topBidValue: Joi.number().unsafe().allow(null),
+          floorAskPrice: Joi.string().allow(null),
+          topBidValue: Joi.string().allow(null),
           topBidMaker: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/)
             .allow(null),
           rank: Joi.object({
-            "1day": Joi.number().unsafe().allow(null),
-            "7day": Joi.number().unsafe().allow(null),
-            "30day": Joi.number().unsafe().allow(null),
-            allTime: Joi.number().unsafe().allow(null),
+            "1day": Joi.string().allow(null),
+            "7day": Joi.string().allow(null),
+            "30day": Joi.string().allow(null),
+            allTime: Joi.string().allow(null),
           }),
           volume: Joi.object({
-            "1day": Joi.number().unsafe().allow(null),
-            "7day": Joi.number().unsafe().allow(null),
-            "30day": Joi.number().unsafe().allow(null),
-            allTime: Joi.number().unsafe().allow(null),
+            "1day": Joi.string().allow(null),
+            "7day": Joi.string().allow(null),
+            "30day": Joi.string().allow(null),
+            allTime: Joi.string().allow(null),
           }),
         })
       ),

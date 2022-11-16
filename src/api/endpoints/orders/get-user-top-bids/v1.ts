@@ -75,14 +75,14 @@ export const getUserTopBidsV1Options: RouteOptions = {
       topBids: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          price: Joi.number().unsafe(),
-          value: Joi.number().unsafe(),
+          price: Joi.string(),
+          value: Joi.string(),
           maker: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/),
           createdAt: Joi.string(),
-          validFrom: Joi.number().unsafe(),
-          validUntil: Joi.number().unsafe(),
+          validFrom: Joi.string(),
+          validUntil: Joi.string(),
           source: Joi.object().allow(null),
           feeBreakdown: Joi.array()
             .items(
@@ -125,13 +125,13 @@ export const getUserTopBidsV1Options: RouteOptions = {
             tokenId: Joi.string(),
             name: Joi.string().allow(null, ""),
             image: Joi.string().allow(null, ""),
-            floorAskPrice: Joi.number().unsafe().allow(null),
-            lastSalePrice: Joi.number().unsafe().allow(null),
+            floorAskPrice: Joi.string().allow(null),
+            lastSalePrice: Joi.string().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow(null, ""),
               imageUrl: Joi.string().allow(null),
-              floorAskPrice: Joi.number().unsafe().allow(null),
+              floorAskPrice: Joi.string().allow(null),
             }),
           }),
         })

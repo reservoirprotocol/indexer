@@ -118,8 +118,8 @@ export const getTokensV5Options: RouteOptions = {
             kind: Joi.string().allow(null, ""),
             isFlagged: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow(null, ""),
-            rarity: Joi.number().unsafe().allow(null),
-            rarityRank: Joi.number().unsafe().allow(null),
+            rarity: Joi.string().allow(null),
+            rarityRank: Joi.string().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow(null, ""),
@@ -127,12 +127,12 @@ export const getTokensV5Options: RouteOptions = {
               slug: Joi.string().allow(null, ""),
             }),
             lastBuy: {
-              value: Joi.number().unsafe().allow(null),
-              timestamp: Joi.number().unsafe().allow(null),
+              value: Joi.string().allow(null),
+              timestamp: Joi.string().allow(null),
             },
             lastSell: {
-              value: Joi.number().unsafe().allow(null),
-              timestamp: Joi.number().unsafe().allow(null),
+              value: Joi.string().allow(null),
+              timestamp: Joi.string().allow(null),
             },
             owner: Joi.string().allow(null),
             attributes: Joi.array()
@@ -142,8 +142,8 @@ export const getTokensV5Options: RouteOptions = {
                   value: Joi.string(),
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
-                  floorAskPrice: Joi.number().unsafe().allow(null),
-                  topBidValue: Joi.number().unsafe().allow(null),
+                  floorAskPrice: Joi.string().allow(null),
+                  topBidValue: Joi.string().allow(null),
                 })
               )
               .optional(),
@@ -153,16 +153,16 @@ export const getTokensV5Options: RouteOptions = {
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
-              validFrom: Joi.number().unsafe().allow(null),
-              validUntil: Joi.number().unsafe().allow(null),
+              validFrom: Joi.string().allow(null),
+              validUntil: Joi.string().allow(null),
               source: Joi.object().allow(null),
             },
             topBid: Joi.object({
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
-              validFrom: Joi.number().unsafe().allow(null),
-              validUntil: Joi.number().unsafe().allow(null),
+              validFrom: Joi.string().allow(null),
+              validUntil: Joi.string().allow(null),
               source: Joi.object().allow(null),
               feeBreakdown: Joi.array()
                 .items(

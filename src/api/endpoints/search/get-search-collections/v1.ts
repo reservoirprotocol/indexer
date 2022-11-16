@@ -51,8 +51,8 @@ export const getSearchCollectionsV1Options: RouteOptions = {
           contract: Joi.string(),
           image: Joi.string().allow(null, ""),
           name: Joi.string().allow(null, ""),
-          allTimeVolume: Joi.number().unsafe().allow(null),
-          floorAskPrice: Joi.number().unsafe().allow(null),
+          allTimeVolume: Joi.string().allow(null),
+          floorAskPrice: Joi.string().allow(null),
           openseaVerificationStatus: Joi.string().allow(null, ""),
         })
       ),

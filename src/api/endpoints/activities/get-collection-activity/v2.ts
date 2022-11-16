@@ -77,8 +77,8 @@ export const getCollectionActivityV2Options: RouteOptions = {
           type: Joi.string(),
           fromAddress: Joi.string(),
           toAddress: Joi.string().allow(null),
-          price: Joi.number().unsafe(),
-          amount: Joi.number().unsafe(),
+          price: Joi.string(),
+          amount: Joi.string(),
           timestamp: Joi.number(),
           createdAt: Joi.string(),
           token: Joi.object({

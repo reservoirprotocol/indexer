@@ -34,13 +34,13 @@ export const getAttributesAllV2Options: RouteOptions = {
           key: Joi.string().required(),
           attributeCount: Joi.number(),
           kind: Joi.string().valid("string", "number", "date", "range").required(),
-          minRange: Joi.number().unsafe().allow(null),
-          maxRange: Joi.number().unsafe().allow(null),
+          minRange: Joi.string().allow(null),
+          maxRange: Joi.string().allow(null),
           values: Joi.array().items(
             Joi.object({
               value: Joi.string().required(),
               count: Joi.number(),
-              floorAskPrice: Joi.number().unsafe().allow(null),
+              floorAskPrice: Joi.string().allow(null),
             })
           ),
         })

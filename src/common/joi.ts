@@ -8,9 +8,9 @@ import { getUSDAndNativePrices } from "@/utils/prices";
 
 const JoiPriceAmount = Joi.object({
   raw: Joi.string().pattern(regex.number),
-  decimal: Joi.number().unsafe(),
-  usd: Joi.number().unsafe().allow(null),
-  native: Joi.number().unsafe(),
+  decimal: Joi.string(),
+  usd: Joi.string().allow(null),
+  native: Joi.string(),
 });
 
 const JoiPriceCurrency = Joi.object({

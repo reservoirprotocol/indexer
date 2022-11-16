@@ -85,7 +85,7 @@ export const getSalesBulkV1Options: RouteOptions = {
           logIndex: Joi.number(),
           batchIndex: Joi.number(),
           timestamp: Joi.number(),
-          price: Joi.number().unsafe().allow(null),
+          price: Joi.string().allow(null),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),

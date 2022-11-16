@@ -41,7 +41,7 @@ export const getCollectionFloorAskOracleV1Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      price: Joi.number().unsafe().required(),
+      price: Joi.string().required(),
       message: Joi.object({
         id: Joi.string().required(),
         payload: Joi.string().required(),

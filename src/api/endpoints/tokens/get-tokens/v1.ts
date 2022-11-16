@@ -71,8 +71,8 @@ export const getTokensV1Options: RouteOptions = {
             id: Joi.string().allow(null),
             name: Joi.string().allow(null, ""),
           }),
-          topBidValue: Joi.number().unsafe().allow(null),
-          floorAskPrice: Joi.number().unsafe().allow(null),
+          topBidValue: Joi.string().allow(null),
+          floorAskPrice: Joi.string().allow(null),
         })
       ),
     }).label(`getTokens${version.toUpperCase()}Response`),

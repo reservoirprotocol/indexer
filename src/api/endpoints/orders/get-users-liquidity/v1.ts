@@ -59,9 +59,9 @@ export const getUsersLiquidityV1Options: RouteOptions = {
             .pattern(/^0x[a-fA-F0-9]{40}$/),
           rank: Joi.number().required(),
           tokenCount: Joi.string().required(),
-          liquidity: Joi.number().unsafe().required(),
-          maxTopBuyValue: Joi.number().unsafe().required(),
-          wethBalance: Joi.number().unsafe().required(),
+          liquidity: Joi.string().required(),
+          maxTopBuyValue: Joi.string().required(),
+          wethBalance: Joi.string().required(),
         })
       ),
     }).label(`getUsersLiquidity${version.toUpperCase()}Response`),

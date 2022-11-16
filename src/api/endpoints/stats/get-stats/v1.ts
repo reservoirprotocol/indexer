@@ -51,13 +51,13 @@ export const getStatsV1Options: RouteOptions = {
         market: Joi.object({
           floorAsk: Joi.object({
             id: Joi.string().allow(null),
-            price: Joi.number().unsafe().allow(null),
+            price: Joi.string().allow(null),
             maker: Joi.string()
               .lowercase()
               .pattern(/^0x[a-fA-F0-9]{40}$/)
               .allow(null),
-            validFrom: Joi.number().unsafe().allow(null),
-            validUntil: Joi.number().unsafe().allow(null),
+            validFrom: Joi.string().allow(null),
+            validUntil: Joi.string().allow(null),
             token: Joi.object({
               contract: Joi.string()
                 .lowercase()
@@ -73,13 +73,13 @@ export const getStatsV1Options: RouteOptions = {
           }),
           topBid: {
             id: Joi.string().allow(null),
-            value: Joi.number().unsafe().allow(null),
+            value: Joi.string().allow(null),
             maker: Joi.string()
               .lowercase()
               .pattern(/^0x[a-fA-F0-9]{40}$/)
               .allow(null),
-            validFrom: Joi.number().unsafe().allow(null),
-            validUntil: Joi.number().unsafe().allow(null),
+            validFrom: Joi.string().allow(null),
+            validUntil: Joi.string().allow(null),
           },
         }),
       }).allow(null),

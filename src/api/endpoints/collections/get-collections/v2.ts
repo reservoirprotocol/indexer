@@ -62,17 +62,17 @@ export const getCollectionsV2Options: RouteOptions = {
           primaryContract: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/),
-          floorAskPrice: Joi.number().unsafe().allow(null),
-          topBidValue: Joi.number().unsafe().allow(null),
+          floorAskPrice: Joi.string().allow(null),
+          topBidValue: Joi.string().allow(null),
           topBidMaker: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/)
             .allow(null),
-          "1dayVolume": Joi.number().unsafe().allow(null),
-          "7dayVolume": Joi.number().unsafe().allow(null),
-          "30dayVolume": Joi.number().unsafe().allow(null),
-          allTimeVolume: Joi.number().unsafe().allow(null),
-          allTimeRank: Joi.number().unsafe().allow(null),
+          "1dayVolume": Joi.string().allow(null),
+          "7dayVolume": Joi.string().allow(null),
+          "30dayVolume": Joi.string().allow(null),
+          allTimeVolume: Joi.string().allow(null),
+          allTimeRank: Joi.string().allow(null),
         })
       ),
     }).label(`getCollections${version.toUpperCase()}Response`),

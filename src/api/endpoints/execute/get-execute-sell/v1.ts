@@ -47,7 +47,7 @@ export const getExecuteSellV1Options: RouteOptions = {
           data: Joi.object(),
         })
       ),
-      quote: Joi.number().unsafe(),
+      quote: Joi.string(),
       query: Joi.object(),
     }).label(`getExecuteSell${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {

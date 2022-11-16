@@ -66,33 +66,33 @@ export const getCollectionsV3Options: RouteOptions = {
           primaryContract: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/),
-          floorAskPrice: Joi.number().unsafe().allow(null),
-          topBidValue: Joi.number().unsafe().allow(null),
+          floorAskPrice: Joi.string().allow(null),
+          topBidValue: Joi.string().allow(null),
           topBidMaker: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/)
             .allow(null),
           rank: Joi.object({
-            "1day": Joi.number().unsafe().allow(null),
-            "7day": Joi.number().unsafe().allow(null),
-            "30day": Joi.number().unsafe().allow(null),
-            allTime: Joi.number().unsafe().allow(null),
+            "1day": Joi.string().allow(null),
+            "7day": Joi.string().allow(null),
+            "30day": Joi.string().allow(null),
+            allTime: Joi.string().allow(null),
           }),
           volume: Joi.object({
-            "1day": Joi.number().unsafe().allow(null),
-            "7day": Joi.number().unsafe().allow(null),
-            "30day": Joi.number().unsafe().allow(null),
-            allTime: Joi.number().unsafe().allow(null),
+            "1day": Joi.string().allow(null),
+            "7day": Joi.string().allow(null),
+            "30day": Joi.string().allow(null),
+            allTime: Joi.string().allow(null),
           }),
           volumeChange: {
-            "1day": Joi.number().unsafe().allow(null),
-            "7day": Joi.number().unsafe().allow(null),
-            "30day": Joi.number().unsafe().allow(null),
+            "1day": Joi.string().allow(null),
+            "7day": Joi.string().allow(null),
+            "30day": Joi.string().allow(null),
           },
           floorSale: {
-            "1day": Joi.number().unsafe().allow(null),
-            "7day": Joi.number().unsafe().allow(null),
-            "30day": Joi.number().unsafe().allow(null),
+            "1day": Joi.string().allow(null),
+            "7day": Joi.string().allow(null),
+            "30day": Joi.string().allow(null),
           },
         })
       ),

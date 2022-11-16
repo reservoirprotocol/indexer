@@ -39,7 +39,7 @@ export const getSourcesListingsV1Options: RouteOptions = {
         Joi.object({
           onSaleCount: Joi.number(),
           sourceDomain: Joi.string().allow(null, ""),
-          floorAskPrice: Joi.number().unsafe().allow(null),
+          floorAskPrice: Joi.string().allow(null),
         })
       ),
     }).label(`getSourcesListings${version.toUpperCase()}Response`),

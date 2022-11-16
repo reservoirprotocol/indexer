@@ -118,8 +118,8 @@ export const getOrdersBidsV3Options: RouteOptions = {
           price: JoiPrice,
           validFrom: Joi.number().required(),
           validUntil: Joi.number().required(),
-          quantityFilled: Joi.number().unsafe(),
-          quantityRemaining: Joi.number().unsafe(),
+          quantityFilled: Joi.string(),
+          quantityRemaining: Joi.string(),
           metadata: Joi.alternatives(
             Joi.object({
               kind: "token",

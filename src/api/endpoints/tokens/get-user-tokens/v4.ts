@@ -93,7 +93,7 @@ export const getUserTokensV4Options: RouteOptions = {
               id: Joi.string().allow(null),
               name: Joi.string().allow(null, ""),
               imageUrl: Joi.string().allow(null),
-              floorAskPrice: Joi.number().unsafe().allow(null),
+              floorAskPrice: Joi.string().allow(null),
             }),
             topBid: Joi.object({
               id: Joi.string().allow(null),

@@ -102,14 +102,14 @@ export const getExecuteBuyV2Options: RouteOptions = {
           data: Joi.object(),
         })
       ),
-      quote: Joi.number().unsafe(),
+      quote: Joi.string(),
       path: Joi.array().items(
         Joi.object({
           contract: Joi.string().lowercase().pattern(regex.address),
           tokenId: Joi.string().lowercase().pattern(regex.number),
-          quantity: Joi.number().unsafe(),
+          quantity: Joi.string(),
           source: Joi.string().allow("", null),
-          quote: Joi.number().unsafe(),
+          quote: Joi.string(),
         })
       ),
       query: Joi.object(),

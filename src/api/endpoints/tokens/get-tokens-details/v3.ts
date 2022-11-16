@@ -101,12 +101,12 @@ export const getTokensDetailsV3Options: RouteOptions = {
               slug: Joi.string().allow(null, ""),
             }),
             lastBuy: {
-              value: Joi.number().unsafe().allow(null),
-              timestamp: Joi.number().unsafe().allow(null),
+              value: Joi.string().allow(null),
+              timestamp: Joi.string().allow(null),
             },
             lastSell: {
-              value: Joi.number().unsafe().allow(null),
-              timestamp: Joi.number().unsafe().allow(null),
+              value: Joi.string().allow(null),
+              timestamp: Joi.string().allow(null),
             },
             owner: Joi.string().allow(null),
             attributes: Joi.array().items(
@@ -119,18 +119,18 @@ export const getTokensDetailsV3Options: RouteOptions = {
           market: Joi.object({
             floorAsk: {
               id: Joi.string().allow(null),
-              price: Joi.number().unsafe().allow(null),
+              price: Joi.string().allow(null),
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
-              validFrom: Joi.number().unsafe().allow(null),
-              validUntil: Joi.number().unsafe().allow(null),
+              validFrom: Joi.string().allow(null),
+              validUntil: Joi.string().allow(null),
               source: Joi.object().allow(null),
             },
             topBid: Joi.object({
               id: Joi.string().allow(null),
-              value: Joi.number().unsafe().allow(null),
+              value: Joi.string().allow(null),
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
-              validFrom: Joi.number().unsafe().allow(null),
-              validUntil: Joi.number().unsafe().allow(null),
+              validFrom: Joi.string().allow(null),
+              validUntil: Joi.string().allow(null),
             }),
           }),
         })

@@ -33,7 +33,7 @@ export const getCollectionTopBidsV1Options: RouteOptions = {
     schema: Joi.object({
       topBids: Joi.array().items(
         Joi.object({
-          value: Joi.number().unsafe(),
+          value: Joi.string(),
           quantity: Joi.number(),
         })
       ),

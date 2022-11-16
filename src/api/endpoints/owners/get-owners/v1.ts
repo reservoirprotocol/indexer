@@ -74,9 +74,9 @@ export const getOwnersV1Options: RouteOptions = {
           ownership: Joi.object({
             tokenCount: Joi.string(),
             onSaleCount: Joi.string(),
-            floorAskPrice: Joi.number().unsafe().allow(null),
-            topBidValue: Joi.number().unsafe().allow(null),
-            totalBidValue: Joi.number().unsafe().allow(null),
+            floorAskPrice: Joi.string().allow(null),
+            topBidValue: Joi.string().allow(null),
+            totalBidValue: Joi.string().allow(null),
           }),
         })
       ),

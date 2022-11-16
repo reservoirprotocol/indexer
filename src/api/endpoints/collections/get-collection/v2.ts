@@ -53,18 +53,18 @@ export const getCollectionV2Options: RouteOptions = {
           bps: Joi.number(),
         }).allow(null),
         lastBuy: {
-          value: Joi.number().unsafe().allow(null),
+          value: Joi.string().allow(null),
           timestamp: Joi.number().allow(null),
         },
         floorAsk: {
           id: Joi.string().allow(null),
-          price: Joi.number().unsafe().allow(null),
+          price: Joi.string().allow(null),
           maker: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/)
             .allow(null),
-          validFrom: Joi.number().unsafe().allow(null),
-          validUntil: Joi.number().unsafe().allow(null),
+          validFrom: Joi.string().allow(null),
+          validUntil: Joi.string().allow(null),
           token: Joi.object({
             contract: Joi.string()
               .lowercase()
@@ -79,40 +79,40 @@ export const getCollectionV2Options: RouteOptions = {
         },
         topBid: Joi.object({
           id: Joi.string().allow(null),
-          value: Joi.number().unsafe().allow(null),
+          value: Joi.string().allow(null),
           maker: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/)
             .allow(null),
-          validFrom: Joi.number().unsafe().allow(null),
-          validUntil: Joi.number().unsafe().allow(null),
+          validFrom: Joi.string().allow(null),
+          validUntil: Joi.string().allow(null),
         }),
         rank: Joi.object({
-          "1day": Joi.number().unsafe().allow(null),
-          "7day": Joi.number().unsafe().allow(null),
-          "30day": Joi.number().unsafe().allow(null),
-          allTime: Joi.number().unsafe().allow(null),
+          "1day": Joi.string().allow(null),
+          "7day": Joi.string().allow(null),
+          "30day": Joi.string().allow(null),
+          allTime: Joi.string().allow(null),
         }),
         volume: Joi.object({
-          "1day": Joi.number().unsafe().allow(null),
-          "7day": Joi.number().unsafe().allow(null),
-          "30day": Joi.number().unsafe().allow(null),
-          allTime: Joi.number().unsafe().allow(null),
+          "1day": Joi.string().allow(null),
+          "7day": Joi.string().allow(null),
+          "30day": Joi.string().allow(null),
+          allTime: Joi.string().allow(null),
         }),
         volumeChange: {
-          "1day": Joi.number().unsafe().allow(null),
-          "7day": Joi.number().unsafe().allow(null),
-          "30day": Joi.number().unsafe().allow(null),
+          "1day": Joi.string().allow(null),
+          "7day": Joi.string().allow(null),
+          "30day": Joi.string().allow(null),
         },
         floorSale: {
-          "1day": Joi.number().unsafe().allow(null),
-          "7day": Joi.number().unsafe().allow(null),
-          "30day": Joi.number().unsafe().allow(null),
+          "1day": Joi.string().allow(null),
+          "7day": Joi.string().allow(null),
+          "30day": Joi.string().allow(null),
         },
         floorSaleChange: {
-          "1day": Joi.number().unsafe().allow(null),
-          "7day": Joi.number().unsafe().allow(null),
-          "30day": Joi.number().unsafe().allow(null),
+          "1day": Joi.string().allow(null),
+          "7day": Joi.string().allow(null),
+          "30day": Joi.string().allow(null),
         },
         collectionBidSupported: Joi.boolean(),
         ownerCount: Joi.number(),

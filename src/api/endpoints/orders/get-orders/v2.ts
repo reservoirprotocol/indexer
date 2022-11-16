@@ -59,8 +59,8 @@ export const getOrdersV2Options: RouteOptions = {
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/)
             .required(),
-          price: Joi.number().unsafe().required(),
-          value: Joi.number().unsafe().required(),
+          price: Joi.string().required(),
+          value: Joi.string().required(),
           validFrom: Joi.number().required(),
           validUntil: Joi.number().required(),
           source: Joi.string().allow(null),
