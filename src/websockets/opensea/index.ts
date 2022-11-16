@@ -97,14 +97,7 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
       }
     );
 
-    const queryResult = await idb.result(query);
-
-    logger.info(
-      "opensea-websocket",
-      `saveEvent query. event=${JSON.stringify(
-        event
-      )}, query=${query}, queryResult=${JSON.stringify(queryResult)}`
-    );
+    await idb.result(query);
   } catch (error) {
     logger.error(
       "opensea-websocket",

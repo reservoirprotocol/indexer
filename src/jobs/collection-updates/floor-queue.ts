@@ -154,14 +154,7 @@ if (config.doBackgroundWork) {
         );
 
         if (collectionFloorAskChanged) {
-          logger.info(
-            QUEUE_NAME,
-            `collection floor-ask changed. collectionId=${
-              collectionResult.collection_id
-            }, jobData=${JSON.stringify(job.data)}`
-          );
-
-          await redis.del(`collection-floor-ask:${contract}`);
+          await redis.del(`collection-floor-ask:${collectionResult.collection_id}`);
         }
       } catch (error) {
         logger.error(
