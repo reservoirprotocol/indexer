@@ -148,16 +148,18 @@ export const getCollectionActivityV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = _.map(activities, (activity) => {
-        let source: SourcesEntity | undefined;
+        let orderSource: SourcesEntity | undefined;
 
         const orderSourceIdInt = activity.order?.sourceIdInt;
 
         if (activity.tokenId && activity.contract) {
           const contract = activity.contract;
           const tokenId = activity.tokenId;
-          source = orderSourceIdInt ? sources.get(orderSourceIdInt, contract, tokenId) : undefined;
+          orderSource = orderSourceIdInt
+            ? sources.get(orderSourceIdInt, contract, tokenId)
+            : undefined;
         } else {
-          source = orderSourceIdInt ? sources.get(orderSourceIdInt) : undefined;
+          orderSource = orderSourceIdInt ? sources.get(orderSourceIdInt) : undefined;
         }
 
         return {
@@ -183,11 +185,11 @@ export const getCollectionActivityV4Options: RouteOptions = {
                     : "bid"
                   : undefined,
                 source: {
-                  id: source?.address,
-                  domain: source?.domain,
-                  name: source?.metadata.title || source?.name,
-                  icon: source?.getIcon(),
-                  url: source?.metadata.url,
+                  id: orderSource?.address,
+                  domain: orderSource?.domain,
+                  name: orderSource?.metadata.title || orderSource?.name,
+                  icon: orderSource?.getIcon(),
+                  url: orderSource?.metadata.url,
                 },
                 metadata: activity.order.metadata || undefined,
               }
