@@ -967,6 +967,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/users/{user}/tokens/v6",
+    options: tokensEndpoints.getUserTokensV6Options,
+  });
+
+  server.route({
     method: "POST",
     path: "/tokens/refresh/v1",
     options: tokensEndpoints.postTokensRefreshV1Options,
