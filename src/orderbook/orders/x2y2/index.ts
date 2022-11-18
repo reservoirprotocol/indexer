@@ -200,34 +200,19 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           order.params.nft.tokenId,
           "default"
         );
-        for (const { bps, recipient } of defaultRoyalties) {
-          // Get any built-in royalty payment to the current recipient
-          const existingRoyalty = feeBreakdown.find(
-            (r) => r.kind === "royalty" && r.recipient === recipient
-          );
 
-          if (existingRoyalty) {
-            // Charge the difference if the built-in royalty is less than the default
-            if (existingRoyalty.bps < bps) {
-              const actualBps = bps - existingRoyalty.bps;
-              const amount = bn(price).mul(actualBps).div(10000).toString();
-              missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+        const totalBuiltInBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+        const totalDefaultBps = defaultRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+        if (totalBuiltInBps < totalDefaultBps) {
+          const bpsDiff = totalDefaultBps - totalBuiltInBps;
+          const amount = bn(price).mul(bpsDiff).div(10000).toString();
+          missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
-              missingRoyalties.push({
-                amount,
-                recipient,
-              });
-            }
-          } else {
-            // Charge the full amount if the built-in royalty is missing
-            const amount = bn(price).mul(bps).div(10000).toString();
-            missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
-
-            missingRoyalties.push({
-              amount,
-              recipient,
-            });
-          }
+          missingRoyalties.push({
+            amount,
+            // TODO: We should probably split pro-rata across all royalty recipients
+            recipient: defaultRoyalties[0].recipient,
+          });
         }
       }
 
