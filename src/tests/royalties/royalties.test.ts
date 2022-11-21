@@ -55,10 +55,20 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
   const balanceChangeWithBps = [];
   const royaltyRecipients: string[] = royalties.map((_) => _.recipient);
   const threshold = 1000;
+  let sameCollectionSales = 0;
 
   for (const address in state) {
     const { tokenBalanceState } = state[address];
+    for (const stateId in tokenBalanceState) {
+      const changeValue = tokenBalanceState[stateId];
+      if (stateId.startsWith(`erc721:${contract}`) && !changeValue.startsWith("-")) {
+        sameCollectionSales++;
+      }
+    }
+  }
 
+  for (const address in state) {
+    const { tokenBalanceState } = state[address];
     const weth = "erc20:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
     const native = "native:0x0000000000000000000000000000000000000000";
     const balanceChange = tokenBalanceState[native] || tokenBalanceState[weth];
@@ -74,6 +84,7 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
       if (openSeaFeeRecipients.includes(address)) {
         marketplace_fee_breakdown.push(royalties);
       } else if (royaltyRecipients.includes(address)) {
+        royalties.bps = royalties.bps / sameCollectionSales;
         royalty_fee_breakdown.push(royalties);
       } else if (bpsInPrice.lt(threshold)) {
         possible_missing_royalties.push(royalties);
@@ -94,13 +105,22 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
 
   // console.log("balanceChangeWithBps", balanceChangeWithBps, tokenId, contract, possible_missing_royalties);
 
-  return {
+  const result = {
     royalty_fee_bps: getTotalRoyaltyBps(royalty_fee_breakdown),
     marketplace_fee_bps: getTotalRoyaltyBps(marketplace_fee_breakdown),
     royalty_fee_breakdown,
     marketplace_fee_breakdown,
+    sameCollectionSales,
     paid_full_royalty,
   };
+
+  // console.log("balanceChangeWithBps", balanceChangeWithBps)
+  // console.log("result", result);
+  // console.log("tokenId", tokenId)
+  // console.log("state", state)
+  // console.log("royalties", royalties)
+  // console.log("possible_missing_royalties", possible_missing_royalties)
+  return result;
 }
 
 jest.setTimeout(1000 * 1000);
@@ -110,11 +130,16 @@ describe("Royalties", () => {
     const txIds = [
       // single
       // "0x93de26bea65832e10c253f6cd0bf963619d7aef63695b485d9df118dd6bd4ae4",
-      // multiple
+      // multiple rarible bulkPurchase (x2y2 + seaport)
       "0xa451be1bd9edef5cab318e3cb0fbff6a6f9955dfd49e484caa37dbaa6982a1ed",
     ];
 
     await fetchCollectionMetadata.addToQueue([
+      {
+        contract: "0x33c6eec1723b12c46732f7ab41398de45641fa42",
+        tokenId: "4428",
+        mintedTimestamp: Math.floor(Date.now() / 1000),
+      },
       {
         contract: "0x33c6eec1723b12c46732f7ab41398de45641fa42",
         tokenId: "2017",
@@ -147,7 +172,7 @@ describe("Royalties", () => {
       const fillEvents = result.fillEventsPartial ?? [];
       for (let index = 0; index < fillEvents.length; index++) {
         const fillEvent = fillEvents[index];
-        await extractRoyalties(fillEvent)
+        await extractRoyalties(fillEvent);
         // console.log("result", await extractRoyalties(fillEvent))
         // const fees = await extractRoyalties(fillEvent);
       }
