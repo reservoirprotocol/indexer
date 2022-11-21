@@ -11,12 +11,15 @@ import * as utils from "@/events-sync/utils";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import { Royalty, getDefaultRoyalties } from "@/utils/royalties";
 
+import { refreshAllRoyaltySpecs } from "@/utils/royalties";
+import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
+
 // const testFees = {
 //   // Ledger
 //   "0x33c6eec1723b12c46732f7ab41398de45641fa42": [
 //     {
 //       bps: 750,
-//       recipient: "0xec934b9dcc00df6b5355dfd8b638db9a69e43ff8",
+//       recipient: "0x459fe44490075a2ec231794f9548238e99bf25c0",
 //     },
 //   ],
 //   // ChillTuna
@@ -31,6 +34,8 @@ import { Royalty, getDefaultRoyalties } from "@/utils/royalties";
 async function extractRoyalties(fillEvent: es.fills.Event) {
   const royalty_fee_breakdown: Royalty[] = [];
   const marketplace_fee_breakdown: Royalty[] = [];
+
+  const possible_missing_royalties: Royalty[] = [];
 
   const { tokenId, contract, price } = fillEvent;
   const txTrace = await utils.fetchTransactionTrace(fillEvent.baseEventParams.txHash);
@@ -49,6 +54,7 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
 
   const balanceChangeWithBps = [];
   const royaltyRecipients: string[] = royalties.map((_) => _.recipient);
+  const threshold = 1000;
 
   for (const address in state) {
     const { tokenBalanceState } = state[address];
@@ -59,17 +65,20 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
 
     if (balanceChange && !balanceChange.startsWith("-")) {
       const bpsInPrice = bn(balanceChange).mul(10000).div(bn(price));
+
+      const royalties = {
+        recipient: address,
+        bps: bpsInPrice.toNumber(),
+      };
+
       if (openSeaFeeRecipients.includes(address)) {
-        marketplace_fee_breakdown.push({
-          recipient: address,
-          bps: bpsInPrice.toNumber(),
-        });
+        marketplace_fee_breakdown.push(royalties);
       } else if (royaltyRecipients.includes(address)) {
-        royalty_fee_breakdown.push({
-          recipient: address,
-          bps: bpsInPrice.toNumber(),
-        });
+        royalty_fee_breakdown.push(royalties);
+      } else if (bpsInPrice.lt(threshold)) {
+        possible_missing_royalties.push(royalties);
       }
+
       balanceChangeWithBps.push({
         recipient: address,
         balanceChange,
@@ -82,6 +91,8 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
     (royalties || []).map(({ bps }) => bps).reduce((a, b) => a + b, 0);
 
   const paid_full_royalty = royalty_fee_breakdown.length === royaltyRecipients.length;
+
+  // console.log("balanceChangeWithBps", balanceChangeWithBps, tokenId, contract, possible_missing_royalties);
 
   return {
     royalty_fee_bps: getTotalRoyaltyBps(royalty_fee_breakdown),
@@ -98,10 +109,34 @@ describe("Royalties", () => {
   test("Opensea", async () => {
     const txIds = [
       // single
-      "0x93de26bea65832e10c253f6cd0bf963619d7aef63695b485d9df118dd6bd4ae4",
+      // "0x93de26bea65832e10c253f6cd0bf963619d7aef63695b485d9df118dd6bd4ae4",
       // multiple
-      // "0xa451be1bd9edef5cab318e3cb0fbff6a6f9955dfd49e484caa37dbaa6982a1ed",
+      "0xa451be1bd9edef5cab318e3cb0fbff6a6f9955dfd49e484caa37dbaa6982a1ed",
     ];
+
+    await fetchCollectionMetadata.addToQueue([
+      {
+        contract: "0x33c6eec1723b12c46732f7ab41398de45641fa42",
+        tokenId: "2017",
+        mintedTimestamp: Math.floor(Date.now() / 1000),
+      },
+    ]);
+
+    await refreshAllRoyaltySpecs(
+      "0x33c6eec1723b12c46732f7ab41398de45641fa42",
+      [
+        {
+          bps: 750,
+          recipient: "0x459fe44490075a2ec231794f9548238e99bf25c0",
+        },
+      ],
+      [
+        {
+          bps: 750,
+          recipient: "0x459fe44490075a2ec231794f9548238e99bf25c0",
+        },
+      ]
+    );
 
     for (let index = 0; index < txIds.length; index++) {
       const txHash = txIds[index];
@@ -112,8 +147,9 @@ describe("Royalties", () => {
       const fillEvents = result.fillEventsPartial ?? [];
       for (let index = 0; index < fillEvents.length; index++) {
         const fillEvent = fillEvents[index];
-        const fees = await extractRoyalties(fillEvent);
-        // console.log("result", fees)
+        await extractRoyalties(fillEvent)
+        // console.log("result", await extractRoyalties(fillEvent))
+        // const fees = await extractRoyalties(fillEvent);
       }
       // console.log("result", result)
     }
