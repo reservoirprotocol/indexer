@@ -7,7 +7,7 @@ dotEnvConfig();
 import axios from "axios";
 import { genericTaker, ensureBuyTxSucceeds } from "@/utils/simulation";
 
-const BASE_URL = "https://api.reservoir.tools";
+const BASE_URL = "https://indexer-mainnet.alturanft.com";
 
 const main = async () => {
   const collections = [

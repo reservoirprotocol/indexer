@@ -39,16 +39,16 @@ export const getOpenApiOptions: RouteOptions = {
 
       data.openapi["servers"] = [
         {
-          url: "https://api.reservoir.tools",
+          url: "https://index-mainnet.alturanft.com",
         },
         {
-          url: "https://api-goerli.reservoir.tools",
+          url: "https://index-goerli.alturanft.com",
         },
         {
-          url: "https://api-optimism.reservoir.tools",
+          url: "https://index-optimism.alturanft.com",
         },
         {
-          url: "https://api-polygon.reservoir.tools",
+          url: "https://index-polygon.alturanft.com",
         },
       ];
 

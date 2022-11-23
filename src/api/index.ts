@@ -119,7 +119,7 @@ export const start = async (): Promise<void> => {
           },
         },
         schemes: ["https", "http"],
-        host: `${config.chainId === 1 ? "api" : `api-${getNetworkName()}`}.reservoir.tools`,
+        host: `${`indexer-${getNetworkName()}`}.alturanft.com`,
         cors: true,
         tryItOutEnabled: true,
         documentationPath: "/",
