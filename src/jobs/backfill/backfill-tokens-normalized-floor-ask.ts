@@ -71,7 +71,7 @@ if (config.doBackgroundWork) {
           tokens.map(({ floor_sell_id }) => ({
             context: `backfill-normalized-floor-ask-${floor_sell_id}`,
             id: floor_sell_id,
-            trigger: { kind: "revalidation" },
+            trigger: { kind: "bootstrap" },
           }))
         );
 
