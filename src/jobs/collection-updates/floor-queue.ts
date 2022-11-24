@@ -5,6 +5,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { inject } from "@/api/index";
 
 const QUEUE_NAME = "collection-updates-floor-ask-queue";
 
@@ -34,7 +35,10 @@ if (config.doBackgroundWork) {
         // First, retrieve the token's associated collection.
         const collectionResult = await redb.oneOrNone(
           `
-            SELECT tokens.collection_id FROM tokens
+            SELECT
+              tokens.collection_id,
+              tokens.is_flagged 
+            FROM tokens
             WHERE tokens.contract = $/contract/
               AND tokens.token_id = $/tokenId/
           `,
@@ -44,8 +48,27 @@ if (config.doBackgroundWork) {
           }
         );
 
-        if (!collectionResult?.collection_id) {
-          // Skip if the token is not associated to a collection.
+        if (!collectionResult?.collection_id || collectionResult?.is_flagged) {
+          // Skip if the token is not associated to a collection or it is flagged.
+          return;
+        }
+
+        const response = await inject({
+          method: "POST",
+          url: `/tokens/simulate-floor/v1`,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Api-Key": config.adminApiKey,
+          },
+          payload: {
+            token: `${contract}:${tokenId}`,
+            router: "v5",
+          },
+        });
+
+        const floorSimulation = JSON.parse(response.payload);
+        if (floorSimulation.message !== "Floor order is fillable") {
+          // Skip the token if floor simulation fails.
           return;
         }
 
