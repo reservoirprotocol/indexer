@@ -64,6 +64,8 @@ export const postSimulateTopBidV1Options: RouteOptions = {
     try {
       const token = payload.token;
 
+      const [contract, tokenId] = token.split(":");
+
       // Fetch the token's owner
       const ownerResult = await redb.oneOrNone(
         `
@@ -76,8 +78,8 @@ export const postSimulateTopBidV1Options: RouteOptions = {
           LIMIT 1
         `,
         {
-          contract: toBuffer(token.split(":")[0]),
-          tokenId: token.split(":")[1],
+          contract: toBuffer(contract),
+          tokenId,
         }
       );
       if (!ownerResult) {
@@ -98,49 +100,65 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         },
       });
 
-      // Internal errors are tricky for bids since some marketplaces disallow filling
-      // bids with stolen/marked tokens (eg. X2Y2) and so the simulation is dependent
-      // on the token chosen to simulate on. Multi-token bids (eg. collection-wide or
-      // token-list bids) could potentially get filled with other tokens. So here the
-      // wisest thing to do is simply ignore any internal errors.
+      if (JSON.parse(response.payload).statusCode === 500) {
+        // Internal errors are tricky for bids since some marketplaces disallow filling
+        // bids with stolen/marked tokens (eg. X2Y2) and so the simulation is dependent
+        // on the token chosen to simulate on. Multi-token bids (eg. collection-wide or
+        // token-list bids) could potentially get filled with other tokens. So here the
+        // best thing to do is ensure the token simulated on is not flagged.
+        const isFlaggedResult = await redb.oneOrNone(
+          `
+            SELECT
+              tokens.is_flagged
+            FROM tokens
+            WHERE tokens.contract = $/contract/
+              AND tokens.token_id = $/tokenId/
+          `,
+          {
+            contract: toBuffer(contract),
+            tokenId,
+          }
+        );
+        if (isFlaggedResult.is_flagged) {
+          throw Boom.badData("Cannot run simulation on flagged token");
+        }
 
-      // if (JSON.parse(response.payload).statusCode === 500) {
-      //   const topBid = await redb.oneOrNone(
-      //     `
-      //       SELECT
-      //         orders.id
-      //       FROM orders
-      //       JOIN contracts
-      //         ON orders.contract = contracts.address
-      //       JOIN token_sets_tokens
-      //         ON orders.token_set_id = token_sets_tokens.token_set_id
-      //       WHERE token_sets_tokens.contract = $/contract/
-      //         AND token_sets_tokens.token_id = $/tokenId/
-      //         AND orders.side = 'buy'
-      //         AND orders.fillability_status = 'fillable'
-      //         AND orders.approval_status = 'approved'
-      //         AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-      //         AND orders.kind IN ('seaport', 'x2y2', 'zeroex-v4-erc721', 'zeroex-v4-erc1155')
-      //       ORDER BY orders.value DESC
-      //       LIMIT 1
-      //     `,
-      //     {
-      //       contract: toBuffer(token.split(":")[0]),
-      //       tokenId: token.split(":")[1],
-      //     }
-      //   );
+        const topBid = await redb.oneOrNone(
+          `
+            SELECT
+              orders.id
+            FROM orders
+            JOIN contracts
+              ON orders.contract = contracts.address
+            JOIN token_sets_tokens
+              ON orders.token_set_id = token_sets_tokens.token_set_id
+            WHERE token_sets_tokens.contract = $/contract/
+              AND token_sets_tokens.token_id = $/tokenId/
+              AND orders.side = 'buy'
+              AND orders.fillability_status = 'fillable'
+              AND orders.approval_status = 'approved'
+              AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+              AND orders.kind IN ('seaport', 'x2y2', 'zeroex-v4-erc721', 'zeroex-v4-erc1155')
+            ORDER BY orders.value DESC
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(contract),
+            tokenId,
+          }
+        );
 
-      //   // If the "/execute/sell" API failed most of the time it's because of
-      //   // failing to generate the fill signature for X2Y2 orders since their
-      //   // backend sees that particular order as unfillable (usually it's off
-      //   // chain cancelled). In those cases, we cancel the floor ask order. A
-      //   // similar reasoning goes for Seaport orders (partial ones which miss
-      //   // the raw data) and Coinbase NFT orders (no signature).
-      //   if (topBid?.id) {
-      //     await invalidateOrder(topBid.id);
-      //     return { message: "Top bid order is not fillable (got invalidated)" };
-      //   }
-      // }
+        // If the "/execute/sell" API failed most of the time it's because of
+        // failing to generate the fill signature for X2Y2 orders since their
+        // backend sees that particular order as unfillable (usually it's off
+        // chain cancelled). In those cases, we cancel the floor ask order. A
+        // similar reasoning goes for Seaport orders (partial ones which miss
+        // the raw data) and Coinbase NFT orders (no signature).
+        if (topBid?.id) {
+          await invalidateOrder(topBid.id);
+          return { message: "Top bid order is not fillable (got invalidated)" };
+        }
+      }
 
       if (response.payload.includes("No available orders")) {
         return { message: "No orders to simulate" };
@@ -153,7 +171,7 @@ export const postSimulateTopBidV1Options: RouteOptions = {
           FROM contracts
           WHERE contracts.address = $/contract/
         `,
-        { contract: toBuffer(token.split(":")[0]) }
+        { contract: toBuffer(contract) }
       );
 
       const parsedPayload = JSON.parse(response.payload);
