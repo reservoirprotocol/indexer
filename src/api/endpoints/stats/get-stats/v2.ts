@@ -206,9 +206,9 @@ export const getStatsV2Options: RouteOptions = {
             "x"."token_id",
             "x"."name",
             "x"."image",
-            "x"."normalize_floor_sell_id" AS floor_sell_id,
-            "x"."normalize_floor_sell_value" AS floor_sell_value,
-            "x"."normalize_floor_sell_maker AS floor_sell_maker",
+            "x"."normalized_floor_sell_id" AS floor_sell_id,
+            "x"."normalized_floor_sell_value" AS floor_sell_value,
+            "x"."normalized_floor_sell_maker AS floor_sell_maker",
             date_part('epoch', lower("os"."valid_between")) AS "floor_sell_valid_from",
             coalesce(
               nullif(date_part('epoch', upper("os"."valid_between")), 'Infinity'),
@@ -219,8 +219,8 @@ export const getStatsV2Options: RouteOptions = {
             os.fee_bps AS floor_sell_fee_bps
           FROM "x"
           LEFT JOIN "orders" "os"
-            ON "x"."normalize_floor_sell_id" = "os"."id"
-          ORDER BY "x"."normalize_floor_sell_value"
+            ON "x"."normalized_floor_sell_id" = "os"."id"
+          ORDER BY "x"."normalized_floor_sell_value"
           LIMIT 1
         `;
         } else {
