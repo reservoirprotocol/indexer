@@ -190,6 +190,9 @@ export const getStatsV2Options: RouteOptions = {
             "t"."floor_sell_id",
             "t"."floor_sell_value",
             "t"."floor_sell_maker",
+            "t"."normalized_floor_sell_id",
+            "t"."normalized_floor_sell_value",
+            "t"."normalized_floor_sell_maker",
             "t"."is_flagged"
           FROM "tokens" "t"
         `;
@@ -208,7 +211,7 @@ export const getStatsV2Options: RouteOptions = {
             "x"."image",
             "x"."normalized_floor_sell_id" AS floor_sell_id,
             "x"."normalized_floor_sell_value" AS floor_sell_value,
-            "x"."normalized_floor_sell_maker AS floor_sell_maker",
+            "x"."normalized_floor_sell_maker" AS floor_sell_maker,
             date_part('epoch', lower("os"."valid_between")) AS "floor_sell_valid_from",
             coalesce(
               nullif(date_part('epoch', upper("os"."valid_between")), 'Infinity'),
