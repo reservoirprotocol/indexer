@@ -14,13 +14,18 @@ import * as tokenSet from "@/orderbook/token-sets";
 import { keccak256 } from "@ethersproject/solidity";
 
 export type OrderInfo = {
-  orderParams: Sdk.Manifold.Types.ContractListing;
+  orderParams: Sdk.Manifold.Types.ContractListing & {
+    // Additional types for validation (eg. ensuring only the latest event is relevant)
+    txHash: string;
+    txTimestamp: number;
+  };
   metadata: OrderMetadata;
 };
 
 type SaveResult = {
   id: string;
   status: string;
+  txHash: string;
   unfillable?: boolean;
 };
 
@@ -28,8 +33,8 @@ export function getOrderId(orderParams: Sdk.Manifold.Types.ContractListing) {
   // Manifold uses incrementing numbers as ids, so we set the id in our DB to be keccak256(exchange, id)
   // This is done in order to prevent id collisions if we integrate another exchange with the same id mechanic
   const orderId = keccak256(
-    ["string", "uint256"],
-    [Sdk.Manifold.Addresses.Exchange[config.chainId], orderParams.id]
+    ["string", "string", "uint256"],
+    ["manifold", Sdk.Manifold.Addresses.Exchange[config.chainId], orderParams.id]
   );
   return orderId;
 }
@@ -54,6 +59,51 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         { id }
       );
 
+      // startTime - The start time of the sale.  If set to 0, startTime will be set to the first bid/purchase.
+      // endTime - The end time of the sale.  If startTime is 0, represents the duration of the listing upon first bid/purchase.
+      let validFrom = "";
+      let validTo = "";
+      if (orderParams.details.startTime === 0) {
+        validFrom = "'infinity'";
+        validTo = "'infinity'";
+      } else {
+        validFrom = `date_trunc('seconds', to_timestamp(${orderParams.details.startTime}))`;
+        validTo = orderParams.details.endTime
+          ? `date_trunc('seconds', to_timestamp(${orderParams.details.endTime}))`
+          : "'infinity'";
+      }
+
+      if (orderResult) {
+        // If an older order already exists then we just update some fields on it
+        // We update the order before doing `offChainCheck` because the updated fields don't alter the approval or fillability status
+        await idb.none(
+          `
+            UPDATE orders SET
+              valid_between = tstzrange(${validFrom}, ${validTo}, '[]'),
+              price: $/initial_amount/,
+              value: $/initial_amount/,
+              currency_price: $/initial_amount/,
+              currency_value: $/initial_amount/,
+              expiration = $/valid_to/,
+              updated_at = now(),
+              raw_data = $/orderParams:json/
+            WHERE orders.id = $/id/
+          `,
+          {
+            initial_amount: orderParams.details.initialAmount,
+            valid_to: validTo,
+            orderParams,
+            id,
+          }
+        );
+
+        return results.push({
+          id,
+          txHash: orderParams.txHash,
+          status: "success",
+        });
+      }
+
       // Check: order fillability
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
@@ -73,15 +123,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           return results.push({
             id,
             status: "not-fillable",
+            txHash: orderParams.txHash,
           });
         }
-      }
-
-      if (orderResult) {
-        return results.push({
-          id,
-          status: "already-exists",
-        });
       }
 
       // Check and save: associated token set
@@ -102,20 +146,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       let source = await sources.getOrInsert("manifold.xyz");
       if (metadata.source) {
         source = await sources.getOrInsert(metadata.source);
-      }
-
-      // * @param startTime         - The start time of the sale.  If set to 0, startTime will be set to the first bid/purchase.
-      // * @param endTime           - The end time of the sale.  If startTime is 0, represents the duration of the listing upon first bid/purchase.
-      let validFrom = "";
-      let validTo = "";
-      if (orderParams.details.startTime === 0) {
-        validFrom = "'infinity'";
-        validTo = "'infinity'";
-      } else {
-        validFrom = `date_trunc('seconds', to_timestamp(${orderParams.details.startTime}))`;
-        validTo = orderParams.details.endTime
-          ? `date_trunc('seconds', to_timestamp(${orderParams.details.endTime}))`
-          : "'infinity'";
       }
 
       orderValues.push({
@@ -158,6 +188,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       results.push({
         id,
         status: "success",
+        txHash: orderParams.txHash,
         unfillable,
       });
     } catch (error) {
@@ -212,11 +243,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       results
         .filter((r) => r.status === "success" && !r.unfillable)
         .map(
-          ({ id }) =>
+          ({ id, txHash }) =>
             ({
-              //TODO: Add another param to the context for it to be unique.
-              // This will prevent missing out on new listing + update listing txs happening one after another
-              context: `new-order-${id}`,
+              context: `new-order-${id}-${txHash}`,
               id,
               trigger: {
                 kind: "new-order",
