@@ -104,13 +104,19 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         source = await sources.getOrInsert(metadata.source);
       }
 
-      const validFrom = orderParams.details.startTime
-        ? `date_trunc('seconds', to_timestamp(${orderParams.details.startTime}))`
-        : "'infinity'";
-
-      const validTo = orderParams.details.endTime
-        ? `date_trunc('seconds', to_timestamp(${orderParams.details.endTime}))`
-        : "'infinity'";
+      // * @param startTime         - The start time of the sale.  If set to 0, startTime will be set to the first bid/purchase.
+      // * @param endTime           - The end time of the sale.  If startTime is 0, represents the duration of the listing upon first bid/purchase.
+      let validFrom = "";
+      let validTo = "";
+      if (orderParams.details.startTime === 0) {
+        validFrom = "'infinity'";
+        validTo = "'infinity'";
+      } else {
+        validFrom = `date_trunc('seconds', to_timestamp(${orderParams.details.startTime}))`;
+        validTo = orderParams.details.endTime
+          ? `date_trunc('seconds', to_timestamp(${orderParams.details.endTime}))`
+          : "'infinity'";
+      }
 
       orderValues.push({
         id,
@@ -129,7 +135,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         currency_price: orderParams.details.initialAmount,
         currency_value: orderParams.details.initialAmount,
         needs_conversion: null,
-        quantity_remaining: "1",
+        quantity_remaining: orderParams.details.totalAvailable.toString(),
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: null,
         source_id_int: source?.id,
