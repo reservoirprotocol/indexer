@@ -10,6 +10,7 @@ import { bn } from "@/common/utils";
 import * as utils from "@/events-sync/utils";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import { Royalty, getDefaultRoyalties } from "@/utils/royalties";
+// import { parseEther, formatEther } from "@ethersproject/units";
 
 import { refreshAllRoyaltySpecs } from "@/utils/royalties";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
@@ -34,7 +35,6 @@ import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-
 async function extractRoyalties(fillEvent: es.fills.Event) {
   const royalty_fee_breakdown: Royalty[] = [];
   const marketplace_fee_breakdown: Royalty[] = [];
-
   const possible_missing_royalties: Royalty[] = [];
 
   const { tokenId, contract, price } = fillEvent;
@@ -44,7 +44,16 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
   }
 
   const state = parseCallTrace(txTrace.calls);
-  const royalties = await getDefaultRoyalties(contract, tokenId);
+  let royalties = await getDefaultRoyalties(contract, tokenId);
+
+  // testing
+  if (!royalties.length)
+    royalties = [
+      {
+        bps: 750,
+        recipient: "0x459fe44490075a2ec231794f9548238e99bf25c0",
+      },
+    ];
 
   const openSeaFeeRecipients = [
     "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
@@ -56,13 +65,22 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
   const royaltyRecipients: string[] = royalties.map((_) => _.recipient);
   const threshold = 1000;
   let sameCollectionSales = 0;
+  let totalTransfers = 0;
 
+  // Tracking same collection sales
   for (const address in state) {
     const { tokenBalanceState } = state[address];
     for (const stateId in tokenBalanceState) {
       const changeValue = tokenBalanceState[stateId];
-      if (stateId.startsWith(`erc721:${contract}`) && !changeValue.startsWith("-")) {
+      const nftTransfer = stateId.startsWith(`erc721:`) || stateId.startsWith(`erc1155:`);
+      const isNFTState =
+        stateId.startsWith(`erc721:${contract}`) || stateId.startsWith(`erc1155:${contract}`);
+      const notIncrease = changeValue.startsWith("-");
+      if (isNFTState && !notIncrease) {
         sameCollectionSales++;
+      }
+      if (nftTransfer && !notIncrease) {
+        totalTransfers++;
       }
     }
   }
@@ -73,21 +91,30 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
     const native = "native:0x0000000000000000000000000000000000000000";
     const balanceChange = tokenBalanceState[native] || tokenBalanceState[weth];
 
+    // Receive ETH
     if (balanceChange && !balanceChange.startsWith("-")) {
       const bpsInPrice = bn(balanceChange).mul(10000).div(bn(price));
-
-      const royalties = {
+      // console.log({
+      //   price: formatEther(price),
+      //   balanceChange: formatEther(balanceChange),
+      //   bps: bpsInPrice.toNumber(),
+      // })
+      const curRoyalties = {
         recipient: address,
         bps: bpsInPrice.toNumber(),
       };
 
       if (openSeaFeeRecipients.includes(address)) {
-        marketplace_fee_breakdown.push(royalties);
+        curRoyalties.bps = 250;
+        marketplace_fee_breakdown.push(curRoyalties);
       } else if (royaltyRecipients.includes(address)) {
-        royalties.bps = royalties.bps / sameCollectionSales;
-        royalty_fee_breakdown.push(royalties);
+        // For multiple sales in one
+        const collectionRoyalty = royalties.find((c) => c.recipient === address);
+        if (collectionRoyalty) {
+          royalty_fee_breakdown.push(collectionRoyalty);
+        }
       } else if (bpsInPrice.lt(threshold)) {
-        possible_missing_royalties.push(royalties);
+        possible_missing_royalties.push(curRoyalties);
       }
 
       balanceChangeWithBps.push({
@@ -106,6 +133,7 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
   // console.log("balanceChangeWithBps", balanceChangeWithBps, tokenId, contract, possible_missing_royalties);
 
   const result = {
+    totalTransfers,
     royalty_fee_bps: getTotalRoyaltyBps(royalty_fee_breakdown),
     marketplace_fee_bps: getTotalRoyaltyBps(marketplace_fee_breakdown),
     royalty_fee_breakdown,
@@ -129,9 +157,11 @@ describe("Royalties", () => {
   test("Opensea", async () => {
     const txIds = [
       // single
-      // "0x93de26bea65832e10c253f6cd0bf963619d7aef63695b485d9df118dd6bd4ae4",
+      "0x93de26bea65832e10c253f6cd0bf963619d7aef63695b485d9df118dd6bd4ae4",
       // multiple rarible bulkPurchase (x2y2 + seaport)
       "0xa451be1bd9edef5cab318e3cb0fbff6a6f9955dfd49e484caa37dbaa6982a1ed",
+      // multiple sales
+      "0xfef549999f91e499dc22ad3d635fd05949d1a7fda1f7c5827986f23fc341f828",
     ];
 
     await fetchCollectionMetadata.addToQueue([
