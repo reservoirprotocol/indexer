@@ -36,7 +36,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
     switch (kind) {
       case "manifold-cancel": {
         const { args } = eventData.abi.parseLog(log);
-        const orderId = args["id"].toLowerCase();
+        const orderId = args["listingId"];
 
         cancelEvents.push({
           orderKind: "manifold",
