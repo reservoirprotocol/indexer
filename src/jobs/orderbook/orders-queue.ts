@@ -113,6 +113,13 @@ if (config.doBackgroundWork) {
             result = await orders.blur.save([info as orders.blur.OrderInfo], relayToArweave);
             break;
           }
+
+          case "manifold": {
+            const result = await orders.manifold.save([info], relayToArweave);
+            logger.info(QUEUE_NAME, `[manifold] Order save result: ${JSON.stringify(result)}`);
+
+            break;
+          }
         }
       } catch (error) {
         logger.error(QUEUE_NAME, `Failed to process order ${JSON.stringify(job.data)}: ${error}`);
@@ -226,6 +233,12 @@ export type GenericOrderInfo =
   | {
       kind: "blur";
       info: orders.blur.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "manifold";
+      info: orders.manifold.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     };

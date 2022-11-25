@@ -272,6 +272,11 @@ export const syncEvents = async (
             kind === "erc20-transfer"
         ),
       },
+      {
+        kind: "manifold",
+        events: enhancedEvents.filter(({ kind }) => kind.startsWith("manifold")),
+        backfill,
+      },
     ]);
 
     // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs

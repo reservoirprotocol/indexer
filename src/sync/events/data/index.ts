@@ -22,6 +22,7 @@ import * as wyvernV23 from "@/events-sync/data/wyvern-v2.3";
 import * as x2y2 from "@/events-sync/data/x2y2";
 import * as zeroExV4 from "@/events-sync/data/zeroex-v4";
 import * as zora from "@/events-sync/data/zora";
+import * as manifold from "@/events-sync/data/manifold";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -95,7 +96,12 @@ export type EventDataKind =
   | "blur-nonce-incremented"
   | "forward-order-filled"
   | "forward-order-cancelled"
-  | "forward-counter-incremented";
+  | "forward-counter-incremented"
+  | "manifold-purchase"
+  | "manifold-bid"
+  | "manifold-modify"
+  | "manifold-cancel"
+  | "manifold-finalize";
 
 export type EventData = {
   kind: EventDataKind;
@@ -175,6 +181,11 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       forward.orderFilled,
       forward.orderCancelled,
       forward.counterIncremented,
+      manifold.bid,
+      manifold.modify,
+      manifold.finalize,
+      manifold.purchase,
+      manifold.cancel,
     ];
   } else {
     return (
@@ -323,6 +334,16 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return forward.orderCancelled;
     case "forward-counter-incremented":
       return forward.counterIncremented;
+    case "manifold-bid":
+      return manifold.bid;
+    case "manifold-cancel":
+      return manifold.cancel;
+    case "manifold-finalize":
+      return manifold.finalize;
+    case "manifold-purchase":
+      return manifold.purchase;
+    case "manifold-modify":
+      return manifold.modify;
     default:
       return undefined;
   }

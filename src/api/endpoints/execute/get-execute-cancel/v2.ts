@@ -151,6 +151,12 @@ export const getExecuteCancelV2Options: RouteOptions = {
           break;
         }
 
+        case "manifold": {
+          //TODO: add manifold logic
+          orderSide = "buy";
+          break;
+        }
+
         // TODO: Add support for X2Y2 (it's tricky because of the signature requirement)
 
         default: {
