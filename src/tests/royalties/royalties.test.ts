@@ -10,7 +10,7 @@ import { bn } from "@/common/utils";
 import * as utils from "@/events-sync/utils";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import { Royalty, getDefaultRoyalties } from "@/utils/royalties";
-// import { parseEther, formatEther } from "@ethersproject/units";
+import { formatEther } from "@ethersproject/units";
 
 import { refreshAllRoyaltySpecs } from "@/utils/royalties";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
@@ -46,8 +46,8 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
   const state = parseCallTrace(txTrace.calls);
   let royalties = await getDefaultRoyalties(contract, tokenId);
 
-  // testing
-  if (!royalties.length)
+  // mock testing
+  if (!royalties.length && contract === "0x33c6eec1723b12c46732f7ab41398de45641fa42")
     royalties = [
       {
         bps: 750,
@@ -105,14 +105,23 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
       };
 
       if (openSeaFeeRecipients.includes(address)) {
+        // if (curRoyalties.bps !== 250) {
+        //   console.log("wrong number")
+        // }
+
+        // default override
         curRoyalties.bps = 250;
+
         marketplace_fee_breakdown.push(curRoyalties);
       } else if (royaltyRecipients.includes(address)) {
+        // const collectionRoyalty = royalties.find((c) => c.recipient === address);
+        // if (collectionRoyalty) {
+        //   royalty_fee_breakdown.push(collectionRoyalty);
+        // }
+
         // For multiple sales in one
-        const collectionRoyalty = royalties.find((c) => c.recipient === address);
-        if (collectionRoyalty) {
-          royalty_fee_breakdown.push(collectionRoyalty);
-        }
+        curRoyalties.bps = curRoyalties.bps / sameCollectionSales;
+        royalty_fee_breakdown.push(curRoyalties);
       } else if (bpsInPrice.lt(threshold)) {
         possible_missing_royalties.push(curRoyalties);
       }
@@ -133,6 +142,11 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
   // console.log("balanceChangeWithBps", balanceChangeWithBps, tokenId, contract, possible_missing_royalties);
 
   const result = {
+    sale: {
+      tokenId,
+      contract,
+      price: formatEther(price),
+    },
     totalTransfers,
     royalty_fee_bps: getTotalRoyaltyBps(royalty_fee_breakdown),
     marketplace_fee_bps: getTotalRoyaltyBps(marketplace_fee_breakdown),
