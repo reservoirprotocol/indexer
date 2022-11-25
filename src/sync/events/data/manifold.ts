@@ -2,6 +2,7 @@ import { Interface } from "@ethersproject/abi";
 
 import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
+import { Manifold } from "@reservoir0x/sdk";
 
 // event PurchaseEvent(uint40 indexed listingId, address referrer, address buyer, uint24 count, uint256 amount);
 // event BidEvent(uint40 indexed listingId, address referrer, address bidder, uint256 amount);

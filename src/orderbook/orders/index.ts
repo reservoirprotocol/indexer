@@ -236,14 +236,6 @@ export const generateListingDetailsV5 = (
       };
     }
 
-    case "manifold": {
-      return {
-        kind: "manifold",
-        ...common,
-        order: new Sdk.Manifold.Order(config.chainId, order.rawData),
-      };
-    }
-
     default: {
       throw new Error("Unsupported order kind");
     }
@@ -377,14 +369,6 @@ export const generateBidDetailsV5 = async (
         kind: "rarible",
         ...common,
         order: sdkOrder,
-      };
-    }
-
-    case "manifold": {
-      return {
-        kind: "manifold",
-        ...common,
-        order: new Sdk.Manifold.Order(config.chainId, order.rawData),
       };
     }
 

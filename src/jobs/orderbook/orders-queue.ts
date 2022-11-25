@@ -115,7 +115,7 @@ if (config.doBackgroundWork) {
           }
 
           case "manifold": {
-            const result = await orders.manifold.save([info], relayToArweave);
+            const result = await orders.manifold.save([info]);
             logger.info(QUEUE_NAME, `[manifold] Order save result: ${JSON.stringify(result)}`);
 
             break;
