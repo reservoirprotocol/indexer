@@ -1,12 +1,9 @@
 import * as Sdk from "@reservoir0x/sdk";
 
-import { redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
-import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import { getOrderId, OrderInfo } from "@/orderbook/orders/manifold";
-import * as onChainData from "@/utils/on-chain-data";
+import { OrderInfo } from "@/orderbook/orders/manifold";
 
 export const offChainCheck = async (
   order: OrderInfo["orderParams"],
@@ -14,7 +11,7 @@ export const offChainCheck = async (
     onChainApprovalRecheck?: boolean;
   }
 ) => {
-  const id = getOrderId(order);
+  // const id = getOrderId(order);
 
   // // Fetch latest cancel event
   // const cancelResult = await redb.oneOrNone(
