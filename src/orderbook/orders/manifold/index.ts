@@ -14,7 +14,7 @@ import * as tokenSet from "@/orderbook/token-sets";
 import { keccak256 } from "@ethersproject/solidity";
 
 export type OrderInfo = {
-  orderParams: Sdk.Manifold.Types.ContractListing & {
+  orderParams: Sdk.Manifold.Types.Order & {
     // Additional types for validation (eg. ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
@@ -29,7 +29,7 @@ type SaveResult = {
   unfillable?: boolean;
 };
 
-export function getOrderId(orderParams: Sdk.Manifold.Types.ContractListing) {
+export function getOrderId(orderParams: Sdk.Manifold.Types.Order) {
   // Manifold uses incrementing numbers as ids, so we set the id in our DB to be keccak256(exchange, id)
   // This is done in order to prevent id collisions if we integrate another exchange with the same id mechanic
   const orderId = keccak256(

@@ -53,7 +53,7 @@ export const offChainCheck = async (
     hasBalance = false;
   }
 
-  const operator = Sdk.Zora.Addresses.Erc721TransferHelper[config.chainId];
+  const operator = Sdk.Manifold.Addresses.Exchange[config.chainId];
 
   // Check: maker has set the proper approval
   const nftApproval = await commonHelpers.getNftApproval(
