@@ -29,12 +29,12 @@ type SaveResult = {
   unfillable?: boolean;
 };
 
-export function getOrderId(orderParams: Sdk.Manifold.Types.Order) {
+export function getOrderId(listingId: number | string) {
   // Manifold uses incrementing numbers as ids, so we set the id in our DB to be keccak256(exchange, id)
   // This is done in order to prevent id collisions if we integrate another exchange with the same id mechanic
   const orderId = keccak256(
     ["string", "string", "uint256"],
-    ["manifold", Sdk.Manifold.Addresses.Exchange[config.chainId], orderParams.id]
+    ["manifold", Sdk.Manifold.Addresses.Exchange[config.chainId], listingId]
   );
   return orderId;
 }
@@ -45,12 +45,48 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
-      const id = getOrderId(orderParams);
+      const id = getOrderId(orderParams.id);
 
-      // Check: order doesn't already exist
+      // Ensure that the order is not cancelled
+      const cancelResult = await redb.oneOrNone(
+        `
+                SELECT 1 FROM cancel_events
+                WHERE order_id = $/id/
+                  AND timestamp >= $/timestamp/
+                LIMIT 1
+              `,
+        { id, timestamp: orderParams.txTimestamp }
+      );
+      if (cancelResult) {
+        return results.push({
+          id,
+          txHash: orderParams.txHash,
+          status: "redundant",
+        });
+      }
+
+      // Ensure that the order is not filled
+      const fillResult = await redb.oneOrNone(
+        `
+                SELECT 1 FROM fill_events_2
+                WHERE order_id = $/id/
+                  AND timestamp >= $/timestamp/
+                LIMIT 1
+              `,
+        { id, timestamp: orderParams.txTimestamp }
+      );
+      if (fillResult) {
+        return results.push({
+          id,
+          txHash: orderParams.txHash,
+          status: "redundant",
+        });
+      }
+
       const orderResult = await redb.oneOrNone(
         ` 
           SELECT 
+            raw_data,
             extract('epoch' from lower(orders.valid_between)) AS valid_from,
             fillability_status
           FROM orders 
@@ -64,7 +100,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       let validFrom = "";
       let validTo = "";
       if (orderParams.details.startTime === 0) {
-        validFrom = "'infinity'";
+        // We don't have tx timestamp because we're ingesting order from Manifold API
+        // We have tx timestamp when we're processing cancel/fill event
+        validFrom = `date_trunc('seconds', to_timestamp(${orderParams.txTimestamp || 0}))`;
         validTo = "'infinity'";
       } else {
         validFrom = `date_trunc('seconds', to_timestamp(${orderParams.details.startTime}))`;
@@ -74,25 +112,40 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       if (orderResult) {
+        // Process only new events
+        if (Number(orderResult.valid_from) > orderParams.txTimestamp) {
+          return results.push({
+            id,
+            txHash: orderParams.txHash,
+            status: "redundant",
+          });
+        }
+
         // If an older order already exists then we just update some fields on it
         // We update the order before doing `offChainCheck` because the updated fields don't alter the approval or fillability status
+        orderResult.raw_data.details = {
+          ...orderResult.raw_data.details,
+          initialAmount: orderParams.details.initialAmount,
+          startTime: orderParams.details.startTime,
+          endTime: orderParams.details.endTime,
+        };
         await idb.none(
           `
-            UPDATE orders SET
-              valid_between = tstzrange(${validFrom}, ${validTo}, '[]'),
-              price: $/initial_amount/,
-              value: $/initial_amount/,
-              currency_price: $/initial_amount/,
-              currency_value: $/initial_amount/,
-              expiration = $/valid_to/,
-              updated_at = now(),
-              raw_data = $/orderParams:json/
-            WHERE orders.id = $/id/
-          `,
+              UPDATE orders SET
+                valid_between = tstzrange(${validFrom}, ${validTo}, '[]'),
+                price = $/initial_amount/,
+                value = $/initial_amount/,
+                currency_price = $/initial_amount/,
+                currency_value = $/initial_amount/,
+                expiration = $/valid_to/,
+                updated_at = now(),
+                raw_data = $/orderParams:json/
+              WHERE orders.id = $/id/
+            `,
           {
             initial_amount: orderParams.details.initialAmount,
             valid_to: validTo,
-            orderParams,
+            orderParams: orderResult.raw_data,
             id,
           }
         );

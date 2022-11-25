@@ -7,10 +7,10 @@ import * as es from "@/events-sync/storage";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
-import { OrderInfo } from "@/orderbook/orders/manifold";
+import { getOrderId, OrderInfo } from "@/orderbook/orders/manifold";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const cancelEvents: es.cancels.Event[] = [];
+  const cancelEventsOnChain: es.cancels.Event[] = [];
   const fillEventsPartial: es.fills.Event[] = [];
 
   const fillInfos: fillUpdates.FillInfo[] = [];
@@ -36,16 +36,17 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
     switch (kind) {
       case "manifold-cancel": {
         const { args } = eventData.abi.parseLog(log);
-        const orderId = args["listingId"];
+        const listingId = args["listingId"];
+        const orderId = getOrderId(listingId);
 
-        cancelEvents.push({
+        cancelEventsOnChain.push({
           orderKind: "manifold",
           orderId,
           baseEventParams,
         });
 
         orderInfos.push({
-          context: `cancelled-${orderId}`,
+          context: `cancelled-${orderId}-${baseEventParams.txHash}-${Math.random()}`,
           id: orderId,
           trigger: {
             kind: "cancel",
@@ -73,10 +74,10 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       case "manifold-modify": {
         // event ModifyListing(uint40 indexed listingId, uint256 initialAmount, uint48 startTime, uint48 endTime);
         const { args } = eventData.abi.parseLog(log);
-        const listingId = args["listingId"].toLowerCase();
-        const initialAmount = args["initialAmount"].toLowerCase();
-        const startTime = args["startTime"].toLowerCase();
-        const endTime = args["endTime"].toLowerCase();
+        const listingId = args["listingId"];
+        const initialAmount = args["initialAmount"].toString();
+        const startTime = args["startTime"];
+        const endTime = args["endTime"];
 
         // Manifold doesn't provide full order info. `any` helps us overcome the type differences.
         // If we don' want to use `any` we'd have to specify some default values for the whole struct
@@ -107,7 +108,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   }
 
   return {
-    cancelEvents,
+    cancelEventsOnChain,
     fillEventsPartial,
 
     fillInfos,
