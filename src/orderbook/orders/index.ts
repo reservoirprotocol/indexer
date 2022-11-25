@@ -652,14 +652,6 @@ export const generateBidDetailsV6 = async (
       };
     }
 
-    case "manifold": {
-      return {
-        kind: "manifold",
-        ...common,
-        order: new Sdk.Manifold.Order(config.chainId, order.rawData),
-      };
-    }
-
     default: {
       throw new Error("Unsupported order kind");
     }

@@ -98,7 +98,6 @@ export type EventDataKind =
   | "forward-order-cancelled"
   | "forward-counter-incremented"
   | "manifold-purchase"
-  | "manifold-bid"
   | "manifold-modify"
   | "manifold-cancel"
   | "manifold-finalize";
@@ -181,7 +180,6 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       forward.orderFilled,
       forward.orderCancelled,
       forward.counterIncremented,
-      manifold.bid,
       manifold.modify,
       manifold.finalize,
       manifold.purchase,
@@ -334,8 +332,6 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return forward.orderCancelled;
     case "forward-counter-incremented":
       return forward.counterIncremented;
-    case "manifold-bid":
-      return manifold.bid;
     case "manifold-cancel":
       return manifold.cancel;
     case "manifold-finalize":

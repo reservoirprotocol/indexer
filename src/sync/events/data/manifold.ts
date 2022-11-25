@@ -4,12 +4,6 @@ import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
 import { Manifold } from "@reservoir0x/sdk";
 
-// event PurchaseEvent(uint40 indexed listingId, address referrer, address buyer, uint24 count, uint256 amount);
-// event BidEvent(uint40 indexed listingId, address referrer, address bidder, uint256 amount);
-// event ModifyListing(uint40 indexed listingId, uint256 initialAmount, uint48 startTime, uint48 endTime);
-// event CancelListing(uint40 indexed listingId, address requestor, uint16 holdbackBPS);
-// event FinalizeListing(uint40 indexed listingId);
-
 export const purchase: EventData = {
   kind: "manifold-purchase",
   addresses: { [Manifold.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
@@ -17,16 +11,6 @@ export const purchase: EventData = {
   numTopics: 2,
   abi: new Interface([
     `event PurchaseEvent(uint40 indexed listingId, address referrer, address buyer, uint24 count, uint256 amount)`,
-  ]),
-};
-
-export const bid: EventData = {
-  kind: "manifold-bid",
-  addresses: { [Manifold.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
-  topic: "0xd12be072db02c5c389af56d30a7ef86f64b7b60048f3875c6d00fc240d2d92b6",
-  numTopics: 2,
-  abi: new Interface([
-    `event BidEvent(uint40 indexed listingId, address referrer, address bidder, uint256 amount)`,
   ]),
 };
 

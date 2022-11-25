@@ -67,7 +67,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
 
       case "manifold-modify": {
-        // event ModifyListing(uint40 indexed listingId, uint256 initialAmount, uint48 startTime, uint48 endTime);
         const { args } = eventData.abi.parseLog(log);
         const listingId = args["listingId"];
         const initialAmount = args["initialAmount"].toString();

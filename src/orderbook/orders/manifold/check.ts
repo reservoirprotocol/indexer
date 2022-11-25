@@ -11,34 +11,6 @@ export const offChainCheck = async (
     onChainApprovalRecheck?: boolean;
   }
 ) => {
-  // const id = getOrderId(order);
-
-  // // Fetch latest cancel event
-  // const cancelResult = await redb.oneOrNone(
-  //   `
-  //     SELECT
-  //       cancel_events.timestamp
-  //     FROM cancel_events
-  //     WHERE cancel_events.order_id = $/orderId/
-  //     ORDER BY cancel_events.timestamp DESC
-  //     LIMIT 1
-  //   `,
-  //   { orderId: id }
-  // );
-
-  // // Fetch latest fill event
-  // const fillResult = await redb.oneOrNone(
-  //   `
-  //     SELECT
-  //       fill_events_2.timestamp
-  //     FROM fill_events_2
-  //     WHERE fill_events_2.order_id = $/orderId/
-  //     ORDER BY fill_events_2.timestamp DESC
-  //     LIMIT 1
-  //   `,
-  //   { orderId: id }
-  // );
-
   let hasBalance = true;
   let hasApproval = true;
 
