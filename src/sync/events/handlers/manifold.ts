@@ -66,11 +66,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
-      case "manifold-bid": {
-        //TODO: Add manifold logic
-        break;
-      }
-
       case "manifold-modify": {
         // event ModifyListing(uint40 indexed listingId, uint256 initialAmount, uint48 startTime, uint48 endTime);
         const { args } = eventData.abi.parseLog(log);
@@ -101,7 +96,23 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
 
       case "manifold-finalize": {
-        //TODO: Add manifold logic
+        const { args } = eventData.abi.parseLog(log);
+        const listingId = args["listingId"];
+        const orderId = getOrderId(listingId);
+
+        orderInfos.push({
+          context: `cancelled-${orderId}-${baseEventParams.txHash}-${Math.random()}`,
+          id: orderId,
+          trigger: {
+            kind: "cancel",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+            logIndex: baseEventParams.logIndex,
+            batchIndex: baseEventParams.batchIndex,
+            blockHash: baseEventParams.blockHash,
+          },
+        });
+
         break;
       }
     }
