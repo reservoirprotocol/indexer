@@ -1,16 +1,23 @@
 import { Log } from "@ethersproject/abstract-provider";
+import * as Sdk from "@reservoir0x/sdk";
+import { config } from "@/config/index";
 
 import { getEventData } from "@/events-sync/data";
+import { bn } from "@/common/utils";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as es from "@/events-sync/storage";
+import * as utils from "@/events-sync/utils";
 
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import { getOrderId, OrderInfo } from "@/orderbook/orders/manifold";
+import { manifold } from "@/orderbook/orders";
+import { getUSDAndNativePrices } from "@/utils/prices";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const cancelEventsOnChain: es.cancels.Event[] = [];
+  const fillEventsOnChain: es.fills.Event[] = [];
   const fillEventsPartial: es.fills.Event[] = [];
 
   const fillInfos: fillUpdates.FillInfo[] = [];
@@ -62,7 +69,74 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
 
       case "manifold-purchase": {
-        //TODO: Add manifold logic
+        const parsedLog = eventData.abi.parseLog(log);
+        const listingId = parsedLog.args["listingId"].toString();
+        let taker = parsedLog.args["buyer"].toLowerCase();
+        const price = parsedLog.args["amount"].toString();
+        const amount = parsedLog.args["count"];
+
+        const orderId = manifold.getOrderId(listingId);
+
+        // Handle: attribution
+
+        const orderKind = "manifold";
+        const attributionData = await utils.extractAttributionData(
+          baseEventParams.txHash,
+          orderKind
+        );
+        if (attributionData.taker) {
+          taker = attributionData.taker;
+        }
+
+        // Handle: prices
+
+        const currency = Sdk.Common.Addresses.Eth[config.chainId];
+        const priceData = await getUSDAndNativePrices(currency, price, baseEventParams.timestamp);
+        if (!priceData.nativePrice) {
+          // We must always have the native price
+          break;
+        }
+
+        fillEventsOnChain.push({
+          orderKind,
+          orderId,
+          orderSide: "sell",
+          maker: "",
+          taker,
+          price: priceData.nativePrice,
+          currency,
+          // currencyPrice,
+          usdPrice: priceData.usdPrice,
+          contract: "",
+          tokenId: "",
+          amount,
+          orderSourceId: attributionData.orderSource?.id,
+          aggregatorSourceId: attributionData.aggregatorSource?.id,
+          fillSourceId: attributionData.fillSource?.id,
+          baseEventParams,
+        });
+
+        orderInfos.push({
+          context: `filled-${orderId}-${baseEventParams.txHash}`,
+          id: orderId,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+        });
+
+        fillInfos.push({
+          context: `${orderId}-${baseEventParams.txHash}`,
+          orderId: orderId,
+          orderSide: "sell",
+          contract: "",
+          tokenId: "",
+          amount,
+          price: priceData.nativePrice,
+          timestamp: baseEventParams.timestamp,
+        });
+
         break;
       }
 
