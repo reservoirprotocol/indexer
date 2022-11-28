@@ -182,22 +182,26 @@ const isValid = async (tokenSet: TokenSet) => {
 export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
   const queries: PgPromiseQuery[] = [];
 
-  const valid: TokenSet[] = [];
+  const valid: Set<TokenSet> = new Set();
   for (const tokenSet of tokenSets) {
     // For efficiency, first check if the token set exists before
     // triggering a potentially-expensive validation of it
     const tokenSetExists = await redb.oneOrNone(
       `
-        SELECT 1 FROM token_sets
+        SELECT 1
+        FROM token_sets
         WHERE token_sets.id = $/id/
-          AND token_sets.schema_hash = $/schemaHash/
+        AND token_sets.schema_hash = $/schemaHash/
       `,
       {
         id: tokenSet.id,
         schemaHash: toBuffer(tokenSet.schemaHash),
       }
     );
-    if (!tokenSetExists && !(await isValid(tokenSet))) {
+    if (tokenSetExists) {
+      // If the token set already exists, we can simply skip every other checks
+      valid.add(tokenSet);
+    } else if (!tokenSetExists && !(await isValid(tokenSet))) {
       continue;
     }
 
@@ -270,7 +274,8 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
       // For efficiency, skip if data already exists
       const tokenSetTokensExist = await redb.oneOrNone(
         `
-          SELECT 1 FROM token_sets_tokens
+          SELECT 1
+          FROM token_sets_tokens
           WHERE token_sets_tokens.token_set_id = $/tokenSetId/
           LIMIT 1
         `,
@@ -298,7 +303,7 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
         });
       }
 
-      valid.push(tokenSet);
+      valid.add(tokenSet);
     } catch (error) {
       logger.error(
         "orderbook-token-list-set",
@@ -311,5 +316,5 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
     await idb.none(pgp.helpers.concat(queries));
   }
 
-  return valid;
+  return Array.from(valid);
 };

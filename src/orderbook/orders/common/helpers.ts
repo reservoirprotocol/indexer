@@ -18,40 +18,6 @@ export const getContractKind = async (
   return contractResult?.kind;
 };
 
-export const getOpenSeaRoyalties = async (
-  collection: string
-): Promise<{ bps: number; recipient: string }[]> => {
-  const collectionResult = await redb.oneOrNone(
-    `
-      SELECT
-        collections.royalties
-      FROM collections
-      WHERE collections.id = $/collection/
-      LIMIT 1
-    `,
-    { collection }
-  );
-
-  return collectionResult?.royalties || [];
-};
-
-export const getOnChainRoyalties = async (
-  collection: string
-): Promise<{ [kind: string]: { bps: number; recipient: string }[] }> => {
-  const collectionResult = await redb.oneOrNone(
-    `
-      SELECT
-        collections.new_royalties
-      FROM collections
-      WHERE collections.id = $/collection/
-      LIMIT 1
-    `,
-    { collection }
-  );
-
-  return collectionResult?.new_royalties || {};
-};
-
 export const getFtBalance = async (contract: string, owner: string): Promise<BigNumber> => {
   const balanceResult = await redb.oneOrNone(
     `

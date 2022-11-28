@@ -8,7 +8,6 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { Collections } from "@/models/collections";
 import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
 
 const QUEUE_NAME = "collections-refresh-cache";
@@ -31,8 +30,8 @@ if (config.doBackgroundWork) {
       const { contract } = job.data;
 
       // Refresh the contract floor sell and top bid
-      await Collections.recalculateContractFloorSell(contract);
-      await Collections.recalculateContractTopBuy(contract);
+      // await Collections.recalculateContractFloorSell(contract);
+      // await Collections.recalculateContractTopBuy(contract);
 
       const result = await redb.manyOrNone(
         `

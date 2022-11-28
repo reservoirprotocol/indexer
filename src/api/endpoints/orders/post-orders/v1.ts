@@ -27,7 +27,7 @@ export const postOrdersV1Options: RouteOptions = {
         Joi.object({
           kind: Joi.string()
             .lowercase()
-            .valid("looks-rare", "zeroex-v4", "x2y2", "seaport", "element", "rarible")
+            .valid("looks-rare", "zeroex-v4", "x2y2", "seaport", "element", "blur", "rarible")
             .required(),
           data: Joi.object().required(),
         })

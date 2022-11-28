@@ -32,7 +32,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}$/)
         .description(
-          "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
+          "Filter to a particular user. Example: `0x6c7e534f8c4dffb7ea52fc3d4aa7a16b4a575fe0`"
         ),
     }),
     query: Joi.object({

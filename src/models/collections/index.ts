@@ -3,6 +3,7 @@
 import _ from "lodash";
 
 import { idb, redb } from "@/common/db";
+import { logger } from "@/common/logger";
 import { toBuffer, now } from "@/common/utils";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@/models/collections/collections-entity";
 import { Tokens } from "@/models/tokens";
 import MetadataApi from "@/utils/metadata-api";
+import * as royalties from "@/utils/royalties";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -75,10 +77,11 @@ export class Collections {
 
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
+    logger.info("debug", `Collection result: ${JSON.stringify(collection)}`);
     const tokenCount = await Tokens.countTokensInCollection(collection.id);
 
     const query = `UPDATE collections
-                   SET metadata = $/metadata:json/, name = $/name/, royalties = $/royalties:json/,
+                   SET metadata = $/metadata:json/, name = $/name/,
                        slug = $/slug/, token_count = $/tokenCount/, updated_at = now()
                    WHERE id = $/id/`;
 
@@ -86,12 +89,19 @@ export class Collections {
       id: collection.id,
       metadata: collection.metadata || {},
       name: collection.name,
-      royalties: collection.royalties || [],
       slug: collection.slug,
       tokenCount,
     };
 
     await idb.none(query, values);
+
+    // Refresh all royalty specs and the default royalties
+    await royalties.refreshAllRoyaltySpecs(
+      collection.id,
+      (collection.royalties ?? []) as royalties.Royalty[],
+      (collection.openseaRoyalties ?? []) as royalties.Royalty[]
+    );
+    await royalties.refreshDefaulRoyalties(collection.id);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {

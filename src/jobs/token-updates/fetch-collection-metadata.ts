@@ -12,7 +12,7 @@ import { getNetworkSettings } from "@/config/network";
 import * as collectionRecalcFloorAsk from "@/jobs/collection-updates/recalc-floor-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import MetadataApi from "@/utils/metadata-api";
-import { refreshRegistryRoyalties } from "@/utils/royalties/registry";
+import * as royalties from "@/utils/royalties";
 
 const QUEUE_NAME = "token-updates-fetch-collection-metadata-queue";
 
@@ -40,22 +40,22 @@ if (config.doBackgroundWork) {
         job.data as FetchCollectionMetadataInfo;
 
       try {
+        // Fetch collection metadata
         const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
           allowFallback: true,
         });
 
-        let tokenIdRange = null;
-
+        let tokenIdRange: string | null = null;
         if (collection.tokenIdRange) {
           tokenIdRange = `numrange(${collection.tokenIdRange[0]}, ${collection.tokenIdRange[1]}, '[]')`;
         } else if (collection.id === contract) {
           tokenIdRange = `'(,)'::numrange`;
         }
 
+        // For covering the case where the token id range is null
         const tokenIdRangeParam = tokenIdRange ? "$/tokenIdRange:raw/" : "$/tokenIdRange/";
 
         const queries: PgPromiseQuery[] = [];
-
         queries.push({
           query: `
               INSERT INTO "collections" (
@@ -64,7 +64,6 @@ if (config.doBackgroundWork) {
                 "name",
                 "community",
                 "metadata",
-                "royalties",
                 "contract",
                 "token_id_range",
                 "token_set_id",
@@ -75,7 +74,6 @@ if (config.doBackgroundWork) {
                 $/name/,
                 $/community/,
                 $/metadata:json/,
-                $/royalties:json/,
                 $/contract/,
                 ${tokenIdRangeParam},
                 $/tokenSetId/,
@@ -88,7 +86,6 @@ if (config.doBackgroundWork) {
             name: collection.name,
             community: collection.community,
             metadata: collection.metadata,
-            royalties: collection.royalties,
             contract: toBuffer(collection.contract),
             tokenIdRange,
             tokenSetId: collection.tokenSetId,
@@ -96,14 +93,13 @@ if (config.doBackgroundWork) {
           },
         });
 
-        // Since this is the first time we run into this collection,
-        // we update all tokens that match its token definition
         let tokenFilter = `AND "token_id" <@ ${tokenIdRangeParam}`;
-
         if (_.isNull(tokenIdRange)) {
           tokenFilter = `AND "token_id" = $/tokenId/`;
         }
 
+        // Since this is the first time we run into this collection,
+        // we update all tokens that match its token definition
         queries.push({
           query: `
               WITH "x" AS (
@@ -127,9 +123,10 @@ if (config.doBackgroundWork) {
           },
         });
 
+        // Write the collection to the database
         await idb.none(pgp.helpers.concat(queries));
 
-        // id this is a new collection recalculate the collection floor price
+        // If this is a new collection, recalculate the its floor price
         if (collection?.id && newCollection) {
           await collectionRecalcFloorAsk.addToQueue(collection.id);
         }
@@ -152,8 +149,13 @@ if (config.doBackgroundWork) {
           );
         }
 
-        // Refresh the on-chain royalties from the registry
-        await refreshRegistryRoyalties(collection.id);
+        // Refresh all royalty specs and the default royalties
+        await royalties.refreshAllRoyaltySpecs(
+          collection.id,
+          (collection.royalties ?? []) as royalties.Royalty[],
+          (collection.openseaRoyalties ?? []) as royalties.Royalty[]
+        );
+        await royalties.refreshDefaulRoyalties(collection.id);
       } catch (error) {
         logger.error(
           QUEUE_NAME,

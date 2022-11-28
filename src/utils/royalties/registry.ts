@@ -1,13 +1,12 @@
 import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
-import _ from "lodash";
 
 import { baseProvider } from "@/common/provider";
 import { bn, fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { idb } from "@/common/db";
-import { Royalty } from "@/utils/royalties";
+import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
 
 const DEFAULT_PRICE = "1000000000000000000";
 
@@ -93,12 +92,10 @@ export const refreshRegistryRoyalties = async (collection: string): Promise<Roya
           case 9:
             return "knownorigin_v2";
           default:
-            return undefined;
+            // By default, assume the token is EIP2981-compatible
+            return "eip2981";
         }
       });
-      if (!spec) {
-        throw new Error("Unknown or missing royalties");
-      }
 
       // The royalties are returned in full amounts, but we store them as a percentage
       // so here we just use a default price (which is a round number) and deduce then
@@ -121,32 +118,8 @@ export const refreshRegistryRoyalties = async (collection: string): Promise<Roya
         latestRoyalties.push({ recipient, bps });
       }
 
-      const royaltiesResult = await idb.oneOrNone(
-        `
-          SELECT
-            COALESCE(collections.new_royalties, '{}') AS royalties
-          FROM collections
-          WHERE collections.id = $/collection/
-        `,
-        { collection }
-      );
-      if (royaltiesResult) {
-        if (!_.isEqual(royaltiesResult.royalties[spec], latestRoyalties)) {
-          royaltiesResult.royalties[spec] = latestRoyalties;
-
-          await idb.none(
-            `
-              UPDATE collections SET
-                new_royalties = $/royalties:json/
-              WHERE collections.id = $/collection/
-            `,
-            {
-              collection,
-              royalties: royaltiesResult.royalties,
-            }
-          );
-        }
-      }
+      // Save the retrieved royalty spec
+      await updateRoyaltySpec(collection, spec, latestRoyalties);
 
       return latestRoyalties;
     } catch {

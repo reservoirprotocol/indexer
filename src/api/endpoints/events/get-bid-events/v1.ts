@@ -14,6 +14,7 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
+import { JoiOrderCriteria } from "@/common/joi";
 
 const version = "v1";
 
@@ -44,6 +45,9 @@ export const getBidEventsV1Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
+      includeCriteria: Joi.boolean()
+        .default(false)
+        .description("If true, bid criteria is included in the response."),
       sortDirection: Joi.string()
         .valid("asc", "desc")
         .default("desc")
@@ -76,6 +80,7 @@ export const getBidEventsV1Options: RouteOptions = {
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
             source: Joi.string().allow(null, ""),
+            criteria: JoiOrderCriteria.allow(null),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),
@@ -107,6 +112,107 @@ export const getBidEventsV1Options: RouteOptions = {
     const query = request.query as any;
 
     try {
+      const criteriaBuildQuery = `
+        (
+          CASE
+            WHEN bid_events.token_set_id LIKE 'token:%' THEN
+              (SELECT
+                json_build_object(
+                  'kind', 'token',
+                  'data', json_build_object(
+                    'token', json_build_object(
+                      'tokenId', tokens.token_id::TEXT,
+                      'name', tokens.name,
+                      'image', tokens.image
+                    ),
+                    'collection', json_build_object(
+                      'id', collections.id,
+                      'name', collections.name,
+                      'image', (collections.metadata ->> 'imageUrl')::TEXT
+                    )
+                  )
+                )
+              FROM tokens
+              JOIN collections
+                ON tokens.collection_id = collections.id
+              WHERE tokens.contract = decode(substring(split_part(bid_events.token_set_id, ':', 2) from 3), 'hex')
+                AND tokens.token_id = (split_part(bid_events.token_set_id, ':', 3)::NUMERIC(78, 0)))
+
+            WHEN bid_events.token_set_id LIKE 'contract:%' THEN
+              (SELECT
+                json_build_object(
+                  'kind', 'collection',
+                  'data', json_build_object(
+                    'collection', json_build_object(
+                      'id', collections.id,
+                      'name', collections.name,
+                      'image', (collections.metadata ->> 'imageUrl')::TEXT
+                    )
+                  )
+                )
+              FROM collections
+              WHERE collections.id = substring(bid_events.token_set_id from 10))
+
+            WHEN bid_events.token_set_id LIKE 'range:%' THEN
+              (SELECT
+                json_build_object(
+                  'kind', 'collection',
+                  'data', json_build_object(
+                    'collection', json_build_object(
+                      'id', collections.id,
+                      'name', collections.name,
+                      'image', (collections.metadata ->> 'imageUrl')::TEXT
+                    )
+                  )
+                )
+              FROM collections
+              WHERE collections.id = substring(bid_events.token_set_id from 7))
+
+            WHEN bid_events.token_set_id LIKE 'list:%' THEN
+              (SELECT
+                CASE
+                  WHEN token_sets.attribute_id IS NULL THEN
+                    (SELECT
+                      json_build_object(
+                        'kind', 'collection',
+                        'data', json_build_object(
+                          'collection', json_build_object(
+                            'id', collections.id,
+                            'name', collections.name,
+                            'image', (collections.metadata ->> 'imageUrl')::TEXT
+                          )
+                        )
+                      )
+                    FROM collections
+                    WHERE token_sets.collection_id = collections.id)
+                  ELSE
+                    (SELECT
+                      json_build_object(
+                        'kind', 'attribute',
+                        'data', json_build_object(
+                          'collection', json_build_object(
+                            'id', collections.id,
+                            'name', collections.name,
+                            'image', (collections.metadata ->> 'imageUrl')::TEXT
+                          ),
+                          'attribute', json_build_object('key', attribute_keys.key, 'value', attributes.value)
+                        )
+                      )
+                    FROM attributes
+                    JOIN attribute_keys
+                    ON attributes.attribute_key_id = attribute_keys.id
+                    JOIN collections
+                    ON attribute_keys.collection_id = collections.id
+                    WHERE token_sets.attribute_id = attributes.id)
+                END  
+              FROM token_sets
+              WHERE token_sets.id = bid_events.token_set_id
+              LIMIT 1)
+            ELSE NULL
+          END
+        ) AS criteria
+      `;
+
       let baseQuery = `
         SELECT
           bid_events.id,
@@ -129,6 +235,7 @@ export const getBidEventsV1Options: RouteOptions = {
           bid_events.tx_hash,
           bid_events.tx_timestamp,
           extract(epoch from bid_events.created_at) AS created_at
+          ${query.includeCriteria ? `, ${criteriaBuildQuery}` : ""}
         FROM bid_events
       `;
 
@@ -198,6 +305,7 @@ export const getBidEventsV1Options: RouteOptions = {
           validFrom: r.valid_from ? Number(r.valid_from) : null,
           validUntil: r.valid_until ? Number(r.valid_until) : null,
           source: sources.get(r.order_source_id_int)?.name,
+          criteria: query.includeCriteria ? r.criteria : undefined,
         },
         event: {
           id: r.id,

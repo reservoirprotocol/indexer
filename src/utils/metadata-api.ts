@@ -36,6 +36,7 @@ export class MetadataApi {
         community: null,
         metadata: null,
         royalties: null,
+        openseaRoyalties: null,
         contract,
         tokenIdRange: null,
         tokenSetId: `contract:${contract}`,
@@ -56,6 +57,7 @@ export class MetadataApi {
         community: string | null;
         metadata: object | null;
         royalties: object | null;
+        openseaRoyalties: object | null;
         contract: string;
         tokenIdRange: [string, string] | null;
         tokenSetId: string | null;

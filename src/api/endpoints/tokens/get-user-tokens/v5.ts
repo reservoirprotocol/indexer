@@ -71,6 +71,9 @@ export const getUserTokensV5Options: RouteOptions = {
             "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           )
       ),
+      normalizeRoyalties: Joi.boolean()
+        .default(false)
+        .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
         .valid("acquiredAt")
         .description("Order the items are returned in the response."),
@@ -225,6 +228,32 @@ export const getUserTokensV5Options: RouteOptions = {
       }
     }
 
+    let selectFloorData;
+
+    if (query.normalizeRoyalties) {
+      selectFloorData = `
+      t.normalized_floor_sell_id AS floor_sell_id,
+      t.normalized_floor_sell_maker AS floor_sell_maker,
+      t.normalized_floor_sell_valid_from AS floor_sell_valid_from,
+      t.normalized_floor_sell_valid_to AS floor_sell_valid_to,
+      t.normalized_floor_sell_source_id_int AS floor_sell_source_id_int,
+      t.normalized_floor_sell_value AS floor_sell_value,
+      t.normalized_floor_sell_currency AS floor_sell_currency,
+      t.normalized_floor_sell_currency_value AS floor_sell_currency_value
+    `;
+    } else {
+      selectFloorData = `
+      t.floor_sell_id,
+      t.floor_sell_maker,
+      t.floor_sell_valid_from,
+      t.floor_sell_valid_to,
+      t.floor_sell_source_id_int,
+      t.floor_sell_value,
+      t.floor_sell_currency,
+      t.floor_sell_currency_value
+    `;
+    }
+
     let tokensJoin = `
       JOIN LATERAL (
         SELECT 
@@ -232,20 +261,13 @@ export const getUserTokensV5Options: RouteOptions = {
           t.name,
           t.image,
           t.collection_id,
-          t.floor_sell_id,
-          t.floor_sell_value,
-          t.floor_sell_currency,
-          t.floor_sell_currency_value,
-          t.floor_sell_maker,
-          t.floor_sell_valid_from,
-          t.floor_sell_valid_to,
-          t.floor_sell_source_id_int,
           null AS top_bid_id,
           null AS top_bid_price,
           null AS top_bid_value,
           null AS top_bid_currency,
           null AS top_bid_currency_price,
-          null AS top_bid_currency_value
+          null AS top_bid_currency_value,
+          ${selectFloorData}
         FROM tokens t
         WHERE b.token_id = t.token_id
         AND b.contract = t.contract
@@ -260,14 +282,7 @@ export const getUserTokensV5Options: RouteOptions = {
             t.name,
             t.image,
             t.collection_id,
-            t.floor_sell_id,
-            t.floor_sell_value,
-            t.floor_sell_currency,
-            t.floor_sell_currency_value,
-            t.floor_sell_maker,
-            t.floor_sell_valid_from,
-            t.floor_sell_valid_to,
-            t.floor_sell_source_id_int
+            ${selectFloorData}
           FROM tokens t
           WHERE b.token_id = t.token_id
           AND b.contract = t.contract
