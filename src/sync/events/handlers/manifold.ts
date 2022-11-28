@@ -95,26 +95,17 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       case "manifold-purchase": {
         const parsedLog = eventData.abi.parseLog(log);
         const listingId = parsedLog.args["listingId"].toString();
-        let taker = parsedLog.args["buyer"].toLowerCase();
-        let askPrice = "";
-        let maker = "";
-        // const price = parsedLog.args["amount"].toString();
         const amount = parsedLog.args["count"];
+
+        let tokenId = "";
+        let tokenContract = "";
+        let maker = "";
+        let taker = parsedLog.args["buyer"].toLowerCase();
+        let currencyPrice = "";
+        let currency = Sdk.Common.Addresses.Eth[config.chainId];
 
         const orderId = manifold.getOrderId(listingId);
 
-        // Handle: attribution
-
-        const orderKind = "manifold";
-        const attributionData = await utils.extractAttributionData(
-          baseEventParams.txHash,
-          orderKind
-        );
-        if (attributionData.taker) {
-          taker = attributionData.taker;
-        }
-
-        let askCurrency = Sdk.Common.Addresses.Eth[config.chainId];
         for (const log of currentTxLogs.slice(0, -1).reverse()) {
           // Skip once we detect another fill in the same transaction
           // (this will happen if filling through an aggregator)
@@ -130,13 +121,12 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             log.topics.length === erc20EventData.numTopics
           ) {
             const parsed = erc20EventData.abi.parseLog(log);
-            // const from = parsed.args["from"].toLowerCase();
             const to = parsed.args["to"].toLowerCase();
             const amount = parsed.args["amount"].toString();
             // Maker is the receiver of tokens
             maker = to;
-            askCurrency = log.address.toLowerCase();
-            askPrice = amount;
+            currency = log.address.toLowerCase();
+            currencyPrice = amount;
             break;
           } else {
             // Event data doesn't include full order information so we have to parse the calldata
@@ -146,19 +136,17 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               break;
             }
 
+            // Maker is the function caller
+            maker = txTrace.calls.from;
+            // Search for eth transfer internal calls. After summing them we get the auction price.
             const ethCalls = findEthCalls(txTrace.calls.calls!, baseEventParams);
-            askPrice = ethCalls
+            currencyPrice = ethCalls
               .reduce((acc: BigNumber, c: CallTrace) => bn(c.value!).add(acc), bn(0))
               .toString();
-
-            // Last receiver of tokens is always the order maker(first royalties are paid, then maker is paid)
-            maker = ethCalls[ethCalls.length - 1].to;
           }
         }
 
         let associatedNftTransferEvent: es.nftTransfers.Event | undefined;
-        let tokenId = "";
-        let tokenContract = "";
         if (nftTransferEvents.length) {
           // Ensure the last NFT transfer event was part of the fill
           const event = nftTransferEvents[nftTransferEvents.length - 1];
@@ -180,11 +168,21 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        // Handle: prices
+        // Handle: attribution
+        const orderKind = "manifold";
+        const attributionData = await utils.extractAttributionData(
+          baseEventParams.txHash,
+          orderKind
+        );
 
+        if (attributionData.taker) {
+          taker = attributionData.taker;
+        }
+
+        // Handle: prices
         const priceData = await getUSDAndNativePrices(
-          askCurrency,
-          askPrice,
+          currency,
+          currencyPrice,
           baseEventParams.timestamp
         );
         if (!priceData.nativePrice) {
@@ -199,8 +197,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           maker,
           taker,
           price: priceData.nativePrice,
-          currency: askCurrency,
-          currencyPrice: askPrice,
+          currency,
+          currencyPrice,
           usdPrice: priceData.usdPrice,
           contract: tokenContract,
           tokenId,
