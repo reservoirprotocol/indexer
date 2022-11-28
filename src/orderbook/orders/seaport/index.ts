@@ -27,9 +27,7 @@ import * as royalties from "@/utils/royalties";
 import { Royalty } from "@/utils/royalties";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import { Tokens } from "@/models/tokens";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 
 export type OrderInfo =
   | {
@@ -682,13 +680,13 @@ export const save = async (
                 tokenId = `${contractCollection.token_id_range[0]}`;
               }
 
-              await collectionUpdatesMetadata.addToQueue(
-                orderParams.contract,
-                tokenId,
-                "",
-                0,
-                true
-              );
+              // await collectionUpdatesMetadata.addToQueue(
+              //   orderParams.contract,
+              //   tokenId,
+              //   "",
+              //   0,
+              //   true
+              // );
 
               logger.info(
                 "orders-seaport-save-partial",
@@ -714,23 +712,23 @@ export const save = async (
               `Unknown Collection - Token Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, tokenId=${contractToken?.token_id}`
             );
 
-            if (contractToken) {
-              await metadataIndexFetch.addToQueue(
-                [
-                  {
-                    kind: "single-token",
-                    data: {
-                      method: config.metadataIndexingMethod,
-                      contract: orderParams.contract,
-                      tokenId: contractToken.token_id,
-                      collection: orderParams.contract,
-                    },
-                  },
-                ],
-                true,
-                getNetworkSettings().metadataMintDelay
-              );
-            }
+            // if (contractToken) {
+            //   await metadataIndexFetch.addToQueue(
+            //     [
+            //       {
+            //         kind: "single-token",
+            //         data: {
+            //           method: config.metadataIndexingMethod,
+            //           contract: orderParams.contract,
+            //           tokenId: contractToken.token_id,
+            //           collection: orderParams.contract,
+            //         },
+            //       },
+            //     ],
+            //     true,
+            //     getNetworkSettings().metadataMintDelay
+            //   );
+            // }
           }
         }
 
