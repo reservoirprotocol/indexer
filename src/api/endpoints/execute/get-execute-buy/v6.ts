@@ -570,7 +570,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           items: [],
         },
         {
-          action: "Confirm purchase",
+          action: "Confirm transaction in your wallet",
           description: "To purchase this item you must confirm the transaction and pay the gas fee",
           kind: "transaction",
           items: [],
