@@ -86,6 +86,7 @@ export const getExecuteListV4Options: RouteOptions = {
             .valid("opensea", "looks-rare", "reservoir", "x2y2", "universe")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
+          orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
           automatedRoyalties: Joi.boolean()
             .default(true)
             .description("If true, royalties will be automatically included."),
@@ -260,6 +261,7 @@ export const getExecuteListV4Options: RouteOptions = {
                       },
                     },
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -354,6 +356,7 @@ export const getExecuteListV4Options: RouteOptions = {
                       },
                     },
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -442,6 +445,7 @@ export const getExecuteListV4Options: RouteOptions = {
                       },
                     },
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -528,6 +532,7 @@ export const getExecuteListV4Options: RouteOptions = {
                       },
                     },
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -608,6 +613,7 @@ export const getExecuteListV4Options: RouteOptions = {
                       },
                     },
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },

@@ -101,6 +101,7 @@ export const getExecuteBidV4Options: RouteOptions = {
             .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
+          orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
           automatedRoyalties: Joi.boolean()
             .default(true)
             .description("If true, royalties will be automatically included."),
@@ -339,6 +340,7 @@ export const getExecuteBidV4Options: RouteOptions = {
                       collection && !attributeKey && !attributeValue ? collection : undefined,
                     isNonFlagged: params.excludeFlaggedTokens,
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -438,6 +440,7 @@ export const getExecuteBidV4Options: RouteOptions = {
                       collection && !attributeKey && !attributeValue ? collection : undefined,
                     isNonFlagged: params.excludeFlaggedTokens,
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -526,6 +529,7 @@ export const getExecuteBidV4Options: RouteOptions = {
                     collection:
                       collection && !attributeKey && !attributeValue ? collection : undefined,
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -617,6 +621,7 @@ export const getExecuteBidV4Options: RouteOptions = {
                     collection:
                       collection && !attributeKey && !attributeValue ? collection : undefined,
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -700,6 +705,7 @@ export const getExecuteBidV4Options: RouteOptions = {
                         : undefined,
                     isNonFlagged: params.excludeFlaggedTokens,
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -810,6 +816,7 @@ export const getExecuteBidV4Options: RouteOptions = {
                       collection && !attributeKey && !attributeValue ? collection : undefined,
                     isNonFlagged: params.excludeFlaggedTokens,
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
