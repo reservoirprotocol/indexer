@@ -652,56 +652,15 @@ export const save = async (
         );
 
         if (orderParams.kind === "contract-wide") {
-          const contractCollections = await redb.manyOrNone(
-            `
+          try {
+            const contractCollections = await redb.manyOrNone(
+              `
           SELECT
             collections.id,
             collections.token_id_range
           FROM collections
           WHERE collections.contract = $/contract/
         `,
-            {
-              contract: toBuffer(orderParams.contract),
-            }
-          );
-
-          logger.info(
-            "orders-seaport-save-partial",
-            `Unknown Collection - Collections Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, contractCollections=${contractCollections.length}`
-          );
-
-          if (contractCollections) {
-            for (const contractCollection of contractCollections) {
-              let tokenId = "1";
-
-              if (_.isNull(contractCollection.tokenIdRange)) {
-                tokenId = await Tokens.getSingleToken(contractCollection.id);
-              } else if (!_.isEmpty(contractCollection.token_id_range)) {
-                tokenId = `${contractCollection.token_id_range[0]}`;
-              }
-
-              // await collectionUpdatesMetadata.addToQueue(
-              //   orderParams.contract,
-              //   tokenId,
-              //   "",
-              //   0,
-              //   true
-              // );
-
-              logger.info(
-                "orders-seaport-save-partial",
-                `Unknown Collection - Collection Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, collectionId=${contractCollection.id}, tokenId=${tokenId}`
-              );
-            }
-          } else {
-            const contractToken = await redb.oneOrNone(
-              `
-            SELECT
-              tokens.token_id
-            FROM tokens
-            WHERE tokens.contract = $/contract/
-            LIMIT 1
-          `,
               {
                 contract: toBuffer(orderParams.contract),
               }
@@ -709,26 +668,74 @@ export const save = async (
 
             logger.info(
               "orders-seaport-save-partial",
-              `Unknown Collection - Token Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, tokenId=${contractToken?.token_id}`
+              `Unknown Collection - Collections Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, contractCollections=${contractCollections.length}`
             );
 
-            // if (contractToken) {
-            //   await metadataIndexFetch.addToQueue(
-            //     [
-            //       {
-            //         kind: "single-token",
-            //         data: {
-            //           method: config.metadataIndexingMethod,
-            //           contract: orderParams.contract,
-            //           tokenId: contractToken.token_id,
-            //           collection: orderParams.contract,
-            //         },
-            //       },
-            //     ],
-            //     true,
-            //     getNetworkSettings().metadataMintDelay
-            //   );
-            // }
+            if (contractCollections) {
+              for (const contractCollection of contractCollections) {
+                let tokenId = "1";
+
+                if (_.isNull(contractCollection.tokenIdRange)) {
+                  tokenId = await Tokens.getSingleToken(contractCollection.id);
+                } else if (!_.isEmpty(contractCollection.token_id_range)) {
+                  tokenId = `${contractCollection.token_id_range[0]}`;
+                }
+
+                // await collectionUpdatesMetadata.addToQueue(
+                //   orderParams.contract,
+                //   tokenId,
+                //   "",
+                //   0,
+                //   true
+                // );
+
+                logger.info(
+                  "orders-seaport-save-partial",
+                  `Unknown Collection - Collection Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, collectionId=${contractCollection.id}, tokenId=${tokenId}`
+                );
+              }
+            } else {
+              const contractToken = await redb.oneOrNone(
+                `
+            SELECT
+              tokens.token_id
+            FROM tokens
+            WHERE tokens.contract = $/contract/
+            LIMIT 1
+          `,
+                {
+                  contract: toBuffer(orderParams.contract),
+                }
+              );
+
+              logger.info(
+                "orders-seaport-save-partial",
+                `Unknown Collection - Token Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, tokenId=${contractToken?.token_id}`
+              );
+
+              // if (contractToken) {
+              //   await metadataIndexFetch.addToQueue(
+              //     [
+              //       {
+              //         kind: "single-token",
+              //         data: {
+              //           method: config.metadataIndexingMethod,
+              //           contract: orderParams.contract,
+              //           tokenId: contractToken.token_id,
+              //           collection: orderParams.contract,
+              //         },
+              //       },
+              //     ],
+              //     true,
+              //     getNetworkSettings().metadataMintDelay
+              //   );
+              // }
+            }
+          } catch (error) {
+            logger.error(
+              "orders-seaport-save-partial",
+              `Unknown Collection - Error. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, error=${error}`
+            );
           }
         }
 
