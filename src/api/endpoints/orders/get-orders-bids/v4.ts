@@ -489,7 +489,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
         if (query.normalizeRoyalties && r.missing_royalties) {
           for (let i = 0; i < r.missing_royalties.length; i++) {
             if (!Object.keys(r.missing_royalties[i]).includes("bps")) {
-              return;
+              break;
             }
 
             const index: number = r.fee_breakdown.findIndex(
