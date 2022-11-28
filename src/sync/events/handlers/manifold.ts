@@ -96,7 +96,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const parsedLog = eventData.abi.parseLog(log);
         const listingId = parsedLog.args["listingId"].toString();
         let taker = parsedLog.args["buyer"].toLowerCase();
-        const price = parsedLog.args["amount"].toString();
+        let askPrice = "";
+        let maker = "";
+        // const price = parsedLog.args["amount"].toString();
         const amount = parsedLog.args["count"];
 
         const orderId = manifold.getOrderId(listingId);
@@ -112,10 +114,79 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           taker = attributionData.taker;
         }
 
+        let askCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+        for (const log of currentTxLogs.slice(0, -1).reverse()) {
+          // Skip once we detect another fill in the same transaction
+          // (this will happen if filling through an aggregator)
+          if (log.topics[0] === getEventData([eventData.kind])[0].topic) {
+            break;
+          }
+
+          // If we detect an ERC20 transfer as part of the same transaction
+          // then we assume it's the payment for the current sale
+          const erc20EventData = getEventData(["erc20-transfer"])[0];
+          if (
+            log.topics[0] === erc20EventData.topic &&
+            log.topics.length === erc20EventData.numTopics
+          ) {
+            const parsed = erc20EventData.abi.parseLog(log);
+            // const from = parsed.args["from"].toLowerCase();
+            const to = parsed.args["to"].toLowerCase();
+            const amount = parsed.args["amount"].toString();
+            // Maker is the receiver of tokens
+            maker = to;
+            askCurrency = log.address.toLowerCase();
+            askPrice = amount;
+            break;
+          } else {
+            // Event data doesn't include full order information so we have to parse the calldata
+            const txTrace = await utils.fetchTransactionTrace(baseEventParams.txHash);
+            if (!txTrace) {
+              // Skip any failed attempts to get the trace
+              break;
+            }
+
+            const ethCalls = getEthCalls(txTrace.calls.calls!, baseEventParams);
+            askPrice = ethCalls
+              .reduce((acc: BigNumber, c: CallTrace) => bn(c.value!).add(acc), bn(0))
+              .toString();
+
+            // Last receiver of tokens is always the order maker(first royalties are paid, then maker is paid)
+            maker = ethCalls[ethCalls.length - 1].to;
+          }
+        }
+
+        let associatedNftTransferEvent: es.nftTransfers.Event | undefined;
+        let tokenId = "";
+        let tokenContract = "";
+        if (nftTransferEvents.length) {
+          // Ensure the last NFT transfer event was part of the fill
+          const event = nftTransferEvents[nftTransferEvents.length - 1];
+          if (
+            event.baseEventParams.txHash === baseEventParams.txHash &&
+            event.baseEventParams.logIndex === baseEventParams.logIndex - 1 &&
+            // Only single token fills are supported and recognized
+            event.baseEventParams.batchIndex === 1
+          ) {
+            associatedNftTransferEvent = event;
+
+            tokenId = event.tokenId;
+            tokenContract = event.tokenContract.toLowerCase();
+          }
+        }
+
+        if (!associatedNftTransferEvent) {
+          // Skip if we can't associate to an NFT transfer event
+          break;
+        }
+
         // Handle: prices
 
-        const currency = Sdk.Common.Addresses.Eth[config.chainId];
-        const priceData = await getUSDAndNativePrices(currency, price, baseEventParams.timestamp);
+        const priceData = await getUSDAndNativePrices(
+          askCurrency,
+          askPrice,
+          baseEventParams.timestamp
+        );
         if (!priceData.nativePrice) {
           // We must always have the native price
           break;
@@ -125,14 +196,14 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           orderKind,
           orderId,
           orderSide: "sell",
-          maker: "",
+          maker,
           taker,
           price: priceData.nativePrice,
-          currency,
-          // currencyPrice,
+          currency: askCurrency,
+          currencyPrice: askPrice,
           usdPrice: priceData.usdPrice,
-          contract: "",
-          tokenId: "",
+          contract: tokenContract,
+          tokenId,
           amount,
           orderSourceId: attributionData.orderSource?.id,
           aggregatorSourceId: attributionData.aggregatorSource?.id,
@@ -154,8 +225,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           context: `${orderId}-${baseEventParams.txHash}`,
           orderId: orderId,
           orderSide: "sell",
-          contract: "",
-          tokenId: "",
+          contract: tokenContract,
+          tokenId,
           amount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
