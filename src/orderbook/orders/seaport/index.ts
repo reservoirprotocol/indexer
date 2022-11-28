@@ -649,7 +649,7 @@ export const save = async (
         if (orderParams.kind === "contract-wide") {
           logger.info(
             "orders-seaport-save-partial",
-            `Unknown Collection. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}`
+            `Unknown Collection! orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}`
           );
 
           try {
