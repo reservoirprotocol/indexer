@@ -146,7 +146,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               break;
             }
 
-            const ethCalls = getEthCalls(txTrace.calls.calls!, baseEventParams);
+            const ethCalls = findEthCalls(txTrace.calls.calls!, baseEventParams);
             askPrice = ethCalls
               .reduce((acc: BigNumber, c: CallTrace) => bn(c.value!).add(acc), bn(0))
               .toString();
