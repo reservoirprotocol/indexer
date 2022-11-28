@@ -131,7 +131,7 @@ if (config.doBackgroundWork) {
               $/txHash/,
               $/txTimestamp/
             FROM y
-            JOIN LATERAL (
+            LEFT JOIN LATERAL (
               SELECT
                 token_sets_tokens.contract,
                 token_sets_tokens.token_id

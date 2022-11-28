@@ -52,7 +52,7 @@ export const postOrderV3Options: RouteOptions = {
         .lowercase()
         .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe")
         .default("reservoir"),
-      orderbookApiKey: Joi.string(),
+      orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
       source: Joi.string().pattern(regex.domain).description("The source domain"),
       attribute: Joi.object({
         collection: Joi.string().required(),

@@ -214,7 +214,8 @@ export const getExecuteBuyV6Options: RouteOptions = {
               kind: order.kind,
               currency: order.currency,
               rawData: order.rawData,
-              fees,
+              // TODO: Add support ERC20 fees
+              fees: payload.currency === Sdk.Common.Addresses.Eth[config.chainId] ? fees : [],
             },
             {
               kind: token.kind,
@@ -537,7 +538,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
         payload.currency,
         {
           source: payload.source,
-          globalFees: feesOnTop,
+          // TODO: Add support ERC20 fees
+          globalFees:
+            payload.currency === Sdk.Common.Addresses.Eth[config.chainId] ? feesOnTop : [],
           partial: payload.partial,
           skipErrors: payload.skipErrors,
           forceRouter: payload.forceRouter,
@@ -567,7 +570,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           items: [],
         },
         {
-          action: "Confirm purchase",
+          action: "Confirm transaction in your wallet",
           description: "To purchase this item you must confirm the transaction and pay the gas fee",
           kind: "transaction",
           items: [],
