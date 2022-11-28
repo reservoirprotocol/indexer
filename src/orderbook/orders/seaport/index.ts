@@ -646,12 +646,12 @@ export const save = async (
       const collection = await getCollection(orderParams);
 
       if (!collection) {
-        logger.info(
-          "orders-seaport-save-partial",
-          `Unknown Collection. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}`
-        );
-
         if (orderParams.kind === "contract-wide") {
+          logger.info(
+            "orders-seaport-save-partial",
+            `Unknown Collection. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}`
+          );
+
           try {
             const contractCollections = await redb.manyOrNone(
               `
