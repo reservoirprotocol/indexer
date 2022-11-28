@@ -27,6 +27,8 @@ import * as royalties from "@/utils/royalties";
 import { Royalty } from "@/utils/royalties";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
+import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
+import { Tokens } from "@/models/tokens";
 
 export type OrderInfo =
   | {
@@ -643,7 +645,45 @@ export const save = async (
       }
 
       const collection = await getCollection(orderParams);
+
       if (!collection) {
+        logger.warn(
+          "orders-seaport-save-partial",
+          `Unknown Collection. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}`
+        );
+
+        if (orderParams.kind === "contract-wide") {
+          const contractCollections = await redb.manyOrNone(
+            `
+          SELECT
+            collections.id,
+            collections.token_id_range
+          FROM collections
+          WHERE collections.contract = $/id/
+        `,
+            {
+              contract: toBuffer(orderParams.contract),
+            }
+          );
+
+          for (const contractCollection of contractCollections) {
+            let tokenId = "1";
+
+            if (_.isNull(contractCollection.tokenIdRange)) {
+              tokenId = await Tokens.getSingleToken(contractCollection.id);
+            } else if (!_.isEmpty(contractCollection.token_id_range)) {
+              tokenId = `${contractCollection.token_id_range[0]}`;
+            }
+
+            await collectionUpdatesMetadata.addToQueue(orderParams.contract, tokenId, "", 0, true);
+
+            logger.info(
+              "orders-seaport-save-partial",
+              `Unknown Collection Contract Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, collectionId=${contractCollection.id}, tokenId=${tokenId}`
+            );
+          }
+        }
+
         return results.push({
           id,
           status: "unknown-collection",
