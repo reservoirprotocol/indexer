@@ -675,7 +675,7 @@ export const save = async (
               for (const contractCollection of contractCollections) {
                 let tokenId = "1";
 
-                if (_.isNull(contractCollection.tokenIdRange)) {
+                if (_.isNull(contractCollection.token_id_range)) {
                   tokenId = await Tokens.getSingleToken(contractCollection.id);
                 } else if (!_.isEmpty(contractCollection.token_id_range)) {
                   tokenId = `${contractCollection.token_id_range[0]}`;
