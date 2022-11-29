@@ -1,9 +1,6 @@
-import { config as dotEnvConfig } from "dotenv";
-dotEnvConfig();
-
 import { baseProvider } from "@/common/provider";
-import { getEventsFromTx } from "../utils/test";
-import * as seaport from "@/events-sync/handlers/seaport";
+import { getEnhancedEventFromTx } from "../";
+// import * as seaport from "@/events-sync/handlers/seaport";
 
 import { bn } from "@/common/utils";
 import * as utils from "@/events-sync/utils";
@@ -17,7 +14,7 @@ import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import { concat } from "@/common/utils";
 import * as es from "@/events-sync/storage";
 
-async function parseEnhancedEventToOnChainData(enhancedEvents: EnhancedEvent[]) {
+export async function parseEnhancedEventToOnChainData(enhancedEvents: EnhancedEvent[]) {
   const eventsInfos = await parseEnhancedEventsToEventsInfo(enhancedEvents, false);
   const allOnChainData: OnChainData[] = [];
   for (let index = 0; index < eventsInfos.length; index++) {
@@ -28,7 +25,7 @@ async function parseEnhancedEventToOnChainData(enhancedEvents: EnhancedEvent[]) 
   return allOnChainData;
 }
 
-async function extractRoyaltiesForSeaport(fillEvent: es.fills.Event) {
+export async function extractRoyalties(fillEvent: es.fills.Event) {
   const royalty_fee_breakdown: Royalty[] = [];
   const marketplace_fee_breakdown: Royalty[] = [];
   const possible_missing_royalties: Royalty[] = [];
@@ -38,14 +35,14 @@ async function extractRoyaltiesForSeaport(fillEvent: es.fills.Event) {
   const { tokenId, contract, price } = fillEvent;
   const txTrace = await utils.fetchTransactionTrace(txHash);
   if (!txTrace) {
-    return;
+    return null;
   }
 
   // need cache in database ?
   const transaction = await baseProvider.getTransactionReceipt(txHash);
 
   // inside `getEventsFromTx` has one getBlock call
-  const events = await getEventsFromTx(transaction);
+  const events = await getEnhancedEventFromTx(transaction);
 
   const allOnChainData = await parseEnhancedEventToOnChainData(events);
 
@@ -179,45 +176,3 @@ async function extractRoyaltiesForSeaport(fillEvent: es.fills.Event) {
   // console.log("possible_missing_royalties", possible_missing_royalties)
   return result;
 }
-
-jest.setTimeout(1000 * 1000);
-
-describe("Royalties - Seaport", () => {
-  const TEST_COLLECTION = "0x33c6eec1723b12c46732f7ab41398de45641fa42";
-
-  const testFeeExtract = async (txHash: string) => {
-    const tx = await baseProvider.getTransactionReceipt(txHash);
-    const events = await getEventsFromTx(tx);
-    const result = await seaport.handleEvents(events);
-    const fillEvents = result.fillEventsPartial ?? [];
-    for (let index = 0; index < fillEvents.length; index++) {
-      const fillEvent = fillEvents[index];
-      const fees = await extractRoyaltiesForSeaport(fillEvent);
-      if (fees?.sale.contract === TEST_COLLECTION) {
-        expect(fees?.royalty_fee_bps).toEqual(750);
-      }
-      expect(fees?.marketplace_fee_bps).toEqual(250);
-    }
-  };
-
-  const txIds = [
-    ["single sale", "0x93de26bea65832e10c253f6cd0bf963619d7aef63695b485d9df118dd6bd4ae4"],
-    [
-      "multiple sales with different protocols(x2y2+seaport)",
-      "0xa451be1bd9edef5cab318e3cb0fbff6a6f9955dfd49e484caa37dbaa6982a1ed",
-    ],
-    [
-      "multiple sales with different collections",
-      "0xfef549999f91e499dc22ad3d635fd05949d1a7fda1f7c5827986f23fc341f828",
-    ],
-    [
-      "multiple sales with same collection",
-      "0x28cb9371d6d986a00e19797270c542ad6901abec7b67bbef7b2ae947b3c37c0b",
-    ],
-  ];
-
-  for (const [name, txHash] of txIds) {
-    // if (txHash === "0xa451be1bd9edef5cab318e3cb0fbff6a6f9955dfd49e484caa37dbaa6982a1ed")
-    it(`${name}`, async () => testFeeExtract(txHash));
-  }
-});
