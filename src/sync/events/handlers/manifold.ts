@@ -17,6 +17,7 @@ import { getUSDAndNativePrices } from "@/utils/prices";
 import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import { BigNumber } from "ethers";
 import { BaseEventParams } from "../parser";
+import { redb } from "@/common/db";
 
 type TransferEventWithContract = es.nftTransfers.Event & { tokenContract: string };
 
@@ -106,6 +107,20 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         const orderId = manifold.getOrderId(listingId);
 
+        const orderResult = await redb.oneOrNone(
+          ` 
+            SELECT 
+              raw_data,
+            FROM orders 
+            WHERE orders.id = $/id/ 
+          `,
+          { id: orderId }
+        );
+
+        if (!orderResult) {
+          break;
+        }
+
         for (const log of currentTxLogs.slice(0, -1).reverse()) {
           // Skip once we detect another fill in the same transaction
           // (this will happen if filling through an aggregator)
@@ -190,6 +205,12 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
+        // This is required in case of 1155 purchases. Count represent how many orders you want to fill.
+        // An order can have 15 editions total(totalAvailable) but must be purchased 5 at a time(totalPerSale)
+        // totalAvailable in the contract will be 10 in case 1 order is purchased.
+        // We must do amount = count * totalPerSale in order to have the correct amount in our DB.
+        const purchasedAmount = (orderResult.raw_data.details.totalPerSale * amount).toString();
+
         fillEventsPartial.push({
           orderKind,
           orderId,
@@ -202,7 +223,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           usdPrice: priceData.usdPrice,
           contract: tokenContract,
           tokenId,
-          amount,
+          amount: purchasedAmount,
           orderSourceId: attributionData.orderSource?.id,
           aggregatorSourceId: attributionData.aggregatorSource?.id,
           fillSourceId: attributionData.fillSource?.id,
