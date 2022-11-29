@@ -27,8 +27,7 @@ import * as royalties from "@/utils/royalties";
 import { Royalty } from "@/utils/royalties";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
-import { Tokens } from "@/models/tokens";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
+import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 
 export type OrderInfo =
   | {
@@ -653,91 +652,7 @@ export const save = async (
             `Unknown Collection. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}`
           );
 
-          try {
-            const contractCollections = await redb.manyOrNone(
-              `
-          SELECT
-            collections.id,
-            collections.token_id_range
-          FROM collections
-          WHERE collections.contract = $/contract/
-        `,
-              {
-                contract: toBuffer(orderParams.contract),
-              }
-            );
-
-            logger.info(
-              "orders-seaport-save-partial",
-              `Unknown Collection - Collections Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, contractCollections=${contractCollections.length}`
-            );
-
-            if (contractCollections.length) {
-              for (const contractCollection of contractCollections) {
-                let tokenId = "1";
-
-                if (_.isNull(contractCollection.token_id_range)) {
-                  tokenId = await Tokens.getSingleToken(contractCollection.id);
-                } else if (contractCollection.token_id_range != "(,)") {
-                  tokenId = `${JSON.parse(contractCollection.token_id_range)[0]}`;
-                }
-
-                await collectionUpdatesMetadata.addToQueue(
-                  orderParams.contract,
-                  tokenId,
-                  "",
-                  0,
-                  true
-                );
-
-                logger.info(
-                  "orders-seaport-save-partial",
-                  `Unknown Collection - Collection Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, collectionId=${contractCollection.id}, tokenId=${tokenId}`
-                );
-              }
-            } else {
-              const contractToken = await redb.oneOrNone(
-                `
-            SELECT
-              tokens.token_id
-            FROM tokens
-            WHERE tokens.contract = $/contract/
-            LIMIT 1
-          `,
-                {
-                  contract: toBuffer(orderParams.contract),
-                }
-              );
-
-              logger.info(
-                "orders-seaport-save-partial",
-                `Unknown Collection - Token Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, tokenId=${contractToken?.token_id}`
-              );
-
-              // if (contractToken) {
-              //   await metadataIndexFetch.addToQueue(
-              //     [
-              //       {
-              //         kind: "single-token",
-              //         data: {
-              //           method: config.metadataIndexingMethod,
-              //           contract: orderParams.contract,
-              //           tokenId: contractToken.token_id,
-              //           collection: orderParams.contract,
-              //         },
-              //       },
-              //     ],
-              //     true,
-              //     getNetworkSettings().metadataMintDelay
-              //   );
-              // }
-            }
-          } catch (error) {
-            logger.error(
-              "orders-seaport-save-partial",
-              `Unknown Collection - Error. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, error=${error}`
-            );
-          }
+          await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
         }
 
         return results.push({
