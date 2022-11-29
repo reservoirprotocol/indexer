@@ -28,6 +28,7 @@ import { Royalty } from "@/utils/royalties";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { Tokens } from "@/models/tokens";
+import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 
 export type OrderInfo =
   | {
@@ -671,7 +672,7 @@ export const save = async (
               `Unknown Collection - Collections Refresh. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, contractCollections=${contractCollections.length}`
             );
 
-            if (contractCollections) {
+            if (contractCollections.length) {
               for (const contractCollection of contractCollections) {
                 let tokenId = "1";
 
@@ -681,13 +682,13 @@ export const save = async (
                   tokenId = `${JSON.parse(contractCollection.token_id_range)[0]}`;
                 }
 
-                // await collectionUpdatesMetadata.addToQueue(
-                //   orderParams.contract,
-                //   tokenId,
-                //   "",
-                //   0,
-                //   true
-                // );
+                await collectionUpdatesMetadata.addToQueue(
+                  orderParams.contract,
+                  tokenId,
+                  "",
+                  0,
+                  true
+                );
 
                 logger.info(
                   "orders-seaport-save-partial",
@@ -1573,7 +1574,10 @@ const getCollection = async (
   }
 };
 
-const getCollectionFloorAskValue = async (contract: string, tokenId: number) => {
+const getCollectionFloorAskValue = async (
+  contract: string,
+  tokenId: number
+): Promise<number | undefined> => {
   if (getNetworkSettings().multiCollectionContracts.includes(contract)) {
     const collection = await Collections.getByContractAndTokenId(contract, tokenId);
     return collection?.floorSellValue;
