@@ -2,63 +2,45 @@ import * as Sdk from "@reservoir0x/sdk";
 
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
-import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { OrderInfo } from "@/orderbook/orders/manifold";
+import { bn } from "@/common/utils";
 
-export const offChainCheck = async (
-  order: OrderInfo["orderParams"],
-  options?: {
-    onChainApprovalRecheck?: boolean;
-  }
-) => {
-  let hasBalance = true;
-  let hasApproval = true;
+export const offChainCheck = async (order: OrderInfo["orderParams"]) => {
+  const exchangeContract = new Sdk.Manifold.Exchange(config.chainId);
+  const onChainListing = await exchangeContract.getListing(baseProvider, order.id);
 
-  // Check: maker has enough balance
-  const nftBalance = await commonHelpers.getNftBalance(
-    order.token.address_,
-    order.token.id.toString(),
-    order.seller
-  );
-
-  if (nftBalance.lt(1)) {
-    hasBalance = false;
+  if (bn(onChainListing.id).toString() != order.id) {
+    throw Error("invalid");
   }
 
-  const operator = Sdk.Manifold.Addresses.Exchange[config.chainId];
-
-  // Check: maker has set the proper approval
-  const nftApproval = await commonHelpers.getNftApproval(
-    order.token.address_,
-    order.seller,
-    operator
-  );
-
-  // Re-validate the approval on-chain to handle some edge-cases
-  const contract = new Sdk.Common.Helpers.Erc721(baseProvider, order.token.address_);
-  if (!hasBalance) {
-    // Fetch token owner on-chain
-    const owner = await contract.getOwner(order.token.id);
-    if (owner.toLowerCase() === order.seller) {
-      hasBalance = true;
-    }
+  if (onChainListing.details.type_ != order.details.type_) {
+    throw Error("invalid");
   }
 
-  if (!nftApproval) {
-    if (options?.onChainApprovalRecheck) {
-      if (!(await contract.isApproved(order.seller, operator))) {
-        hasApproval = false;
-      }
-    } else {
-      hasApproval = false;
-    }
+  if (onChainListing.finalized) {
+    throw Error("not-fillable");
   }
 
-  if (!hasBalance && !hasApproval) {
-    throw new Error("no-balance-no-approval");
-  } else if (!hasBalance) {
-    throw new Error("no-balance");
-  } else if (!hasApproval) {
-    throw new Error("no-approval");
+  if (
+    onChainListing.details.startTime != order.details.startTime ||
+    onChainListing.details.endTime != order.details.endTime
+  ) {
+    throw Error("invalid");
+  }
+
+  if (onChainListing.details.erc20.toLowerCase() != order.details.erc20) {
+    throw Error("invalid");
+  }
+
+  if (bn(onChainListing.details.initialAmount).toString() != order.details.initialAmount) {
+    throw Error("invalid");
+  }
+
+  if (onChainListing.details.totalAvailable != order.details.totalAvailable) {
+    throw Error("invalid");
+  }
+
+  if (onChainListing.details.totalPerSale != order.details.totalPerSale) {
+    throw Error("invalid");
   }
 };

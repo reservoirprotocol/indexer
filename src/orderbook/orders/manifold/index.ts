@@ -158,27 +158,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       // Check: order fillability
-      let fillabilityStatus = "fillable";
-      let approvalStatus = "approved";
+      const fillabilityStatus = "fillable";
+      const approvalStatus = "approved";
       try {
-        await offChainCheck(orderParams, { onChainApprovalRecheck: true });
+        await offChainCheck(orderParams);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
-        // Keep any orders that can potentially get valid in the future
-        if (error.message === "no-balance-no-approval") {
-          fillabilityStatus = "no-balance";
-          approvalStatus = "no-approval";
-        } else if (error.message === "no-approval") {
-          approvalStatus = "no-approval";
-        } else if (error.message === "no-balance") {
-          fillabilityStatus = "no-balance";
-        } else {
-          return results.push({
-            id,
-            status: "not-fillable",
-            txHash: orderParams.txHash,
-          });
-        }
+        return results.push({
+          id,
+          status: "not-fillable",
+          txHash: orderParams.txHash,
+        });
       }
 
       // Check and save: associated token set
