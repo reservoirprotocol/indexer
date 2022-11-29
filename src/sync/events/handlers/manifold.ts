@@ -111,6 +111,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           ` 
             SELECT 
               raw_data,
+              extract('epoch' from lower(orders.valid_between)) AS valid_from
             FROM orders 
             WHERE orders.id = $/id/ 
           `,
@@ -230,6 +231,25 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
+        // Some manifold order have end time that is set after the first purchase
+        if (orderResult.valid_from === 0) {
+          const endTime = baseEventParams.timestamp + orderResult.raw_data.details.endTime;
+          orders.push({
+            orderParams: {
+              id: listingId,
+              details: {
+                startTime: baseEventParams.timestamp,
+                endTime,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any,
+            metadata: {},
+          });
+        }
+
         orderInfos.push({
           context: `filled-${orderId}-${baseEventParams.txHash}`,
           id: orderId,
@@ -246,7 +266,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           orderSide: "sell",
           contract: tokenContract,
           tokenId,
-          amount,
+          amount: purchasedAmount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
         });

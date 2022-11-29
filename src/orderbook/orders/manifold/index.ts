@@ -46,42 +46,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     try {
       const id = getOrderId(orderParams.id);
 
-      // Ensure that the order is not cancelled
-      const cancelResult = await redb.oneOrNone(
-        `
-                SELECT 1 FROM cancel_events
-                WHERE order_id = $/id/
-                  AND timestamp >= $/timestamp/
-                LIMIT 1
-              `,
-        { id, timestamp: orderParams.txTimestamp }
-      );
-      if (cancelResult) {
-        return results.push({
-          id,
-          txHash: orderParams.txHash,
-          status: "redundant",
-        });
-      }
-
-      // Ensure that the order is not filled
-      const fillResult = await redb.oneOrNone(
-        `
-                SELECT 1 FROM fill_events_2
-                WHERE order_id = $/id/
-                  AND timestamp >= $/timestamp/
-                LIMIT 1
-              `,
-        { id, timestamp: orderParams.txTimestamp }
-      );
-      if (fillResult) {
-        return results.push({
-          id,
-          txHash: orderParams.txHash,
-          status: "redundant",
-        });
-      }
-
       const orderResult = await redb.oneOrNone(
         ` 
           SELECT 
@@ -124,7 +88,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         // We update the order before doing `offChainCheck` because the updated fields don't alter the approval or fillability status
         orderResult.raw_data.details = {
           ...orderResult.raw_data.details,
-          initialAmount: orderParams.details.initialAmount,
+          ...(orderParams.details.initialAmount && {
+            initialAmount: orderParams.details.initialAmount,
+          }),
           startTime: orderParams.details.startTime,
           endTime: orderParams.details.endTime,
         };
@@ -136,13 +102,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 value = $/initial_amount/,
                 currency_price = $/initial_amount/,
                 currency_value = $/initial_amount/,
-                expiration = $/valid_to/,
+                expiration = 'Infinity',
                 updated_at = now(),
                 raw_data = $/orderParams:json/
               WHERE orders.id = $/id/
             `,
           {
-            initial_amount: orderParams.details.initialAmount,
+            initial_amount:
+              orderParams.details.initialAmount || orderResult.raw_data.details.initialAmount,
             valid_to: validTo,
             orderParams: orderResult.raw_data,
             id,
@@ -153,6 +120,42 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           id,
           txHash: orderParams.txHash,
           status: "success",
+        });
+      }
+
+      // Ensure that the order is not cancelled
+      const cancelResult = await redb.oneOrNone(
+        `
+                SELECT 1 FROM cancel_events
+                WHERE order_id = $/id/
+                  AND timestamp >= $/timestamp/
+                LIMIT 1
+              `,
+        { id, timestamp: orderParams.txTimestamp }
+      );
+      if (cancelResult) {
+        return results.push({
+          id,
+          txHash: orderParams.txHash,
+          status: "redundant",
+        });
+      }
+
+      // Ensure that the order is not filled
+      const fillResult = await redb.oneOrNone(
+        `
+                SELECT 1 FROM fill_events_2
+                WHERE order_id = $/id/
+                  AND timestamp >= $/timestamp/
+                LIMIT 1
+              `,
+        { id, timestamp: orderParams.txTimestamp }
+      );
+      if (fillResult) {
+        return results.push({
+          id,
+          txHash: orderParams.txHash,
+          status: "redundant",
         });
       }
 
@@ -259,6 +262,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "currency_price",
         "currency_value",
         "needs_conversion",
+        "quantity_remaining",
         { name: "valid_between", mod: ":raw" },
         "nonce",
         "source_id_int",
