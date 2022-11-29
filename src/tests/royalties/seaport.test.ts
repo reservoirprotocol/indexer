@@ -4,7 +4,6 @@ dotEnvConfig();
 import { baseProvider } from "@/common/provider";
 import { getEventsFromTx } from "../utils/test";
 import * as seaport from "@/events-sync/handlers/seaport";
-import * as es from "@/events-sync/storage";
 
 import { bn } from "@/common/utils";
 import * as utils from "@/events-sync/utils";
@@ -12,48 +11,80 @@ import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import { Royalty, getDefaultRoyalties } from "@/utils/royalties";
 import { formatEther } from "@ethersproject/units";
 
-import { refreshAllRoyaltySpecs } from "@/utils/royalties";
-import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
+import { parseEnhancedEventsToEventsInfo } from "@/events-sync/index";
+import { parseEventsInfo } from "@/events-sync/handlers";
+import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
+import { concat } from "@/common/utils";
+import * as es from "@/events-sync/storage";
 
-// const testFees = {
-//   // Ledger
-//   "0x33c6eec1723b12c46732f7ab41398de45641fa42": [
-//     {
-//       bps: 750,
-//       recipient: "0x459fe44490075a2ec231794f9548238e99bf25c0",
-//     },
-//   ],
-//   // ChillTuna
-//   "0x0735a2961eb2b18b28daa72b593dfbaa7f9d1929": [
-//     {
-//       bps: 750,
-//       recipient: "0xec934b9dcc00df6b5355dfd8b638db9a69e43ff8",
-//     },
-//   ],
-// };
+async function parseEnhancedEventToOnChainData(enhancedEvents: EnhancedEvent[]) {
+  const eventsInfos = await parseEnhancedEventsToEventsInfo(enhancedEvents, false);
+  const allOnChainData: OnChainData[] = [];
+  for (let index = 0; index < eventsInfos.length; index++) {
+    const eventsInfo = eventsInfos[index];
+    const onchainData = await parseEventsInfo(eventsInfo);
+    allOnChainData.push(onchainData);
+  }
+  return allOnChainData;
+}
 
-async function extractRoyalties(fillEvent: es.fills.Event) {
+async function extractRoyaltiesForSeaport(fillEvent: es.fills.Event) {
   const royalty_fee_breakdown: Royalty[] = [];
   const marketplace_fee_breakdown: Royalty[] = [];
   const possible_missing_royalties: Royalty[] = [];
 
+  const { txHash } = fillEvent.baseEventParams;
+
   const { tokenId, contract, price } = fillEvent;
-  const txTrace = await utils.fetchTransactionTrace(fillEvent.baseEventParams.txHash);
+  const txTrace = await utils.fetchTransactionTrace(txHash);
   if (!txTrace) {
     return;
   }
 
+  // need cache in database ?
+  const transaction = await baseProvider.getTransactionReceipt(txHash);
+
+  // inside `getEventsFromTx` has one getBlock call
+  const events = await getEventsFromTx(transaction);
+
+  // const txEvents = await seaport.handleEvents(events);
+  // const fillEvents = txEvents.fillEventsPartial;
+  const allOnChainData = await parseEnhancedEventToOnChainData(events);
+
+  let fillEvents: es.fills.Event[] = [];
+
+  for (let index = 0; index < allOnChainData.length; index++) {
+    const data = allOnChainData[index];
+    const allEvents = concat(data.fillEvents, data.fillEventsPartial, data.fillEventsOnChain);
+    fillEvents = [...fillEvents, ...allEvents];
+  }
+
+  // console.log("fillEvents", fillEvents)
+  const collectionFills = fillEvents?.filter((_) => _.contract === contract) || [];
+  const protocolFillEvents = fillEvents?.filter((_) => _.orderKind === "seaport") || [];
+
+  const protocolRelatedAmount = protocolFillEvents
+    ? protocolFillEvents.reduce((total, item) => {
+        return total.add(bn(item.price));
+      }, bn(0))
+    : bn(0);
+
+  const collectionRelatedAmount = collectionFills.reduce((total, item) => {
+    return total.add(bn(item.price));
+  }, bn(0));
+
   const state = parseCallTrace(txTrace.calls);
   let royalties = await getDefaultRoyalties(contract, tokenId);
 
-  // mock testing
-  if (!royalties.length && contract === "0x33c6eec1723b12c46732f7ab41398de45641fa42")
+  // mock for testing
+  if (!royalties.length && contract === "0x33c6eec1723b12c46732f7ab41398de45641fa42") {
     royalties = [
       {
         bps: 750,
         recipient: "0x459fe44490075a2ec231794f9548238e99bf25c0",
       },
     ];
+  }
 
   const openSeaFeeRecipients = [
     "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
@@ -94,33 +125,18 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
     // Receive ETH
     if (balanceChange && !balanceChange.startsWith("-")) {
       const bpsInPrice = bn(balanceChange).mul(10000).div(bn(price));
-      // console.log({
-      //   price: formatEther(price),
-      //   balanceChange: formatEther(balanceChange),
-      //   bps: bpsInPrice.toNumber(),
-      // })
       const curRoyalties = {
         recipient: address,
         bps: bpsInPrice.toNumber(),
       };
 
       if (openSeaFeeRecipients.includes(address)) {
-        // if (curRoyalties.bps !== 250) {
-        //   console.log("wrong number")
-        // }
-
-        // default override
-        curRoyalties.bps = 250;
-
+        // Need to know how many seaport sales in the same tx
+        curRoyalties.bps = bn(balanceChange).mul(10000).div(protocolRelatedAmount).toNumber();
         marketplace_fee_breakdown.push(curRoyalties);
       } else if (royaltyRecipients.includes(address)) {
-        // const collectionRoyalty = royalties.find((c) => c.recipient === address);
-        // if (collectionRoyalty) {
-        //   royalty_fee_breakdown.push(collectionRoyalty);
-        // }
-
-        // For multiple sales in one
-        curRoyalties.bps = curRoyalties.bps / sameCollectionSales;
+        // For multiple same collection sales in one tx
+        curRoyalties.bps = bn(balanceChange).mul(10000).div(collectionRelatedAmount).toNumber();
         royalty_fee_breakdown.push(curRoyalties);
       } else if (bpsInPrice.lt(threshold)) {
         possible_missing_royalties.push(curRoyalties);
@@ -142,6 +158,7 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
   // console.log("balanceChangeWithBps", balanceChangeWithBps, tokenId, contract, possible_missing_royalties);
 
   const result = {
+    txHash,
     sale: {
       tokenId,
       contract,
@@ -167,60 +184,42 @@ async function extractRoyalties(fillEvent: es.fills.Event) {
 
 jest.setTimeout(1000 * 1000);
 
-describe("Royalties", () => {
-  test("Opensea", async () => {
-    const txIds = [
-      // single
-      "0x93de26bea65832e10c253f6cd0bf963619d7aef63695b485d9df118dd6bd4ae4",
-      // multiple rarible bulkPurchase (x2y2 + seaport)
-      "0xa451be1bd9edef5cab318e3cb0fbff6a6f9955dfd49e484caa37dbaa6982a1ed",
-      // multiple sales
-      "0xfef549999f91e499dc22ad3d635fd05949d1a7fda1f7c5827986f23fc341f828",
-    ];
+describe("Royalties - Seaport", () => {
+  const TEST_COLLECTION = "0x33c6eec1723b12c46732f7ab41398de45641fa42";
 
-    await fetchCollectionMetadata.addToQueue([
-      {
-        contract: "0x33c6eec1723b12c46732f7ab41398de45641fa42",
-        tokenId: "4428",
-        mintedTimestamp: Math.floor(Date.now() / 1000),
-      },
-      {
-        contract: "0x33c6eec1723b12c46732f7ab41398de45641fa42",
-        tokenId: "2017",
-        mintedTimestamp: Math.floor(Date.now() / 1000),
-      },
-    ]);
-
-    await refreshAllRoyaltySpecs(
-      "0x33c6eec1723b12c46732f7ab41398de45641fa42",
-      [
-        {
-          bps: 750,
-          recipient: "0x459fe44490075a2ec231794f9548238e99bf25c0",
-        },
-      ],
-      [
-        {
-          bps: 750,
-          recipient: "0x459fe44490075a2ec231794f9548238e99bf25c0",
-        },
-      ]
-    );
-
-    for (let index = 0; index < txIds.length; index++) {
-      const txHash = txIds[index];
-      const tx = await baseProvider.getTransactionReceipt(txHash);
-      const events = await getEventsFromTx(tx);
-      const result = await seaport.handleEvents(events);
-
-      const fillEvents = result.fillEventsPartial ?? [];
-      for (let index = 0; index < fillEvents.length; index++) {
-        const fillEvent = fillEvents[index];
-        await extractRoyalties(fillEvent);
-        // console.log("result", await extractRoyalties(fillEvent))
-        // const fees = await extractRoyalties(fillEvent);
+  const testFeeExtract = async (txHash: string) => {
+    const tx = await baseProvider.getTransactionReceipt(txHash);
+    const events = await getEventsFromTx(tx);
+    const result = await seaport.handleEvents(events);
+    const fillEvents = result.fillEventsPartial ?? [];
+    for (let index = 0; index < fillEvents.length; index++) {
+      const fillEvent = fillEvents[index];
+      const fees = await extractRoyaltiesForSeaport(fillEvent);
+      if (fees?.sale.contract === TEST_COLLECTION) {
+        expect(fees?.royalty_fee_bps).toEqual(750);
       }
-      // console.log("result", result)
+      expect(fees?.marketplace_fee_bps).toEqual(250);
     }
-  });
+  };
+
+  const txIds = [
+    ["single sale", "0x93de26bea65832e10c253f6cd0bf963619d7aef63695b485d9df118dd6bd4ae4"],
+    [
+      "multiple sales with different protocols(x2y2+seaport)",
+      "0xa451be1bd9edef5cab318e3cb0fbff6a6f9955dfd49e484caa37dbaa6982a1ed",
+    ],
+    [
+      "multiple sales with different collections",
+      "0xfef549999f91e499dc22ad3d635fd05949d1a7fda1f7c5827986f23fc341f828",
+    ],
+    [
+      "multiple sales with same collection",
+      "0x28cb9371d6d986a00e19797270c542ad6901abec7b67bbef7b2ae947b3c37c0b",
+    ],
+  ];
+
+  for (const [name, txHash] of txIds) {
+    // if (txHash === "0xa451be1bd9edef5cab318e3cb0fbff6a6f9955dfd49e484caa37dbaa6982a1ed")
+    it(`${name}`, async () => testFeeExtract(txHash));
+  }
 });

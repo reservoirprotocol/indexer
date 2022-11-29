@@ -48,6 +48,13 @@ export type EventsInfo = {
 };
 
 export const processEvents = async (info: EventsInfo) => {
+  const data: OnChainData | undefined = await parseEventsInfo(info);
+  if (data) {
+    await processOnChainData(data, info.backfill);
+  }
+};
+
+export const parseEventsInfo = async (info: EventsInfo) => {
   let data: OnChainData | undefined;
   switch (info.kind) {
     case "erc20": {
@@ -150,8 +157,5 @@ export const processEvents = async (info: EventsInfo) => {
       break;
     }
   }
-
-  if (data) {
-    await processOnChainData(data, info.backfill);
-  }
+  return data;
 };
