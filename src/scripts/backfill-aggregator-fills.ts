@@ -18,6 +18,7 @@ const main = async () => {
 
   console.log("Fetching entries");
 
+  const contract = "0x3729014ef28f01b3ddcf7f980d925e0b71b1f847";
   const results = await idb.manyOrNone(
     `
       SELECT
@@ -27,9 +28,9 @@ const main = async () => {
         fill_events_2.order_kind,
         fill_events_2.taker
       FROM fill_events_2
-      WHERE fill_events_2.maker = '\\x539ea5d6ec0093ff6401dbcd14d049c37a77151b'
-        OR fill_events_2.taker = '\\x539ea5d6ec0093ff6401dbcd14d049c37a77151b'
-    `
+      WHERE fill_events_2.taker = $/contract/
+    `,
+    { contract: toBuffer(contract) }
   );
 
   console.log("Processing entries");
