@@ -15,7 +15,7 @@ export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
     attempts: 10,
-    removeOnComplete: true,
+    removeOnComplete: 1000,
     removeOnFail: 1000,
   },
 });
@@ -128,5 +128,5 @@ export const getLockName = (contract: string) => {
 };
 
 export const addToQueue = async (contract: string) => {
-  await queue.add(randomUUID(), { contract }, { jobId: `${contract}` });
+  await queue.add(randomUUID(), { contract });
 };
