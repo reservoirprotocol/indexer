@@ -26,7 +26,6 @@ type SaveResult = {
   id: string;
   status: string;
   txHash: string;
-  unfillable?: boolean;
 };
 
 export function getOrderId(listingId: number | string) {
@@ -225,14 +224,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         currency_normalized_value: null,
       });
 
-      const unfillable =
-        fillabilityStatus !== "fillable" || approvalStatus !== "approved" ? true : undefined;
-
       results.push({
         id,
         status: "success",
         txHash: orderParams.txHash,
-        unfillable,
       });
     } catch (error) {
       logger.error(
@@ -284,7 +279,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
     await ordersUpdateById.addToQueue(
       results
-        .filter((r) => r.status === "success" && !r.unfillable)
+        .filter((r) => r.status === "success")
         .map(
           ({ id, txHash }) =>
             ({
