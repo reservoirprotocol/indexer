@@ -37,7 +37,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
   client.connect();
 
-  logger.info("opensea-websocket", `Connected. network=${network}`);
+  logger.info("opensea-websocket", `Connected! network=${network}`);
 
   client.onEvents(
     "*",

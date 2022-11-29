@@ -491,7 +491,6 @@ export const getOrdersBidsV4Options: RouteOptions = {
             if (!Object.keys(r.missing_royalties[i]).includes("bps")) {
               break;
             }
-
             const index: number = r.fee_breakdown.findIndex(
               (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
             );
