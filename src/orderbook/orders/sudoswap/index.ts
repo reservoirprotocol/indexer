@@ -47,6 +47,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         throw new Error("Could not fetch pool details");
       }
 
+      if (pool.token !== Sdk.Common.Addresses.Eth[config.chainId]) {
+        throw new Error("Unsupported currency");
+      }
+
       const poolContract = new Contract(
         pool.address,
         new Interface([
@@ -91,7 +95,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         const id = getOrderId(orderParams.pool, "buy");
         if (prices.length > 1) {
           // Handle: fees
-          let feeBps = 50;
+          const feeBps = 50;
           const feeBreakdown: {
             kind: string;
             recipient: string;
@@ -104,21 +108,47 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             },
           ];
 
-          const eip2981Royalties = await royalties.getRoyalties(pool.nft, undefined, "eip2981");
-          for (const { recipient, bps } of eip2981Royalties) {
-            feeBps += bps;
-            feeBreakdown.push({
-              kind: "royalty",
-              recipient,
-              bps,
-            });
+          // Handle: prices
+          const price = prices[1].toString();
+          const value = prices[1]
+            .sub(
+              // Subtract the protocol fee from the price
+              prices[1].mul(feeBps).div(10000)
+            )
+            .toString();
+
+          // Handle: royalties on top
+          const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(
+            `contract:${pool.nft}`,
+            "default"
+          );
+
+          const totalBuiltInBps = 0;
+          const totalDefaultBps = defaultRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+
+          const missingRoyalties = [];
+          let missingRoyaltyAmount = bn(0);
+          if (totalBuiltInBps < totalDefaultBps) {
+            const validRecipients = defaultRoyalties.filter(
+              ({ bps, recipient }) => bps && recipient !== AddressZero
+            );
+            if (validRecipients.length) {
+              const bpsDiff = totalDefaultBps - totalBuiltInBps;
+              const amount = bn(price).mul(bpsDiff).div(10000).toString();
+              missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+
+              missingRoyalties.push({
+                bps: bpsDiff,
+                amount,
+                // TODO: We should probably split pro-rata across all royalty recipients
+                recipient: validRecipients[0].recipient,
+              });
+            }
           }
 
-          // Add the protocol fee to the price
-          const price = prices[1].add(prices[1].mul(50).div(10000)).toString();
-          // Subtract the royalties from the price
-          const value = prices[1].sub(prices[1].mul(feeBps - 50).div(10000)).toString();
+          const normalizedValue = bn(value).sub(missingRoyaltyAmount);
 
+          // Handle: core sdk order
           const sdkOrder: Sdk.Sudoswap.Order = new Sdk.Sudoswap.Order(config.chainId, {
             pair: orderParams.pool,
             price: value.toString(),
@@ -128,8 +158,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           (sdkOrder.params as any).extra = {
             values: prices
               .slice(1)
-              .map((p) => p.mul(feeBps - 50).div(10000))
+              .map((p) => p.sub(p.mul(feeBps).div(10000)))
               .map(String),
+            prices: prices.slice(1).map(String),
           };
 
           const orderResult = await redb.oneOrNone(
@@ -187,9 +218,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               dynamic: null,
               raw_data: sdkOrder.params,
               expiration: validTo,
-              missing_royalties: null,
-              normalized_value: null,
-              currency_normalized_value: null,
+              missing_royalties: missingRoyalties,
+              normalized_value: normalizedValue.toString(),
+              currency_normalized_value: normalizedValue.toString(),
             });
 
             return results.push({
@@ -206,17 +237,29 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   currency_price = $/price/,
                   value = $/value/,
                   currency_value = $/value/,
+                  quantity_remaining = $/quantityRemaining/,
                   valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
                   expiration = 'Infinity',
                   updated_at = now(),
-                  raw_data = $/rawData:json/
+                  raw_data = $/rawData:json/,
+                  missing_royalties = $/missingRoyalties:json/,
+                  normalized_value = $/normalizedValue/,
+                  currency_normalized_value = $/currencyNormalizedValue/,
+                  fee_bps = $/feeBps/,
+                  fee_breakdown = $/feeBreakdown:json/
                 WHERE orders.id = $/id/
               `,
               {
+                id,
                 price,
                 value,
                 rawData: sdkOrder.params,
-                id,
+                quantityRemaining: (prices.length - 1).toString(),
+                missingRoyalties: missingRoyalties,
+                normalizedValue: normalizedValue.toString(),
+                currencyNormalizedValue: normalizedValue.toString(),
+                feeBps,
+                feeBreakdown,
               }
             );
 
@@ -286,6 +329,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        { name: "missing_royalties", mod: ":json" },
+        "normalized_value",
+        "currency_normalized_value",
       ],
       {
         table: "orders",

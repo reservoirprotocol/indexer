@@ -19,7 +19,6 @@ import {
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { utils } from "ethers";
 
 const version = "v3";
 
@@ -70,9 +69,12 @@ export const getOrdersAsksV3Options: RouteOptions = {
         .description(
           "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
-      source: Joi.string()
-        .pattern(regex.domain)
-        .description("Filter to a source by domain. Example: `opensea.io`"),
+      source: Joi.alternatives()
+        .try(
+          Joi.array().max(50).items(Joi.string().lowercase().pattern(regex.domain)),
+          Joi.string().lowercase().pattern(regex.domain)
+        )
+        .description("Filter to an array of sources. Example: `opensea.io`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includePrivate: Joi.boolean()
         .default(false)
@@ -399,15 +401,30 @@ export const getOrdersAsksV3Options: RouteOptions = {
       }
 
       if (query.source) {
-        const sources = await Sources.getInstance();
-        const source = sources.getByDomain(query.source);
+        const sourcesIds = [];
 
-        if (!source) {
+        const sources = await Sources.getInstance();
+
+        if (!_.isArray(query.source)) {
+          const source = sources.getByDomain(query.source);
+          if (source?.id) {
+            sourcesIds.push(source.id);
+          }
+        } else {
+          for (const s of query.source) {
+            const source = sources.getByDomain(s);
+            if (source?.id) {
+              sourcesIds.push(source.id);
+            }
+          }
+        }
+
+        if (_.isEmpty(sourcesIds)) {
           return { orders: [] };
         }
 
-        (query as any).source = source.id;
-        conditions.push(`orders.source_id_int = $/source/`);
+        (query as any).source = sourcesIds;
+        conditions.push(`orders.source_id_int IN ($/source:csv/)`);
       }
 
       if (query.native) {
@@ -449,7 +466,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
 
       // Sorting
       if (query.sortBy === "price") {
-        baseQuery += ` ORDER BY orders.price, orders.id`;
+        baseQuery += ` ORDER BY orders.value, orders.id`;
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
@@ -475,27 +492,27 @@ export const getOrdersAsksV3Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
         const feeBreakdown = r.fee_breakdown;
-        let feeBps = utils.parseUnits(r.fee_bps.toString(), "wei");
+        let feeBps = r.fee_bps;
 
         if (query.normalizeRoyalties && r.missing_royalties) {
           for (let i = 0; i < r.missing_royalties.length; i++) {
-            const amount = utils.parseUnits(r.missing_royalties[i].amount, "wei");
-            const totalValue = utils.parseUnits(r.normalized_value.toString(), "wei").sub(amount);
-            const bps = amount.mul(10000).div(totalValue);
+            if (!Object.keys(r.missing_royalties[i]).includes("bps")) {
+              break;
+            }
             const index: number = r.fee_breakdown.findIndex(
               (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
             );
 
             if (index > -1) {
-              feeBreakdown[index].bps += Number(bps.toString());
+              feeBreakdown[index].bps += Number(r.missing_royalties[i].bps);
             } else {
-              const tempObj = {
-                bps: Number(bps.toString()),
+              const missingRoyalty = {
+                bps: Number(r.missing_royalties[i].bps),
                 kind: "royalty",
                 recipient: r.missing_royalties[i].recipient,
               };
-              feeBreakdown.push(tempObj);
-              feeBps = feeBps.add(bps);
+              feeBreakdown.push(missingRoyalty);
+              feeBps += Number(r.missing_royalties[i].bps);
             }
           }
         }
@@ -549,7 +566,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             icon: source?.getIcon(),
             url: source?.metadata.url,
           },
-          feeBps: Number(feeBps.toString()),
+          feeBps: feeBps,
           feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,

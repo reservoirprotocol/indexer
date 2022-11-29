@@ -15,7 +15,7 @@ export class TransferActivity {
 
     // If no collection found
     if (_.isNull(collectionId)) {
-      logger.warn("transfer-activity", `No collection found for ${JSON.stringify(data)}`);
+      logger.warn("transfer-activity", `Collection not found for ${JSON.stringify(data)}`);
       return;
     }
 

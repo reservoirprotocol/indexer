@@ -12,7 +12,6 @@ import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } fro
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { utils } from "ethers";
 
 const version = "v4";
 
@@ -483,27 +482,27 @@ export const getOrdersBidsV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
         const feeBreakdown = r.fee_breakdown;
-        let feeBps = utils.parseUnits(r.fee_bps.toString(), "wei");
+        let feeBps = r.fee_bps;
 
         if (query.normalizeRoyalties && r.missing_royalties) {
           for (let i = 0; i < r.missing_royalties.length; i++) {
-            const amount = utils.parseUnits(r.missing_royalties[i].amount, "wei");
-            const totalValue = utils.parseUnits(r.normalized_value.toString(), "wei").sub(amount);
-            const bps = amount.mul(10000).div(totalValue);
+            if (!Object.keys(r.missing_royalties[i]).includes("bps")) {
+              break;
+            }
             const index: number = r.fee_breakdown.findIndex(
               (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
             );
 
             if (index > -1) {
-              feeBreakdown[index].bps += Number(bps.toString());
+              feeBreakdown[index].bps += Number(r.missing_royalties[i].bps);
             } else {
-              const tempObj = {
-                bps: Number(bps.toString()),
+              const missingRoyalty = {
+                bps: Number(r.missing_royalties[i].bps),
                 kind: "royalty",
                 recipient: r.missing_royalties[i].recipient,
               };
-              feeBreakdown.push(tempObj);
-              feeBps = feeBps.add(bps);
+              feeBreakdown.push(missingRoyalty);
+              feeBps += Number(r.missing_royalties[i].bps);
             }
           }
         }
@@ -560,7 +559,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             url: source?.metadata.url,
             domain: source?.domain,
           },
-          feeBps: Number(feeBps.toString()),
+          feeBps: feeBps,
           feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
