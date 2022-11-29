@@ -647,9 +647,9 @@ export const save = async (
 
       if (!collection) {
         if (orderParams.kind === "contract-wide") {
-          logger.info(
+          logger.warn(
             "orders-seaport-save-partial",
-            `Unknown Collection! orderId=${id}, contract=${orderParams.contract}, collectionSlug=${
+            `Unknown Collection. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${
               orderParams.collectionSlug
             }, orderParams=${JSON.stringify(orderParams)}`
           );
