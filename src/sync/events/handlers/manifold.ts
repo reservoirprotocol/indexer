@@ -41,7 +41,7 @@ const findEthCalls = (calls: CallTrace[], eventParams: BaseEventParams) => {
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const cancelEventsOnChain: es.cancels.Event[] = [];
-  const fillEventsOnChain: es.fills.Event[] = [];
+  const fillEventsPartial: es.fills.Event[] = [];
   const nftTransferEvents: TransferEventWithContract[] = [];
 
   const fillInfos: fillUpdates.FillInfo[] = [];
@@ -190,7 +190,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEventsOnChain.push({
+        fillEventsPartial.push({
           orderKind,
           orderId,
           orderSide: "sell",
@@ -371,7 +371,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEventsOnChain.push({
+        fillEventsPartial.push({
           orderKind,
           orderId,
           currency,
@@ -447,7 +447,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
   return {
     cancelEventsOnChain,
-    fillEventsOnChain,
+    fillEventsPartial,
 
     fillInfos,
     orderInfos,
