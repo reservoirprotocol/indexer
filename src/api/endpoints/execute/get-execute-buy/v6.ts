@@ -69,7 +69,8 @@ export const getExecuteBuyV6Options: RouteOptions = {
       ),
       currency: Joi.string()
         .pattern(regex.address)
-        .default(Sdk.Common.Addresses.Eth[config.chainId]),
+        .default(Sdk.Common.Addresses.Eth[config.chainId])
+        .description("Currency to buy all listings in"),
       normalizeRoyalties: Joi.boolean().default(false),
       preferredOrderSource: Joi.string()
         .lowercase()
@@ -215,7 +216,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               kind: order.kind,
               currency: order.currency,
               rawData: order.rawData,
-              // TODO: Add support ERC20 fees
+              // TODO: Add support for buying any listing via any ERC20 token
               fees: payload.currency === Sdk.Common.Addresses.Eth[config.chainId] ? fees : [],
             },
             {
@@ -357,7 +358,12 @@ export const getExecuteBuyV6Options: RouteOptions = {
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
                   AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                  AND orders.currency = $/currency/
+                  ${
+                    // TODO: Add support for buying any listing via any ERC20 token
+                    payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+                      ? "AND orders.currency = $/currency/"
+                      : ""
+                  }
                 ORDER BY orders.value, ${
                   preferredOrderSource
                     ? `(
@@ -448,7 +454,12 @@ export const getExecuteBuyV6Options: RouteOptions = {
                     AND orders.fillability_status = 'fillable'
                     AND orders.approval_status = 'approved'
                     AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                    AND orders.currency = $/currency/
+                    ${
+                      // TODO: Add support for buying any listing via any ERC20 token
+                      payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+                        ? "AND orders.currency = $/currency/"
+                        : ""
+                    }
                 ) x WHERE x.quantity < $/quantity/
               `,
               {
@@ -539,7 +550,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         payload.currency,
         {
           source: payload.source,
-          // TODO: Add support ERC20 fees
+          // TODO: Add support for buying any listing via any ERC20 token
           globalFees:
             payload.currency === Sdk.Common.Addresses.Eth[config.chainId] ? feesOnTop : [],
           partial: payload.partial,
