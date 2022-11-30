@@ -111,6 +111,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
     schema: Joi.object({
       steps: Joi.array().items(
         Joi.object({
+          id: Joi.string().required(),
           action: Joi.string().required(),
           description: Joi.string().required(),
           kind: Joi.string().valid("transaction").required(),
@@ -555,6 +556,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
 
       // Set up generic filling steps
       const steps: {
+        id: string;
         action: string;
         description: string;
         kind: string;
@@ -564,12 +566,14 @@ export const getExecuteBuyV6Options: RouteOptions = {
         }[];
       }[] = [
         {
+          id: "currency-approval",
           action: "Approve exchange contract",
           description: "A one-time setup transaction to enable trading",
           kind: "transaction",
           items: [],
         },
         {
+          id: "sale",
           action: "Confirm transaction in your wallet",
           description: "To purchase this item you must confirm the transaction and pay the gas fee",
           kind: "transaction",

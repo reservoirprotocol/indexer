@@ -47,6 +47,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
     schema: Joi.object({
       steps: Joi.array().items(
         Joi.object({
+          id: Joi.string().required(),
           action: Joi.string().required(),
           description: Joi.string().required(),
           kind: Joi.string().valid("transaction").required(),
@@ -161,6 +162,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
       return {
         steps: [
           {
+            id: "cancellation",
             action: orderSide === "sell" ? "Submit cancellation" : "Cancel offer",
             description: `To cancel this ${
               orderSide === "sell" ? "listing" : "offer"

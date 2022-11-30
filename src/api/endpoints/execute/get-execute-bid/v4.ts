@@ -143,6 +143,7 @@ export const getExecuteBidV4Options: RouteOptions = {
     schema: Joi.object({
       steps: Joi.array().items(
         Joi.object({
+          id: Joi.string().required(),
           kind: Joi.string().valid("request", "signature", "transaction").required(),
           action: Joi.string().required(),
           description: Joi.string().required(),
@@ -173,6 +174,7 @@ export const getExecuteBidV4Options: RouteOptions = {
 
       // Set up generic bid steps
       const steps: {
+        id: string;
         action: string;
         description: string;
         kind: string;
@@ -183,18 +185,21 @@ export const getExecuteBidV4Options: RouteOptions = {
         }[];
       }[] = [
         {
+          id: "wallet-initialization",
           action: "Initialize wallet",
           description: "One-time initialization of wallet",
           kind: "transaction",
           items: [],
         },
         {
+          id: "weth-wrapping",
           action: "Wrapping ETH",
           description: "We'll ask your approval for converting ETH to WETH. Gas fee required.",
           kind: "transaction",
           items: [],
         },
         {
+          id: "currency-approval",
           action: "Approve WETH contract",
           description:
             "We'll ask your approval for the exchange to access your token. This is a one-time only operation per exchange.",
@@ -202,6 +207,7 @@ export const getExecuteBidV4Options: RouteOptions = {
           items: [],
         },
         {
+          id: "order-signature",
           action: "Authorize offer",
           description: "A free off-chain signature to create the offer",
           kind: "signature",
