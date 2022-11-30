@@ -75,7 +75,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const currencyPrice = parsedLog.args["amount"].toString();
         let maker = "";
         let taker = parsedLog.args["buyer"].toLowerCase();
-        const currency = Sdk.Common.Addresses.Eth[config.chainId];
+        let currency = Sdk.Common.Addresses.Eth[config.chainId];
 
         const orderId = manifold.getOrderId(listingId);
 
@@ -112,6 +112,13 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         purchasedAmount = bn(parsedTrace[baseEventParams.address].tokenBalanceState[token])
           .mul(bn("-1"))
           .toString();
+
+        for (const token of Object.keys(parsedTrace[baseEventParams.address].tokenBalanceState)) {
+          if (!(token.startsWith("erc721") || token.startsWith("erc1155"))) {
+            //native:0x0000000000000000000000000000000000000000
+            currency = token.split(":")[1];
+          }
+        }
 
         // Handle: attribution
         const orderKind = "manifold";
