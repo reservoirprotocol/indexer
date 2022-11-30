@@ -106,34 +106,36 @@ export const getTokensFloorAskV3Options: RouteOptions = {
     try {
       let baseQuery = `
         SELECT
-          token_floor_sell_events.source_id_int,
-          date_part('epoch', lower(token_floor_sell_events.valid_between)) AS valid_from,
+          events.source_id_int,
+          date_part('epoch', lower(events.valid_between)) AS valid_from,
           coalesce(
-            nullif(date_part('epoch', upper(token_floor_sell_events.valid_between)), 'Infinity'),
+            nullif(date_part('epoch', upper(events.valid_between)), 'Infinity'),
             0
           ) AS valid_until,
-          token_floor_sell_events.nonce,
-          token_floor_sell_events.id,
-          token_floor_sell_events.kind,
-          token_floor_sell_events.contract,
-          token_floor_sell_events.token_id,
-          token_floor_sell_events.order_id,
-          token_floor_sell_events.maker,
-          token_floor_sell_events.price,
-          token_floor_sell_events.previous_price,
-          token_floor_sell_events.tx_hash,
-          token_floor_sell_events.tx_timestamp,
+          events.nonce,
+          events.id,
+          events.kind,
+          events.contract,
+          events.token_id,
+          events.order_id,
+          events.maker,
+          events.price,
+          events.previous_price,
+          events.tx_hash,
+          events.tx_timestamp,
           orders.currency,
           orders.dynamic,
-          orders.currency_normalized_value,
-          orders.normalized_value,
           TRUNC(orders.currency_price, 0) AS currency_price,
-          extract(epoch from token_floor_sell_events.created_at) AS created_at
-        FROM token_floor_sell_events
+          extract(epoch from events.created_at) AS created_at
+        FROM ${
+          query.normalizeRoyalties
+            ? "token_normalized_floor_sell_events"
+            : "token_floor_sell_events"
+        } events
         LEFT JOIN LATERAL (
-           SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value
+           SELECT currency, currency_price, dynamic
            FROM orders
-           WHERE orders.id = token_floor_sell_events.order_id
+           WHERE orders.id = events.order_id
         ) orders ON TRUE
       `;
 
@@ -147,23 +149,23 @@ export const getTokensFloorAskV3Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [
-        `token_floor_sell_events.created_at >= to_timestamp($/startTimestamp/)`,
-        `token_floor_sell_events.created_at <= to_timestamp($/endTimestamp/)`,
+        `events.created_at >= to_timestamp($/startTimestamp/)`,
+        `events.created_at <= to_timestamp($/endTimestamp/)`,
         // Fix for the issue with negative prices for dutch auction orders
         // (eg. due to orders not properly expired on time)
-        `coalesce(token_floor_sell_events.price, 0) >= 0`,
+        `coalesce(events.price, 0) >= 0`,
       ];
       if (query.contract) {
         (query as any).contract = toBuffer(query.contract);
-        conditions.push(`token_floor_sell_events.contract = $/contract/`);
+        conditions.push(`events.contract = $/contract/`);
       }
       if (query.token) {
         const [contract, tokenId] = query.token.split(":");
 
         (query as any).contract = toBuffer(contract);
         (query as any).tokenId = tokenId;
-        conditions.push(`token_floor_sell_events.contract = $/contract/`);
-        conditions.push(`token_floor_sell_events.token_id = $/tokenId/`);
+        conditions.push(`events.contract = $/contract/`);
+        conditions.push(`events.token_id = $/tokenId/`);
       }
       if (query.continuation) {
         const [createdAt, id] = splitContinuation(query.continuation, /^\d+(.\d+)?_\d+$/);
@@ -171,7 +173,7 @@ export const getTokensFloorAskV3Options: RouteOptions = {
         (query as any).id = id;
 
         conditions.push(
-          `(token_floor_sell_events.created_at, token_floor_sell_events.id) ${
+          `(events.created_at, events.id) ${
             query.sortDirection === "asc" ? ">" : "<"
           } (to_timestamp($/createdAt/), $/id/)`
         );
@@ -183,8 +185,8 @@ export const getTokensFloorAskV3Options: RouteOptions = {
       // Sorting
       baseQuery += `
         ORDER BY
-          token_floor_sell_events.created_at ${query.sortDirection},
-          token_floor_sell_events.id ${query.sortDirection}
+          events.created_at ${query.sortDirection},
+          events.id ${query.sortDirection}
       `;
 
       // Pagination
@@ -214,13 +216,8 @@ export const getTokensFloorAskV3Options: RouteOptions = {
               ? await getJoiPriceObject(
                   {
                     gross: {
-                      amount: query.normalizeRoyalties
-                        ? r.currency_normalized_value ?? r.price
-                        : r.currency_price ?? r.price,
-                      nativeAmount: query.normalizeRoyalties
-                        ? r.normalized_value ?? r.price
-                        : r.price,
-                      usdAmount: r.usd_price,
+                      amount: r.currency_price ?? r.price,
+                      nativeAmount: r.price,
                     },
                   },
                   fromBuffer(r.currency)

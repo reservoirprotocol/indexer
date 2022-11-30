@@ -48,7 +48,7 @@ export class CollectionFloorAskEventsDataSource extends BaseDataSource {
         id: r.id,
         kind: r.kind,
         collection_id: r.collection_id,
-        contract: fromBuffer(r.contract),
+        contract: r.contract ? fromBuffer(r.contract) : null,
         token_id: r.token_id,
         order_id: r.order_id,
         maker: r.maker ? fromBuffer(r.maker) : null,

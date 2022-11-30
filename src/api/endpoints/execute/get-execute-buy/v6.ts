@@ -74,7 +74,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
       preferredOrderSource: Joi.string()
         .lowercase()
         .pattern(regex.domain)
-        .when("tokens", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() }),
+        .when("tokens", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
+        .description(
+          "If there are multiple listings with equal best price, prefer this source over others.\nNOTE: if you want to fill a listing that is not the best priced, you need to pass a specific order ID."
+        ),
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)
@@ -200,7 +203,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           quantity: token.quantity ?? 1,
           source: order.sourceId !== null ? sources.get(order.sourceId)?.domain ?? null : null,
           currency: order.currency,
-          quote: formatPrice(totalPrice, (await getCurrency(order.currency)).decimals),
+          quote: formatPrice(totalPrice, (await getCurrency(order.currency)).decimals, true),
           rawQuote: totalPrice.toString(),
         });
 
@@ -211,7 +214,8 @@ export const getExecuteBuyV6Options: RouteOptions = {
               kind: order.kind,
               currency: order.currency,
               rawData: order.rawData,
-              fees,
+              // TODO: Add support ERC20 fees
+              fees: payload.currency === Sdk.Common.Addresses.Eth[config.chainId] ? fees : [],
             },
             {
               kind: token.kind,
@@ -534,7 +538,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
         payload.currency,
         {
           source: payload.source,
-          globalFees: feesOnTop,
+          // TODO: Add support ERC20 fees
+          globalFees:
+            payload.currency === Sdk.Common.Addresses.Eth[config.chainId] ? feesOnTop : [],
           partial: payload.partial,
           skipErrors: payload.skipErrors,
           forceRouter: payload.forceRouter,
@@ -564,7 +570,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           items: [],
         },
         {
-          action: "Confirm purchase",
+          action: "Confirm transaction in your wallet",
           description: "To purchase this item you must confirm the transaction and pay the gas fee",
           kind: "transaction",
           items: [],

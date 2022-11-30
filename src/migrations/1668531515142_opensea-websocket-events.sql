@@ -9,6 +9,9 @@ CREATE TABLE "opensea_websocket_events" (
   "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX "opensea_websocket_events_order_hash_index"
+  ON "opensea_websocket_events" ("order_hash");
+
 -- Down Migration
 
 DROP TABLE "opensea_websocket_events";

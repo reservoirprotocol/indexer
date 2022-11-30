@@ -509,6 +509,7 @@ export const generateBidDetailsV6 = async (
     kind: OrderKind;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rawData: any;
+    fees?: Sdk.RouterV6.Types.Fee[];
   },
   token: {
     kind: "erc721" | "erc1155";
@@ -522,6 +523,7 @@ export const generateBidDetailsV6 = async (
     contract: token.contract,
     tokenId: token.tokenId,
     amount: token.amount ?? 1,
+    fees: order.fees ?? [],
   };
 
   switch (order.kind) {

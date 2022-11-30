@@ -967,6 +967,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/users/{user}/tokens/v6",
+    options: tokensEndpoints.getUserTokensV6Options,
+  });
+
+  server.route({
     method: "POST",
     path: "/tokens/refresh/v1",
     options: tokensEndpoints.postTokensRefreshV1Options,
@@ -976,6 +982,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/tokens/simulate-floor/v1",
     options: tokensEndpoints.postSimulateFloorV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/tokens/simulate-top-bid/v1",
+    options: tokensEndpoints.postSimulateTopBidV1Options,
   });
 
   server.route({

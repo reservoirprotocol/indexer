@@ -82,12 +82,13 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const ETH = "0xaaaebeba";
         const ERC721 = "0x73ad2146";
         const ERC1155 = "0x973bb640";
+        const COLLECTION = "0xf63c2825";
 
         const matchOrdersSigHash = "0xe99a3f80";
         const directPurchaseSigHash = "0x0d5f7d35";
         const directAcceptBidSigHash = "0x67d49a3b";
 
-        const assetTypes = [ERC721, ERC1155, ERC20, ETH];
+        const assetTypes = [ERC721, ERC1155, ERC20, ETH, COLLECTION];
 
         const orderKind = "rarible";
         let side: "sell" | "buy" = "sell";
@@ -219,21 +220,32 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             const result = iface.decodeFunctionData("matchOrders", callTrace.input);
             const orderLeft = result.orderLeft;
             const orderRight = result.orderRight;
-            const leftAsset = orderLeft.makeAsset;
-            const rightAsset = orderLeft.takeAsset;
+            const leftMakeAsset = orderLeft.makeAsset;
+            const rightMakeAsset = orderLeft.takeAsset;
 
             maker = orderLeft.maker.toLowerCase();
             // taker will be overwritten in extractAttributionData step if router is used
             taker = orderRight.maker.toLowerCase();
-            side = [ERC721, ERC1155].includes(leftAsset.assetClass) ? "sell" : "buy";
+            side = [ERC721, ERC1155].includes(leftMakeAsset.assetType.assetClass) ? "sell" : "buy";
 
-            const nftAsset = side === "buy" ? rightAsset : leftAsset;
-            const currencyAsset = side === "buy" ? leftAsset : rightAsset;
+            const nftAsset = side === "buy" ? rightMakeAsset : leftMakeAsset;
+            const currencyAsset = side === "buy" ? leftMakeAsset : rightMakeAsset;
 
             orderId = leftHash;
-            nftData = nftAsset.assetType.data;
             nftAssetType = nftAsset.assetType.assetClass;
             currencyAssetType = currencyAsset.assetType.assetClass;
+            switch (nftAssetType) {
+              case COLLECTION:
+                // Left order doesn't contain token id. We need to use the right order
+                nftData = orderRight.makeAsset.assetType.data;
+                break;
+              case ERC721:
+              case ERC1155:
+                nftData = nftAsset.assetType.data;
+                break;
+              default:
+                throw Error("Unsupported asset type");
+            }
 
             if (currencyAssetType === ETH) {
               paymentCurrency = Sdk.Common.Addresses.Eth[config.chainId];

@@ -4,16 +4,16 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
-import { offChainCheck } from "@/orderbook/orders/universe/check";
-import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
-import { baseProvider } from "@/common/provider";
+import { offChainCheck } from "@/orderbook/orders/universe/check";
+import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
+import * as tokenSet from "@/orderbook/token-sets";
+import * as royalties from "@/utils/royalties";
 
 export type OrderInfo = {
   orderParams: Sdk.Universe.Types.Order;
@@ -200,9 +200,8 @@ export const save = async (
       // TODO: Handle: nft royalties
       const nftRoyalties: { bps: number; value: string }[] = [];
 
-      // Handle: collection royalties
-      const collectionRoyalties = await commonHelpers.getOpenSeaRoyalties(collection);
-
+      // Handle: royalties
+      const collectionRoyalties = await royalties.getRoyalties(collection, tokenId, "opensea");
       let feeBreakdown = collectionRoyalties.map(({ bps, recipient }) => ({
         kind: "royalty",
         recipient,

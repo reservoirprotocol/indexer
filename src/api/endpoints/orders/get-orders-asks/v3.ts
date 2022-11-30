@@ -63,15 +63,18 @@ export const getOrdersAsksV3Options: RouteOptions = {
       status: Joi.string()
         .when("maker", {
           is: Joi.exist(),
-          then: Joi.valid("active", "inactive"),
+          then: Joi.valid("active", "inactive", "expired", "cancelled", "filled"),
           otherwise: Joi.valid("active"),
         })
         .description(
-          "active = currently valid, inactive = temporarily invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
+          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
-      source: Joi.string()
-        .pattern(regex.domain)
-        .description("Filter to a source by domain. Example: `opensea.io`"),
+      source: Joi.alternatives()
+        .try(
+          Joi.array().max(50).items(Joi.string().lowercase().pattern(regex.domain)),
+          Joi.string().lowercase().pattern(regex.domain)
+        )
+        .description("Filter to an array of sources. Example: `opensea.io`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includePrivate: Joi.boolean()
         .default(false)
@@ -82,6 +85,12 @@ export const getOrdersAsksV3Options: RouteOptions = {
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
+      startTimestamp: Joi.number().description(
+        "Get events after a particular unix timestamp (inclusive)"
+      ),
+      endTimestamp: Joi.number().description(
+        "Get events before a particular unix timestamp (inclusive)"
+      ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -268,6 +277,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
           orders.currency_value,
           orders.normalized_value,
           orders.currency_normalized_value,
+          orders.missing_royalties,
           dynamic,
           DATE_PART('epoch', LOWER(orders.valid_between)) AS valid_from,
           COALESCE(
@@ -301,10 +311,28 @@ export const getOrdersAsksV3Options: RouteOptions = {
         FROM orders
       `;
 
+      // We default in the code so that these values don't appear in the docs
+      if (query.startTimestamp || query.endTimestamp) {
+        if (!query.startTimestamp) {
+          query.startTimestamp = 0;
+        }
+        if (!query.endTimestamp) {
+          query.endTimestamp = 9999999999;
+        }
+      }
+
       // Filters
-      const conditions: string[] = [`orders.side = 'sell'`];
-      let orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+      const conditions: string[] =
+        query.startTimestamp || query.endTimestamp
+          ? [
+              `orders.created_at >= to_timestamp($/startTimestamp/)`,
+              `orders.created_at <= to_timestamp($/endTimestamp/)`,
+              `orders.side = 'sell'`,
+            ]
+          : [`orders.side = 'sell'`];
+
       let communityFilter = "";
+      let orderStatusFilter = "";
 
       if (query.ids) {
         if (Array.isArray(query.ids)) {
@@ -312,6 +340,8 @@ export const getOrdersAsksV3Options: RouteOptions = {
         } else {
           conditions.push(`orders.id = $/ids/`);
         }
+      } else {
+        orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
       }
 
       if (query.token) {
@@ -346,6 +376,18 @@ export const getOrdersAsksV3Options: RouteOptions = {
             orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved')`;
             break;
           }
+          case "expired": {
+            orderStatusFilter = `orders.fillability_status = 'expired'`;
+            break;
+          }
+          case "filled": {
+            orderStatusFilter = `orders.fillability_status = 'filled'`;
+            break;
+          }
+          case "cancelled": {
+            orderStatusFilter = `orders.fillability_status = 'cancelled'`;
+            break;
+          }
         }
 
         (query as any).maker = toBuffer(query.maker);
@@ -359,15 +401,30 @@ export const getOrdersAsksV3Options: RouteOptions = {
       }
 
       if (query.source) {
-        const sources = await Sources.getInstance();
-        const source = sources.getByDomain(query.source);
+        const sourcesIds = [];
 
-        if (!source) {
+        const sources = await Sources.getInstance();
+
+        if (!_.isArray(query.source)) {
+          const source = sources.getByDomain(query.source);
+          if (source?.id) {
+            sourcesIds.push(source.id);
+          }
+        } else {
+          for (const s of query.source) {
+            const source = sources.getByDomain(s);
+            if (source?.id) {
+              sourcesIds.push(source.id);
+            }
+          }
+        }
+
+        if (_.isEmpty(sourcesIds)) {
           return { orders: [] };
         }
 
-        (query as any).source = source.id;
-        conditions.push(`orders.source_id_int = $/source/`);
+        (query as any).source = sourcesIds;
+        conditions.push(`orders.source_id_int IN ($/source:csv/)`);
       }
 
       if (query.native) {
@@ -380,7 +437,9 @@ export const getOrdersAsksV3Options: RouteOptions = {
         );
       }
 
-      conditions.push(orderStatusFilter);
+      if (orderStatusFilter) {
+        conditions.push(orderStatusFilter);
+      }
 
       if (query.continuation) {
         const [priceOrCreatedAt, id] = splitContinuation(
@@ -407,7 +466,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
 
       // Sorting
       if (query.sortBy === "price") {
-        baseQuery += ` ORDER BY orders.price, orders.id`;
+        baseQuery += ` ORDER BY orders.value, orders.id`;
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
@@ -432,6 +491,32 @@ export const getOrdersAsksV3Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
+        const feeBreakdown = r.fee_breakdown;
+        let feeBps = r.fee_bps;
+
+        if (query.normalizeRoyalties && r.missing_royalties) {
+          for (let i = 0; i < r.missing_royalties.length; i++) {
+            if (!Object.keys(r.missing_royalties[i]).includes("bps")) {
+              break;
+            }
+            const index: number = r.fee_breakdown.findIndex(
+              (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
+            );
+
+            if (index > -1) {
+              feeBreakdown[index].bps += Number(r.missing_royalties[i].bps);
+            } else {
+              const missingRoyalty = {
+                bps: Number(r.missing_royalties[i].bps),
+                kind: "royalty",
+                recipient: r.missing_royalties[i].recipient,
+              };
+              feeBreakdown.push(missingRoyalty);
+              feeBps += Number(r.missing_royalties[i].bps);
+            }
+          }
+        }
+
         let source: SourcesEntity | undefined;
         if (r.token_set_id?.startsWith("token")) {
           const [, contract, tokenId] = r.token_set_id.split(":");
@@ -481,8 +566,8 @@ export const getOrdersAsksV3Options: RouteOptions = {
             icon: source?.getIcon(),
             url: source?.metadata.url,
           },
-          feeBps: Number(r.fee_bps),
-          feeBreakdown: r.fee_breakdown,
+          feeBps: feeBps,
+          feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
           isDynamic: Boolean(r.dynamic),

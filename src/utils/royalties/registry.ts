@@ -92,12 +92,10 @@ export const refreshRegistryRoyalties = async (collection: string): Promise<Roya
           case 9:
             return "knownorigin_v2";
           default:
-            return undefined;
+            // By default, assume the token is EIP2981-compatible
+            return "eip2981";
         }
       });
-      if (!spec) {
-        throw new Error("Unknown or missing royalties");
-      }
 
       // The royalties are returned in full amounts, but we store them as a percentage
       // so here we just use a default price (which is a round number) and deduce then

@@ -3,7 +3,7 @@ import { keccak256 } from "@ethersproject/solidity";
 import { randomBytes } from "crypto";
 import _ from "lodash";
 
-import { idb, redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { regex } from "@/common/utils";
@@ -42,7 +42,7 @@ export class Sources {
 
     if (_.isNull(sourcesCache) || forceDbLoad) {
       // If no cache is available, then load from the database
-      sources = await redb.manyOrNone(
+      sources = await idb.manyOrNone(
         `
           SELECT
             sources_v2.id,
@@ -259,7 +259,11 @@ export class Sources {
     }
 
     if (sourceEntity && contract && tokenId) {
-      if (!sourceEntity.optimized && optimizeCheckoutURL) {
+      if (
+        (!sourceEntity.optimized && optimizeCheckoutURL) ||
+        (!sourceEntity.metadata.tokenUrlMainnet?.includes("${contract}") &&
+          !sourceEntity.metadata.tokenUrlMainnet?.includes("${tokenId}"))
+      ) {
         const defaultSource = Sources.getDefaultSource();
         sourceEntity.metadata.url = this.getTokenUrl(defaultSource, contract, tokenId);
       } else {

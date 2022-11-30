@@ -6,7 +6,7 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-const QUEUE_NAME = "collection-updates-floor-ask-queue";
+const QUEUE_NAME = "collection-updates-normalized-floor-ask-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -49,61 +49,60 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        const collectionFloorAskChanged = await idb.oneOrNone(
+        await idb.none(
           `
             WITH y AS (
               UPDATE collections SET
-                floor_sell_id = x.floor_sell_id,
-                floor_sell_value = x.floor_sell_value,
-                floor_sell_maker = x.floor_sell_maker,
-                floor_sell_source_id_int = x.source_id_int,
-                floor_sell_valid_between = x.valid_between,
+                normalized_floor_sell_id = x.normalized_floor_sell_id,
+                normalized_floor_sell_value = x.normalized_floor_sell_value,
+                normalized_floor_sell_maker = x.normalized_floor_sell_maker,
+                normalized_floor_sell_source_id_int = x.source_id_int,
+                normalized_floor_sell_valid_between = x.valid_between,
                 updated_at = now()
               FROM (
-                WITH collection_floor_sell AS (
+                WITH collection_normalized_floor_sell AS (
                     SELECT
-                      tokens.floor_sell_id,
-                      tokens.floor_sell_value,
-                      tokens.floor_sell_maker,
+                      tokens.normalized_floor_sell_id,
+                      tokens.normalized_floor_sell_value,
+                      tokens.normalized_floor_sell_maker,
                       orders.source_id_int,
                       orders.valid_between
                     FROM tokens
-                    JOIN orders
-                      ON tokens.floor_sell_id = orders.id
+                    JOIN orders ON tokens.normalized_floor_sell_id = orders.id
                     WHERE tokens.collection_id = $/collection/
-                    ORDER BY tokens.floor_sell_value
+                    ORDER BY tokens.normalized_floor_sell_value
                     LIMIT 1
                 )
                 SELECT
-                    collection_floor_sell.floor_sell_id,
-                    collection_floor_sell.floor_sell_value,
-                    collection_floor_sell.floor_sell_maker,
-                    collection_floor_sell.source_id_int,
-                    collection_floor_sell.valid_between
-                FROM collection_floor_sell
+                    collection_normalized_floor_sell.normalized_floor_sell_id,
+                    collection_normalized_floor_sell.normalized_floor_sell_value,
+                    collection_normalized_floor_sell.normalized_floor_sell_maker,
+                    collection_normalized_floor_sell.source_id_int,
+                    collection_normalized_floor_sell.valid_between
+                FROM collection_normalized_floor_sell
                 UNION ALL
                 SELECT NULL, NULL, NULL, NULL, NULL
-                WHERE NOT EXISTS (SELECT 1 FROM collection_floor_sell)
+                WHERE NOT EXISTS (SELECT 1 FROM collection_normalized_floor_sell)
               ) x
               WHERE collections.id = $/collection/
                 AND (
-                  collections.floor_sell_id IS DISTINCT FROM x.floor_sell_id
-                  OR collections.floor_sell_value IS DISTINCT FROM x.floor_sell_value
+                  collections.normalized_floor_sell_id IS DISTINCT FROM x.normalized_floor_sell_id
+                  OR collections.normalized_floor_sell_value IS DISTINCT FROM x.normalized_floor_sell_value
                 )
               RETURNING
-                collections.floor_sell_id,
-                collections.floor_sell_value,
+                collections.normalized_floor_sell_id,
+                collections.normalized_floor_sell_value,
                 (
                   SELECT
-                    collections.floor_sell_value
+                    collections.normalized_floor_sell_value
                   FROM collections
                   WHERE id = $/collection/
-                ) AS old_floor_sell_value,
-                collections.floor_sell_maker,
-                collections.floor_sell_source_id_int,
-                collections.floor_sell_valid_between
+                ) AS old_normalized_floor_sell_value,
+                collections.normalized_floor_sell_maker,
+                collections.normalized_floor_sell_source_id_int,
+                collections.normalized_floor_sell_valid_between
             )
-            INSERT INTO collection_floor_sell_events(
+            INSERT INTO collection_normalized_floor_sell_events(
               kind,
               collection_id,
               contract,
@@ -122,12 +121,12 @@ if (config.doBackgroundWork) {
               $/collection/,
               z.contract,
               z.token_id,
-              y.floor_sell_id,
-              y.floor_sell_source_id_int,
-              y.floor_sell_valid_between,
-              y.floor_sell_maker,
-              y.floor_sell_value,
-              y.old_floor_sell_value,
+              y.normalized_floor_sell_id,
+              y.normalized_floor_sell_source_id_int,
+              y.normalized_floor_sell_valid_between,
+              y.normalized_floor_sell_maker,
+              y.normalized_floor_sell_value,
+              y.old_normalized_floor_sell_value,
               $/txHash/,
               $/txTimestamp/
             FROM y
@@ -138,10 +137,9 @@ if (config.doBackgroundWork) {
               FROM token_sets_tokens
               JOIN orders
                 ON token_sets_tokens.token_set_id = orders.token_set_id
-              WHERE orders.id = y.floor_sell_id
+              WHERE orders.id = y.normalized_floor_sell_id
               LIMIT 1
             ) z ON TRUE
-            RETURNING 1
           `,
           {
             kind,
@@ -152,14 +150,12 @@ if (config.doBackgroundWork) {
             txTimestamp,
           }
         );
-
-        if (collectionFloorAskChanged) {
-          await redis.del(`collection-floor-ask:${collectionResult.collection_id}`);
-        }
       } catch (error) {
         logger.error(
           QUEUE_NAME,
-          `Failed to process collection floor-ask info ${JSON.stringify(job.data)}: ${error}`
+          `Failed to process collection normalized floor-ask info ${JSON.stringify(
+            job.data
+          )}: ${error}`
         );
         throw error;
       }

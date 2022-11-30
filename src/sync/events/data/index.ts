@@ -1,8 +1,8 @@
 import { Interface } from "@ethersproject/abi";
 
+import * as erc20 from "@/events-sync/data/erc20";
 import * as erc721 from "@/events-sync/data/erc721";
 import * as erc1155 from "@/events-sync/data/erc1155";
-import * as weth from "@/events-sync/data/weth";
 
 import * as blur from "@/events-sync/data/blur";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
@@ -108,14 +108,14 @@ export type EventData = {
 export const getEventData = (eventDataKinds?: EventDataKind[]) => {
   if (!eventDataKinds) {
     return [
+      erc20.approval,
+      erc20.transfer,
+      erc20.deposit,
+      erc20.withdrawal,
       erc721.transfer,
       erc721.approvalForAll,
       erc1155.transferSingle,
       erc1155.transferBatch,
-      weth.approval,
-      weth.transfer,
-      weth.deposit,
-      weth.withdrawal,
       foundation.buyPriceAccepted,
       foundation.buyPriceCancelled,
       foundation.buyPriceInvalidated,
@@ -189,6 +189,14 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
 
 const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
   switch (kind) {
+    case "erc20-approval":
+      return erc20.approval;
+    case "erc20-transfer":
+      return erc20.transfer;
+    case "weth-deposit":
+      return erc20.deposit;
+    case "weth-withdrawal":
+      return erc20.withdrawal;
     case "erc721-transfer":
       return erc721.transfer;
     case "erc721/1155-approval-for-all":
@@ -197,14 +205,6 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return erc1155.transferBatch;
     case "erc1155-transfer-single":
       return erc1155.transferSingle;
-    case "erc20-approval":
-      return weth.approval;
-    case "erc20-transfer":
-      return weth.transfer;
-    case "weth-deposit":
-      return weth.deposit;
-    case "weth-withdrawal":
-      return weth.withdrawal;
     case "foundation-buy-price-accepted":
       return foundation.buyPriceAccepted;
     case "foundation-buy-price-cancelled":
