@@ -121,6 +121,11 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           }
 
           const orderSide = saleInfo.side as "sell" | "buy";
+          let contract = saleInfo.contract;
+          // If contract is the lazy mint one, change to shared storefront contract
+          if (saleInfo.contract === "0xa604060890923ff400e8c6f5290461a83aedacec") {
+            contract = "0x495f947276749ce646f68ac8c248420045cb7b5e";
+          }
           fillEventsPartial.push({
             orderKind,
             orderId,
@@ -131,7 +136,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             currency,
             currencyPrice,
             usdPrice: priceData.usdPrice,
-            contract: saleInfo.contract,
+            contract: contract,
             tokenId: saleInfo.tokenId,
             amount: saleInfo.amount,
             orderSourceId: attributionData.orderSource?.id,
@@ -144,7 +149,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             context: `${orderId}-${baseEventParams.txHash}`,
             orderId: orderId,
             orderSide,
-            contract: saleInfo.contract,
+            contract: contract,
             tokenId: saleInfo.tokenId,
             amount: saleInfo.amount,
             price: priceData.nativePrice,

@@ -69,9 +69,12 @@ export const getOrdersAsksV3Options: RouteOptions = {
         .description(
           "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
-      source: Joi.string()
-        .pattern(regex.domain)
-        .description("Filter to a source by domain. Example: `opensea.io`"),
+      source: Joi.alternatives()
+        .try(
+          Joi.array().max(50).items(Joi.string().lowercase().pattern(regex.domain)),
+          Joi.string().lowercase().pattern(regex.domain)
+        )
+        .description("Filter to an array of sources. Example: `opensea.io`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includePrivate: Joi.boolean()
         .default(false)
@@ -120,6 +123,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
           id: Joi.string().required(),
           kind: Joi.string().required(),
           side: Joi.string().valid("buy", "sell").required(),
+          status: Joi.string(),
           tokenSetId: Joi.string().required(),
           tokenSetSchemaHash: Joi.string().lowercase().pattern(regex.bytes32).required(),
           contract: Joi.string().lowercase().pattern(regex.address),
@@ -134,6 +138,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             Joi.object({
               kind: "token",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 tokenName: Joi.string().allow("", null),
                 image: Joi.string().allow("", null),
@@ -142,6 +147,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             Joi.object({
               kind: "collection",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 image: Joi.string().allow("", null),
               }),
@@ -149,6 +155,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             Joi.object({
               kind: "attribute",
               data: Joi.object({
+                collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
                 attributes: Joi.array().items(
                   Joi.object({ key: Joi.string(), value: Joi.string() })
@@ -159,7 +166,6 @@ export const getOrdersAsksV3Options: RouteOptions = {
           )
             .allow(null)
             .optional(),
-          status: Joi.string(),
           source: Joi.object().allow(null),
           feeBps: Joi.number().allow(null),
           feeBreakdown: Joi.array()
@@ -198,6 +204,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
                 json_build_object(
                   'kind', 'token',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'tokenName', tokens.name,
                     'image', tokens.image
@@ -214,6 +221,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
                 json_build_object(
                   'kind', 'collection',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
                   )
@@ -226,6 +234,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
                 json_build_object(
                   'kind', 'collection',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
                   )
@@ -238,6 +247,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
                 json_build_object(
                   'kind', 'attribute',
                   'data', json_build_object(
+                    'collectionId', collections.id,
                     'collectionName', collections.name,
                     'attributes', ARRAY[json_build_object('key', attribute_keys.key, 'value', attributes.value)],
                     'image', (collections.metadata ->> 'imageUrl')::TEXT
@@ -398,19 +408,38 @@ export const getOrdersAsksV3Options: RouteOptions = {
       }
 
       if (query.source) {
-        const sources = await Sources.getInstance();
-        const source = sources.getByDomain(query.source);
+        const sourcesIds = [];
 
-        if (!source) {
+        const sources = await Sources.getInstance();
+
+        if (!_.isArray(query.source)) {
+          const source = sources.getByDomain(query.source);
+          if (source?.id) {
+            sourcesIds.push(source.id);
+          }
+        } else {
+          for (const s of query.source) {
+            const source = sources.getByDomain(s);
+            if (source?.id) {
+              sourcesIds.push(source.id);
+            }
+          }
+        }
+
+        if (_.isEmpty(sourcesIds)) {
           return { orders: [] };
         }
 
-        (query as any).source = source.id;
-        conditions.push(`orders.source_id_int = $/source/`);
+        (query as any).source = sourcesIds;
+        conditions.push(`orders.source_id_int IN ($/source:csv/)`);
       }
 
       if (query.native) {
         conditions.push(`orders.is_reservoir`);
+      }
+
+      if (orderStatusFilter) {
+        conditions.push(orderStatusFilter);
       }
 
       if (!query.includePrivate) {
@@ -448,7 +477,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
 
       // Sorting
       if (query.sortBy === "price") {
-        baseQuery += ` ORDER BY orders.price, orders.id`;
+        baseQuery += ` ORDER BY orders.value, orders.id`;
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }

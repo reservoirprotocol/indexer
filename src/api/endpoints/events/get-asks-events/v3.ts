@@ -1,27 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Request, RouteOptions } from "@hapi/hapi";
-import * as Sdk from "@reservoir0x/sdk";
-
 import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { buildContinuation, formatEth, fromBuffer, regex, splitContinuation } from "@/common/utils";
-import { config } from "@/config/index";
+import { buildContinuation, fromBuffer, splitContinuation, regex, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
-const version = "v1";
+const version = "v3";
 
-export const getCollectionsTopBidV1Options: RouteOptions = {
+export const getAsksEventsV3Options: RouteOptions = {
   cache: {
     privacy: "public",
-    expiresIn: 1000,
+    expiresIn: 5000,
   },
-  description: "Collection top bid changes",
-  notes:
-    "Every time the top offer of a collection changes (i.e. the 'top bid'), an event is generated. This API is designed to be polled at high frequency.",
+  description: "Asks status changes",
+  notes: "Get updates any time an asks status changes",
   tags: ["api", "Events"],
   plugins: {
     "hapi-swagger": {
@@ -30,9 +27,12 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      collection: Joi.string().description(
-        "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-      ),
+      contract: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),
@@ -52,23 +52,25 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
         .max(1000)
         .default(50)
         .description("Amount of items returned in response."),
-    }).oxor("collection"),
+    }).oxor("contract"),
   },
   response: {
     schema: Joi.object({
       events: Joi.array().items(
         Joi.object({
-          collection: Joi.object({
+          order: Joi.object({
             id: Joi.string(),
-          }),
-          topBid: Joi.object({
-            orderId: Joi.string().allow(null),
-            contract: Joi.string().lowercase().pattern(regex.address).allow(null),
-            tokenSetId: Joi.string().allow(null),
+            status: Joi.string(),
+            contract: Joi.string().lowercase().pattern(regex.address),
+            tokenId: Joi.string().pattern(regex.number),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             price: JoiPrice.allow(null),
+            quantityRemaining: Joi.number().unsafe(),
+            nonce: Joi.string().pattern(regex.number).allow(null),
+            validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.object().allow(null),
+            isDynamic: Joi.boolean(),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),
@@ -83,7 +85,6 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
               "revalidation",
               "reprice"
             ),
-            previousPrice: Joi.number().unsafe().allow(null),
             txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
             txTimestamp: Joi.number().allow(null),
             createdAt: Joi.string(),
@@ -91,9 +92,9 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
-    }).label(`getCollectionsTopbid${version.toUpperCase()}Response`),
+    }).label(`getAsksEvents${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`get-collections-top-bid-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(`get-asks-events-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },
@@ -103,24 +104,34 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
     try {
       let baseQuery = `
         SELECT
+          order_events.id,
+          order_events.kind,
+          order_events.status,
+          order_events.contract,
+          order_events.token_id,
+          order_events.order_id,
+          order_events.order_quantity_remaining,
+          order_events.order_nonce,
+          order_events.maker,
+          order_events.price,
+          orders.currency,
+          orders.dynamic,
+          TRUNC(orders.currency_price, 0) AS currency_price,
+          order_events.order_source_id_int,
           coalesce(
-            nullif(date_part('epoch', upper(collection_top_bid_events.order_valid_between)), 'Infinity'),
+            nullif(date_part('epoch', upper(order_events.order_valid_between)), 'Infinity'),
             0
           ) AS valid_until,
-          collection_top_bid_events.id,
-          collection_top_bid_events.kind,
-          collection_top_bid_events.collection_id,
-          collection_top_bid_events.contract,
-          collection_top_bid_events.token_set_id,
-          collection_top_bid_events.order_id,
-          collection_top_bid_events.order_source_id_int,
-          collection_top_bid_events.maker,
-          collection_top_bid_events.price,
-          collection_top_bid_events.previous_price,
-          collection_top_bid_events.tx_hash,
-          collection_top_bid_events.tx_timestamp,
-          extract(epoch from collection_top_bid_events.created_at) AS created_at
-        FROM collection_top_bid_events
+          date_part('epoch', lower(order_events.order_valid_between)) AS valid_from,
+          order_events.tx_hash,
+          order_events.tx_timestamp,
+          extract(epoch from order_events.created_at) AS created_at
+        FROM order_events
+        LEFT JOIN LATERAL (
+           SELECT currency, currency_price, dynamic
+           FROM orders
+           WHERE orders.id = order_events.order_id
+        ) orders ON TRUE
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -133,11 +144,15 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [
-        `collection_top_bid_events.created_at >= to_timestamp($/startTimestamp/)`,
-        `collection_top_bid_events.created_at <= to_timestamp($/endTimestamp/)`,
+        `order_events.created_at >= to_timestamp($/startTimestamp/)`,
+        `order_events.created_at <= to_timestamp($/endTimestamp/)`,
+        // Fix for the issue with negative prices for dutch auction orders
+        // (eg. due to orders not properly expired on time)
+        `coalesce(order_events.price, 0) >= 0`,
       ];
-      if (query.collection) {
-        conditions.push(`collection_top_bid_events.collection_id = $/collection/`);
+      if (query.contract) {
+        (query as any).contract = toBuffer(query.contract);
+        conditions.push(`order_events.contract = $/contract/`);
       }
       if (query.continuation) {
         const [createdAt, id] = splitContinuation(query.continuation, /^\d+(.\d+)?_\d+$/);
@@ -145,7 +160,7 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
         (query as any).id = id;
 
         conditions.push(
-          `(collection_top_bid_events.created_at, collection_top_bid_events.id) ${
+          `(order_events.created_at, order_events.id) ${
             query.sortDirection === "asc" ? ">" : "<"
           } (to_timestamp($/createdAt/), $/id/)`
         );
@@ -157,29 +172,12 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
       // Sorting
       baseQuery += `
         ORDER BY
-          collection_top_bid_events.created_at ${query.sortDirection},
-          collection_top_bid_events.id ${query.sortDirection}
+          order_events.created_at ${query.sortDirection},
+          order_events.id ${query.sortDirection}
       `;
 
       // Pagination
       baseQuery += ` LIMIT $/limit/`;
-
-      baseQuery = `
-      WITH x AS (${baseQuery})
-      SELECT
-        x.*,
-        p.*
-      FROM x
-      LEFT JOIN LATERAL (
-        SELECT
-        orders.currency AS top_buy_currency,
-        orders.price AS top_buy_price,
-        orders.value AS top_buy_value,
-        orders.currency_price AS top_buy_currency_price,
-        orders.currency_value AS top_buy_currency_value
-        FROM orders
-        WHERE orders.id = x.order_id
-      ) p ON TRUE`;
 
       const rawResult = await redb.manyOrNone(baseQuery, query);
 
@@ -192,39 +190,46 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
-        const topBidCurrency = r.top_buy_currency
-          ? fromBuffer(r.top_buy_currency)
-          : Sdk.Common.Addresses.Weth[config.chainId];
+        const source: SourcesEntity | undefined = sources.get(
+          r.order_source_id_int,
+          fromBuffer(r.contract),
+          r.token_id
+        );
 
         return {
-          collection: {
-            id: r.collection_id,
-          },
-          topBid: {
-            orderId: r.order_id,
-            contract: r.contract ? fromBuffer(r.contract) : null,
-            tokenSetId: r.token_set_id,
+          order: {
+            id: r.order_id,
+            status: r.status,
+            contract: fromBuffer(r.contract),
+            tokenId: r.token_id,
             maker: r.maker ? fromBuffer(r.maker) : null,
-            price:
-              (await getJoiPriceObject(
-                {
-                  net: {
-                    amount: r.top_buy_currency_value ?? r.top_buy_value,
-                    nativeAmount: r.top_buy_value,
+            price: r.price
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: r.currency_price ?? r.price,
+                      nativeAmount: r.price,
+                      usdAmount: r.usd_price,
+                    },
                   },
-                  gross: {
-                    amount: r.top_buy_currency_price ?? r.top_buy_price,
-                    nativeAmount: r.top_buy_price,
-                  },
-                },
-                topBidCurrency
-              )) ?? null,
-            validUntil: r.price ? Number(r.valid_until) : null,
-            source: sources.get(r.order_source_id_int)?.name,
+                  fromBuffer(r.currency)
+                )
+              : null,
+            quantityRemaining: Number(r.order_quantity_remaining),
+            nonce: r.order_nonce ?? null,
+            validFrom: r.valid_from ? Number(r.valid_from) : null,
+            validUntil: r.valid_until ? Number(r.valid_until) : null,
+            source: {
+              id: source?.address,
+              domain: source?.domain,
+              name: source?.metadata.title || source?.name,
+              icon: source?.getIcon(),
+              url: source?.metadata.url,
+            },
+            isDynamic: Boolean(r.dynamic),
           },
           event: {
             id: r.id,
-            previousPrice: r.previous_price ? formatEth(r.previous_price) : null,
             kind: r.kind,
             txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
             txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
@@ -232,13 +237,12 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
           },
         };
       });
-
       return {
         events: await Promise.all(result),
         continuation,
       };
     } catch (error) {
-      logger.error(`get-collections-top-bid-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(`get-asks-events-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },
