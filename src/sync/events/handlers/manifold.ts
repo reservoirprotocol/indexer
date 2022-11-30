@@ -16,6 +16,7 @@ import { manifold } from "@/orderbook/orders";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import { redb } from "@/common/db";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
+import { baseProvider } from "@/common/provider";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const cancelEventsOnChain: es.cancels.Event[] = [];
@@ -239,22 +240,12 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const listingId = args["listingId"];
         const orderId = getOrderId(listingId);
 
-        const orderResult = await redb.oneOrNone(
-          ` 
-            SELECT 
-              raw_data,
-              extract('epoch' from lower(orders.valid_between)) AS valid_from
-            FROM orders 
-            WHERE orders.id = $/id/ 
-          `,
-          { id: orderId }
+        // There could be multiple people receivng ETH/ERC20 tokens from the tx, that's why we fetch the seller from the contract
+        const onChainListing = await new Sdk.Manifold.Exchange(config.chainId).getListing(
+          baseProvider,
+          listingId
         );
-
-        if (!orderResult) {
-          break;
-        }
-
-        const maker = orderResult.raw_data.seller;
+        const maker = onChainListing.seller.toLowerCase();
 
         let tokenContract = "";
         let tokenId = "";
