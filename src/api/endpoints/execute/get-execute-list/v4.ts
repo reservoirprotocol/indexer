@@ -86,6 +86,7 @@ export const getExecuteListV4Options: RouteOptions = {
             .valid("opensea", "looks-rare", "reservoir", "x2y2", "universe")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
+          orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
           automatedRoyalties: Joi.boolean()
             .default(true)
             .description("If true, royalties will be automatically included."),
@@ -119,6 +120,7 @@ export const getExecuteListV4Options: RouteOptions = {
     schema: Joi.object({
       steps: Joi.array().items(
         Joi.object({
+          id: Joi.string().required(),
           kind: Joi.string().valid("request", "signature", "transaction").required(),
           action: Joi.string().required(),
           description: Joi.string().required(),
@@ -148,6 +150,7 @@ export const getExecuteListV4Options: RouteOptions = {
 
       // Set up generic listing steps
       const steps: {
+        id: string;
         action: string;
         description: string;
         kind: string;
@@ -158,6 +161,7 @@ export const getExecuteListV4Options: RouteOptions = {
         }[];
       }[] = [
         {
+          id: "nft-approval",
           action: "Approve NFT contract",
           description:
             "Each NFT collection you want to trade requires a one-time approval transaction",
@@ -165,6 +169,7 @@ export const getExecuteListV4Options: RouteOptions = {
           items: [],
         },
         {
+          id: "order-signature",
           action: "Authorize listing",
           description: "A free off-chain signature to create the listing",
           kind: "signature",
@@ -260,6 +265,7 @@ export const getExecuteListV4Options: RouteOptions = {
                       },
                     },
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -354,6 +360,7 @@ export const getExecuteListV4Options: RouteOptions = {
                       },
                     },
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -442,6 +449,7 @@ export const getExecuteListV4Options: RouteOptions = {
                       },
                     },
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -528,6 +536,7 @@ export const getExecuteListV4Options: RouteOptions = {
                       },
                     },
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },
@@ -608,6 +617,7 @@ export const getExecuteListV4Options: RouteOptions = {
                       },
                     },
                     orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
                     source,
                   },
                 },

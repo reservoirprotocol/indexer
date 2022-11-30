@@ -37,6 +37,7 @@ const main = async () => {
       const tx = steps[0].data;
 
       const success = await ensureBuyTxSucceeds(
+        genericTaker,
         {
           kind: kind as "erc721" | "erc1155",
           contract,

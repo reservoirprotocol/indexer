@@ -14,8 +14,10 @@ export const formatEth = (value: BigNumberish) => Number(Number(formatEther(valu
 
 export const formatUsd = (value: BigNumberish) => Number(Number(formatUnits(value, 6)).toFixed(5));
 
-export const formatPrice = (value: BigNumberish, decimals = 18) =>
-  Number(Number(formatUnits(value, decimals)).toFixed(5));
+export const formatPrice = (value: BigNumberish, decimals = 18, roundDown = false) =>
+  roundDown
+    ? Math.floor(Number(Number(formatUnits(value, decimals)).toFixed(6)) * 100000) / 100000
+    : Number(Number(formatUnits(value, decimals)).toFixed(5));
 
 export const getNetAmount = (value: BigNumberish, bps: number) =>
   bn(value).sub(bn(value).mul(bps).div(10000)).toString();

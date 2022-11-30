@@ -87,7 +87,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
               ON tokens.floor_sell_id = orders.id
             WHERE tokens.contract = $/contract/
               AND tokens.token_id = $/tokenId/
-              AND orders.kind IN ('seaport', 'x2y2')
+              AND orders.kind IN ('seaport', 'x2y2', 'zeroex-v4-erc721', 'zeroex-v4-erc1155')
           `,
           {
             contract: toBuffer(token.split(":")[0]),
@@ -99,8 +99,8 @@ export const postSimulateFloorV1Options: RouteOptions = {
         // failing to generate the fill signature for X2Y2 orders since their
         // backend sees that particular order as unfillable (usually it's off
         // chain cancelled). In those cases, we cancel the floor ask order. A
-        // similar reasoning goes for Seaport listings (partial ones which do
-        // miss the raw data).
+        // similar reasoning goes for Seaport orders (partial ones which miss
+        // the raw data) and Coinbase NFT orders (no signature).
         if (floorAsk?.floor_sell_id) {
           await invalidateOrder(floorAsk.floor_sell_id);
           return { message: "Floor order is not fillable (got invalidated)" };
@@ -125,6 +125,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
       const pathItem = parsedPayload.path[0];
 
       const success = await ensureBuyTxSucceeds(
+        genericTaker,
         {
           kind: contractResult.kind as "erc721" | "erc1155",
           contract: pathItem.contract as string,

@@ -23,7 +23,6 @@ import { idb, pgp } from "@/common/db";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
-  const isRailway = config.railwayStaticUrl !== "";
 
   const client = new OpenSeaStreamClient({
     token: config.openSeaApiKey,
@@ -32,16 +31,13 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       transport: WebSocket,
     },
     onError: async (error) => {
-      logger.error(
-        "opensea-websocket",
-        `network=${network}, isRailway=${isRailway}, error=${JSON.stringify(error)}`
-      );
+      logger.warn("opensea-websocket", `network=${network}, error=${JSON.stringify(error)}`);
     },
   });
 
   client.connect();
 
-  logger.info("opensea-websocket", `Connected. network=${network}, isRailway=${isRailway}`);
+  logger.info("opensea-websocket", `Connected! network=${network}`);
 
   client.onEvents(
     "*",
@@ -49,35 +45,31 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       EventType.ITEM_LISTED,
       EventType.ITEM_RECEIVED_BID,
       EventType.COLLECTION_OFFER,
-      // EventType.TRAIT_OFFER
+      EventType.TRAIT_OFFER,
     ],
     async (event) => {
       try {
-        if (!isRailway) {
-          await saveEvent(event);
+        await saveEvent(event);
 
-          const orderParams = handleEvent(event.event_type as EventType, event.payload);
+        const orderParams = handleEvent(event.event_type as EventType, event.payload);
 
-          if (orderParams) {
-            const orderInfo: orderbookOrders.GenericOrderInfo = {
-              kind: "seaport",
-              info: {
-                kind: "partial",
-                orderParams,
-              } as orders.seaport.OrderInfo,
-              relayToArweave: false,
-              validateBidValue: true,
-            };
+        if (orderParams) {
+          const orderInfo: orderbookOrders.GenericOrderInfo = {
+            kind: "seaport",
+            info: {
+              kind: "partial",
+              orderParams,
+            } as orders.seaport.OrderInfo,
+            relayToArweave: false,
+            validateBidValue: true,
+          };
 
-            await orderbookOrders.addToQueue([orderInfo]);
-          }
+          await orderbookOrders.addToQueue([orderInfo]);
         }
       } catch (error) {
         logger.error(
           "opensea-websocket",
-          `network=${network}, isRailway=${isRailway}, event=${JSON.stringify(
-            event
-          )}, error=${error}`
+          `network=${network}, event=${JSON.stringify(event)}, error=${error}`
         );
       }
     }

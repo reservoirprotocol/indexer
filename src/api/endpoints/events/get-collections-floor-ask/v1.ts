@@ -35,6 +35,9 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
+      normalizeRoyalties: Joi.boolean()
+        .default(false)
+        .description("If true, prices will include missing royalties to be added on-top."),
       sortDirection: Joi.string()
         .valid("asc", "desc")
         .default("desc")
@@ -103,23 +106,27 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
       let baseQuery = `
         SELECT
           coalesce(
-            nullif(date_part('epoch', upper(collection_floor_sell_events.order_valid_between)), 'Infinity'),
+            nullif(date_part('epoch', upper(events.order_valid_between)), 'Infinity'),
             0
           ) AS valid_until,
-          collection_floor_sell_events.id,
-          collection_floor_sell_events.kind,
-          collection_floor_sell_events.collection_id,
-          collection_floor_sell_events.contract,
-          collection_floor_sell_events.token_id,
-          collection_floor_sell_events.order_id,
-          collection_floor_sell_events.order_source_id_int,
-          collection_floor_sell_events.maker,
-          collection_floor_sell_events.price,
-          collection_floor_sell_events.previous_price,
-          collection_floor_sell_events.tx_hash,
-          collection_floor_sell_events.tx_timestamp,
-          extract(epoch from collection_floor_sell_events.created_at) AS created_at
-        FROM collection_floor_sell_events
+          events.id,
+          events.kind,
+          events.collection_id,
+          events.contract,
+          events.token_id,
+          events.order_id,
+          events.order_source_id_int,
+          events.maker,
+          events.price,
+          events.previous_price,
+          events.tx_hash,
+          events.tx_timestamp,
+          extract(epoch from events.created_at) AS created_at
+        FROM ${
+          query.normalizeRoyalties
+            ? "collection_normalized_floor_sell_events"
+            : "collection_floor_sell_events"
+        } events
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -132,14 +139,14 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [
-        `collection_floor_sell_events.created_at >= to_timestamp($/startTimestamp/)`,
-        `collection_floor_sell_events.created_at <= to_timestamp($/endTimestamp/)`,
+        `events.created_at >= to_timestamp($/startTimestamp/)`,
+        `events.created_at <= to_timestamp($/endTimestamp/)`,
         // Fix for the issue with negative prices for dutch auction orders
         // (eg. due to orders not properly expired on time)
-        `coalesce(collection_floor_sell_events.price, 0) >= 0`,
+        `coalesce(events.price, 0) >= 0`,
       ];
       if (query.collection) {
-        conditions.push(`collection_floor_sell_events.collection_id = $/collection/`);
+        conditions.push(`events.collection_id = $/collection/`);
       }
       if (query.continuation) {
         const [createdAt, id] = splitContinuation(query.continuation, /^\d+(.\d+)?_\d+$/);
@@ -147,7 +154,7 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
         (query as any).id = id;
 
         conditions.push(
-          `(collection_floor_sell_events.created_at, collection_floor_sell_events.id) ${
+          `(events.created_at, events.id) ${
             query.sortDirection === "asc" ? ">" : "<"
           } (to_timestamp($/createdAt/), $/id/)`
         );
@@ -159,8 +166,8 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
       // Sorting
       baseQuery += `
         ORDER BY
-          collection_floor_sell_events.created_at ${query.sortDirection},
-          collection_floor_sell_events.id ${query.sortDirection}
+          events.created_at ${query.sortDirection},
+          events.id ${query.sortDirection}
       `;
 
       // Pagination

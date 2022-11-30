@@ -1,1 +1,1 @@
-import "@/jobs/backfill/backfill-fix-opensea-realtime-asks";
+import "@/jobs/backfill/backfill-collections-royalties";

@@ -119,3 +119,36 @@ export const JoiOrderMetadata = Joi.alternatives(
     }),
   })
 );
+
+export const JoiOrderCriteriaCollection = Joi.object({
+  id: Joi.string().allow("", null),
+  name: Joi.string().allow("", null),
+  image: Joi.string().allow("", null),
+});
+
+export const JoiOrderCriteria = Joi.alternatives(
+  Joi.object({
+    kind: "token",
+    data: Joi.object({
+      token: Joi.object({
+        tokenId: Joi.string().pattern(regex.number),
+        name: Joi.string().allow("", null),
+        image: Joi.string().allow("", null),
+      }),
+      collection: JoiOrderCriteriaCollection,
+    }),
+  }),
+  Joi.object({
+    kind: "collection",
+    data: Joi.object({
+      collection: JoiOrderCriteriaCollection,
+    }),
+  }),
+  Joi.object({
+    kind: "attribute",
+    data: Joi.object({
+      collection: JoiOrderCriteriaCollection,
+      attribute: Joi.object({ key: Joi.string(), value: Joi.string() }),
+    }),
+  })
+);

@@ -108,7 +108,7 @@ if (config.doBackgroundWork) {
               $/txHash/,
               $/txTimestamp/
             FROM y
-            JOIN LATERAL (
+            LEFT JOIN LATERAL (
               SELECT
                 orders.contract,
                 orders.token_set_id

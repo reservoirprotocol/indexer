@@ -1,5 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
+import { IV2OrderData, IV3OrderBuyData } from "@reservoir0x/sdk/dist/rarible/types";
 import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
@@ -8,13 +9,11 @@ import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
-import { offChainCheck } from "@/orderbook/orders/rarible/check";
-import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
-import { IV2OrderData, IV3OrderBuyData } from "@reservoir0x/sdk/dist/rarible/types";
-import { BigNumber } from "ethers";
+import { offChainCheck } from "@/orderbook/orders/rarible/check";
+import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
+import * as tokenSet from "@/orderbook/token-sets";
+import * as royalties from "@/utils/royalties";
 
 export type OrderInfo = {
   orderParams: Sdk.Rarible.Types.Order;
@@ -50,7 +49,7 @@ export const save = async (
         Sdk.Rarible.Types.AssetClass.ERC1155_LAZY.toString(),
       ];
 
-      //Disable lazy orders
+      // Disable lazy orders
       if (
         LAZY_ASSET_CLASSES.includes(order.params.make.assetType.assetClass) ||
         LAZY_ASSET_CLASSES.includes(order.params.take.assetType.assetClass)
@@ -103,6 +102,7 @@ export const save = async (
           ? order.params.take.assetType.tokenId!
           : order.params.make.assetType.tokenId!;
       const quantity = side === "buy" ? order.params.take.value : order.params.make.value;
+
       // Handle: currency
       let currency = "";
       if (side === "sell") {
@@ -200,7 +200,17 @@ export const save = async (
               tokenId: tokenId,
             },
           ]);
+          break;
+        }
 
+        case "contract-wide": {
+          [{ id: tokenSetId }] = await tokenSet.contractWide.save([
+            {
+              id: `contract:${collection}`,
+              schemaHash,
+              contract: collection,
+            },
+          ]);
           break;
         }
       }
@@ -212,9 +222,8 @@ export const save = async (
         });
       }
 
-      // Handle: collection royalties
-      const collectionRoyalties = await commonHelpers.getOpenSeaRoyalties(collection);
-
+      // Handle: royalties
+      const collectionRoyalties = await royalties.getRoyalties(collection, tokenId, "default");
       const feeBreakdown = collectionRoyalties.map(({ bps, recipient }) => ({
         kind: "royalty",
         recipient,
@@ -226,7 +235,6 @@ export const save = async (
       switch (order.params.data.dataType) {
         case Sdk.Rarible.Constants.ORDER_DATA_TYPES.V1:
         case Sdk.Rarible.Constants.ORDER_DATA_TYPES.API_V1:
-          //TODO:
           break;
 
         case Sdk.Rarible.Constants.ORDER_DATA_TYPES.API_V2:
@@ -279,7 +287,7 @@ export const save = async (
 
       // Handle: price and value
       let price = side === "buy" ? order.params.make.value : order.params.take.value;
-      price = BigNumber.from(price).div(quantity).toString();
+      price = bn(price).div(quantity).toString();
 
       // For sell orders, the value is the same as the price
       let value = price;
@@ -354,8 +362,8 @@ export const save = async (
         currency_value: value,
         needs_conversion: null,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
-        // Rarible salt is hexed when coming from the api
-        nonce: BigNumber.from(order.params.salt).toString(),
+        // The salt is hexed when coming from Rarible's API
+        nonce: bn(order.params.salt).toString(),
         source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
         contract: toBuffer(collection),
