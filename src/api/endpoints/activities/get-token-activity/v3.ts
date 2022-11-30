@@ -10,6 +10,7 @@ import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { Sources } from "@/models/sources";
 import { JoiOrderMetadata } from "@/common/joi";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
 const version = "v3";
 
@@ -140,8 +141,10 @@ export const getTokenActivityV3Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = _.map(activities, (activity) => {
-        const orderSource = activity.order?.sourceIdInt
-          ? sources.get(activity.order.sourceIdInt)
+        const orderSourceIdInt = activity.order?.sourceIdInt;
+
+        const source: SourcesEntity | undefined = orderSourceIdInt
+          ? sources.get(orderSourceIdInt, activity.contract, activity.tokenId ?? undefined)
           : undefined;
 
         return {
@@ -166,13 +169,13 @@ export const getTokenActivityV3Options: RouteOptions = {
                     ? "ask"
                     : "bid"
                   : undefined,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.getTitle(),
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
+                source: {
+                  id: source?.address,
+                  domain: source?.domain,
+                  name: source?.getTitle(),
+                  icon: source?.getIcon(),
+                  url: source?.metadata.url,
+                },
                 metadata: activity.order.metadata || undefined,
               }
             : undefined,

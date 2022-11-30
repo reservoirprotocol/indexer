@@ -362,7 +362,7 @@ export const getUserTokensV5Options: RouteOptions = {
         const topBidCurrency = r.top_bid_currency
           ? fromBuffer(r.top_bid_currency)
           : Sdk.Common.Addresses.Weth[config.chainId];
-        const floorSellSource = r.floor_sell_value
+        const source = r.floor_sell_value
           ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
           : undefined;
 
@@ -421,11 +421,11 @@ export const getUserTokensV5Options: RouteOptions = {
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
               source: {
-                id: floorSellSource?.address,
-                domain: floorSellSource?.domain,
-                name: floorSellSource?.getTitle(),
-                icon: floorSellSource?.getIcon(),
-                url: floorSellSource?.metadata.url,
+                id: source?.address,
+                domain: source?.domain,
+                name: source?.metadata.title || source?.name,
+                icon: source?.getIcon(),
+                url: source?.metadata.url,
               },
             },
             acquiredAt: r.acquired_at ? new Date(r.acquired_at).toISOString() : null,

@@ -1,27 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Request, RouteOptions } from "@hapi/hapi";
-import * as Sdk from "@reservoir0x/sdk";
-
 import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { buildContinuation, formatEth, fromBuffer, regex, splitContinuation } from "@/common/utils";
-import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
-const version = "v1";
+const version = "v2";
 
-export const getCollectionsTopBidV1Options: RouteOptions = {
+export const getCollectionsFloorAskV2Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 1000,
   },
-  description: "Collection top bid changes",
+  description: "Collection floor changes",
   notes:
-    "Every time the top offer of a collection changes (i.e. the 'top bid'), an event is generated. This API is designed to be polled at high frequency.",
+    "Every time the floor price of a collection changes (i.e. the 'floor ask'), an event is generated. This API is designed to be polled at high frequency, in order to keep an external system in sync with accurate prices for any token.\n\nThere are multiple event types, which describe what caused the change in price:\n\n- `new-order` > new listing at a lower price\n\n- `expiry` > the previous best listing expired\n\n- `sale` > the previous best listing was filled\n\n- `cancel` > the previous best listing was cancelled\n\n- `balance-change` > the best listing was invalidated due to no longer owning the NFT\n\n- `approval-change` > the best listing was invalidated due to revoked approval\n\n- `revalidation` > manual revalidation of orders (e.g. after a bug fixed)\n\n- `reprice` > price update for dynamic orders (e.g. dutch auctions)\n\n- `bootstrap` > initial loading of data, so that all tokens have a price associated\n\nSome considerations to keep in mind\n\n- Due to the complex nature of monitoring off-chain liquidity across multiple marketplaces, including dealing with block re-orgs, events should be considered 'relative' to the perspective of the indexer, ie _when they were discovered_, rather than _when they happened_. A more deterministic historical record of price changes is in development, but in the meantime, this method is sufficent for keeping an external system in sync with the best available prices.\n\n- Events are only generated if the best price changes. So if a new order or sale happens without changing the best price, no event is generated. This is more common with 1155 tokens, which have multiple owners and more depth. For this reason, if you need sales data, use the Sales API.",
   tags: ["api", "Events"],
   plugins: {
     "hapi-swagger": {
@@ -61,14 +58,14 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
           collection: Joi.object({
             id: Joi.string(),
           }),
-          topBid: Joi.object({
+          floorAsk: Joi.object({
             orderId: Joi.string().allow(null),
             contract: Joi.string().lowercase().pattern(regex.address).allow(null),
-            tokenSetId: Joi.string().allow(null),
+            tokenId: Joi.string().pattern(regex.number).allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
-            price: JoiPrice.allow(null),
+            price: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.object().allow(null),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),
@@ -91,9 +88,12 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
-    }).label(`getCollectionsTopbid${version.toUpperCase()}Response`),
+    }).label(`getCollectionsFloorAsk${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`get-collections-top-bid-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(
+        `get-collections-floor-ask-${version}-handler`,
+        `Wrong response schema: ${error}`
+      );
       throw error;
     },
   },
@@ -104,23 +104,23 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
       let baseQuery = `
         SELECT
           coalesce(
-            nullif(date_part('epoch', upper(collection_top_bid_events.order_valid_between)), 'Infinity'),
+            nullif(date_part('epoch', upper(collection_floor_sell_events.order_valid_between)), 'Infinity'),
             0
           ) AS valid_until,
-          collection_top_bid_events.id,
-          collection_top_bid_events.kind,
-          collection_top_bid_events.collection_id,
-          collection_top_bid_events.contract,
-          collection_top_bid_events.token_set_id,
-          collection_top_bid_events.order_id,
-          collection_top_bid_events.order_source_id_int,
-          collection_top_bid_events.maker,
-          collection_top_bid_events.price,
-          collection_top_bid_events.previous_price,
-          collection_top_bid_events.tx_hash,
-          collection_top_bid_events.tx_timestamp,
-          extract(epoch from collection_top_bid_events.created_at) AS created_at
-        FROM collection_top_bid_events
+          collection_floor_sell_events.id,
+          collection_floor_sell_events.kind,
+          collection_floor_sell_events.collection_id,
+          collection_floor_sell_events.contract,
+          collection_floor_sell_events.token_id,
+          collection_floor_sell_events.order_id,
+          collection_floor_sell_events.order_source_id_int,
+          collection_floor_sell_events.maker,
+          collection_floor_sell_events.price,
+          collection_floor_sell_events.previous_price,
+          collection_floor_sell_events.tx_hash,
+          collection_floor_sell_events.tx_timestamp,
+          extract(epoch from collection_floor_sell_events.created_at) AS created_at
+        FROM collection_floor_sell_events
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -133,11 +133,14 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [
-        `collection_top_bid_events.created_at >= to_timestamp($/startTimestamp/)`,
-        `collection_top_bid_events.created_at <= to_timestamp($/endTimestamp/)`,
+        `collection_floor_sell_events.created_at >= to_timestamp($/startTimestamp/)`,
+        `collection_floor_sell_events.created_at <= to_timestamp($/endTimestamp/)`,
+        // Fix for the issue with negative prices for dutch auction orders
+        // (eg. due to orders not properly expired on time)
+        `coalesce(collection_floor_sell_events.price, 0) >= 0`,
       ];
       if (query.collection) {
-        conditions.push(`collection_top_bid_events.collection_id = $/collection/`);
+        conditions.push(`collection_floor_sell_events.collection_id = $/collection/`);
       }
       if (query.continuation) {
         const [createdAt, id] = splitContinuation(query.continuation, /^\d+(.\d+)?_\d+$/);
@@ -145,7 +148,7 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
         (query as any).id = id;
 
         conditions.push(
-          `(collection_top_bid_events.created_at, collection_top_bid_events.id) ${
+          `(collection_floor_sell_events.created_at, collection_floor_sell_events.id) ${
             query.sortDirection === "asc" ? ">" : "<"
           } (to_timestamp($/createdAt/), $/id/)`
         );
@@ -157,29 +160,12 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
       // Sorting
       baseQuery += `
         ORDER BY
-          collection_top_bid_events.created_at ${query.sortDirection},
-          collection_top_bid_events.id ${query.sortDirection}
+          collection_floor_sell_events.created_at ${query.sortDirection},
+          collection_floor_sell_events.id ${query.sortDirection}
       `;
 
       // Pagination
       baseQuery += ` LIMIT $/limit/`;
-
-      baseQuery = `
-      WITH x AS (${baseQuery})
-      SELECT
-        x.*,
-        p.*
-      FROM x
-      LEFT JOIN LATERAL (
-        SELECT
-        orders.currency AS top_buy_currency,
-        orders.price AS top_buy_price,
-        orders.value AS top_buy_value,
-        orders.currency_price AS top_buy_currency_price,
-        orders.currency_value AS top_buy_currency_value
-        FROM orders
-        WHERE orders.id = x.order_id
-      ) p ON TRUE`;
 
       const rawResult = await redb.manyOrNone(baseQuery, query);
 
@@ -192,35 +178,30 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
-        const topBidCurrency = r.top_buy_currency
-          ? fromBuffer(r.top_buy_currency)
-          : Sdk.Common.Addresses.Weth[config.chainId];
+        const source: SourcesEntity | undefined = sources.get(
+          r.order_source_id_int,
+          fromBuffer(r.contract),
+          r.token_id
+        );
 
         return {
           collection: {
             id: r.collection_id,
           },
-          topBid: {
+          floorAsk: {
             orderId: r.order_id,
             contract: r.contract ? fromBuffer(r.contract) : null,
-            tokenSetId: r.token_set_id,
+            tokenId: r.token_id,
             maker: r.maker ? fromBuffer(r.maker) : null,
-            price:
-              (await getJoiPriceObject(
-                {
-                  net: {
-                    amount: r.top_buy_currency_value ?? r.top_buy_value,
-                    nativeAmount: r.top_buy_value,
-                  },
-                  gross: {
-                    amount: r.top_buy_currency_price ?? r.top_buy_price,
-                    nativeAmount: r.top_buy_price,
-                  },
-                },
-                topBidCurrency
-              )) ?? null,
+            price: r.price ? formatEth(r.price) : null,
             validUntil: r.price ? Number(r.valid_until) : null,
-            source: sources.get(r.order_source_id_int)?.name,
+            source: {
+              id: source?.address,
+              domain: source?.domain,
+              name: source?.metadata.title || source?.name,
+              icon: source?.getIcon(),
+              url: source?.metadata.url,
+            },
           },
           event: {
             id: r.id,
@@ -238,7 +219,7 @@ export const getCollectionsTopBidV1Options: RouteOptions = {
         continuation,
       };
     } catch (error) {
-      logger.error(`get-collections-top-bid-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(`get-collections-floor-ask-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },

@@ -212,6 +212,12 @@ export type GenericOrderInfo =
       validateBidValue?: boolean;
     }
   | {
+      kind: "forward";
+      info: orders.forward.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
       kind: "rarible";
       info: orders.rarible.OrderInfo;
       relayToArweave?: boolean;
