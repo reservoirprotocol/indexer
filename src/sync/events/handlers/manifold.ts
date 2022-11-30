@@ -113,7 +113,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           .mul(bn("-1"))
           .toString();
 
-        for (const token of Object.keys(parsedTrace[baseEventParams.address].tokenBalanceState)) {
+        for (const token of Object.keys(parsedTrace[taker].tokenBalanceState)) {
           if (!(token.startsWith("erc721") || token.startsWith("erc1155"))) {
             //native:0x0000000000000000000000000000000000000000
             currency = token.split(":")[1];
