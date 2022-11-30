@@ -1,7 +1,7 @@
 import { EnhancedEvent, OnChainData, processOnChainData } from "@/events-sync/handlers/utils";
-import { TransactionReceipt, Log, Block } from "@ethersproject/abstract-provider";
+import { Log } from "@ethersproject/abstract-provider";
 import { getEventData } from "@/events-sync/data";
-import { baseProvider } from "@/common/provider";
+import * as utils from "@/events-sync/utils";
 
 import * as erc20 from "@/events-sync/handlers/erc20";
 import * as erc721 from "@/events-sync/handlers/erc721";
@@ -163,7 +163,7 @@ export const parseEventsInfo = async (info: EventsInfo) => {
   return data;
 };
 
-export function getEventParams(log: Log, blockResult: Block) {
+export function getEventParams(log: Log, timestamp: number) {
   const address = log.address.toLowerCase() as string;
   const block = log.blockNumber as number;
   const blockHash = log.blockHash.toLowerCase() as string;
@@ -177,17 +177,18 @@ export function getEventParams(log: Log, blockResult: Block) {
     block,
     blockHash,
     logIndex,
-    timestamp: blockResult.timestamp,
+    timestamp,
     batchIndex: 1,
   };
 }
 
-export async function getEnhancedEventFromTx(tx: TransactionReceipt) {
+export async function getEnhancedEventFromTransaction(txHash: string) {
   const enhancedEvents: EnhancedEvent[] = [];
   const availableEventData = getEventData();
-  const blockResult = await baseProvider.getBlock(tx.blockNumber);
-  for (let index = 0; index < tx.logs.length; index++) {
-    const log = tx.logs[index];
+  const transaction = await utils.fetchTransaction(txHash);
+  const txLog = await utils.fetchTransactionLogs(txHash);
+  for (let index = 0; index < txLog.logs.length; index++) {
+    const log = txLog.logs[index];
     const eventData = availableEventData.find(
       ({ addresses, topic, numTopics }) =>
         log.topics[0] === topic &&
@@ -197,7 +198,7 @@ export async function getEnhancedEventFromTx(tx: TransactionReceipt) {
     if (eventData) {
       enhancedEvents.push({
         kind: eventData.kind,
-        baseEventParams: getEventParams(log, blockResult),
+        baseEventParams: getEventParams(log, transaction.blockTimestamp),
         log,
       });
     }

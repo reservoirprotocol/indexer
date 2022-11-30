@@ -1,6 +1,4 @@
-import { baseProvider } from "@/common/provider";
-import { getEnhancedEventFromTx } from "../";
-// import * as seaport from "@/events-sync/handlers/seaport";
+import { getEnhancedEventFromTransaction } from "../";
 
 import { bn } from "@/common/utils";
 import * as utils from "@/events-sync/utils";
@@ -38,12 +36,7 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
     return null;
   }
 
-  // need cache in database ?
-  const transaction = await baseProvider.getTransactionReceipt(txHash);
-
-  // inside `getEventsFromTx` has one getBlock call
-  const events = await getEnhancedEventFromTx(transaction);
-
+  const events = await getEnhancedEventFromTransaction(txHash);
   const allOnChainData = await parseEnhancedEventToOnChainData(events);
 
   let fillEvents: es.fills.Event[] = [];
@@ -54,7 +47,6 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
     fillEvents = [...fillEvents, ...allEvents];
   }
 
-  // console.log("fillEvents", fillEvents)
   const collectionFills = fillEvents?.filter((_) => _.contract === contract) || [];
   const protocolFillEvents = fillEvents?.filter((_) => _.orderKind === "seaport") || [];
 
@@ -69,17 +61,7 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
   }, bn(0));
 
   const state = parseCallTrace(txTrace.calls);
-  let royalties = await getDefaultRoyalties(contract, tokenId);
-
-  // mock for testing
-  if (!royalties.length && contract === "0x33c6eec1723b12c46732f7ab41398de45641fa42") {
-    royalties = [
-      {
-        bps: 750,
-        recipient: "0x459fe44490075a2ec231794f9548238e99bf25c0",
-      },
-    ];
-  }
+  const royalties = await getDefaultRoyalties(contract, tokenId);
 
   const openSeaFeeRecipients = [
     "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
@@ -150,8 +132,6 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
 
   const paid_full_royalty = royalty_fee_breakdown.length === royaltyRecipients.length;
 
-  // console.log("balanceChangeWithBps", balanceChangeWithBps, tokenId, contract, possible_missing_royalties);
-
   const result = {
     txHash,
     sale: {
@@ -168,11 +148,5 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
     paid_full_royalty,
   };
 
-  // console.log("balanceChangeWithBps", balanceChangeWithBps)
-  // console.log("result", result);
-  // console.log("tokenId", tokenId)
-  // console.log("state", state)
-  // console.log("royalties", royalties)
-  // console.log("possible_missing_royalties", possible_missing_royalties)
   return result;
 }

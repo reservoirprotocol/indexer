@@ -6,6 +6,8 @@ import {
   assignSourceToFillEvents,
   assignWashTradingScoreToFillEvents,
 } from "@/events-sync/handlers/utils/fills";
+
+import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import { BaseEventParams } from "@/events-sync/parser";
 
 import * as es from "@/events-sync/storage";
@@ -68,6 +70,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     await Promise.all([
       assignSourceToFillEvents(allFillEvents),
       assignWashTradingScoreToFillEvents(allFillEvents),
+      assignRoyaltiesToFillEvents(allFillEvents),
     ]);
   }
 
