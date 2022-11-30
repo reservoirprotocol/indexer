@@ -112,7 +112,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           .toString();
 
         for (const token of Object.keys(parsedTrace[taker].tokenBalanceState)) {
-          if (token.startsWith("native")) {
+          if (token.startsWith("erc20")) {
             currency = token.split(":")[1];
           }
         }
@@ -138,12 +138,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           // We must always have the native price
           break;
         }
-
-        // This is required in case of 1155 purchases. Count represent how many orders you want to fill.
-        // An order can have 15 editions total(totalAvailable) but must be purchased 5 at a time(totalPerSale)
-        // totalAvailable in the contract will be 10 in case 1 order is purchased.
-        // We must do amount = count * totalPerSale in order to have the correct amount in our DB.
-        // const purchasedAmount = (orderResult.raw_data.details.totalPerSale * amount).toString();
 
         fillEventsPartial.push({
           orderKind,
@@ -269,7 +263,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             tokenKey = token;
             [, tokenContract, tokenId] = tokenKey.split(":");
             purchasedAmount = bn(contractTrace.tokenBalanceState[tokenKey]).abs().toString();
-          } else if (token.startsWith("native")) {
+          } else if (token.startsWith("erc20") || token.startsWith("native")) {
             currency = token.split(":")[1];
             currencyPrice = bn(contractTrace.tokenBalanceState[token]).abs().toString();
           }
