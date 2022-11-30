@@ -73,7 +73,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const parsedLog = eventData.abi.parseLog(log);
         const listingId = parsedLog.args["listingId"].toString();
         const currencyPrice = parsedLog.args["amount"].toString();
-        let maker = "";
         let taker = parsedLog.args["buyer"].toLowerCase();
         let currency = Sdk.Common.Addresses.Eth[config.chainId];
 
@@ -94,6 +93,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
+        const maker = orderResult.raw_data.seller;
+
         const txTrace = await utils.fetchTransactionTrace(baseEventParams.txHash);
         if (!txTrace) {
           // Skip any failed attempts to get the trace
@@ -102,20 +103,15 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         const parsedTrace = parseCallTrace(txTrace.calls);
 
-        let purchasedAmount = "0";
+        const tokenKey = Object.keys(parsedTrace[baseEventParams.address].tokenBalanceState)[0];
+        const [, tokenContract, tokenId] = tokenKey.split(":");
 
-        const token = Object.keys(parsedTrace[baseEventParams.address].tokenBalanceState)[0];
-        const tokenId = token.split(":")[2];
-        const tokenContract = token.split(":")[1];
-        maker = orderResult.raw_data.seller;
-
-        purchasedAmount = bn(parsedTrace[baseEventParams.address].tokenBalanceState[token])
-          .mul(bn("-1"))
+        const purchasedAmount = bn(parsedTrace[baseEventParams.address].tokenBalanceState[tokenKey])
+          .abs()
           .toString();
 
         for (const token of Object.keys(parsedTrace[taker].tokenBalanceState)) {
-          if (!(token.startsWith("erc721") || token.startsWith("erc1155"))) {
-            //native:0x0000000000000000000000000000000000000000
+          if (token.startsWith("native")) {
             currency = token.split(":")[1];
           }
         }
@@ -243,19 +239,25 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const listingId = args["listingId"];
         const orderId = getOrderId(listingId);
 
-        // Like Wyvern, Manifold has two main issues:
-        // - the traded token is not included in the fill event, so we have
-        // to deduce it by checking the nft transfer occured exactly before
-        // the fill event
-        // - the payment token is not included in the fill event, and we deduce
-        // it as well by checking any ERC20 transfers that occured close before
-        // the fill event (and default to the native token if cannot find any)
-        // - If no ERC20 transfer are found it means the order in an ETH auction,
-        // so we have to deduce the price by checking the internal calls of the transaction
+        const orderResult = await redb.oneOrNone(
+          ` 
+            SELECT 
+              raw_data,
+              extract('epoch' from lower(orders.valid_between)) AS valid_from
+            FROM orders 
+            WHERE orders.id = $/id/ 
+          `,
+          { id: orderId }
+        );
+
+        if (!orderResult) {
+          break;
+        }
+
+        const maker = orderResult.raw_data.seller;
 
         let tokenContract = "";
         let tokenId = "";
-        let maker = "";
         let taker = "";
         let currencyPrice = "0";
         let currency = Sdk.Common.Addresses.Eth[config.chainId];
@@ -270,35 +272,27 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         let purchasedAmount = "0";
         let tokenKey = "";
-        let currencyKey = "";
-        for (const token of Object.keys(parsedTrace[baseEventParams.address].tokenBalanceState)) {
+        const contractTrace = parsedTrace[baseEventParams.address];
+        for (const token of Object.keys(contractTrace.tokenBalanceState)) {
           if (token.startsWith("erc721") || token.startsWith("erc1155")) {
-            tokenId = token.split(":")[2];
-            tokenContract = token.split(":")[1];
-            purchasedAmount = bn(parsedTrace[baseEventParams.address].tokenBalanceState[token])
-              .mul("-1")
-              .toString();
             tokenKey = token;
-          } else {
-            //native:0x0000000000000000000000000000000000000000
+            [, tokenContract, tokenId] = tokenKey.split(":");
+            purchasedAmount = bn(contractTrace.tokenBalanceState[tokenKey]).abs().toString();
+          } else if (token.startsWith("native")) {
             currency = token.split(":")[1];
-            currencyPrice = bn(parsedTrace[baseEventParams.address].tokenBalanceState[token])
-              .mul("-1")
-              .toString();
-            currencyKey = token;
+            currencyPrice = bn(contractTrace.tokenBalanceState[token]).abs().toString();
           }
         }
 
-        //not a sale event
+        // not a sale event
         if (bn(currencyPrice).eq("0")) {
           break;
         }
 
         for (const address of Object.keys(parsedTrace)) {
           if (tokenKey in parsedTrace[address].tokenBalanceState) {
+            // Taker should be receiver of NFT tokens
             taker = address;
-          } else if (currencyKey in parsedTrace[address].tokenBalanceState) {
-            maker = address;
           }
         }
 
