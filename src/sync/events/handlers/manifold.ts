@@ -14,37 +14,12 @@ import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import { getOrderId, OrderInfo } from "@/orderbook/orders/manifold";
 import { manifold } from "@/orderbook/orders";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
-import { BigNumber } from "ethers";
-import { BaseEventParams } from "../parser";
 import { redb } from "@/common/db";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
-
-type TransferEventWithContract = es.nftTransfers.Event & { tokenContract: string };
-
-const findEthCalls = (calls: CallTrace[], eventParams: BaseEventParams) => {
-  if (!calls || !calls.length) {
-    return [];
-  }
-
-  const ethCalls: CallTrace[] = [];
-  calls.forEach((call: CallTrace) => {
-    if (call.type === "CALL" && call.from === eventParams.address && call.value !== "0x0") {
-      ethCalls.push(call);
-    }
-
-    if (call.calls && call.calls.length) {
-      ethCalls.push(...findEthCalls(call.calls, eventParams));
-    }
-  });
-
-  return ethCalls;
-};
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const cancelEventsOnChain: es.cancels.Event[] = [];
   const fillEventsPartial: es.fills.Event[] = [];
-  const nftTransferEvents: TransferEventWithContract[] = [];
 
   const fillInfos: fillUpdates.FillInfo[] = [];
   const orderInfos: orderUpdatesById.OrderInfo[] = [];
@@ -278,73 +253,46 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         let currencyPrice = "0";
         let currency = Sdk.Common.Addresses.Eth[config.chainId];
 
-        // Detect the payment token
-        for (const log of currentTxLogs.slice(0, -1).reverse()) {
-          // Skip once we detect another fill in the same transaction
-          // (this will happen if filling through an aggregator)
-          if (log.topics[0] === getEventData([eventData.kind])[0].topic) {
-            break;
-          }
-
-          // If we detect an ERC20 transfer as part of the same transaction
-          // then we assume it's the payment for the current sale
-          const erc20EventData = getEventData(["erc20-transfer"])[0];
-          if (
-            log.topics[0] === erc20EventData.topic &&
-            log.topics.length === erc20EventData.numTopics
-          ) {
-            const parsed = erc20EventData.abi.parseLog(log);
-            const to = parsed.args["to"].toLowerCase();
-            const amount = parsed.args["amount"].toString();
-            // Maker is the receiver of tokens
-            maker = to;
-            currency = log.address.toLowerCase();
-            currencyPrice = amount;
-            break;
-
-            // If we don't detect an ERC20 transfer as part of the same transaction
-            // then we assume it's ETH
-          } else {
-            // Event data doesn't include full transaction information so we have to parse the calldata
-            const txTrace = await utils.fetchTransactionTrace(baseEventParams.txHash);
-            if (!txTrace) {
-              // Skip any failed attempts to get the trace
-              break;
-            }
-
-            // Maker is the function caller
-            maker = txTrace.calls.from;
-            // Search for eth transfer internal calls. After summing them we get the auction price.
-            const ethCalls = findEthCalls(txTrace.calls.calls!, baseEventParams);
-            currencyPrice = ethCalls
-              .reduce((acc: BigNumber, c: CallTrace) => bn(c.value!).add(acc), bn(0))
-              .toString();
-          }
-        }
-
-        let associatedNftTransferEvent: es.nftTransfers.Event | undefined;
-        if (nftTransferEvents.length) {
-          // Ensure the last NFT transfer event was part of the fill
-          const event = nftTransferEvents[nftTransferEvents.length - 1];
-          if (
-            event.baseEventParams.txHash === baseEventParams.txHash &&
-            event.baseEventParams.logIndex === baseEventParams.logIndex - 1 &&
-            // Only single token fills are supported and recognized
-            event.baseEventParams.batchIndex === 1
-          ) {
-            associatedNftTransferEvent = event;
-
-            currencyPrice = bn(currencyPrice).div(event.amount).toString();
-            tokenId = event.tokenId;
-            tokenContract = event.tokenContract.toLowerCase();
-            // Taker is the receiver of the NFT
-            taker = event.to;
-          }
-        }
-
-        if (!associatedNftTransferEvent) {
-          // Skip if we can't associate to an NFT transfer event
+        const txTrace = await utils.fetchTransactionTrace(baseEventParams.txHash);
+        if (!txTrace) {
+          // Skip any failed attempts to get the trace
           break;
+        }
+
+        const parsedTrace = parseCallTrace(txTrace.calls);
+
+        let purchasedAmount = "0";
+        let tokenKey = "";
+        let currencyKey = "";
+        for (const token of Object.keys(parsedTrace[baseEventParams.address].tokenBalanceState)) {
+          if (token.startsWith("erc721") || token.startsWith("erc1155")) {
+            tokenId = token.split(":")[2];
+            tokenContract = token.split(":")[1];
+            purchasedAmount = bn(parsedTrace[baseEventParams.address].tokenBalanceState[token])
+              .mul("-1")
+              .toString();
+            tokenKey = token;
+          } else {
+            //native:0x0000000000000000000000000000000000000000
+            currency = token.split(":")[1];
+            currencyPrice = bn(parsedTrace[baseEventParams.address].tokenBalanceState[token])
+              .mul("-1")
+              .toString();
+            currencyKey = token;
+          }
+        }
+
+        //not a sale event
+        if (bn(currencyPrice).eq("0")) {
+          break;
+        }
+
+        for (const address of Object.keys(parsedTrace)) {
+          if (tokenKey in parsedTrace[address].tokenBalanceState) {
+            taker = address;
+          } else if (currencyKey in parsedTrace[address].tokenBalanceState) {
+            maker = address;
+          }
         }
 
         // Handle: attribution
@@ -378,7 +326,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           usdPrice: prices.usdPrice,
           contract: tokenContract,
           tokenId,
-          amount: "1",
+          amount: purchasedAmount,
           orderSourceId: data.orderSource?.id,
           aggregatorSourceId: data.aggregatorSource?.id,
           fillSourceId: data.fillSource?.id,
@@ -390,51 +338,10 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           orderSide: "sell",
           contract: tokenContract,
           tokenId,
-          amount: "1",
+          amount: purchasedAmount,
           price: prices.nativePrice,
           timestamp: baseEventParams.timestamp,
         });
-        break;
-      }
-
-      case "erc721-transfer": {
-        const parsedLog = eventData.abi.parseLog(log);
-        const from = parsedLog.args["from"].toLowerCase();
-        const to = parsedLog.args["to"].toLowerCase();
-        const tokenId = parsedLog.args["tokenId"].toString();
-        const tokenContract = log.address;
-
-        nftTransferEvents.push({
-          kind: "erc721",
-          from,
-          to,
-          tokenId,
-          tokenContract,
-          amount: "1",
-          baseEventParams,
-        });
-
-        break;
-      }
-
-      case "erc1155-transfer-single": {
-        const parsedLog = eventData.abi.parseLog(log);
-        const from = parsedLog.args["from"].toLowerCase();
-        const to = parsedLog.args["to"].toLowerCase();
-        const tokenId = parsedLog.args["tokenId"].toString();
-        const amount = parsedLog.args["amount"].toString();
-        const tokenContract = log.address;
-
-        nftTransferEvents.push({
-          kind: "erc1155",
-          tokenContract,
-          from,
-          to,
-          tokenId,
-          amount,
-          baseEventParams,
-        });
-
         break;
       }
     }
