@@ -69,9 +69,12 @@ export const getOrdersAsksV3Options: RouteOptions = {
         .description(
           "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
-      source: Joi.string()
-        .pattern(regex.domain)
-        .description("Filter to a source by domain. Example: `opensea.io`"),
+      source: Joi.alternatives()
+        .try(
+          Joi.array().max(50).items(Joi.string().lowercase().pattern(regex.domain)),
+          Joi.string().lowercase().pattern(regex.domain)
+        )
+        .description("Filter to an array of sources. Example: `opensea.io`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includePrivate: Joi.boolean()
         .default(false)
@@ -398,15 +401,30 @@ export const getOrdersAsksV3Options: RouteOptions = {
       }
 
       if (query.source) {
-        const sources = await Sources.getInstance();
-        const source = sources.getByDomain(query.source);
+        const sourcesIds = [];
 
-        if (!source) {
+        const sources = await Sources.getInstance();
+
+        if (!_.isArray(query.source)) {
+          const source = sources.getByDomain(query.source);
+          if (source?.id) {
+            sourcesIds.push(source.id);
+          }
+        } else {
+          for (const s of query.source) {
+            const source = sources.getByDomain(s);
+            if (source?.id) {
+              sourcesIds.push(source.id);
+            }
+          }
+        }
+
+        if (_.isEmpty(sourcesIds)) {
           return { orders: [] };
         }
 
-        (query as any).source = source.id;
-        conditions.push(`orders.source_id_int = $/source/`);
+        (query as any).source = sourcesIds;
+        conditions.push(`orders.source_id_int IN ($/source:csv/)`);
       }
 
       if (query.native) {
@@ -448,7 +466,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
 
       // Sorting
       if (query.sortBy === "price") {
-        baseQuery += ` ORDER BY orders.price, orders.id`;
+        baseQuery += ` ORDER BY orders.value, orders.id`;
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }

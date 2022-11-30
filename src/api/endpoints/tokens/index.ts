@@ -13,6 +13,7 @@ export * from "@/api/endpoints/tokens/get-user-tokens/v2";
 export * from "@/api/endpoints/tokens/get-user-tokens/v3";
 export * from "@/api/endpoints/tokens/get-user-tokens/v4";
 export * from "@/api/endpoints/tokens/get-user-tokens/v5";
+export * from "@/api/endpoints/tokens/get-user-tokens/v6";
 export * from "@/api/endpoints/tokens/post-simulate-floor/v1";
 export * from "@/api/endpoints/tokens/post-simulate-top-bid/v1";
 export * from "@/api/endpoints/tokens/post-token-sets/v1";
