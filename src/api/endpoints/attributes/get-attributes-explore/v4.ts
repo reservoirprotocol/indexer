@@ -36,6 +36,12 @@ export const getAttributesExploreV4Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
+      excludeRangeTraits: Joi.boolean()
+        .default(false)
+        .description("If true, range traits will be excluded from the response."),
+      excludeNumberTraits: Joi.boolean()
+        .default(false)
+        .description("If true, number traits will be excluded from the response."),
       attributeKey: Joi.string().description(
         "Filter to a particular attribute key. Example: `Composition`"
       ),
@@ -111,12 +117,20 @@ export const getAttributesExploreV4Options: RouteOptions = {
     const params = request.params as any;
     const conditions: string[] = [];
     const selectQuery =
-      "SELECT attributes.id, floor_sell_value, token_count, on_sale_count, key, value, sample_images, recent_floor_values_info.*";
+      "SELECT attributes.id, kind, floor_sell_value, token_count, on_sale_count, key, value, sample_images, recent_floor_values_info.*";
 
     conditions.push(`attributes.collection_id = $/collection/`);
 
     if (query.attributeKey) {
       conditions.push(`attributes.key = $/attributeKey/`);
+    }
+
+    if (query.excludeRangeTraits) {
+      conditions.push("attributes.kind != 'range'");
+    }
+
+    if (query.excludeNumberTraits) {
+      conditions.push("attributes.kind != 'number'");
     }
 
     // If the client asks for multiple floor prices

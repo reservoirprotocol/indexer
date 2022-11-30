@@ -646,15 +646,6 @@ export const save = async (
       const collection = await getCollection(orderParams);
 
       if (!collection) {
-        if (orderParams.kind === "contract-wide") {
-          logger.warn(
-            "orders-seaport-save-partial",
-            `Unknown Collection. orderId=${id}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}`
-          );
-
-          await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
-        }
-
         return results.push({
           id,
           status: "unknown-collection",
@@ -1455,9 +1446,8 @@ const getCollection = async (
       }
     );
   } else {
-    if (getNetworkSettings().multiCollectionContracts.includes(orderParams.contract)) {
-      return redb.oneOrNone(
-        `
+    const collection = await redb.oneOrNone(
+      `
           SELECT
             collections.id,
             collections.new_royalties,
@@ -1466,26 +1456,23 @@ const getCollection = async (
           WHERE collections.contract = $/contract/
             AND collections.slug = $/collectionSlug/
         `,
-        {
-          contract: toBuffer(orderParams.contract),
-          collectionSlug: orderParams.collectionSlug,
-        }
+      {
+        contract: toBuffer(orderParams.contract),
+        collectionSlug: orderParams.collectionSlug,
+      }
+    );
+
+    if (!collection) {
+      logger.warn(
+        "orders-seaport-save-partial",
+        `Unknown Collection. orderId=${orderParams.hash}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}`
       );
-    } else {
-      return redb.oneOrNone(
-        `
-          SELECT
-            collections.id,
-            collections.new_royalties,
-            collections.token_set_id
-          FROM collections
-          WHERE collections.id = $/id/
-        `,
-        {
-          id: orderParams.contract,
-        }
-      );
+
+      // Try to refresh the contract collections.
+      await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
     }
+
+    return collection;
   }
 };
 
