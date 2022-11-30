@@ -167,25 +167,6 @@ export const addPendingOrdersBlur = async (
   }
 };
 
-export const addPendingOrdersManifold = async (
-  data: { order: Sdk.Manifold.Order; schemaHash?: string; source?: string }[]
-) => {
-  if (config.arweaveRelayerKey && data.length) {
-    await redis.rpush(
-      PENDING_DATA_KEY,
-      ...data.map(({ order, schemaHash }) =>
-        JSON.stringify({
-          kind: "manifold",
-          data: {
-            ...order.params,
-            schemaHash,
-          },
-        })
-      )
-    );
-  }
-};
-
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.arweaveRelayerKey) {
   // Optimize as much as possible AR usage efficiency

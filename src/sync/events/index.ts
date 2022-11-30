@@ -274,14 +274,7 @@ export const syncEvents = async (
       },
       {
         kind: "manifold",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("manifold") ||
-            // To properly handle Wyvern sales, we need some additional events
-            kind === "erc721-transfer" ||
-            kind === "erc1155-transfer-single" ||
-            kind === "erc20-transfer"
-        ),
+        events: enhancedEvents.filter(({ kind }) => kind.startsWith("manifold")),
         backfill,
       },
     ]);
