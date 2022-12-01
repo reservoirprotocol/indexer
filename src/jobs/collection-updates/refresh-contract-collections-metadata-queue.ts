@@ -46,6 +46,11 @@ if (config.doBackgroundWork) {
           }
         );
 
+        logger.info(
+          QUEUE_NAME,
+          `Collections Refresh. contract=${contract}, contractCollections=${contractCollections.length}`
+        );
+
         if (contractCollections.length) {
           const infos: CollectionMetadataInfo[] = [];
 
