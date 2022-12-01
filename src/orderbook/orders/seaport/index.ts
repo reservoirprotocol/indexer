@@ -101,15 +101,16 @@ export const save = async (
       // Check: order doesn't already exist or partial order
       const orderExists = await idb.oneOrNone(
         `
-        WITH x AS (
-          UPDATE orders
-          SET
-            raw_data = $/rawData/,
-            updated_at = now()
-          WHERE orders.id = $/id/
-          AND raw_data IS NULL
-        )
-        SELECT 1 FROM orders WHERE orders.id = $/id/`,
+          WITH x AS (
+            UPDATE orders
+            SET
+              raw_data = $/rawData/,
+              updated_at = now()
+            WHERE orders.id = $/id/
+              AND raw_data IS NULL
+          )
+          SELECT 1 FROM orders WHERE orders.id = $/id/
+        `,
         {
           id,
           rawData: order.params,
