@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { BigNumber } from "@ethersproject/bignumber";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -13,8 +14,8 @@ import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
-import { OrderKind } from "@/orderbook/orders";
-import { generateListingDetailsV6 } from "@/orderbook/orders";
+import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
+import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { getCurrency } from "@/utils/currencies";
 
 const version = "v6";
@@ -414,53 +415,37 @@ export const getExecuteBuyV6Options: RouteOptions = {
               }
             );
           } else {
-            // Fetch matching orders until the quantity to fill is met
+            // Fetch all matching orders (limit to 1000 results just for safety)
             const bestOrdersResult = await redb.manyOrNone(
               `
                 SELECT
-                  x.id,
-                  x.kind,
-                  x.token_kind,
-                  coalesce(x.currency_price, x.price) AS price,
-                  x.quantity_remaining,
-                  x.source_id_int,
-                  x.currency,
-                  x.missing_royalties,
-                  x.raw_data
-                FROM (
-                  SELECT
-                    orders.*,
-                    contracts.kind AS token_kind,
-                    SUM(orders.quantity_remaining) OVER (
-                      ORDER BY
-                        price,
-                        ${
-                          preferredOrderSource
-                            ? `(
-                                CASE
-                                  WHEN orders.source_id_int = $/sourceId/ THEN 0
-                                  ELSE 1
-                                END
-                              )`
-                            : "orders.fee_bps"
-                        },
-                        id
-                    ) - orders.quantity_remaining AS quantity
-                  FROM orders
-                  JOIN contracts
-                    ON orders.contract = contracts.address
-                  WHERE orders.token_set_id = $/tokenSetId/
-                    AND orders.side = 'sell'
-                    AND orders.fillability_status = 'fillable'
-                    AND orders.approval_status = 'approved'
-                    AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                    ${
-                      // TODO: Add support for buying any listing via any ERC20 token
-                      payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
-                        ? "AND orders.currency = $/currency/"
-                        : ""
-                    }
-                ) x WHERE x.quantity < $/quantity/
+                  orders.id,
+                  orders.kind,
+                  orders.token_kind,
+                  coalesce(orders.currency_price, orders.price) AS price,
+                  orders.quantity_remaining,
+                  orders.source_id_int,
+                  orders.currency,
+                  orders.missing_royalties,
+                  orders.maker,
+                  orders.raw_data,
+                  contracts.kind AS token_kind,
+                  orders.quantity_remaining AS quantity
+                FROM orders
+                JOIN contracts
+                  ON orders.contract = contracts.address
+                WHERE orders.token_set_id = $/tokenSetId/
+                  AND orders.side = 'sell'
+                  AND orders.fillability_status = 'fillable'
+                  AND orders.approval_status = 'approved'
+                  AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                  ${
+                    // TODO: Add support for buying any listing via any ERC20 token
+                    payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+                      ? "AND orders.currency = $/currency/"
+                      : ""
+                  }
+                LIMIT 1000
               `,
               {
                 tokenSetId: `token:${token}`,
@@ -483,6 +468,11 @@ export const getExecuteBuyV6Options: RouteOptions = {
               );
             }
 
+            // Keep track of the balances of each maker as orders are being added to the path.
+            // This is needed for covering cases where a maker has multiple orders but filling
+            // one of them changes the quantity fillable of the other ones.
+            const makerBalances: { [maker: string]: BigNumber } = {};
+
             let totalQuantityToFill = Number(payload.quantity);
             for (const {
               id,
@@ -493,10 +483,36 @@ export const getExecuteBuyV6Options: RouteOptions = {
               source_id_int,
               currency,
               missing_royalties,
+              maker,
               raw_data,
             } of bestOrdersResult) {
-              const quantityFilled = Math.min(Number(quantity_remaining), totalQuantityToFill);
+              // As long as the total quantity to fill is not met
+              if (totalQuantityToFill <= 0) {
+                break;
+              }
+
+              const convertedMaker = fromBuffer(maker);
+              if (!makerBalances[convertedMaker]) {
+                makerBalances[convertedMaker] = await commonHelpers.getNftBalance(
+                  contract,
+                  tokenId,
+                  convertedMaker
+                );
+              }
+
+              // Minimum between:
+              // - the order's fillable quantity
+              // - the maker's fillable quantity
+              // - the quantity remaining to fill
+              const quantityFilled = Math.min(
+                Number(quantity_remaining),
+                makerBalances[convertedMaker].toNumber(),
+                totalQuantityToFill
+              );
               totalQuantityToFill -= quantityFilled;
+
+              // Reduce the maker's fillable quantity
+              makerBalances[convertedMaker] = makerBalances[convertedMaker].sub(quantityFilled);
 
               await addToPath(
                 {

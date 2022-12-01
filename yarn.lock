@@ -1938,10 +1938,10 @@
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
   integrity sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==
 
-"@reservoir0x/sdk@0.0.252":
-  version "0.0.252"
-  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.252.tgz#3f7f440feddebb50aba3a29017d340ab4de797ea"
-  integrity sha512-XXalyupwNokBRl64x5X8S8hyzhXeXby31b23W3TJ0WIIkJmaF8HCido4rKEfrwIYwPIWYQMdl70DT3WjGaYcfA==
+"@reservoir0x/sdk@0.0.254":
+  version "0.0.254"
+  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.254.tgz#acad95ec75b39714883dec5feca3bace18aa704f"
+  integrity sha512-txgYGuur1Z8n+BXpQJ14V0fNVswQWziSxxNrtkPzB7NfTzVQ85sEMhSmdYpX3qQAIBZJqpODI1BAVLaf8igmUQ==
   dependencies:
     "@uniswap/smart-order-router" "^3.0.4"
     ethers "^5.7.2"
