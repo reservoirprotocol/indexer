@@ -62,6 +62,25 @@ if (config.doBackgroundWork) {
   });
 }
 
+export type CollectionMetadataInfo = {
+  contract: string;
+  tokenId: string;
+  community: string;
+};
+
+export const addToQueueBulk = async (
+  collectionMetadataInfos: CollectionMetadataInfo[],
+  delay = 0
+) => {
+  await queue.addBulk(
+    collectionMetadataInfos.map((collectionMetadataInfo) => ({
+      name: `${collectionMetadataInfo.contract}-${collectionMetadataInfo.tokenId}-${collectionMetadataInfo.community}`,
+      data: collectionMetadataInfo,
+      opts: { delay },
+    }))
+  );
+};
+
 export const addToQueue = async (
   contract: string | { contract: string; community: string }[],
   tokenId = "1",

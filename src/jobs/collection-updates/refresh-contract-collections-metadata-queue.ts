@@ -10,6 +10,7 @@ import { toBuffer } from "@/common/utils";
 import { Tokens } from "@/models/tokens";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
+import { CollectionMetadataInfo } from "@/jobs/collection-updates/metadata-queue";
 
 const QUEUE_NAME = "refresh-contract-collections-metadata-queue";
 
@@ -51,6 +52,8 @@ if (config.doBackgroundWork) {
         );
 
         if (contractCollections.length) {
+          const infos: CollectionMetadataInfo[] = [];
+
           for (const contractCollection of contractCollections) {
             let tokenId = "1";
 
@@ -60,19 +63,27 @@ if (config.doBackgroundWork) {
               tokenId = `${JSON.parse(contractCollection.token_id_range)[0]}`;
             }
 
-            await collectionUpdatesMetadata.addToQueue(
+            infos.push({
               contract,
               tokenId,
-              contractCollection.community,
-              0,
-              true
-            );
+              community: contractCollection.community,
+            });
+
+            // await collectionUpdatesMetadata.addToQueue(
+            //   contract,
+            //   tokenId,
+            //   contractCollection.community,
+            //   0,
+            //   true
+            // );
 
             logger.info(
               QUEUE_NAME,
               `Collection Refresh. contract=${contract}, collectionId=${contractCollection.id}, tokenId=${tokenId}`
             );
           }
+
+          await collectionUpdatesMetadata.addToQueueBulk(infos);
         } else {
           const contractToken = await redb.oneOrNone(
             `
