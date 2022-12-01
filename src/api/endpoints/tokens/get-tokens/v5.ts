@@ -216,6 +216,7 @@ export const getTokensV5Options: RouteOptions = {
             o.price AS top_buy_price,
             o.value AS top_buy_value,
             o.source_id_int AS top_buy_source_id_int,
+            o.missing_royalties AS top_buy_missing_royalties,
             DATE_PART('epoch', LOWER(o.valid_between)) AS top_buy_valid_from,
             COALESCE(
               NULLIF(DATE_PART('epoch', UPPER(o.valid_between)), 'Infinity'),
@@ -657,6 +658,32 @@ export const getTokensV5Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
+        const feeBreakdown = r.top_buy_fee_breakdown;
+
+        if (query.normalizeRoyalties && r.top_buy_missing_royalties) {
+          for (let i = 0; i < r.top_buy_missing_royalties.length; i++) {
+            if (!Object.keys(r.top_buy_missing_royalties[i]).includes("bps")) {
+              return;
+            }
+
+            const index: number = r.top_buy_fee_breakdown.findIndex(
+              (fee: { recipient: string }) =>
+                fee.recipient === r.top_buy_missing_royalties[i].recipient
+            );
+
+            if (index > -1) {
+              feeBreakdown[index].bps += Number(r.top_buy_missing_royalties[i].bps);
+            } else {
+              const missingRoyalty = {
+                bps: Number(r.top_buy_missing_royalties[i].bps),
+                kind: "royalty",
+                recipient: r.top_buy_missing_royalties[i].recipient,
+              };
+              feeBreakdown.push(missingRoyalty);
+            }
+          }
+        }
+
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
 
@@ -787,7 +814,7 @@ export const getTokensV5Options: RouteOptions = {
                     icon: topBuySource?.getIcon(),
                     url: topBuySource?.metadata.url,
                   },
-                  feeBreakdown: r.top_buy_fee_breakdown,
+                  feeBreakdown: feeBreakdown,
                 }
               : undefined,
           },

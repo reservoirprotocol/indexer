@@ -50,6 +50,7 @@ import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-q
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 import * as collectionRecalcFloorAsk from "@/jobs/collection-updates/recalc-floor-queue";
+import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 
 import * as currencies from "@/jobs/currencies/index";
 
@@ -130,6 +131,7 @@ export const allJobQueues = [
   rarity.queue,
   collectionUpdatesTopBid.queue,
   collectionRecalcFloorAsk.queue,
+  refreshContractCollectionsMetadata.queue,
 
   dailyVolumes.queue,
 

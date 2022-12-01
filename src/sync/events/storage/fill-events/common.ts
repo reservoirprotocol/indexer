@@ -4,6 +4,7 @@ import { DbEvent, Event } from "@/events-sync/storage/fill-events";
 
 export const addEvents = async (events: Event[]) => {
   const fillValues: DbEvent[] = [];
+
   for (const event of events) {
     fillValues.push({
       address: toBuffer(event.baseEventParams.address),
