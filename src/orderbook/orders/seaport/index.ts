@@ -7,7 +7,7 @@ import pLimit from "p-limit";
 import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { redis } from "@/common/redis";
+import { acquireLock, redis } from "@/common/redis";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
@@ -1464,13 +1464,20 @@ const getCollection = async (
     );
 
     if (!collection) {
-      logger.warn(
-        "orders-seaport-save-partial",
-        `Unknown Collection. orderId=${orderParams.hash}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}`
+      const lockAcquired = await acquireLock(
+        `unknown-slug-refresh-contract-collections-metadata-lock:${orderParams.contract}:${orderParams.collectionSlug}`,
+        60 * 60
       );
 
-      // Try to refresh the contract collections.
-      await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
+      logger.info(
+        "orders-seaport-save-partial",
+        `Unknown Collection. orderId=${orderParams.hash}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, lockAcquired=${lockAcquired}`
+      );
+
+      if (lockAcquired) {
+        // Try to refresh the contract collections metadata.
+        await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
+      }
     }
 
     return collection;
