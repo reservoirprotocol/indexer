@@ -34,7 +34,6 @@ import * as arweaveSyncBackfill from "@/jobs/arweave-sync/backfill-queue";
 import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
 import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
-import * as backfillRefreshSudoswapOrders from "@/jobs/backfill/backfill-refresh-sudoswap-orders";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -112,7 +111,6 @@ export const allJobQueues = [
   arweaveSyncRealtime.queue,
 
   backfillCollectionsRoyalties.queue,
-  backfillRefreshSudoswapOrders.queue,
 
   currencies.queue,
 
