@@ -27,7 +27,10 @@ if (config.doBackgroundWork) {
       const { contract, tokenId, community } = job.data;
 
       if (await acquireLock(QUEUE_NAME, 1)) {
-        logger.info(QUEUE_NAME, `Refresh collection metadata=${contract}`);
+        logger.info(
+          QUEUE_NAME,
+          `Refresh collection metadata. contract=${contract}, tokenId=${tokenId}, community=${community}`
+        );
 
         // Lock this contract for the next 5 minutes
         await acquireLock(`${QUEUE_NAME}:${contract}`, 5 * 60);
@@ -35,7 +38,10 @@ if (config.doBackgroundWork) {
         try {
           await Collections.updateCollectionCache(contract, tokenId, community);
         } catch (error) {
-          logger.error(QUEUE_NAME, `Failed to update collection metadata=${error}`);
+          logger.error(
+            QUEUE_NAME,
+            `Failed to update collection metadata. contract=${contract}, tokenId=${tokenId}, community=${community}, error=${error}`
+          );
         }
       } else {
         job.data.addToQueue = true;
