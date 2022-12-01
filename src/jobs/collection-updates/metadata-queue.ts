@@ -26,10 +26,15 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { contract, tokenId, community } = job.data;
 
+      logger.info(
+        QUEUE_NAME,
+        `Refresh collection metadata start. contract=${contract}, tokenId=${tokenId}, community=${community}`
+      );
+
       if (await acquireLock(QUEUE_NAME, 1)) {
         logger.info(
           QUEUE_NAME,
-          `Refresh collection metadata. contract=${contract}, tokenId=${tokenId}, community=${community}`
+          `Refresh collection metadata - got lock. contract=${contract}, tokenId=${tokenId}, community=${community}`
         );
 
         // Lock this contract for the next 5 minutes
@@ -44,6 +49,11 @@ if (config.doBackgroundWork) {
           );
         }
       } else {
+        logger.info(
+          QUEUE_NAME,
+          `Refresh collection metadata - delayed. contract=${contract}, tokenId=${tokenId}, community=${community}`
+        );
+
         job.data.addToQueue = true;
       }
     },
@@ -98,6 +108,10 @@ export const addToQueue = async (
     );
   } else {
     if (forceRefresh || _.isNull(await redis.get(`${QUEUE_NAME}:${contract}`))) {
+      logger.info(
+        QUEUE_NAME,
+        `Refresh collection metadata - add to queue. contract=${contract}, tokenId=${tokenId}, community=${community}`
+      );
       await queue.add(randomUUID(), { contract, tokenId, community }, { delay });
     }
   }
