@@ -77,7 +77,12 @@ export class Collections {
 
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
-    logger.info("debug", `Collection result: ${JSON.stringify(collection)}`);
+    logger.info(
+      "debug",
+      `getCollectionMetadata. contract=${contract}, tokenId=${tokenId}, community=${community}, collection=${JSON.stringify(
+        collection
+      )}`
+    );
     const tokenCount = await Tokens.countTokensInCollection(collection.id);
 
     const query = `UPDATE collections

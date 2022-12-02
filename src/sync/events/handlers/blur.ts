@@ -120,7 +120,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       case "blur-nonce-incremented": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args.trader.toLowerCase();
-        const nonce = args.newNonce.toLowerCase();
+        const nonce = args.newNonce.toString();
 
         bulkCancelEvents.push({
           orderKind: "blur",

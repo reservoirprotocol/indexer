@@ -7,20 +7,22 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiPrice, getJoiPriceObject } from "@/common/joi";
+import { JoiPrice, getJoiPriceObject, JoiOrderCriteria } from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { utils } from "ethers";
+import { Orders } from "@/utils/orders";
 import { Attributes } from "@/models/attributes";
 
-const version = "v4";
+const version = "v5";
 
-export const getOrdersBidsV4Options: RouteOptions = {
+export const getOrdersBidsV5Options: RouteOptions = {
   description: "Bids (offers)",
   notes:
     "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -88,9 +90,9 @@ export const getOrdersBidsV4Options: RouteOptions = {
         .pattern(regex.domain)
         .description("Filter to a source by domain. Example: `opensea.io`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
-      includeMetadata: Joi.boolean()
+      includeCriteriaMetadata: Joi.boolean()
         .default(false)
-        .description("If true, metadata is included in the response."),
+        .description("If true, criteria metadata is included in the response."),
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
@@ -140,38 +142,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
           validUntil: Joi.number().required(),
           quantityFilled: Joi.number().unsafe(),
           quantityRemaining: Joi.number().unsafe(),
-          metadata: Joi.alternatives(
-            Joi.object({
-              kind: "token",
-              data: Joi.object({
-                collectionId: Joi.string().allow("", null),
-                collectionName: Joi.string().allow("", null),
-                tokenName: Joi.string().allow("", null),
-                image: Joi.string().allow("", null),
-              }),
-            }),
-            Joi.object({
-              kind: "collection",
-              data: Joi.object({
-                collectionId: Joi.string().allow("", null),
-                collectionName: Joi.string().allow("", null),
-                image: Joi.string().allow("", null),
-              }),
-            }),
-            Joi.object({
-              kind: "attribute",
-              data: Joi.object({
-                collectionId: Joi.string().allow("", null),
-                collectionName: Joi.string().allow("", null),
-                attributes: Joi.array().items(
-                  Joi.object({ key: Joi.string(), value: Joi.string() })
-                ),
-                image: Joi.string().allow("", null),
-              }),
-            })
-          )
-            .allow(null)
-            .optional(),
+          criteria: JoiOrderCriteria.allow(null),
           source: Joi.object().allow(null),
           feeBps: Joi.number().allow(null),
           feeBreakdown: Joi.array()
@@ -201,91 +172,11 @@ export const getOrdersBidsV4Options: RouteOptions = {
     const query = request.query as any;
 
     try {
-      const metadataBuildQuery = `
-        (
-          CASE
-            WHEN orders.token_set_id LIKE 'token:%' THEN
-              (SELECT
-                json_build_object(
-                  'kind', 'token',
-                  'data', json_build_object(
-                    'collectionId', collections.id,
-                    'collectionName', collections.name,
-                    'tokenName', tokens.name,
-                    'image', tokens.image
-                  )
-                )
-              FROM tokens
-              JOIN collections
-                ON tokens.collection_id = collections.id
-              WHERE tokens.contract = decode(substring(split_part(orders.token_set_id, ':', 2) from 3), 'hex')
-                AND tokens.token_id = (split_part(orders.token_set_id, ':', 3)::NUMERIC(78, 0)))
-
-            WHEN orders.token_set_id LIKE 'contract:%' THEN
-              (SELECT
-                json_build_object(
-                  'kind', 'collection',
-                  'data', json_build_object(
-                    'collectionId', collections.id,
-                    'collectionName', collections.name,
-                    'image', (collections.metadata ->> 'imageUrl')::TEXT
-                  )
-                )
-              FROM collections
-              WHERE collections.id = substring(orders.token_set_id from 10))
-
-            WHEN orders.token_set_id LIKE 'range:%' THEN
-              (SELECT
-                json_build_object(
-                  'kind', 'collection',
-                  'data', json_build_object(
-                    'collectionId', collections.id,
-                    'collectionName', collections.name,
-                    'image', (collections.metadata ->> 'imageUrl')::TEXT
-                  )
-                )
-              FROM collections
-              WHERE collections.id = substring(orders.token_set_id from 7))
-
-            WHEN orders.token_set_id LIKE 'list:%' THEN
-              (SELECT
-                CASE
-                  WHEN token_sets.attribute_id IS NULL THEN
-                    (SELECT
-                      json_build_object(
-                        'kind', 'collection',
-                        'data', json_build_object(
-                          'collectionId', collections.id,
-                          'collectionName', collections.name,
-                          'image', (collections.metadata ->> 'imageUrl')::TEXT
-                        )
-                      )
-                    FROM collections
-                    WHERE token_sets.collection_id = collections.id)
-                  ELSE
-                    (SELECT
-                      json_build_object(
-                        'kind', 'attribute',
-                        'data', json_build_object(
-                          'collectionId', collections.id,
-                          'collectionName', collections.name,
-                          'attributes', ARRAY[json_build_object('key', attribute_keys.key, 'value', attributes.value)],
-                          'image', (collections.metadata ->> 'imageUrl')::TEXT
-                        )
-                      )
-                    FROM attributes
-                    JOIN attribute_keys
-                    ON attributes.attribute_key_id = attribute_keys.id
-                    JOIN collections
-                    ON attribute_keys.collection_id = collections.id
-                    WHERE token_sets.attribute_id = attributes.id)
-                END  
-              FROM token_sets
-              WHERE token_sets.id = orders.token_set_id AND token_sets.schema_hash = orders.token_set_schema_hash)
-            ELSE NULL
-          END
-        ) AS metadata
-      `;
+      const criteriaBuildQuery = Orders.buildCriteriaQuery(
+        "orders",
+        "token_set_id",
+        query.includeCriteriaMetadata
+      );
 
       let baseQuery = `
         SELECT
@@ -331,9 +222,9 @@ export const getOrdersBidsV4Options: RouteOptions = {
           ) AS expiration,
           orders.is_reservoir,
           extract(epoch from orders.created_at) AS created_at,
-          orders.updated_at
+          orders.updated_at,
+          (${criteriaBuildQuery}) AS criteria
           ${query.includeRawData ? ", orders.raw_data" : ""}
-          ${query.includeMetadata ? `, ${metadataBuildQuery}` : ""}
         FROM orders
       `;
 
@@ -523,27 +414,27 @@ export const getOrdersBidsV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
         const feeBreakdown = r.fee_breakdown;
-        let feeBps = r.fee_bps;
+        let feeBps = utils.parseUnits(r.fee_bps.toString(), "wei");
 
         if (query.normalizeRoyalties && r.missing_royalties) {
           for (let i = 0; i < r.missing_royalties.length; i++) {
-            if (!Object.keys(r.missing_royalties[i]).includes("bps")) {
-              break;
-            }
+            const amount = utils.parseUnits(r.missing_royalties[i].amount, "wei");
+            const totalValue = utils.parseUnits(r.normalized_value.toString(), "wei").sub(amount);
+            const bps = amount.mul(10000).div(totalValue);
             const index: number = r.fee_breakdown.findIndex(
               (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
             );
 
             if (index > -1) {
-              feeBreakdown[index].bps += Number(r.missing_royalties[i].bps);
+              feeBreakdown[index].bps += Number(bps.toString());
             } else {
-              const missingRoyalty = {
-                bps: Number(r.missing_royalties[i].bps),
+              const tempObj = {
+                bps: Number(bps.toString()),
                 kind: "royalty",
                 recipient: r.missing_royalties[i].recipient,
               };
-              feeBreakdown.push(missingRoyalty);
-              feeBps += Number(r.missing_royalties[i].bps);
+              feeBreakdown.push(tempObj);
+              feeBps = feeBps.add(bps);
             }
           }
         }
@@ -592,7 +483,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
           validUntil: Number(r.valid_until),
           quantityFilled: Number(r.quantity_filled),
           quantityRemaining: Number(r.quantity_remaining),
-          metadata: query.includeMetadata ? r.metadata : undefined,
+          criteria: r.criteria,
           source: {
             id: source?.address,
             name: source?.getTitle(),
@@ -600,7 +491,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             url: source?.metadata.url,
             domain: source?.domain,
           },
-          feeBps: feeBps,
+          feeBps: Number(feeBps.toString()),
           feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,

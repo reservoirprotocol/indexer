@@ -91,6 +91,7 @@ export const getExecuteSellV6Options: RouteOptions = {
     schema: Joi.object({
       steps: Joi.array().items(
         Joi.object({
+          id: Joi.string().required(),
           action: Joi.string().required(),
           description: Joi.string().required(),
           kind: Joi.string().valid("transaction").required(),
@@ -297,6 +298,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       // Set up generic filling steps
       const steps: {
+        id: string;
         action: string;
         description: string;
         kind: string;
@@ -306,6 +308,7 @@ export const getExecuteSellV6Options: RouteOptions = {
         }[];
       }[] = [
         {
+          id: "nft-approval",
           action: "Approve NFT contract",
           description:
             "Each NFT collection you want to trade requires a one-time approval transaction",
@@ -313,6 +316,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           items: [],
         },
         {
+          id: "sale",
           action: "Accept offer",
           description: "To sell this item you must confirm the transaction and pay the gas fee",
           kind: "transaction",

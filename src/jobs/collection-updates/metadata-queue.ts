@@ -26,8 +26,16 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { contract, tokenId, community } = job.data;
 
+      logger.info(
+        QUEUE_NAME,
+        `Refresh collection metadata start. contract=${contract}, tokenId=${tokenId}, community=${community}`
+      );
+
       if (await acquireLock(QUEUE_NAME, 1)) {
-        logger.info(QUEUE_NAME, `Refresh collection metadata=${contract}`);
+        logger.info(
+          QUEUE_NAME,
+          `Refresh collection metadata - got lock. contract=${contract}, tokenId=${tokenId}, community=${community}`
+        );
 
         // Lock this contract for the next 5 minutes
         await acquireLock(`${QUEUE_NAME}:${contract}`, 5 * 60);
@@ -35,9 +43,17 @@ if (config.doBackgroundWork) {
         try {
           await Collections.updateCollectionCache(contract, tokenId, community);
         } catch (error) {
-          logger.error(QUEUE_NAME, `Failed to update collection metadata=${error}`);
+          logger.error(
+            QUEUE_NAME,
+            `Failed to update collection metadata. contract=${contract}, tokenId=${tokenId}, community=${community}, error=${error}`
+          );
         }
       } else {
+        logger.info(
+          QUEUE_NAME,
+          `Refresh collection metadata - delayed. contract=${contract}, tokenId=${tokenId}, community=${community}`
+        );
+
         job.data.addToQueue = true;
       }
     },
@@ -56,6 +72,25 @@ if (config.doBackgroundWork) {
   });
 }
 
+export type CollectionMetadataInfo = {
+  contract: string;
+  tokenId: string;
+  community: string;
+};
+
+export const addToQueueBulk = async (
+  collectionMetadataInfos: CollectionMetadataInfo[],
+  delay = 0
+) => {
+  await queue.addBulk(
+    collectionMetadataInfos.map((collectionMetadataInfo) => ({
+      name: `${collectionMetadataInfo.contract}-${collectionMetadataInfo.tokenId}-${collectionMetadataInfo.community}`,
+      data: collectionMetadataInfo,
+      opts: { delay },
+    }))
+  );
+};
+
 export const addToQueue = async (
   contract: string | { contract: string; community: string }[],
   tokenId = "1",
@@ -73,6 +108,10 @@ export const addToQueue = async (
     );
   } else {
     if (forceRefresh || _.isNull(await redis.get(`${QUEUE_NAME}:${contract}`))) {
+      logger.info(
+        QUEUE_NAME,
+        `Refresh collection metadata - add to queue. contract=${contract}, tokenId=${tokenId}, community=${community}`
+      );
       await queue.add(randomUUID(), { contract, tokenId, community }, { delay });
     }
   }

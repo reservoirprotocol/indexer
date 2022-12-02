@@ -25,7 +25,7 @@ export const getBidEventsV1Options: RouteOptions = {
   },
   description: "Bid status changes",
   notes: "Get updates any time a bid status changes",
-  tags: ["api", "Events"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 4,

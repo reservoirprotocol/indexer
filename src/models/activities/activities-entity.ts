@@ -53,6 +53,7 @@ export type ActivitiesEntityParams = {
   order_source_id_int: number;
   order_kind: string;
   order_metadata: Record<string, unknown>;
+  order_criteria: Record<string, unknown>;
 };
 
 // Possible fields to be found in the metadata
@@ -65,6 +66,7 @@ export type ActivityMetadata = {
   orderSourceIdInt?: number;
   orderKind?: string;
   orderMetadata?: Record<string, unknown>;
+  orderCriteria?: Record<string, unknown>;
 };
 
 export type ActivityToken = {
@@ -85,6 +87,7 @@ export type ActivityOrder = {
   sourceIdInt: number | null;
   kind: string | null;
   metadata: Record<string, unknown> | null;
+  criteria: Record<string, unknown> | null;
 };
 
 export class ActivitiesEntity {
@@ -139,6 +142,7 @@ export class ActivitiesEntity {
       sourceIdInt: params.order_source_id_int,
       kind: params.order_kind,
       metadata: params.order_metadata,
+      criteria: params.order_criteria,
     };
   }
 }

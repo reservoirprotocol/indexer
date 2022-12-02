@@ -28,7 +28,9 @@ const main = async () => {
         fill_events_2.order_kind,
         fill_events_2.taker
       FROM fill_events_2
-      WHERE fill_events_2.taker = $/contract/
+      JOIN transactions
+        ON fill_events_2.tx_hash = transactions.hash
+      WHERE transactions.to = $/contract/
     `,
     { contract: toBuffer(contract) }
   );

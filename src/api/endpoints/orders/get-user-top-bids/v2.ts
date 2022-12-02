@@ -15,13 +15,15 @@ import {
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
 import _ from "lodash";
+import { JoiOrderCriteria } from "@/common/joi";
+import { Orders } from "@/utils/orders";
 
-const version = "v1";
+const version = "v2";
 
-export const getUserTopBidsV1Options: RouteOptions = {
+export const getUserTopBidsV2Options: RouteOptions = {
   description: "User Top Bids",
   notes: "Return the top bids for the given user tokens",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
       order: 7,
@@ -51,6 +53,9 @@ export const getUserTopBidsV1Options: RouteOptions = {
         .description(
           "If true, urls will only be returned for optimized sources that support royalties."
         ),
+      includeCriteriaMetadata: Joi.boolean()
+        .default(true)
+        .description("If true, criteria metadata is included in the response."),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -95,33 +100,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
               })
             )
             .allow(null),
-          context: Joi.alternatives(
-            Joi.object({
-              kind: "token",
-              data: Joi.object({
-                collectionName: Joi.string().allow("", null),
-                tokenName: Joi.string().allow("", null),
-                image: Joi.string().allow("", null),
-              }),
-            }),
-            Joi.object({
-              kind: "collection",
-              data: Joi.object({
-                collectionName: Joi.string().allow("", null),
-                image: Joi.string().allow("", null),
-              }),
-            }),
-            Joi.object({
-              kind: "attribute",
-              data: Joi.object({
-                collectionName: Joi.string().allow("", null),
-                attributes: Joi.array().items(
-                  Joi.object({ key: Joi.string(), value: Joi.string() })
-                ),
-                image: Joi.string().allow("", null),
-              }),
-            })
-          ).allow(null),
+          criteria: JoiOrderCriteria.allow(null),
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
@@ -191,75 +170,15 @@ export const getUserTopBidsV1Options: RouteOptions = {
     }
 
     try {
+      const criteriaBuildQuery = Orders.buildCriteriaQuery(
+        "y",
+        "token_set_id",
+        query.includeCriteriaMetadata
+      );
+
       const baseQuery = `
         SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids",
-               (
-                CASE
-                  WHEN y.token_set_id LIKE 'token:%' THEN
-                      json_build_object(
-                        'kind', 'token',
-                        'data', json_build_object(
-                          'collectionName', c.collection_name,
-                          'tokenName', t.name,
-                          'image', t.image
-                        )
-                      )
-      
-                  WHEN y.token_set_id LIKE 'contract:%' THEN
-                      json_build_object(
-                        'kind', 'collection',
-                        'data', json_build_object(
-                          'collectionName', c.collection_name,
-                          'image', (c.collection_metadata ->> 'imageUrl')::TEXT
-                        )
-                      )
-      
-                  WHEN y.token_set_id LIKE 'range:%' THEN
-                      json_build_object(
-                        'kind', 'collection',
-                        'data', json_build_object(
-                          'collectionName', c.collection_name,
-                          'image', (c.collection_metadata ->> 'imageUrl')::TEXT
-                        )
-                      )
-                     
-                  WHEN y.token_set_id LIKE 'list:%' THEN
-                    (SELECT
-                      CASE
-                        WHEN token_sets.attribute_id IS NULL THEN
-                          (SELECT
-                            json_build_object(
-                              'kind', 'collection',
-                              'data', json_build_object(
-                                'collectionName', collections.name,
-                                'image', (collections.metadata ->> 'imageUrl')::TEXT
-                              )
-                            )
-                          FROM collections
-                          WHERE token_sets.collection_id = collections.id)
-                        ELSE
-                          (SELECT
-                            json_build_object(
-                              'kind', 'attribute',
-                              'data', json_build_object(
-                                'collectionName', collections.name,
-                                'attributes', ARRAY[json_build_object('key', attribute_keys.key, 'value', attributes.value)],
-                                'image', (collections.metadata ->> 'imageUrl')::TEXT
-                              )
-                            )
-                          FROM attributes
-                          JOIN attribute_keys
-                            ON attributes.attribute_key_id = attribute_keys.id
-                          JOIN collections
-                            ON attribute_keys.collection_id = collections.id
-                          WHERE token_sets.attribute_id = attributes.id)
-                      END  
-                   FROM token_sets
-                   WHERE token_sets.id = y.token_set_id
-                   AND token_sets.schema_hash = y.token_set_schema_hash) 
-                  ELSE NULL
-                END
-              ) AS bid_context,
+               (${criteriaBuildQuery}) AS bid_criteria,
               COALESCE(((top_bid_value / net_listing) - 1) * 100, 0) AS floor_difference_percentage
         FROM nft_balances nb
         JOIN LATERAL (
@@ -336,7 +255,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
             url: source?.metadata.url,
           },
           feeBreakdown: r.fee_breakdown,
-          context: r.bid_context,
+          criteria: r.bid_criteria,
           token: {
             contract: contract,
             tokenId: tokenId,
