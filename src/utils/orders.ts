@@ -65,6 +65,13 @@ export class Orders {
             WHEN ${tableName}.${tokenSetIdColumnName} LIKE 'list:%' THEN
               (SELECT
                 CASE
+                  WHEN token_sets.collection_id IS NULL AND token_sets.attribute_id IS NULL THEN
+                    (SELECT
+                      json_build_object(
+                        'kind', 'custom'
+                      )
+                    FROM collections
+                    WHERE token_sets.collection_id = collections.id)
                   WHEN token_sets.attribute_id IS NULL THEN
                     (SELECT
                       json_build_object(
@@ -147,6 +154,13 @@ export class Orders {
             WHEN ${tableName}.${tokenSetIdColumnName} LIKE 'list:%' THEN
               (SELECT
                 CASE
+                  WHEN token_sets.collection_id IS NULL AND token_sets.attribute_id IS NULL THEN
+                    (SELECT
+                      json_build_object(
+                        'kind', 'custom'
+                      )
+                  FROM collections
+                  WHERE token_sets.collection_id = collections.id)
                   WHEN token_sets.attribute_id IS NULL THEN
                     (SELECT
                       json_build_object(
