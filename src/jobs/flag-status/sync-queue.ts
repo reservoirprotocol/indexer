@@ -80,13 +80,15 @@ if (config.doBackgroundWork) {
 
               const isFlagged = Number(tokenMetadata.flagged);
 
+              const currentUtcTime = new Date().toISOString();
+
               const fields: TokensEntityUpdateParams = {
                 isFlagged,
-                lastFlagUpdate: new Date().toISOString(),
+                lastFlagUpdate: currentUtcTime,
               };
 
               if (pendingSyncFlagStatusToken.isFlagged != isFlagged) {
-                fields.lastFlagChange = new Date().toISOString();
+                fields.lastFlagChange = currentUtcTime;
 
                 logger.info(
                   QUEUE_NAME,

@@ -76,6 +76,9 @@ export const getTokensV5Options: RouteOptions = {
       source: Joi.string().description(
         "Domain of the order source. Example `opensea.io` (Only listed tokens are returned when filtering by source)"
       ),
+      flagStatus: Joi.number()
+        .allow(-1, 0, 1)
+        .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),
       sortBy: Joi.string()
         .valid("floorAskPrice", "tokenId", "rarity")
         .default("floorAskPrice")
@@ -107,7 +110,8 @@ export const getTokensV5Options: RouteOptions = {
     })
       .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
-      .with("attributes", "collection"),
+      .with("attributes", "collection")
+      .with("flagStatus", "collection"),
   },
   response: {
     schema: Joi.object({
@@ -123,6 +127,7 @@ export const getTokensV5Options: RouteOptions = {
             kind: Joi.string().allow(null, ""),
             isFlagged: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow(null, ""),
+            lastFlagChange: Joi.string().allow(null, ""),
             rarity: Joi.number().unsafe().allow(null),
             rarityRank: Joi.number().unsafe().allow(null),
             collection: Joi.object({
@@ -216,6 +221,7 @@ export const getTokensV5Options: RouteOptions = {
             o.price AS top_buy_price,
             o.value AS top_buy_value,
             o.source_id_int AS top_buy_source_id_int,
+            o.missing_royalties AS top_buy_missing_royalties,
             DATE_PART('epoch', LOWER(o.valid_between)) AS top_buy_valid_from,
             COALESCE(
               NULLIF(DATE_PART('epoch', UPPER(o.valid_between)), 'Infinity'),
@@ -403,6 +409,7 @@ export const getTokensV5Options: RouteOptions = {
           t.rarity_rank,
           t.is_flagged,
           t.last_flag_update,
+          t.last_flag_change,
           c.slug,
           t.last_buy_value,
           t.last_buy_timestamp,
@@ -469,6 +476,10 @@ export const getTokensV5Options: RouteOptions = {
       const conditions: string[] = [];
       if (query.collection) {
         conditions.push(`t.collection_id = $/collection/`);
+      }
+
+      if (_.indexOf([0, 1], query.flagStatus) !== -1) {
+        conditions.push(`t.is_flagged = $/flagStatus/`);
       }
 
       if (query.community) {
@@ -657,6 +668,32 @@ export const getTokensV5Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
+        const feeBreakdown = r.top_buy_fee_breakdown;
+
+        if (query.normalizeRoyalties && r.top_buy_missing_royalties) {
+          for (let i = 0; i < r.top_buy_missing_royalties.length; i++) {
+            if (!Object.keys(r.top_buy_missing_royalties[i]).includes("bps")) {
+              return;
+            }
+
+            const index: number = r.top_buy_fee_breakdown.findIndex(
+              (fee: { recipient: string }) =>
+                fee.recipient === r.top_buy_missing_royalties[i].recipient
+            );
+
+            if (index > -1) {
+              feeBreakdown[index].bps += Number(r.top_buy_missing_royalties[i].bps);
+            } else {
+              const missingRoyalty = {
+                bps: Number(r.top_buy_missing_royalties[i].bps),
+                kind: "royalty",
+                recipient: r.top_buy_missing_royalties[i].recipient,
+              };
+              feeBreakdown.push(missingRoyalty);
+            }
+          }
+        }
+
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
 
@@ -688,6 +725,7 @@ export const getTokensV5Options: RouteOptions = {
             kind: r.kind,
             isFlagged: Boolean(Number(r.is_flagged)),
             lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
+            lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
             rarity: r.rarity_score,
             rarityRank: r.rarity_rank,
             collection: {
@@ -787,7 +825,7 @@ export const getTokensV5Options: RouteOptions = {
                     icon: topBuySource?.getIcon(),
                     url: topBuySource?.metadata.url,
                   },
-                  feeBreakdown: r.top_buy_fee_breakdown,
+                  feeBreakdown: feeBreakdown,
                 }
               : undefined,
           },
