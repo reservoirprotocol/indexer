@@ -221,7 +221,7 @@ export const getUserActivityV5Options: RouteOptions = {
                       icon: orderSource?.getIcon(),
                     }
                   : undefined,
-                metadata: activity.order.criteria || undefined,
+                criteria: activity.order.criteria || undefined,
               }
             : undefined,
         });
