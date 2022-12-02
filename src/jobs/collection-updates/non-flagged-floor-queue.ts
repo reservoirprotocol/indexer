@@ -208,7 +208,7 @@ if (config.doBackgroundWork) {
             QUEUE_NAME,
             `No Floor Ask. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, tokenResult=${JSON.stringify(
               tokenResult
-            )}, tokensMetadata=${JSON.stringify(tokensMetadata)}`
+            )}`
           );
 
           await idb.oneOrNone(
