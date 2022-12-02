@@ -69,19 +69,16 @@ if (config.doBackgroundWork) {
               community: contractCollection.community,
             });
 
-            // await collectionUpdatesMetadata.addToQueue(
-            //   contract,
-            //   tokenId,
-            //   contractCollection.community,
-            //   0,
-            //   true
-            // );
-
             logger.info(
               QUEUE_NAME,
               `Collection Refresh. contract=${contract}, collectionId=${contractCollection.id}, tokenId=${tokenId}`
             );
           }
+
+          logger.info(
+            QUEUE_NAME,
+            `Collections Refresh. contract=${contract}, contractCollections=${contractCollections.length}, infos=${infos.length}`
+          );
 
           await collectionUpdatesMetadata.addToQueueBulk(infos);
         } else {
