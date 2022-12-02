@@ -15,8 +15,8 @@ export const queue = new Queue(QUEUE_NAME, {
   defaultJobOptions: {
     attempts: 10,
     backoff: {
-      type: "exponential",
-      delay: 20000,
+      type: "fixed",
+      delay: 5000,
     },
     removeOnComplete: 10000,
     removeOnFail: 10000,
@@ -31,11 +31,6 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const { kind, collectionId, txHash, txTimestamp } = job.data as FloorAskInfo;
-
-      logger.info(
-        QUEUE_NAME,
-        `Start. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}`
-      );
 
       try {
         const tokenResult = await idb.oneOrNone(
@@ -53,16 +48,14 @@ if (config.doBackgroundWork) {
           }
         );
 
-        logger.info(
-          QUEUE_NAME,
-          `tokenResult. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, tokenResult=${JSON.stringify(
-            tokenResult
-          )}`
-        );
-
         if (tokenResult) {
           const contract = fromBuffer(tokenResult.contract);
           const tokenId = tokenResult.token_id;
+
+          logger.info(
+            QUEUE_NAME,
+            `tokenResult. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, contract=${contract}, tokenId=${tokenId}`
+          );
 
           const tokensMetadata = await MetadataApi.getTokensMetadata(
             [
@@ -74,15 +67,13 @@ if (config.doBackgroundWork) {
             true
           );
 
-          logger.info(
-            QUEUE_NAME,
-            `tokensMetadata. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, tokenResult=${JSON.stringify(
-              tokenResult
-            )}, tokensMetadata=${JSON.stringify(tokensMetadata)}`
-          );
-
           const tokenMetadata = tokensMetadata[0];
           const isFlagged = Number(tokenMetadata.flagged);
+
+          logger.info(
+            QUEUE_NAME,
+            `Token Check. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, contract=${contract}, tokenId=${tokenId}, isFlagged=${isFlagged}`
+          );
 
           await Tokens.update(contract, tokenId, {
             isFlagged,
@@ -90,13 +81,6 @@ if (config.doBackgroundWork) {
           });
 
           if (isFlagged) {
-            logger.info(
-              QUEUE_NAME,
-              `Token Is Flagged. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, tokenResult=${JSON.stringify(
-                tokenResult
-              )}, tokensMetadata=${JSON.stringify(tokensMetadata)}`
-            );
-
             await addToQueue([
               {
                 kind,
@@ -106,13 +90,6 @@ if (config.doBackgroundWork) {
               },
             ]);
           } else {
-            logger.info(
-              QUEUE_NAME,
-              `Token Is NOT Flagged. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, tokenResult=${JSON.stringify(
-                tokenResult
-              )}, tokensMetadata=${JSON.stringify(tokensMetadata)}`
-            );
-
             await idb.oneOrNone(
               `
                         WITH y AS (
@@ -206,9 +183,7 @@ if (config.doBackgroundWork) {
         } else {
           logger.info(
             QUEUE_NAME,
-            `No Floor Ask. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, tokenResult=${JSON.stringify(
-              tokenResult
-            )}`
+            `No Floor Ask. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}}`
           );
 
           await idb.oneOrNone(
