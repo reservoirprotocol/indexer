@@ -32,7 +32,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { kind, collectionId, txHash, txTimestamp } = job.data as FloorAskInfo;
 
-      logger.warn(
+      logger.info(
         QUEUE_NAME,
         `Start. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}`
       );
@@ -53,7 +53,7 @@ if (config.doBackgroundWork) {
           }
         );
 
-        logger.warn(
+        logger.info(
           QUEUE_NAME,
           `tokenResult. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, tokenResult=${JSON.stringify(
             tokenResult
@@ -74,7 +74,7 @@ if (config.doBackgroundWork) {
             true
           );
 
-          logger.warn(
+          logger.info(
             QUEUE_NAME,
             `tokensMetadata. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, tokenResult=${JSON.stringify(
               tokenResult
@@ -90,7 +90,7 @@ if (config.doBackgroundWork) {
           });
 
           if (isFlagged) {
-            logger.warn(
+            logger.info(
               QUEUE_NAME,
               `Token Is Flagged. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, tokenResult=${JSON.stringify(
                 tokenResult
@@ -106,7 +106,7 @@ if (config.doBackgroundWork) {
               },
             ]);
           } else {
-            logger.warn(
+            logger.info(
               QUEUE_NAME,
               `Token Is NOT Flagged. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, tokenResult=${JSON.stringify(
                 tokenResult
@@ -173,12 +173,12 @@ if (config.doBackgroundWork) {
                           $/collection/,
                           z.contract,
                           z.token_id,
-                          y.floor_sell_id,
-                          y.floor_sell_source_id_int,
-                          y.floor_sell_valid_between,
-                          y.floor_sell_maker,
-                          y.floor_sell_value,
-                          y.old_floor_sell_value,
+                          y.non_flagged_floor_sell_id,
+                          y.non_flagged_floor_sell_source_id_int,
+                          y.non_flagged_floor_sell_valid_between,
+                          y.non_flagged_floor_sell_maker,
+                          y.non_flagged_floor_sell_value,
+                          y.old_non_flagged_floor_sell_value,
                           $/txHash/,
                           $/txTimestamp/
                         FROM y
@@ -189,7 +189,7 @@ if (config.doBackgroundWork) {
                           FROM token_sets_tokens
                           JOIN orders
                             ON token_sets_tokens.token_set_id = orders.token_set_id
-                          WHERE orders.id = y.floor_sell_id
+                          WHERE orders.id = y.non_flagged_floor_sell_id
                           LIMIT 1
                         ) z ON TRUE
                       `,
@@ -204,7 +204,7 @@ if (config.doBackgroundWork) {
             );
           }
         } else {
-          logger.warn(
+          logger.info(
             QUEUE_NAME,
             `No Floor Ask. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, tokenResult=${JSON.stringify(
               tokenResult
@@ -252,8 +252,8 @@ if (config.doBackgroundWork) {
                         SELECT
                           $/kind/::token_floor_sell_event_kind_t,
                           $/collection/,
-                          z.contract,
-                          z.token_id,
+                          null,
+                          null,
                           y.non_flagged_floor_sell_id,
                           y.non_flagged_floor_sell_source_id_int,
                           y.non_flagged_floor_sell_valid_between,
@@ -263,16 +263,6 @@ if (config.doBackgroundWork) {
                           $/txHash/,
                           $/txTimestamp/
                         FROM y
-                        LEFT JOIN LATERAL (
-                          SELECT
-                            token_sets_tokens.contract,
-                            token_sets_tokens.token_id
-                          FROM token_sets_tokens
-                          JOIN orders
-                            ON token_sets_tokens.token_set_id = orders.token_set_id
-                          WHERE orders.id = y.non_flagged_floor_sell_id
-                          LIMIT 1
-                        ) z ON TRUE
                       `,
             {
               kind,
