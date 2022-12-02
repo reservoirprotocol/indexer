@@ -150,5 +150,8 @@ export const JoiOrderCriteria = Joi.alternatives(
       collection: JoiOrderCriteriaCollection,
       attribute: Joi.object({ key: Joi.string(), value: Joi.string() }),
     }),
+  }),
+  Joi.object({
+    kind: "custom",
   })
 );
