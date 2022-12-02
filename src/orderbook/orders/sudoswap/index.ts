@@ -460,7 +460,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   status: "success",
                 });
               } else {
-                // The only possible way to get to this point is an order changing its status from 'no-balance'
                 await idb.none(
                   `
                     UPDATE orders SET
