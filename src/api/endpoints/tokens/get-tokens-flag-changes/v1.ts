@@ -45,7 +45,7 @@ export const getFlaggedTokensChangesV1Options: RouteOptions = {
       tokens: Joi.array().items(
         Joi.object({
           tokenId: Joi.string().pattern(regex.number).required(),
-          lastFlagUpdate: Joi.string(),
+          lastFlagChange: Joi.string(),
           isFlagged: Joi.boolean().default(false),
           contract: Joi.string().lowercase().pattern(regex.address).required(),
         })
@@ -94,7 +94,7 @@ export const getFlaggedTokensChangesV1Options: RouteOptions = {
         tokenId: token.token_id,
         contract: fromBuffer(token.contract),
         isFlagged: Boolean(Number(token.is_flagged)),
-        lastFlagUpdate: new Date(token.last_flag_change).toISOString(),
+        lastFlagChange: new Date(token.last_flag_change).toISOString(),
       }));
 
       let continuation = null;
