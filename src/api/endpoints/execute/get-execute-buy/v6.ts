@@ -176,6 +176,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
         quote: number;
         rawQuote: string;
       }[] = [];
+      // For handling dynamically-priced listings (eg. from pools like Sudoswap and NFTX)
+      const poolPrices: { [pool: string]: string[] } = {};
+
       const addToPath = async (
         order: {
           id: string;
@@ -183,7 +186,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           price: string;
           sourceId: number | null;
           currency: string;
-          rawData: string;
+          rawData: any;
           fees?: Sdk.RouterV6.Types.Fee[];
         },
         token: {
@@ -195,6 +198,21 @@ export const getExecuteBuyV6Options: RouteOptions = {
       ) => {
         const fees = payload.normalizeRoyalties ? order.fees ?? [] : [];
         const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+
+        if (order.kind === "sudoswap") {
+          const rawData = order.rawData as Sdk.Sudoswap.OrderParams;
+
+          if (!poolPrices[rawData.pair]) {
+            poolPrices[rawData.pair] = [];
+          }
+
+          // Fetch the price corresponding to the order's index per pool
+          const price = rawData.extra.prices[poolPrices[rawData.pair].length];
+          // Save the latest price per pool
+          poolPrices[rawData.pair].push(price);
+          // Override the order's price
+          order.price = price;
+        }
 
         const totalPrice = bn(order.price)
           .add(totalFee)
