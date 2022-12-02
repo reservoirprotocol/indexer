@@ -138,8 +138,8 @@ if (config.doBackgroundWork) {
                           ) x
                           WHERE collections.id = $/collection/
                             AND (
-                              collections.non_flagged_floor_sell_id IS DISTINCT FROM x.non_flagged_floor_sell_id
-                              OR collections.non_flagged_floor_sell_value IS DISTINCT FROM x.non_flagged_floor_sell_value
+                              collections.non_flagged_floor_sell_id IS DISTINCT FROM x.floor_sell_id
+                              OR collections.non_flagged_floor_sell_value IS DISTINCT FROM x.floor_sell_value
                             )
                           RETURNING
                             collections.non_flagged_floor_sell_id,
