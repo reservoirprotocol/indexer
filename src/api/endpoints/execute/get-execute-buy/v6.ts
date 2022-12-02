@@ -16,6 +16,7 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
+import * as sudoswap from "@/orderbook/orders/sudoswap";
 import { getCurrency } from "@/utils/currencies";
 
 const version = "v6";
@@ -35,7 +36,16 @@ export const getExecuteBuyV6Options: RouteOptions = {
         Joi.object({
           kind: Joi.string()
             .lowercase()
-            .valid("opensea", "looks-rare", "zeroex-v4", "seaport", "x2y2", "universe", "rarible")
+            .valid(
+              "opensea",
+              "looks-rare",
+              "zeroex-v4",
+              "seaport",
+              "x2y2",
+              "universe",
+              "rarible",
+              "sudoswap"
+            )
             .required(),
           data: Joi.object().required(),
         })
@@ -261,18 +271,23 @@ export const getExecuteBuyV6Options: RouteOptions = {
         payload.orderIds = [];
 
         for (const order of payload.rawOrders) {
-          const response = await inject({
-            method: "POST",
-            url: `/order/v2`,
-            headers: {
-              "Content-Type": "application/json",
-            },
-            payload: { order },
-          }).then((response) => JSON.parse(response.payload));
-          if (response.orderId) {
-            payload.orderIds.push(response.orderId);
+          if (order.kind === "sudoswap") {
+            // Sudoswap orders cannot be "posted"
+            payload.orderIds.push(sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId));
           } else {
-            throw Boom.badData("Raw order failed to get processed");
+            const response = await inject({
+              method: "POST",
+              url: `/order/v2`,
+              headers: {
+                "Content-Type": "application/json",
+              },
+              payload: { order },
+            }).then((response) => JSON.parse(response.payload));
+            if (response.orderId) {
+              payload.orderIds.push(response.orderId);
+            } else {
+              throw Boom.badData("Raw order failed to get processed");
+            }
           }
         }
       }
