@@ -100,6 +100,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         }
 
         await collectionUpdatesMetadata.addToQueue(
+          collection.id,
           collection.contract,
           tokenId,
           collection.community,
@@ -158,6 +159,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         }
 
         await collectionUpdatesMetadata.addToQueue(
+          collection.id,
           collection.contract,
           tokenId,
           collection.community,
