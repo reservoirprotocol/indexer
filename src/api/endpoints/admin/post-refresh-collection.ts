@@ -81,6 +81,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
       }
 
       await collectionUpdatesMetadata.addToQueue(
+        collection.id,
         collection.contract,
         tokenId,
         collection.community
