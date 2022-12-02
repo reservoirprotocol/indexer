@@ -12,6 +12,7 @@ import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-t
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 import { randomUUID } from "crypto";
 import _ from "lodash";
+import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
 
 const QUEUE_NAME = "flag-status-sync-queue";
 const LIMIT = 40;
@@ -79,17 +80,21 @@ if (config.doBackgroundWork) {
 
               const isFlagged = Number(tokenMetadata.flagged);
 
+              const fields: TokensEntityUpdateParams = {
+                isFlagged,
+                lastFlagUpdate: new Date().toISOString(),
+              };
+
               if (pendingSyncFlagStatusToken.isFlagged != isFlagged) {
+                fields.lastFlagChange = new Date().toISOString();
+
                 logger.info(
                   QUEUE_NAME,
                   `Flag Status Diff. collectionId:${collectionId}, contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}, isFlagged:${isFlagged}`
                 );
               }
 
-              await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, {
-                isFlagged,
-                lastFlagUpdate: new Date().toISOString(),
-              });
+              await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, fields);
             }
           } catch (error) {
             if ((error as any).response?.status === 429) {
