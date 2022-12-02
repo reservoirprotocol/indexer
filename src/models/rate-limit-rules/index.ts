@@ -29,11 +29,16 @@ export class RateLimitRules {
   private async loadData(forceDbLoad = false) {
     // Try to load from cache
     const rulesCache = await redis.get(RateLimitRules.getCacheKey());
-    let rules: RateLimitRuleEntityParams[];
+    let rules: RateLimitRuleEntityParams[] = [];
 
     if (_.isNull(rulesCache) || forceDbLoad) {
       // If no cache load from DB
-      rules = await redb.manyOrNone(`SELECT * FROM rate_limit_rules`);
+      try {
+        rules = await redb.manyOrNone(`SELECT * FROM rate_limit_rules`);
+      } catch (error) {
+        logger.error("rate-limit-rules", "Failed to load rate limit rules");
+      }
+
       await redis.set(RateLimitRules.getCacheKey(), JSON.stringify(rules), "EX", 60 * 60 * 24);
     } else {
       // Parse the cache data

@@ -16,6 +16,7 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
+import * as sudoswap from "@/orderbook/orders/sudoswap";
 import { getCurrency } from "@/utils/currencies";
 
 const version = "v6";
@@ -35,7 +36,16 @@ export const getExecuteBuyV6Options: RouteOptions = {
         Joi.object({
           kind: Joi.string()
             .lowercase()
-            .valid("opensea", "looks-rare", "zeroex-v4", "seaport", "x2y2", "universe", "rarible")
+            .valid(
+              "opensea",
+              "looks-rare",
+              "zeroex-v4",
+              "seaport",
+              "x2y2",
+              "universe",
+              "rarible",
+              "sudoswap"
+            )
             .required(),
           data: Joi.object().required(),
         })
@@ -176,6 +186,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
         quote: number;
         rawQuote: string;
       }[] = [];
+      // For handling dynamically-priced listings (eg. from pools like Sudoswap and NFTX)
+      const poolPrices: { [pool: string]: string[] } = {};
+
       const addToPath = async (
         order: {
           id: string;
@@ -183,7 +196,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           price: string;
           sourceId: number | null;
           currency: string;
-          rawData: string;
+          rawData: any;
           fees?: Sdk.RouterV6.Types.Fee[];
         },
         token: {
@@ -195,6 +208,21 @@ export const getExecuteBuyV6Options: RouteOptions = {
       ) => {
         const fees = payload.normalizeRoyalties ? order.fees ?? [] : [];
         const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+
+        if (order.kind === "sudoswap") {
+          const rawData = order.rawData as Sdk.Sudoswap.OrderParams;
+
+          if (!poolPrices[rawData.pair]) {
+            poolPrices[rawData.pair] = [];
+          }
+
+          // Fetch the price corresponding to the order's index per pool
+          const price = rawData.extra.prices[poolPrices[rawData.pair].length];
+          // Save the latest price per pool
+          poolPrices[rawData.pair].push(price);
+          // Override the order's price
+          order.price = price;
+        }
 
         const totalPrice = bn(order.price)
           .add(totalFee)
@@ -243,18 +271,23 @@ export const getExecuteBuyV6Options: RouteOptions = {
         payload.orderIds = [];
 
         for (const order of payload.rawOrders) {
-          const response = await inject({
-            method: "POST",
-            url: `/order/v2`,
-            headers: {
-              "Content-Type": "application/json",
-            },
-            payload: { order },
-          }).then((response) => JSON.parse(response.payload));
-          if (response.orderId) {
-            payload.orderIds.push(response.orderId);
+          if (order.kind === "sudoswap") {
+            // Sudoswap orders cannot be "posted"
+            payload.orderIds.push(sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId));
           } else {
-            throw Boom.badData("Raw order failed to get processed");
+            const response = await inject({
+              method: "POST",
+              url: `/order/v2`,
+              headers: {
+                "Content-Type": "application/json",
+              },
+              payload: { order },
+            }).then((response) => JSON.parse(response.payload));
+            if (response.orderId) {
+              payload.orderIds.push(response.orderId);
+            } else {
+              throw Boom.badData("Raw order failed to get processed");
+            }
           }
         }
       }

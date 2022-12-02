@@ -11,6 +11,7 @@ import { ApiKeyManager } from "@/models/api-keys";
 
 import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
+import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
 
 const version = "v1";
 
@@ -58,13 +59,15 @@ export const postFlagTokenV1Options: RouteOptions = {
 
     try {
       const currentUtcTime = new Date().toISOString();
-
-      await Tokens.update(contract, tokenId, {
+      const fields: TokensEntityUpdateParams = {
         isFlagged: payload.flag,
         lastFlagUpdate: currentUtcTime,
-      });
+      };
 
+      // If current flag status is different trigger a job to verify the new status
       if (token.isFlagged != payload.flag) {
+        fields.lastFlagChange = currentUtcTime;
+
         const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
         await pendingFlagStatusSyncJobs.add([
           {
@@ -84,6 +87,9 @@ export const postFlagTokenV1Options: RouteOptions = {
 
         await flagStatusProcessQueue.addToQueue();
       }
+
+      // Update the token status
+      await Tokens.update(contract, tokenId, fields);
 
       const key = request.headers["x-api-key"];
       const apiKey = await ApiKeyManager.getApiKey(key);

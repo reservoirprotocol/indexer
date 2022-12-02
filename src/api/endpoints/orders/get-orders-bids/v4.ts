@@ -12,6 +12,7 @@ import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } fro
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { Attributes } from "@/models/attributes";
 
 const version = "v4";
 
@@ -39,7 +40,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
       tokenSetId: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular set. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to a particular set. Example: `contract:0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63` or `token:0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:1`"
         ),
       maker: Joi.string()
         .lowercase()
@@ -50,6 +51,16 @@ export const getOrdersBidsV4Options: RouteOptions = {
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
+      collection: Joi.string()
+        .lowercase()
+        .description(
+          "Filter to a particular collection bids with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
+      attribute: Joi.object()
+        .unknown()
+        .description(
+          "Filter to a particular attribute within a collection. Example: `attribute[Mouth]=Bored` (Collection must be passed as well when filtering by attribute)"
+        ),
       contracts: Joi.alternatives().try(
         Joi.array()
           .max(50)
@@ -107,8 +118,9 @@ export const getOrdersBidsV4Options: RouteOptions = {
         .default(50)
         .description("Amount of items returned in response."),
     })
-      .oxor("token", "tokenSetId", "contracts", "ids")
-      .with("community", "maker"),
+      .oxor("token", "tokenSetId", "contracts", "ids", "collection")
+      .with("community", "maker")
+      .with("attribute", "collection"),
   },
   response: {
     schema: Joi.object({
@@ -358,6 +370,35 @@ export const getOrdersBidsV4Options: RouteOptions = {
 
         conditions.push(`token_sets_tokens.contract = $/tokenContract/`);
         conditions.push(`token_sets_tokens.token_id = $/tokenId/`);
+      }
+
+      if (query.collection && !query.attribute) {
+        baseQuery += ` JOIN token_sets ON token_sets.id = orders.token_set_id`;
+        conditions.push(`token_sets.attribute_id IS NULL`);
+        conditions.push(`token_sets.collection_id = $/collection/`);
+      }
+
+      if (query.attribute) {
+        const attributeIds = [];
+        for (const [key, value] of Object.entries(query.attribute)) {
+          const attribute = await Attributes.getAttributeByCollectionKeyValue(
+            query.collection,
+            key,
+            `${value}`
+          );
+          if (attribute) {
+            attributeIds.push(attribute.id);
+          }
+        }
+
+        if (_.isEmpty(attributeIds)) {
+          return { orders: [] };
+        }
+
+        (query as any).attributeIds = attributeIds;
+
+        baseQuery += ` JOIN token_sets ON token_sets.id = orders.token_set_id`;
+        conditions.push(`token_sets.attribute_id IN ($/attributeIds:csv/)`);
       }
 
       if (query.contracts) {

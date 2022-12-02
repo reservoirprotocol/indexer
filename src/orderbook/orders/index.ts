@@ -488,6 +488,14 @@ export const generateListingDetailsV6 = (
       };
     }
 
+    case "sudoswap": {
+      return {
+        kind: "sudoswap",
+        ...common,
+        order: new Sdk.Sudoswap.Order(config.chainId, order.rawData),
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }
