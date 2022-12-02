@@ -59,7 +59,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
       attribute: Joi.object()
         .unknown()
         .description(
-          "Filter to a particular attribute within a collection. Example: `attributes[Mouth]=Bored` (Collection must be passed as well when filtering by attribute)"
+          "Filter to a particular attribute within a collection. Example: `attribute[Mouth]=Bored` (Collection must be passed as well when filtering by attribute)"
         ),
       contracts: Joi.alternatives().try(
         Joi.array()
