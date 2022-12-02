@@ -37,7 +37,10 @@ if (config.doBackgroundWork) {
           `
                   SELECT
                       tokens.contract,
-                      tokens.token_id
+                      tokens.token_id,
+                      tokens.is_flagged,
+                      tokens.last_flag_update,  
+                      tokens.last_flag_change
                     FROM tokens
                     WHERE tokens.collection_id = $/collectionId/
                     AND tokens.floor_sell_value IS NOT NULL 
@@ -54,7 +57,7 @@ if (config.doBackgroundWork) {
 
           logger.info(
             QUEUE_NAME,
-            `tokenResult. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, contract=${contract}, tokenId=${tokenId}`
+            `tokenResult. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, contract=${contract}, tokenId=${tokenId}, is_flagged=${tokenResult.is_flagged}, last_flag_update=${tokenResult.last_flag_update}, last_flag_change=${tokenResult.last_flag_change}`
           );
 
           const tokensMetadata = await MetadataApi.getTokensMetadata(
