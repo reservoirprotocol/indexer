@@ -254,12 +254,12 @@ if (config.doBackgroundWork) {
                           $/collection/,
                           z.contract,
                           z.token_id,
-                          y.floor_sell_id,
-                          y.floor_sell_source_id_int,
-                          y.floor_sell_valid_between,
-                          y.floor_sell_maker,
-                          y.floor_sell_value,
-                          y.old_floor_sell_value,
+                          y.non_flagged_floor_sell_id,
+                          y.non_flagged_floor_sell_source_id_int,
+                          y.non_flagged_floor_sell_valid_between,
+                          y.non_flagged_floor_sell_maker,
+                          y.non_flagged_floor_sell_value,
+                          y.old_non_flagged_floor_sell_value,
                           $/txHash/,
                           $/txTimestamp/
                         FROM y
@@ -270,7 +270,7 @@ if (config.doBackgroundWork) {
                           FROM token_sets_tokens
                           JOIN orders
                             ON token_sets_tokens.token_set_id = orders.token_set_id
-                          WHERE orders.id = y.floor_sell_id
+                          WHERE orders.id = y.non_flagged_floor_sell_id
                           LIMIT 1
                         ) z ON TRUE
                       `,
