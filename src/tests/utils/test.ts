@@ -45,28 +45,6 @@ export async function getEventsFromTx(tx: TransactionReceipt) {
   return enhancedEvents;
 }
 
-export async function getEventsFromTxLogs(logs: Log[]) {
-  const enhancedEvents: EnhancedEvent[] = [];
-  const availableEventData = getEventData();
-  for (let index = 0; index < logs.length; index++) {
-    const log = logs[index];
-    const eventData = availableEventData.find(
-      ({ addresses, topic, numTopics }) =>
-        log.topics[0] === topic &&
-        log.topics.length === numTopics &&
-        (addresses ? addresses[log.address.toLowerCase()] : true)
-    );
-    if (eventData) {
-      // enhancedEvents.push({
-      //   kind: eventData.kind,
-      //   baseEventParams: getEventParams(log, blockResult),
-      //   log,
-      // });
-    }
-  }
-  return enhancedEvents;
-}
-
 export function wait(ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
