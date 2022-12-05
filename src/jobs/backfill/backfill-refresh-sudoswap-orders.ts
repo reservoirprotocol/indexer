@@ -3,6 +3,7 @@
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
+import pLimit from "p-limit";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -19,6 +20,7 @@ export const queue = new Queue(QUEUE_NAME, {
     attempts: 10,
     removeOnComplete: 10000,
     removeOnFail: 10000,
+    timeout: 5 * 60 * 1000,
   },
 });
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
@@ -36,25 +38,31 @@ if (config.doBackgroundWork) {
             sudoswap_pools.address
           FROM sudoswap_pools
           WHERE sudoswap_pools.address > $/address/
+          ORDER BY sudoswap_pools.address
           LIMIT 50
         `,
         { address: toBuffer(address) }
       );
 
-      for (let i = 0; i < results.length; i++) {
-        const pool = fromBuffer(results[i].address);
-        logger.info("debug", `Refreshing sudoswap order for pool ${pool} (${i})`);
-        await save([
-          {
-            orderParams: {
-              pool,
-              txTimestamp: Math.floor(Date.now() / 1000),
-              txHash: HashZero,
-            },
-            metadata: {},
-          },
-        ]);
-      }
+      const limit = pLimit(50);
+      await Promise.all(
+        results.map((r) =>
+          limit(async () => {
+            const pool = fromBuffer(r.address);
+            logger.info("debug", `Refreshing sudoswap order for pool ${pool}`);
+            await save([
+              {
+                orderParams: {
+                  pool,
+                  txTimestamp: Math.floor(Date.now() / 1000),
+                  txHash: HashZero,
+                },
+                metadata: {},
+              },
+            ]);
+          })
+        )
+      );
 
       if (results.length) {
         await addToQueue(fromBuffer(results[results.length - 1].address));
@@ -68,7 +76,7 @@ if (config.doBackgroundWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-4`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-5`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue(AddressZero);
     })
