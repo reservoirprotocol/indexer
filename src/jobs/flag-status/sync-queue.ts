@@ -10,6 +10,7 @@ import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/genera
 import MetadataApi from "@/utils/metadata-api";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
+import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import { randomUUID } from "crypto";
 import _ from "lodash";
 import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
@@ -85,18 +86,27 @@ if (config.doBackgroundWork) {
               const fields: TokensEntityUpdateParams = {
                 isFlagged,
                 lastFlagUpdate: currentUtcTime,
+                lastFlagChange:
+                  pendingSyncFlagStatusToken.isFlagged != isFlagged ? currentUtcTime : undefined,
               };
 
-              if (pendingSyncFlagStatusToken.isFlagged != isFlagged) {
-                fields.lastFlagChange = currentUtcTime;
+              await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, fields);
 
+              if (pendingSyncFlagStatusToken.isFlagged != isFlagged) {
                 logger.info(
                   QUEUE_NAME,
                   `Flag Status Diff. collectionId:${collectionId}, contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}, isFlagged:${isFlagged}`
                 );
-              }
 
-              await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, fields);
+                await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
+                  {
+                    kind: "revalidation",
+                    collectionId: collectionId,
+                    txHash: null,
+                    txTimestamp: null,
+                  },
+                ]);
+              }
             }
           } catch (error) {
             if ((error as any).response?.status === 429) {
