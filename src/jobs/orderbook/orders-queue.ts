@@ -98,7 +98,8 @@ if (config.doBackgroundWork) {
           }
 
           case "rarible": {
-            result = await orders.rarible.save([info], relayToArweave);
+            const result = await orders.rarible.save([info], relayToArweave);
+            logger.info(QUEUE_NAME, `[rarible] Order save result: ${JSON.stringify(result)}`);
             break;
           }
 
@@ -113,7 +114,8 @@ if (config.doBackgroundWork) {
           }
 
           case "manifold": {
-            result = await orders.manifold.save([info]);
+            const result = await orders.manifold.save([info]);
+            logger.info(QUEUE_NAME, `[manifold] Order save result: ${JSON.stringify(result)}`);
             break;
           }
         }

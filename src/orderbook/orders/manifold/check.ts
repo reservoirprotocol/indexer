@@ -4,6 +4,7 @@ import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 import { OrderInfo } from "@/orderbook/orders/manifold";
 import { bn } from "@/common/utils";
+import { constants } from "ethers";
 
 export const offChainCheck = async (order: OrderInfo["orderParams"]) => {
   const exchangeContract = new Sdk.Manifold.Exchange(config.chainId);
@@ -42,5 +43,18 @@ export const offChainCheck = async (order: OrderInfo["orderParams"]) => {
 
   if (onChainListing.details.totalPerSale != order.details.totalPerSale) {
     throw Error("invalid");
+  }
+
+  // Indexer specififc validations
+  if (order.details.totalPerSale !== 1) {
+    throw Error("unfillable");
+  }
+
+  if (order.details.type_ !== 2) {
+    throw Error("unfillable");
+  }
+
+  if (order.details.erc20 !== constants.AddressZero) {
+    throw Error("unfillable");
   }
 };
