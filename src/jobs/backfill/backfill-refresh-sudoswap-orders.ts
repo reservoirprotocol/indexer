@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { HashZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
+import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { save } from "@/orderbook/orders/sudoswap";
 
@@ -29,12 +31,9 @@ if (config.doBackgroundWork) {
       const results = await idb.manyOrNone(
         `
           SELECT
-            orders.id,
-            orders.raw_data->>'pair' AS pair,
-            extract('epoch' FROM lower(orders.valid_between)) AS tx_timestamp
-          FROM orders
-          WHERE orders.kind = 'sudoswap'
-            AND orders.contract IS NOT NULL
+            sudoswap_pools.address
+          FROM sudoswap_pools
+          WHERE sudoswap_pools.pool_kind IN (1, 2)
         `
       );
       for (let i = 0; i < results.length; i++) {
@@ -42,9 +41,9 @@ if (config.doBackgroundWork) {
         await save([
           {
             orderParams: {
-              pool: results[i].pair,
-              txTimestamp: results[i].tx_timestamp,
-              txHash: results[i].id,
+              pool: fromBuffer(results[i].address),
+              txTimestamp: Math.floor(Date.now() / 1000),
+              txHash: HashZero,
             },
             metadata: {},
           },
@@ -58,16 +57,14 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  // !!! DISABLED
-
-  // redlock
-  //   .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
-  //   .then(async () => {
-  //     // await addToQueue();
-  //   })
-  //   .catch(() => {
-  //     // Skip on any errors
-  //   });
+  redlock
+    .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      // await addToQueue();
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
 }
 
 export const addToQueue = async () => {

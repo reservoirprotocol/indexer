@@ -32,6 +32,7 @@ type SaveResult = {
   id: string;
   txHash: string;
   status: string;
+  triggerKind?: "new-order" | "reprice";
 };
 
 export const getOrderId = (pool: string, side: "sell" | "buy", tokenId?: string) =>
@@ -234,6 +235,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 id,
                 txHash: orderParams.txHash,
                 status: "success",
+                triggerKind: "new-order",
               });
             } else {
               await idb.none(
@@ -270,20 +272,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 }
               );
 
-              await ordersUpdateById.addToQueue([
-                {
-                  context: `reprice-${id}-${orderParams.txHash}`,
-                  id,
-                  trigger: {
-                    kind: "reprice",
-                  },
-                },
-              ]);
-
               results.push({
                 id,
                 txHash: orderParams.txHash,
                 status: "success",
+                triggerKind: "reprice",
               });
             }
           } else {
@@ -298,20 +291,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               { id }
             );
 
-            await ordersUpdateById.addToQueue([
-              {
-                context: `reprice-${id}-${orderParams.txHash}`,
-                id,
-                trigger: {
-                  kind: "reprice",
-                },
-              },
-            ]);
-
             results.push({
               id,
               txHash: orderParams.txHash,
               status: "success",
+              triggerKind: "reprice",
             });
           }
         }
@@ -416,49 +400,50 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 }
 
                 // Handle: source
-                // const sources = await Sources.getInstance();
-                // const source = await sources.getOrInsert("sudoswap.xyz");
+                const sources = await Sources.getInstance();
+                const source = await sources.getOrInsert("sudoswap.xyz");
 
-                // const validFrom = `date_trunc('seconds', to_timestamp(${orderParams.txTimestamp}))`;
-                // const validTo = `'Infinity'`;
-                // orderValues.push({
-                //   id,
-                //   kind: "sudoswap",
-                //   side: "sell",
-                //   fillability_status: "fillable",
-                //   approval_status: "approved",
-                //   token_set_id: tokenSetId,
-                //   token_set_schema_hash: toBuffer(schemaHash),
-                //   maker: toBuffer(pool.address),
-                //   taker: toBuffer(AddressZero),
-                //   price,
-                //   value,
-                //   currency: toBuffer(pool.token),
-                //   currency_price: price,
-                //   currency_value: value,
-                //   needs_conversion: null,
-                //   quantity_remaining: "1",
-                //   valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
-                //   nonce: null,
-                //   source_id_int: source?.id,
-                //   is_reservoir: null,
-                //   contract: toBuffer(pool.nft),
-                //   conduit: null,
-                //   fee_bps: feeBps,
-                //   fee_breakdown: feeBreakdown,
-                //   dynamic: null,
-                //   raw_data: sdkOrder.params,
-                //   expiration: validTo,
-                //   missing_royalties: missingRoyalties,
-                //   normalized_value: normalizedValue.toString(),
-                //   currency_normalized_value: normalizedValue.toString(),
-                // });
+                const validFrom = `date_trunc('seconds', to_timestamp(${orderParams.txTimestamp}))`;
+                const validTo = `'Infinity'`;
+                orderValues.push({
+                  id,
+                  kind: "sudoswap",
+                  side: "sell",
+                  fillability_status: "fillable",
+                  approval_status: "approved",
+                  token_set_id: tokenSetId,
+                  token_set_schema_hash: toBuffer(schemaHash),
+                  maker: toBuffer(pool.address),
+                  taker: toBuffer(AddressZero),
+                  price,
+                  value,
+                  currency: toBuffer(pool.token),
+                  currency_price: price,
+                  currency_value: value,
+                  needs_conversion: null,
+                  quantity_remaining: "1",
+                  valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
+                  nonce: null,
+                  source_id_int: source?.id,
+                  is_reservoir: null,
+                  contract: toBuffer(pool.nft),
+                  conduit: null,
+                  fee_bps: feeBps,
+                  fee_breakdown: feeBreakdown,
+                  dynamic: null,
+                  raw_data: sdkOrder.params,
+                  expiration: validTo,
+                  missing_royalties: missingRoyalties,
+                  normalized_value: normalizedValue.toString(),
+                  currency_normalized_value: normalizedValue.toString(),
+                });
 
-                // results.push({
-                //   id,
-                //   txHash: orderParams.txHash,
-                //   status: "success",
-                // });
+                results.push({
+                  id,
+                  txHash: orderParams.txHash,
+                  status: "success",
+                  triggerKind: "new-order",
+                });
               } else {
                 await idb.none(
                   `
@@ -493,20 +478,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   }
                 );
 
-                await ordersUpdateById.addToQueue([
-                  {
-                    context: `reprice-${id}-${orderParams.txHash}`,
-                    id,
-                    trigger: {
-                      kind: "reprice",
-                    },
-                  },
-                ]);
-
                 results.push({
                   id,
                   txHash: orderParams.txHash,
                   status: "success",
+                  triggerKind: "reprice",
                 });
               }
             } catch {
@@ -570,20 +546,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
     );
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
+  }
 
-    await ordersUpdateById.addToQueue(
-      results.map(
-        ({ id, txHash }) =>
+  await ordersUpdateById.addToQueue(
+    results
+      .filter(({ status }) => status === "success")
+      .map(
+        ({ id, txHash, triggerKind }) =>
           ({
-            context: `new-order-${id}-${txHash}`,
+            context: `${triggerKind}-${id}-${txHash}`,
             id,
             trigger: {
-              kind: "new-order",
+              kind: triggerKind,
             },
           } as ordersUpdateById.OrderInfo)
       )
-    );
-  }
+  );
 
   return results;
 };
