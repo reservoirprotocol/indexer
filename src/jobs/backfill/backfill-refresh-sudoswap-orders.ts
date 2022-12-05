@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { AddressZero, HashZero } from "@ethersproject/constants";
+import { HashZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 import pLimit from "p-limit";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { save } from "@/orderbook/orders/sudoswap";
@@ -39,7 +39,7 @@ if (config.doBackgroundWork) {
           FROM sudoswap_pools
           WHERE sudoswap_pools.address > $/address/
           ORDER BY sudoswap_pools.address
-          LIMIT 50
+          LIMIT 25
         `,
         { address: toBuffer(address) }
       );
@@ -75,14 +75,16 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  redlock
-    .acquire([`${QUEUE_NAME}-lock-5`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await addToQueue(AddressZero);
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
+  // !!! DISABLED
+
+  // redlock
+  //   .acquire([`${QUEUE_NAME}-lock-5`], 60 * 60 * 24 * 30 * 1000)
+  //   .then(async () => {
+  //     await addToQueue(AddressZero);
+  //   })
+  //   .catch(() => {
+  //     // Skip on any errors
+  //   });
 }
 
 export const addToQueue = async (address: string) => {
