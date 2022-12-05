@@ -61,11 +61,11 @@ if (config.doBackgroundWork) {
                   orders.id,
                   orders.fillability_status AS old_status,
                   (CASE
-                    WHEN ft_balances.amount >= (orders.price * orders.quantity_remaining) THEN 'fillable'
+                    WHEN ft_balances.amount >= (orders.currency_price * orders.quantity_remaining) THEN 'fillable'
                     ELSE 'no-balance'
                   END)::order_fillability_status_t AS new_status,
                   (CASE
-                    WHEN ft_balances.amount >= (orders.price * orders.quantity_remaining) THEN nullif(upper(orders.valid_between), 'infinity')
+                    WHEN ft_balances.amount >= (orders.currency_price * orders.quantity_remaining) THEN nullif(upper(orders.valid_between), 'infinity')
                     ELSE to_timestamp($/timestamp/)
                   END)::timestamptz AS expiration
                 FROM orders
@@ -187,13 +187,13 @@ if (config.doBackgroundWork) {
                     UPDATE orders SET
                       approval_status = (
                         CASE
-                          WHEN orders.price > y.value THEN 'no-approval'
+                          WHEN orders.currency_price > y.value THEN 'no-approval'
                           ELSE 'approved'
                         END
                       )::order_approval_status_t,
                       expiration = (
                         CASE
-                          WHEN orders.price > y.value THEN to_timestamp($/timestamp/)
+                          WHEN orders.currency_price > y.value THEN to_timestamp($/timestamp/)
                           ELSE nullif(upper(orders.valid_between), 'infinity')
                         END
                       )::timestamptz,
@@ -203,7 +203,7 @@ if (config.doBackgroundWork) {
                     WHERE orders.id = x.id
                       AND orders.approval_status != (
                         CASE
-                          WHEN orders.price > y.value THEN 'no-approval'
+                          WHEN orders.currency_price > y.value THEN 'no-approval'
                           ELSE 'approved'
                         END
                       )::order_approval_status_t

@@ -7,18 +7,19 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { buildContinuation, fromBuffer, splitContinuation, regex, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
+import { Orders } from "@/utils/orders";
 
-const version = "v2";
+const version = "v3";
 
-export const getAsksEventsV2Options: RouteOptions = {
+export const getAsksEventsV3Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 5000,
   },
   description: "Asks status changes",
   notes: "Get updates any time an asks status changes",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Events"],
   plugins: {
     "hapi-swagger": {
       order: 4,
@@ -38,6 +39,9 @@ export const getAsksEventsV2Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
+      includeCriteriaMetadata: Joi.boolean()
+        .default(false)
+        .description("If true, criteria metadata is included in the response."),
       sortDirection: Joi.string()
         .valid("asc", "desc")
         .default("desc")
@@ -64,7 +68,6 @@ export const getAsksEventsV2Options: RouteOptions = {
             id: Joi.string(),
             status: Joi.string(),
             contract: Joi.string().lowercase().pattern(regex.address),
-            tokenId: Joi.string().pattern(regex.number),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             price: JoiPrice.allow(null),
             quantityRemaining: Joi.number().unsafe(),
@@ -73,6 +76,7 @@ export const getAsksEventsV2Options: RouteOptions = {
             validUntil: Joi.number().unsafe().allow(null),
             source: Joi.string().allow(null, ""),
             isDynamic: Joi.boolean(),
+            criteria: JoiOrderCriteria.allow(null),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),
@@ -104,6 +108,12 @@ export const getAsksEventsV2Options: RouteOptions = {
     const query = request.query as any;
 
     try {
+      const criteriaBuildQuery = Orders.buildCriteriaQuery(
+        "orders",
+        "token_set_id",
+        query.includeCriteriaMetadata
+      );
+
       let baseQuery = `
         SELECT
           order_events.id,
@@ -129,10 +139,11 @@ export const getAsksEventsV2Options: RouteOptions = {
           date_part('epoch', lower(order_events.order_valid_between)) AS valid_from,
           order_events.tx_hash,
           order_events.tx_timestamp,
-          extract(epoch from order_events.created_at) AS created_at
+          extract(epoch from order_events.created_at) AS created_at,
+          (${criteriaBuildQuery}) AS criteria
         FROM order_events
         LEFT JOIN LATERAL (
-           SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value
+           SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value, token_set_id
            FROM orders
            WHERE orders.id = order_events.order_id
         ) orders ON TRUE
@@ -199,7 +210,6 @@ export const getAsksEventsV2Options: RouteOptions = {
             id: r.order_id,
             status: r.status,
             contract: fromBuffer(r.contract),
-            tokenId: r.token_id,
             maker: r.maker ? fromBuffer(r.maker) : null,
             price: r.price
               ? await getJoiPriceObject(
@@ -223,6 +233,7 @@ export const getAsksEventsV2Options: RouteOptions = {
             validUntil: r.valid_until ? Number(r.valid_until) : null,
             source: sources.get(r.order_source_id_int)?.name,
             isDynamic: Boolean(r.dynamic),
+            criteria: r.criteria,
           },
           event: {
             id: r.id,

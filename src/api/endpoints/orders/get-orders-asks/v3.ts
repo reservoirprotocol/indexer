@@ -26,7 +26,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
   description: "Asks (listings)",
   notes:
     "Get a list of asks (listings), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
-  tags: ["api", "Orders"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 5,

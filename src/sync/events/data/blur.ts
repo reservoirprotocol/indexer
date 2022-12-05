@@ -67,6 +67,6 @@ export const nonceIncremented: EventData = {
   kind: "blur-nonce-incremented",
   addresses: { [Blur.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xa82a649bbd060c9099cd7b7326e2b0dc9e9af0836480e0f849dc9eaa79710b3b",
-  numTopics: 1,
-  abi: new Interface([`event NonceIncremented(address trader, uint256 newNonce)`]),
+  numTopics: 2,
+  abi: new Interface([`event NonceIncremented(address indexed trader, uint256 newNonce)`]),
 };

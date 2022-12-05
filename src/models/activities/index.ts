@@ -6,6 +6,7 @@ import {
   ActivitiesEntityInsertParams,
   ActivitiesEntityParams,
 } from "@/models/activities/activities-entity";
+import { Orders } from "@/utils/orders";
 
 export class Activities {
   public static async addActivities(activities: ActivitiesEntityInsertParams[]) {
@@ -65,15 +66,25 @@ export class Activities {
     limit = 20,
     byEventTimestamp = false,
     includeMetadata = true,
-    sortDirection = "asc"
+    sortDirection = "asc",
+    includeCriteria = false
   ) {
     let eventTimestamp;
     let id;
     let metadataQuery = "";
 
     if (includeMetadata) {
-      const orderMetadataBuildQuery = `
-        (
+      let orderCriteriaBuildQuery = "json_build_object()";
+      let orderMetadataBuildQuery = "json_build_object()";
+
+      if (includeCriteria) {
+        orderCriteriaBuildQuery = Orders.buildCriteriaQuery(
+          "orders",
+          "token_set_id",
+          includeMetadata
+        );
+      } else {
+        orderMetadataBuildQuery = `
           CASE
             WHEN orders.token_set_id LIKE 'token:%' THEN
               (SELECT
@@ -150,8 +161,8 @@ export class Activities {
               WHERE token_sets.id = orders.token_set_id AND token_sets.schema_hash = orders.token_set_schema_hash)
             ELSE NULL
           END
-        ) AS order_metadata
       `;
+      }
 
       metadataQuery = `
              LEFT JOIN LATERAL (
@@ -170,7 +181,8 @@ export class Activities {
                     source_id_int AS "order_source_id_int",
                     side AS "order_side",
                     kind AS "order_kind",
-                    ${orderMetadataBuildQuery}
+                    (${orderMetadataBuildQuery}) AS "order_metadata",
+                    (${orderCriteriaBuildQuery}) AS "order_criteria"
                 FROM orders
                 WHERE activities.order_id = orders.id
              ) o ON TRUE`;
@@ -243,7 +255,8 @@ export class Activities {
     types: string[] = [],
     limit = 20,
     sortBy = "eventTimestamp",
-    includeMetadata = true
+    includeMetadata = true,
+    includeCriteria = false
   ) {
     const sortByColumn = sortBy == "eventTimestamp" ? "event_timestamp" : "created_at";
     let continuation = "";
@@ -279,8 +292,17 @@ export class Activities {
     }
 
     if (includeMetadata) {
-      const orderMetadataBuildQuery = `
-        (
+      let orderCriteriaBuildQuery = "json_build_object()";
+      let orderMetadataBuildQuery = "json_build_object()";
+
+      if (includeCriteria) {
+        orderCriteriaBuildQuery = Orders.buildCriteriaQuery(
+          "orders",
+          "token_set_id",
+          includeMetadata
+        );
+      } else {
+        orderMetadataBuildQuery = `
           CASE
             WHEN orders.token_set_id LIKE 'token:%' THEN
               (SELECT
@@ -357,8 +379,8 @@ export class Activities {
               WHERE token_sets.id = orders.token_set_id AND token_sets.schema_hash = orders.token_set_schema_hash)
             ELSE NULL
           END
-        ) AS order_metadata
       `;
+      }
 
       metadataQuery = `
              LEFT JOIN LATERAL (
@@ -377,7 +399,8 @@ export class Activities {
                     source_id_int AS "order_source_id_int",
                     side AS "order_side",
                     kind AS "order_kind",
-                    ${orderMetadataBuildQuery}
+                    (${orderMetadataBuildQuery}) AS "order_metadata",
+                    (${orderCriteriaBuildQuery}) AS "order_criteria"
                 FROM orders
                 WHERE activities.order_id = orders.id
              ) o ON TRUE`;
@@ -416,7 +439,8 @@ export class Activities {
     types: string[] = [],
     limit = 20,
     sortBy = "eventTimestamp",
-    includeMetadata = true
+    includeMetadata = true,
+    includeCriteria = false
   ) {
     const sortByColumn = sortBy == "eventTimestamp" ? "event_timestamp" : "created_at";
     let continuation = "";
@@ -432,8 +456,17 @@ export class Activities {
     }
 
     if (includeMetadata) {
-      const orderMetadataBuildQuery = `
-        (
+      let orderCriteriaBuildQuery = "json_build_object()";
+      let orderMetadataBuildQuery = "json_build_object()";
+
+      if (includeCriteria) {
+        orderCriteriaBuildQuery = Orders.buildCriteriaQuery(
+          "orders",
+          "token_set_id",
+          includeMetadata
+        );
+      } else {
+        orderMetadataBuildQuery = `
           CASE
             WHEN orders.token_set_id LIKE 'token:%' THEN
               (SELECT
@@ -510,8 +543,8 @@ export class Activities {
               WHERE token_sets.id = orders.token_set_id AND token_sets.schema_hash = orders.token_set_schema_hash)
             ELSE NULL
           END
-        ) AS order_metadata
       `;
+      }
 
       metadataQuery = `
                  LEFT JOIN LATERAL (
@@ -530,7 +563,8 @@ export class Activities {
                     source_id_int AS "order_source_id_int",
                     side AS "order_side",
                     kind AS "order_kind",
-                    ${orderMetadataBuildQuery}
+                    (${orderMetadataBuildQuery}) AS "order_metadata",
+                    (${orderCriteriaBuildQuery}) AS "order_criteria"
                 FROM orders
                 WHERE activities.order_id = orders.id
              ) o ON TRUE`;

@@ -9,48 +9,56 @@ import { buildContinuation, formatEth, regex, splitContinuation } from "@/common
 import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { Sources } from "@/models/sources";
-import { JoiOrderMetadata } from "@/common/joi";
+import { JoiOrderCriteria } from "@/common/joi";
 
-const version = "v3";
+const version = "v5";
 
-export const getTokenActivityV3Options: RouteOptions = {
-  description: "Token activity",
-  notes: "This API can be used to build a feed for a token",
-  tags: ["api", "x-deprecated"],
+export const getCollectionActivityV5Options: RouteOptions = {
+  description: "Collection activity",
+  notes: "This API can be used to build a feed for a collection",
+  tags: ["api", "Activity"],
   plugins: {
     "hapi-swagger": {
       order: 1,
     },
   },
   validate: {
-    params: Joi.object({
-      token: Joi.string()
-        .lowercase()
-        .pattern(regex.token)
-        .description(
-          "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
-        )
-        .required(),
-    }),
     query: Joi.object({
+      collection: Joi.string()
+        .lowercase()
+        .description(
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
+      community: Joi.string()
+        .lowercase()
+        .description("Filter to a particular community. Example: `artblocks`"),
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(20)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description(
+          "Amount of items returned in response. If `includeMetadata=true` max limit is 20, otherwise max limit is 1,000."
+        )
+        .when("includeMetadata", {
+          is: true,
+          then: Joi.number().integer().max(20),
+          otherwise: Joi.number().integer().max(1000),
+        }),
       sortBy: Joi.string()
         .valid("eventTimestamp", "createdAt")
         .default("eventTimestamp")
         .description(
           "Order the items are returned in the response, eventTimestamp = The blockchain event time, createdAt - The time in which event was recorded"
         ),
-      includeMetadata: Joi.boolean()
-        .default(true)
-        .description("If true, metadata is included in the response."),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
+      includeMetadata: Joi.boolean()
+        .default(true)
+        .description("If true, metadata is included in the response."),
       types: Joi.alternatives()
         .try(
           Joi.array().items(
@@ -63,7 +71,7 @@ export const getTokenActivityV3Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
-    }),
+    }).xor("collection", "collectionsSetId", "community"),
   },
   response: {
     schema: Joi.object({
@@ -98,18 +106,17 @@ export const getTokenActivityV3Options: RouteOptions = {
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
             source: Joi.object().allow(null),
-            metadata: JoiOrderMetadata.allow(null).optional(),
+            criteria: JoiOrderCriteria.allow(null),
           }),
         })
       ),
-    }).label(`getTokenActivity${version.toUpperCase()}Response`),
+    }).label(`getCollectionActivity${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`get-token-activity-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(`get-collection-activity-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },
   handler: async (request: Request) => {
-    const params = request.params as any;
     const query = request.query as any;
 
     if (query.types && !_.isArray(query.types)) {
@@ -121,15 +128,16 @@ export const getTokenActivityV3Options: RouteOptions = {
     }
 
     try {
-      const [contract, tokenId] = params.token.split(":");
-      const activities = await Activities.getTokenActivities(
-        contract,
-        tokenId,
+      const activities = await Activities.getCollectionActivities(
+        query.collection,
+        query.community,
+        query.collectionsSetId,
         query.continuation,
         query.types,
         query.limit,
         query.sortBy,
-        query.includeMetadata
+        query.includeMetadata,
+        true
       );
 
       // If no activities found
@@ -173,7 +181,7 @@ export const getTokenActivityV3Options: RouteOptions = {
                       icon: orderSource?.getIcon(),
                     }
                   : undefined,
-                metadata: activity.order.metadata || undefined,
+                criteria: activity.order.criteria,
               }
             : undefined,
         };
@@ -195,7 +203,7 @@ export const getTokenActivityV3Options: RouteOptions = {
 
       return { activities: result, continuation };
     } catch (error) {
-      logger.error(`get-token-activity-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(`get-collection-activity-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },

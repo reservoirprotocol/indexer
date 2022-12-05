@@ -8,14 +8,14 @@ import { logger } from "@/common/logger";
 import { buildContinuation, formatEth, regex } from "@/common/utils";
 import { Activities } from "@/models/activities";
 import { Sources } from "@/models/sources";
-import { JoiOrderMetadata } from "@/common/joi";
+import { JoiOrderCriteria } from "@/common/joi";
 
-const version = "v3";
+const version = "v4";
 
-export const getActivityV3Options: RouteOptions = {
+export const getActivityV4Options: RouteOptions = {
   description: "All activity",
   notes: "This API can be used to scrape all of the activities",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Activity"],
   plugins: {
     "hapi-swagger": {
       order: 1,
@@ -57,7 +57,7 @@ export const getActivityV3Options: RouteOptions = {
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
             source: Joi.object().allow(null),
-            metadata: JoiOrderMetadata.allow(null).optional(),
+            criteria: JoiOrderCriteria.allow(null),
           }),
         }).description("Amount of items returned in response.")
       ),
@@ -76,7 +76,8 @@ export const getActivityV3Options: RouteOptions = {
         query.limit,
         true,
         query.includeMetadata,
-        query.sortDirection
+        query.sortDirection,
+        true
       );
 
       // If no activities found
@@ -120,7 +121,7 @@ export const getActivityV3Options: RouteOptions = {
                       icon: orderSource?.getIcon(),
                     }
                   : undefined,
-                metadata: activity.order.metadata || undefined,
+                criteria: activity.order.criteria,
               }
             : undefined,
         };

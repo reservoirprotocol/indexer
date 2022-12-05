@@ -56,6 +56,25 @@ export const getNftBalance = async (
   return bn(balanceResult ? balanceResult.amount : 0);
 };
 
+export const getNfts = async (contract: string, owner: string): Promise<string[]> => {
+  const nftsResult = await redb.manyOrNone(
+    `
+      SELECT
+        nft_balances.token_id
+      FROM nft_balances
+      WHERE nft_balances.contract = $/contract/
+        AND nft_balances.owner = $/owner/
+        AND nft_balances.amount > 0
+    `,
+    {
+      contract: toBuffer(contract),
+      owner: toBuffer(owner),
+    }
+  );
+
+  return nftsResult.map(({ token_id }: { token_id: string }) => token_id);
+};
+
 export const getNftApproval = async (
   contract: string,
   owner: string,
