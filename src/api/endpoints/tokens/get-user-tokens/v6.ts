@@ -366,7 +366,7 @@ export const getUserTokensV6Options: RouteOptions = {
       let continuation = null;
       if (userTokens.length === query.limit) {
         continuation = buildContinuation(
-          userTokens[userTokens.length - 1].acquired_at +
+          _.toInteger(userTokens[userTokens.length - 1].acquired_at) +
             "_" +
             userTokens[userTokens.length - 1].collection_id +
             "_" +
