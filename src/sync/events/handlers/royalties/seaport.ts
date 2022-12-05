@@ -1,9 +1,11 @@
 import { getEnhancedEventFromTransaction } from "../";
+import * as Sdk from "@reservoir0x/sdk";
+import { config } from "@/config/index";
 
 import { bn } from "@/common/utils";
 import * as utils from "@/events-sync/utils";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
-import { Royalty, getDefaultRoyalties } from "@/utils/royalties";
+import { Royalty, getRoyalties } from "@/utils/royalties";
 import { formatEther } from "@ethersproject/units";
 
 import { parseEnhancedEventsToEventsInfo } from "@/events-sync/index";
@@ -30,7 +32,7 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
 
   const { txHash } = fillEvent.baseEventParams;
 
-  const { tokenId, contract, price } = fillEvent;
+  const { tokenId, contract, price, currency } = fillEvent;
   const txTrace = await utils.fetchTransactionTrace(txHash);
   if (!txTrace) {
     return null;
@@ -61,7 +63,7 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
   }, bn(0));
 
   const state = parseCallTrace(txTrace.calls);
-  const royalties = await getDefaultRoyalties(contract, tokenId);
+  const royalties = await getRoyalties(contract, tokenId);
 
   const openSeaFeeRecipients = [
     "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
@@ -95,9 +97,13 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
 
   for (const address in state) {
     const { tokenBalanceState } = state[address];
-    const weth = "erc20:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
-    const native = "native:0x0000000000000000000000000000000000000000";
-    const balanceChange = tokenBalanceState[native] || tokenBalanceState[weth];
+
+    const weth = Sdk.Common.Addresses.Weth[config.chainId];
+    const native = Sdk.Common.Addresses.Eth[config.chainId];
+    const isETH = currency === native;
+    const balanceChange = isETH
+      ? tokenBalanceState[`native:${native}`] || tokenBalanceState[`erc20:${weth}`]
+      : tokenBalanceState[`erc20:${currency}`];
 
     // Receive ETH
     if (balanceChange && !balanceChange.startsWith("-")) {
@@ -137,6 +143,7 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
     sale: {
       tokenId,
       contract,
+      currency,
       price: formatEther(price),
     },
     totalTransfers,
