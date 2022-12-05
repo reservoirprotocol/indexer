@@ -7,20 +7,28 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiPrice, getJoiPriceObject } from "@/common/joi";
-import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
+import { JoiPrice, getJoiPriceObject, JoiOrderCriteria } from "@/common/joi";
+import {
+  buildContinuation,
+  fromBuffer,
+  getNetAmount,
+  regex,
+  splitContinuation,
+  toBuffer,
+} from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { Attributes } from "@/models/attributes";
+import { utils } from "ethers";
+import { Orders } from "@/utils/orders";
 
 const version = "v4";
 
-export const getOrdersBidsV4Options: RouteOptions = {
-  description: "Bids (offers)",
+export const getOrdersAsksV4Options: RouteOptions = {
+  description: "Asks (listings)",
   notes:
-    "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
-  tags: ["api", "x-deprecated"],
+    "Get a list of asks (listings), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
+  tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
       order: 5,
@@ -29,18 +37,13 @@ export const getOrdersBidsV4Options: RouteOptions = {
   validate: {
     query: Joi.object({
       ids: Joi.alternatives(Joi.string(), Joi.array().items(Joi.string())).description(
-        "Order id(s) to search for (only fillable and approved orders will be returned)"
+        "Order id(s) to search for."
       ),
       token: Joi.string()
         .lowercase()
         .pattern(regex.token)
         .description(
           "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
-        ),
-      tokenSetId: Joi.string()
-        .lowercase()
-        .description(
-          "Filter to a particular set. Example: `contract:0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63` or `token:0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:1`"
         ),
       maker: Joi.string()
         .lowercase()
@@ -51,30 +54,14 @@ export const getOrdersBidsV4Options: RouteOptions = {
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
-      collection: Joi.string()
-        .lowercase()
+      contracts: Joi.alternatives()
+        .try(
+          Joi.array().max(50).items(Joi.string().lowercase().pattern(regex.address)),
+          Joi.string().lowercase().pattern(regex.address)
+        )
         .description(
-          "Filter to a particular collection bids with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          "Filter to an array of contracts. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
-      attribute: Joi.object()
-        .unknown()
-        .description(
-          "Filter to a particular attribute within a collection. Example: `attribute[Mouth]=Bored` (Collection must be passed as well when filtering by attribute)"
-        ),
-      contracts: Joi.alternatives().try(
-        Joi.array()
-          .max(50)
-          .items(Joi.string().lowercase().pattern(regex.address))
-          .description(
-            "Filter to an array of contracts. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-          ),
-        Joi.string()
-          .lowercase()
-          .pattern(regex.address)
-          .description(
-            "Filter to an array of contracts. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-          )
-      ),
       status: Joi.string()
         .when("maker", {
           is: Joi.exist(),
@@ -88,12 +75,21 @@ export const getOrdersBidsV4Options: RouteOptions = {
         .pattern(regex.domain)
         .description("Filter to a source by domain. Example: `opensea.io`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
-      includeMetadata: Joi.boolean()
+      includePrivate: Joi.boolean()
         .default(false)
-        .description("If true, metadata is included in the response."),
+        .description("If true, private orders are included in the response."),
+      includeCriteriaMetadata: Joi.boolean()
+        .default(false)
+        .description("If true, criteria metadata is included in the response."),
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
+      startTimestamp: Joi.number().description(
+        "Get events after a particular unix timestamp (inclusive)"
+      ),
+      endTimestamp: Joi.number().description(
+        "Get events before a particular unix timestamp (inclusive)"
+      ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -117,10 +113,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
         .max(1000)
         .default(50)
         .description("Amount of items returned in response."),
-    })
-      .oxor("token", "tokenSetId", "contracts", "ids", "collection")
-      .with("community", "maker")
-      .with("attribute", "collection"),
+    }).with("community", "maker"),
   },
   response: {
     schema: Joi.object({
@@ -129,7 +122,6 @@ export const getOrdersBidsV4Options: RouteOptions = {
           id: Joi.string().required(),
           kind: Joi.string().required(),
           side: Joi.string().valid("buy", "sell").required(),
-          status: Joi.string(),
           tokenSetId: Joi.string().required(),
           tokenSetSchemaHash: Joi.string().lowercase().pattern(regex.bytes32).required(),
           contract: Joi.string().lowercase().pattern(regex.address),
@@ -140,38 +132,8 @@ export const getOrdersBidsV4Options: RouteOptions = {
           validUntil: Joi.number().required(),
           quantityFilled: Joi.number().unsafe(),
           quantityRemaining: Joi.number().unsafe(),
-          metadata: Joi.alternatives(
-            Joi.object({
-              kind: "token",
-              data: Joi.object({
-                collectionId: Joi.string().allow("", null),
-                collectionName: Joi.string().allow("", null),
-                tokenName: Joi.string().allow("", null),
-                image: Joi.string().allow("", null),
-              }),
-            }),
-            Joi.object({
-              kind: "collection",
-              data: Joi.object({
-                collectionId: Joi.string().allow("", null),
-                collectionName: Joi.string().allow("", null),
-                image: Joi.string().allow("", null),
-              }),
-            }),
-            Joi.object({
-              kind: "attribute",
-              data: Joi.object({
-                collectionId: Joi.string().allow("", null),
-                collectionName: Joi.string().allow("", null),
-                attributes: Joi.array().items(
-                  Joi.object({ key: Joi.string(), value: Joi.string() })
-                ),
-                image: Joi.string().allow("", null),
-              }),
-            })
-          )
-            .allow(null)
-            .optional(),
+          criteria: JoiOrderCriteria.allow(null),
+          status: Joi.string(),
           source: Joi.object().allow(null),
           feeBps: Joi.number().allow(null),
           feeBreakdown: Joi.array()
@@ -185,15 +147,16 @@ export const getOrdersBidsV4Options: RouteOptions = {
             .allow(null),
           expiration: Joi.number().required(),
           isReservoir: Joi.boolean().allow(null),
+          isDynamic: Joi.boolean(),
           createdAt: Joi.string().required(),
           updatedAt: Joi.string().required(),
           rawData: Joi.object().optional().allow(null),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
-    }).label(`getOrdersBids${version.toUpperCase()}Response`),
+    }).label(`getOrdersAsks${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`get-orders-bids-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(`get-orders-asks-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },
@@ -201,120 +164,31 @@ export const getOrdersBidsV4Options: RouteOptions = {
     const query = request.query as any;
 
     try {
-      const metadataBuildQuery = `
-        (
-          CASE
-            WHEN orders.token_set_id LIKE 'token:%' THEN
-              (SELECT
-                json_build_object(
-                  'kind', 'token',
-                  'data', json_build_object(
-                    'collectionId', collections.id,
-                    'collectionName', collections.name,
-                    'tokenName', tokens.name,
-                    'image', tokens.image
-                  )
-                )
-              FROM tokens
-              JOIN collections
-                ON tokens.collection_id = collections.id
-              WHERE tokens.contract = decode(substring(split_part(orders.token_set_id, ':', 2) from 3), 'hex')
-                AND tokens.token_id = (split_part(orders.token_set_id, ':', 3)::NUMERIC(78, 0)))
-
-            WHEN orders.token_set_id LIKE 'contract:%' THEN
-              (SELECT
-                json_build_object(
-                  'kind', 'collection',
-                  'data', json_build_object(
-                    'collectionId', collections.id,
-                    'collectionName', collections.name,
-                    'image', (collections.metadata ->> 'imageUrl')::TEXT
-                  )
-                )
-              FROM collections
-              WHERE collections.id = substring(orders.token_set_id from 10))
-
-            WHEN orders.token_set_id LIKE 'range:%' THEN
-              (SELECT
-                json_build_object(
-                  'kind', 'collection',
-                  'data', json_build_object(
-                    'collectionId', collections.id,
-                    'collectionName', collections.name,
-                    'image', (collections.metadata ->> 'imageUrl')::TEXT
-                  )
-                )
-              FROM collections
-              WHERE collections.id = substring(orders.token_set_id from 7))
-
-            WHEN orders.token_set_id LIKE 'list:%' THEN
-              (SELECT
-                CASE
-                  WHEN token_sets.attribute_id IS NULL THEN
-                    (SELECT
-                      json_build_object(
-                        'kind', 'collection',
-                        'data', json_build_object(
-                          'collectionId', collections.id,
-                          'collectionName', collections.name,
-                          'image', (collections.metadata ->> 'imageUrl')::TEXT
-                        )
-                      )
-                    FROM collections
-                    WHERE token_sets.collection_id = collections.id)
-                  ELSE
-                    (SELECT
-                      json_build_object(
-                        'kind', 'attribute',
-                        'data', json_build_object(
-                          'collectionId', collections.id,
-                          'collectionName', collections.name,
-                          'attributes', ARRAY[json_build_object('key', attribute_keys.key, 'value', attributes.value)],
-                          'image', (collections.metadata ->> 'imageUrl')::TEXT
-                        )
-                      )
-                    FROM attributes
-                    JOIN attribute_keys
-                    ON attributes.attribute_key_id = attribute_keys.id
-                    JOIN collections
-                    ON attribute_keys.collection_id = collections.id
-                    WHERE token_sets.attribute_id = attributes.id)
-                END  
-              FROM token_sets
-              WHERE token_sets.id = orders.token_set_id AND token_sets.schema_hash = orders.token_set_schema_hash)
-            ELSE NULL
-          END
-        ) AS metadata
-      `;
+      const criteriaBuildQuery = Orders.buildCriteriaQuery(
+        "orders",
+        "token_set_id",
+        query.includeCriteriaMetadata
+      );
 
       let baseQuery = `
         SELECT
           orders.id,
           orders.kind,
           orders.side,
-          (
-            CASE
-              WHEN orders.fillability_status = 'filled' THEN 'filled'
-              WHEN orders.fillability_status = 'cancelled' THEN 'cancelled'
-              WHEN orders.fillability_status = 'expired' THEN 'expired'
-              WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
-              WHEN orders.approval_status = 'no-approval' THEN 'inactive'
-              ELSE 'active'
-            END
-          ) AS status,
           orders.token_set_id,
           orders.token_set_schema_hash,
           orders.contract,
           orders.maker,
           orders.taker,
+          orders.currency,
           orders.price,
           orders.value,
-          orders.currency,
           orders.currency_price,
           orders.currency_value,
           orders.normalized_value,
           orders.currency_normalized_value,
           orders.missing_royalties,
+          dynamic,
           DATE_PART('epoch', LOWER(orders.valid_between)) AS valid_from,
           COALESCE(
             NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
@@ -331,20 +205,44 @@ export const getOrdersBidsV4Options: RouteOptions = {
           ) AS expiration,
           orders.is_reservoir,
           extract(epoch from orders.created_at) AS created_at,
-          orders.updated_at
+          (
+            CASE
+              WHEN orders.fillability_status = 'filled' THEN 'filled'
+              WHEN orders.fillability_status = 'cancelled' THEN 'cancelled'
+              WHEN orders.fillability_status = 'expired' THEN 'expired'
+              WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
+              WHEN orders.approval_status = 'no-approval' THEN 'inactive'
+              ELSE 'active'
+            END
+          ) AS status,
+          orders.updated_at,
+          (${criteriaBuildQuery}) AS criteria
           ${query.includeRawData ? ", orders.raw_data" : ""}
-          ${query.includeMetadata ? `, ${metadataBuildQuery}` : ""}
         FROM orders
       `;
 
+      // We default in the code so that these values don't appear in the docs
+      if (query.startTimestamp || query.endTimestamp) {
+        if (!query.startTimestamp) {
+          query.startTimestamp = 0;
+        }
+        if (!query.endTimestamp) {
+          query.endTimestamp = 9999999999;
+        }
+      }
+
       // Filters
-      const conditions: string[] = [
-        "EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)",
-        "orders.side = 'buy'",
-      ];
+      const conditions: string[] =
+        query.startTimestamp || query.endTimestamp
+          ? [
+              `orders.created_at >= to_timestamp($/startTimestamp/)`,
+              `orders.created_at <= to_timestamp($/endTimestamp/)`,
+              `orders.side = 'sell'`,
+            ]
+          : [`orders.side = 'sell'`];
 
       let communityFilter = "";
-      let orderStatusFilter;
+      let orderStatusFilter = "";
 
       if (query.ids) {
         if (Array.isArray(query.ids)) {
@@ -356,49 +254,9 @@ export const getOrdersBidsV4Options: RouteOptions = {
         orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
       }
 
-      if (query.tokenSetId) {
-        conditions.push(`orders.token_set_id = $/tokenSetId/`);
-      }
-
       if (query.token) {
-        baseQuery += ` JOIN token_sets_tokens ON token_sets_tokens.token_set_id = orders.token_set_id`;
-
-        const [contract, tokenId] = query.token.split(":");
-
-        (query as any).tokenContract = toBuffer(contract);
-        (query as any).tokenId = tokenId;
-
-        conditions.push(`token_sets_tokens.contract = $/tokenContract/`);
-        conditions.push(`token_sets_tokens.token_id = $/tokenId/`);
-      }
-
-      if (query.collection && !query.attribute) {
-        baseQuery += ` JOIN token_sets ON token_sets.id = orders.token_set_id`;
-        conditions.push(`token_sets.attribute_id IS NULL`);
-        conditions.push(`token_sets.collection_id = $/collection/`);
-      }
-
-      if (query.attribute) {
-        const attributeIds = [];
-        for (const [key, value] of Object.entries(query.attribute)) {
-          const attribute = await Attributes.getAttributeByCollectionKeyValue(
-            query.collection,
-            key,
-            `${value}`
-          );
-          if (attribute) {
-            attributeIds.push(attribute.id);
-          }
-        }
-
-        if (_.isEmpty(attributeIds)) {
-          return { orders: [] };
-        }
-
-        (query as any).attributeIds = attributeIds;
-
-        baseQuery += ` JOIN token_sets ON token_sets.id = orders.token_set_id`;
-        conditions.push(`token_sets.attribute_id IN ($/attributeIds:csv/)`);
+        (query as any).tokenSetId = `token:${query.token}`;
+        conditions.push(`orders.token_set_id = $/tokenSetId/`);
       }
 
       if (query.contracts) {
@@ -468,6 +326,12 @@ export const getOrdersBidsV4Options: RouteOptions = {
         conditions.push(`orders.is_reservoir`);
       }
 
+      if (!query.includePrivate) {
+        conditions.push(
+          `orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL`
+        );
+      }
+
       if (orderStatusFilter) {
         conditions.push(orderStatusFilter);
       }
@@ -481,7 +345,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
         (query as any).id = id;
 
         if (query.sortBy === "price") {
-          conditions.push(`(orders.price, orders.id) < ($/priceOrCreatedAt/, $/id/)`);
+          conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
         } else {
           conditions.push(
             `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAt/), $/id/)`
@@ -497,7 +361,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
 
       // Sorting
       if (query.sortBy === "price") {
-        baseQuery += ` ORDER BY orders.price DESC, orders.id DESC`;
+        baseQuery += ` ORDER BY orders.price, orders.id`;
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
@@ -523,37 +387,34 @@ export const getOrdersBidsV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
         const feeBreakdown = r.fee_breakdown;
-        let feeBps = r.fee_bps;
+        let feeBps = utils.parseUnits(r.fee_bps.toString(), "wei");
 
         if (query.normalizeRoyalties && r.missing_royalties) {
           for (let i = 0; i < r.missing_royalties.length; i++) {
-            if (!Object.keys(r.missing_royalties[i]).includes("bps")) {
-              break;
-            }
+            const amount = utils.parseUnits(r.missing_royalties[i].amount, "wei");
+            const totalValue = utils.parseUnits(r.normalized_value.toString(), "wei").sub(amount);
+            const bps = amount.mul(10000).div(totalValue);
             const index: number = r.fee_breakdown.findIndex(
               (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
             );
 
             if (index > -1) {
-              feeBreakdown[index].bps += Number(r.missing_royalties[i].bps);
+              feeBreakdown[index].bps += Number(bps.toString());
             } else {
-              const missingRoyalty = {
-                bps: Number(r.missing_royalties[i].bps),
+              const tempObj = {
+                bps: Number(bps.toString()),
                 kind: "royalty",
                 recipient: r.missing_royalties[i].recipient,
               };
-              feeBreakdown.push(missingRoyalty);
-              feeBps += Number(r.missing_royalties[i].bps);
+              feeBreakdown.push(tempObj);
+              feeBps = feeBps.add(bps);
             }
           }
         }
-        let source: SourcesEntity | undefined;
 
+        let source: SourcesEntity | undefined;
         if (r.token_set_id?.startsWith("token")) {
           const [, contract, tokenId] = r.token_set_id.split(":");
-          source = sources.get(Number(r.source_id_int), contract, tokenId);
-        } else if (query.token) {
-          const [contract, tokenId] = query.token.split(":");
           source = sources.get(Number(r.source_id_int), contract, tokenId);
         } else {
           source = sources.get(Number(r.source_id_int));
@@ -572,14 +433,14 @@ export const getOrdersBidsV4Options: RouteOptions = {
           price: await getJoiPriceObject(
             {
               gross: {
-                amount: r.currency_price ?? r.price,
-                nativeAmount: r.price,
+                amount: query.normalizeRoyalties
+                  ? r.currency_normalized_value ?? r.price
+                  : r.currency_price ?? r.price,
+                nativeAmount: query.normalizeRoyalties ? r.normalized_value ?? r.price : r.price,
               },
               net: {
-                amount: query.normalizeRoyalties
-                  ? r.currency_normalized_value ?? r.value
-                  : r.currency_value ?? r.value,
-                nativeAmount: query.normalizeRoyalties ? r.normalized_value ?? r.value : r.value,
+                amount: getNetAmount(r.currency_price ?? r.price, r.fee_bps),
+                nativeAmount: getNetAmount(r.price, r.fee_bps),
               },
             },
             r.currency
@@ -592,18 +453,19 @@ export const getOrdersBidsV4Options: RouteOptions = {
           validUntil: Number(r.valid_until),
           quantityFilled: Number(r.quantity_filled),
           quantityRemaining: Number(r.quantity_remaining),
-          metadata: query.includeMetadata ? r.metadata : undefined,
+          criteria: r.criteria,
           source: {
             id: source?.address,
+            domain: source?.domain,
             name: source?.getTitle(),
             icon: source?.getIcon(),
             url: source?.metadata.url,
-            domain: source?.domain,
           },
-          feeBps: feeBps,
+          feeBps: Number(feeBps.toString()),
           feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
+          isDynamic: Boolean(r.dynamic),
           createdAt: new Date(r.created_at * 1000).toISOString(),
           updatedAt: new Date(r.updated_at).toISOString(),
           rawData: query.includeRawData ? r.raw_data : undefined,
@@ -615,7 +477,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
         continuation,
       };
     } catch (error) {
-      logger.error(`get-orders-bids-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(`get-orders-asks-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },

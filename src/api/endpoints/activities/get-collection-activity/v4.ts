@@ -16,7 +16,7 @@ const version = "v4";
 export const getCollectionActivityV4Options: RouteOptions = {
   description: "Collection activity",
   notes: "This API can be used to build a feed for a collection",
-  tags: ["api", "Activity"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 1,

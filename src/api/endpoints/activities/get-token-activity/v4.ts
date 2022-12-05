@@ -9,14 +9,14 @@ import { buildContinuation, formatEth, regex, splitContinuation } from "@/common
 import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { Sources } from "@/models/sources";
-import { JoiOrderMetadata } from "@/common/joi";
+import { JoiOrderCriteria } from "@/common/joi";
 
-const version = "v3";
+const version = "v4";
 
-export const getTokenActivityV3Options: RouteOptions = {
+export const getTokenActivityV4Options: RouteOptions = {
   description: "Token activity",
   notes: "This API can be used to build a feed for a token",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Activity"],
   plugins: {
     "hapi-swagger": {
       order: 1,
@@ -98,7 +98,7 @@ export const getTokenActivityV3Options: RouteOptions = {
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
             source: Joi.object().allow(null),
-            metadata: JoiOrderMetadata.allow(null).optional(),
+            criteria: JoiOrderCriteria.allow(null),
           }),
         })
       ),
@@ -129,7 +129,8 @@ export const getTokenActivityV3Options: RouteOptions = {
         query.types,
         query.limit,
         query.sortBy,
-        query.includeMetadata
+        query.includeMetadata,
+        true
       );
 
       // If no activities found
@@ -173,7 +174,7 @@ export const getTokenActivityV3Options: RouteOptions = {
                       icon: orderSource?.getIcon(),
                     }
                   : undefined,
-                metadata: activity.order.metadata || undefined,
+                criteria: activity.order.criteria,
               }
             : undefined,
         };

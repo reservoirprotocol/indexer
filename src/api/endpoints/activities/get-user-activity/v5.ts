@@ -6,39 +6,68 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { buildContinuation, formatEth, regex, splitContinuation } from "@/common/utils";
-import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
+import { UserActivities } from "@/models/user-activities";
 import { Sources } from "@/models/sources";
-import { JoiOrderMetadata } from "@/common/joi";
+import { getOrderSourceByOrderKind, OrderKind } from "@/orderbook/orders";
+import { CollectionSets } from "@/models/collection-sets";
+import * as Boom from "@hapi/boom";
+import { JoiOrderCriteria } from "@/common/joi";
 
-const version = "v3";
+const version = "v5";
 
-export const getTokenActivityV3Options: RouteOptions = {
-  description: "Token activity",
-  notes: "This API can be used to build a feed for a token",
-  tags: ["api", "x-deprecated"],
+export const getUserActivityV5Options: RouteOptions = {
+  description: "Users activity",
+  notes: "This API can be used to build a feed for a user",
+  tags: ["api", "Activity"],
   plugins: {
     "hapi-swagger": {
       order: 1,
     },
   },
   validate: {
-    params: Joi.object({
-      token: Joi.string()
-        .lowercase()
-        .pattern(regex.token)
-        .description(
-          "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+    query: Joi.object({
+      users: Joi.alternatives()
+        .try(
+          Joi.array()
+            .items(Joi.string().lowercase().pattern(regex.address))
+            .min(1)
+            .max(50)
+            .description(
+              "Array of users addresses. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+            ),
+          Joi.string()
+            .lowercase()
+            .pattern(regex.address)
+            .description(
+              "Array of users addresses. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+            )
         )
         .required(),
-    }),
-    query: Joi.object({
+      collection: Joi.alternatives(
+        Joi.string().lowercase(),
+        Joi.array().items(Joi.string().lowercase())
+      ).description(
+        "Filter to one or more collections. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+      ),
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
+      community: Joi.string()
+        .lowercase()
+        .description("Filter to a particular community. Example: `artblocks`"),
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(20)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description(
+          "Amount of items returned in response. If `includeMetadata=true` max limit is 20, otherwise max limit is 1,000."
+        )
+        .when("includeMetadata", {
+          is: true,
+          then: Joi.number().integer().max(20),
+          otherwise: Joi.number().integer().max(1000),
+        }),
       sortBy: Joi.string()
         .valid("eventTimestamp", "createdAt")
         .default("eventTimestamp")
@@ -63,7 +92,7 @@ export const getTokenActivityV3Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
-    }),
+    }).oxor("collection", "collectionsSetId", "community"),
   },
   response: {
     schema: Joi.object({
@@ -76,7 +105,6 @@ export const getTokenActivityV3Options: RouteOptions = {
           price: Joi.number().unsafe(),
           amount: Joi.number().unsafe(),
           timestamp: Joi.number(),
-          createdAt: Joi.string(),
           contract: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/)
@@ -98,38 +126,50 @@ export const getTokenActivityV3Options: RouteOptions = {
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
             source: Joi.object().allow(null),
-            metadata: JoiOrderMetadata.allow(null).optional(),
+            criteria: JoiOrderCriteria.allow(null),
           }),
+          createdAt: Joi.string(),
         })
       ),
-    }).label(`getTokenActivity${version.toUpperCase()}Response`),
+    }).label(`getUserActivity${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`get-token-activity-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(`get-user-activity-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },
   handler: async (request: Request) => {
-    const params = request.params as any;
     const query = request.query as any;
 
     if (query.types && !_.isArray(query.types)) {
       query.types = [query.types];
     }
 
+    if (!_.isArray(query.users)) {
+      query.users = [query.users];
+    }
+
     if (query.continuation) {
       query.continuation = splitContinuation(query.continuation)[0];
     }
 
+    if (query.collectionsSetId) {
+      query.collection = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+      if (_.isEmpty(query.collection)) {
+        throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+      }
+    }
+
     try {
-      const [contract, tokenId] = params.token.split(":");
-      const activities = await Activities.getTokenActivities(
-        contract,
-        tokenId,
+      const activities = await UserActivities.getActivities(
+        query.users,
+        query.collection,
+        query.community,
         query.continuation,
         query.types,
         query.limit,
         query.sortBy,
-        query.includeMetadata
+        query.includeMetadata,
+        true
       );
 
       // If no activities found
@@ -139,12 +179,20 @@ export const getTokenActivityV3Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
 
-      const result = _.map(activities, (activity) => {
-        const orderSource = activity.order?.sourceIdInt
-          ? sources.get(activity.order.sourceIdInt)
-          : undefined;
+      const result = [];
 
-        return {
+      for (const activity of activities) {
+        let orderSource;
+
+        if (activity.order) {
+          const orderSourceIdInt =
+            activity.order.sourceIdInt ||
+            (await getOrderSourceByOrderKind(activity.order.kind! as OrderKind))?.id;
+
+          orderSource = orderSourceIdInt ? sources.get(orderSourceIdInt) : undefined;
+        }
+
+        result.push({
           type: activity.type,
           fromAddress: activity.fromAddress,
           toAddress: activity.toAddress,
@@ -173,11 +221,11 @@ export const getTokenActivityV3Options: RouteOptions = {
                       icon: orderSource?.getIcon(),
                     }
                   : undefined,
-                metadata: activity.order.metadata || undefined,
+                criteria: activity.order.criteria || undefined,
               }
             : undefined,
-        };
-      });
+        });
+      }
 
       // Set the continuation node
       let continuation = null;
@@ -195,7 +243,7 @@ export const getTokenActivityV3Options: RouteOptions = {
 
       return { activities: result, continuation };
     } catch (error) {
-      logger.error(`get-token-activity-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(`get-user-activity-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },
