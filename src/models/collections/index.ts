@@ -255,4 +255,31 @@ export class Collections {
       );
     }
   }
+
+  public static async refreshCollectionTopBuy(collection: string) {
+    // Revalidate any collection wide token set associated with the collection.
+    const tokenSetsResult = await redb.oneOrNone(
+      `
+                    SELECT token_sets.id
+                    FROM token_sets
+                    WHERE token_sets.collection_id = $/collection/
+                      AND token_sets.attribute_id IS NULL
+      `,
+      {
+        collection: collection,
+      }
+    );
+
+    if (tokenSetsResult) {
+      const currentTime = now();
+      await orderUpdatesById.addToQueue(
+        tokenSetsResult.map((tokenSet: { id: any }) => ({
+          context: `revalidate-buy-${tokenSet.id}-${currentTime}`,
+          tokenSetId: tokenSet.id,
+          side: "buy",
+          trigger: { kind: "revalidation" },
+        }))
+      );
+    }
+  }
 }
