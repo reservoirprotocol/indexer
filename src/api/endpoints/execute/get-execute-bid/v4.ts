@@ -876,7 +876,7 @@ export const getExecuteBidV4Options: RouteOptions = {
 
       return { steps };
     } catch (error) {
-      if (error instanceof Boom.badRequest) {
+      if (error instanceof Boom.Boom && error.output.statusCode === 400) {
         logger.warn(`get-execute-bid-${version}-handler`, `Handler failure: ${error}`);
       } else {
         logger.error(`get-execute-bid-${version}-handler`, `Handler failure: ${error}`);
