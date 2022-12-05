@@ -36,7 +36,6 @@ if (config.doBackgroundWork) {
       const { collectionId, contract } = job.data;
 
       let delay = 2500;
-      let generateCollectionTokenSet = false;
 
       // Get the tokens from the list
       const pendingFlagStatusSyncTokensQueue = new PendingFlagStatusSyncTokens(collectionId);
@@ -51,10 +50,7 @@ if (config.doBackgroundWork) {
         await releaseLock(getLockName());
 
         await flagStatusProcessQueue.addToQueue();
-
-        if (generateCollectionTokenSet) {
-          await flagStatusGenerateCollectionTokenSet.addToQueue(contract, collectionId);
-        }
+        await flagStatusGenerateCollectionTokenSet.addToQueue(contract, collectionId);
 
         return;
       }
@@ -101,8 +97,6 @@ if (config.doBackgroundWork) {
                   QUEUE_NAME,
                   `Flag Status Diff. collectionId:${collectionId}, contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}, isFlagged:${isFlagged}`
                 );
-
-                generateCollectionTokenSet = true;
 
                 await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
                   {
