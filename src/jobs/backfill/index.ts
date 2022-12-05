@@ -1,1 +1,3 @@
-import "@/jobs/backfill/backfill-collections-royalties";
+// To make Prettier happy
+const a = 1;
+a;
