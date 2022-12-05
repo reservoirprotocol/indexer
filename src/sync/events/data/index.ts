@@ -30,6 +30,7 @@ import * as zora from "@/events-sync/data/zora";
 
 export type EventDataKind =
   | "erc721-transfer"
+  | "erc721-consecutive-transfer"
   | "erc1155-transfer-single"
   | "erc1155-transfer-batch"
   | "erc721/1155-approval-for-all"
@@ -114,6 +115,7 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       erc20.withdrawal,
       erc721.transfer,
       erc721.approvalForAll,
+      erc721.consecutiveTransfer,
       erc1155.transferSingle,
       erc1155.transferBatch,
       foundation.buyPriceAccepted,
@@ -201,6 +203,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return erc721.transfer;
     case "erc721/1155-approval-for-all":
       return erc721.approvalForAll;
+    case "erc721-consecutive-transfer":
+      return erc721.consecutiveTransfer;
     case "erc1155-transfer-batch":
       return erc1155.transferBatch;
     case "erc1155-transfer-single":
