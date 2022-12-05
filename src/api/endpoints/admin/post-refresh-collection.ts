@@ -87,7 +87,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
       );
 
       // Refresh the contract floor sell and top bid
-      await collectionsRefreshCache.addToQueue(collection.contract);
+      await collectionsRefreshCache.addToQueue(collection.id);
 
       // Revalidate the contract orders
       await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
