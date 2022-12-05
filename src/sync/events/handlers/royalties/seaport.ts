@@ -24,9 +24,9 @@ export async function parseEnhancedEventToOnChainData(enhancedEvents: EnhancedEv
 }
 
 export async function extractRoyalties(fillEvent: es.fills.Event) {
-  const royalty_fee_breakdown: Royalty[] = [];
-  const marketplace_fee_breakdown: Royalty[] = [];
-  const possible_missing_royalties: Royalty[] = [];
+  const royaltyFeeBreakdown: Royalty[] = [];
+  const marketplaceFeeBreakdown: Royalty[] = [];
+  const possibleMissingRoyalties: Royalty[] = [];
 
   const { txHash } = fillEvent.baseEventParams;
 
@@ -110,13 +110,13 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
       if (openSeaFeeRecipients.includes(address)) {
         // Need to know how many seaport sales in the same tx
         curRoyalties.bps = bn(balanceChange).mul(10000).div(protocolRelatedAmount).toNumber();
-        marketplace_fee_breakdown.push(curRoyalties);
+        marketplaceFeeBreakdown.push(curRoyalties);
       } else if (royaltyRecipients.includes(address)) {
         // For multiple same collection sales in one tx
         curRoyalties.bps = bn(balanceChange).mul(10000).div(collectionRelatedAmount).toNumber();
-        royalty_fee_breakdown.push(curRoyalties);
+        royaltyFeeBreakdown.push(curRoyalties);
       } else if (bpsInPrice.lt(threshold)) {
-        possible_missing_royalties.push(curRoyalties);
+        possibleMissingRoyalties.push(curRoyalties);
       }
 
       balanceChangeWithBps.push({
@@ -130,7 +130,7 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
   const getTotalRoyaltyBps = (royalties?: Royalty[]) =>
     (royalties || []).map(({ bps }) => bps).reduce((a, b) => a + b, 0);
 
-  const paid_full_royalty = royalty_fee_breakdown.length === royaltyRecipients.length;
+  const paidFullRoyalty = royaltyFeeBreakdown.length === royaltyRecipients.length;
 
   const result = {
     txHash,
@@ -140,12 +140,12 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
       price: formatEther(price),
     },
     totalTransfers,
-    royalty_fee_bps: getTotalRoyaltyBps(royalty_fee_breakdown),
-    marketplace_fee_bps: getTotalRoyaltyBps(marketplace_fee_breakdown),
-    royalty_fee_breakdown,
-    marketplace_fee_breakdown,
+    royaltyFeeBps: getTotalRoyaltyBps(royaltyFeeBreakdown),
+    marketplaceFeeBps: getTotalRoyaltyBps(marketplaceFeeBreakdown),
+    royaltyFeeBreakdown,
+    marketplaceFeeBreakdown,
     sameCollectionSales,
-    paid_full_royalty,
+    paidFullRoyalty,
   };
 
   return result;

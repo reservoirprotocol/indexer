@@ -26,11 +26,11 @@ export type Event = {
   isPrimary?: boolean;
   baseEventParams: BaseEventParams;
 
-  royalty_fee_bps?: number;
-  marketplace_fee_bps?: number;
-  royalty_fee_breakdown?: Royalty[];
-  marketplace_fee_breakdown?: Royalty[];
-  paid_full_royalty?: boolean;
+  royaltyFeeBps?: number;
+  marketplaceFeeBps?: number;
+  royaltyFeeBreakdown?: Royalty[];
+  marketplaceFeeBreakdown?: Royalty[];
+  paidFullRoyalty?: boolean;
 };
 
 export type DbEvent = {
@@ -59,7 +59,6 @@ export type DbEvent = {
   currency_price: string | null;
   usd_price: string | null;
   is_primary: boolean | null;
-
   royalty_fee_bps?: number;
   marketplace_fee_bps?: number;
   royalty_fee_breakdown?: Royalty[];

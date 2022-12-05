@@ -7,11 +7,11 @@ import * as seaport from "@/events-sync/handlers/royalties/seaport";
 const registry = new Map<string, RoyaltyAdapter>();
 
 export type RoyaltyResult = {
-  royalty_fee_bps: number;
-  marketplace_fee_bps: number;
-  royalty_fee_breakdown: Royalty[];
-  marketplace_fee_breakdown: Royalty[];
-  paid_full_royalty: boolean;
+  royaltyFeeBps: number;
+  marketplaceFeeBps: number;
+  royaltyFeeBreakdown: Royalty[];
+  marketplaceFeeBreakdown: Royalty[];
+  paidFullRoyalty: boolean;
 };
 
 export interface RoyaltyAdapter {
@@ -28,11 +28,11 @@ export const assignRoyaltiesToFillEvents = async (fillEvents: es.fills.Event[]) 
       if (royaltyAdapter) {
         const result = await royaltyAdapter.extractRoyalties(fillEvent);
         if (result) {
-          fillEvents[index].royalty_fee_bps = result.royalty_fee_bps;
-          fillEvents[index].marketplace_fee_bps = result.marketplace_fee_bps;
-          fillEvents[index].royalty_fee_breakdown = result.royalty_fee_breakdown;
-          fillEvents[index].marketplace_fee_breakdown = result.marketplace_fee_breakdown;
-          fillEvents[index].paid_full_royalty = result.paid_full_royalty;
+          fillEvents[index].royaltyFeeBps = result.royaltyFeeBps;
+          fillEvents[index].marketplaceFeeBps = result.marketplaceFeeBps;
+          fillEvents[index].royaltyFeeBreakdown = result.royaltyFeeBreakdown;
+          fillEvents[index].marketplaceFeeBreakdown = result.marketplaceFeeBreakdown;
+          fillEvents[index].paidFullRoyalty = result.paidFullRoyalty;
         }
       }
     } catch (error) {

@@ -33,11 +33,11 @@ export const addEventsPartial = async (events: Event[]) => {
       currency_price: event.currencyPrice || null,
       usd_price: event.usdPrice || null,
       is_primary: event.isPrimary || null,
-      royalty_fee_bps: event.royalty_fee_bps || undefined,
-      marketplace_fee_bps: event.marketplace_fee_bps || undefined,
-      royalty_fee_breakdown: event.royalty_fee_breakdown || undefined,
-      marketplace_fee_breakdown: event.marketplace_fee_breakdown || undefined,
-      paid_full_royalty: event.paid_full_royalty || undefined,
+      royalty_fee_bps: event.royaltyFeeBps || undefined,
+      marketplace_fee_bps: event.marketplaceFeeBps || undefined,
+      royalty_fee_breakdown: event.royaltyFeeBreakdown || undefined,
+      marketplace_fee_breakdown: event.marketplaceFeeBreakdown || undefined,
+      paid_full_royalty: event.paidFullRoyalty || undefined,
     });
   }
 

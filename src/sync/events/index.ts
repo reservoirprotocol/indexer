@@ -18,10 +18,10 @@ import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 
-export const parseEnhancedEventsToEventsInfo = async (
+export const parseEnhancedEventsToEventsInfo = (
   enhancedEvents: EnhancedEvent[],
   backfill: boolean
-): Promise<EventsInfo[]> => {
+): EventsInfo[] => {
   return [
     {
       kind: "erc20",
