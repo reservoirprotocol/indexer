@@ -5,8 +5,8 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import MetadataApi from "@/utils/metadata-api";
-import { Tokens } from "@/models/tokens";
+import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
+import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 
 const QUEUE_NAME = "collection-updates-non-flagged-floor-ask-queue";
 
@@ -15,8 +15,8 @@ export const queue = new Queue(QUEUE_NAME, {
   defaultJobOptions: {
     attempts: 10,
     backoff: {
-      type: "fixed",
-      delay: 5000,
+      type: "exponential",
+      delay: 20000,
     },
     removeOnComplete: 10000,
     removeOnFail: 10000,
@@ -33,227 +33,138 @@ if (config.doBackgroundWork) {
       const { kind, collectionId, txHash, txTimestamp } = job.data as FloorAskInfo;
 
       try {
-        const tokenResult = await idb.oneOrNone(
+        const nonFlaggedCollectionFloorAsk = await idb.oneOrNone(
           `
-                  SELECT
-                      tokens.contract,
-                      tokens.token_id,
-                      tokens.is_flagged,
-                      tokens.last_flag_update,  
-                      tokens.last_flag_change
-                    FROM tokens
-                    WHERE tokens.collection_id = $/collectionId/
-                    AND tokens.floor_sell_value IS NOT NULL 
-                    ORDER BY tokens.floor_sell_value
-                    LIMIT 1`,
+                    WITH y AS (
+                      UPDATE collections SET
+                        non_flagged_floor_sell_id = x.floor_sell_id,
+                        non_flagged_floor_sell_value = x.floor_sell_value,
+                        non_flagged_floor_sell_maker = x.floor_sell_maker,
+                        non_flagged_floor_sell_source_id_int = x.source_id_int,
+                        non_flagged_floor_sell_valid_between = x.valid_between,
+                        updated_at = now()
+                      FROM (
+                        WITH collection_non_flagged_floor_sell AS (
+                            SELECT
+                              tokens.floor_sell_id,
+                              tokens.floor_sell_value,
+                              tokens.floor_sell_maker,
+                              orders.source_id_int,
+                              orders.valid_between
+                            FROM tokens
+                            JOIN orders
+                              ON tokens.floor_sell_id = orders.id
+                            WHERE tokens.collection_id = $/collection/
+                            AND tokens.is_flagged = 0
+                            ORDER BY tokens.floor_sell_value
+                            LIMIT 1
+                        )
+                        SELECT
+                            collection_non_flagged_floor_sell.floor_sell_id,
+                            collection_non_flagged_floor_sell.floor_sell_value,
+                            collection_non_flagged_floor_sell.floor_sell_maker,
+                            collection_non_flagged_floor_sell.source_id_int,
+                            collection_non_flagged_floor_sell.valid_between
+                        FROM collection_non_flagged_floor_sell
+                        UNION ALL
+                        SELECT NULL, NULL, NULL, NULL, NULL
+                        WHERE NOT EXISTS (SELECT 1 FROM collection_non_flagged_floor_sell)
+                      ) x
+                      WHERE collections.id = $/collection/
+                        AND (
+                          collections.collections.non_flagged_floor_sell_id IS DISTINCT FROM x.floor_sell_id
+                          OR collections.floor_sell_value IS DISTINCT FROM x.floor_sell_value
+                        )
+                      RETURNING
+                        collections.non_flagged_floor_sell_id,
+                        collections.non_flagged_floor_sell_value,
+                        (
+                          SELECT
+                            collections.floor_sell_value
+                          FROM collections
+                          WHERE id = $/collection/
+                        ) AS old_non_flagged_floor_sell_value,
+                        collections.non_flagged_floor_sell_maker,
+                        collections.non_flagged_floor_sell_source_id_int,
+                        collections.non_flagged_floor_sell_valid_between
+                    )
+                    INSERT INTO collection_non_flagged_floor_sell_events(
+                      kind,
+                      collection_id,
+                      contract,
+                      token_id,
+                      order_id,
+                      order_source_id_int,
+                      order_valid_between,
+                      maker,
+                      price,
+                      previous_price,
+                      tx_hash,
+                      tx_timestamp
+                    )
+                    SELECT
+                      $/kind/::token_floor_sell_event_kind_t,
+                      $/collection/,
+                      z.contract,
+                      z.token_id,
+                      y.non_flagged_floor_sell_id,
+                      y.non_flagged_floor_sell_source_id_int,
+                      y.non_flagged_floor_sell_valid_between,
+                      y.non_flagged_floor_sell_maker,
+                      y.non_flagged_floor_sell_value,
+                      y.old_non_flagged_floor_sell_value,
+                      $/txHash/,
+                      $/txTimestamp/
+                    FROM y
+                    LEFT JOIN LATERAL (
+                      SELECT
+                        token_sets_tokens.contract,
+                        token_sets_tokens.token_id
+                      FROM token_sets_tokens
+                      JOIN orders
+                        ON token_sets_tokens.token_set_id = orders.token_set_id
+                      WHERE orders.id = y.non_flagged_floor_sell_id
+                      LIMIT 1
+                    ) z ON TRUE
+                    RETURNING
+                        contract,
+                        token_id
+                        
+                  `,
           {
-            collectionId,
+            kind,
+            collection: collectionId,
+            txHash: txHash ? toBuffer(txHash) : null,
+            txTimestamp,
           }
         );
 
-        if (tokenResult) {
-          const contract = fromBuffer(tokenResult.contract);
-          const tokenId = tokenResult.token_id;
-
-          logger.info(
-            QUEUE_NAME,
-            `tokenResult. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, contract=${contract}, tokenId=${tokenId}, is_flagged=${tokenResult.is_flagged}, last_flag_update=${tokenResult.last_flag_update}, last_flag_change=${tokenResult.last_flag_change}`
-          );
-
-          const tokensMetadata = await MetadataApi.getTokensMetadata(
-            [
-              {
-                contract,
-                tokenId,
-              },
-            ],
-            true
-          );
-
-          const tokenMetadata = tokensMetadata[0];
-          const isFlagged = Number(tokenMetadata.flagged);
-
-          logger.info(
-            QUEUE_NAME,
-            `Token Check. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}, contract=${contract}, tokenId=${tokenId}, isFlagged=${isFlagged}`
-          );
-
-          await Tokens.update(contract, tokenId, {
-            isFlagged,
-            lastFlagUpdate: new Date().toISOString(),
-          });
-
-          if (isFlagged) {
-            await addToQueue([
-              {
-                kind,
-                collectionId,
-                txHash,
-                txTimestamp,
-              },
-            ]);
-          } else {
-            await idb.oneOrNone(
-              `
-                        WITH y AS (
-                          UPDATE collections SET
-                            non_flagged_floor_sell_id = x.floor_sell_id,
-                            non_flagged_floor_sell_value = x.floor_sell_value,
-                            non_flagged_floor_sell_maker = x.floor_sell_maker,
-                            non_flagged_floor_sell_source_id_int = x.source_id_int,
-                            non_flagged_floor_sell_valid_between = x.valid_between,
-                            updated_at = now()
-                          FROM (
-                                SELECT
-                                  tokens.floor_sell_id,
-                                  tokens.floor_sell_value,
-                                  tokens.floor_sell_maker,
-                                  orders.source_id_int,
-                                  orders.valid_between
-                                FROM tokens
-                                JOIN orders
-                                  ON tokens.floor_sell_id = orders.id
-                                WHERE tokens.contract = $/contract/
-                                AND tokens.token_id = $/tokenId/
-                          ) x
-                          WHERE collections.id = $/collection/
-                            AND (
-                              collections.non_flagged_floor_sell_id IS DISTINCT FROM x.floor_sell_id
-                              OR collections.non_flagged_floor_sell_value IS DISTINCT FROM x.floor_sell_value
-                            )
-                          RETURNING
-                            collections.non_flagged_floor_sell_id,
-                            collections.non_flagged_floor_sell_value,
-                            (
-                              SELECT
-                                collections.non_flagged_floor_sell_value
-                              FROM collections
-                              WHERE id = $/collection/
-                            ) AS old_non_flagged_floor_sell_value,
-                            collections.non_flagged_floor_sell_maker,
-                            collections.non_flagged_floor_sell_source_id_int,
-                            collections.non_flagged_floor_sell_valid_between
-                        )
-                        INSERT INTO collection_non_flagged_floor_sell_events(
-                          kind,
-                          collection_id,
-                          contract,
-                          token_id,
-                          order_id,
-                          order_source_id_int,
-                          order_valid_between,
-                          maker,
-                          price,
-                          previous_price,
-                          tx_hash,
-                          tx_timestamp
-                        )
-                        SELECT
-                          $/kind/::token_floor_sell_event_kind_t,
-                          $/collection/,
-                          z.contract,
-                          z.token_id,
-                          y.non_flagged_floor_sell_id,
-                          y.non_flagged_floor_sell_source_id_int,
-                          y.non_flagged_floor_sell_valid_between,
-                          y.non_flagged_floor_sell_maker,
-                          y.non_flagged_floor_sell_value,
-                          y.old_non_flagged_floor_sell_value,
-                          $/txHash/,
-                          $/txTimestamp/
-                        FROM y
-                        LEFT JOIN LATERAL (
-                          SELECT
-                            token_sets_tokens.contract,
-                            token_sets_tokens.token_id
-                          FROM token_sets_tokens
-                          JOIN orders
-                            ON token_sets_tokens.token_set_id = orders.token_set_id
-                          WHERE orders.id = y.non_flagged_floor_sell_id
-                          LIMIT 1
-                        ) z ON TRUE
-                      `,
-              {
-                kind,
-                collection: collectionId,
-                contract: toBuffer(contract),
-                tokenId,
-                txHash: txHash ? toBuffer(txHash) : null,
-                txTimestamp,
-              }
-            );
-          }
-        } else {
-          logger.info(
-            QUEUE_NAME,
-            `No Floor Ask. kind=${kind}, collectionId=${collectionId}, txHash=${txHash}, txTimestamp=${txTimestamp}}`
-          );
-
-          await idb.oneOrNone(
-            `
-                        WITH y AS (
-                          UPDATE collections SET
-                            non_flagged_floor_sell_id = null,
-                            non_flagged_floor_sell_value = null,
-                            non_flagged_floor_sell_maker = null,
-                            non_flagged_floor_sell_source_id_int = null,
-                            non_flagged_floor_sell_valid_between = null,
-                            updated_at = now()
-                          WHERE collections.id = $/collection/
-                          RETURNING
-                            collections.non_flagged_floor_sell_id,
-                            collections.non_flagged_floor_sell_value,
-                            (
-                              SELECT
-                                collections.non_flagged_floor_sell_value
-                              FROM collections
-                              WHERE id = $/collection/
-                            ) AS old_non_flagged_floor_sell_value,
-                            collections.non_flagged_floor_sell_maker,
-                            collections.non_flagged_floor_sell_source_id_int,
-                            collections.non_flagged_floor_sell_valid_between
-                        )
-                        INSERT INTO collection_non_flagged_floor_sell_events(
-                          kind,
-                          collection_id,
-                          contract,
-                          token_id,
-                          order_id,
-                          order_source_id_int,
-                          order_valid_between,
-                          maker,
-                          price,
-                          previous_price,
-                          tx_hash,
-                          tx_timestamp
-                        )
-                        SELECT
-                          $/kind/::token_floor_sell_event_kind_t,
-                          $/collection/,
-                          null,
-                          null,
-                          y.non_flagged_floor_sell_id,
-                          y.non_flagged_floor_sell_source_id_int,
-                          y.non_flagged_floor_sell_valid_between,
-                          y.non_flagged_floor_sell_maker,
-                          y.non_flagged_floor_sell_value,
-                          y.old_non_flagged_floor_sell_value,
-                          $/txHash/,
-                          $/txTimestamp/
-                        FROM y
-                      `,
+        if (nonFlaggedCollectionFloorAsk) {
+          const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
+          await pendingFlagStatusSyncJobs.add([
             {
-              kind,
-              collection: collectionId,
-              txHash: txHash ? toBuffer(txHash) : null,
-              txTimestamp,
-            }
-          );
+              kind: "tokens",
+              data: {
+                collectionId,
+                contract: fromBuffer(nonFlaggedCollectionFloorAsk.contract),
+                tokens: [
+                  {
+                    tokenId: nonFlaggedCollectionFloorAsk.token_id,
+                    tokenIsFlagged: 0,
+                  },
+                ],
+              },
+            },
+          ]);
+
+          await flagStatusProcessQueue.addToQueue();
         }
       } catch (error) {
         logger.error(
           QUEUE_NAME,
-          `Failed to process collection floor-ask info ${JSON.stringify(job.data)}: ${error}`
+          `Failed to process collection non-flagged-floor-ask info ${JSON.stringify(
+            job.data
+          )}: ${error}`
         );
         throw error;
       }
