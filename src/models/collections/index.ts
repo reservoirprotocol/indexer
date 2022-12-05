@@ -258,7 +258,7 @@ export class Collections {
 
   public static async refreshCollectionTopBuy(collection: string) {
     // Revalidate any collection wide token set associated with the collection.
-    const tokenSetsResult = await redb.oneOrNone(
+    const tokenSetsResult = await redb.manyOrNone(
       `
                     SELECT token_sets.id
                     FROM token_sets
