@@ -116,6 +116,10 @@ if (config.doBackgroundWork) {
             const totalAmount = mints
               .map(({ amount }) => amount)
               .reduce((a, b) => bn(a).add(b).toString());
+            if (totalAmount === "0") {
+              return;
+            }
+
             const price = bn(tx.value).div(totalAmount).toString();
             const currency = Sdk.Common.Addresses.Eth[config.chainId];
 
