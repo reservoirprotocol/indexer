@@ -6,6 +6,7 @@ import * as erc1155 from "@/events-sync/data/erc1155";
 
 import * as blur from "@/events-sync/data/blur";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
+import * as cryptoKitties from "@/events-sync/data/cryptokitties";
 import * as element from "@/events-sync/data/element";
 import * as forward from "@/events-sync/data/forward";
 import * as foundation from "@/events-sync/data/foundation";
@@ -30,6 +31,7 @@ import * as zora from "@/events-sync/data/zora";
 
 export type EventDataKind =
   | "erc721-transfer"
+  | "erc721-consecutive-transfer"
   | "erc1155-transfer-single"
   | "erc1155-transfer-batch"
   | "erc721/1155-approval-for-all"
@@ -82,6 +84,7 @@ export type EventDataKind =
   | "cryptopunks-punk-transfer"
   | "cryptopunks-assign"
   | "cryptopunks-transfer"
+  | "cryptokitties-transfer"
   | "sudoswap-buy"
   | "sudoswap-sell"
   | "sudoswap-token-deposit"
@@ -114,6 +117,7 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       erc20.withdrawal,
       erc721.transfer,
       erc721.approvalForAll,
+      erc721.consecutiveTransfer,
       erc1155.transferSingle,
       erc1155.transferBatch,
       foundation.buyPriceAccepted,
@@ -161,6 +165,7 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       cryptoPunks.punkTransfer,
       cryptoPunks.assign,
       cryptoPunks.transfer,
+      cryptoKitties.transfer,
       sudoswap.buy,
       sudoswap.sell,
       sudoswap.tokenDeposit,
@@ -201,6 +206,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return erc721.transfer;
     case "erc721/1155-approval-for-all":
       return erc721.approvalForAll;
+    case "erc721-consecutive-transfer":
+      return erc721.consecutiveTransfer;
     case "erc1155-transfer-batch":
       return erc1155.transferBatch;
     case "erc1155-transfer-single":
@@ -295,6 +302,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return cryptoPunks.assign;
     case "cryptopunks-transfer":
       return cryptoPunks.transfer;
+    case "cryptokitties-transfer":
+      return cryptoKitties.transfer;
     case "sudoswap-buy":
       return sudoswap.buy;
     case "sudoswap-sell":

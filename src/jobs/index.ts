@@ -33,8 +33,6 @@ import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsync
 import * as arweaveSyncBackfill from "@/jobs/arweave-sync/backfill-queue";
 import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
-import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
-
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
 import * as collectionsRefresh from "@/jobs/collections-refresh/collections-refresh";
@@ -42,6 +40,7 @@ import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections
 
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
+import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
@@ -110,8 +109,6 @@ export const allJobQueues = [
   arweaveSyncBackfill.queue,
   arweaveSyncRealtime.queue,
 
-  backfillCollectionsRoyalties.queue,
-
   currencies.queue,
 
   topBidUpdate.queue,
@@ -121,6 +118,8 @@ export const allJobQueues = [
 
   collectionUpdatesFloorAsk.queue,
   collectionUpdatesNormalizedFloorAsk.queue,
+  collectionUpdatesNonFlaggedFloorAsk.queue,
+
   collectionUpdatesMetadata.queue,
   rarity.queue,
   collectionUpdatesTopBid.queue,

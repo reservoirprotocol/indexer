@@ -6,6 +6,8 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
+import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
+
 const QUEUE_NAME = "collection-updates-floor-ask-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -16,7 +18,7 @@ export const queue = new Queue(QUEUE_NAME, {
       type: "exponential",
       delay: 20000,
     },
-    removeOnComplete: 10000,
+    removeOnComplete: 1000,
     removeOnFail: 10000,
     timeout: 60000,
   },
@@ -155,6 +157,15 @@ if (config.doBackgroundWork) {
 
         if (collectionFloorAskChanged) {
           await redis.del(`collection-floor-ask:${collectionResult.collection_id}`);
+
+          await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
+            {
+              kind,
+              collectionId: collectionResult.collection_id,
+              txHash,
+              txTimestamp,
+            },
+          ]);
         }
       } catch (error) {
         logger.error(

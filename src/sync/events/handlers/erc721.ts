@@ -114,6 +114,85 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
+      case "erc721-consecutive-transfer": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const from = parsedLog.args["fromAddress"].toLowerCase();
+        const to = parsedLog.args["toAddress"].toLowerCase();
+        const fromTokenId = parsedLog.args["fromTokenId"].toString();
+        const toTokenId = parsedLog.args["toTokenId"].toString();
+
+        const fromNumber = Number(fromTokenId);
+        const toNumber = Number(toTokenId);
+        for (let i = fromNumber; i <= toNumber; i++) {
+          const tokenId = i.toString();
+
+          nftTransferEvents.push({
+            kind: "erc721",
+            from,
+            to,
+            tokenId,
+            amount: "1",
+            baseEventParams,
+          });
+
+          if (from === AddressZero) {
+            mintInfos.push({
+              contract: baseEventParams.address,
+              tokenId,
+              mintedTimestamp: baseEventParams.timestamp,
+            });
+
+            if (!ns.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
+              if (!mintedTokens.has(baseEventParams.txHash)) {
+                mintedTokens.set(baseEventParams.txHash, []);
+              }
+              mintedTokens.get(baseEventParams.txHash)!.push({
+                contract: baseEventParams.address,
+                tokenId,
+                from,
+                amount: "1",
+                baseEventParams,
+              });
+            }
+          }
+
+          // Make sure to only handle the same data once per transaction
+          const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${tokenId}`;
+
+          makerInfos.push({
+            context: `${contextPrefix}-${from}-sell-balance`,
+            maker: from,
+            trigger: {
+              kind: "balance-change",
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            data: {
+              kind: "sell-balance",
+              contract: baseEventParams.address,
+              tokenId,
+            },
+          });
+
+          makerInfos.push({
+            context: `${contextPrefix}-${to}-sell-balance`,
+            maker: to,
+            trigger: {
+              kind: "balance-change",
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            data: {
+              kind: "sell-balance",
+              contract: baseEventParams.address,
+              tokenId,
+            },
+          });
+        }
+
+        break;
+      }
+
       case "erc721/1155-approval-for-all": {
         const parsedLog = eventData.abi.parseLog(log);
         const owner = parsedLog.args["owner"].toLowerCase();

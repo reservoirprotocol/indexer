@@ -38,6 +38,11 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
+      excludeFlaggedTokens: Joi.boolean()
+        .default(false)
+        .description(
+          "If true, will exclude floor asks on flagged tokens. (only supported when `normalizeRoyalties` is false)"
+        ),
       sortDirection: Joi.string()
         .valid("asc", "desc")
         .default("desc")
@@ -125,6 +130,8 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
         FROM ${
           query.normalizeRoyalties
             ? "collection_normalized_floor_sell_events"
+            : query.excludeFlaggedTokens
+            ? "collection_non_flagged_floor_sell_events"
             : "collection_floor_sell_events"
         } events
       `;

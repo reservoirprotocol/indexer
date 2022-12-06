@@ -10,7 +10,7 @@ const JoiPriceAmount = Joi.object({
   raw: Joi.string().pattern(regex.number),
   decimal: Joi.number().unsafe(),
   usd: Joi.number().unsafe().allow(null),
-  native: Joi.number().unsafe(),
+  native: Joi.number().unsafe().allow(null),
 });
 
 const JoiPriceCurrency = Joi.object({
@@ -29,7 +29,7 @@ export const JoiPrice = Joi.object({
 export const getJoiAmountObject = async (
   currency: Currency,
   amount: string,
-  nativeAmount: string,
+  nativeAmount?: string,
   usdAmount?: string
 ) => {
   let usdPrice = usdAmount;
@@ -45,7 +45,7 @@ export const getJoiAmountObject = async (
     raw: amount,
     decimal: formatPrice(amount, currency.decimals),
     usd: usdPrice ? formatUsd(usdPrice) : null,
-    native: formatEth(nativeAmount),
+    native: nativeAmount ? formatEth(nativeAmount) : null,
   };
 };
 
@@ -53,12 +53,12 @@ export const getJoiPriceObject = async (
   prices: {
     gross: {
       amount: string;
-      nativeAmount: string;
+      nativeAmount?: string;
       usdAmount?: string;
     };
     net?: {
       amount: string;
-      nativeAmount: string;
+      nativeAmount?: string;
       usdAmount?: string;
     };
   },

@@ -32,3 +32,17 @@ export const approvalForAll: EventData = {
     )`,
   ]),
 };
+
+export const consecutiveTransfer: EventData = {
+  kind: "erc721-consecutive-transfer",
+  topic: "0xdeaa91b6123d068f5821d0fb0678463d1a8a6079fe8af5de3ce5e896dcf9133d",
+  numTopics: 4,
+  abi: new Interface([
+    `event ConsecutiveTransfer(
+      uint256 indexed fromTokenId,
+      uint256 toTokenId,
+      address indexed fromAddress,
+      address indexed toAddress
+    )`,
+  ]),
+};

@@ -2,6 +2,7 @@
 
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
+import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -37,6 +38,9 @@ export const getTokensIdsV4Options: RouteOptions = {
         .description(
           "Filter to a particular token set. Example: token:0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270:129000685"
         ),
+      flagStatus: Joi.number()
+        .allow(-1, 0, 1)
+        .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -48,7 +52,8 @@ export const getTokensIdsV4Options: RouteOptions = {
       ),
     })
       .or("collection", "contract", "tokenSetId")
-      .oxor("collection", "contract", "tokenSetId"),
+      .oxor("collection", "contract", "tokenSetId")
+      .with("flagStatus", "collection"),
   },
   response: {
     schema: Joi.object({
@@ -86,6 +91,10 @@ export const getTokensIdsV4Options: RouteOptions = {
         `;
 
         conditions.push(`"tst"."token_set_id" = $/tokenSetId/`);
+      }
+
+      if (_.indexOf([0, 1], query.flagStatus) !== -1) {
+        conditions.push(`"t"."is_flagged" = $/flagStatus/`);
       }
 
       // Continue with the next page, this depends on the sorting used

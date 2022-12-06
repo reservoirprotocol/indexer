@@ -56,6 +56,7 @@ if (config.doBackgroundWork) {
             : `
               is_flagged = $/isFlagged/,
               last_flag_update = now(),
+              last_flag_change = CASE WHEN (is_flagged != $/isFlagged/) THEN NOW() ELSE last_flag_change END,
         `;
 
         // Update the token's metadata.

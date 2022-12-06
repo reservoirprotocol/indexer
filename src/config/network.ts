@@ -122,6 +122,24 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
             },
           ],
+          [
+            "0xefe804a604fd3175220d5a4f2fc1a048c479c592",
+            {
+              contract: "0xefe804a604fd3175220d5a4f2fc1a048c479c592",
+              name: "PIXAPE",
+              symbol: "$pixape",
+              decimals: 18,
+            },
+          ],
+          [
+            "0x726516B20c4692a6beA3900971a37e0cCf7A6BFf",
+            {
+              contract: "0x726516B20c4692a6beA3900971a37e0cCf7A6BFf",
+              name: "Frog Coin",
+              symbol: "FRG",
+              decimals: 18,
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",

@@ -51,6 +51,11 @@ export const parseEnhancedEventsToEventsInfo = (
       backfill,
     },
     {
+      kind: "cryptokitties",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("cryptokitties")),
+      backfill,
+    },
+    {
       kind: "element",
       events: enhancedEvents.filter(({ kind }) => kind.startsWith("element")),
       backfill,
