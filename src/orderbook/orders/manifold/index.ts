@@ -47,6 +47,30 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     try {
       const id = getOrderId(orderParams.id);
 
+      if (orderParams.details.totalPerSale !== 1) {
+        return results.push({
+          id,
+          txHash: orderParams.txHash,
+          status: "unsupported-order-fill-amount",
+        });
+      }
+
+      if (orderParams.details.type_ !== 2) {
+        return results.push({
+          id,
+          txHash: orderParams.txHash,
+          status: "unsupported-order-type",
+        });
+      }
+
+      if (orderParams.details.erc20 !== Sdk.Common.Addresses.Eth) {
+        return results.push({
+          id,
+          txHash: orderParams.txHash,
+          status: "unsupported-payment-token",
+        });
+      }
+
       const orderResult = await redb.oneOrNone(
         ` 
           SELECT 
@@ -283,22 +307,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
     );
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
-
-    await ordersUpdateById.addToQueue(
-      results
-        .filter(({ status }) => status === "success")
-        .map(
-          ({ id, txHash, triggerKind }) =>
-            ({
-              context: `${triggerKind}-${id}-${txHash}`,
-              id,
-              trigger: {
-                kind: triggerKind,
-              },
-            } as ordersUpdateById.OrderInfo)
-        )
-    );
   }
+
+  await ordersUpdateById.addToQueue(
+    results
+      .filter(({ status }) => status === "success")
+      .map(
+        ({ id, txHash, triggerKind }) =>
+          ({
+            context: `${triggerKind}-${id}-${txHash}`,
+            id,
+            trigger: {
+              kind: triggerKind,
+            },
+          } as ordersUpdateById.OrderInfo)
+      )
+  );
 
   return results;
 };

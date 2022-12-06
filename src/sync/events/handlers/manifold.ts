@@ -16,7 +16,6 @@ import { manifold } from "@/orderbook/orders";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import { redb } from "@/common/db";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
-import { baseProvider } from "@/common/provider";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const cancelEventsOnChain: es.cancels.Event[] = [];
@@ -76,25 +75,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const currencyPrice = parsedLog.args["amount"].toString();
         let taker = parsedLog.args["buyer"].toLowerCase();
         let currency = Sdk.Common.Addresses.Eth[config.chainId];
+        let maker = "";
 
         const orderId = manifold.getOrderId(listingId);
-
-        const orderResult = await redb.oneOrNone(
-          ` 
-            SELECT 
-              raw_data,
-              extract('epoch' from lower(orders.valid_between)) AS valid_from
-            FROM orders 
-            WHERE orders.id = $/id/ 
-          `,
-          { id: orderId }
-        );
-
-        if (!orderResult) {
-          break;
-        }
-
-        const maker = orderResult.raw_data.seller;
 
         const txTrace = await utils.fetchTransactionTrace(baseEventParams.txHash);
         if (!txTrace) {
@@ -115,6 +98,31 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           if (token.startsWith("erc20")) {
             currency = token.split(":")[1];
           }
+        }
+
+        // We assume the seller is the address that got paid the largest amount of tokens
+        // In case of 50/50 split, maker will be the first address paid
+        let maxPayout = null;
+        const payoutAddresses = Object.keys(parsedTrace).filter(
+          (address) => address !== baseEventParams.address
+        );
+
+        for (const payoutAddress of payoutAddresses) {
+          const tokenPayouts = Object.keys(parsedTrace[payoutAddress].tokenBalanceState).filter(
+            (token) => token.includes(currency)
+          );
+          for (const token of tokenPayouts) {
+            const tokensTransfered = bn(parsedTrace[payoutAddress].tokenBalanceState[token]);
+            if (tokensTransfered.gt(0) && (!maxPayout || tokensTransfered.gt(maxPayout))) {
+              maxPayout = tokensTransfered;
+              maker = payoutAddress;
+            }
+          }
+        }
+
+        if (!maker) {
+          // Skip if maker couldn't be retrieved
+          break;
         }
 
         // Handle: attribution
@@ -158,8 +166,19 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
+        const orderResult = await redb.oneOrNone(
+          ` 
+            SELECT 
+              raw_data,
+              extract('epoch' from lower(orders.valid_between)) AS valid_from
+            FROM orders 
+            WHERE orders.id = $/id/ 
+          `,
+          { id: orderId }
+        );
+
         // Some manifold order have end time that is set after the first purchase
-        if (orderResult.valid_from === 0) {
+        if (orderResult && orderResult.valid_from === 0) {
           const endTime = baseEventParams.timestamp + orderResult.raw_data.details.endTime;
           orders.push({
             orderParams: {
@@ -234,13 +253,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const listingId = args["listingId"];
         const orderId = getOrderId(listingId);
 
-        // There could be multiple people receivng ETH/ERC20 tokens from the tx, that's why we fetch the seller from the contract
-        const onChainListing = await new Sdk.Manifold.Exchange(config.chainId).getListing(
-          baseProvider,
-          listingId
-        );
-        const maker = onChainListing.seller.toLowerCase();
-
+        let maker = "";
         let tokenContract = "";
         let tokenId = "";
         let taker = "";
@@ -267,6 +280,29 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             currency = token.split(":")[1];
             currencyPrice = bn(contractTrace.tokenBalanceState[token]).abs().toString();
           }
+        }
+
+        // We assume the seller is the address that got paid the largest amount of tokens
+        // In case of 50/50 split, maker will be the first address paid
+        let maxPayout = null;
+        for (const payoutAddress of Object.keys(parsedTrace).filter(
+          (address) => address !== baseEventParams.address
+        )) {
+          const tokenPayouts = Object.keys(parsedTrace[payoutAddress].tokenBalanceState).filter(
+            (token) => token.includes(currency)
+          );
+          for (const token of tokenPayouts) {
+            const tokensTransfered = bn(parsedTrace[payoutAddress].tokenBalanceState[token]);
+            if (tokensTransfered.gt(0) && (!maxPayout || tokensTransfered.gt(maxPayout))) {
+              maxPayout = tokensTransfered;
+              maker = payoutAddress;
+            }
+          }
+        }
+
+        if (!maker) {
+          // Skip if maker couldn't be retrieved
+          break;
         }
 
         // not a sale event
