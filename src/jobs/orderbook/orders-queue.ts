@@ -100,7 +100,6 @@ if (config.doBackgroundWork) {
           case "rarible": {
             const result = await orders.rarible.save([info], relayToArweave);
             logger.info(QUEUE_NAME, `[rarible] Order save result: ${JSON.stringify(result)}`);
-
             break;
           }
 
@@ -111,6 +110,12 @@ if (config.doBackgroundWork) {
 
           case "blur": {
             result = await orders.blur.save([info as orders.blur.OrderInfo], relayToArweave);
+            break;
+          }
+
+          case "manifold": {
+            const result = await orders.manifold.save([info]);
+            logger.info(QUEUE_NAME, `[manifold] Order save result: ${JSON.stringify(result)}`);
             break;
           }
         }
@@ -226,6 +231,12 @@ export type GenericOrderInfo =
   | {
       kind: "blur";
       info: orders.blur.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "manifold";
+      info: orders.manifold.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     };

@@ -21,6 +21,7 @@ import * as zeroExV4 from "@/events-sync/handlers/zeroex-v4";
 import * as zora from "@/events-sync/handlers/zora";
 import * as universe from "@/events-sync/handlers/universe";
 import * as rarible from "@/events-sync/handlers/rarible";
+import * as manifold from "@/events-sync/handlers/manifold";
 
 export type EventsInfo = {
   kind:
@@ -44,7 +45,8 @@ export type EventsInfo = {
     | "zeroex-v4"
     | "zora"
     | "universe"
-    | "rarible";
+    | "rarible"
+    | "manifold";
   events: EnhancedEvent[];
   backfill?: boolean;
 };
@@ -154,6 +156,10 @@ export const processEvents = async (info: EventsInfo) => {
 
     case "rarible": {
       data = await rarible.handleEvents(info.events);
+      break;
+    }
+    case "manifold": {
+      data = await manifold.handleEvents(info.events);
       break;
     }
   }

@@ -141,7 +141,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             nftData = result[0][3];
 
             paymentCurrency = result[0][5].toLowerCase();
-            if (paymentCurrency === constants.AddressZero) {
+            if (paymentCurrency === Sdk.Common.Addresses.Eth) {
               currencyAssetType = ETH;
             } else {
               currencyAssetType = ERC20;
@@ -185,7 +185,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             nftData = result[0][3];
 
             paymentCurrency = result[0][5].toLowerCase();
-            if (paymentCurrency === constants.AddressZero) {
+            if (paymentCurrency === Sdk.Common.Addresses.Eth) {
               currencyAssetType = ETH;
             } else {
               currencyAssetType = ERC20;
