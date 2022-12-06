@@ -63,25 +63,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      if (orderParams.details.erc20 !== Sdk.Common.Addresses.Eth) {
+      if (orderParams.details.erc20 !== Sdk.Common.Addresses.Eth[config.chainId]) {
         return results.push({
           id,
           txHash: orderParams.txHash,
           status: "unsupported-payment-token",
         });
       }
-
-      const orderResult = await redb.oneOrNone(
-        ` 
-          SELECT 
-            raw_data,
-            extract('epoch' from lower(orders.valid_between)) AS valid_from,
-            fillability_status
-          FROM orders 
-          WHERE orders.id = $/id/ 
-        `,
-        { id }
-      );
 
       // startTime - The start time of the sale.  If set to 0, startTime will be set to the first bid/purchase.
       // endTime - The end time of the sale.  If startTime is 0, represents the duration of the listing upon first bid/purchase.
@@ -98,6 +86,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           ? `date_trunc('seconds', to_timestamp(${orderParams.details.endTime}))`
           : "'infinity'";
       }
+
+      const orderResult = await redb.oneOrNone(
+        ` 
+          SELECT 
+            raw_data,
+            extract('epoch' from lower(orders.valid_between)) AS valid_from,
+            fillability_status
+          FROM orders 
+          WHERE orders.id = $/id/ 
+        `,
+        { id }
+      );
 
       if (orderResult) {
         // Process only new events
