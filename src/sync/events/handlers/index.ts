@@ -51,7 +51,7 @@ export type EventsInfo = {
 };
 
 export const processEvents = async (info: EventsInfo) => {
-  const data: OnChainData | undefined = await parseEventsInfo(info);
+  const data = await parseEventsInfo(info);
   if (data) {
     await processOnChainData(data, info.backfill);
   }
