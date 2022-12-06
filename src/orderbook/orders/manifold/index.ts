@@ -1,4 +1,5 @@
 import { AddressZero } from "@ethersproject/constants";
+import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
@@ -8,10 +9,9 @@ import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/manifold/check";
+import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
-import { keccak256 } from "@ethersproject/solidity";
 
 export type OrderInfo = {
   orderParams: Sdk.Manifold.Types.Order & {
@@ -29,15 +29,15 @@ type SaveResult = {
   triggerKind?: "new-order" | "reprice";
 };
 
-export function getOrderId(listingId: number | string) {
-  // Manifold uses incrementing numbers as ids, so we set the id in our DB to be keccak256(exchange, id)
-  // This is done in order to prevent id collisions if we integrate another exchange with the same id mechanic
-  const orderId = keccak256(
+export const getOrderId = (listingId: number | string) =>
+  // Manifold uses incrementing integers as order ids, so we set the id in the
+  // database to be `keccak256(exchange, id)` (the exchange address is used in
+  // order to prevent collisions once we integrate other exchange with similar
+  // id mechanics).
+  keccak256(
     ["string", "string", "uint256"],
     ["manifold", Sdk.Manifold.Addresses.Exchange[config.chainId], listingId]
   );
-  return orderId;
-}
 
 export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
@@ -71,13 +71,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // startTime - The start time of the sale.  If set to 0, startTime will be set to the first bid/purchase.
-      // endTime - The end time of the sale.  If startTime is 0, represents the duration of the listing upon first bid/purchase.
-      let validFrom = "";
-      let validTo = "";
+      // startTime - the start time of the sale (if set to 0, then startTime will be set to the first bid/purchase)
+      // endTime - the end time of the sale (if set to 0, then endTime will be the duration of the listing upon first bid/purchase)
+      let validFrom: string;
+      let validTo: string;
       if (orderParams.details.startTime === 0) {
-        // We don't have tx timestamp because we're ingesting order from Manifold API
-        // We have tx timestamp when we're processing cancel/fill event
+        // In case we don't have the transaction's timestamp (since we're ingesting
+        // orders from the API and not from on-chain data) we default it to 0
         validFrom = `date_trunc('seconds', to_timestamp(${orderParams.txTimestamp || 0}))`;
         validTo = "'infinity'";
       } else {
@@ -100,7 +100,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       );
 
       if (orderResult) {
-        // Process only new events
+        // Only process new events
         if (Number(orderResult.valid_from) > orderParams.txTimestamp) {
           return results.push({
             id,
@@ -110,7 +110,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         }
 
         // If an older order already exists then we just update some fields on it
-        // We update the order before doing `offChainCheck` because the updated fields don't alter the approval or fillability status
+        // (the updated fields won't alter the approval or fillability status)
         orderResult.raw_data.details = {
           ...orderResult.raw_data.details,
           ...(orderParams.details.initialAmount && {
@@ -121,21 +121,20 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         };
         await idb.none(
           `
-              UPDATE orders SET
-                valid_between = tstzrange(${validFrom}, ${validTo}, '[]'),
-                price = $/initial_amount/,
-                value = $/initial_amount/,
-                currency_price = $/initial_amount/,
-                currency_value = $/initial_amount/,
-                expiration = 'Infinity',
-                updated_at = now(),
-                raw_data = $/orderParams:json/
-              WHERE orders.id = $/id/
-            `,
+            UPDATE orders SET
+              valid_between = tstzrange(${validFrom}, ${validTo}, '[]'),
+              price = $/initialAmount/,
+              value = $/initialAmount/,
+              currency_price = $/initialAmount/,
+              currency_value = $/initialAmount/,
+              expiration = 'Infinity',
+              updated_at = now(),
+              raw_data = $/orderParams:json/
+            WHERE orders.id = $/id/
+          `,
           {
-            initial_amount:
+            initialAmount:
               orderParams.details.initialAmount || orderResult.raw_data.details.initialAmount,
-            valid_to: validTo,
             orderParams: orderResult.raw_data,
             id,
           }
@@ -152,12 +151,15 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Ensure that the order is not cancelled
       const cancelResult = await redb.oneOrNone(
         `
-                SELECT 1 FROM cancel_events
-                WHERE order_id = $/id/
-                  AND timestamp >= $/timestamp/
-                LIMIT 1
-              `,
-        { id, timestamp: orderParams.txTimestamp }
+          SELECT 1 FROM cancel_events
+          WHERE order_id = $/id/
+            AND timestamp >= $/timestamp/
+          LIMIT 1
+        `,
+        {
+          id,
+          timestamp: orderParams.txTimestamp,
+        }
       );
       if (cancelResult) {
         return results.push({
@@ -170,12 +172,15 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Ensure that the order is not filled
       const fillResult = await redb.oneOrNone(
         `
-                SELECT 1 FROM fill_events_2
-                WHERE order_id = $/id/
-                  AND timestamp >= $/timestamp/
-                LIMIT 1
-              `,
-        { id, timestamp: orderParams.txTimestamp }
+          SELECT 1 FROM fill_events_2
+          WHERE order_id = $/id/
+            AND timestamp >= $/timestamp/
+          LIMIT 1
+        `,
+        {
+          id,
+          timestamp: orderParams.txTimestamp,
+        }
       );
       if (fillResult) {
         return results.push({
@@ -190,8 +195,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const approvalStatus = "approved";
       try {
         await offChainCheck(orderParams);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
+      } catch {
         return results.push({
           id,
           status: "not-fillable",
@@ -231,7 +235,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         taker: toBuffer(AddressZero),
         price: orderParams.details.initialAmount,
         value: orderParams.details.initialAmount,
-        // erc20 is zero address if ETH order
         currency: toBuffer(orderParams.details.erc20),
         currency_price: orderParams.details.initialAmount,
         currency_value: orderParams.details.initialAmount,

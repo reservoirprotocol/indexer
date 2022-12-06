@@ -1,9 +1,9 @@
 import * as Sdk from "@reservoir0x/sdk";
 
 import { baseProvider } from "@/common/provider";
+import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { OrderInfo } from "@/orderbook/orders/manifold";
-import { bn } from "@/common/utils";
 
 export const offChainCheck = async (order: OrderInfo["orderParams"]) => {
   const exchangeContract = new Sdk.Manifold.Exchange(config.chainId);
