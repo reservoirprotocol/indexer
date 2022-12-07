@@ -120,6 +120,11 @@ if (config.doBackgroundWork) {
               return;
             }
 
+            // Fix transaction values which contain decimals
+            if (tx.value.includes(".")) {
+              tx.value = tx.value.split(".")[0];
+            }
+
             const price = bn(tx.value).div(totalAmount).toString();
             const currency = Sdk.Common.Addresses.Eth[config.chainId];
 

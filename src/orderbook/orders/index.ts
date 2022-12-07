@@ -652,6 +652,15 @@ export const generateBidDetailsV6 = async (
       };
     }
 
+    case "blur": {
+      const sdkOrder = new Sdk.Blur.Order(config.chainId, order.rawData);
+      return {
+        kind: "blur",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }
