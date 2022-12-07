@@ -6,9 +6,10 @@ import { randomUUID } from "crypto";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
+import { Collections } from "@/models/collections";
 
 const QUEUE_NAME = "collections-refresh-cache";
 
@@ -27,26 +28,26 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { contract } = job.data;
+      const { collection } = job.data;
 
       // Refresh the contract floor sell and top bid
-      // await Collections.recalculateContractFloorSell(contract);
-      // await Collections.recalculateContractTopBuy(contract);
+      await Collections.revalidateCollectionTopBuy(collection);
 
       const result = await redb.manyOrNone(
         `
           SELECT
+            tokens.contract,
             tokens.token_id
           FROM tokens
-          WHERE tokens.contract = $/contract/
+          WHERE tokens.collection_id = $/collection/
             AND tokens.floor_sell_id IS NOT NULL
           LIMIT 10000
         `,
-        { contract: toBuffer(contract) }
+        { collection }
       );
       if (result) {
-        for (const { token_id } of result) {
-          await resyncAttributeCache.addToQueue(contract, token_id, 0);
+        for (const { contract, token_id } of result) {
+          await resyncAttributeCache.addToQueue(fromBuffer(contract), token_id, 0);
         }
       }
     },
@@ -58,6 +59,6 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (contract: string) => {
-  await queue.add(randomUUID(), { contract });
+export const addToQueue = async (collection: string) => {
+  await queue.add(randomUUID(), { collection });
 };
