@@ -291,7 +291,7 @@ export class Collections {
         },
       ]);
     } else {
-      // If not top buy exists, try to refresh the associated token sets
+      // If top buy does not exist, try to refresh the by the collection token sets
       const tokenSetsResult = await redb.manyOrNone(
         `
               SELECT token_sets.id

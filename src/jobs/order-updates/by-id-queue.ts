@@ -121,6 +121,7 @@ if (config.doBackgroundWork) {
             );
 
             if (!buyOrderResult.length && trigger.kind === "revalidation") {
+              // When revalidating, force revalidation of the attribute / collection.
               const tokenSetsResult = await redb.manyOrNone(
                 `
               SELECT 
