@@ -169,17 +169,17 @@ if (config.doBackgroundWork) {
 
         if (!sellOrderResult && kind === "revalidation") {
           const tokenResult = await redb.oneOrNone(
-            `
+              `
               SELECT 
-                token_set_tokens.contract,
-                token_set_tokens.token_id
-              FROM token_set_tokens
-              WHERE token_set_tokens.token_set_id = $/tokenSetId/
+                token_sets_tokens.contract,
+                token_sets_tokens.token_id
+              FROM token_sets_tokens
+              WHERE token_sets_tokens.token_set_id = $/tokenSetId/
               LIMIT 1
             `,
-            {
-              tokenSetId,
-            }
+              {
+                tokenSetId,
+              }
           );
 
           if (tokenResult) {
