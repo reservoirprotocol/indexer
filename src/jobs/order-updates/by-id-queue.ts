@@ -120,8 +120,8 @@ if (config.doBackgroundWork) {
               { tokenSetId }
             );
 
-            if (!buyOrderResult && trigger.kind === "revalidation") {
-              const tokenSetsResult = await redb.oneOrNone(
+            if (!buyOrderResult.length && trigger.kind === "revalidation") {
+              const tokenSetsResult = await redb.manyOrNone(
                 `
               SELECT 
                 token_sets.collection_id,
@@ -134,7 +134,7 @@ if (config.doBackgroundWork) {
                 }
               );
 
-              if (tokenSetsResult) {
+              if (tokenSetsResult.length) {
                 buyOrderResult = tokenSetsResult.map(
                   (result: { collection_id: any; attribute_id: any }) => ({
                     kind: trigger.kind,
