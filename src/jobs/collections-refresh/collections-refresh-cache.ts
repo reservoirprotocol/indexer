@@ -31,7 +31,6 @@ if (config.doBackgroundWork) {
       const { collection } = job.data;
 
       // Refresh the contract floor sell and top bid
-      await Collections.revalidateCollectionFloorAsk(collection);
       await Collections.revalidateCollectionTopBuy(collection);
 
       const result = await redb.manyOrNone(
