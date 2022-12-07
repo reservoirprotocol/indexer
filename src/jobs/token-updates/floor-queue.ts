@@ -186,7 +186,7 @@ if (config.doBackgroundWork) {
           if (tokenResult) {
             sellOrderResult = {
               kind,
-              contract: fromBuffer(tokenResult.contract),
+              contract: tokenResult.contract,
               tokenId: tokenResult.token_id,
               txHash,
               txTimestamp,
