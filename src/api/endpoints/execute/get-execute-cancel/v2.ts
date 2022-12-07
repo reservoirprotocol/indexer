@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { recoverAddress } from "@ethersproject/transactions";
+import { arrayify } from "@ethersproject/bytes";
+import { verifyMessage } from "@ethersproject/wallet";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -95,7 +96,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
       if (query.softCancel || query.signature) {
         if (query.signature) {
           // Check signature
-          const signer = recoverAddress(orderResult.id, query.signature);
+          const signer = verifyMessage(arrayify(query.id), query.signature);
           if (signer.toLowerCase() !== maker) {
             throw Boom.unauthorized("Invalid signature");
           }
