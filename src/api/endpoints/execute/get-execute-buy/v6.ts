@@ -11,7 +11,7 @@ import { inject } from "@/api/index";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { bn, formatPrice, fromBuffer, regex } from "@/common/utils";
+import { bn, formatPrice, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
@@ -317,10 +317,17 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 AND orders.approval_status = 'approved'
                 AND orders.quantity_remaining >= $/quantity/
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                ${
+                  // TODO: Add support for buying in ERC20 tokens
+                  payload.currency && payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+                    ? " AND orders.currency = $/currency/"
+                    : ""
+                }
             `,
             {
               id: orderId,
               quantity: payload.quantity ?? 1,
+              currency: toBuffer(payload.currency),
             }
           );
           if (!orderResult) {
@@ -389,6 +396,13 @@ export const getExecuteBuyV6Options: RouteOptions = {
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
                   AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                  ${
+                    // TODO: Add support for buying in ERC20 tokens
+                    payload.currency &&
+                    payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+                      ? " AND orders.currency = $/currency/"
+                      : ""
+                  }
                 ORDER BY orders.value, ${
                   preferredOrderSource
                     ? `(
@@ -404,6 +418,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               {
                 tokenSetId: `token:${token}`,
                 sourceId: preferredOrderSource,
+                currency: toBuffer(payload.currency),
               }
             );
             if (!bestOrderResult) {
@@ -462,12 +477,20 @@ export const getExecuteBuyV6Options: RouteOptions = {
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
                   AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                  ${
+                    // TODO: Add support for buying in ERC20 tokens
+                    payload.currency &&
+                    payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
+                      ? " AND orders.currency = $/currency/"
+                      : ""
+                  }
                 LIMIT 1000
               `,
               {
                 tokenSetId: `token:${token}`,
                 quantity: payload.quantity,
                 sourceId: preferredOrderSource,
+                currency: toBuffer(payload.currency),
               }
             );
             if (!bestOrdersResult?.length) {
@@ -582,7 +605,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           // If multiple same-currency orders are to get filled, we use that currency
           buyInCurrency = path[0].currency;
         } else {
-          // If multiple different-currency orders are to get gilled, we use the native currency
+          // If multiple different-currency orders are to get filled, we use the native currency
           buyInCurrency = Sdk.Common.Addresses.Eth[config.chainId];
         }
       }
