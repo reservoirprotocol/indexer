@@ -1,6 +1,6 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
@@ -33,7 +33,7 @@ if (config.doBackgroundWork) {
 
       try {
         // Atomically update the cache and trigger an api event if needed
-        const sellOrderResult = await idb.oneOrNone(
+        let sellOrderResult = await idb.oneOrNone(
           `
                 WITH z AS (
                   SELECT
@@ -166,6 +166,32 @@ if (config.doBackgroundWork) {
             txTimestamp: txTimestamp || null,
           }
         );
+
+        if (!sellOrderResult && kind === "revalidation") {
+          const tokenResult = await redb.oneOrNone(
+              `
+              SELECT 
+                token_sets_tokens.contract,
+                token_sets_tokens.token_id
+              FROM token_sets_tokens
+              WHERE token_sets_tokens.token_set_id = $/tokenSetId/
+              LIMIT 1
+            `,
+              {
+                tokenSetId,
+              }
+          );
+
+          if (tokenResult) {
+            sellOrderResult = {
+              kind,
+              contract: tokenResult.contract,
+              tokenId: tokenResult.token_id,
+              txHash,
+              txTimestamp,
+            };
+          }
+        }
 
         if (sellOrderResult) {
           sellOrderResult.contract = fromBuffer(sellOrderResult.contract);

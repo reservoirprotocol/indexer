@@ -165,6 +165,11 @@ export const parseEnhancedEventsToEventsInfo = (
           kind === "erc20-transfer"
       ),
     },
+    {
+      kind: "manifold",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("manifold")),
+      backfill,
+    },
   ];
 };
 

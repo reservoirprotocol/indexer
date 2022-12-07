@@ -4,6 +4,7 @@ import Redis from "ioredis";
 import Redlock from "redlock";
 
 import { config } from "@/config/index";
+import _ from "lodash";
 
 // TODO: Research using a connection pool rather than
 // creating a new connection every time, as we do now.
@@ -62,4 +63,11 @@ export const releaseLock = async (name: string) => {
 
 export const getLockExpiration = async (name: string) => {
   return await redis.ttl(name);
+};
+
+export const getMemUsage = async () => {
+  const memoryInfo = await redis.info("memory");
+  const usedMemory = memoryInfo.match(/used_memory:\d+/);
+
+  return usedMemory ? _.toInteger(_.split(usedMemory[0], ":")[1]) : 0;
 };

@@ -14,6 +14,8 @@ import {
 import { Tokens } from "@/models/tokens";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
+import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
+import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -256,30 +258,71 @@ export class Collections {
     }
   }
 
-  public static async refreshCollectionTopBuy(collection: string) {
-    // Revalidate any collection wide token set associated with the collection.
-    const tokenSetsResult = await redb.manyOrNone(
+  public static async revalidateCollectionFloorAsk(collection: string) {
+    const floorAskOrderResult = await redb.oneOrNone(
       `
-                    SELECT token_sets.id
-                    FROM token_sets
-                    WHERE token_sets.collection_id = $/collection/
-                      AND token_sets.attribute_id IS NULL
+        SELECT
+          orders.id
+        FROM orders
+        JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id
+        JOIN tokens ON token_sets_tokens.contract = tokens.contract AND token_sets_tokens.token_id = tokens.token_id
+        WHERE tokens.collection_id = $/collection/
+          AND orders.side = 'sell'
+          AND orders.fillability_status = 'fillable'
+          AND orders.approval_status = 'approved'
+          AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+        ORDER BY orders.value, orders.fee_bps
+        LIMIT 1
       `,
       {
         collection: collection,
       }
     );
 
-    if (tokenSetsResult) {
-      const currentTime = now();
-      await orderUpdatesById.addToQueue(
-        tokenSetsResult.map((tokenSet: { id: any }) => ({
-          context: `revalidate-buy-${tokenSet.id}-${currentTime}`,
-          tokenSetId: tokenSet.id,
-          side: "buy",
+    if (floorAskOrderResult.id) {
+      await orderUpdatesById.addToQueue([
+        {
+          context: `revalidate-collection-floor-sell-${floorAskOrderResult.id}-${now()}`,
+          id: floorAskOrderResult.id,
           trigger: { kind: "revalidation" },
-        }))
-      );
+        },
+      ]);
+    } else {
+      // Refresh all tokens?
+    }
+  }
+
+  public static async revalidateCollectionTopBuy(collection: string) {
+    const topBuyOrderResult = await redb.oneOrNone(
+      `
+        SELECT
+          orders.id
+        FROM orders
+        JOIN token_sets ON orders.token_set_id = token_sets.id
+        WHERE token_sets.collection_id = $/collection/
+          AND token_sets.attribute_id IS NULL
+          AND orders.side = 'buy'
+          AND orders.fillability_status = 'fillable'
+          AND orders.approval_status = 'approved'
+          AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+        ORDER BY orders.value DESC
+        LIMIT 1
+      `,
+      {
+        collection: collection,
+      }
+    );
+
+    if (topBuyOrderResult.id) {
+      await orderUpdatesById.addToQueue([
+        {
+          context: `revalidate-collection-top-buy-${topBuyOrderResult.id}-${now()}`,
+          id: topBuyOrderResult.id,
+          trigger: { kind: "revalidation" },
+        },
+      ]);
+    } else {
+      // Refresh all token sets?
     }
   }
 }

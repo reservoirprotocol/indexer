@@ -9,6 +9,7 @@ import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
+import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as raribleCheck from "@/orderbook/orders/rarible/check";
 import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
 import * as seaportCheck from "@/orderbook/orders/seaport/check";
@@ -46,6 +47,8 @@ if (config.doBackgroundWork) {
             const result = await redb.oneOrNone(
               `
                 SELECT
+                  orders.side,
+                  orders.token_set_id,
                   orders.kind,
                   orders.raw_data
                 FROM orders
@@ -168,6 +171,29 @@ if (config.doBackgroundWork) {
                       return;
                     }
                   }
+                  break;
+                }
+
+                case "sudoswap": {
+                  try {
+                    // TODO: Add support for bid validation
+                    if (result.side === "sell") {
+                      const order = new Sdk.Sudoswap.Order(config.chainId, result.raw_data);
+
+                      const [, contract, tokenId] = result.token_set_id.split(":");
+                      const balance = await commonHelpers.getNftBalance(
+                        contract,
+                        tokenId,
+                        order.params.pair
+                      );
+                      if (balance.lte(0)) {
+                        fillabilityStatus = "no-balance";
+                      }
+                    }
+                  } catch {
+                    return;
+                  }
+
                   break;
                 }
 
