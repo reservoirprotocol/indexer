@@ -33,19 +33,37 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   // Keep track of all unique contracts and tokens
   const uniqueContracts = new Set<string>();
   const uniqueTokens = new Set<string>();
+  const uniqueOwners = new Set<string>();
 
-  const transferValues: DbEvent[] = [];
+  let transferValues: DbEvent[] = [];
+  const uniqueOwnersTransferValues = [];
+
   const contractValues: {
     address: Buffer;
     kind: "erc721" | "erc1155" | "cryptopunks" | "cryptokitties";
   }[] = [];
+
   const tokenValues: {
     collection_id: string;
     contract: Buffer;
     token_id: string;
     minted_timestamp: number;
   }[] = [];
+
   for (const event of events) {
+    const ownerFrom = `${event.from}:${event.baseEventParams.address}:${event.tokenId}`;
+    const ownerTo = `${event.to}:${event.baseEventParams.address}:${event.tokenId}`;
+
+    // Once we already update an owner create new array in order to split the update queries later
+    if (uniqueOwners.has(ownerFrom) || uniqueOwners.has(ownerTo)) {
+      uniqueOwnersTransferValues.push(transferValues);
+      transferValues = [];
+      uniqueOwners.clear();
+    }
+
+    uniqueOwners.add(ownerFrom);
+    uniqueOwners.add(ownerTo);
+
     transferValues.push({
       address: toBuffer(event.baseEventParams.address),
       block: event.baseEventParams.block,
@@ -82,30 +100,35 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
     }
   }
 
+  if (transferValues.length) {
+    uniqueOwnersTransferValues.push(transferValues); // Add the last batch of transfer values
+  }
+
+  const nftTransferQueries: string[] = [];
   const queries: string[] = [];
 
-  if (transferValues.length) {
-    const columns = new pgp.helpers.ColumnSet(
-      [
-        "address",
-        "block",
-        "block_hash",
-        "tx_hash",
-        "tx_index",
-        "log_index",
-        "timestamp",
-        "batch_index",
-        "from",
-        "to",
-        "token_id",
-        "amount",
-      ],
-      { table: "nft_transfer_events" }
-    );
+  if (uniqueOwnersTransferValues.length) {
+    for (const transferEvents of uniqueOwnersTransferValues) {
+      const columns = new pgp.helpers.ColumnSet(
+        [
+          "address",
+          "block",
+          "block_hash",
+          "tx_hash",
+          "tx_index",
+          "log_index",
+          "timestamp",
+          "batch_index",
+          "from",
+          "to",
+          "token_id",
+          "amount",
+        ],
+        { table: "nft_transfer_events" }
+      );
 
-    for (const chunk of _.chunk(transferValues, 30)) {
       // Atomically insert the transfer events and update balances
-      queries.push(`
+      nftTransferQueries.push(`
         WITH "x" AS (
           INSERT INTO "nft_transfer_events" (
             "address",
@@ -120,7 +143,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "to",
             "token_id",
             "amount"
-          ) VALUES ${pgp.helpers.values(chunk, columns)}
+          ) VALUES ${pgp.helpers.values(transferEvents, columns)}
           ON CONFLICT DO NOTHING
           RETURNING
             "address",
@@ -157,7 +180,20 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         UPDATE SET 
           "amount" = "nft_balances"."amount" + "excluded"."amount", 
           "acquired_at" = COALESCE(GREATEST("excluded"."acquired_at", "nft_balances"."acquired_at"), "nft_balances"."acquired_at")
-    `);
+      `);
+    }
+
+    if (backfill) {
+      // When backfilling, use the write buffer to avoid deadlocks
+      for (const query of _.chunk(nftTransferQueries, 1000)) {
+        await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(query));
+      }
+    } else {
+      // Otherwise write directly since there might be jobs that depend
+      // on the events to have been written to the database at the time
+      // they get to run and we have no way to easily enforce this when
+      // using the write buffer.
+      await idb.none(pgp.helpers.concat(nftTransferQueries));
     }
   }
 

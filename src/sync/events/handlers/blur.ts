@@ -95,15 +95,14 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Handle: prices
 
-        const currency = sell.paymentToken.toLowerCase();
+        const currency =
+          sell.paymentToken.toLowerCase() === "0x0000000000a39bb272e79075ade125fd351887ac"
+            ? Sdk.Common.Addresses.Eth[config.chainId]
+            : sell.paymentToken.toLowerCase();
         const currencyPrice = sell.price.div(sell.amount).toString();
-        const isBlurETH = currency === "0x0000000000a39bb272e79075ade125fd351887ac";
-
-        // Hardcode as ETH
-        const currencyToPrice = isBlurETH ? Sdk.Common.Addresses.Eth[config.chainId] : currency;
 
         const priceData = await getUSDAndNativePrices(
-          currencyToPrice,
+          currency,
           currencyPrice,
           baseEventParams.timestamp
         );
