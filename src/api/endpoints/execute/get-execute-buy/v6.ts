@@ -327,7 +327,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
             {
               id: orderId,
               quantity: payload.quantity ?? 1,
-              currency: toBuffer(payload.currency),
+              currency: payload.currency ? toBuffer(payload.currency) : undefined,
             }
           );
           if (!orderResult) {
@@ -418,7 +418,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               {
                 tokenSetId: `token:${token}`,
                 sourceId: preferredOrderSource,
-                currency: toBuffer(payload.currency),
+                currency: payload.currency ? toBuffer(payload.currency) : undefined,
               }
             );
             if (!bestOrderResult) {
@@ -490,7 +490,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 tokenSetId: `token:${token}`,
                 quantity: payload.quantity,
                 sourceId: preferredOrderSource,
-                currency: toBuffer(payload.currency),
+                currency: payload.currency ? toBuffer(payload.currency) : undefined,
               }
             );
             if (!bestOrdersResult?.length) {
