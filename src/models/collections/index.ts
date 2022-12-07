@@ -298,7 +298,7 @@ export class Collections {
         SELECT
           orders.id
         FROM orders
-        JOIN token_sets ON orders.token_set_id = token_sets_tokens.token_set_id
+        JOIN token_sets ON orders.token_set_id = token_sets.id
         WHERE token_sets.collection_id = $/collection/
           AND token_sets.attribute_id IS NULL
           AND orders.side = 'buy'

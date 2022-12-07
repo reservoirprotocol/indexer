@@ -17,7 +17,7 @@ export const queue = new Queue(QUEUE_NAME, {
       type: "exponential",
       delay: 10000,
     },
-    removeOnComplete: 100,
+    removeOnComplete: 5,
     removeOnFail: 10000,
     timeout: 120000,
   },
@@ -57,5 +57,3 @@ export const addToQueue = async (infos: EventsInfo[]) => {
     await queue.addBulk(jobs);
   }
 };
-
-queue.retryJobs({ count: 1 });
