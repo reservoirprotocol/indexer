@@ -283,11 +283,6 @@ export class Collections {
     );
 
     if (topBuyOrderResult.id) {
-      logger.info(
-        "revalidateCollectionTopBuy",
-        `Top Buy Refresh. collection=${collection}, topBuyOrderId=${topBuyOrderResult.id}`
-      );
-
       await orderUpdatesById.addToQueue([
         {
           context: `revalidate-collection-top-buy-${topBuyOrderResult.id}-${now()}`,
@@ -297,7 +292,7 @@ export class Collections {
       ]);
     } else {
       // If not top buy exists, try to refresh the associated token sets
-      const tokenSetsResult = await redb.oneOrNone(
+      const tokenSetsResult = await redb.manyOrNone(
         `
               SELECT token_sets.id
               FROM token_sets
@@ -308,14 +303,7 @@ export class Collections {
         }
       );
 
-      if (tokenSetsResult) {
-        logger.info(
-          "revalidateCollectionTopBuy",
-          `Token Sets Refresh. collection=${collection}, tokenSetsResult=${JSON.stringify(
-            tokenSetsResult
-          )}`
-        );
-
+      if (tokenSetsResult.length) {
         const currentTime = now();
         await orderUpdatesById.addToQueue(
           tokenSetsResult.map((tokenSet: { id: any }) => ({
