@@ -349,20 +349,20 @@ export const getCollectionsV5Options: RouteOptions = {
       if (query.normalizeRoyalties) {
         floorAskSelectQuery = `
             collections.normalized_floor_sell_id AS floor_sell_id,
-            collections.normalized_floor_sell_value as floor_sell_value,
-            collections.normalized_floor_sell_maker as floor_sell_maker,
+            collections.normalized_floor_sell_value AS floor_sell_value,
+            collections.normalized_floor_sell_maker AS floor_sell_maker,
             least(2147483647::NUMERIC, date_part('epoch', lower(collections.normalized_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
-            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.normalized_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until
+            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.normalized_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
             collections.normalized_floor_sell_source_id_int AS floor_sell_source_id_int,
             `;
       } else if (query.excludeFlaggedTokens) {
         floorAskSelectQuery = `
-            collections.non_flagged_floor_sell_id,
-            collections.non_flagged_floor_sell_value,
-            collections.non_flagged_floor_sell_maker,
+            collections.non_flagged_floor_sell_id AS floor_sell_id,
+            collections.non_flagged_floor_sell_value AS floor_sell_value,
+            collections.non_flagged_floor_sell_maker AS floor_sell_maker,
             least(2147483647::NUMERIC, date_part('epoch', lower(collections.non_flagged_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
             least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.non_flagged_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
-            collections.non_flagged_floor_sell_source_id_int,
+            collections.non_flagged_floor_sell_source_id_int AS floor_sell_source_id_int,
             `;
       } else {
         floorAskSelectQuery = `
@@ -581,7 +581,7 @@ export const getCollectionsV5Options: RouteOptions = {
                  : "orders.currency_value AS floor_sell_currency_value"
              }
            FROM orders
-           WHERE orders.id = order_events.order_id
+           WHERE orders.id = x.floor_sell_id
         ) o ON TRUE
         ${ownerCountJoinQuery}
         ${attributesJoinQuery}
