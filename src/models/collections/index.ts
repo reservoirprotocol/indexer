@@ -258,41 +258,10 @@ export class Collections {
     }
   }
 
-  public static async revalidateCollectionFloorAsk(collection: string) {
-    const floorAskOrderResult = await redb.oneOrNone(
-      `
-        SELECT
-          orders.id
-        FROM orders
-        JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id
-        JOIN tokens ON token_sets_tokens.contract = tokens.contract AND token_sets_tokens.token_id = tokens.token_id
-        WHERE tokens.collection_id = $/collection/
-          AND orders.side = 'sell'
-          AND orders.fillability_status = 'fillable'
-          AND orders.approval_status = 'approved'
-          AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-        ORDER BY orders.value, orders.fee_bps
-        LIMIT 1
-      `,
-      {
-        collection: collection,
-      }
-    );
-
-    if (floorAskOrderResult.id) {
-      await orderUpdatesById.addToQueue([
-        {
-          context: `revalidate-collection-floor-sell-${floorAskOrderResult.id}-${now()}`,
-          id: floorAskOrderResult.id,
-          trigger: { kind: "revalidation" },
-        },
-      ]);
-    } else {
-      // Refresh all tokens?
-    }
-  }
-
   public static async revalidateCollectionTopBuy(collection: string) {
+    logger.info("revalidateCollectionTopBuy", `Start: collection=${collection}`);
+
+    // First, find the top buy on the collection
     const topBuyOrderResult = await redb.oneOrNone(
       `
         SELECT
@@ -314,6 +283,11 @@ export class Collections {
     );
 
     if (topBuyOrderResult.id) {
+      logger.info(
+        "revalidateCollectionTopBuy",
+        `Top Buy Refresh. collection=${collection}, topBuyOrderId=${topBuyOrderResult.id}`
+      );
+
       await orderUpdatesById.addToQueue([
         {
           context: `revalidate-collection-top-buy-${topBuyOrderResult.id}-${now()}`,
@@ -322,7 +296,36 @@ export class Collections {
         },
       ]);
     } else {
-      // Refresh all token sets?
+      // If not top buy exists, try to refresh the associated token sets
+      const tokenSetsResult = await redb.oneOrNone(
+        `
+              SELECT token_sets.id
+              FROM token_sets
+              WHERE token_sets.collection_id = $/collection/
+            `,
+        {
+          collection,
+        }
+      );
+
+      if (tokenSetsResult) {
+        logger.info(
+          "revalidateCollectionTopBuy",
+          `Token Sets Refresh. collection=${collection}, tokenSetsResult=${JSON.stringify(
+            tokenSetsResult
+          )}`
+        );
+
+        const currentTime = now();
+        await orderUpdatesById.addToQueue(
+          tokenSetsResult.map((tokenSet: { id: any }) => ({
+            context: `revalidate-buy-${tokenSet.id}-${currentTime}`,
+            tokenSetId: tokenSet.id,
+            side: "buy",
+            trigger: { kind: "revalidation" },
+          }))
+        );
+      }
     }
   }
 }
