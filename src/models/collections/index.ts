@@ -282,7 +282,7 @@ export class Collections {
       }
     );
 
-    if (topBuyOrderResult.id) {
+    if (topBuyOrderResult?.id) {
       await orderUpdatesById.addToQueue([
         {
           context: `revalidate-collection-top-buy-${topBuyOrderResult.id}-${now()}`,
