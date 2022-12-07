@@ -6,6 +6,7 @@ import * as erc1155 from "@/events-sync/data/erc1155";
 
 import * as blur from "@/events-sync/data/blur";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
+import * as cryptoKitties from "@/events-sync/data/cryptokitties";
 import * as element from "@/events-sync/data/element";
 import * as forward from "@/events-sync/data/forward";
 import * as foundation from "@/events-sync/data/foundation";
@@ -22,6 +23,7 @@ import * as wyvernV23 from "@/events-sync/data/wyvern-v2.3";
 import * as x2y2 from "@/events-sync/data/x2y2";
 import * as zeroExV4 from "@/events-sync/data/zeroex-v4";
 import * as zora from "@/events-sync/data/zora";
+import * as manifold from "@/events-sync/data/manifold";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -30,6 +32,7 @@ import * as zora from "@/events-sync/data/zora";
 
 export type EventDataKind =
   | "erc721-transfer"
+  | "erc721-consecutive-transfer"
   | "erc1155-transfer-single"
   | "erc1155-transfer-batch"
   | "erc721/1155-approval-for-all"
@@ -82,10 +85,13 @@ export type EventDataKind =
   | "cryptopunks-punk-transfer"
   | "cryptopunks-assign"
   | "cryptopunks-transfer"
+  | "cryptokitties-transfer"
   | "sudoswap-buy"
   | "sudoswap-sell"
   | "sudoswap-token-deposit"
   | "sudoswap-token-withdrawal"
+  | "sudoswap-spot-price-update"
+  | "sudoswap-delta-update"
   | "universe-match"
   | "universe-cancel"
   | "nftx-redeemed"
@@ -95,7 +101,11 @@ export type EventDataKind =
   | "blur-nonce-incremented"
   | "forward-order-filled"
   | "forward-order-cancelled"
-  | "forward-counter-incremented";
+  | "forward-counter-incremented"
+  | "manifold-purchase"
+  | "manifold-modify"
+  | "manifold-cancel"
+  | "manifold-finalize";
 
 export type EventData = {
   kind: EventDataKind;
@@ -114,6 +124,7 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       erc20.withdrawal,
       erc721.transfer,
       erc721.approvalForAll,
+      erc721.consecutiveTransfer,
       erc1155.transferSingle,
       erc1155.transferBatch,
       foundation.buyPriceAccepted,
@@ -161,10 +172,13 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       cryptoPunks.punkTransfer,
       cryptoPunks.assign,
       cryptoPunks.transfer,
+      cryptoKitties.transfer,
       sudoswap.buy,
       sudoswap.sell,
       sudoswap.tokenDeposit,
       sudoswap.tokenWithdrawal,
+      sudoswap.spotPriceUpdate,
+      sudoswap.deltaUpdate,
       universe.match,
       universe.cancel,
       nftx.minted,
@@ -175,6 +189,10 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       forward.orderFilled,
       forward.orderCancelled,
       forward.counterIncremented,
+      manifold.modify,
+      manifold.finalize,
+      manifold.purchase,
+      manifold.cancel,
     ];
   } else {
     return (
@@ -201,6 +219,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return erc721.transfer;
     case "erc721/1155-approval-for-all":
       return erc721.approvalForAll;
+    case "erc721-consecutive-transfer":
+      return erc721.consecutiveTransfer;
     case "erc1155-transfer-batch":
       return erc1155.transferBatch;
     case "erc1155-transfer-single":
@@ -295,6 +315,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return cryptoPunks.assign;
     case "cryptopunks-transfer":
       return cryptoPunks.transfer;
+    case "cryptokitties-transfer":
+      return cryptoKitties.transfer;
     case "sudoswap-buy":
       return sudoswap.buy;
     case "sudoswap-sell":
@@ -303,6 +325,10 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return sudoswap.tokenDeposit;
     case "sudoswap-token-withdrawal":
       return sudoswap.tokenWithdrawal;
+    case "sudoswap-spot-price-update":
+      return sudoswap.spotPriceUpdate;
+    case "sudoswap-delta-update":
+      return sudoswap.deltaUpdate;
     case "universe-match":
       return universe.match;
     case "universe-cancel":
@@ -323,6 +349,14 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return forward.orderCancelled;
     case "forward-counter-incremented":
       return forward.counterIncremented;
+    case "manifold-cancel":
+      return manifold.cancel;
+    case "manifold-finalize":
+      return manifold.finalize;
+    case "manifold-purchase":
+      return manifold.purchase;
+    case "manifold-modify":
+      return manifold.modify;
     default:
       return undefined;
   }

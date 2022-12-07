@@ -133,7 +133,9 @@ export const getTokensFloorAskV3Options: RouteOptions = {
             : "token_floor_sell_events"
         } events
         LEFT JOIN LATERAL (
-           SELECT currency, currency_price, dynamic
+           SELECT currency, ${
+             query.normalizeRoyalties ? "currency_normalized_value" : "currency_price"
+           } AS "currency_price", dynamic
            FROM orders
            WHERE orders.id = events.order_id
         ) orders ON TRUE

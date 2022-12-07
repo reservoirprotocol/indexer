@@ -29,3 +29,17 @@ export const tokenWithdrawal: EventData = {
   numTopics: 1,
   abi: new Interface([`event TokenWithdrawal(uint256 amount)`]),
 };
+
+export const spotPriceUpdate: EventData = {
+  kind: "sudoswap-spot-price-update",
+  topic: "0xf06180fdbe95e5193df4dcd1352726b1f04cb58599ce58552cc952447af2ffbb",
+  numTopics: 1,
+  abi: new Interface([`event SpotPriceUpdate(uint128 newSpotPrice)`]),
+};
+
+export const deltaUpdate: EventData = {
+  kind: "sudoswap-delta-update",
+  topic: "0xc958ae052d28f8d17bc2c4ddbabb699a3cab5cccefd034d0fc971efdadc01da5",
+  numTopics: 1,
+  abi: new Interface([`event DeltaUpdate(uint128 newDelta)`]),
+};

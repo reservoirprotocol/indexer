@@ -1,15 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { recoverAddress } from "@ethersproject/transactions";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import Joi from "joi";
 
-import { redb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, regex, toBuffer } from "@/common/utils";
+import { bn, fromBuffer, regex } from "@/common/utils";
 import { config } from "@/config/index";
+import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
 const version = "v2";
 
@@ -24,17 +26,13 @@ export const getExecuteCancelV2Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      // TODO: Add support for batch cancellations (where possible)
       id: Joi.string()
         .required()
         .description("Order Id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"),
-      maker: Joi.string()
-        .lowercase()
-        .pattern(regex.address)
-        .required()
-        .description(
-          "Address of wallet cancelling the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
-        ),
+      softCancel: Joi.boolean()
+        .default(false)
+        .description("If true, the order will be soft-cancelled."),
+      signature: Joi.string().description("Maker signature for soft-cancelling."),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional. Set custom gas price"),
@@ -77,21 +75,85 @@ export const getExecuteCancelV2Options: RouteOptions = {
         `
           SELECT
             orders.kind,
+            orders.maker,
             orders.raw_data
           FROM orders
           WHERE orders.id = $/id/
-            AND orders.maker = $/maker/
             AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
         `,
-        {
-          id: query.id,
-          maker: toBuffer(query.maker),
-        }
+        { id: query.id }
       );
 
       // Return early in case no order was found
       if (!orderResult) {
         throw Boom.badData("No matching order");
+      }
+
+      const maker = fromBuffer(orderResult.maker);
+
+      // Handle soft-cancelling
+      if (query.softCancel || query.signature) {
+        if (query.signature) {
+          // Check signature
+          const signer = recoverAddress(orderResult.id, query.signature);
+          if (signer.toLowerCase() !== maker) {
+            throw Boom.unauthorized("Invalid signature");
+          }
+
+          // Mark the order as cancelled
+          await idb.none(
+            `
+              UPDATE orders SET
+                fillability_status = 'cancelled',
+                updated_at = now()
+              WHERE orders.id = $/id/
+            `,
+            { id: orderResult.id }
+          );
+
+          // Recheck the order
+          await orderUpdatesById.addToQueue([
+            {
+              context: `cancel-${orderResult.id}`,
+              id: orderResult.id,
+              trigger: {
+                kind: "cancel",
+              },
+            } as orderUpdatesById.OrderInfo,
+          ]);
+
+          // No steps to return
+          return { steps: [] };
+        } else {
+          // TODO: Should not reuse the same API for step retrieval and cancellation
+          return {
+            steps: [
+              {
+                id: "cancellation-signature",
+                action: "Soft-cancel order",
+                description: "Authorize the soft-cancellation of the order",
+                kind: "signature",
+                items: [
+                  {
+                    status: "incomplete",
+                    data: {
+                      sign: {
+                        signatureKind: "eip191",
+                        message: orderResult.id,
+                      },
+                      post: {
+                        endpoint: "/execute/cancel/v2",
+                        method: "POST",
+                        body: {},
+                      },
+                    },
+                    orderIndex: 0,
+                  },
+                ],
+              },
+            ],
+          };
+        }
       }
 
       let cancelTx: TxData;
@@ -103,7 +165,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
           const order = new Sdk.Seaport.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.Seaport.Exchange(config.chainId);
 
-          cancelTx = exchange.cancelOrderTx(query.maker, order);
+          cancelTx = exchange.cancelOrderTx(maker, order);
           orderSide = order.getInfo()!.side;
 
           break;
@@ -113,7 +175,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
           const order = new Sdk.LooksRare.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.LooksRare.Exchange(config.chainId);
 
-          cancelTx = exchange.cancelOrderTx(query.maker, order);
+          cancelTx = exchange.cancelOrderTx(maker, order);
           orderSide = order.params.isOrderAsk ? "sell" : "buy";
 
           break;
@@ -124,7 +186,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
           const order = new Sdk.ZeroExV4.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.ZeroExV4.Exchange(config.chainId);
 
-          cancelTx = exchange.cancelOrderTx(query.maker, order);
+          cancelTx = exchange.cancelOrderTx(maker, order);
           orderSide =
             order.params.direction === Sdk.ZeroExV4.Types.TradeDirection.SELL ? "sell" : "buy";
 

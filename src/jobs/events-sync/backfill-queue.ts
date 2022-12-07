@@ -1,18 +1,18 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { logger } from "@/common/logger";
-import { BullMQBulkJob, redis } from "@/common/redis";
+import { BullMQBulkJob, getMemUsage, redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { EventDataKind } from "@/events-sync/data";
 import { syncEvents } from "@/events-sync/index";
+import _ from "lodash";
 
 const QUEUE_NAME = "events-sync-backfill";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
-    attempts: 10,
     backoff: {
       type: "exponential",
       delay: 10000,
@@ -30,6 +30,20 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
     QUEUE_NAME,
     async (job: Job) => {
       const { fromBlock, toBlock, backfill, syncDetails } = job.data;
+
+      const maxMemUsage = 1073741824 * 20; // Max size in GB
+      const currentMemUsage = await getMemUsage();
+      if (currentMemUsage > maxMemUsage) {
+        const delay = _.random(1000 * 60, 1000 * 60 * 5);
+        logger.info(
+          QUEUE_NAME,
+          `Max memory reached ${currentMemUsage}, delay job ${job.id} for ${delay}`
+        );
+
+        job.opts.attempts = _.toInteger(job.opts.attempts) + 2;
+        await addToQueue(fromBlock, toBlock, _.merge(job.opts, { delay }));
+        return;
+      }
 
       try {
         logger.info(QUEUE_NAME, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
@@ -51,6 +65,8 @@ export const addToQueue = async (
   fromBlock: number,
   toBlock: number,
   options?: {
+    attempts?: number;
+    delay?: number;
     blocksPerBatch?: number;
     prioritized?: boolean;
     backfill?: boolean;
@@ -77,6 +93,8 @@ export const addToQueue = async (
   const jobs: BullMQBulkJob[] = [];
   for (let to = toBlock; to >= fromBlock; to -= blocksPerBatch) {
     const from = Math.max(fromBlock, to - blocksPerBatch + 1);
+    const jobId = options?.attempts ? `${from}-${to}-${options.attempts}` : `${from}-${to}`;
+
     jobs.push({
       name: `${from}-${to}`,
       data: {
@@ -87,7 +105,9 @@ export const addToQueue = async (
       },
       opts: {
         priority: prioritized ? 1 : undefined,
-        jobId: `${from}-${to}`,
+        jobId,
+        delay: options?.delay,
+        attempts: options?.attempts,
       },
     });
   }

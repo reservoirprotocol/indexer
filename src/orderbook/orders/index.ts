@@ -13,6 +13,7 @@ export * as universe from "@/orderbook/orders/universe";
 export * as element from "@/orderbook/orders/element";
 export * as blur from "@/orderbook/orders/blur";
 export * as rarible from "@/orderbook/orders/rarible";
+export * as manifold from "@/orderbook/orders/manifold";
 
 // Imports
 
@@ -50,7 +51,8 @@ export type OrderKind =
   | "universe"
   | "nftx"
   | "blur"
-  | "forward";
+  | "forward"
+  | "manifold";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -105,6 +107,9 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("nftx.io");
       case "blur":
         return sources.getOrInsert("blur.io");
+      case "manifold":
+        return sources.getOrInsert("manifold.xyz");
+
       case "mint": {
         if (address && mintsSources.has(address)) {
           return sources.getOrInsert(mintsSources.get(address)!);
@@ -493,6 +498,14 @@ export const generateListingDetailsV6 = (
         kind: "sudoswap",
         ...common,
         order: new Sdk.Sudoswap.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "manifold": {
+      return {
+        kind: "manifold",
+        ...common,
+        order: new Sdk.Manifold.Order(config.chainId, order.rawData),
       };
     }
 
