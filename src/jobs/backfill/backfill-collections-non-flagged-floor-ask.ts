@@ -7,7 +7,7 @@ import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
-import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
+import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import { fromBuffer } from "@/common/utils";
 
 const QUEUE_NAME = "backfill-collections-non-flagged-floor-ask";
@@ -40,7 +40,7 @@ if (config.doBackgroundWork) {
       if (result) {
         logger.info(QUEUE_NAME, `Backfilling collection. tokenSetResult=${JSON.stringify(result)}`);
 
-        await collectionUpdatesFloorAsk.addToQueue([
+        await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
           {
             kind: "bootstrap",
             contract: fromBuffer(result.contract),
