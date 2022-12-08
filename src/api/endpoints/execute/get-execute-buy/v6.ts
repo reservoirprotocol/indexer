@@ -601,7 +601,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         if (path.length === 1) {
           // If a single order is to get filled, we use its currency
           buyInCurrency = path[0].currency;
-        } else if (path.every((p) => (p.currency = path[0].currency))) {
+        } else if (path.every((p) => p.currency === path[0].currency)) {
           // If multiple same-currency orders are to get filled, we use that currency
           buyInCurrency = path[0].currency;
         } else {
