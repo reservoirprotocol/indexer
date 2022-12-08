@@ -259,61 +259,27 @@ export class Collections {
   }
 
   public static async revalidateCollectionTopBuy(collection: string) {
-    logger.info("revalidateCollectionTopBuy", `Start: collection=${collection}`);
-
-    // First, find the top buy on the collection
-    const topBuyOrderResult = await redb.oneOrNone(
+    const tokenSetsResult = await redb.manyOrNone(
       `
-        SELECT
-          orders.id
-        FROM orders
-        JOIN token_sets ON orders.token_set_id = token_sets.id
-        WHERE token_sets.collection_id = $/collection/
-          AND token_sets.attribute_id IS NULL
-          AND orders.side = 'buy'
-          AND orders.fillability_status = 'fillable'
-          AND orders.approval_status = 'approved'
-          AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-        ORDER BY orders.value DESC
-        LIMIT 1
-      `,
-      {
-        collection: collection,
-      }
-    );
-
-    if (topBuyOrderResult?.id) {
-      await orderUpdatesById.addToQueue([
-        {
-          context: `revalidate-collection-top-buy-${topBuyOrderResult.id}-${now()}`,
-          id: topBuyOrderResult.id,
-          trigger: { kind: "revalidation" },
-        },
-      ]);
-    } else {
-      // If top buy does not exist, try to refresh the by the collection token sets
-      const tokenSetsResult = await redb.manyOrNone(
-        `
               SELECT token_sets.id
               FROM token_sets
               WHERE token_sets.collection_id = $/collection/
             `,
-        {
-          collection,
-        }
-      );
-
-      if (tokenSetsResult.length) {
-        const currentTime = now();
-        await orderUpdatesById.addToQueue(
-          tokenSetsResult.map((tokenSet: { id: any }) => ({
-            context: `revalidate-buy-${tokenSet.id}-${currentTime}`,
-            tokenSetId: tokenSet.id,
-            side: "buy",
-            trigger: { kind: "revalidation" },
-          }))
-        );
+      {
+        collection,
       }
+    );
+
+    if (tokenSetsResult.length) {
+      const currentTime = now();
+      await orderUpdatesById.addToQueue(
+        tokenSetsResult.map((tokenSet: { id: any }) => ({
+          context: `revalidate-buy-${tokenSet.id}-${currentTime}`,
+          tokenSetId: tokenSet.id,
+          side: "buy",
+          trigger: { kind: "revalidation" },
+        }))
+      );
     }
   }
 }

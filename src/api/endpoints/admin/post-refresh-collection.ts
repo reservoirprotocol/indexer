@@ -32,7 +32,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
         .required(),
       cacheOnly: Joi.boolean()
         .default(false)
-        .description("If true, will only refresh the collection metadata."),
+        .description("If true, will only refresh the collection cache."),
     }),
   },
   handler: async (request: Request) => {
