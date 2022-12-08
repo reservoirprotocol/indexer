@@ -22,11 +22,11 @@ export const getPoolDetails = async (address: string) =>
       try {
         const pool = new Contract(address, iface, baseProvider);
 
-        const nft = await pool.nft();
-        const bondingCurve = await pool.bondingCurve();
+        const nft = await pool.nft().toLowerCase();
+        const bondingCurve = await pool.bondingCurve().toLowerCase();
         const poolKind = await pool.poolType();
         const pairKind = await pool.pairVariant();
-        const token = pairKind > 1 ? await pool.token() : AddressZero;
+        const token = pairKind > 1 ? await pool.token().toLowerCase() : AddressZero;
 
         const factory = new Contract(
           Sdk.Sudoswap.Addresses.PairFactory[config.chainId],

@@ -1,11 +1,11 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
-import { randomUUID } from "crypto";
 
 import _ from "lodash";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { EventsInfo, processEvents } from "@/events-sync/handlers";
+import { MqJobsDataManager } from "@/models/mq-jobs-data";
 
 const QUEUE_NAME = "events-sync-process-backfill";
 
@@ -29,7 +29,12 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
-      const info = job.data as EventsInfo;
+      const { id } = job.data;
+      const info = (await MqJobsDataManager.getJobData(id)) as EventsInfo;
+
+      if (!info) {
+        return;
+      }
 
       try {
         await processEvents(info);
@@ -40,18 +45,26 @@ if (config.doBackgroundWork) {
     },
     { connection: redis.duplicate(), concurrency: 20 }
   );
+
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
+  });
+
+  worker.on("completed", async (job) => {
+    const { id } = job.data;
+    await MqJobsDataManager.deleteJobData(id);
   });
 }
 
 export const addToQueue = async (infos: EventsInfo[]) => {
-  const jobs: { name: string; data: EventsInfo }[] = [];
-  infos.map((info) => {
+  const jobs: { name: string; data: { id: string } }[] = [];
+
+  for (const info of infos) {
     if (!_.isEmpty(info.events)) {
-      jobs.push({ name: randomUUID(), data: info });
+      const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, info);
+      _.map(ids, (id) => jobs.push({ name: id, data: { id } }));
     }
-  });
+  }
 
   if (!_.isEmpty(jobs)) {
     await queue.addBulk(jobs);

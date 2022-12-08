@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { HashZero } from "@ethersproject/constants";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import _ from "lodash";
@@ -121,6 +123,7 @@ if (config.doBackgroundWork) {
             );
 
             if (!buyOrderResult.length && trigger.kind === "revalidation") {
+              // When revalidating, force revalidation of the attribute / collection.
               const tokenSetsResult = await redb.manyOrNone(
                 `
               SELECT 
