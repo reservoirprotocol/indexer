@@ -4,6 +4,7 @@ import { config } from "@/config/index";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as nftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
 import _ from "lodash";
+import { logger } from "@/common/logger";
 
 export type Event = {
   kind: "erc721" | "erc1155" | "cryptopunks" | "cryptokitties";
@@ -51,11 +52,13 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   }[] = [];
 
   for (const event of events) {
-    const ownerFrom = `${event.from}:${event.baseEventParams.address}:${event.tokenId}`;
-    const ownerTo = `${event.to}:${event.baseEventParams.address}:${event.tokenId}`;
+    const contractId = event.baseEventParams.address.toString();
+
+    const ownerFrom = `${event.from}:${contractId}:${event.tokenId}`;
+    const ownerTo = `${event.to}:${contractId}:${event.tokenId}`;
 
     // Once we already update an owner create new array in order to split the update queries later
-    if (uniqueOwners.has(ownerFrom) || uniqueOwners.has(ownerTo)) {
+    if (_.size(transferValues) >= 50 || uniqueOwners.has(ownerFrom) || uniqueOwners.has(ownerTo)) {
       uniqueOwnersTransferValues.push(transferValues);
       transferValues = [];
       uniqueOwners.clear();
@@ -79,8 +82,9 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       amount: event.amount,
     });
 
-    const contractId = event.baseEventParams.address.toString();
     if (!uniqueContracts.has(contractId)) {
+      uniqueContracts.add(contractId);
+
       contractValues.push({
         address: toBuffer(event.baseEventParams.address),
         kind: event.kind,
@@ -104,11 +108,9 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
     uniqueOwnersTransferValues.push(transferValues); // Add the last batch of transfer values
   }
 
-  let nftTransferQueries: string[] = [];
-  const queries: string[] = [];
-
   if (uniqueOwnersTransferValues.length) {
     for (const transferEvents of uniqueOwnersTransferValues) {
+      const nftTransferQueries: string[] = [];
       const columns = new pgp.helpers.ColumnSet(
         [
           "address",
@@ -182,24 +184,13 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           "acquired_at" = COALESCE(GREATEST("excluded"."acquired_at", "nft_balances"."acquired_at"), "nft_balances"."acquired_at")
       `);
 
-      if (backfill) {
-        // When backfilling, use the write buffer to avoid deadlocks
-        for (const query of _.chunk(nftTransferQueries, 1000)) {
-          await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(query));
-        }
-      } else {
-        // Otherwise write directly since there might be jobs that depend
-        // on the events to have been written to the database at the time
-        // they get to run and we have no way to easily enforce this when
-        // using the write buffer.
-        await idb.none(pgp.helpers.concat(nftTransferQueries));
-      }
-
-      nftTransferQueries = [];
+      await insertQueries(nftTransferQueries, backfill);
     }
   }
 
   if (contractValues.length) {
+    const queries: string[] = [];
+
     const columns = new pgp.helpers.ColumnSet(["address", "kind"], {
       table: "contracts",
     });
@@ -211,57 +202,70 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
       ) VALUES ${pgp.helpers.values(contractValues, columns)}
       ON CONFLICT DO NOTHING
     `);
+
+    await insertQueries(queries, backfill);
   }
 
   if (tokenValues.length) {
-    if (!config.liquidityOnly) {
-      const columns = new pgp.helpers.ColumnSet(["contract", "token_id", "minted_timestamp"], {
-        table: "tokens",
-      });
+    for (const tokenValuesChunk of _.chunk(tokenValues, 1000)) {
+      const queries: string[] = [];
 
-      queries.push(`
-        INSERT INTO "tokens" (
-          "contract",
-          "token_id",
-          "minted_timestamp"
-        ) VALUES ${pgp.helpers.values(tokenValues, columns)}
-        ON CONFLICT (contract, token_id) DO UPDATE SET minted_timestamp = EXCLUDED.minted_timestamp WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
-      `);
-    } else {
-      const columns = new pgp.helpers.ColumnSet(
-        ["collection_id", "contract", "token_id", "minted_timestamp"],
-        {
+      if (!config.liquidityOnly) {
+        const columns = new pgp.helpers.ColumnSet(["contract", "token_id", "minted_timestamp"], {
           table: "tokens",
-        }
-      );
+        });
 
-      queries.push(`
-        INSERT INTO "tokens" (
-          "collection_id",
-          "contract",
-          "token_id",
-          "minted_timestamp"
-        ) VALUES ${pgp.helpers.values(tokenValues, columns)}
-        ON CONFLICT (contract, token_id) DO UPDATE SET minted_timestamp = EXCLUDED.minted_timestamp WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
-      `);
-    }
-  }
+        queries.push(`
+          INSERT INTO "tokens" (
+            "contract",
+            "token_id",
+            "minted_timestamp"
+          ) VALUES ${pgp.helpers.values(tokenValuesChunk, columns)}
+          ON CONFLICT (contract, token_id) DO UPDATE SET minted_timestamp = EXCLUDED.minted_timestamp WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
+        `);
+      } else {
+        const columns = new pgp.helpers.ColumnSet(
+          ["collection_id", "contract", "token_id", "minted_timestamp"],
+          {
+            table: "tokens",
+          }
+        );
 
-  if (queries.length) {
-    if (backfill) {
-      // When backfilling, use the write buffer to avoid deadlocks
-      for (const query of _.chunk(queries, 1000)) {
-        await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(query));
+        queries.push(`
+          INSERT INTO "tokens" (
+            "collection_id",
+            "contract",
+            "token_id",
+            "minted_timestamp"
+          ) VALUES ${pgp.helpers.values(tokenValuesChunk, columns)}
+          ON CONFLICT (contract, token_id) DO UPDATE SET minted_timestamp = EXCLUDED.minted_timestamp WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
+        `);
       }
-    } else {
-      // Otherwise write directly since there might be jobs that depend
-      // on the events to have been written to the database at the time
-      // they get to run and we have no way to easily enforce this when
-      // using the write buffer.
-      await idb.none(pgp.helpers.concat(queries));
+
+      await insertQueries(queries, backfill);
     }
   }
 };
+
+async function insertQueries(queries: string[], backfill: boolean) {
+  if (backfill) {
+    // When backfilling, use the write buffer to avoid deadlocks
+    for (const query of _.chunk(queries, 1000)) {
+      await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(query));
+    }
+  } else {
+    // Otherwise write directly since there might be jobs that depend
+    // on the events to have been written to the database at the time
+    // they get to run and we have no way to easily enforce this when
+    // using the write buffer.
+    try {
+      await idb.none(pgp.helpers.concat(queries));
+    } catch (error) {
+      await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(queries));
+      logger.error("nft-transfer-event", pgp.helpers.concat(queries));
+    }
+  }
+}
 
 export const removeEvents = async (block: number, blockHash: string) => {
   // Atomically delete the transfer events and revert balance updates

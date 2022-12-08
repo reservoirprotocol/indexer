@@ -389,7 +389,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 const schemaHash = generateSchemaHash();
                 const [{ id: tokenSetId }] = await tokenSet.singleToken.save([
                   {
-                    id: `token:${pool.nft}:${tokenId}`,
+                    id: `token:${pool.nft}:${tokenId}`.toLowerCase(),
                     schemaHash,
                     contract: pool.nft,
                     tokenId,
