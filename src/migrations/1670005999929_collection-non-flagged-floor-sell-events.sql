@@ -6,8 +6,8 @@ ALTER TABLE "collections" ADD COLUMN "non_flagged_floor_sell_maker" BYTEA;
 ALTER TABLE "collections" ADD COLUMN "non_flagged_floor_sell_valid_between" TSTZRANGE;
 ALTER TABLE "collections" ADD COLUMN "non_flagged_floor_sell_source_id_int" INT;
 
--- CREATE INDEX "collections_non_flagged_floor_sell_value_index"
--- ON "collections" ("non_flagged_floor_sell_value", "id");
+CREATE INDEX "collections_non_flagged_floor_sell_value_index"
+ON "collections" ("non_flagged_floor_sell_value", "id");
 
 CREATE TABLE "collection_non_flagged_floor_sell_events" (
   "id" BIGSERIAL NOT NULL,

@@ -108,10 +108,10 @@ export const getCollectionsV5Options: RouteOptions = {
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
-      excludeFlaggedTokens: Joi.boolean()
+      useNonFlaggedFloorAsk: Joi.boolean()
         .default(false)
         .description(
-          "If true, will exclude floor asks on flagged tokens. (only supported when `normalizeRoyalties` is false)"
+          "If true, will return the non flagged floor ask. (only supported when `normalizeRoyalties` is false)"
         ),
       sortBy: Joi.string()
         .valid(
@@ -355,7 +355,7 @@ export const getCollectionsV5Options: RouteOptions = {
             least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.normalized_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
             collections.normalized_floor_sell_source_id_int AS floor_sell_source_id_int,
             `;
-      } else if (query.excludeFlaggedTokens) {
+      } else if (query.useNonFlaggedFloorAsk) {
         floorAskSelectQuery = `
             collections.non_flagged_floor_sell_id AS floor_sell_id,
             collections.non_flagged_floor_sell_value AS floor_sell_value,
@@ -516,14 +516,14 @@ export const getCollectionsV5Options: RouteOptions = {
             conditions.push(
               query.normalizeRoyalties
                 ? `(collections.normalized_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
-                : query.excludeFlaggedTokens
+                : query.useNonFlaggedFloorAsk
                 ? `(collections.non_flagged_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
                 : `(collections.floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
             );
           }
           orderBy = query.normalizeRoyalties
             ? ` ORDER BY collections.normalized_floor_sell_value, collections.id`
-            : query.excludeFlaggedTokens
+            : query.useNonFlaggedFloorAsk
             ? ` ORDER BY collections.non_flagged_floor_sell_value, collections.id`
             : ` ORDER BY collections.floor_sell_value, collections.id`;
 
