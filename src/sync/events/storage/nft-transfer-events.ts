@@ -232,9 +232,9 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   }
 
   if (tokenValues.length) {
-    const queries: string[] = [];
+    for (const tokenValuesChunk of _.chunk(tokenValues, 1000)) {
+      const queries: string[] = [];
 
-    for (const tokenValuesChunk of _.chunk(tokenValues, 25)) {
       if (!config.liquidityOnly) {
         const columns = new pgp.helpers.ColumnSet(["contract", "token_id", "minted_timestamp"], {
           table: "tokens",
@@ -266,23 +266,23 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           ON CONFLICT (contract, token_id) DO UPDATE SET minted_timestamp = EXCLUDED.minted_timestamp WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
         `);
       }
-    }
 
-    if (backfill) {
-      // When backfilling, use the write buffer to avoid deadlocks
-      for (const query of _.chunk(queries, 1000)) {
-        await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(query));
-      }
-    } else {
-      // Otherwise write directly since there might be jobs that depend
-      // on the events to have been written to the database at the time
-      // they get to run and we have no way to easily enforce this when
-      // using the write buffer.
-      try {
-        await idb.none(pgp.helpers.concat(queries));
-      } catch (error) {
-        logger.error("nft-transfer-event", pgp.helpers.concat(queries));
-        throw error;
+      if (backfill) {
+        // When backfilling, use the write buffer to avoid deadlocks
+        for (const query of _.chunk(queries, 1000)) {
+          await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(query));
+        }
+      } else {
+        // Otherwise write directly since there might be jobs that depend
+        // on the events to have been written to the database at the time
+        // they get to run and we have no way to easily enforce this when
+        // using the write buffer.
+        try {
+          await idb.none(pgp.helpers.concat(queries));
+        } catch (error) {
+          logger.error("nft-transfer-event", pgp.helpers.concat(queries));
+          throw error;
+        }
       }
     }
   }
