@@ -1,5 +1,6 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
+import _ from "lodash";
 
 import { logger } from "@/common/logger";
 import { acquireLock, redis, releaseLock } from "@/common/redis";
@@ -32,7 +33,9 @@ if (config.doBackgroundWork) {
 
       try {
         if (await acquireLock(getLockName(), 60)) {
-          await idb.none(query);
+          for (const q of _.split(query, ";")) {
+            await idb.none(q);
+          }
         } else {
           await addToQueue(query);
         }

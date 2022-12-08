@@ -109,14 +109,14 @@ export const getExecuteCancelV2Options: RouteOptions = {
                 updated_at = now()
               WHERE orders.id = $/id/
             `,
-            { id: orderResult.id }
+            { id: query.id }
           );
 
           // Recheck the order
           await orderUpdatesById.addToQueue([
             {
-              context: `cancel-${orderResult.id}`,
-              id: orderResult.id,
+              context: `cancel-${query.id}`,
+              id: query.id,
               trigger: {
                 kind: "cancel",
               },
