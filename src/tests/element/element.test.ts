@@ -60,6 +60,7 @@ async function extractSellOrder(
   return {
     isValidSignature,
     order: buyOrder.params,
+    orderId: buyOrder.id(),
     orderHash: buyOrder.hash(),
   };
 }
@@ -111,7 +112,7 @@ describe("ElementExchange", () => {
     const events = await getEventsFromTx(tx);
     const result = await handleEvents(events);
 
-    const fillOrder = result.orderInfos?.filter((_) => _.id === orderInfo.orderHash);
+    const fillOrder = result.orderInfos?.filter((_) => _.id === orderId);
 
     expect(fillOrder).not.toBe(null);
     expect(result.orderInfos?.length).toEqual(1);
@@ -131,7 +132,7 @@ describe("ElementExchange", () => {
 
     // Parse order form calldata
     const orderInfo = await extractSellOrder(chainId, exchange, transaction, true);
-    const orderId = orderInfo.orderHash;
+    const orderId = orderInfo.orderId;
 
     // Store orders
     const orders: OrderInfo[] = [];
@@ -153,7 +154,7 @@ describe("ElementExchange", () => {
     const events = await getEventsFromTx(tx);
     const result = await handleEvents(events);
 
-    const fillOrder = result.orderInfos?.filter((_) => _.id === orderInfo.orderHash);
+    const fillOrder = result.orderInfos?.filter((_) => _.id === orderId);
 
     expect(fillOrder).not.toBe(null);
     expect(result.orderInfos?.length).toEqual(1);

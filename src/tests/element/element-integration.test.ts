@@ -105,8 +105,7 @@ describe("ElementTestnet", () => {
       metadata: {},
     };
 
-    const orderId = sellOrder.hash();
-
+    const orderId = sellOrder.id();
     logger.info("ElementTestnet", `Save ${orderId} to database`);
 
     // Store order to database
@@ -179,7 +178,7 @@ describe("ElementTestnet", () => {
       metadata: {},
     };
 
-    const orderId = buyOrder.hash();
+    const orderId = buyOrder.id();
 
     logger.info("ElementTestnet", `Save ${orderId} to database`);
 
@@ -241,7 +240,7 @@ describe("ElementTestnet", () => {
       metadata: {},
     };
 
-    const orderId = sellOrder.hash();
+    const orderId = sellOrder.id();
 
     logger.info("ElementTestnet", `Save ${orderId} to database`);
 
@@ -315,7 +314,7 @@ describe("ElementTestnet", () => {
       metadata: {},
     };
 
-    const orderId = buyOrder.hash();
+    const orderId = buyOrder.id();
 
     logger.info("ElementTestnet", `Save ${orderId} to database`);
 
@@ -379,7 +378,7 @@ describe("ElementTestnet", () => {
       metadata: {},
     };
 
-    const orderId = sellOrder.hash();
+    const orderId = sellOrder.id();
 
     logger.info("ElementTestnet", `Save ${orderId} to database`);
 
@@ -452,7 +451,7 @@ describe("ElementTestnet", () => {
       metadata: {},
     };
 
-    const orderId = sellOrder.hash();
+    const orderId = sellOrder.id();
 
     logger.info("ElementTestnet", `Save ${orderId} to database`);
 
@@ -520,7 +519,7 @@ describe("ElementTestnet", () => {
 
     await sellOrder.sign(seller);
 
-    const orderId = sellOrder.hash();
+    const orderId = sellOrder.id();
     const postData = {
       orders: [
         {

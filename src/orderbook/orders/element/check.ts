@@ -22,14 +22,15 @@ export const offChainCheck = async (
 ) => {
   // TODO: We should also check the remaining quantity for partially filled orders.
 
-  const id = order.hash();
+  const id = order.id();
 
   // Check: order has a valid target
-  const kind = await commonHelpers.getContractKind(order.params.nft);
-  if (!kind || kind !== order.params.kind?.split("-")[0]) {
+  const kind = await commonHelpers.getContractKind(order.params.nft!);
+  if (!kind || kind !== order.contractKind()) {
     throw new Error("invalid-target");
   }
 
+  const nftAmount = (kind === "erc721") ? "1" : (order.params as Sdk.Element.Types.BaseOrder).nftAmount!;
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
     const cancelled = await commonHelpers.isOrderCancelled(id);
@@ -39,7 +40,7 @@ export const offChainCheck = async (
 
     // Check: order is not filled
     const quantityFilled = await commonHelpers.getQuantityFilled(id);
-    if (quantityFilled.gte(order.params.nftAmount ?? 1)) {
+    if (quantityFilled.gte(nftAmount)) {
       throw new Error("filled");
     }
   }
@@ -48,20 +49,19 @@ export const offChainCheck = async (
   const nonceCancelled = await commonHelpers.isNonceCancelled(
     `element-${kind}`,
     order.params.maker,
-    order.params.nonce
+    order.params.nonce!.toString()
   );
   if (nonceCancelled) {
     throw new Error("cancelled");
   }
 
-  const feeAmount = order.getFeeAmount();
-
   let hasBalance = true;
   let hasApproval = true;
-  if (order.params.direction === Sdk.Element.Types.TradeDirection.BUY) {
+  if (order.side() === "buy") {
     // Check: maker has enough balance
+    const price = order.getTotalPrice();
     const ftBalance = await commonHelpers.getFtBalance(order.params.erc20Token, order.params.maker);
-    if (ftBalance.lt(bn(order.params.erc20TokenAmount).add(feeAmount))) {
+    if (ftBalance.lt(price)) {
       hasBalance = false;
     }
 
@@ -75,7 +75,7 @@ export const offChainCheck = async (
               Sdk.Element.Addresses.Exchange[config.chainId]
             )
             .then((a) => a.value)
-        ).lt(bn(order.params.erc20TokenAmount).add(feeAmount))
+        ).lt(price)
       ) {
         hasApproval = false;
       }
@@ -83,12 +83,12 @@ export const offChainCheck = async (
   } else {
     // Check: maker has enough balance
     const nftBalance = await commonHelpers.getNftBalance(
-      order.params.nft,
-      order.params.nftId,
+      order.params.nft!,
+      order.params.nftId!,
       order.params.maker
     );
 
-    if (nftBalance.lt(order.params.nftAmount ?? 1)) {
+    if (nftBalance.lt(nftAmount)) {
       hasBalance = false;
     }
 
@@ -96,7 +96,7 @@ export const offChainCheck = async (
 
     // Check: maker has set the proper approval
     const nftApproval = await commonHelpers.getNftApproval(
-      order.params.nft,
+      order.params.nft!,
       order.params.maker,
       operator
     );
@@ -105,8 +105,8 @@ export const offChainCheck = async (
         // Re-validate the approval on-chain to handle some edge-cases
         const contract =
           kind === "erc721"
-            ? new Sdk.Common.Helpers.Erc721(baseProvider, order.params.nft)
-            : new Sdk.Common.Helpers.Erc1155(baseProvider, order.params.nft);
+            ? new Sdk.Common.Helpers.Erc721(baseProvider, order.params.nft!)
+            : new Sdk.Common.Helpers.Erc1155(baseProvider, order.params.nft!);
         if (!(await contract.isApproved(order.params.maker, operator))) {
           hasApproval = false;
         }

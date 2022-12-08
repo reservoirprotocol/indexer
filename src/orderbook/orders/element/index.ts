@@ -12,9 +12,10 @@ import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/u
 import { offChainCheck } from "@/orderbook/orders/element/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { Sources } from "@/models/sources";
+import { AddressZero } from "@ethersproject/constants";
 
 export type OrderInfo = {
-  orderParams: Sdk.Element.Types.BaseOrder;
+  orderParams: Sdk.Element.Types.BaseOrder | Sdk.Element.Types.BatchSignedOrder;
   metadata: OrderMetadata;
 };
 
@@ -40,10 +41,7 @@ export const save = async (
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
       const order = new Sdk.Element.Order(config.chainId, orderParams);
-      const id = order.hash();
-
-      // order.expiry & 0xffffffff <= block.timestamp
-      const expirationTime = bn(order.params.expiry).and(bn("0xffffffff")).toString();
+      const id = order.id();
 
       // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(`SELECT 1 FROM orders WHERE orders.id = $/id/`, {
@@ -57,7 +55,7 @@ export const save = async (
       }
 
       // Handle: get order kind
-      const kind = await commonHelpers.getContractKind(order.params.nft);
+      const kind = await commonHelpers.getContractKind(order.params.nft!);
       if (!kind) {
         return results.push({
           id,
@@ -66,9 +64,19 @@ export const save = async (
       }
 
       const currentTime = now();
+  
+      // Check: order has a valid listing time
+      const listingTime = order.listingTime();
+      if (listingTime >= currentTime + 5 * 60) {
+        return results.push({
+          id,
+          status: "invalid-listing-time",
+        });
+      }
 
       // Check: order is not expired
-      if (currentTime >= Number(expirationTime)) {
+      const expirationTime = order.expirationTime();
+      if (currentTime >= expirationTime) {
         return results.push({
           id,
           status: "expired",
@@ -77,8 +85,8 @@ export const save = async (
 
       // Check: buy order has Weth as payment token
       if (
-        order.params.direction === Sdk.Element.Types.TradeDirection.BUY &&
-        order.params.erc20Token !== Sdk.Common.Addresses.Weth[config.chainId]
+        order.side() === "buy" &&
+        order.erc20Token() !== Sdk.Common.Addresses.Weth[config.chainId]
       ) {
         return results.push({
           id,
@@ -88,8 +96,8 @@ export const save = async (
 
       // Check: sell order has Eth as payment token
       if (
-        order.params.direction === Sdk.Element.Types.TradeDirection.SELL &&
-        order.params.erc20Token !== Sdk.Element.Addresses.Eth[config.chainId]
+        order.side() === "sell" &&
+        order.erc20Token() !== Sdk.Common.Addresses.Eth[config.chainId]
       ) {
         return results.push({
           id,
@@ -152,14 +160,13 @@ export const save = async (
         });
       }
 
-      const orderKind = order.params.kind?.split("-").slice(1).join("-");
-      switch (orderKind) {
+      switch (order.orderKind()) {
         case "contract-wide": {
           [{ id: tokenSetId }] = await tokenSet.contractWide.save([
             {
               id: `contract:${order.params.nft}`,
               schemaHash,
-              contract: order.params.nft,
+              contract: order.params.nft!,
             },
           ]);
 
@@ -171,8 +178,8 @@ export const save = async (
             {
               id: `token:${order.params.nft}:${order.params.nftId}`,
               schemaHash,
-              contract: order.params.nft,
-              tokenId: order.params.nftId,
+              contract: order.params.nft!,
+              tokenId: order.params.nftId!,
             },
           ]);
 
@@ -190,12 +197,10 @@ export const save = async (
       // Handle: fees
       const feeAmount = order.getFeeAmount();
 
-      const side = order.params.direction === Sdk.Element.Types.TradeDirection.BUY ? "buy" : "sell";
-
       // Handle: price and value
-      let price = bn(order.params.erc20TokenAmount).add(feeAmount);
+      let price = order.getTotalPrice();
       let value = price;
-      if (side === "buy") {
+      if (order.side() === "buy") {
         // For buy orders, we set the value as `price - fee` since it
         // is best for UX to show the user exactly what they're going
         // to receive on offer acceptance.
@@ -203,9 +208,11 @@ export const save = async (
       }
 
       // The price and value are for a single item
-      if (order.params.kind?.startsWith("erc1155")) {
-        price = price.div(order.params.nftAmount!);
-        value = value.div(order.params.nftAmount!);
+      let nftAmount = "1";
+      if (order.contractKind() === "erc1155") {
+        nftAmount = (order.params as Sdk.Element.Types.BaseOrder).nftAmount!;
+        price = price.div(nftAmount);
+        value = value.div(nftAmount);
       }
 
       const feeBps = price.eq(0) ? bn(0) : feeAmount.mul(10000).div(price);
@@ -224,43 +231,57 @@ export const save = async (
       const isReservoir = false;
 
       // Handle: fee breakdown
-      const feeBreakdown = order.params.fees.map(({ recipient, amount }) => ({
-        kind: "royalty",
-        recipient,
-        bps: price.eq(0) ? bn(0) : bn(amount).mul(10000).div(price).toNumber(),
-      }));
-
-      // Handle: currency
-      let currency = order.params.erc20Token;
-      if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
-        // ZeroEx-like exchanges use a non-standard ETH address
-        currency = Sdk.Common.Addresses.Eth[config.chainId];
+      let taker;
+      let feeBreakdown;
+      if (order.isBatchSignedOrder()) {
+        taker = AddressZero;
+        const params = order.params as Sdk.Element.Types.BatchSignedOrder;
+        feeBreakdown = [
+          ...(params.platformFee ? [{
+            kind: "marketplace",
+            recipient: params.platformFeeRecipient,
+            bps: params.platformFee,
+          }] : []),
+          ...(params.royaltyFee ? [ {
+            kind: "royalty",
+            recipient: params.royaltyFeeRecipient,
+            bps: params.royaltyFee,
+          }] : []),
+        ];
+      } else {
+        const params = order.params as Sdk.Element.Types.BaseOrder;
+        taker = params.taker;
+        feeBreakdown = params.fees.map(({ recipient, amount }, index) => ({
+          kind: index === 0 ? "marketplace" : "royalty",
+          recipient,
+          bps: price.eq(0) ? bn(0) : bn(amount).mul(10000).div(price).toNumber(),
+        }));
       }
 
-      const validFrom = `date_trunc('seconds', to_timestamp(0))`;
+      const validFrom = `date_trunc('seconds', to_timestamp(${listingTime}))`;
       const validTo = `date_trunc('seconds', to_timestamp(${expirationTime}))`;
       orderValues.push({
         id,
         kind: `element-${kind}`,
-        side,
+        side: order.side() as any,
         fillability_status: fillabilityStatus,
         approval_status: approvalStatus,
         token_set_id: tokenSetId,
         token_set_schema_hash: toBuffer(schemaHash),
         maker: toBuffer(order.params.maker),
-        taker: toBuffer(order.params.taker),
+        taker: toBuffer(taker),
         price: price.toString(),
         value: value.toString(),
-        currency: toBuffer(currency),
+        currency: toBuffer(order.erc20Token()),
         currency_price: price.toString(),
         currency_value: value.toString(),
         needs_conversion: null,
-        quantity_remaining: order.params.nftAmount ?? "1",
+        quantity_remaining: nftAmount,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
-        nonce: order.params.nonce,
+        nonce: order.params.nonce.toString(),
         source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
-        contract: toBuffer(order.params.nft),
+        contract: toBuffer(order.params.nft!),
         conduit: toBuffer(Sdk.Element.Addresses.Exchange[config.chainId]),
         fee_bps: feeBps.toNumber(),
         fee_breakdown: feeBreakdown || null,
