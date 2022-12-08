@@ -30,7 +30,7 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job) => {
       const { id } = job.data;
-      const info = (await MqJobsDataManager.getJobData(id)) as EventsInfo;
+      const info = ((await MqJobsDataManager.getJobData(id)) as EventsInfo) || {};
 
       if (!info) {
         return;
@@ -69,4 +69,8 @@ export const addToQueue = async (infos: EventsInfo[]) => {
   if (!_.isEmpty(jobs)) {
     await queue.addBulk(jobs);
   }
+};
+
+export const addToQueueByJobDataId = async (id: string) => {
+  await queue.add(id, { id });
 };
