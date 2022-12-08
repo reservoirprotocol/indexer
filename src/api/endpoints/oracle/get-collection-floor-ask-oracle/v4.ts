@@ -36,9 +36,9 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
       eip3668Calldata: Joi.string(),
       collection: Joi.string().lowercase(),
       token: Joi.string().pattern(regex.token).lowercase(),
-      useCollectionNonFlaggedFloorAsk: Joi.boolean()
+      useNonFlaggedFloorAsk: Joi.boolean()
         .default(false)
-        .description("If true, will return the collection non flagged floor ask events."),
+        .description("If true, will use the collection non flagged floor ask events."),
     })
       .or("collection", "token")
       .oxor("collection", "token"),
@@ -95,7 +95,7 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
     }
 
     try {
-      const eventsTableName = query.includeCollectionNonFlaggedFloorAsk
+      const eventsTableName = query.useNonFlaggedFloorAsk
         ? "collection_non_flagged_floor_sell_events"
         : "collection_floor_sell_events";
 
