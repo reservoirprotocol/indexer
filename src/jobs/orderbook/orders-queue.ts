@@ -103,11 +103,6 @@ if (config.doBackgroundWork) {
             break;
           }
 
-          case "element": {
-            result = await orders.element.save([info as orders.element.OrderInfo], relayToArweave);
-            break;
-          }
-
           case "blur": {
             result = await orders.blur.save([info as orders.blur.OrderInfo], relayToArweave);
             break;
@@ -207,12 +202,6 @@ export type GenericOrderInfo =
   | {
       kind: "universe";
       info: orders.universe.OrderInfo;
-      relayToArweave?: boolean;
-      validateBidValue?: boolean;
-    }
-  | {
-      kind: "element";
-      info: orders.element.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     }
