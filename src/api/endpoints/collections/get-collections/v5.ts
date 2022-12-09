@@ -108,6 +108,11 @@ export const getCollectionsV5Options: RouteOptions = {
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
+      useNonFlaggedFloorAsk: Joi.boolean()
+        .default(false)
+        .description(
+          "If true, will return the non flagged floor ask. (only supported when `normalizeRoyalties` is false)"
+        ),
       sortBy: Joi.string()
         .valid(
           "1DayVolume",
@@ -339,6 +344,37 @@ export const getCollectionsV5Options: RouteOptions = {
       `;
       }
 
+      let floorAskSelectQuery;
+
+      if (query.normalizeRoyalties) {
+        floorAskSelectQuery = `
+            collections.normalized_floor_sell_id AS floor_sell_id,
+            collections.normalized_floor_sell_value AS floor_sell_value,
+            collections.normalized_floor_sell_maker AS floor_sell_maker,
+            least(2147483647::NUMERIC, date_part('epoch', lower(collections.normalized_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
+            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.normalized_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
+            collections.normalized_floor_sell_source_id_int AS floor_sell_source_id_int,
+            `;
+      } else if (query.useNonFlaggedFloorAsk) {
+        floorAskSelectQuery = `
+            collections.non_flagged_floor_sell_id AS floor_sell_id,
+            collections.non_flagged_floor_sell_value AS floor_sell_value,
+            collections.non_flagged_floor_sell_maker AS floor_sell_maker,
+            least(2147483647::NUMERIC, date_part('epoch', lower(collections.non_flagged_floor_sell_valid_between)))::INT AS floor_sell_valid_from,
+            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.non_flagged_floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
+            collections.non_flagged_floor_sell_source_id_int AS floor_sell_source_id_int,
+            `;
+      } else {
+        floorAskSelectQuery = `
+            collections.floor_sell_id,
+            collections.floor_sell_value,
+            collections.floor_sell_maker,
+            least(2147483647::NUMERIC, date_part('epoch', lower(collections.floor_sell_valid_between)))::INT AS floor_sell_valid_from,
+            least(2147483647::NUMERIC, coalesce(nullif(date_part('epoch', upper(collections.floor_sell_valid_between)), 'Infinity'),0))::INT AS floor_sell_valid_until,
+            collections.floor_sell_source_id_int,
+      `;
+      }
+
       let baseQuery = `
         SELECT
           collections.id,
@@ -369,8 +405,7 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.day1_floor_sell_value,
           collections.day7_floor_sell_value,
           collections.day30_floor_sell_value,
-          collections.floor_sell_value,
-          collections.normalized_floor_sell_value,
+          ${floorAskSelectQuery}
           collections.token_count,
           collections.created_at,
           (
@@ -481,11 +516,15 @@ export const getCollectionsV5Options: RouteOptions = {
             conditions.push(
               query.normalizeRoyalties
                 ? `(collections.normalized_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
+                : query.useNonFlaggedFloorAsk
+                ? `(collections.non_flagged_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
                 : `(collections.floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
             );
           }
           orderBy = query.normalizeRoyalties
             ? ` ORDER BY collections.normalized_floor_sell_value, collections.id`
+            : query.useNonFlaggedFloorAsk
+            ? ` ORDER BY collections.non_flagged_floor_sell_value, collections.id`
             : ` ORDER BY collections.floor_sell_value, collections.id`;
 
           break;
@@ -509,32 +548,6 @@ export const getCollectionsV5Options: RouteOptions = {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
 
-      let floorAskSelectQuery;
-
-      if (query.normalizeRoyalties) {
-        floorAskSelectQuery = `
-            tokens.normalized_floor_sell_id AS floor_sell_id,
-            tokens.normalized_floor_sell_value as floor_sell_value,
-            tokens.normalized_floor_sell_maker as floor_sell_maker,
-            tokens.normalized_floor_sell_valid_from AS floor_sell_valid_from,
-            tokens.normalized_floor_sell_valid_to AS floor_sell_valid_until,
-            tokens.normalized_floor_sell_currency AS floor_sell_currency,
-            tokens.normalized_floor_sell_currency_value AS floor_sell_currency_value,
-            tokens.normalized_floor_sell_source_id_int AS floor_sell_source_id_int
-      `;
-      } else {
-        floorAskSelectQuery = `
-            tokens.floor_sell_id,
-            tokens.floor_sell_value,
-            tokens.floor_sell_maker,
-            tokens.floor_sell_valid_from,
-            tokens.floor_sell_valid_to AS floor_sell_valid_until,
-            tokens.floor_sell_currency,
-            tokens.floor_sell_currency_value,
-            tokens.floor_sell_source_id_int
-      `;
-      }
-
       baseQuery += orderBy;
       baseQuery += ` LIMIT $/limit/`;
 
@@ -542,7 +555,8 @@ export const getCollectionsV5Options: RouteOptions = {
         WITH x AS (${baseQuery})
         SELECT
           x.*,
-          y.*
+          y.*,
+          o.*
           ${ownerCountSelectQuery}
           ${attributesSelectQuery}
           ${topBidSelectQuery}
@@ -553,17 +567,22 @@ export const getCollectionsV5Options: RouteOptions = {
             tokens.contract AS floor_sell_token_contract,
             tokens.token_id AS floor_sell_token_id,
             tokens.name AS floor_sell_token_name,
-            tokens.image AS floor_sell_token_image,
-            ${floorAskSelectQuery}
+            tokens.image AS floor_sell_token_image
           FROM tokens
           WHERE tokens.collection_id = x.id
-          ORDER BY ${
-            query.normalizeRoyalties
-              ? "tokens.normalized_floor_sell_value"
-              : "tokens.floor_sell_value"
-          }
           LIMIT 1
         ) y ON TRUE
+        LEFT JOIN LATERAL (
+           SELECT
+             orders.currency AS floor_sell_currency,
+             ${
+               query.normalizeRoyalties
+                 ? "orders.currency_normalized_value AS floor_sell_currency_value"
+                 : "orders.currency_value AS floor_sell_currency_value"
+             }
+           FROM orders
+           WHERE orders.id = x.floor_sell_id
+        ) o ON TRUE
         ${ownerCountJoinQuery}
         ${attributesJoinQuery}
         ${topBidJoinQuery}

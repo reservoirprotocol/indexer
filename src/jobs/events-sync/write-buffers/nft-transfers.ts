@@ -31,8 +31,9 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { id } = job.data;
 
-      if (await acquireLock(getLockName(), 60)) {
-        job.data.acquireLock = true;
+      const lockName = getLockName();
+      if (await acquireLock(lockName, 45)) {
+        job.data.lockName = lockName;
         const { query } = await MqJobsDataManager.getJobData(id);
 
         if (!query) {
@@ -62,11 +63,12 @@ if (config.doBackgroundWork) {
   );
 
   worker.on("completed", async (job) => {
-    if (job.data.acquireLock) {
+    // If lockName was set release the lock
+    if (job.data.lockName) {
       const { id } = job.data;
       await MqJobsDataManager.deleteJobData(id);
 
-      await releaseLock(getLockName());
+      await releaseLock(job.data.lockName);
     }
   });
 
@@ -76,7 +78,7 @@ if (config.doBackgroundWork) {
 }
 
 export const getLockName = () => {
-  return `${QUEUE_NAME}-lock`;
+  return `${QUEUE_NAME}-lock-${_.random(1, 10)}`;
 };
 
 export const addToQueue = async (query: string) => {
