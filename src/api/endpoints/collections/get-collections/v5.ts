@@ -555,25 +555,18 @@ export const getCollectionsV5Options: RouteOptions = {
         WITH x AS (${baseQuery})
         SELECT
           x.*,
-          y.*,
-          o.*
+          y.*
           ${ownerCountSelectQuery}
           ${attributesSelectQuery}
           ${topBidSelectQuery}
           ${saleCountSelectQuery}
         FROM x
         LEFT JOIN LATERAL (
-          SELECT
-            tokens.contract AS floor_sell_token_contract,
-            tokens.token_id AS floor_sell_token_id,
-            tokens.name AS floor_sell_token_name,
-            tokens.image AS floor_sell_token_image
-          FROM tokens
-          WHERE tokens.collection_id = x.id
-          LIMIT 1
-        ) y ON TRUE
-        LEFT JOIN LATERAL (
            SELECT
+             tokens.contract AS floor_sell_token_contract,
+             tokens.token_id AS floor_sell_token_id,
+             tokens.name AS floor_sell_token_name,
+             tokens.image AS floor_sell_token_image,
              orders.currency AS floor_sell_currency,
              ${
                query.normalizeRoyalties
@@ -581,8 +574,10 @@ export const getCollectionsV5Options: RouteOptions = {
                  : "orders.currency_value AS floor_sell_currency_value"
              }
            FROM orders
+           JOIN token_sets_tokens ON token_sets_tokens.token_set_id = orders.token_set_id
+           JOIN tokens ON tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id
            WHERE orders.id = x.floor_sell_id
-        ) o ON TRUE
+        ) y ON TRUE
         ${ownerCountJoinQuery}
         ${attributesJoinQuery}
         ${topBidJoinQuery}
