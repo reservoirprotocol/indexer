@@ -139,7 +139,14 @@ if (config.doBackgroundWork) {
           }
         );
 
-        if (nonFlaggedCollectionFloorAsk) {
+        if (nonFlaggedCollectionFloorAsk?.token_id) {
+          logger.info(
+            QUEUE_NAME,
+            `Recheck collection non-flagged-floor-ask info flag status. jobData=${JSON.stringify(
+              job.data
+            )}`
+          );
+
           const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
           await pendingFlagStatusSyncJobs.add([
             {
@@ -162,9 +169,9 @@ if (config.doBackgroundWork) {
       } catch (error) {
         logger.error(
           QUEUE_NAME,
-          `Failed to process collection non-flagged-floor-ask info ${JSON.stringify(
+          `Failed to process collection non-flagged-floor-ask info. jobData=${JSON.stringify(
             job.data
-          )}: ${error}`
+          )}. error=${error}`
         );
         throw error;
       }

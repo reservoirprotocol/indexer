@@ -106,6 +106,11 @@ if (config.doBackgroundWork) {
                     txTimestamp: null,
                   },
                 ]);
+              } else {
+                logger.info(
+                  QUEUE_NAME,
+                  `Flag Status No Change. collectionId:${collectionId}, contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}, isFlagged:${isFlagged}`
+                );
               }
             }
           } catch (error) {
