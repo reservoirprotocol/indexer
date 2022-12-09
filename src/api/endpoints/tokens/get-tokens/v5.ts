@@ -371,7 +371,7 @@ export const getTokensV5Options: RouteOptions = {
           contractString = contract;
         }
 
-        (query as any).contract = _.replace(contractString, "0x", "\\x");
+        (query as any).contract = contractString;
         sourceConditions.push(`tst.contract = $/contract/`);
       }
 
