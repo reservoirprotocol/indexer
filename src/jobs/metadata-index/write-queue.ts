@@ -60,27 +60,30 @@ if (config.doBackgroundWork) {
             : `
               is_flagged = $/isFlagged/,
               last_flag_update = now(),
-              last_flag_change = CASE WHEN (x.is_flagged != $/isFlagged/) THEN NOW() ELSE x.last_flag_change END,
+              last_flag_change = CASE WHEN (is_flagged != $/isFlagged/) THEN NOW() ELSE last_flag_change END,
         `;
 
         // Update the token's metadata.
         const result = await idb.oneOrNone(
           `
-            UPDATE tokens x SET
+            UPDATE tokens SET
               name = $/name/,
               description = $/description/,
               image = $/image/,
               media = $/media/,
               ${flaggedQueryPart}
               updated_at = now(),
-              collection_id = x.collection_id,
-              created_at = x.created_at
-            FROM tokens y
-            WHERE x.contract = y.contract
-            AND x.token_id = y.token_id 
-            AND x.contract = $/contract/
-            AND x.token_id = $/tokenId/
-            RETURNING x.collection_id, x.created_at, y.is_flagged AS old_is_flagged
+              collection_id = collection_id,
+              created_at = created_at
+            WHERE tokens.contract = $/contract/
+            AND tokens.token_id = $/tokenId/
+            RETURNING collection_id, created_at, (
+                  SELECT
+                    is_flagged
+                  FROM tokens
+                  WHERE tokens.contract = $/contract/
+                  AND tokens.token_id = $/tokenId/
+                ) AS old_is_flagged
           `,
           {
             contract: toBuffer(contract),
