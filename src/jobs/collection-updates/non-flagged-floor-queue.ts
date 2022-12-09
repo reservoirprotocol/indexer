@@ -184,25 +184,6 @@ if (config.doBackgroundWork) {
             ],
             true
           );
-
-          const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
-          await pendingFlagStatusSyncJobs.add([
-            {
-              kind: "tokens",
-              data: {
-                collectionId: collectionResult.collection_id,
-                contract: fromBuffer(nonFlaggedCollectionFloorAsk.contract),
-                tokens: [
-                  {
-                    tokenId: nonFlaggedCollectionFloorAsk.token_id,
-                    tokenIsFlagged: 0,
-                  },
-                ],
-              },
-            },
-          ]);
-
-          await flagStatusProcessQueue.addToQueue();
         }
       } catch (error) {
         logger.error(
