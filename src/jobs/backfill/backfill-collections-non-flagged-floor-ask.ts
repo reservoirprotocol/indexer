@@ -9,6 +9,7 @@ import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import _ from "lodash";
+import { fromBuffer } from "@/common/utils";
 
 const QUEUE_NAME = "backfill-collections-non-flagged-floor-ask";
 
@@ -44,10 +45,12 @@ if (config.doBackgroundWork) {
         continuationFilter = `WHERE (collections.id) > ($/collectionId/)`;
       }
 
-      const results = await idb.oneOrNone(
+      const results = await idb.manyOrNone(
         `
-        SELECT collections.id FROM collections
-        WHERE collections.floor_sell_id IS NOT NULL and collections.non_flagged_floor_sell_id IS NULL
+        SELECT collections.id, token_sets_tokens.contract, token_sets_tokens.token_id, collections.non_flagged_floor_sell_id FROM collections
+        JOIN orders ON orders.id = collections.floor_sell_id
+        JOIN token_sets_tokens ON token_sets_tokens.token_set_id = orders.token_set_id
+        WHERE collections.floor_sell_id IS NOT NULL
         ${continuationFilter}
         ORDER BY collections.id
         LIMIT $/limit/
@@ -69,8 +72,9 @@ if (config.doBackgroundWork) {
 
           await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
             {
-              kind: "bootstrap",
-              collectionId: result.id,
+              kind: result.non_flagged_floor_sell_id ? "revalidation" : "bootstrap",
+              contract: fromBuffer(result.contract),
+              tokenId: result.token_id,
               txHash: null,
               txTimestamp: null,
             },
@@ -112,5 +116,5 @@ export type CursorInfo = {
 };
 
 export const addToQueue = async (cursor?: CursorInfo) => {
-  await queue.add(randomUUID(), { cursor }, { delay: 1000 });
+  await queue.add(randomUUID(), { cursor });
 };

@@ -101,7 +101,8 @@ if (config.doBackgroundWork) {
                 await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
                   {
                     kind: "revalidation",
-                    collectionId: collectionId,
+                    contract,
+                    tokenId: pendingSyncFlagStatusToken.tokenId,
                     txHash: null,
                     txTimestamp: null,
                   },

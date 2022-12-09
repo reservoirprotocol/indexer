@@ -7,6 +7,7 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-order";
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
+import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 
 const QUEUE_NAME = "token-updates-floor-ask-queue";
 
@@ -178,6 +179,7 @@ if (config.doBackgroundWork) {
             ? fromBuffer(sellOrderResult.txHash)
             : null;
           await collectionUpdatesFloorAsk.addToQueue([sellOrderResult]);
+          await collectionUpdatesNonFlaggedFloorAsk.addToQueue([sellOrderResult]);
         }
       } catch (error) {
         logger.error(
