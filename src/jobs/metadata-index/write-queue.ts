@@ -60,7 +60,7 @@ if (config.doBackgroundWork) {
             : `
               is_flagged = $/isFlagged/,
               last_flag_update = now(),
-              last_flag_change = CASE WHEN (y.is_flagged != $/isFlagged/) THEN NOW() ELSE y.last_flag_change END,
+              last_flag_change = CASE WHEN (x.is_flagged != $/isFlagged/) THEN NOW() ELSE x.last_flag_change END,
         `;
 
         // Update the token's metadata.
@@ -73,8 +73,8 @@ if (config.doBackgroundWork) {
               media = $/media/,
               ${flaggedQueryPart}
               updated_at = now(),
-              collection_id = collection_id,
-              created_at = created_at
+              collection_id = x.collection_id,
+              created_at = x.created_at
             FROM tokens y
             WHERE x.contract = y.contract
             AND x.token_id = y.token_id 
