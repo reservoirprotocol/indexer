@@ -103,7 +103,7 @@ export const postFlagTokenV1Options: RouteOptions = {
 
       logger.info(
         `post-flag-token-${version}-handler`,
-        `${callingUser} updated ${payload.token} to ${payload.flag}`
+        `${callingUser} updated ${payload.token} to ${payload.flag} from ${token.isFlagged}`
       );
       return { message: "Request accepted" };
     } catch (error) {

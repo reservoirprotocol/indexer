@@ -34,7 +34,7 @@ if (config.doBackgroundWork) {
       const lockName = getLockName();
       if (await acquireLock(lockName, 45)) {
         job.data.lockName = lockName;
-        const { query } = await MqJobsDataManager.getJobData(id);
+        const { query } = (await MqJobsDataManager.getJobData(id)) || {};
 
         if (!query) {
           return;

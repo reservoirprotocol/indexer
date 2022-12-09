@@ -1,6 +1,6 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
@@ -30,9 +30,27 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { kind, collectionId, txHash, txTimestamp } = job.data as FloorAskInfo;
+      const { kind, contract, tokenId, txHash, txTimestamp } = job.data as FloorAskInfo;
 
       try {
+        // First, retrieve the token's associated collection.
+        const collectionResult = await redb.oneOrNone(
+          `
+            SELECT tokens.collection_id FROM tokens
+            WHERE tokens.contract = $/contract/
+              AND tokens.token_id = $/tokenId/
+          `,
+          {
+            contract: toBuffer(contract),
+            tokenId,
+          }
+        );
+
+        if (!collectionResult?.collection_id) {
+          // Skip if the token is not associated to a collection.
+          return;
+        }
+
         const nonFlaggedCollectionFloorAsk = await idb.oneOrNone(
           `
                     WITH y AS (
@@ -133,19 +151,26 @@ if (config.doBackgroundWork) {
                   `,
           {
             kind,
-            collection: collectionId,
+            collection: collectionResult.collection_id,
             txHash: txHash ? toBuffer(txHash) : null,
             txTimestamp,
           }
         );
 
-        if (nonFlaggedCollectionFloorAsk) {
+        if (nonFlaggedCollectionFloorAsk?.token_id) {
+          logger.info(
+            QUEUE_NAME,
+            `Recheck collection non-flagged-floor-ask info flag status. jobData=${JSON.stringify(
+              job.data
+            )}`
+          );
+
           const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
           await pendingFlagStatusSyncJobs.add([
             {
               kind: "tokens",
               data: {
-                collectionId,
+                collectionId: collectionResult.collection_id,
                 contract: fromBuffer(nonFlaggedCollectionFloorAsk.contract),
                 tokens: [
                   {
@@ -162,9 +187,9 @@ if (config.doBackgroundWork) {
       } catch (error) {
         logger.error(
           QUEUE_NAME,
-          `Failed to process collection non-flagged-floor-ask info ${JSON.stringify(
+          `Failed to process collection non-flagged-floor-ask info. jobData=${JSON.stringify(
             job.data
-          )}: ${error}`
+          )}. error=${error}`
         );
         throw error;
       }
@@ -178,7 +203,8 @@ if (config.doBackgroundWork) {
 
 export type FloorAskInfo = {
   kind: string;
-  collectionId: string;
+  contract: string;
+  tokenId: string;
   txHash: string | null;
   txTimestamp: number | null;
 };
@@ -186,7 +212,7 @@ export type FloorAskInfo = {
 export const addToQueue = async (floorAskInfos: FloorAskInfo[]) => {
   await queue.addBulk(
     floorAskInfos.map((floorAskInfo) => ({
-      name: `${floorAskInfo.collectionId}`,
+      name: `${floorAskInfo.contract}-${floorAskInfo.tokenId}`,
       data: floorAskInfo,
     }))
   );

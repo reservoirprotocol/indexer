@@ -35,7 +35,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { collectionId, contract } = job.data;
 
-      let delay = 2500;
+      let delay = 0;
 
       // Get the tokens from the list
       const pendingFlagStatusSyncTokensQueue = new PendingFlagStatusSyncTokens(collectionId);
@@ -101,11 +101,17 @@ if (config.doBackgroundWork) {
                 await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
                   {
                     kind: "revalidation",
-                    collectionId: collectionId,
+                    contract,
+                    tokenId: pendingSyncFlagStatusToken.tokenId,
                     txHash: null,
                     txTimestamp: null,
                   },
                 ]);
+              } else {
+                logger.info(
+                  QUEUE_NAME,
+                  `Flag Status No Change. collectionId:${collectionId}, contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}, isFlagged:${isFlagged}`
+                );
               }
             }
           } catch (error) {
