@@ -42,12 +42,17 @@ if (config.doBackgroundWork) {
       }
 
       if (cursor) {
-        continuationFilter = `WHERE (collections.id) > ($/collectionId/)`;
+        continuationFilter = `AND (collections.id) > ($/collectionId/)`;
       }
 
       const results = await idb.manyOrNone(
         `
-        SELECT collections.id, token_sets_tokens.contract, token_sets_tokens.token_id, collections.non_flagged_floor_sell_id FROM collections
+        SELECT 
+            collections.id,
+            token_sets_tokens.contract,
+            token_sets_tokens.token_id,
+            collections.non_flagged_floor_sell_id
+        FROM collections
         JOIN orders ON orders.id = collections.floor_sell_id
         JOIN token_sets_tokens ON token_sets_tokens.token_set_id = orders.token_set_id
         WHERE collections.floor_sell_id IS NOT NULL
