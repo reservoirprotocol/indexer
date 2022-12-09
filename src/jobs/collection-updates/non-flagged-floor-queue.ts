@@ -7,6 +7,8 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
+import { Collections } from "@/models/collections";
+import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 
 const QUEUE_NAME = "collection-updates-non-flagged-floor-ask-queue";
 
@@ -36,7 +38,8 @@ if (config.doBackgroundWork) {
         // First, retrieve the token's associated collection.
         const collectionResult = await redb.oneOrNone(
           `
-            SELECT tokens.collection_id FROM tokens
+            SELECT tokens.collection_id, collections.community FROM tokens
+            JOIN collections ON collections.id = tokens.collection_id
             WHERE tokens.contract = $/contract/
               AND tokens.token_id = $/tokenId/
           `,
@@ -163,6 +166,23 @@ if (config.doBackgroundWork) {
             `Recheck collection non-flagged-floor-ask info flag status. jobData=${JSON.stringify(
               job.data
             )}`
+          );
+
+          const collection = await Collections.getById(collectionResult.collection_id);
+
+          await metadataIndexFetch.addToQueue(
+            [
+              {
+                kind: "single-token",
+                data: {
+                  method: metadataIndexFetch.getIndexingMethod(collection?.community || null),
+                  contract,
+                  tokenId,
+                  collection: collectionResult.collection_id,
+                },
+              },
+            ],
+            true
           );
 
           const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
