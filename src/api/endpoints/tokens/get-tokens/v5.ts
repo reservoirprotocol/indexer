@@ -356,61 +356,57 @@ export const getTokensV5Options: RouteOptions = {
       (query as any).source = source?.id;
       selectFloorData = "s.*";
 
-      if (query.normalizeRoyalties) {
-        sourceQuery = `
-          JOIN LATERAL (
-            SELECT o.id AS floor_sell_id,
+      const sourceConditions: string[] = [];
+      sourceConditions.push(`o.side = 'sell'`);
+      sourceConditions.push(`o.fillability_status = 'fillable'`);
+      sourceConditions.push(`o.approval_status = 'approved'`);
+      sourceConditions.push(`o.source_id_int = $/source/`);
+
+      if (query.contract) {
+        sourceConditions.push(`tst.contract = $/contract/`);
+      } else if (query.collection) {
+        let contractString = query.collection;
+        if (query.collection.includes(":")) {
+          const [contract, ,] = query.collection.split(":");
+          contractString = contract;
+        }
+
+        (query as any).contract = _.replace(contractString, "0x", "\\x");
+        sourceConditions.push(`tst.contract = $/contract/`);
+      }
+
+      sourceQuery = `
+        JOIN LATERAL (
+          SELECT
+                  DISTINCT ON (token_id, contract)
+                  tst.token_id AS token_id,
+                  tst.contract AS contract,
+                  o.id AS floor_sell_id,
                   o.maker AS floor_sell_maker,
                   o.id AS source_floor_sell_id,
                   date_part('epoch', lower(o.valid_between)) AS floor_sell_valid_from,
                   coalesce(
-                      nullif(date_part('epoch', upper(o.valid_between)), 'Infinity'),
-                      0
+                    nullif(date_part('epoch', upper(o.valid_between)), 'Infinity'),
+                    0
                   ) AS floor_sell_valid_to,
                   o.source_id_int AS floor_sell_source_id_int,
-                  o.normalized_value AS floor_sell_value,
+                  ${
+                    query.normalizeRoyalties ? "o.normalized_value" : "o.value"
+                  } AS floor_sell_value,
                   o.currency AS floor_sell_currency,
                   o.currency_normalized_value AS floor_sell_currency_value
-            FROM orders o
-            JOIN token_sets_tokens tst ON o.token_set_id = tst.token_set_id
-            WHERE tst.contract = t.contract
-            AND tst.token_id = t.token_id
-            AND o.side = 'sell'
-            AND o.fillability_status = 'fillable'
-            AND o.approval_status = 'approved'
-            AND o.source_id_int = $/source/
-            ORDER BY o.normalized_value, o.value
-            LIMIT 1
-          ) s ON TRUE
-        `;
-      } else {
-        sourceQuery = `
-          JOIN LATERAL (
-            SELECT o.id AS floor_sell_id,
-                  o.maker AS floor_sell_maker,
-                  o.id AS source_floor_sell_id,
-                  date_part('epoch', lower(o.valid_between)) AS floor_sell_valid_from,
-                  coalesce(
-                      nullif(date_part('epoch', upper(o.valid_between)), 'Infinity'),
-                      0
-                  ) AS floor_sell_valid_to,
-                  o.source_id_int AS floor_sell_source_id_int,
-                  o.value AS floor_sell_value,
-                  o.currency AS floor_sell_currency,
-                  o.currency_value AS floor_sell_currency_value
-            FROM orders o
-            JOIN token_sets_tokens tst ON o.token_set_id = tst.token_set_id
-            WHERE tst.contract = t.contract
-            AND tst.token_id = t.token_id
-            AND o.side = 'sell'
-            AND o.fillability_status = 'fillable'
-            AND o.approval_status = 'approved'
-            AND o.source_id_int = $/source/
-            ORDER BY o.value
-            LIMIT 1
-          ) s ON TRUE
-        `;
-      }
+          FROM orders o
+          JOIN token_sets_tokens tst ON o.token_set_id = tst.token_set_id
+          ${
+            sourceConditions.length
+              ? " WHERE " + sourceConditions.map((c) => `(${c})`).join(" AND ")
+              : ""
+          }
+          ORDER BY token_id, contract, ${
+            query.normalizeRoyalties ? "o.normalized_value" : "o.value"
+          }
+        ) s ON s.contract = t.contract AND s.token_id = t.token_id      
+      `;
     }
 
     try {
