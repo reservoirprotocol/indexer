@@ -22,6 +22,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   let currentTx: string | undefined;
   let currentTxLogs: Log[] = [];
 
+  // TODO: Use call tracing to properly parse sales
+
   // Handle the events
   for (const { kind, baseEventParams, log } of events) {
     if (currentTx !== baseEventParams.txHash) {
@@ -239,8 +241,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   }
 
   return {
-    fillEvents,
-
-    fillInfos,
+    // TODO: At the moment there are some issues with Wyvern sales parsing
+    // fillEvents,
+    // fillInfos,
   };
 };

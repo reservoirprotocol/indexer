@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { HashZero } from "@ethersproject/constants";
+import { AddressZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 import pLimit from "p-limit";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { save } from "@/orderbook/orders/sudoswap";
@@ -55,7 +55,7 @@ if (config.doBackgroundWork) {
                 orderParams: {
                   pool,
                   txTimestamp: Math.floor(Date.now() / 1000),
-                  txHash: HashZero,
+                  txHash: Math.random().toString(),
                 },
                 metadata: {},
               },
@@ -77,14 +77,14 @@ if (config.doBackgroundWork) {
 
   // !!! DISABLED
 
-  // redlock
-  //   .acquire([`${QUEUE_NAME}-lock-5`], 60 * 60 * 24 * 30 * 1000)
-  //   .then(async () => {
-  //     await addToQueue(AddressZero);
-  //   })
-  //   .catch(() => {
-  //     // Skip on any errors
-  //   });
+  redlock
+    .acquire([`${QUEUE_NAME}-lock-6`], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      await addToQueue(AddressZero);
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
 }
 
 export const addToQueue = async (address: string) => {

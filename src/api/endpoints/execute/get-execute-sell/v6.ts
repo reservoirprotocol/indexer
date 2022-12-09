@@ -152,77 +152,85 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       // Scenario 2: explicitly pass an order id to fill
       if (payload.orderId) {
-        orderResult = await redb.oneOrNone(
-          `
-            SELECT
-              orders.id,
-              orders.kind,
-              contracts.kind AS token_kind,
-              orders.value,
-              orders.raw_data,
-              orders.source_id_int,
-              orders.currency,
-              orders.missing_royalties,
-              orders.maker,
-              orders.token_set_id
-            FROM orders
-            JOIN contracts
-              ON orders.contract = contracts.address
-            JOIN token_sets_tokens
-              ON orders.token_set_id = token_sets_tokens.token_set_id
-            WHERE orders.id = $/id/
-              AND token_sets_tokens.contract = $/contract/
-              AND token_sets_tokens.token_id = $/tokenId/
-              AND orders.side = 'buy'
-              AND orders.fillability_status = 'fillable'
-              AND orders.approval_status = 'approved'
-              AND orders.quantity_remaining >= $/quantity/
-              AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-            LIMIT 1
-          `,
-          {
-            id: payload.orderId,
-            contract: toBuffer(contract),
-            tokenId,
-            quantity: payload.quantity ?? 1,
-          }
-        );
+        orderResult = await redb
+          .manyOrNone(
+            `
+              SELECT
+                orders.id,
+                orders.kind,
+                contracts.kind AS token_kind,
+                orders.value,
+                orders.raw_data,
+                orders.source_id_int,
+                orders.currency,
+                orders.missing_royalties,
+                orders.maker,
+                orders.token_set_id
+              FROM orders
+              JOIN contracts
+                ON orders.contract = contracts.address
+              JOIN token_sets_tokens
+                ON orders.token_set_id = token_sets_tokens.token_set_id
+              WHERE orders.id = $/id/
+                AND token_sets_tokens.contract = $/contract/
+                AND token_sets_tokens.token_id = $/tokenId/
+                AND orders.side = 'buy'
+                AND orders.fillability_status = 'fillable'
+                AND orders.approval_status = 'approved'
+                AND orders.quantity_remaining >= $/quantity/
+                AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+            `,
+            {
+              id: payload.orderId,
+              contract: toBuffer(contract),
+              tokenId,
+              quantity: payload.quantity ?? 1,
+            }
+          )
+          // Ideally we just have a `LIMIT 1` on the above query, however for some reason
+          // adding that results in extremely low performance:
+          // https://stackoverflow.com/questions/21385555/postgresql-query-very-slow-with-limit-1
+          .then((result) => result[0]);
       } else {
         // Scenario 3: fetch the best offer on specified current token
-        orderResult = await redb.oneOrNone(
-          `
-            SELECT
-              orders.id,
-              orders.kind,
-              contracts.kind AS token_kind,
-              orders.value,
-              orders.raw_data,
-              orders.source_id_int,
-              orders.currency,
-              orders.missing_royalties,
-              orders.maker,
-              orders.token_set_id
-            FROM orders
-            JOIN contracts
-              ON orders.contract = contracts.address
-            JOIN token_sets_tokens
-              ON orders.token_set_id = token_sets_tokens.token_set_id
-            WHERE token_sets_tokens.contract = $/contract/
-              AND token_sets_tokens.token_id = $/tokenId/
-              AND orders.side = 'buy'
-              AND orders.fillability_status = 'fillable'
-              AND orders.approval_status = 'approved'
-              AND orders.quantity_remaining >= $/quantity/
-              AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-            ORDER BY orders.value DESC
-            LIMIT 1
-          `,
-          {
-            contract: toBuffer(contract),
-            tokenId,
-            quantity: payload.quantity ?? 1,
-          }
-        );
+        orderResult = await redb
+          .manyOrNone(
+            `
+              SELECT
+                orders.id,
+                orders.kind,
+                contracts.kind AS token_kind,
+                orders.value,
+                orders.raw_data,
+                orders.source_id_int,
+                orders.currency,
+                orders.missing_royalties,
+                orders.maker,
+                orders.token_set_id
+              FROM orders
+              JOIN contracts
+                ON orders.contract = contracts.address
+              JOIN token_sets_tokens
+                ON orders.token_set_id = token_sets_tokens.token_set_id
+              WHERE token_sets_tokens.contract = $/contract/
+                AND token_sets_tokens.token_id = $/tokenId/
+                AND orders.side = 'buy'
+                AND orders.fillability_status = 'fillable'
+                AND orders.approval_status = 'approved'
+                AND orders.quantity_remaining >= $/quantity/
+                AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+              ORDER BY orders.value DESC
+            `,
+            {
+              contract: toBuffer(contract),
+              tokenId,
+              quantity: payload.quantity ?? 1,
+            }
+          )
+          // Ideally we just have a `LIMIT 1` on the above query, however for some reason
+          // adding that results in extremely low performance:
+          // https://stackoverflow.com/questions/21385555/postgresql-query-very-slow-with-limit-1
+          .then((result) => result[0]);
       }
 
       if (payload.quantity) {

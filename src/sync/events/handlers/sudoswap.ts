@@ -238,6 +238,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               fillEvents.push({
                 orderKind,
                 orderSide: "sell",
+                orderId: sudoswap.getOrderId(baseEventParams.address, "sell", tokenId),
                 maker: baseEventParams.address,
                 taker,
                 price: priceData.nativePrice,
@@ -382,6 +383,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               fillEvents.push({
                 orderKind,
                 orderSide: "buy",
+                orderId: sudoswap.getOrderId(baseEventParams.address, "buy"),
                 maker: baseEventParams.address,
                 taker,
                 price: priceData.nativePrice,
