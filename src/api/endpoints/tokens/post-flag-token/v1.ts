@@ -9,8 +9,6 @@ import { logger } from "@/common/logger";
 import { Tokens } from "@/models/tokens";
 import { ApiKeyManager } from "@/models/api-keys";
 
-import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
-import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
 import { Collections } from "@/models/collections";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";

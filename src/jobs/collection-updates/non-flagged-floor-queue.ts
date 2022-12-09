@@ -3,10 +3,8 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
-import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 import { Collections } from "@/models/collections";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 
