@@ -161,13 +161,6 @@ if (config.doBackgroundWork) {
         );
 
         if (nonFlaggedCollectionFloorAsk?.token_id) {
-          logger.info(
-            QUEUE_NAME,
-            `Recheck collection non-flagged-floor-ask info flag status. jobData=${JSON.stringify(
-              job.data
-            )}`
-          );
-
           const collection = await Collections.getById(collectionResult.collection_id);
 
           await metadataIndexFetch.addToQueue(
