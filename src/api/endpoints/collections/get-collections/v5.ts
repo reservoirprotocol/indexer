@@ -111,7 +111,7 @@ export const getCollectionsV5Options: RouteOptions = {
       useNonFlaggedFloorAsk: Joi.boolean()
         .default(false)
         .description(
-          "If true, will return the non flagged floor ask. (only supported when `normalizeRoyalties` is false)"
+          "If true, return the non flagged floor ask. (only supported when `normalizeRoyalties` is false)"
         ),
       sortBy: Joi.string()
         .valid(
