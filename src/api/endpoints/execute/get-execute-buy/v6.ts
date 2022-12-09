@@ -97,7 +97,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
       feesOnTop: Joi.array()
         .items(Joi.string().pattern(regex.fee))
         .description(
-          "List of fees (formatted as `feeRecipient:feeAmount`) to be taken when filling. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:1000000000000000`"
+          "List of fees (formatted as `feeRecipient:feeAmount`) to be taken when filling.\nUnless overridden via the `currency` param, the currency used for any fees on top matches the buy-in currency detected by the backend.\nExample: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:1000000000000000`"
         ),
       partial: Joi.boolean()
         .default(false)

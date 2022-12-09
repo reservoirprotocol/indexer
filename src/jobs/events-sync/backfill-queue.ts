@@ -13,6 +13,7 @@ const QUEUE_NAME = "events-sync-backfill";
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
+    attempts: 10,
     backoff: {
       type: "exponential",
       delay: 10000,
@@ -31,13 +32,16 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
     async (job: Job) => {
       const { fromBlock, toBlock, backfill, syncDetails } = job.data;
 
-      const maxMemUsage = 1073741824 * 20; // Max size in GB
+      // Check if redis reaching max memory usage
+      const maxMemUsage = 1024 * 1000 * 1000 * config.redisMaxMemoryGB; // Max size in GB
       const currentMemUsage = await getMemUsage();
       if (currentMemUsage > maxMemUsage) {
         const delay = _.random(1000 * 60, 1000 * 60 * 5);
-        logger.info(
+        logger.warn(
           QUEUE_NAME,
-          `Max memory reached ${currentMemUsage}, delay job ${job.id} for ${delay}`
+          `Max memory reached ${_.round(currentMemUsage / (1024 * 1000 * 1000), 2)} GB, delay job ${
+            job.id
+          } for ${_.round(delay / 1000)}s`
         );
 
         job.opts.attempts = _.toInteger(job.opts.attempts) + 2;
@@ -112,5 +116,7 @@ export const addToQueue = async (
     });
   }
 
-  await queue.addBulk(jobs);
+  for (const chunkedJobs of _.chunk(jobs, 1000)) {
+    await queue.addBulk(chunkedJobs);
+  }
 };

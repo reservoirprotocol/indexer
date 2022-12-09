@@ -67,7 +67,7 @@ if (config.doBackgroundWork) {
       >();
 
       const ns = getNetworkSettings();
-      const limit = pLimit(50);
+      const limit = pLimit(5);
 
       await Promise.all(
         results.map((result) =>
