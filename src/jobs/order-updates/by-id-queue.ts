@@ -126,12 +126,12 @@ if (config.doBackgroundWork) {
               // When revalidating, force revalidation of the attribute / collection.
               const tokenSetsResult = await redb.manyOrNone(
                 `
-              SELECT 
-                token_sets.collection_id,
-                token_sets.attribute_id
-              FROM token_sets
-              WHERE token_sets.id = $/tokenSetId/
-            `,
+                  SELECT
+                    token_sets.collection_id,
+                    token_sets.attribute_id
+                  FROM token_sets
+                  WHERE token_sets.id = $/tokenSetId/
+                `,
                 {
                   tokenSetId,
                 }
