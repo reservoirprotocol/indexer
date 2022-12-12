@@ -78,7 +78,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
       forceRouter: Joi.boolean().description(
         "If true, all fills will be executed through the router."
       ),
-      currency: Joi.string().pattern(regex.address).description("Currency to buy all listings in."),
+      currency: Joi.string()
+        .valid(Sdk.Common.Addresses.Eth[config.chainId])
+        .description("Currency to buy all listings in."),
       normalizeRoyalties: Joi.boolean().default(false),
       preferredOrderSource: Joi.string()
         .lowercase()
