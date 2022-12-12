@@ -65,14 +65,14 @@ if (config.doBackgroundWork) {
 
         const floorSimulationResult = JSON.parse(response.payload);
 
-        if (floorSimulationResult.message !== "Floor order is fillable") {
-          logger.warn(
-            QUEUE_NAME,
-            `Simulating collection floor-ask info. jobData=${JSON.stringify(
-              job.data
-            )}, contract=${contract}, tokenId=${tokenId}, orderId=${floorAskResult.id}`
-          );
-        }
+        logger.info(
+          QUEUE_NAME,
+          `Simulating collection floor-ask info. jobData=${JSON.stringify(
+            job.data
+          )}, contract=${contract}, tokenId=${tokenId}, orderId=${
+            floorAskResult.id
+          }, floorSimulationResult=${floorSimulationResult.message}`
+        );
       } catch (error) {
         logger.error(
           QUEUE_NAME,
