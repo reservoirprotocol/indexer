@@ -225,15 +225,26 @@ if (config.doBackgroundWork) {
                 }
               }
 
+              logger.info(
+                QUEUE_NAME,
+                `Detected order status: id=${data.id} fillability=${fillabilityStatus}, approval=${approvalStatus}`
+              );
+
               const fixResult = await idb.oneOrNone(
                 `
-                  UPDATE "orders" AS "o" SET
-                    "fillability_status" = $/fillabilityStatus/,
-                    "approval_status" = $/approvalStatus/,
-                    "updated_at" = now()
-                  WHERE "o"."id" = $/id/
-                    AND ("o"."fillability_status" != $/fillabilityStatus/ OR "o"."approval_status" != $/approvalStatus/)
-                  RETURNING "o"."id"
+                  UPDATE orders SET
+                    fillability_status = $/fillabilityStatus/,
+                    approval_status = $/approvalStatus/,
+                    expiration = (
+                      CASE
+                        WHEN $/fillabilityStatus/ = 'fillable' AND $/approvalStatus/ = 'approved' THEN upper(orders.valid_between)
+                        ELSE now()
+                      END
+                    )
+                    updated_at = now()
+                  WHERE orders.id = $/id/
+                    AND (orders.fillability_status != $/fillabilityStatus/ OR orders.approval_status != $/approvalStatus/)
+                  RETURNING orders.id
                 `,
                 {
                   id: data.id,
