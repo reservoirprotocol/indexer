@@ -5,7 +5,6 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { inject } from "@/api/index";
 
 import * as collectionUpdatesSimulateFloorAsk from "@/jobs/collection-updates/simulate-floor-queue";
 
@@ -154,6 +153,13 @@ if (config.doBackgroundWork) {
             txHash: txHash ? toBuffer(txHash) : null,
             txTimestamp,
           }
+        );
+
+        logger.info(
+          QUEUE_NAME,
+          `collectionFloorAsk. jobData=${JSON.stringify(
+            job.data
+          )}, collectionFloorAsk=${JSON.stringify(collectionFloorAsk)}`
         );
 
         if (collectionFloorAsk) {

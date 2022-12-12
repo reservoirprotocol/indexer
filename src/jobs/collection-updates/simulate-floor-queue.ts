@@ -7,7 +7,7 @@ import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { inject } from "@/api/index";
 
-const QUEUE_NAME = "simulate-floor-queue";
+const QUEUE_NAME = "collection-updates-simulate-floor-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
