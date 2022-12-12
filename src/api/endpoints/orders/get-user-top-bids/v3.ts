@@ -15,15 +15,15 @@ import {
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
 import _ from "lodash";
-import { JoiOrderCriteria } from "@/common/joi";
+import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
 import { Orders } from "@/utils/orders";
 
-const version = "v2";
+const version = "v3";
 
-export const getUserTopBidsV2Options: RouteOptions = {
+export const getUserTopBidsV3Options: RouteOptions = {
   description: "User Top Bids",
   notes: "Return the top bids for the given user tokens",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
       order: 7,
@@ -84,8 +84,7 @@ export const getUserTopBidsV2Options: RouteOptions = {
       topBids: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          price: Joi.number().unsafe(),
-          value: Joi.number().unsafe(),
+          price: JoiPrice,
           maker: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/),
@@ -190,6 +189,8 @@ export const getUserTopBidsV2Options: RouteOptions = {
         FROM nft_balances nb
         JOIN LATERAL (
             SELECT o.token_set_id, o.id AS "top_bid_id", o.price AS "top_bid_price", o.value AS "top_bid_value",
+                   o.currency AS "top_bid_currency", o.currency_value AS "top_bid_currency_value", o.missing_royalties,
+                   o.normalized_value AS "top_bid_normalized_value", o.currency_normalized_value AS "top_bid_currency_normalized_value",
                    o.maker AS "top_bid_maker", source_id_int, o.created_at "order_created_at", o.token_set_schema_hash,
                    extract(epoch from o.created_at) * 1000000 AS "order_created_at_micro",
                    DATE_PART('epoch', LOWER(o.valid_between)) AS "top_bid_valid_from", o.fee_breakdown,
@@ -237,54 +238,91 @@ export const getUserTopBidsV2Options: RouteOptions = {
       const bids = await redb.manyOrNone(baseQuery, query);
       let totalTokensWithBids = 0;
 
-      const results = bids.map((r) => {
-        const contract = fromBuffer(r.contract);
-        const tokenId = r.token_id;
-        totalTokensWithBids = Number(r.total_tokens_with_bids);
+      const results = await Promise.all(
+        bids.map(async (r) => {
+          const contract = fromBuffer(r.contract);
+          const tokenId = r.token_id;
+          totalTokensWithBids = Number(r.total_tokens_with_bids);
 
-        const source = sources.get(
-          Number(r.source_id_int),
-          contract,
-          tokenId,
-          query.optimizeCheckoutURL
-        );
+          const source = sources.get(
+            Number(r.source_id_int),
+            contract,
+            tokenId,
+            query.optimizeCheckoutURL
+          );
 
-        return {
-          id: r.top_bid_id,
-          price: formatEth(r.top_bid_price),
-          value: formatEth(r.top_bid_value),
-          maker: fromBuffer(r.top_bid_maker),
-          createdAt: new Date(r.order_created_at).toISOString(),
-          validFrom: r.top_bid_valid_from,
-          validUntil: r.top_bid_valid_until,
-          floorDifferencePercentage: _.round(r.floor_difference_percentage || 0, 2),
-          source: {
-            id: source?.address,
-            domain: source?.domain,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
-          },
-          feeBreakdown: r.fee_breakdown,
-          criteria: r.bid_criteria,
-          token: {
-            contract: contract,
-            tokenId: tokenId,
-            name: r.name,
-            image: Assets.getLocalAssetsLink(r.image),
-            floorAskPrice: r.token_floor_sell_value ? formatEth(r.token_floor_sell_value) : null,
-            lastSalePrice: r.token_last_sell_value ? formatEth(r.token_last_sell_value) : null,
-            collection: {
-              id: r.collection_id,
-              name: r.collection_name,
-              imageUrl: Assets.getLocalAssetsLink(r.collection_metadata?.imageUrl),
-              floorAskPrice: r.collection_floor_sell_value
-                ? formatEth(r.collection_floor_sell_value)
-                : null,
+          const feeBreakdown = r.fee_breakdown;
+
+          if (query.normalizeRoyalties && r.missing_royalties) {
+            for (let i = 0; i < r.missing_royalties.length; i++) {
+              const index: number = r.fee_breakdown.findIndex(
+                (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
+              );
+
+              if (index !== -1) {
+                feeBreakdown[index].bps += r.missing_royalties[i].bps;
+              } else {
+                feeBreakdown.push({
+                  bps: r.missing_royalties[i].bps,
+                  kind: "royalty",
+                  recipient: r.missing_royalties[i].recipient,
+                });
+              }
+            }
+          }
+
+          return {
+            id: r.top_bid_id,
+            price: await getJoiPriceObject(
+              {
+                net: {
+                  amount: query.normalizeRoyalties
+                    ? r.top_bid_currency_normalized_value ?? r.top_bid_value
+                    : r.top_bid_currency_value ?? r.top_bid_value,
+                  nativeAmount: query.normalizeRoyalties
+                    ? r.top_bid_normalized_value ?? r.top_bid_value
+                    : r.top_bid_value,
+                },
+                gross: {
+                  amount: r.top_bid_currency_price ?? r.top_bid_price,
+                  nativeAmount: r.top_bid_price,
+                },
+              },
+              fromBuffer(r.top_bid_currency)
+            ),
+            maker: fromBuffer(r.top_bid_maker),
+            createdAt: new Date(r.order_created_at).toISOString(),
+            validFrom: r.top_bid_valid_from,
+            validUntil: r.top_bid_valid_until,
+            floorDifferencePercentage: _.round(r.floor_difference_percentage || 0, 2),
+            source: {
+              id: source?.address,
+              domain: source?.domain,
+              name: source?.getTitle(),
+              icon: source?.getIcon(),
+              url: source?.metadata.url,
             },
-          },
-        };
-      });
+            feeBreakdown,
+            criteria: r.bid_criteria,
+            token: {
+              contract: contract,
+              tokenId: tokenId,
+              name: r.name,
+              image: Assets.getLocalAssetsLink(r.image),
+              floorAskPrice: r.token_floor_sell_value ? formatEth(r.token_floor_sell_value) : null,
+              lastSalePrice: r.token_last_sell_value ? formatEth(r.token_last_sell_value) : null,
+              collection: {
+                id: r.collection_id,
+                name: r.collection_name,
+                imageUrl: Assets.getLocalAssetsLink(r.collection_metadata?.imageUrl),
+                floorAskPrice: r.collection_floor_sell_value
+                  ? formatEth(r.collection_floor_sell_value)
+                  : null,
+              },
+            },
+          };
+        })
+      );
 
       let continuation: string | null = null;
       if (bids.length >= query.limit) {
