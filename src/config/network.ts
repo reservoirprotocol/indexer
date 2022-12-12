@@ -81,6 +81,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           // ArtBlocks Contracts
           "0x059edd72cd353df5106d2b9cc5ab83a52287ac3a",
           "0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270",
+          "0x99a9b7c1116f9ceeb1652de04d5969cce509b069",
           // ArtBlocks Engine Contracts
           "0xbdde08bd57e5c9fd563ee7ac61618cb2ecdc0ce0",
           "0x28f2d3805652fb5d359486dffb7d08320d403240",
@@ -90,13 +91,15 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0xa319c382a702682129fcbf55d514e61a16f97f9c",
           "0xd10e3dee203579fcee90ed7d0bdd8086f7e53beb",
           "0x62e37f664b5945629b6549a87f8e10ed0b6d923b",
-          "0x99a9b7c1116f9ceeb1652de04d5969cce509b069",
+          "0x0a1bbd57033f57e7b6743621b79fcb9eb2ce3676",
+          "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
         ],
         washTradingBlacklistedAddresses: ["0xac335e6855df862410f96f345f93af4f96351a87"],
         multiCollectionContracts: [
           // ArtBlocks Contracts
           "0x059edd72cd353df5106d2b9cc5ab83a52287ac3a",
           "0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270",
+          "0x99a9b7c1116f9ceeb1652de04d5969cce509b069",
           // ArtBlocks Engine Contracts
           "0xbdde08bd57e5c9fd563ee7ac61618cb2ecdc0ce0",
           "0x28f2d3805652fb5d359486dffb7d08320d403240",
@@ -106,7 +109,8 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0xa319c382a702682129fcbf55d514e61a16f97f9c",
           "0xd10e3dee203579fcee90ed7d0bdd8086f7e53beb",
           "0x62e37f664b5945629b6549a87f8e10ed0b6d923b",
-          "0x99a9b7c1116f9ceeb1652de04d5969cce509b069",
+          "0x0a1bbd57033f57e7b6743621b79fcb9eb2ce3676",
+          "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
         ],
         mintsAsSalesBlacklist: [
           // Uniswap V3: Positions NFT

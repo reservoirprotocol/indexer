@@ -116,7 +116,7 @@ if (config.doBackgroundWork) {
 
       // Don't log already-exists
       if (!(result[0]?.status === "already-exists")) {
-        logger.info(QUEUE_NAME, `[${kind}-2] Order save result: ${JSON.stringify(result)}`);
+        logger.info(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
       }
     },
     { connection: redis.duplicate(), concurrency: 30 }

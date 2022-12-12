@@ -912,7 +912,6 @@ export const save = async (
 
           if (collectionFloorAskValue) {
             const percentage = (Number(value.toString()) / collectionFloorAskValue) * 100;
-
             if (percentage < seaportBidPercentageThreshold) {
               return results.push({
                 id,
@@ -1357,14 +1356,13 @@ export const handleTokenList = async (
 
     if (handleTokenSetId) {
       const collectionDay30Rank = await redis.zscore("collections_day30_rank", contract);
-
       if (!collectionDay30Rank || Number(collectionDay30Rank) <= 1000) {
         const tokenSetTokensExist = await redb.oneOrNone(
           `
-                  SELECT 1 FROM "token_sets" "ts"
-                  WHERE "ts"."id" = $/tokenSetId/
-                  LIMIT 1
-                `,
+            SELECT 1 FROM "token_sets" "ts"
+            WHERE "ts"."id" = $/tokenSetId/
+            LIMIT 1
+          `,
           { tokenSetId }
         );
 
@@ -1375,14 +1373,13 @@ export const handleTokenList = async (
           );
 
           const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
-
           if (getNetworkSettings().multiCollectionContracts.includes(contract)) {
             const collectionIds = await redb.manyOrNone(
               `
-                      SELECT id FROM "collections" "c"
-                      WHERE "c"."contract" = $/contract/
-                      AND day30_rank <= 1000
-                    `,
+                SELECT id FROM "collections" "c"
+                WHERE "c"."contract" = $/contract/
+                AND day30_rank <= 1000
+              `,
               { contract: toBuffer(contract) }
             );
 
@@ -1449,14 +1446,14 @@ const getCollection = async (
   } else {
     const collection = await redb.oneOrNone(
       `
-          SELECT
-            collections.id,
-            collections.new_royalties,
-            collections.token_set_id
-          FROM collections
-          WHERE collections.contract = $/contract/
-            AND collections.slug = $/collectionSlug/
-        `,
+        SELECT
+          collections.id,
+          collections.new_royalties,
+          collections.token_set_id
+        FROM collections
+        WHERE collections.contract = $/contract/
+          AND collections.slug = $/collectionSlug/
+      `,
       {
         contract: toBuffer(orderParams.contract),
         collectionSlug: orderParams.collectionSlug,

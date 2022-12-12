@@ -1,8 +1,9 @@
+import _ from "lodash";
+
 import { PgPromiseQuery, idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import _ from "lodash";
 
 export type TokenSet = {
   id: string;
