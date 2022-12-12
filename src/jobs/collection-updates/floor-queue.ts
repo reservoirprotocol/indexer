@@ -7,6 +7,8 @@ import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { inject } from "@/api/index";
 
+import * as collectionUpdatesSimulateFloorAsk from "@/jobs/collection-updates/simulate-floor-queue";
+
 const QUEUE_NAME = "collection-updates-floor-ask-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -142,7 +144,7 @@ if (config.doBackgroundWork) {
               WHERE orders.id = y.floor_sell_id
               LIMIT 1
             ) z ON TRUE
-            RETURNING token_id, order_id
+            RETURNING order_id
           `,
           {
             kind,
@@ -157,26 +159,19 @@ if (config.doBackgroundWork) {
         if (collectionFloorAsk) {
           await redis.del(`collection-floor-ask:${collectionResult.collection_id}`);
 
-          if (collectionFloorAsk.token_id) {
+          if (collectionFloorAsk.order_id) {
             logger.info(
               QUEUE_NAME,
               `Simulating collection floor-ask info. jobData=${JSON.stringify(
                 job.data
-              )}, token_id=${collectionFloorAsk.token_id}, order_id=${collectionFloorAsk.order_id}`
+              )}, order_id=${collectionFloorAsk.order_id}`
             );
 
-            await inject({
-              method: "POST",
-              url: `/tokens/simulate-floor/v1`,
-              headers: {
-                "Content-Type": "application/json",
-                "X-Admin-Api-Key": config.adminApiKey,
+            await collectionUpdatesSimulateFloorAsk.addToQueue([
+              {
+                collection: collectionResult.collection_id,
               },
-              payload: {
-                token: `${contract}:${collectionFloorAsk.token_id}`,
-                router: "v6",
-              },
-            });
+            ]);
           }
         }
       } catch (error) {
