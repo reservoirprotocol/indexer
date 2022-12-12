@@ -46,6 +46,7 @@ if (config.doBackgroundWork) {
         { collection }
       );
       if (result) {
+        await Collections.recalculateContractFloorSell(fromBuffer(result[0].contract));
         for (const { contract, token_id } of result) {
           await resyncAttributeCache.addToQueue(fromBuffer(contract), token_id, 0);
         }

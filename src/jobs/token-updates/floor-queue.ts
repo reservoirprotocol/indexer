@@ -181,6 +181,10 @@ if (config.doBackgroundWork) {
             : null;
           await collectionUpdatesFloorAsk.addToQueue([sellOrderResult]);
           await collectionUpdatesNonFlaggedFloorAsk.addToQueue([sellOrderResult]);
+
+          if (kind === "revalidation") {
+            logger.info(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
+          }
         }
       } catch (error) {
         logger.error(
