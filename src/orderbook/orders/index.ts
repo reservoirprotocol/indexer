@@ -519,6 +519,7 @@ export const generateBidDetailsV6 = async (
   order: {
     id: string;
     kind: OrderKind;
+    unitPrice: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rawData: any;
     fees?: Sdk.RouterV6.Types.Fee[];
@@ -582,6 +583,7 @@ export const generateBidDetailsV6 = async (
             contract: token.contract,
             tokenId: token.tokenId,
             id: order.id,
+            unitPrice: order.unitPrice,
             // eslint-disable-next-line
           } as any,
         };
