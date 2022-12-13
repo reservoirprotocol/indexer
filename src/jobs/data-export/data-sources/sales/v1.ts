@@ -8,7 +8,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getCurrency } from "@/utils/currencies";
 
-export class SalesDataSource extends BaseDataSource {
+export class SalesDataSourceV1 extends BaseDataSource {
   public async getSequenceData(cursor: CursorInfo | null, limit: number) {
     let continuationFilter = "";
 
@@ -84,9 +84,11 @@ export class SalesDataSource extends BaseDataSource {
 
         data.push({
           id: crypto
-              .createHash("sha256")
-              .update(`${fromBuffer(r.tx_hash)}${r.log_index}${r.batch_index}`)
-              .digest("hex"),
+            .createHash("sha256")
+            .update(
+              `${fromBuffer(r.tx_hash)}${r.maker}${r.taker}${r.contract}${r.token_id}${r.price}`
+            )
+            .digest("hex"),
           contract: fromBuffer(r.contract),
           token_id: r.token_id,
           order_id: r.order_id,

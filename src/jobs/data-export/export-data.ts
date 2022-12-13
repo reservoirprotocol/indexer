@@ -7,8 +7,6 @@ import { idb } from "@/common/db";
 import { randomUUID } from "crypto";
 import { EOL } from "os";
 import AWS from "aws-sdk";
-import crypto from "crypto";
-import stringify from "json-stable-stringify";
 
 import { AskEventsDataSource } from "@/jobs/data-export/data-sources/ask-events";
 import { TokenFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/token-floor-ask-events";
@@ -16,7 +14,7 @@ import { CollectionFloorAskEventsDataSource } from "@/jobs/data-export/data-sour
 import { AsksDataSource } from "@/jobs/data-export/data-sources/asks";
 import { TokensDataSource } from "@/jobs/data-export/data-sources/tokens";
 import { CollectionsDataSource } from "@/jobs/data-export/data-sources/collections";
-import { SalesDataSource } from "@/jobs/data-export/data-sources/sales";
+import { SalesDataSourceV1, SalesDataSourceV2 } from "@/jobs/data-export/data-sources/sales";
 import { AttributeKeysDataSource } from "@/jobs/data-export/data-sources/attribute-keys";
 import { AttributesDataSource } from "@/jobs/data-export/data-sources/attributes";
 import { TokenAttributesDataSource } from "@/jobs/data-export/data-sources/token-attributes";
@@ -36,38 +34,27 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+if (true || config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { kind } = job.data;
+      const { taskId } = job.data;
 
       const timeBefore = performance.now();
 
-      if (await acquireLock(getLockName(kind), 60 * 5)) {
+      if (await acquireLock(getLockName(taskId), 60 * 5)) {
+        let triggerNextSequence;
+
         try {
-          const { cursor, sequenceNumber } = await getSequenceInfo(kind);
+          const { source, cursor, sequenceNumber, targetTableName } = await getSequenceInfo(taskId);
 
-          const cursorHash = crypto.createHash("sha256").update(stringify(cursor)).digest("hex");
-          const lastCursorHash = await redis.get(`${QUEUE_NAME}-${kind}-last-cursor`);
-
-          if (cursorHash === lastCursorHash) {
-            logger.warn(
-              QUEUE_NAME,
-              `Export invalid. kind:${kind}, cursor:${JSON.stringify(
-                cursor
-              )}, sequenceNumber:${sequenceNumber}, cursorHash=${cursorHash}, lastCursorHash=${lastCursorHash}`
-            );
-          }
-
-          const { data, nextCursor } = await getDataSource(kind).getSequenceData(
+          const { data, nextCursor } = await getDataSourceImpl(source).getSequenceData(
             cursor,
             QUERY_LIMIT
           );
 
           if (data.length) {
             const sequenceNumberPadded = ("000000000000000" + sequenceNumber).slice(-15);
-            const targetName = kind.replace(/-/g, "_");
 
             let sequence = "";
 
@@ -76,58 +63,41 @@ if (config.doBackgroundWork) {
             }
 
             await uploadSequenceToS3(
-              `${targetName}/reservoir_${sequenceNumberPadded}.json`,
+              `${targetTableName}/reservoir_${sequenceNumberPadded}.json`,
               sequence
             );
-            await setNextSequenceInfo(kind, nextCursor);
 
-            await redis.set(
-              `${QUEUE_NAME}-${kind}-last-cursor`,
-              crypto.createHash("sha256").update(stringify(cursor)).digest("hex")
-            );
+            await setNextSequenceInfo(taskId, nextCursor);
           }
 
           // Trigger next sequence only if there are more results
-          job.data.addToQueue = data.length >= QUERY_LIMIT;
+          triggerNextSequence = data.length >= QUERY_LIMIT;
 
           const timeElapsed = Math.floor((performance.now() - timeBefore) / 1000);
 
-          if (timeElapsed > 5) {
-            logger.warn(
-              QUEUE_NAME,
-              `Export finished. kind:${kind}, cursor:${JSON.stringify(
-                cursor
-              )}, sequenceNumber:${sequenceNumber}, nextCursor:${JSON.stringify(
-                nextCursor
-              )}, addToQueue=${data.length >= QUERY_LIMIT}, timeElapsed=${timeElapsed}`
-            );
-          } else {
-            logger.info(
-              QUEUE_NAME,
-              `Export finished. kind:${kind}, cursor:${JSON.stringify(
-                cursor
-              )}, sequenceNumber:${sequenceNumber}, nextCursor:${JSON.stringify(
-                nextCursor
-              )}, addToQueue=${data.length >= QUERY_LIMIT}, timeElapsed=${timeElapsed}`
-            );
-          }
+          logger.info(
+            QUEUE_NAME,
+            `Export finished. source:${source}, cursor:${JSON.stringify(
+              cursor
+            )}, sequenceNumber:${sequenceNumber}, nextCursor:${JSON.stringify(
+              nextCursor
+            )}, addToQueue=${data.length >= QUERY_LIMIT}, timeElapsed=${timeElapsed}`
+          );
         } catch (error) {
-          logger.error(QUEUE_NAME, `Export ${kind} failed: ${error}`);
+          logger.error(QUEUE_NAME, `Export failed. taskId=${taskId}, error=${error}`);
         }
 
-        await releaseLock(getLockName(kind));
+        await releaseLock(getLockName(taskId));
+
+        if (triggerNextSequence) {
+          await addToQueue(taskId);
+        }
       } else {
-        logger.info(QUEUE_NAME, `Unable to acquire lock: ${kind}`);
+        logger.info(QUEUE_NAME, `Unable to acquire lock. taskId=${taskId}`);
       }
     },
-    { connection: redis.duplicate(), concurrency: 15 }
+    { connection: redis.duplicate(), concurrency: 11 }
   );
-
-  worker.on("completed", async (job) => {
-    if (job.data.addToQueue) {
-      await addToQueue(job.data.kind);
-    }
-  });
 
   worker.on("failed", async (job) => {
     logger.error(QUEUE_NAME, `Worker failed: ${JSON.stringify(job)}`);
@@ -138,7 +108,7 @@ if (config.doBackgroundWork) {
   });
 }
 
-export enum DataSourceKind {
+export enum DataSource {
   askEvents = "ask-events",
   tokenFloorAskEvents = "token-floor-ask-events",
   collectionFloorAskEvents = "collection-floor-ask-events",
@@ -146,73 +116,73 @@ export enum DataSourceKind {
   tokens = "tokens",
   collections = "collections",
   sales = "sales",
+  salesV2 = "sales-v2",
   attributeKeys = "attribute-keys",
   attributes = "attributes",
   tokenAttributes = "token-attributes",
 }
 
-export const getLockName = (kind: DataSourceKind) => {
-  return `${QUEUE_NAME}:${kind}-lock`;
+export const getLockName = (taskId: number) => {
+  return `${QUEUE_NAME}:${taskId}-lock`;
 };
 
-export const addToQueue = async (kind: DataSourceKind) => {
-  await queue.add(randomUUID(), { kind });
+export const addToQueue = async (taskId: number) => {
+  await queue.add(randomUUID(), { taskId });
 };
 
-const getSequenceInfo = async (kind: DataSourceKind) => {
-  const query = `SELECT cursor,
-                        sequence_number AS "sequenceNumber"
+const getSequenceInfo = async (taskId: number) => {
+  const query = `SELECT source,
+                        cursor,
+                        sequence_number AS "sequenceNumber",
+                        target_table_name AS "targetTableName"
                    FROM data_export_tasks
-                   WHERE source = $/kind/`;
+                   WHERE id = $/taskId/`;
 
-  return await idb.one(query, {
-    kind,
-  });
+  return await idb.one(query, { taskId });
 };
 
-const setNextSequenceInfo = async (
-  kind: DataSourceKind,
-  cursor: Record<string, unknown> | null
-) => {
+const setNextSequenceInfo = async (taskId: number, cursor: Record<string, unknown> | null) => {
   const query = `
           UPDATE data_export_tasks
           SET cursor = $/cursor/,
               sequence_number = sequence_number + 1,
               updated_at = now()
-          WHERE source = $/kind/
+          WHERE id = $/taskId/
         `;
 
   await idb.none(query, {
-    kind,
+    taskId,
     cursor,
   });
 };
 
-const getDataSource = (kind: DataSourceKind) => {
-  switch (kind) {
-    case DataSourceKind.askEvents:
+const getDataSourceImpl = (source: DataSource) => {
+  switch (source) {
+    case DataSource.askEvents:
       return new AskEventsDataSource();
-    case DataSourceKind.tokenFloorAskEvents:
+    case DataSource.tokenFloorAskEvents:
       return new TokenFloorAskEventsDataSource();
-    case DataSourceKind.collectionFloorAskEvents:
+    case DataSource.collectionFloorAskEvents:
       return new CollectionFloorAskEventsDataSource();
-    case DataSourceKind.asks:
+    case DataSource.asks:
       return new AsksDataSource();
-    case DataSourceKind.tokens:
+    case DataSource.tokens:
       return new TokensDataSource();
-    case DataSourceKind.collections:
+    case DataSource.collections:
       return new CollectionsDataSource();
-    case DataSourceKind.sales:
-      return new SalesDataSource();
-    case DataSourceKind.attributeKeys:
+    case DataSource.sales:
+      return new SalesDataSourceV1();
+    case DataSource.salesV2:
+      return new SalesDataSourceV2();
+    case DataSource.attributeKeys:
       return new AttributeKeysDataSource();
-    case DataSourceKind.attributes:
+    case DataSource.attributes:
       return new AttributesDataSource();
-    case DataSourceKind.tokenAttributes:
+    case DataSource.tokenAttributes:
       return new TokenAttributesDataSource();
   }
 
-  throw new Error(`Unsupported data source ${kind}`);
+  throw new Error(`Unsupported data source`);
 };
 
 const uploadSequenceToS3 = async (key: string, data: string) => {
