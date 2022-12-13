@@ -7,7 +7,6 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
-import { gracefulShutdownJobWorkers } from "@/jobs/index";
 
 const QUEUE_NAME = "bundle-order-updates-by-maker";
 
@@ -24,11 +23,13 @@ export const queue = new Queue(QUEUE_NAME, {
     timeout: 60000,
   },
 });
+export let worker: Worker | undefined;
+
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
-  const worker = new Worker(
+  worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
       const { maker, trigger, data } = job.data as MakerInfo;
@@ -297,8 +298,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  gracefulShutdownJobWorkers.push(worker);
 }
 
 export type MakerInfo = {

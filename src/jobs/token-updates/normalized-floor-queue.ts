@@ -6,7 +6,6 @@ import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-import { gracefulShutdownJobWorkers } from "@/jobs/index";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 
 const QUEUE_NAME = "token-updates-normalized-floor-ask-queue";
@@ -24,11 +23,13 @@ export const queue = new Queue(QUEUE_NAME, {
     timeout: 60000,
   },
 });
+export let worker: Worker | undefined;
+
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
-  const worker = new Worker(
+  worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
       const { kind, tokenSetId, txHash, txTimestamp } = job.data as FloorAskInfo;
@@ -191,8 +192,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  gracefulShutdownJobWorkers.push(worker);
 }
 
 export type FloorAskInfo = {

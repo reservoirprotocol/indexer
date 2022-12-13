@@ -1,7 +1,5 @@
 // WARNING! For ease of accounting, make sure to keep the below lists sorted!
 
-import { Worker } from "bullmq";
-
 // Initialize all background job queues and crons
 
 import "@/jobs/arweave-relay";
@@ -113,7 +111,16 @@ import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attrib
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
 
-export const gracefulShutdownJobWorkers: Worker[] = [];
+export const gracefulShutdownJobWorkers = [
+  orderUpdatesById.worker,
+  orderUpdatesByMaker.worker,
+  bundleOrderUpdatesByMaker.worker,
+  dynamicOrdersCron.worker,
+  erc20OrdersCron.worker,
+  expiredOrdersCron.worker,
+  tokenUpdatesFloorAsk.worker,
+  tokenUpdatesNormalizedFloorAsk.worker,
+];
 
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,

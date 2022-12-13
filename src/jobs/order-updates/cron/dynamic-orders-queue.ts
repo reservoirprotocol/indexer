@@ -8,7 +8,6 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
-import { gracefulShutdownJobWorkers } from "@/jobs/index";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
@@ -27,11 +26,13 @@ export const queue = new Queue(QUEUE_NAME, {
     timeout: 5000,
   },
 });
+export let worker: Worker | undefined;
+
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
-  const worker = new Worker(
+  worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
       const { continuation } = job.data as { continuation?: string };
@@ -123,8 +124,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  gracefulShutdownJobWorkers.push(worker);
 
   const addToQueue = async (continuation?: string) => queue.add(QUEUE_NAME, { continuation });
   cron.schedule(

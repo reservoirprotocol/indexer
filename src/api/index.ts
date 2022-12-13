@@ -138,9 +138,11 @@ export const start = async (): Promise<void> => {
       options: {
         timeout: 25 * 1000,
         signals: ["SIGINT", "SIGTERM"],
-        postServerStop: async () => {
+        preServerStop: async () => {
+          logger.info("process", "Shutting down");
+
           // Close all workers which should be gracefully shutdown
-          await Promise.all(gracefulShutdownJobWorkers.map((worker) => worker.close()));
+          await Promise.all(gracefulShutdownJobWorkers.map((worker) => worker?.close()));
         },
       },
     },

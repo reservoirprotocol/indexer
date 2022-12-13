@@ -6,7 +6,6 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
-import { gracefulShutdownJobWorkers } from "@/jobs/index";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
 const QUEUE_NAME = "expired-orders";
@@ -24,11 +23,13 @@ export const queue = new Queue(QUEUE_NAME, {
     timeout: 5000,
   },
 });
+export let worker: Worker | undefined;
+
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
-  const worker = new Worker(
+  worker = new Worker(
     QUEUE_NAME,
     async () => {
       logger.info(QUEUE_NAME, "Invalidating expired orders");
@@ -72,8 +73,6 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  gracefulShutdownJobWorkers.push(worker);
 
   const addToQueue = async () => queue.add(QUEUE_NAME, {});
   cron.schedule(
