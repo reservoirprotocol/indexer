@@ -159,11 +159,14 @@ if (config.doBackgroundWork) {
           await redis.del(`collection-floor-ask:${collectionResult.collection_id}`);
 
           if (collectionFloorAsk.order_id) {
-            await collectionUpdatesSimulateFloorAsk.addToQueue([
-              {
-                collection: collectionResult.collection_id,
-              },
-            ]);
+            await collectionUpdatesSimulateFloorAsk.addToQueue(
+              [
+                {
+                  collection: collectionResult.collection_id,
+                },
+              ],
+              30000
+            );
           }
         }
       } catch (error) {

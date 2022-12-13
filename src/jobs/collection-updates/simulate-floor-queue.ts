@@ -96,11 +96,12 @@ export type SimulateFloorAskInfo = {
   collection: string;
 };
 
-export const addToQueue = async (simulateFloorAskInfos: SimulateFloorAskInfo[]) => {
+export const addToQueue = async (simulateFloorAskInfos: SimulateFloorAskInfo[], delay = 0) => {
   await queue.addBulk(
     simulateFloorAskInfos.map((simulateFloorAskInfo) => ({
       name: `${simulateFloorAskInfo.collection}`,
       data: simulateFloorAskInfo,
+      opts: { delay },
     }))
   );
 };
