@@ -155,13 +155,6 @@ if (config.doBackgroundWork) {
           }
         );
 
-        logger.info(
-          QUEUE_NAME,
-          `collectionFloorAsk. jobData=${JSON.stringify(
-            job.data
-          )}, collectionFloorAsk=${JSON.stringify(collectionFloorAsk)}`
-        );
-
         if (collectionFloorAsk) {
           await redis.del(`collection-floor-ask:${collectionResult.collection_id}`);
 
