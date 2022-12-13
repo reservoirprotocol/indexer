@@ -691,12 +691,12 @@ export const getTokensV5Options: RouteOptions = {
 
         if (query.normalizeRoyalties && r.top_buy_missing_royalties) {
           for (let i = 0; i < r.top_buy_missing_royalties.length; i++) {
-            const index: number = r.fee_breakdown.findIndex(
+            const index: number = r.top_buy_fee_breakdown.findIndex(
               (fee: { recipient: string }) =>
                 fee.recipient === r.top_buy_missing_royalties[i].recipient
             );
 
-            const missingFeeBps = Number(r.missing_royalties[i].bps);
+            const missingFeeBps = Number(r.top_buy_missing_royalties[i].bps);
 
             if (index !== -1) {
               feeBreakdown[index].bps += missingFeeBps;
