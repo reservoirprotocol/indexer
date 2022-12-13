@@ -9,6 +9,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { gracefulShutdownJobWorkers } from "@/jobs/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
 
 import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
@@ -43,7 +44,9 @@ if (config.doBackgroundWork) {
       const { id, trigger } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
-      logger.info(QUEUE_NAME, `OrderUpdatesById: ${JSON.stringify(job.data)}`);
+      if (config.chainId === 1) {
+        logger.info(QUEUE_NAME, `OrderUpdatesById: ${JSON.stringify(job.data)}`);
+      }
 
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -397,6 +400,8 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
+
+  gracefulShutdownJobWorkers.push(worker);
 }
 
 export type OrderInfo = {

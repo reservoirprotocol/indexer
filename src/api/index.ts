@@ -6,6 +6,7 @@ import { Boom } from "@hapi/boom";
 import Hapi from "@hapi/hapi";
 import Inert from "@hapi/inert";
 import Vision from "@hapi/vision";
+import HapiPulse from "hapi-pulse";
 import HapiSwagger from "hapi-swagger";
 import _ from "lodash";
 import { RateLimiterRes } from "rate-limiter-flexible";
@@ -15,7 +16,7 @@ import { setupRoutes } from "@/api/routes";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
-import { allJobQueues } from "@/jobs/index";
+import { allJobQueues, gracefulShutdownJobWorkers } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 
@@ -129,6 +130,17 @@ export const start = async (): Promise<void> => {
           // eslint-disable-next-line @typescript-eslint/no-var-requires
           version: require("../../package.json").version,
           description: apiDescription,
+        },
+      },
+    },
+    {
+      plugin: HapiPulse,
+      options: {
+        timeout: 25 * 1000,
+        signals: ["SIGINT", "SIGTERM"],
+        postServerStop: async () => {
+          // Close all workers which should be gracefully shutdown
+          await Promise.all(gracefulShutdownJobWorkers.map((worker) => worker.close()));
         },
       },
     },

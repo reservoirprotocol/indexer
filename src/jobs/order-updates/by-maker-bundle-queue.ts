@@ -7,6 +7,7 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
+import { gracefulShutdownJobWorkers } from "@/jobs/index";
 
 const QUEUE_NAME = "bundle-order-updates-by-maker";
 
@@ -296,6 +297,8 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
+
+  gracefulShutdownJobWorkers.push(worker);
 }
 
 export type MakerInfo = {

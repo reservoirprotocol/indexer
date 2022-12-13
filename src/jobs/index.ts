@@ -1,5 +1,7 @@
 // WARNING! For ease of accounting, make sure to keep the below lists sorted!
 
+import { Worker } from "bullmq";
+
 // Initialize all background job queues and crons
 
 import "@/jobs/arweave-relay";
@@ -87,6 +89,9 @@ import * as orderFixes from "@/jobs/order-fixes/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle-queue";
+import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-queue";
+import * as erc20OrdersCron from "@/jobs/order-updates/cron/erc20-orders-queue";
+import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-queue";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
@@ -107,6 +112,8 @@ import * as resyncAttributeCollection from "@/jobs/update-attribute/resync-attri
 import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attribute-floor-sell";
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
+
+export const gracefulShutdownJobWorkers: Worker[] = [];
 
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,
@@ -170,6 +177,9 @@ export const allJobQueues = [
   orderUpdatesById.queue,
   orderUpdatesByMaker.queue,
   bundleOrderUpdatesByMaker.queue,
+  dynamicOrdersCron.queue,
+  erc20OrdersCron.queue,
+  expiredOrdersCron.queue,
 
   orderbookOrders.queue,
   orderbookPostOrderExternal.queue,

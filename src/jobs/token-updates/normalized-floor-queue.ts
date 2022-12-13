@@ -3,9 +3,10 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { fromBuffer, now, toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
+import { gracefulShutdownJobWorkers } from "@/jobs/index";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 
 const QUEUE_NAME = "token-updates-normalized-floor-ask-queue";
@@ -123,7 +124,7 @@ if (config.doBackgroundWork) {
                     AND tokens.token_id = z.token_id
                 ) AS old_floor_sell_value
             )
-            INSERT INTO token_normalized_floor_sell_events(
+            INSERT INTO token_normalized_floor_sell_events (
               kind,
               contract,
               token_id,
@@ -190,6 +191,8 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
+
+  gracefulShutdownJobWorkers.push(worker);
 }
 
 export type FloorAskInfo = {
@@ -204,10 +207,6 @@ export const addToQueue = async (floorAskInfos: FloorAskInfo[]) => {
     floorAskInfos.map((floorAskInfo) => ({
       name: `${floorAskInfo.tokenSetId}`,
       data: floorAskInfo,
-      opts: {
-        // Deterministic job id so that we don't perform duplicated work
-        jobId: floorAskInfo.txHash ? floorAskInfo.txHash : `${floorAskInfo.tokenSetId}-${now()}`,
-      },
     }))
   );
 };
