@@ -432,7 +432,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
                 recipient: r.missing_royalties[i].recipient,
               });
 
-              feeBps = feeBps + missingFeeBps;
+              feeBps += missingFeeBps;
             }
           }
         }

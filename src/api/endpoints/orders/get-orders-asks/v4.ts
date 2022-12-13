@@ -405,7 +405,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
                 recipient: r.missing_royalties[i].recipient,
               });
 
-              feeBps = feeBps + missingFeeBps;
+              feeBps += missingFeeBps;
             }
           }
         }
