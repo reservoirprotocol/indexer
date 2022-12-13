@@ -19,6 +19,7 @@ import {
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { utils } from "ethers";
 
 const version = "v3";
 
@@ -492,7 +493,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
         const feeBreakdown = r.fee_breakdown;
-        let feeBps = r.fee_bps;
+        let feeBps = utils.parseUnits(r.fee_bps.toString(), "wei");
 
         if (query.normalizeRoyalties && r.missing_royalties) {
           for (let i = 0; i < r.missing_royalties.length; i++) {
@@ -563,7 +564,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
             icon: source?.getIcon(),
             url: source?.metadata.url,
           },
-          feeBps: feeBps,
+          feeBps: Number(feeBps.toString()),
           feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
