@@ -6,6 +6,8 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
+import * as collectionUpdatesSimulateFloorAsk from "@/jobs/collection-updates/simulate-floor-queue";
+
 const QUEUE_NAME = "collection-updates-floor-ask-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -49,7 +51,7 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        const collectionFloorAskChanged = await idb.oneOrNone(
+        const collectionFloorAsk = await idb.oneOrNone(
           `
             WITH y AS (
               UPDATE collections SET
@@ -141,7 +143,7 @@ if (config.doBackgroundWork) {
               WHERE orders.id = y.floor_sell_id
               LIMIT 1
             ) z ON TRUE
-            RETURNING 1
+            RETURNING order_id
           `,
           {
             kind,
@@ -153,8 +155,23 @@ if (config.doBackgroundWork) {
           }
         );
 
-        if (collectionFloorAskChanged) {
+        if (collectionFloorAsk) {
           await redis.del(`collection-floor-ask:${collectionResult.collection_id}`);
+
+          if (collectionFloorAsk.order_id) {
+            logger.info(
+              QUEUE_NAME,
+              `Simulating collection floor-ask info. jobData=${JSON.stringify(
+                job.data
+              )}, order_id=${collectionFloorAsk.order_id}`
+            );
+
+            await collectionUpdatesSimulateFloorAsk.addToQueue([
+              {
+                collection: collectionResult.collection_id,
+              },
+            ]);
+          }
         }
       } catch (error) {
         logger.error(

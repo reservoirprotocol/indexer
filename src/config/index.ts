@@ -52,7 +52,9 @@ export const config = {
   maxTokenSetSize: 100000,
 
   awsAccessKeyId: String(process.env.AWS_ACCESS_KEY_ID || process.env.FC_AWS_ACCESS_KEY_ID),
-  awsSecretAccessKey: String(process.env.AWS_SECRET_ACCESS_KEY || process.env.FC_AWS_SECRET_ACCESS_KEY),
+  awsSecretAccessKey: String(
+    process.env.AWS_SECRET_ACCESS_KEY || process.env.FC_AWS_SECRET_ACCESS_KEY
+  ),
 
   dataExportS3BucketName: String(process.env.DATA_EXPORT_S3_BUCKET_NAME),
   dataExportAwsAccessRole: String(process.env.DATA_EXPORT_AWS_ACCESS_ROLE),
