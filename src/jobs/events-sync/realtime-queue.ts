@@ -49,7 +49,7 @@ if (config.doBackgroundWork) {
         // the backfill queue.
         const maxBlocks = getNetworkSettings().realtimeSyncMaxBlockLag;
 
-        const headBlock = await baseProvider.getBlockNumber();
+        const headBlock = (await baseProvider.getBlockNumber()) - 1;
 
         // Fetch the last synced blocked
         let localBlock = Number(await redis.get(`${QUEUE_NAME}-last-block`));

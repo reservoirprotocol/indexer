@@ -65,7 +65,8 @@ if (config.doBackgroundWork) {
                         AND orders.side = 'sell'
                         AND orders.fillability_status = 'fillable'
                         AND orders.approval_status = 'approved'
-                      ORDER BY orders.value
+                        AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                      ORDER BY orders.value, orders.fee_bps, orders.id
                       LIMIT 1
                     ) y ON TRUE
                     WHERE tokens.collection_id = x.id

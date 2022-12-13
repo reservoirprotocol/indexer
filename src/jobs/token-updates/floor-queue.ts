@@ -3,7 +3,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { fromBuffer, now, toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
@@ -25,14 +25,20 @@ export const queue = new Queue(QUEUE_NAME, {
     timeout: 60000,
   },
 });
+export let worker: Worker | undefined;
+
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
-  const worker = new Worker(
+  worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
       const { kind, tokenSetId, txHash, txTimestamp } = job.data as FloorAskInfo;
+
+      if (config.chainId === 1) {
+        logger.info(QUEUE_NAME, `TokenUpdatesFloorAsk: ${JSON.stringify(job.data)}`);
+      }
 
       try {
         // Atomically update the cache and trigger an api event if needed
@@ -77,7 +83,7 @@ if (config.doBackgroundWork) {
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
                   AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                ORDER BY orders.value, orders.fee_bps
+                ORDER BY orders.value, orders.fee_bps, orders.id
                 LIMIT 1
               ) y ON TRUE
             ),
@@ -125,7 +131,7 @@ if (config.doBackgroundWork) {
                     AND tokens.token_id = z.token_id
                 ) AS old_floor_sell_value
             )
-            INSERT INTO token_floor_sell_events(
+            INSERT INTO token_floor_sell_events (
               kind,
               contract,
               token_id,
@@ -182,8 +188,17 @@ if (config.doBackgroundWork) {
           await collectionUpdatesFloorAsk.addToQueue([sellOrderResult]);
           await collectionUpdatesNonFlaggedFloorAsk.addToQueue([sellOrderResult]);
 
-          if (kind === "revalidation") {
-            logger.info(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
+          if (config.chainId === 1) {
+            if (kind === "revalidation") {
+              logger.info(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
+            } else {
+              logger.info(
+                QUEUE_NAME,
+                `TokenUpdatesFloorAsk: ${JSON.stringify(job.data)} ${JSON.stringify(
+                  sellOrderResult
+                )}`
+              );
+            }
           }
         }
       } catch (error) {
@@ -213,10 +228,6 @@ export const addToQueue = async (floorAskInfos: FloorAskInfo[]) => {
     floorAskInfos.map((floorAskInfo) => ({
       name: `${floorAskInfo.tokenSetId}`,
       data: floorAskInfo,
-      opts: {
-        // Deterministic job id so that we don't perform duplicated work
-        jobId: floorAskInfo.txHash ? floorAskInfo.txHash : `${floorAskInfo.tokenSetId}-${now()}`,
-      },
     }))
   );
 };
