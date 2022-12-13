@@ -128,7 +128,7 @@ if (config.doBackgroundWork) {
   const addToQueue = async (continuation?: string) => queue.add(QUEUE_NAME, { continuation });
   cron.schedule(
     // Every 10 minutes
-    "10 * * * *",
+    "*/10 * * * *",
     async () =>
       await redlock
         .acquire(["dynamic-orders-update-lock"], (10 * 60 - 3) * 1000)
