@@ -532,6 +532,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
             );
 
             const missingFeeBps = Number(r.missing_royalties[i].bps);
+            feeBps += missingFeeBps;
 
             if (index !== -1) {
               feeBreakdown[index].bps += missingFeeBps;
@@ -541,8 +542,6 @@ export const getOrdersBidsV4Options: RouteOptions = {
                 kind: "royalty",
                 recipient: r.missing_royalties[i].recipient,
               });
-
-              feeBps += missingFeeBps;
             }
           }
         }
