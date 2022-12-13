@@ -531,16 +531,18 @@ export const getOrdersBidsV4Options: RouteOptions = {
               (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
             );
 
+            const missingFeeBps = Number(r.missing_royalties[i].bps);
+
             if (index !== -1) {
-              feeBreakdown[index].bps += r.missing_royalties[i].bps;
+              feeBreakdown[index].bps += missingFeeBps;
             } else {
               feeBreakdown.push({
-                bps: r.missing_royalties[i].bps,
+                bps: missingFeeBps,
                 kind: "royalty",
                 recipient: r.missing_royalties[i].recipient,
               });
 
-              feeBps = feeBps.add(r.missing_royalties[i].bps);
+              feeBps = feeBps + missingFeeBps;
             }
           }
         }

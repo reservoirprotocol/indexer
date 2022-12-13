@@ -12,7 +12,6 @@ import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } fro
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { utils } from "ethers";
 import { Orders } from "@/utils/orders";
 import { Attributes } from "@/models/attributes";
 
@@ -414,7 +413,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
         const feeBreakdown = r.fee_breakdown;
-        let feeBps = utils.parseUnits(r.fee_bps.toString(), "wei");
+        let feeBps = r.fee_bps;
 
         if (query.normalizeRoyalties && r.missing_royalties) {
           for (let i = 0; i < r.missing_royalties.length; i++) {
@@ -422,16 +421,18 @@ export const getOrdersBidsV5Options: RouteOptions = {
               (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
             );
 
+            const missingFeeBps = Number(r.missing_royalties[i].bps);
+
             if (index !== -1) {
-              feeBreakdown[index].bps += r.missing_royalties[i].bps;
+              feeBreakdown[index].bps += missingFeeBps;
             } else {
               feeBreakdown.push({
-                bps: r.missing_royalties[i].bps,
+                bps: missingFeeBps,
                 kind: "royalty",
                 recipient: r.missing_royalties[i].recipient,
               });
 
-              feeBps = feeBps.add(r.missing_royalties[i].bps);
+              feeBps = feeBps + missingFeeBps;
             }
           }
         }

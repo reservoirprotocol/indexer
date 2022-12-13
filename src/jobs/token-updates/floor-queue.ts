@@ -83,7 +83,7 @@ if (config.doBackgroundWork) {
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
                   AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                ORDER BY orders.value, orders.fee_bps
+                ORDER BY orders.value, orders.fee_bps, orders.id
                 LIMIT 1
               ) y ON TRUE
             ),
