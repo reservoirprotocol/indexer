@@ -8,7 +8,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getCurrency } from "@/utils/currencies";
 
-export class SalesDataSource extends BaseDataSource {
+export class SalesDataSourceV1 extends BaseDataSource {
   public async getSequenceData(cursor: CursorInfo | null, limit: number) {
     let continuationFilter = "";
 

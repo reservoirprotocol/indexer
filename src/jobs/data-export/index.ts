@@ -8,7 +8,7 @@ import cron from "node-cron";
 import { redlock } from "@/common/redis";
 
 const getTasks = async () => {
-  return await redb.manyOrNone(`SELECT source FROM data_export_tasks`);
+  return await redb.manyOrNone(`SELECT id FROM data_export_tasks WHERE is_active = TRUE`);
 };
 
 // BACKGROUND WORKER ONLY
@@ -22,7 +22,7 @@ if (config.doBackgroundWork) {
           getTasks()
             .then(async (tasks) => {
               for (const task of tasks) {
-                await exportData.addToQueue(task.source);
+                await exportData.addToQueue(task.id);
               }
             })
             .catch(() => {
