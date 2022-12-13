@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Request, RouteOptions } from "@hapi/hapi";
+import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -26,7 +27,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
   validate: {
     payload: Joi.object({
       token: Joi.string().lowercase().pattern(regex.token),
-      router: Joi.string().valid("v5", "v6").default("v5"),
+      router: Joi.string().valid("v5", "v6").default("v6"),
     }),
   },
   response: {
@@ -74,6 +75,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
           tokens: [token],
           taker: genericTaker,
           skipBalanceCheck: true,
+          currency: Sdk.Common.Addresses.Eth[config.chainId],
         },
       });
 
