@@ -34,7 +34,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (true || config.doBackgroundWork) {
+if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
@@ -77,11 +77,11 @@ if (true || config.doBackgroundWork) {
 
           logger.info(
             QUEUE_NAME,
-            `Export finished. source:${source}, cursor:${JSON.stringify(
+            `Export finished. taskId=${taskId}, source:${source}, cursor:${JSON.stringify(
               cursor
             )}, sequenceNumber:${sequenceNumber}, nextCursor:${JSON.stringify(
               nextCursor
-            )}, addToQueue=${data.length >= QUERY_LIMIT}, timeElapsed=${timeElapsed}`
+            )}, triggerNextSequence=${triggerNextSequence}, timeElapsed=${timeElapsed}`
           );
         } catch (error) {
           logger.error(QUEUE_NAME, `Export failed. taskId=${taskId}, error=${error}`);
@@ -90,6 +90,8 @@ if (true || config.doBackgroundWork) {
         await releaseLock(getLockName(taskId));
 
         if (triggerNextSequence) {
+          logger.info(QUEUE_NAME, `Trigger next sequence. taskId=${taskId}`);
+
           await addToQueue(taskId);
         }
       } else {
