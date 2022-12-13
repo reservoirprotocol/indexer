@@ -249,6 +249,8 @@ export const start = async (): Promise<void> => {
 
   setupRoutes(server);
 
+  server.listener.keepAliveTimeout = 61000;
+
   await server.start();
   logger.info("process", `Started on port ${config.port}`);
 };
