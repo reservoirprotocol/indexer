@@ -302,6 +302,12 @@ export const syncEvents = async (
 
     // Lock each processed transaction to ensure we don't double-process anything
     if (!backfill) {
+      logger.info(
+        "debug",
+        JSON.stringify([
+          ...new Set(...enhancedEvents.map((event) => event.baseEventParams.txHash)).keys(),
+        ])
+      );
       await Promise.all(
         [...new Set(...enhancedEvents.map((event) => event.baseEventParams.txHash)).keys()].map(
           (txHash) => redis.set(getTxLockKey(txHash), "locked", "EX", 5 * 60)
