@@ -49,7 +49,7 @@ if (config.doBackgroundWork) {
         // the backfill queue.
         const maxBlocks = getNetworkSettings().realtimeSyncMaxBlockLag;
 
-        const headBlock = (await baseProvider.getBlockNumber()) - 1;
+        const headBlock = await baseProvider.getBlockNumber();
 
         // Fetch the last synced blocked
         let localBlock = Number(await redis.get(`${QUEUE_NAME}-last-block`));
@@ -83,7 +83,7 @@ if (config.doBackgroundWork) {
         // once, which is exactly what we are looking for (since events for the
         // latest blocks might be missing due to upstream chain reorgs):
         // https://ethereum.stackexchange.com/questions/109660/eth-getlogs-and-some-missing-logs
-        const delay = 0;
+        const delay = 5;
 
         await redis.set(`${QUEUE_NAME}-last-block`, headBlock - delay);
       } catch (error) {

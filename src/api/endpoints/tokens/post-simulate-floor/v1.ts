@@ -5,7 +5,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
-import { redb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -80,7 +80,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
       });
 
       if (JSON.parse(response.payload).statusCode === 500) {
-        const floorAsk = await redb.oneOrNone(
+        const floorAsk = await idb.oneOrNone(
           `
             SELECT
               tokens.floor_sell_id

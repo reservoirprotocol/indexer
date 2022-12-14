@@ -3,8 +3,9 @@ import _ from "lodash";
 import pLimit from "p-limit";
 
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { getNetworkSettings } from "@/config/network";
+import { baseProvider } from "@/common/provider";
+import { redis } from "@/common/redis";
 import { EventDataKind, getEventData } from "@/events-sync/data";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
 import { parseEvent } from "@/events-sync/parser";
@@ -16,6 +17,8 @@ import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsync
 import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
+
+const getTxLockKey = (txHash: string) => `tx-lock-${txHash}`;
 
 export const syncEvents = async (
   fromBlock: number,
@@ -89,9 +92,16 @@ export const syncEvents = async (
   const enhancedEvents: EnhancedEvent[] = [];
   await baseProvider.getLogs(eventFilter).then(async (logs) => {
     const availableEventData = getEventData();
+
+    // TODO: Use parallel processing
     for (const log of logs) {
       try {
         const baseEventParams = await parseEvent(log, blocksCache);
+
+        // Skip transactions we already processed
+        if (await redis.get(getTxLockKey(baseEventParams.txHash))) {
+          continue;
+        }
 
         // Cache the block data
         if (!blocksCache.has(baseEventParams.block)) {
@@ -286,8 +296,14 @@ export const syncEvents = async (
       },
     ]);
 
-    // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
+    // Lock each processed transaction to ensure we don't double-process anything
+    await Promise.all(
+      [...new Set(...enhancedEvents.map((event) => event.baseEventParams.txHash)).keys()].map(
+        (txHash) => redis.set(getTxLockKey(txHash), "locked", "EX", 5 * 60)
+      )
+    );
 
+    // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
     const ns = getNetworkSettings();
     if (!backfill && ns.enableReorgCheck) {
       for (const blockData of blocksSet.values()) {
