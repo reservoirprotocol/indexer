@@ -219,7 +219,7 @@ export class Collections {
           tokens.token_id
         FROM tokens
         WHERE tokens.contract = $/contract/
-          AND tokens.floor_sell_id IS NOT NULL
+          AND tokens.floor_sell_value IS NOT NULL
         LIMIT 10000
       `,
       { contract: toBuffer(contract) }
@@ -275,7 +275,7 @@ export class Collections {
         SELECT token_sets.id
         FROM token_sets
         WHERE token_sets.collection_id = $/collection/
-          AND token_sets.top_buy_id IS NOT NULL
+          AND token_sets.top_buy_value IS NOT NULL
       `,
       { collection }
     );
