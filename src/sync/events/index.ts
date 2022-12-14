@@ -99,7 +99,7 @@ export const syncEvents = async (
         const baseEventParams = await parseEvent(log, blocksCache);
 
         // Skip transactions we already processed
-        if (await redis.get(getTxLockKey(baseEventParams.txHash))) {
+        if (!backfill && (await redis.get(getTxLockKey(baseEventParams.txHash)))) {
           continue;
         }
 
@@ -297,11 +297,13 @@ export const syncEvents = async (
     ]);
 
     // Lock each processed transaction to ensure we don't double-process anything
-    await Promise.all(
-      [...new Set(...enhancedEvents.map((event) => event.baseEventParams.txHash)).keys()].map(
-        (txHash) => redis.set(getTxLockKey(txHash), "locked", "EX", 5 * 60)
-      )
-    );
+    if (!backfill) {
+      await Promise.all(
+        [...new Set(...enhancedEvents.map((event) => event.baseEventParams.txHash)).keys()].map(
+          (txHash) => redis.set(getTxLockKey(txHash), "locked", "EX", 5 * 60)
+        )
+      );
+    }
 
     // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
     const ns = getNetworkSettings();
