@@ -83,7 +83,7 @@ if (config.doBackgroundWork) {
         // once, which is exactly what we are looking for (since events for the
         // latest blocks might be missing due to upstream chain reorgs):
         // https://ethereum.stackexchange.com/questions/109660/eth-getlogs-and-some-missing-logs
-        const delay = 5;
+        const delay = 10;
 
         await redis.set(`${QUEUE_NAME}-last-block`, headBlock - delay);
       } catch (error) {
