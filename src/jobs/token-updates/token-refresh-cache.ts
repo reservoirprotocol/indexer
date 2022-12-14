@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
+import { inject } from "@/api/index";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
@@ -31,15 +30,37 @@ if (config.doBackgroundWork) {
       // Refresh the token floor sell and top bid
       await Tokens.recalculateTokenFloorSell(contract, tokenId);
       await Tokens.recalculateTokenTopBid(contract, tokenId);
+
+      // Simulate the floor ask and the top bid on the token
+      if (config.chainId !== 5) {
+        await inject({
+          method: "POST",
+          url: `/tokens/simulate-floor/v1`,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          payload: {
+            token: `${contract}-${tokenId}`,
+          },
+        });
+        await inject({
+          method: "POST",
+          url: `/tokens/simulate-top-bid/v1`,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          payload: {
+            token: `${contract}-${tokenId}`,
+          },
+        });
+      }
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
-
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 }
 
-export const addToQueue = async (contract: string, tokenId: string) => {
-  await queue.add(randomUUID(), { contract, tokenId }, { jobId: `${contract}:${tokenId}` });
-};
+export const addToQueue = async (contract: string, tokenId: string) =>
+  queue.add(randomUUID(), { contract, tokenId }, { jobId: `${contract}:${tokenId}` });

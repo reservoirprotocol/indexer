@@ -6,7 +6,6 @@ import { isAfter, add, formatISO9075 } from "date-fns";
 import _ from "lodash";
 import Joi from "joi";
 
-import { inject } from "@/api/index";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
@@ -138,30 +137,6 @@ export const postTokensRefreshV1Options: RouteOptions = {
 
       // Refresh the token floor sell and top bid
       await tokenRefreshCacheQueue.addToQueue(contract, tokenId);
-
-      // Simulate the floor ask and the top bid on the token
-      if (config.chainId !== 5) {
-        await inject({
-          method: "POST",
-          url: `/tokens/simulate-floor/v1`,
-          headers: {
-            "Content-Type": "application/json",
-          },
-          payload: {
-            token: payload.token,
-          },
-        });
-        await inject({
-          method: "POST",
-          url: `/tokens/simulate-top-bid/v1`,
-          headers: {
-            "Content-Type": "application/json",
-          },
-          payload: {
-            token: payload.token,
-          },
-        });
-      }
 
       logger.info(
         `post-tokens-refresh-${version}-handler`,
