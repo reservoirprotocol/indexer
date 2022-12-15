@@ -1378,7 +1378,8 @@ export const save = async (
           : handleOrder(
               orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
               orderInfo.metadata,
-              orderInfo.isReservoir
+              orderInfo.isReservoir,
+              orderInfo.openSeaOrderParams
             )
       )
     )
