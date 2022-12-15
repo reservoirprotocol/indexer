@@ -1,3 +1,4 @@
+import { Interface } from "@ethersproject/abi";
 import { HashZero } from "@ethersproject/constants";
 import { searchForCall } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
@@ -10,7 +11,6 @@ import * as utils from "@/events-sync/utils";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { ethers } from "ethers";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const fillEvents: es.fills.Event[] = [];
@@ -58,14 +58,15 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           { to: exchangeAddress, type: "CALL", sigHashes: [executeSigHash] },
           tradeRank
         );
-
         const executeCallTraceDelegate = searchForCall(
           txTrace.calls,
           { to: exchangeAddress, type: "DELEGATECALL", sigHashes: [_executeSigHash] },
           tradeRank
         );
 
-        if (!executeCallTraceCall && executeCallTraceDelegate) isDelegateCall = true;
+        if (!executeCallTraceCall && executeCallTraceDelegate) {
+          isDelegateCall = true;
+        }
 
         // Fallback
         const executeCallTrace = executeCallTraceCall || executeCallTraceDelegate;
@@ -74,8 +75,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const routers = Sdk.Common.Addresses.Routers[config.chainId];
 
         if (executeCallTrace) {
-          // TODO Update the Blur SDK Exchange contract abi
-          const iface = new ethers.utils.Interface([
+          // TODO: Update the SDK Blur contract ABI
+          const iface = new Interface([
             {
               inputs: [
                 {

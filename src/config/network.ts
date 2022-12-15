@@ -75,7 +75,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 1:
       return {
         ...defaultNetworkSettings,
-        metadataMintDelay: 60,
+        metadataMintDelay: 900,
         enableMetadataAutoRefresh: true,
         washTradingExcludedContracts: [
           // ArtBlocks Contracts

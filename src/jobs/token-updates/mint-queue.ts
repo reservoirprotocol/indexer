@@ -51,6 +51,8 @@ if (config.doBackgroundWork) {
             FROM "collections" "c"
             WHERE "c"."contract" = $/contract/
               AND "c"."token_id_range" @> $/tokenId/::NUMERIC(78, 0)
+            ORDER BY "c"."created_at" DESC
+            LIMIT 1
           `,
           {
             contract: toBuffer(contract),
@@ -119,12 +121,20 @@ if (config.doBackgroundWork) {
           await idb.none(pgp.helpers.concat(queries));
 
           if (!config.disableRealtimeMetadataRefresh) {
+            let delay = getNetworkSettings().metadataMintDelay;
+
+            if (contract === "0x11708DC8A3eA69020f520C81250aBb191b190110") {
+              delay = 0;
+
+              logger.info(QUEUE_NAME, `Forced delay. contract=${contract}, delay=${delay}`);
+            }
+
             await metadataIndexFetch.addToQueue(
               [
                 {
                   kind: "single-token",
                   data: {
-                    method: "simplehash",
+                    method: metadataIndexFetch.getIndexingMethod(collection.community),
                     contract,
                     tokenId,
                     collection: collection.id,
@@ -132,7 +142,7 @@ if (config.doBackgroundWork) {
                 },
               ],
               true,
-              getNetworkSettings().metadataMintDelay
+              delay
             );
           }
         } else {
