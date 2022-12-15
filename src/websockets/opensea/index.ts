@@ -106,7 +106,7 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
           order_hash: (event.payload as any).order_hash,
           maker: (event.payload as any).maker?.address,
           event_data: event,
-          created_at: Date.now(),
+          created_at: new Date().toISOString(),
         }),
       },
       DeliveryStreamName: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName,
