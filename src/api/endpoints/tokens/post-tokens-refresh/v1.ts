@@ -104,7 +104,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
         await OpenseaIndexerApi.fastTokenSync(payload.token);
       }
 
-      // Refresh meta data
+      // Refresh metadata
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
       if (!collection) {

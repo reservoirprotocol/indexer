@@ -46,8 +46,10 @@ export class Collections {
         SELECT
           *
         FROM collections
-        WHERE contract = $/contract/
-          AND token_id_range @> $/tokenId/::NUMERIC(78, 0)
+        WHERE collections.contract = $/contract/
+          AND collections.token_id_range @> $/tokenId/::NUMERIC(78, 0)
+        ORDER BY collections.created_at DESC
+        LIMIT 1
       `,
       {
         contract: toBuffer(contract),

@@ -18,7 +18,7 @@ import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 
-const getTxLockKey = (txHash: string) => `tx-lock-${txHash}`;
+const getTxLockKey = (blockHash: string, txHash: string) => `tx-lock-${blockHash}-${txHash}`;
 
 export const syncEvents = async (
   fromBlock: number,
@@ -109,9 +109,20 @@ export const syncEvents = async (
       try {
         const baseEventParams = await parseEvent(log, blocksCache);
 
+        if (!backfill) {
+          logger.info("events-sync", `Got event: ${JSON.stringify(baseEventParams)}`);
+        }
+
         // Skip transactions we already processed
-        if (!backfill && (await redis.get(getTxLockKey(baseEventParams.txHash)))) {
+        if (
+          !backfill &&
+          (await redis.get(getTxLockKey(baseEventParams.blockHash, baseEventParams.txHash)))
+        ) {
           return;
+        }
+
+        if (!backfill) {
+          logger.info("events-sync", `Procesing event: ${JSON.stringify(baseEventParams)}`);
         }
 
         // Cache the block data
@@ -315,8 +326,8 @@ export const syncEvents = async (
     // Lock each processed transaction to ensure we don't double-process anything
     if (!backfill) {
       await Promise.all(
-        [...new Set(enhancedEvents.map((event) => event.baseEventParams.txHash)).keys()].map(
-          (txHash) => redis.set(getTxLockKey(txHash), "locked", "EX", 5 * 60)
+        [...new Set(enhancedEvents.map((event) => event.baseEventParams)).keys()].map((params) =>
+          redis.set(getTxLockKey(params.blockHash, params.txHash), "locked", "EX", 5 * 60)
         )
       );
     }
