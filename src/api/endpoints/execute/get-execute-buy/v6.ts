@@ -8,7 +8,7 @@ import { ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, regex, toBuffer } from "@/common/utils";
@@ -296,7 +296,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
       // Scenario 2: explicitly passing existing orders to fill
       if (payload.orderIds) {
         for (const orderId of payload.orderIds) {
-          const orderResult = await redb.oneOrNone(
+          const orderResult = await idb.oneOrNone(
             `
               SELECT
                 orders.kind,
@@ -379,7 +379,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
 
           if (payload.quantity === 1) {
             // Filling a quantity of 1 implies getting the best listing for that token
-            const bestOrderResult = await redb.oneOrNone(
+            const bestOrderResult = await idb.oneOrNone(
               `
                 SELECT
                   orders.id,
@@ -456,7 +456,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
             );
           } else {
             // Fetch all matching orders (limit to 1000 results just for safety)
-            const bestOrdersResult = await redb.manyOrNone(
+            const bestOrdersResult = await idb.manyOrNone(
               `
                 SELECT
                   orders.id,

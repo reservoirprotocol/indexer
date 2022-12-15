@@ -62,7 +62,7 @@ export const syncEvents = async (
 
   // Generate the events filter with one of the following options:
   // - fetch all events
-  // - fetch a subset of all events
+  // - fetch a subset of events
   // - fetch all events from a particular address
 
   // By default, we want to get all events
@@ -93,60 +93,55 @@ export const syncEvents = async (
   await baseProvider.getLogs(eventFilter).then(async (logs) => {
     const availableEventData = getEventData();
 
-    const limit = pLimit(50);
-    await Promise.all(
-      logs.map((log) =>
-        limit(async () => {
-          try {
-            const baseEventParams = await parseEvent(log, blocksCache);
+    for (const log of logs) {
+      try {
+        const baseEventParams = await parseEvent(log, blocksCache);
 
-            // Skip transactions we already processed
-            if (!backfill && (await redis.get(getTxLockKey(baseEventParams.txHash)))) {
-              return;
-            }
+        // Skip transactions we already processed
+        if (!backfill && (await redis.get(getTxLockKey(baseEventParams.txHash)))) {
+          return;
+        }
 
-            // Cache the block data
-            if (!blocksCache.has(baseEventParams.block)) {
-              // It's very important from a performance perspective to have
-              // the block data available before proceeding with the events
-              // (otherwise we might have to perform too many db reads)
-              blocksCache.set(
-                baseEventParams.block,
-                await blocksModel.saveBlock({
-                  number: baseEventParams.block,
-                  hash: baseEventParams.blockHash,
-                  timestamp: baseEventParams.timestamp,
-                })
-              );
-            }
+        // Cache the block data
+        if (!blocksCache.has(baseEventParams.block)) {
+          // It's very important from a performance perspective to have
+          // the block data available before proceeding with the events
+          // (otherwise we might have to perform too many db reads)
+          blocksCache.set(
+            baseEventParams.block,
+            await blocksModel.saveBlock({
+              number: baseEventParams.block,
+              hash: baseEventParams.blockHash,
+              timestamp: baseEventParams.timestamp,
+            })
+          );
+        }
 
-            // Keep track of the block
-            blocksSet.add(`${log.blockNumber}-${log.blockHash}`);
+        // Keep track of the block
+        blocksSet.add(`${log.blockNumber}-${log.blockHash}`);
 
-            // Find first matching event:
-            // - matching topic
-            // - matching number of topics (eg. indexed fields)
-            // - matching addresses
-            const eventData = availableEventData.find(
-              ({ addresses, topic, numTopics }) =>
-                log.topics[0] === topic &&
-                log.topics.length === numTopics &&
-                (addresses ? addresses[log.address.toLowerCase()] : true)
-            );
-            if (eventData) {
-              enhancedEvents.push({
-                kind: eventData.kind,
-                baseEventParams,
-                log,
-              });
-            }
-          } catch (error) {
-            logger.info("sync-events", `Failed to handle events: ${error}`);
-            throw error;
-          }
-        })
-      )
-    );
+        // Find first matching event:
+        // - matching topic
+        // - matching number of topics (eg. indexed fields)
+        // - matching address
+        const eventData = availableEventData.find(
+          ({ addresses, numTopics, topic }) =>
+            log.topics[0] === topic &&
+            log.topics.length === numTopics &&
+            (addresses ? addresses[log.address.toLowerCase()] : true)
+        );
+        if (eventData) {
+          enhancedEvents.push({
+            kind: eventData.kind,
+            baseEventParams,
+            log,
+          });
+        }
+      } catch (error) {
+        logger.info("sync-events", `Failed to handle events: ${error}`);
+        throw error;
+      }
+    }
 
     // Process the retrieved events asynchronously
     const eventsSyncProcess = backfill ? eventsSyncBackfillProcess : eventsSyncRealtimeProcess;
