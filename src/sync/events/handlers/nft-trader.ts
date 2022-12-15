@@ -21,10 +21,10 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const status = args["status"];
         const taker = args["creator"].toLowerCase();
 
-        // statuses:
-        // 0 - opened
-        // 1 - closed
-        // 2 - canceled
+        // Statuses:
+        // 0 - Opened
+        // 1 - Closed
+        // 2 - Canceled
         if (status !== 1) {
           break;
         }
@@ -37,7 +37,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         const parsedTrace = parseCallTrace(txTrace.calls);
 
-        let transferedTokensCounter = 0;
+        let transferredTokensCounter = 0;
         let tokenId = "";
         let tokenContract = "";
         let currency = "";
@@ -51,13 +51,19 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         for (const token of Object.keys(parsedTrace[taker].tokenBalanceState)) {
           if (token.startsWith("erc721") || token.startsWith("erc1155")) {
             tokenKey = token;
-            transferedTokensCounter++;
+            transferredTokensCounter++;
             amount = parsedTrace[taker].tokenBalanceState[token];
             [, tokenContract, tokenId] = token.split(":");
           } else if (token.startsWith("erc20") || token.startsWith("native")) {
             currencyKey = token;
             currency = token.split(":")[1];
           }
+        }
+
+        // We don't support token for token exchange
+        // We don't support bundles
+        if (transferredTokensCounter !== 1) {
+          break;
         }
 
         for (const address of Object.keys(parsedTrace).filter(
@@ -70,15 +76,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           }
         }
 
-        // we don't support token for token exchange
-        // we don't support bundles
-        if (transferedTokensCounter !== 1) {
-          break;
-        }
-
-        // depending on the order side we have to calculate:
-        // price when order is "sale" = taker price paid + conctract fee
-        // price when order is "buy" = maker price received + concract fee
+        // Depending on the order side we have to calculate:
+        // Price when order is "sale" = taker price paid + conctract fee
+        // Price when order is "buy" = maker price received + concract fee
         const orderSide = bn(amount).gt(0) ? "sell" : "buy";
 
         currencyPrice = bn(
