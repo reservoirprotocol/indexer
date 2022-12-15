@@ -61,11 +61,7 @@ export const addToQueue = async (infos: EventsInfo[]) => {
   infos = _.filter(infos, (info) => !_.isEmpty(info.events));
 
   if (!_.isEmpty(infos)) {
-    const start = new Date().getTime();
     const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, infos);
-    const end = new Date().getTime();
-    logger.info(QUEUE_NAME, `Time to addJobData ${end - start} ms`);
-
     _.map(ids, (id) => jobs.push({ name: id, data: { id } }));
 
     if (!_.isEmpty(jobs)) {
