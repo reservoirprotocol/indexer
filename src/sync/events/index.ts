@@ -320,6 +320,11 @@ export const syncEvents = async (
         events: enhancedEvents.filter(({ kind }) => kind.startsWith("manifold")),
         backfill,
       },
+      {
+        kind: "nft-trader",
+        events: enhancedEvents.filter(({ kind }) => kind.startsWith("nft-trader")),
+        backfill,
+      },
     ]);
 
     // Lock each processed transaction to ensure we don't double-process anything

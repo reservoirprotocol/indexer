@@ -41,7 +41,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
 
   const contractValues: {
     address: Buffer;
-    kind: "erc721" | "erc1155" | "cryptopunks" | "cryptokitties";
+    kind: "erc721" | "erc1155" | "cryptopunks" | "cryptokitties" | "nft-trader";
   }[] = [];
 
   const tokenValues: {
