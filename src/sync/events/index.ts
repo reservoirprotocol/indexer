@@ -64,6 +64,7 @@ export const syncEvents = async (
 
   // By default, we want to get all events
   let eventFilter: Filter = {
+    topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
     fromBlock,
     toBlock,
   };
