@@ -51,6 +51,8 @@ if (config.doBackgroundWork) {
             FROM "collections" "c"
             WHERE "c"."contract" = $/contract/
               AND "c"."token_id_range" @> $/tokenId/::NUMERIC(78, 0)
+            ORDER BY "c"."created_at" DESC
+            LIMIT 1
           `,
           {
             contract: toBuffer(contract),
