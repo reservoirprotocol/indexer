@@ -106,6 +106,7 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
           order_hash: (event.payload as any).order_hash,
           maker: (event.payload as any).maker?.address,
           event_data: event,
+          created_at: Date.now(),
         }),
       },
       DeliveryStreamName: "indexer-opensea-websocket-events-goerli",
@@ -121,7 +122,9 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
   } catch (error) {
     logger.error(
       "opensea-websocket",
-      `saveEvent e  rror. event=${JSON.stringify(event)}, error=${error}`
+      `saveEvent error. event=${JSON.stringify(event)}, error=${error}, accessKeyId=${
+        config.awsAccessKeyId
+      }`
     );
   }
 };
