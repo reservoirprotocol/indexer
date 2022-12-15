@@ -1467,6 +1467,8 @@ const getCollection = async (
         FROM collections
         WHERE collections.contract = $/contract/
           AND collections.slug = $/collectionSlug/
+        ORDER BY created_at DESC  
+        LIMIT 1  
       `,
       {
         contract: toBuffer(orderParams.contract),
