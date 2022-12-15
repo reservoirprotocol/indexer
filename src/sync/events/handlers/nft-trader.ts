@@ -44,18 +44,18 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         let currencyPrice = "";
         let maker = "";
 
-        let transferToken = "";
+        let tokenKey = "";
         let amount = "0";
-        let currencyType = "";
+        let currencyKey = "";
 
         for (const token of Object.keys(parsedTrace[taker].tokenBalanceState)) {
           if (token.startsWith("erc721") || token.startsWith("erc1155")) {
-            transferToken = token;
+            tokenKey = token;
             transferedTokensCounter++;
             amount = parsedTrace[taker].tokenBalanceState[token];
             [, tokenContract, tokenId] = token.split(":");
           } else if (token.startsWith("erc20") || token.startsWith("native")) {
-            currencyType = token;
+            currencyKey = token;
             currency = token.split(":")[1];
           }
         }
@@ -64,7 +64,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           (key) => baseEventParams.address !== key
         )) {
           for (const token of Object.keys(parsedTrace[address].tokenBalanceState)) {
-            if (address !== taker && token === transferToken) {
+            if (address !== taker && token === tokenKey) {
               maker = address;
             }
           }
@@ -82,9 +82,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderSide = bn(amount).gt(0) ? "sell" : "buy";
 
         currencyPrice = bn(
-          parsedTrace[orderSide === "sell" ? taker : maker].tokenBalanceState[currencyType]
+          parsedTrace[orderSide === "sell" ? taker : maker].tokenBalanceState[currencyKey]
         )
-          .add(bn(parsedTrace[baseEventParams.address].tokenBalanceState[currencyType]))
+          .add(bn(parsedTrace[baseEventParams.address].tokenBalanceState[currencyKey]))
           .abs()
           .toString();
 
