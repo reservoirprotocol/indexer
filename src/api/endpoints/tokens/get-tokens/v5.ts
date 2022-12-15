@@ -77,6 +77,12 @@ export const getTokensV5Options: RouteOptions = {
       source: Joi.string().description(
         "Domain of the order source. Example `opensea.io` (Only listed tokens are returned when filtering by source)"
       ),
+      minRarityRank: Joi.number()
+        .integer()
+        .description("Get tokens with a min rarity rank (inclusive)"),
+      maxRarityRank: Joi.number()
+        .integer()
+        .description("Get tokens with a max rarity rank (inclusive)"),
       flagStatus: Joi.number()
         .allow(-1, 0, 1)
         .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),
@@ -508,6 +514,14 @@ export const getTokensV5Options: RouteOptions = {
       if (query.contract) {
         (query as any).contract = toBuffer(query.contract);
         conditions.push(`t.contract = $/contract/`);
+      }
+
+      if (query.minRarityRank) {
+        conditions.push(`t.rarity_rank >= $/minRarityRank/`);
+      }
+
+      if (query.maxRarityRank) {
+        conditions.push(`t.rarity_rank <= $/maxRarityRank/`);
       }
 
       if (query.tokens) {

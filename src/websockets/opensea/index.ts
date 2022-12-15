@@ -103,7 +103,7 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
       Record: {
         Data: JSON.stringify({
           event_type: event.event_type,
-          event_timestamp: (event.payload as any).event_timestamp,
+          event_timestamp: new Date((event.payload as any).event_timestamp).toISOString(),
           order_hash: (event.payload as any).order_hash,
           maker: (event.payload as any).maker?.address,
           event_data: event,
