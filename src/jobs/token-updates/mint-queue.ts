@@ -119,6 +119,14 @@ if (config.doBackgroundWork) {
           await idb.none(pgp.helpers.concat(queries));
 
           if (!config.disableRealtimeMetadataRefresh) {
+            let delay = getNetworkSettings().metadataMintDelay;
+
+            if (contract === "0x11708DC8A3eA69020f520C81250aBb191b190110") {
+              delay = 0;
+
+              logger.info(QUEUE_NAME, `Forced delay. contract=${contract}, delay=${delay}`);
+            }
+
             await metadataIndexFetch.addToQueue(
               [
                 {
@@ -132,7 +140,7 @@ if (config.doBackgroundWork) {
                 },
               ],
               true,
-              getNetworkSettings().metadataMintDelay
+              delay
             );
           }
         } else {
