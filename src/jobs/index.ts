@@ -45,6 +45,7 @@ import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queu
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionUpdatesSimulateFloorAsk from "@/jobs/collection-updates/simulate-floor-queue";
+import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
 
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
@@ -142,6 +143,7 @@ export const allJobQueues = [
   collectionUpdatesNormalizedFloorAsk.queue,
   collectionUpdatesNonFlaggedFloorAsk.queue,
   collectionUpdatesSimulateFloorAsk.queue,
+  collectionSetCommunity.queue,
 
   collectionUpdatesMetadata.queue,
   rarity.queue,
