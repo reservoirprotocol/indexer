@@ -80,7 +80,7 @@ export class AttributesDataSource extends BaseDataSource {
       const updatedAttributes = updatedResult.map((r) => ({
         id: r.id,
         attribute_key_id: r.attribute_key_id,
-        value: r.attribute_key_id,
+        value: r.value,
         token_count: Number(r.token_count),
         on_sale_count: Number(r.on_sale_count),
         floor_sell_value: r.floor_sell_value ? formatEth(r.floor_sell_value) : null,

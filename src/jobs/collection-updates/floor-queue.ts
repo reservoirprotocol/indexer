@@ -155,29 +155,18 @@ if (config.doBackgroundWork) {
           }
         );
 
-        logger.info(
-          QUEUE_NAME,
-          `collectionFloorAsk. jobData=${JSON.stringify(
-            job.data
-          )}, collectionFloorAsk=${JSON.stringify(collectionFloorAsk)}`
-        );
-
         if (collectionFloorAsk) {
           await redis.del(`collection-floor-ask:${collectionResult.collection_id}`);
 
           if (collectionFloorAsk.order_id) {
-            logger.info(
-              QUEUE_NAME,
-              `Simulating collection floor-ask info. jobData=${JSON.stringify(
-                job.data
-              )}, order_id=${collectionFloorAsk.order_id}`
+            await collectionUpdatesSimulateFloorAsk.addToQueue(
+              [
+                {
+                  collection: collectionResult.collection_id,
+                },
+              ],
+              30000
             );
-
-            await collectionUpdatesSimulateFloorAsk.addToQueue([
-              {
-                collection: collectionResult.collection_id,
-              },
-            ]);
           }
         }
       } catch (error) {

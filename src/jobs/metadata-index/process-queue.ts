@@ -45,7 +45,16 @@ if (config.doBackgroundWork) {
         useMetadataApiBaseUrlAlt = true;
       }
 
-      const count = method == "soundxyz" ? 10 : 20;
+      let count = 20; // Default number of tokens to fetch
+      switch (method) {
+        case "soundxyz":
+          count = 10;
+          break;
+
+        case "simplehash":
+          count = 50;
+          break;
+      }
 
       // Get the tokens from the list
       const pendingRefreshTokens = new PendingRefreshTokens(method);

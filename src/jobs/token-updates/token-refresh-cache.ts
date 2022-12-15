@@ -40,7 +40,7 @@ if (config.doBackgroundWork) {
             "Content-Type": "application/json",
           },
           payload: {
-            token: `${contract}-${tokenId}`,
+            token: `${contract}:${tokenId}`,
           },
         });
         await inject({
@@ -50,7 +50,7 @@ if (config.doBackgroundWork) {
             "Content-Type": "application/json",
           },
           payload: {
-            token: `${contract}-${tokenId}`,
+            token: `${contract}:${tokenId}`,
           },
         });
       }

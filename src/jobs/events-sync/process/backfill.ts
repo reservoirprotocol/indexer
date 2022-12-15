@@ -58,16 +58,19 @@ if (config.doBackgroundWork) {
 
 export const addToQueue = async (infos: EventsInfo[]) => {
   const jobs: { name: string; data: { id: string } }[] = [];
+  infos = _.filter(infos, (info) => !_.isEmpty(info.events));
 
-  for (const info of infos) {
-    if (!_.isEmpty(info.events)) {
-      const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, info);
-      _.map(ids, (id) => jobs.push({ name: id, data: { id } }));
+  if (!_.isEmpty(infos)) {
+    const start = new Date().getTime();
+    const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, infos);
+    const end = new Date().getTime();
+    logger.info(QUEUE_NAME, `Time to addJobData ${end - start} ms`);
+
+    _.map(ids, (id) => jobs.push({ name: id, data: { id } }));
+
+    if (!_.isEmpty(jobs)) {
+      await queue.addBulk(jobs);
     }
-  }
-
-  if (!_.isEmpty(jobs)) {
-    await queue.addBulk(jobs);
   }
 };
 

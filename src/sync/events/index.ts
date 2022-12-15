@@ -65,6 +65,7 @@ export const syncEvents = async (
   // - fetch a subset of events
   // - fetch all events from a particular address
 
+  let start = new Date().getTime();
   // By default, we want to get all events
   let eventFilter: Filter = {
     // Remove any duplicate topics
@@ -89,10 +90,21 @@ export const syncEvents = async (
     };
   }
 
+  logger.info(
+    "events-sync-backfill",
+    `Time to eventFilter [${fromBlock}, ${toBlock}] ${new Date().getTime() - start} ms`
+  );
+
+  start = new Date().getTime();
   const enhancedEvents: EnhancedEvent[] = [];
   await baseProvider.getLogs(eventFilter).then(async (logs) => {
+    logger.info(
+      "events-sync-backfill",
+      `Time to getLogs [${fromBlock}, ${toBlock}] ${new Date().getTime() - start} ms`
+    );
     const availableEventData = getEventData();
 
+    start = new Date().getTime();
     for (const log of logs) {
       try {
         const baseEventParams = await parseEvent(log, blocksCache);
@@ -142,6 +154,11 @@ export const syncEvents = async (
         throw error;
       }
     }
+
+    logger.info(
+      "events-sync-backfill",
+      `Time to parseEvents [${fromBlock}, ${toBlock}] ${new Date().getTime() - start} ms`
+    );
 
     // Process the retrieved events asynchronously
     const eventsSyncProcess = backfill ? eventsSyncBackfillProcess : eventsSyncRealtimeProcess;
