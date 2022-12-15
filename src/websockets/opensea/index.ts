@@ -109,22 +109,20 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
           created_at: Date.now(),
         }),
       },
-      DeliveryStreamName: "indexer-opensea-websocket-events-goerli",
+      DeliveryStreamName: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName,
     };
 
     const firehouse = new AWS.Firehose({
       accessKeyId: config.awsAccessKeyId,
       secretAccessKey: config.awsSecretAccessKey,
-      region: "us-west-1",
+      region: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamRegion,
     });
 
     await firehouse.putRecord(params).promise();
   } catch (error) {
     logger.error(
       "opensea-websocket",
-      `saveEvent error. event=${JSON.stringify(event)}, error=${error}, accessKeyId=${
-        config.awsAccessKeyId
-      }`
+      `saveEvent error. event=${JSON.stringify(event)}, error=${error}`
     );
   }
 };

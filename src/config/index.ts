@@ -64,6 +64,13 @@ export const config = {
     ? String(process.env.DATA_EXPORT_S3_ARCHIVE_BUCKET_NAME)
     : undefined,
 
+  openseaWebsocketEventsAwsFirehoseDeliveryStreamName: String(
+    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_NAME
+  ),
+  openseaWebsocketEventsAwsFirehoseDeliveryStreamRegion: String(
+    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_REGION
+  ),
+
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
