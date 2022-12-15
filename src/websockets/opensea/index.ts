@@ -66,6 +66,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               info: {
                 kind: "full",
                 orderParams: seaportOrder.params,
+                metadata: {},
                 openSeaOrderParams,
               } as orders.seaport.OrderInfo,
               relayToArweave: true,
