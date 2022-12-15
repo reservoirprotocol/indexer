@@ -668,7 +668,13 @@ export const save = async (
     } catch (error) {
       logger.warn(
         "orders-seaport-save",
-        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error} (will retry)`
+        `Failed to handle order (will retry). orderParams=${JSON.stringify(
+          orderParams
+        )}, metadata=${JSON.stringify(
+          metadata
+        )}, isReservoir=${isReservoir}, openSeaOrderParams=${JSON.stringify(
+          openSeaOrderParams
+        )}, error=${error}`
       );
 
       // Throw so that we retry with he bundle-handling code
