@@ -5,7 +5,6 @@ import pLimit from "p-limit";
 import { logger } from "@/common/logger";
 import { getNetworkSettings } from "@/config/network";
 import { baseProvider } from "@/common/provider";
-import { redis } from "@/common/redis";
 import { EventDataKind, getEventData } from "@/events-sync/data";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
 import { parseEvent } from "@/events-sync/parser";
@@ -17,8 +16,6 @@ import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsync
 import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
-
-const getTxLockKey = (blockHash: string, txHash: string) => `tx-lock-${blockHash}-${txHash}`;
 
 export const syncEvents = async (
   fromBlock: number,
@@ -68,8 +65,6 @@ export const syncEvents = async (
   let start = new Date().getTime();
   // By default, we want to get all events
   let eventFilter: Filter = {
-    // Remove any duplicate topics
-    topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
     fromBlock,
     toBlock,
   };
@@ -110,19 +105,7 @@ export const syncEvents = async (
         const baseEventParams = await parseEvent(log, blocksCache);
 
         if (!backfill) {
-          logger.info("events-sync", `Got event: ${JSON.stringify(baseEventParams)}`);
-        }
-
-        // Skip transactions we already processed
-        if (
-          !backfill &&
-          (await redis.get(getTxLockKey(baseEventParams.blockHash, baseEventParams.txHash)))
-        ) {
-          return;
-        }
-
-        if (!backfill) {
-          logger.info("events-sync", `Procesing event: ${JSON.stringify(baseEventParams)}`);
+          logger.info("events-sync", `Processing event: ${JSON.stringify(baseEventParams)}`);
         }
 
         // Cache the block data
@@ -322,15 +305,6 @@ export const syncEvents = async (
         backfill,
       },
     ]);
-
-    // Lock each processed transaction to ensure we don't double-process anything
-    if (!backfill) {
-      await Promise.all(
-        [...new Set(enhancedEvents.map((event) => event.baseEventParams)).keys()].map((params) =>
-          redis.set(getTxLockKey(params.blockHash, params.txHash), "locked", "EX", 5 * 60)
-        )
-      );
-    }
 
     // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
     const ns = getNetworkSettings();
