@@ -55,7 +55,7 @@ if (config.doBackgroundWork) {
             AND fill_events_2.order_kind = 'blur'
           ORDER BY
             fill_events_2.block DESC,
-            fill_events_2.log_index DESC
+            fill_events_2.log_index
         `,
         {
           startBlock: block,
@@ -387,6 +387,8 @@ if (config.doBackgroundWork) {
           }
         }
 
+        trades.order.set(`${txHash}-${exchangeAddress}`, tradeRank + 1);
+
         // Handle: attribution
         const orderKind = "blur";
         const attributionData = await utils.extractAttributionData(txHash, orderKind);
@@ -448,9 +450,9 @@ if (config.doBackgroundWork) {
 
   if (config.chainId === 1) {
     redlock
-      .acquire([`${QUEUE_NAME}-lock-5`], 60 * 60 * 24 * 30 * 1000)
+      .acquire([`${QUEUE_NAME}-lock-9`], 60 * 60 * 24 * 30 * 1000)
       .then(async () => {
-        await addToQueue(16190000);
+        await addToQueue(16195801);
       })
       .catch(() => {
         // Skip on any errors

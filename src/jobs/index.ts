@@ -35,6 +35,7 @@ import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
 import * as backfillBlurSales from "@/jobs/backfill/backfill-blur-sales";
 import * as backfillMints from "@/jobs/backfill/backfill-mints";
+import * as backfillTokensWithMissingCollection from "@/jobs/backfill/backfill-tokens-with-missing-collection";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -131,6 +132,7 @@ export const allJobQueues = [
 
   backfillBlurSales.queue,
   backfillMints.queue,
+  backfillTokensWithMissingCollection.queue,
 
   currencies.queue,
 
