@@ -180,6 +180,10 @@ export const postOrderV2Options: RouteOptions = {
 
           const [result] = await orders.seaport.save([orderInfo]);
 
+          if (result.status === "already-exists") {
+            return { message: "Success", orderId: result.id };
+          }
+
           if (result.status !== "success") {
             const error = Boom.badRequest(result.status);
             error.output.payload.orderId = result.id;
