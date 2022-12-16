@@ -46,8 +46,10 @@ export class Collections {
         SELECT
           *
         FROM collections
-        WHERE contract = $/contract/
-          AND token_id_range @> $/tokenId/::NUMERIC(78, 0)
+        WHERE collections.contract = $/contract/
+          AND collections.token_id_range @> $/tokenId/::NUMERIC(78, 0)
+        ORDER BY collections.created_at DESC
+        LIMIT 1
       `,
       {
         contract: toBuffer(contract),
@@ -219,7 +221,7 @@ export class Collections {
           tokens.token_id
         FROM tokens
         WHERE tokens.contract = $/contract/
-          AND tokens.floor_sell_id IS NOT NULL
+          AND tokens.floor_sell_value IS NOT NULL
         LIMIT 10000
       `,
       { contract: toBuffer(contract) }
@@ -275,7 +277,7 @@ export class Collections {
         SELECT token_sets.id
         FROM token_sets
         WHERE token_sets.collection_id = $/collection/
-          AND token_sets.top_buy_id IS NOT NULL
+          AND token_sets.top_buy_value IS NOT NULL
       `,
       { collection }
     );

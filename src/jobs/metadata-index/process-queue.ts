@@ -40,7 +40,16 @@ if (config.doBackgroundWork) {
       const rateLimitExpiresIn = await getLockExpiration(getRateLimitLockName(method));
 
       if (rateLimitExpiresIn > 0) {
-        logger.info(QUEUE_NAME, `Rate Limited. rateLimitExpiresIn: ${rateLimitExpiresIn}`);
+        logger.info(
+          QUEUE_NAME,
+          `Rate Limited. rateLimitExpiresIn=${rateLimitExpiresIn}, method=${method}`
+        );
+
+        useMetadataApiBaseUrlAlt = true;
+      }
+
+      if (config.chainId === 1 && method === "simplehash") {
+        logger.info(QUEUE_NAME, `Forced alt. method=${method}`);
 
         useMetadataApiBaseUrlAlt = true;
       }
@@ -82,7 +91,7 @@ if (config.doBackgroundWork) {
         if ((error as any).response?.status === 429) {
           logger.info(
             QUEUE_NAME,
-            `Too Many Requests. useMetadataApiBaseUrlAlt=${useMetadataApiBaseUrlAlt}, error: ${JSON.stringify(
+            `Too Many Requests. useMetadataApiBaseUrlAlt=${useMetadataApiBaseUrlAlt}, method=${method}, error: ${JSON.stringify(
               (error as any).response.data
             )}`
           );

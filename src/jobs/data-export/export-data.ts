@@ -90,8 +90,6 @@ if (config.doBackgroundWork) {
         await releaseLock(getLockName(taskId));
 
         if (triggerNextSequence) {
-          logger.info(QUEUE_NAME, `Trigger next sequence. taskId=${taskId}`);
-
           await addToQueue(taskId);
         }
       } else {

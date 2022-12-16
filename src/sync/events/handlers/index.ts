@@ -5,7 +5,6 @@ import * as erc721 from "@/events-sync/handlers/erc721";
 import * as erc1155 from "@/events-sync/handlers/erc1155";
 import * as blur from "@/events-sync/handlers/blur";
 import * as cryptopunks from "@/events-sync/handlers/cryptopunks";
-import * as cryptokitties from "@/events-sync/handlers/cryptokitties";
 import * as element from "@/events-sync/handlers/element";
 import * as forward from "@/events-sync/handlers/forward";
 import * as foundation from "@/events-sync/handlers/foundation";
@@ -22,6 +21,7 @@ import * as zora from "@/events-sync/handlers/zora";
 import * as universe from "@/events-sync/handlers/universe";
 import * as rarible from "@/events-sync/handlers/rarible";
 import * as manifold from "@/events-sync/handlers/manifold";
+import * as tofu from "@/events-sync/handlers/tofu";
 
 export type EventsInfo = {
   kind:
@@ -30,7 +30,6 @@ export type EventsInfo = {
     | "erc1155"
     | "blur"
     | "cryptopunks"
-    | "cryptokitties"
     | "element"
     | "forward"
     | "foundation"
@@ -46,7 +45,8 @@ export type EventsInfo = {
     | "zora"
     | "universe"
     | "rarible"
-    | "manifold";
+    | "manifold"
+    | "tofu";
   events: EnhancedEvent[];
   backfill?: boolean;
 };
@@ -76,11 +76,6 @@ export const processEvents = async (info: EventsInfo) => {
 
     case "cryptopunks": {
       data = await cryptopunks.handleEvents(info.events);
-      break;
-    }
-
-    case "cryptokitties": {
-      data = await cryptokitties.handleEvents(info.events);
       break;
     }
 
@@ -160,6 +155,10 @@ export const processEvents = async (info: EventsInfo) => {
     }
     case "manifold": {
       data = await manifold.handleEvents(info.events);
+      break;
+    }
+    case "tofu": {
+      data = await tofu.handleEvents(info.events);
       break;
     }
   }

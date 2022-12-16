@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { PgPromiseQuery, idb, pgp } from "@/common/db";
@@ -51,6 +49,8 @@ if (config.doBackgroundWork) {
             FROM "collections" "c"
             WHERE "c"."contract" = $/contract/
               AND "c"."token_id_range" @> $/tokenId/::NUMERIC(78, 0)
+            ORDER BY "c"."created_at" DESC
+            LIMIT 1
           `,
           {
             contract: toBuffer(contract),
@@ -119,12 +119,25 @@ if (config.doBackgroundWork) {
           await idb.none(pgp.helpers.concat(queries));
 
           if (!config.disableRealtimeMetadataRefresh) {
+            let delay = getNetworkSettings().metadataMintDelay;
+            let method = metadataIndexFetch.getIndexingMethod(collection.community);
+
+            if (contract === "0x11708dc8a3ea69020f520c81250abb191b190110") {
+              delay = 0;
+              method = "simplehash";
+
+              logger.info(
+                QUEUE_NAME,
+                `Forced rtfkt. contract=${contract}, tokenId=${tokenId}, delay=${delay}, method=${method}`
+              );
+            }
+
             await metadataIndexFetch.addToQueue(
               [
                 {
                   kind: "single-token",
                   data: {
-                    method: metadataIndexFetch.getIndexingMethod(collection.community),
+                    method,
                     contract,
                     tokenId,
                     collection: collection.id,
@@ -132,7 +145,7 @@ if (config.doBackgroundWork) {
                 },
               ],
               true,
-              getNetworkSettings().metadataMintDelay
+              delay
             );
           }
         } else {

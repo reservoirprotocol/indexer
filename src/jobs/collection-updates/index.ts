@@ -7,3 +7,4 @@ import "@/jobs/collection-updates/top-bid-queue";
 import "@/jobs/collection-updates/recalc-floor-queue";
 import "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import "@/jobs/collection-updates/simulate-floor-queue";
+import "@/jobs/collection-updates/set-community-queue";

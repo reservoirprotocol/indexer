@@ -77,6 +77,12 @@ export const getTokensV5Options: RouteOptions = {
       source: Joi.string().description(
         "Domain of the order source. Example `opensea.io` (Only listed tokens are returned when filtering by source)"
       ),
+      minRarityRank: Joi.number()
+        .integer()
+        .description("Get tokens with a min rarity rank (inclusive)"),
+      maxRarityRank: Joi.number()
+        .integer()
+        .description("Get tokens with a max rarity rank (inclusive)"),
       flagStatus: Joi.number()
         .allow(-1, 0, 1)
         .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),
@@ -510,6 +516,14 @@ export const getTokensV5Options: RouteOptions = {
         conditions.push(`t.contract = $/contract/`);
       }
 
+      if (query.minRarityRank) {
+        conditions.push(`t.rarity_rank >= $/minRarityRank/`);
+      }
+
+      if (query.maxRarityRank) {
+        conditions.push(`t.rarity_rank <= $/maxRarityRank/`);
+      }
+
       if (query.tokens) {
         if (!_.isArray(query.tokens)) {
           query.tokens = [query.tokens];
@@ -553,10 +567,10 @@ export const getTokensV5Options: RouteOptions = {
 
           switch (query.sortBy) {
             case "rarity": {
-              query.sortDirection = query.sortDirection || "desc"; // Default sorting for rarity is DESC
+              query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(
-                `(t.rarity_score, t.token_id) ${sign} ($/contRarity/, $/contTokenId/)`
+                `(t.rarity_rank, t.token_id) ${sign} ($/contRarity/, $/contTokenId/)`
               );
               (query as any).contRarity = contArr[0];
               (query as any).contTokenId = contArr[1];
@@ -613,9 +627,9 @@ export const getTokensV5Options: RouteOptions = {
       if (query.collection || query.attributes || query.tokenSetId || query.rarity) {
         switch (query.sortBy) {
           case "rarity": {
-            baseQuery += ` ORDER BY t.rarity_score ${
-              query.sortDirection || "DESC"
-            } NULLS LAST, t.token_id ${query.sortDirection || "DESC"}`;
+            baseQuery += ` ORDER BY t.rarity_rank ${
+              query.sortDirection || "ASC"
+            } NULLS LAST, t.token_id ${query.sortDirection || "ASC"}`;
             break;
           }
 
@@ -663,7 +677,7 @@ export const getTokensV5Options: RouteOptions = {
         if (query.collection || query.attributes || query.tokenSetId) {
           switch (query.sortBy) {
             case "rarity":
-              continuation = rawResult[rawResult.length - 1].rarity_score || "null";
+              continuation = rawResult[rawResult.length - 1].rarity_rank || "null";
               break;
 
             case "tokenId":
@@ -691,24 +705,21 @@ export const getTokensV5Options: RouteOptions = {
 
         if (query.normalizeRoyalties && r.top_buy_missing_royalties) {
           for (let i = 0; i < r.top_buy_missing_royalties.length; i++) {
-            if (!Object.keys(r.top_buy_missing_royalties[i]).includes("bps")) {
-              return;
-            }
-
             const index: number = r.top_buy_fee_breakdown.findIndex(
               (fee: { recipient: string }) =>
                 fee.recipient === r.top_buy_missing_royalties[i].recipient
             );
 
-            if (index > -1) {
-              feeBreakdown[index].bps += Number(r.top_buy_missing_royalties[i].bps);
+            const missingFeeBps = Number(r.top_buy_missing_royalties[i].bps);
+
+            if (index !== -1) {
+              feeBreakdown[index].bps += missingFeeBps;
             } else {
-              const missingRoyalty = {
-                bps: Number(r.top_buy_missing_royalties[i].bps),
+              feeBreakdown.push({
+                bps: missingFeeBps,
                 kind: "royalty",
                 recipient: r.top_buy_missing_royalties[i].recipient,
-              };
-              feeBreakdown.push(missingRoyalty);
+              });
             }
           }
         }

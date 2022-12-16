@@ -35,8 +35,7 @@ import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
 import * as backfillBlurSales from "@/jobs/backfill/backfill-blur-sales";
 import * as backfillMints from "@/jobs/backfill/backfill-mints";
-import * as backfillRefreshSudoswapOrders from "@/jobs/backfill/backfill-refresh-sudoswap-orders";
-import * as backCollectionsNonFlaggedFloorAsk from "@/jobs/backfill/backfill-collections-non-flagged-floor-ask";
+import * as backfillTokensWithMissingCollection from "@/jobs/backfill/backfill-tokens-with-missing-collection";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -47,6 +46,7 @@ import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queu
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionUpdatesSimulateFloorAsk from "@/jobs/collection-updates/simulate-floor-queue";
+import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
 
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
@@ -132,8 +132,7 @@ export const allJobQueues = [
 
   backfillBlurSales.queue,
   backfillMints.queue,
-  backfillRefreshSudoswapOrders.queue,
-  backCollectionsNonFlaggedFloorAsk.queue,
+  backfillTokensWithMissingCollection.queue,
 
   currencies.queue,
 
@@ -146,6 +145,7 @@ export const allJobQueues = [
   collectionUpdatesNormalizedFloorAsk.queue,
   collectionUpdatesNonFlaggedFloorAsk.queue,
   collectionUpdatesSimulateFloorAsk.queue,
+  collectionSetCommunity.queue,
 
   collectionUpdatesMetadata.queue,
   rarity.queue,

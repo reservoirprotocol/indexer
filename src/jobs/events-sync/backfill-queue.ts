@@ -30,7 +30,8 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { fromBlock, toBlock, backfill, syncDetails } = job.data;
+      const { fromBlock, toBlock, syncDetails } = job.data;
+      let { backfill } = job.data;
 
       // Check if redis reaching max memory usage
       const maxMemUsage = 1024 * 1000 * 1000 * config.redisMaxMemoryGB; // Max size in GB
@@ -49,12 +50,16 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
         return;
       }
 
-      try {
-        logger.info(QUEUE_NAME, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
+      backfill = config.chainId === 137 ? true : backfill;
 
+      try {
         await syncEvents(fromBlock, toBlock, { backfill, syncDetails });
+        logger.info(QUEUE_NAME, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
       } catch (error) {
-        logger.error(QUEUE_NAME, `Events backfill syncing failed: ${error}`);
+        logger.error(
+          QUEUE_NAME,
+          `Events for [${fromBlock}, ${toBlock}] backfill syncing failed: ${error}`
+        );
         throw error;
       }
     },

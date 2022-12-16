@@ -291,9 +291,10 @@ export const getTokensV4Options: RouteOptions = {
 
           switch (query.sortBy) {
             case "rarity": {
+              query.sortDirection = query.sortDirection || "asc";
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(
-                `("t"."rarity_score", "t"."token_id") ${sign} ($/contRarity/, $/contTokenId/)`
+                `("t"."rarity_rank", "t"."token_id") ${sign} ($/contRarity/, $/contTokenId/)`
               );
               (query as any).contRarity = contArr[0];
               (query as any).contTokenId = contArr[1];
@@ -345,9 +346,9 @@ export const getTokensV4Options: RouteOptions = {
       if (query.collection || query.attributes || query.tokenSetId) {
         switch (query.sortBy) {
           case "rarity": {
-            baseQuery += ` ORDER BY "t"."rarity_score" ${
-              query.sortDirection || "DESC"
-            } NULLS LAST, "t"."token_id" ${query.sortDirection || "DESC"}`;
+            baseQuery += ` ORDER BY "t"."rarity_rank" ${
+              query.sortDirection || "ASC"
+            } NULLS LAST, "t"."token_id" ${query.sortDirection || "ASC"}`;
             break;
           }
 
@@ -389,7 +390,7 @@ export const getTokensV4Options: RouteOptions = {
         if (query.collection || query.attributes || query.tokenSetId) {
           switch (query.sortBy) {
             case "rarity":
-              continuation = rawResult[rawResult.length - 1].rarity_score || "null";
+              continuation = rawResult[rawResult.length - 1].rarity_rank || "null";
               break;
 
             case "tokenId":

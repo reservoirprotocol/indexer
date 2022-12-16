@@ -3,6 +3,7 @@
 // Any new network that is supported should have a corresponding
 // entry in the configuration methods below
 
+import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { idb } from "@/common/db";
@@ -42,6 +43,7 @@ type NetworkSettings = {
   washTradingWhitelistedAddresses: string[];
   washTradingBlacklistedAddresses: string[];
   mintsAsSalesBlacklist: string[];
+  mintAddresses: string[];
   multiCollectionContracts: string[];
   whitelistedCurrencies: Map<string, Currency>;
   supportedBidCurrencies: { [currency: string]: boolean };
@@ -65,6 +67,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     washTradingBlacklistedAddresses: [],
     multiCollectionContracts: [],
     mintsAsSalesBlacklist: [],
+    mintAddresses: [AddressZero],
     reorgCheckFrequency: [1, 5, 10, 30, 60], // In minutes
     whitelistedCurrencies: new Map<string, Currency>(),
     supportedBidCurrencies: { [Sdk.Common.Addresses.Weth[config.chainId]?.toLowerCase()]: true },
@@ -115,6 +118,11 @@ export const getNetworkSettings = (): NetworkSettings => {
         mintsAsSalesBlacklist: [
           // Uniswap V3: Positions NFT
           "0xc36442b4a4522e871399cd717abdd847ab11fe88",
+        ],
+        mintAddresses: [
+          ...defaultNetworkSettings.mintAddresses,
+          // Nifty Gateway Omnibus
+          "0xe052113bd7d7700d623414a0a4585bcae754e9d5",
         ],
         whitelistedCurrencies: new Map([
           [

@@ -1,4 +1,3 @@
-import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { bn } from "@/common/utils";
@@ -90,7 +89,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        if (from === AddressZero) {
+        if (ns.mintAddresses.includes(from)) {
           mintInfos.push({
             contract: baseEventParams.address,
             tokenId,
@@ -168,7 +167,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             },
           });
 
-          if (from === AddressZero) {
+          if (ns.mintAddresses.includes(from)) {
             mintInfos.push({
               contract: baseEventParams.address,
               tokenId: tokenIds[i],
