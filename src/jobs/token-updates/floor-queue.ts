@@ -36,10 +36,6 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { kind, tokenSetId, txHash, txTimestamp } = job.data as FloorAskInfo;
 
-      if (config.chainId === 1) {
-        logger.info(QUEUE_NAME, `TokenUpdatesFloorAsk: ${JSON.stringify(job.data)}`);
-      }
-
       try {
         // Atomically update the cache and trigger an api event if needed
         const sellOrderResult = await idb.oneOrNone(
@@ -188,17 +184,8 @@ if (config.doBackgroundWork) {
           await collectionUpdatesFloorAsk.addToQueue([sellOrderResult]);
           await collectionUpdatesNonFlaggedFloorAsk.addToQueue([sellOrderResult]);
 
-          if (config.chainId === 1) {
-            if (kind === "revalidation") {
-              logger.info(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
-            } else {
-              logger.info(
-                QUEUE_NAME,
-                `TokenUpdatesFloorAsk: ${JSON.stringify(job.data)} ${JSON.stringify(
-                  sellOrderResult
-                )}`
-              );
-            }
+          if (kind === "revalidation") {
+            logger.error(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
           }
         }
       } catch (error) {

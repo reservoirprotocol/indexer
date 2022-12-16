@@ -43,7 +43,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
     const payload = request.payload as any;
 
     const invalidateOrder = async (orderId: string) => {
-      logger.warn(`post-simulate-floor-${version}-handler`, `Detected unfillable order ${orderId}`);
+      logger.error(`post-simulate-floor-${version}-handler`, `StaleOrder: ${orderId}`);
 
       // Invalidate the order if the simulation failed
       await inject({

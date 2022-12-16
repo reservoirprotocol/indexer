@@ -178,6 +178,10 @@ if (config.doBackgroundWork) {
             ? fromBuffer(sellOrderResult.txHash)
             : null;
           await collectionUpdatesNormalizedFloorAsk.addToQueue([sellOrderResult]);
+
+          if (kind === "revalidation") {
+            logger.error(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
+          }
         }
       } catch (error) {
         logger.error(
