@@ -7,13 +7,15 @@ import _ from "lodash";
 import { logger } from "@/common/logger";
 
 export type Event = {
-  kind: "erc721" | "erc1155" | "cryptopunks" | "cryptokitties";
+  kind: ContractKind;
   from: string;
   to: string;
   tokenId: string;
   amount: string;
   baseEventParams: BaseEventParams;
 };
+
+type ContractKind = "erc721" | "erc1155" | "cryptopunks" | "erc721-like";
 
 type DbEvent = {
   address: Buffer;
@@ -41,7 +43,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
 
   const contractValues: {
     address: Buffer;
-    kind: "erc721" | "erc1155" | "cryptopunks" | "cryptokitties";
+    kind: ContractKind;
   }[] = [];
 
   const tokenValues: {

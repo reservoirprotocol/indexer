@@ -79,9 +79,11 @@ export const getTokensV5Options: RouteOptions = {
       ),
       minRarityRank: Joi.number()
         .integer()
+        .min(1)
         .description("Get tokens with a min rarity rank (inclusive)"),
       maxRarityRank: Joi.number()
         .integer()
+        .min(1)
         .description("Get tokens with a max rarity rank (inclusive)"),
       flagStatus: Joi.number()
         .allow(-1, 0, 1)

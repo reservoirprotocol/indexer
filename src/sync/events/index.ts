@@ -169,8 +169,8 @@ export const syncEvents = async (
         backfill,
       },
       {
-        kind: "cryptokitties",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("cryptokitties")),
+        kind: "decentraland",
+        events: enhancedEvents.filter(({ kind }) => kind.startsWith("decentraland")),
         backfill,
       },
       {
@@ -286,6 +286,24 @@ export const syncEvents = async (
       {
         kind: "manifold",
         events: enhancedEvents.filter(({ kind }) => kind.startsWith("manifold")),
+        backfill,
+      },
+      {
+        kind: "tofu",
+        events: enhancedEvents.filter(({ kind }) => kind.startsWith("tofu")),
+      },
+      {
+        kind: "bend-dao",
+        events: enhancedEvents.filter(({ kind }) => kind.startsWith("bend-dao")),
+      },
+      {
+        kind: "nft-trader",
+        events: enhancedEvents.filter(({ kind }) => kind.startsWith("nft-trader")),
+        backfill,
+      },
+      {
+        kind: "okex",
+        events: enhancedEvents.filter(({ kind }) => kind.startsWith("okex")),
         backfill,
       },
     ]);

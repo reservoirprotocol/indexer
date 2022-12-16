@@ -463,7 +463,13 @@ export const save = async (
       }
 
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
-        const bps = price.eq(0) ? 0 : bn(amount).mul(10000).div(price).toNumber();
+        const bps = price.eq(0)
+          ? 0
+          : bn(amount)
+              .div(info.amount ?? 1)
+              .mul(10000)
+              .div(price)
+              .toNumber();
 
         return {
           // First check for opensea hardcoded recipients
@@ -594,7 +600,7 @@ export const save = async (
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
-        const seaportBidPercentageThreshold = 90;
+        const seaportBidPercentageThreshold = 85;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
@@ -1029,7 +1035,7 @@ export const save = async (
 
       if (orderParams.side === "buy" && orderParams.kind === "single-token" && validateBidValue) {
         const tokenId = orderParams.tokenId;
-        const seaportBidPercentageThreshold = 90;
+        const seaportBidPercentageThreshold = 85;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(

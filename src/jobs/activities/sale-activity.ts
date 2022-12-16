@@ -19,7 +19,7 @@ export class SaleActivity {
 
     // If no token found
     if (_.isNull(collectionId)) {
-      logger.warn("sale-activity", `No token בםךךקבאןםמ for ${JSON.stringify(data)}`);
+      logger.warn("sale-activity", `No collection found for ${JSON.stringify(data)}`);
       return;
     }
 
