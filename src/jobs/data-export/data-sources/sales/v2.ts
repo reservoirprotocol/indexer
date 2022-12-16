@@ -7,7 +7,6 @@ import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getCurrency } from "@/utils/currencies";
-import { logger } from "@/common/logger";
 
 export class SalesDataSourceV2 extends BaseDataSource {
   public async getSequenceData(cursor: CursorInfo | null, limit: number) {
@@ -113,8 +112,6 @@ export class SalesDataSourceV2 extends BaseDataSource {
           created_at: new Date(r.created_at).toISOString(),
           updated_at: new Date(r.updated_ts * 1000).toISOString(),
         });
-
-        logger.info("SalesDataSourceV2", `DEBUG. record=${JSON.stringify(data[data.length - 1])}`);
       }
 
       const lastResult = result[result.length - 1];
