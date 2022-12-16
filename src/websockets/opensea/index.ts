@@ -99,6 +99,11 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 const saveEvent = async (event: BaseStreamMessage<unknown>) => {
   try {
     /* eslint-disable @typescript-eslint/no-explicit-any */
+
+    // TODO: Filter out the properties when ingesting from S3 to Redshift instead of here.
+    delete (event.payload as any).item.metadata;
+    delete (event.payload as any).item.permalink;
+
     const params = {
       Record: {
         Data: JSON.stringify({
