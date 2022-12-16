@@ -245,12 +245,6 @@ export const getExecuteBuyV4Options: RouteOptions = {
                 },
             payload: { order },
           }).then((response) => JSON.parse(response.payload));
-
-          logger.info(
-            `get-execute-buy-${version}-handler`,
-            `post-order-v2 response: ${JSON.stringify(response)}`
-          );
-
           if (response.orderId) {
             payload.orderIds.push(response.orderId);
           } else {
