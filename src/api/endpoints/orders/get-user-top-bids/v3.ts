@@ -73,7 +73,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(20)
+        .max(100)
         .default(20)
         .description("Amount of items returned in response."),
     }),

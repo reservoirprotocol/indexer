@@ -6,8 +6,6 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-import * as collectionUpdatesSimulateFloorAsk from "@/jobs/collection-updates/simulate-floor-queue";
-
 const QUEUE_NAME = "collection-updates-floor-ask-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -158,16 +156,16 @@ if (config.doBackgroundWork) {
         if (collectionFloorAsk) {
           await redis.del(`collection-floor-ask:${collectionResult.collection_id}`);
 
-          if (collectionFloorAsk.order_id) {
-            await collectionUpdatesSimulateFloorAsk.addToQueue(
-              [
-                {
-                  collection: collectionResult.collection_id,
-                },
-              ],
-              30000
-            );
-          }
+          // if (collectionFloorAsk.order_id) {
+          //   await collectionUpdatesSimulateFloorAsk.addToQueue(
+          //     [
+          //       {
+          //         collection: collectionResult.collection_id,
+          //       },
+          //     ],
+          //     30000
+          //   );
+          // }
         }
       } catch (error) {
         logger.error(

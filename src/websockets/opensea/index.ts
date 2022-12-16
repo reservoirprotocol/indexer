@@ -8,6 +8,9 @@ import {
   TraitOfferEventPayload,
 } from "@opensea/stream-js";
 import { WebSocket } from "ws";
+import * as Sdk from "@reservoir0x/sdk";
+import AWS from "aws-sdk";
+
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { ItemListedEventPayload } from "@opensea/stream-js/dist/types";
@@ -19,7 +22,6 @@ import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handl
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orders from "@/orderbook/orders";
-import { idb, pgp } from "@/common/db";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
@@ -51,18 +53,36 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       try {
         await saveEvent(event);
 
-        const orderParams = handleEvent(event.event_type as EventType, event.payload);
+        const openSeaOrderParams = handleEvent(event.event_type as EventType, event.payload);
 
-        if (orderParams) {
-          const orderInfo: orderbookOrders.GenericOrderInfo = {
-            kind: "seaport",
-            info: {
-              kind: "partial",
-              orderParams,
-            } as orders.seaport.OrderInfo,
-            relayToArweave: false,
-            validateBidValue: true,
-          };
+        if (openSeaOrderParams) {
+          const seaportOrder = parseProtocolData(event.payload);
+
+          let orderInfo: orderbookOrders.GenericOrderInfo;
+
+          if (seaportOrder) {
+            orderInfo = {
+              kind: "seaport",
+              info: {
+                kind: "full",
+                orderParams: seaportOrder.params,
+                metadata: {},
+                openSeaOrderParams,
+              } as orders.seaport.OrderInfo,
+              relayToArweave: true,
+              validateBidValue: true,
+            };
+          } else {
+            orderInfo = {
+              kind: "seaport",
+              info: {
+                kind: "partial",
+                orderParams: openSeaOrderParams,
+              } as orders.seaport.OrderInfo,
+              relayToArweave: false,
+              validateBidValue: true,
+            };
+          }
 
           await orderbookOrders.addToQueue([orderInfo]);
         }
@@ -79,32 +99,32 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 const saveEvent = async (event: BaseStreamMessage<unknown>) => {
   try {
     /* eslint-disable @typescript-eslint/no-explicit-any */
-    const query = pgp.as.format(
-      `
-      INSERT INTO opensea_websocket_events (
-        event_type,
-        event_timestamp,
-        order_hash,
-        maker,
-        data
-      ) VALUES (
-        $/eventType/,
-        $/eventTimestamp/,
-        $/orderHash/,
-        $/maker/,
-        $/data:json/
-      )
-    `,
-      {
-        eventType: event.event_type,
-        eventTimestamp: (event.payload as any).event_timestamp,
-        orderHash: (event.payload as any).order_hash,
-        maker: (event.payload as any).maker?.address,
-        data: event,
-      }
-    );
 
-    await idb.result(query);
+    // TODO: Filter out the properties when ingesting from S3 to Redshift instead of here.
+    delete (event.payload as any).item.metadata;
+    delete (event.payload as any).item.permalink;
+
+    const params = {
+      Record: {
+        Data: JSON.stringify({
+          event_type: event.event_type,
+          event_timestamp: new Date((event.payload as any).event_timestamp).toISOString(),
+          order_hash: (event.payload as any).order_hash,
+          maker: (event.payload as any).maker?.address,
+          event_data: event,
+          created_at: new Date().toISOString(),
+        }),
+      },
+      DeliveryStreamName: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName,
+    };
+
+    const firehouse = new AWS.Firehose({
+      accessKeyId: config.awsAccessKeyId,
+      secretAccessKey: config.awsSecretAccessKey,
+      region: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamRegion,
+    });
+
+    await firehouse.putRecord(params).promise();
   } catch (error) {
     logger.error(
       "opensea-websocket",
@@ -125,5 +145,31 @@ export const handleEvent = (type: EventType, payload: unknown): PartialOrderComp
       return handleTraitOfferEvent(payload as TraitOfferEventPayload);
     default:
       return null;
+  }
+};
+
+const parseProtocolData = (payload: unknown): Sdk.Seaport.Order | undefined => {
+  try {
+    const protocolData = (payload as any).protocol_data;
+
+    return new Sdk.Seaport.Order(config.chainId, {
+      endTime: protocolData.parameters.endTime,
+      startTime: protocolData.parameters.startTime,
+      consideration: protocolData.parameters.consideration,
+      offer: protocolData.parameters.offer,
+      conduitKey: protocolData.parameters.conduitKey,
+      salt: protocolData.parameters.salt,
+      zone: protocolData.parameters.zone,
+      zoneHash: protocolData.parameters.zoneHash,
+      offerer: protocolData.parameters.offerer,
+      counter: `${protocolData.parameters.counter}`,
+      orderType: protocolData.parameters.orderType,
+      signature: protocolData.signature,
+    });
+  } catch (error) {
+    logger.error(
+      "opensea-websocket",
+      `parseProtocolData error. payload=${JSON.stringify(payload)}, error=${error}`
+    );
   }
 };

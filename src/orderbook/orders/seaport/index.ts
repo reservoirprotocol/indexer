@@ -35,6 +35,7 @@ export type OrderInfo =
       orderParams: Sdk.Seaport.Types.OrderComponents;
       metadata: OrderMetadata;
       isReservoir?: boolean;
+      openSeaOrderParams?: PartialOrderComponents;
     }
   | {
       kind: "partial";
@@ -83,7 +84,8 @@ export const save = async (
   const handleOrder = async (
     orderParams: Sdk.Seaport.Types.OrderComponents,
     metadata: OrderMetadata,
-    isReservoir?: boolean
+    isReservoir?: boolean,
+    openSeaOrderParams?: PartialOrderComponents
   ) => {
     try {
       const order = new Sdk.Seaport.Order(config.chainId, orderParams);
@@ -218,48 +220,139 @@ export const save = async (
         }
       }
 
+      let saveRawData = true;
+
       // Check and save: associated token set
-      const schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
-
       let tokenSetId: string | undefined;
-      switch (order.params.kind) {
-        case "single-token": {
-          const typedInfo = info as typeof info & { tokenId: string };
-          const tokenId = typedInfo.tokenId;
+      let schemaHash;
 
-          tokenSetId = `token:${info.contract}:${tokenId}`;
-          if (tokenId) {
-            await tokenSet.singleToken.save([
-              {
-                id: tokenSetId,
-                schemaHash,
-                contract: info.contract,
-                tokenId,
-              },
-            ]);
+      if (openSeaOrderParams && openSeaOrderParams.kind != "single-token") {
+        // Currently, we don't save the raw data on the order to make sure we utilize the OS graphql to fill the order (due to inconsistency with flagged tokens).
+        saveRawData = false;
+
+        const collection = await getCollection(openSeaOrderParams);
+
+        if (!collection) {
+          return results.push({
+            id,
+            status: "unknown-collection",
+          });
+        }
+
+        schemaHash = generateSchemaHash();
+
+        switch (openSeaOrderParams.kind) {
+          case "contract-wide": {
+            if (collection?.token_set_id) {
+              tokenSetId = collection.token_set_id;
+            }
+
+            if (tokenSetId) {
+              if (tokenSetId.startsWith("contract:")) {
+                await tokenSet.contractWide.save([
+                  {
+                    id: tokenSetId,
+                    schemaHash,
+                    contract: info.contract,
+                  },
+                ]);
+              } else if (tokenSetId.startsWith("range:")) {
+                const [, , startTokenId, endTokenId] = tokenSetId.split(":");
+
+                await tokenSet.tokenRange.save([
+                  {
+                    id: tokenSetId,
+                    schemaHash,
+                    contract: info.contract,
+                    startTokenId,
+                    endTokenId,
+                  },
+                ]);
+              }
+            }
+
+            break;
           }
 
-          break;
+          case "token-list": {
+            const schema = {
+              kind: "attribute",
+              data: {
+                collection: collection.id,
+                attributes: [
+                  {
+                    key: openSeaOrderParams.attributeKey,
+                    value: openSeaOrderParams.attributeValue,
+                  },
+                ],
+              },
+            };
+
+            schemaHash = generateSchemaHash(schema);
+
+            // Fetch all tokens matching the attributes
+            const tokens = await redb.manyOrNone(
+              `
+              SELECT token_attributes.token_id
+              FROM token_attributes
+              WHERE token_attributes.collection_id = $/collection/
+                AND token_attributes.key = $/key/
+                AND token_attributes.value = $/value/
+              ORDER BY token_attributes.token_id
+            `,
+              {
+                collection: collection.id,
+                key: openSeaOrderParams.attributeKey,
+                value: openSeaOrderParams.attributeValue,
+              }
+            );
+
+            if (tokens.length) {
+              const tokensIds = tokens.map((r) => r.token_id);
+              const merkleTree = generateMerkleTree(tokensIds);
+
+              tokenSetId = `list:${info.contract}:${merkleTree.getHexRoot()}`;
+
+              await tokenSet.tokenList.save([
+                {
+                  id: tokenSetId,
+                  schema,
+                  schemaHash: generateSchemaHash(schema),
+                  items: {
+                    contract: info.contract,
+                    tokenIds: tokensIds,
+                  },
+                } as TokenSet,
+              ]);
+            }
+
+            break;
+          }
         }
+      } else {
+        schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
 
-        case "contract-wide": {
-          tokenSetId = `contract:${info.contract}`;
-          await tokenSet.contractWide.save([
-            {
-              id: tokenSetId,
-              schemaHash,
-              contract: info.contract,
-            },
-          ]);
+        switch (order.params.kind) {
+          case "single-token": {
+            const typedInfo = info as typeof info & { tokenId: string };
+            const tokenId = typedInfo.tokenId;
 
-          break;
-        }
+            tokenSetId = `token:${info.contract}:${tokenId}`;
+            if (tokenId) {
+              await tokenSet.singleToken.save([
+                {
+                  id: tokenSetId,
+                  schemaHash,
+                  contract: info.contract,
+                  tokenId,
+                },
+              ]);
+            }
 
-        case "token-list": {
-          // For collection offers, if the target orderbook is opensea, the token set should always be a contract wide.
-          // This is due to a mismatch between the collection flags in our system and OpenSea.
-          // The actual merkle root is returned by the build collection offer API from OpenSea (see the logic in the execute bid API).
-          if (metadata?.target === "opensea") {
+            break;
+          }
+
+          case "contract-wide": {
             tokenSetId = `contract:${info.contract}`;
             await tokenSet.contractWide.save([
               {
@@ -268,28 +361,46 @@ export const save = async (
                 contract: info.contract,
               },
             ]);
-          } else {
-            const typedInfo = info as typeof info & { merkleRoot: string };
-            const merkleRoot = typedInfo.merkleRoot;
 
-            if (merkleRoot) {
-              tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
+            break;
+          }
 
-              await tokenSet.tokenList.save([
+          case "token-list": {
+            // For collection offers, if the target orderbook is opensea, the token set should always be a contract wide.
+            // This is due to a mismatch between the collection flags in our system and OpenSea.
+            // The actual merkle root is returned by the build collection offer API from OpenSea (see the logic in the execute bid API).
+            if (metadata?.target === "opensea") {
+              tokenSetId = `contract:${info.contract}`;
+              await tokenSet.contractWide.save([
                 {
                   id: tokenSetId,
                   schemaHash,
-                  schema: metadata.schema,
+                  contract: info.contract,
                 },
               ]);
+            } else {
+              const typedInfo = info as typeof info & { merkleRoot: string };
+              const merkleRoot = typedInfo.merkleRoot;
 
-              if (!isReservoir) {
-                await handleTokenList(id, info.contract, tokenSetId, merkleRoot);
+              if (merkleRoot) {
+                tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
+
+                await tokenSet.tokenList.save([
+                  {
+                    id: tokenSetId,
+                    schemaHash,
+                    schema: metadata.schema,
+                  },
+                ]);
+
+                if (!isReservoir) {
+                  await handleTokenList(id, info.contract, tokenSetId, merkleRoot);
+                }
               }
             }
-          }
 
-          break;
+            break;
+          }
         }
       }
 
@@ -550,7 +661,7 @@ export const save = async (
         fee_bps: feeBps.toNumber(),
         fee_breakdown: feeBreakdown || null,
         dynamic: info.isDynamic ?? null,
-        raw_data: order.params,
+        raw_data: saveRawData ? order.params : null,
         expiration: validTo,
         missing_royalties: missingRoyalties,
         normalized_value: normalizedValue,
@@ -572,7 +683,13 @@ export const save = async (
     } catch (error) {
       logger.warn(
         "orders-seaport-save",
-        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error} (will retry)`
+        `Failed to handle order (will retry). orderParams=${JSON.stringify(
+          orderParams
+        )}, metadata=${JSON.stringify(
+          metadata
+        )}, isReservoir=${isReservoir}, openSeaOrderParams=${JSON.stringify(
+          openSeaOrderParams
+        )}, error=${error}`
       );
 
       // Throw so that we retry with he bundle-handling code
@@ -1283,7 +1400,8 @@ export const save = async (
           : handleOrder(
               orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
               orderInfo.metadata,
-              orderInfo.isReservoir
+              orderInfo.isReservoir,
+              orderInfo.openSeaOrderParams
             )
       )
     )

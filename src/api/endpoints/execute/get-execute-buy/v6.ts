@@ -114,9 +114,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         .default(false)
         .description("If true, balance check will be skipped."),
       x2y2ApiKey: Joi.string().description("Override the X2Y2 API key used for filling."),
-    })
-      .or("tokens", "orderIds", "rawOrders")
-      .oxor("tokens", "orderIds", "rawOrders"),
+    }),
   },
   response: {
     schema: Joi.object({
@@ -269,7 +267,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         // Hack: As raw orders are processed, push them to the `orderIds`
         // field so that they will get handled by the next pipeline step
         // of this same API rather than doing anything custom for it.
-        payload.orderIds = [];
+        payload.orderIds = payload.orderIds || [];
 
         for (const order of payload.rawOrders) {
           if (order.kind === "sudoswap") {
@@ -281,6 +279,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               url: `/order/v2`,
               headers: {
                 "Content-Type": "application/json",
+                "X-Api-Key": request.headers["x-api-key"],
               },
               payload: { order },
             }).then((response) => JSON.parse(response.payload));

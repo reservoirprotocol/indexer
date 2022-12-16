@@ -235,9 +235,14 @@ export const getExecuteBuyV4Options: RouteOptions = {
           const response = await inject({
             method: "POST",
             url: `/order/v2`,
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: request.headers["x-api-key"]
+              ? {
+                  "Content-Type": "application/json",
+                  "X-Api-Key": request.headers["x-api-key"],
+                }
+              : {
+                  "Content-Type": "application/json",
+                },
             payload: { order },
           }).then((response) => JSON.parse(response.payload));
           if (response.orderId) {
