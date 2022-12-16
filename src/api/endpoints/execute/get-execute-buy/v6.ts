@@ -267,7 +267,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         // Hack: As raw orders are processed, push them to the `orderIds`
         // field so that they will get handled by the next pipeline step
         // of this same API rather than doing anything custom for it.
-        payload.orderIds = [];
+        payload.orderIds = payload.orderIds || [];
 
         for (const order of payload.rawOrders) {
           if (order.kind === "sudoswap") {

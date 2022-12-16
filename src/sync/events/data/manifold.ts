@@ -1,8 +1,8 @@
 import { Interface } from "@ethersproject/abi";
+import { Manifold } from "@reservoir0x/sdk";
 
 import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
-import { Manifold } from "@reservoir0x/sdk";
 
 export const purchase: EventData = {
   kind: "manifold-purchase",

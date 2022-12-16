@@ -41,14 +41,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   for (const { kind, baseEventParams, log } of events) {
     const eventData = getEventData([kind])[0];
     switch (kind) {
-      case "erc721-transfer": {
+      case "erc721-transfer":
+      case "erc721-like-transfer":
+      case "erc721-erc20-like-transfer": {
         const parsedLog = eventData.abi.parseLog(log);
         const from = parsedLog.args["from"].toLowerCase();
         const to = parsedLog.args["to"].toLowerCase();
         const tokenId = parsedLog.args["tokenId"].toString();
 
         nftTransferEvents.push({
-          kind: "erc721",
+          kind: kind === "erc721-transfer" ? "erc721" : "erc721-like",
           from,
           to,
           tokenId,
