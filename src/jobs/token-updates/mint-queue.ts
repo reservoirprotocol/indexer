@@ -122,11 +122,16 @@ if (config.doBackgroundWork) {
 
           if (!config.disableRealtimeMetadataRefresh) {
             let delay = getNetworkSettings().metadataMintDelay;
+            let method = metadataIndexFetch.getIndexingMethod(collection.community);
 
             if (contract === "0x11708dc8a3ea69020f520c81250abb191b190110") {
               delay = 0;
+              method = "simplehash";
 
-              logger.info(QUEUE_NAME, `Forced delay. contract=${contract}, delay=${delay}`);
+              logger.info(
+                QUEUE_NAME,
+                `Forced rtfkt. contract=${contract}, tokenId=${tokenId}, delay=${delay}, method=${method}`
+              );
             }
 
             await metadataIndexFetch.addToQueue(
@@ -134,7 +139,7 @@ if (config.doBackgroundWork) {
                 {
                   kind: "single-token",
                   data: {
-                    method: metadataIndexFetch.getIndexingMethod(collection.community),
+                    method,
                     contract,
                     tokenId,
                     collection: collection.id,
