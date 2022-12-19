@@ -268,7 +268,6 @@ export class Tokens {
 
   public static async recalculateTokenTopBid(contract: string, tokenId: string) {
     const tokenSetId = `token:${contract}:${tokenId}`;
-
     await orderUpdatesById.addToQueue([
       {
         context: `revalidate-buy-${tokenSetId}-${now()}`,
