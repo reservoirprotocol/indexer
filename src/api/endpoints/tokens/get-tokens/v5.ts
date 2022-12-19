@@ -370,7 +370,7 @@ export const getTokensV5Options: RouteOptions = {
       sourceConditions.push(`o.approval_status = 'approved'`);
       sourceConditions.push(`o.source_id_int = $/source/`);
       sourceConditions.push(
-        `(orders.taker = '\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)`
+        `o.taker = '\\x0000000000000000000000000000000000000000' OR o.taker IS NULL`
       );
 
       if (query.contract) {
