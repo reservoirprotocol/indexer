@@ -431,14 +431,6 @@ export const save = async (
         feeAmount = feeAmount.div(info.amount);
       }
 
-      const feeBps = price.eq(0) ? bn(0) : feeAmount.mul(10000).div(price);
-      if (feeBps.gt(10000)) {
-        return results.push({
-          id,
-          status: "fees-too-high",
-        });
-      }
-
       // Handle: royalties
       const openSeaFeeRecipients = [
         "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
@@ -462,6 +454,7 @@ export const save = async (
         );
       }
 
+      let feeBps = 0;
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
         const bps = price.eq(0)
           ? 0
@@ -470,6 +463,8 @@ export const save = async (
               .mul(10000)
               .div(price)
               .toNumber();
+
+        feeBps += bps;
 
         return {
           // First check for opensea hardcoded recipients
@@ -484,6 +479,13 @@ export const save = async (
           bps,
         };
       });
+
+      if (feeBps > 10000) {
+        return results.push({
+          id,
+          status: "fees-too-high",
+        });
+      }
 
       // Handle: royalties on top
       const defaultRoyalties =
@@ -600,7 +602,7 @@ export const save = async (
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
-        const seaportBidPercentageThreshold = 85;
+        const seaportBidPercentageThreshold = 80;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
@@ -658,7 +660,7 @@ export const save = async (
         conduit: toBuffer(
           new Sdk.Seaport.Exchange(config.chainId).deriveConduit(order.params.conduitKey)
         ),
-        fee_bps: feeBps.toNumber(),
+        fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
         dynamic: info.isDynamic ?? null,
         raw_data: saveRawData ? order.params : null,
@@ -1035,7 +1037,7 @@ export const save = async (
 
       if (orderParams.side === "buy" && orderParams.kind === "single-token" && validateBidValue) {
         const tokenId = orderParams.tokenId;
-        const seaportBidPercentageThreshold = 85;
+        const seaportBidPercentageThreshold = 80;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
