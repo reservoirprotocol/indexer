@@ -4,8 +4,8 @@ import { randomUUID } from "crypto";
 import { inject } from "@/api/index";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
+import { now } from "@/common/utils";
 import { config } from "@/config/index";
-
 import { Tokens } from "@/models/tokens";
 
 const QUEUE_NAME = "token-refresh-cache";
@@ -63,4 +63,11 @@ if (config.doBackgroundWork) {
 }
 
 export const addToQueue = async (contract: string, tokenId: string) =>
-  queue.add(randomUUID(), { contract, tokenId }, { jobId: `${contract}:${tokenId}` });
+  queue.add(
+    randomUUID(),
+    { contract, tokenId },
+    {
+      // No more than one job per token per hour
+      jobId: `${contract}:${tokenId}:${Math.floor(now() / 3600)}`,
+    }
+  );

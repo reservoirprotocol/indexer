@@ -24,6 +24,9 @@ const version = "v6";
 export const getExecuteBuyV6Options: RouteOptions = {
   description: "Buy tokens",
   tags: ["api", "Router"],
+  timeout: {
+    server: 20 * 1000,
+  },
   plugins: {
     "hapi-swagger": {
       order: 10,
@@ -100,10 +103,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         ),
       partial: Joi.boolean()
         .default(false)
-        .description("If true, partial orders will be accepted."),
-      skipErrors: Joi.boolean()
-        .default(false)
-        .description("If true, then skip any errors in processing."),
+        .description("If true, any off-chain or on-chain errors will be skipped."),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional. Set custom gas price."),
@@ -332,8 +332,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
             }
           );
           if (!orderResult) {
-            if (!payload.skipErrors) {
-              throw Boom.badData(`Could not use order id ${orderId}`);
+            if (!payload.partial) {
+              // Return an error if the client does not accept partial fills
+              throw Boom.badData(`Order ${orderId} not found or not fillable`);
             } else {
               continue;
             }
@@ -422,37 +423,38 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 currency: payload.currency ? toBuffer(payload.currency) : undefined,
               }
             );
-            if (!bestOrderResult) {
-              throw Boom.badRequest("No available orders");
-            }
 
-            const {
-              id,
-              kind,
-              token_kind,
-              price,
-              source_id_int,
-              currency,
-              missing_royalties,
-              raw_data,
-            } = bestOrderResult;
-
-            await addToPath(
-              {
+            if (bestOrderResult) {
+              const {
                 id,
                 kind,
+                token_kind,
                 price,
-                sourceId: source_id_int,
-                currency: fromBuffer(currency),
-                rawData: raw_data,
-                fees: missing_royalties,
-              },
-              {
-                kind: token_kind,
-                contract,
-                tokenId,
-              }
-            );
+                source_id_int,
+                currency,
+                missing_royalties,
+                raw_data,
+              } = bestOrderResult;
+
+              await addToPath(
+                {
+                  id,
+                  kind,
+                  price,
+                  sourceId: source_id_int,
+                  currency: fromBuffer(currency),
+                  rawData: raw_data,
+                  fees: missing_royalties,
+                },
+                {
+                  kind: token_kind,
+                  contract,
+                  tokenId,
+                }
+              );
+            } else if (!payload.partial) {
+              throw Boom.badRequest("No available orders");
+            }
           } else {
             // Fetch all matching orders (limit to 1000 results just for safety)
             const bestOrdersResult = await idb.manyOrNone(
@@ -494,87 +496,88 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 currency: payload.currency ? toBuffer(payload.currency) : undefined,
               }
             );
-            if (!bestOrdersResult?.length) {
-              throw Boom.badRequest("No available orders");
-            }
 
-            if (
-              bestOrdersResult.length &&
-              bestOrdersResult[0].token_kind === "erc1155" &&
-              payload.tokens.length > 1
-            ) {
-              throw Boom.badData(
-                "When specifying a quantity greater than one, only a single ERC1155 token can get filled"
-              );
-            }
-
-            // Keep track of the balances of each maker as orders are being added to the path.
-            // This is needed for covering cases where a maker has multiple orders but filling
-            // one of them changes the quantity fillable of the other ones.
-            const makerBalances: { [maker: string]: BigNumber } = {};
-
-            let totalQuantityToFill = Number(payload.quantity);
-            for (const {
-              id,
-              kind,
-              token_kind,
-              quantity_remaining,
-              price,
-              source_id_int,
-              currency,
-              missing_royalties,
-              maker,
-              raw_data,
-            } of bestOrdersResult) {
-              // As long as the total quantity to fill is not met
-              if (totalQuantityToFill <= 0) {
-                break;
-              }
-
-              const convertedMaker = fromBuffer(maker);
-              if (!makerBalances[convertedMaker]) {
-                makerBalances[convertedMaker] = await commonHelpers.getNftBalance(
-                  contract,
-                  tokenId,
-                  convertedMaker
+            if (bestOrdersResult?.length) {
+              if (
+                bestOrdersResult.length &&
+                bestOrdersResult[0].token_kind === "erc1155" &&
+                payload.tokens.length > 1
+              ) {
+                throw Boom.badData(
+                  "When specifying a quantity greater than one, only a single ERC1155 token can get filled"
                 );
               }
 
-              // Minimum between:
-              // - the order's fillable quantity
-              // - the maker's fillable quantity
-              // - the quantity remaining to fill
-              const quantityFilled = Math.min(
-                Number(quantity_remaining),
-                makerBalances[convertedMaker].toNumber(),
-                totalQuantityToFill
-              );
-              totalQuantityToFill -= quantityFilled;
+              // Keep track of the balances of each maker as orders are being added to the path.
+              // This is needed for covering cases where a maker has multiple orders but filling
+              // one of them changes the quantity fillable of the other ones.
+              const makerBalances: { [maker: string]: BigNumber } = {};
 
-              // Reduce the maker's fillable quantity
-              makerBalances[convertedMaker] = makerBalances[convertedMaker].sub(quantityFilled);
-
-              await addToPath(
-                {
-                  id,
-                  kind,
-                  price,
-                  sourceId: source_id_int,
-                  currency: fromBuffer(currency),
-                  rawData: raw_data,
-                  fees: missing_royalties,
-                },
-                {
-                  kind: token_kind,
-                  contract,
-                  tokenId,
-                  quantity: quantityFilled,
+              let totalQuantityToFill = Number(payload.quantity);
+              for (const {
+                id,
+                kind,
+                token_kind,
+                quantity_remaining,
+                price,
+                source_id_int,
+                currency,
+                missing_royalties,
+                maker,
+                raw_data,
+              } of bestOrdersResult) {
+                // As long as the total quantity to fill is not met
+                if (totalQuantityToFill <= 0) {
+                  break;
                 }
-              );
-            }
 
-            // No available orders to fill the requested quantity
-            if (totalQuantityToFill > 0) {
+                const convertedMaker = fromBuffer(maker);
+                if (!makerBalances[convertedMaker]) {
+                  makerBalances[convertedMaker] = await commonHelpers.getNftBalance(
+                    contract,
+                    tokenId,
+                    convertedMaker
+                  );
+                }
+
+                // Minimum between:
+                // - the order's fillable quantity
+                // - the maker's fillable quantity
+                // - the quantity remaining to fill
+                const quantityFilled = Math.min(
+                  Number(quantity_remaining),
+                  makerBalances[convertedMaker].toNumber(),
+                  totalQuantityToFill
+                );
+                totalQuantityToFill -= quantityFilled;
+
+                // Reduce the maker's fillable quantity
+                makerBalances[convertedMaker] = makerBalances[convertedMaker].sub(quantityFilled);
+
+                await addToPath(
+                  {
+                    id,
+                    kind,
+                    price,
+                    sourceId: source_id_int,
+                    currency: fromBuffer(currency),
+                    rawData: raw_data,
+                    fees: missing_royalties,
+                  },
+                  {
+                    kind: token_kind,
+                    contract,
+                    tokenId,
+                    quantity: quantityFilled,
+                  }
+                );
+              }
+
+              // No available orders to fill the requested quantity
+              if (!payload.partial && totalQuantityToFill > 0) {
+                throw Boom.badRequest("No available orders");
+              }
+            } else if (!payload.partial) {
               throw Boom.badRequest("No available orders");
             }
           }
@@ -624,7 +627,6 @@ export const getExecuteBuyV6Options: RouteOptions = {
           // TODO: Add support for buying any listing via any ERC20 token
           globalFees: buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId] ? feesOnTop : [],
           partial: payload.partial,
-          skipErrors: payload.skipErrors,
           forceRouter: payload.forceRouter,
           directFillingData: {
             conduitKey:
@@ -632,6 +634,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 ? "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000"
                 : undefined,
           },
+          relayer: payload.relayer,
         }
       );
 
@@ -716,7 +719,6 @@ export const getExecuteBuyV6Options: RouteOptions = {
         status: "incomplete",
         data: {
           ...txData,
-          from: payload.relayer ? payload.relayer : txData.from,
           maxFeePerGas: payload.maxFeePerGas ? bn(payload.maxFeePerGas).toHexString() : undefined,
           maxPriorityFeePerGas: payload.maxPriorityFeePerGas
             ? bn(payload.maxPriorityFeePerGas).toHexString()

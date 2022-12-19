@@ -120,6 +120,8 @@ export const addEvents = async (events: Event[]) => {
       ON CONFLICT ("id") DO
       UPDATE SET
         "fillability_status" = 'filled',
+        "quantity_remaining" = 0,
+        "quantity_filled" = 1,
         "expiration" = EXCLUDED."expiration",
         "updated_at" = now()
     `);
