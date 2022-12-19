@@ -151,7 +151,6 @@ export const start = async (): Promise<void> => {
   server.ext("onPreAuth", async (request, reply) => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
     if ((request as any).isInjected) {
-      logger.info("rate-limiter", `Skipped auth for injected request. route=${request.route.path}`);
       reply.continue;
     }
 
