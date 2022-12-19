@@ -24,6 +24,9 @@ const version = "v6";
 export const getExecuteBuyV6Options: RouteOptions = {
   description: "Buy tokens",
   tags: ["api", "Router"],
+  timeout: {
+    server: 20 * 1000,
+  },
   plugins: {
     "hapi-swagger": {
       order: 10,
