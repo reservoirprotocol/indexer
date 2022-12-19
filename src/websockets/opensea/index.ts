@@ -98,6 +98,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
 const saveEvent = async (event: BaseStreamMessage<unknown>) => {
   try {
+    if (!config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName) {
+      return;
+    }
+
     /* eslint-disable @typescript-eslint/no-explicit-any */
 
     // TODO: Filter out the properties when ingesting from S3 to Redshift instead of here.
