@@ -25,7 +25,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Statuses:
         // 0 - Opened
         // 1 - Closed
-        // 2 - Canceled
+        // 2 - Cancelled
         if (status !== 1) {
           break;
         }
