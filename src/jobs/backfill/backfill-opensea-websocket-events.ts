@@ -35,7 +35,7 @@ if (config.doBackgroundWork) {
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1;
 
       // There was a period of time when we didn't properly set the source for OpenSea orders
-      const results = await redshift.manyOrNone(
+      const results = await redshift!.manyOrNone(
         `
           SELECT order_hash, event_type, event_data, event_timestamp FROM opensea_websocket_events_mainnet
           WHERE event_timestamp >= $/fromEventTimestamp/ 
