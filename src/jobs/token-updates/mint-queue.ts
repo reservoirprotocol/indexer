@@ -65,19 +65,17 @@ if (config.doBackgroundWork) {
           // all we needed to do is to associate it with the token
           queries.push({
             query: `
-              WITH "x" AS (
-                UPDATE "tokens" AS "t" SET
-                  "collection_id" = $/collection/,
+              UPDATE "tokens" AS "t"
+              SET "collection_id" = $/collection/,
                   "updated_at" = now()
-                WHERE "t"."contract" = $/contract/
-                  AND "t"."token_id" = $/tokenId/
-                  AND "t"."collection_id" IS NULL
-                RETURNING 1
-              )
+              WHERE "t"."contract" = $/contract/
+              AND "t"."token_id" = $/tokenId/
+              AND "t"."collection_id" IS NULL;
+                  
               UPDATE "collections" SET
-                "token_count" = "token_count" + (SELECT COUNT(*) FROM "x"),
+                "token_count" = "token_count" + (SELECT COUNT(*) FROM "tokens" WHERE "collection_id" = $/collection/),
                 "updated_at" = now()
-              WHERE "id" = $/collection/
+              WHERE "id" = $/collection/;
             `,
             values: {
               contract: toBuffer(contract),

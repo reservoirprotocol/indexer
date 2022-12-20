@@ -11,8 +11,7 @@ const main = async () => {
   let iterations = 0;
   let result;
   const collections = [
-    "0x0a1bbd57033f57e7b6743621b79fcb9eb2ce3676",
-    "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
+    "0x7ab8c4d9d6349a69809c641220de29156be1d2fd:soundxyz-fad77ef4-06c9-459f-a46a-74e660a1b3e7",
   ];
 
   for (const collection of collections) {
@@ -41,7 +40,7 @@ const main = async () => {
       result = await idb.manyOrNone(updateActivitiesQuery, { collection });
       ++iterations;
       console.log(`activities updated ${iterations * limit}`);
-    } while (result.length == limit);
+    } while (result.length > 0);
     console.log(`activities updated for ${collection}`);
 
     // Update the user activities
@@ -70,45 +69,45 @@ const main = async () => {
       result = await idb.manyOrNone(updateUserActivitiesQuery, { collection });
       ++iterations;
       console.log(`user_activities updated ${iterations * limit}`);
-    } while (result.length == limit);
+    } while (result.length > 0);
     console.log(`user_activities updated for ${collection}`);
 
-    // Clean the attributes
-    const cleanAttributesQuery = `
-      WITH x AS (
-        SELECT id
-        FROM attributes
-        WHERE collection_id = $/collection/
-        LIMIT ${limit}
-      )
-      
-      DELETE FROM attributes
-      WHERE attributes.id IN (SELECT id FROM x)
-      RETURNING 1
-    `;
-
-    iterations = 0;
-    do {
-      result = await idb.manyOrNone(cleanAttributesQuery, { collection });
-      ++iterations;
-      console.log(`attributes updated ${iterations * limit}`);
-    } while (result.length == limit);
-    console.log(`attributes updated for ${collection}`);
-
-    // Clean the attribute keys
-    const cleanAttributeKeysQuery = `
-      WITH x AS (
-        SELECT id
-        FROM attribute_keys
-        WHERE collection_id = $/collection/
-        LIMIT ${limit}
-      )
-      
-      DELETE FROM attribute_keys
-      WHERE attribute_keys.id IN (SELECT id FROM x)
-      RETURNING 1
-    `;
-
+    // // Clean the attributes
+    // const cleanAttributesQuery = `
+    //   WITH x AS (
+    //     SELECT id
+    //     FROM attributes
+    //     WHERE collection_id = $/collection/
+    //     LIMIT ${limit}
+    //   )
+    //
+    //   DELETE FROM attributes
+    //   WHERE attributes.id IN (SELECT id FROM x)
+    //   RETURNING 1
+    // `;
+    //
+    // iterations = 0;
+    // do {
+    //   result = await idb.manyOrNone(cleanAttributesQuery, { collection });
+    //   ++iterations;
+    //   console.log(`attributes updated ${iterations * limit}`);
+    // } while (result.length > 0);
+    // console.log(`attributes updated for ${collection}`);
+    //
+    // // Clean the attribute keys
+    // const cleanAttributeKeysQuery = `
+    //   WITH x AS (
+    //     SELECT id
+    //     FROM attribute_keys
+    //     WHERE collection_id = $/collection/
+    //     LIMIT ${limit}
+    //   )
+    //
+    //   DELETE FROM attribute_keys
+    //   WHERE attribute_keys.id IN (SELECT id FROM x)
+    //   RETURNING 1
+    // `;
+    //
     // iterations = 0;
     // do {
     //   result = await idb.manyOrNone(cleanAttributeKeysQuery, { collection });

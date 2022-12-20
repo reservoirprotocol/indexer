@@ -189,12 +189,15 @@ export const getUserTokensV6Options: RouteOptions = {
       await redb
         .manyOrNone(
           `
-          SELECT collections.id FROM collections
+          SELECT collections.contract
+          FROM collections
           WHERE collections.community = $/community/
         `,
           { community: query.community }
         )
-        .then((result) => result.forEach(({ id }) => addCollectionToFilter(id)));
+        .then((result) =>
+          result.forEach(({ contract }) => addCollectionToFilter(fromBuffer(contract)))
+        );
 
       if (!nftBalanceCollectionFilters.length) {
         return { tokens: [] };
@@ -387,9 +390,9 @@ export const getUserTokensV6Options: RouteOptions = {
       }
 
       baseQuery += `
-      ORDER BY
-        acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
-      LIMIT $/limit/
+        ORDER BY
+          acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
+        LIMIT $/limit/
       `;
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });

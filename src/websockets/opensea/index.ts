@@ -53,7 +53,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       try {
         await saveEvent(event);
 
-        const openSeaOrderParams = handleEvent(event.event_type as EventType, event.payload);
+        const eventType = event.event_type as EventType;
+        const openSeaOrderParams = handleEvent(eventType, event.payload);
 
         if (openSeaOrderParams) {
           const seaportOrder = parseProtocolData(event.payload);
@@ -69,7 +70,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
                 metadata: {},
                 openSeaOrderParams,
               } as orders.seaport.OrderInfo,
-              relayToArweave: true,
+              relayToArweave: eventType === EventType.ITEM_LISTED,
               validateBidValue: true,
             };
           } else {
