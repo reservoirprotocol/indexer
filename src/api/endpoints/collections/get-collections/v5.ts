@@ -634,7 +634,7 @@ export const getCollectionsV5Options: RouteOptions = {
             royalties: r.royalties
               ? {
                   // Main recipient, kept for backwards-compatibility only
-                  recipient: r.royalties[0].recipient,
+                  recipient: r.royalties.length ? r.royalties[0].recipient : null,
                   breakdown: r.royalties,
                   bps: r.royalties
                     .map((r: any) => r.bps)

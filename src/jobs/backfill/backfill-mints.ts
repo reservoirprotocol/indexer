@@ -39,7 +39,7 @@ if (config.doBackgroundWork) {
     async (job) => {
       const { block } = job.data;
 
-      const numBlocks = 50;
+      const numBlocks = 1;
       const results = await idb.manyOrNone(
         `
           SELECT
