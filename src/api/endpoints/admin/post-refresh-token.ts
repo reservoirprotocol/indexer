@@ -23,6 +23,7 @@ export const postRefreshTokenOptions: RouteOptions = {
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     payload: Joi.object({
+      method: Joi.string().optional().valid("opensea", "simplehash", "centerdev", "soundxyz"),
       token: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
@@ -61,7 +62,8 @@ export const postRefreshTokenOptions: RouteOptions = {
       // Refresh meta data
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
-      let method = metadataIndexFetch.getIndexingMethod(collection?.community || null);
+      let method =
+        payload.method ?? metadataIndexFetch.getIndexingMethod(collection?.community || null);
 
       if (contract === "0x11708dc8a3ea69020f520c81250abb191b190110") {
         method = "simplehash";
