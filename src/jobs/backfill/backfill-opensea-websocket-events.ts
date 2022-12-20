@@ -50,6 +50,8 @@ if (config.doBackgroundWork) {
         }
       );
 
+      const orderInfos: orderbookOrders.GenericOrderInfo[] = [];
+
       for (const result of results) {
         try {
           const eventType = result.event_type as EventType;
@@ -86,7 +88,7 @@ if (config.doBackgroundWork) {
               };
             }
 
-            await orderbookOrders.addToQueue([orderInfo]);
+            orderInfos.push(orderInfo);
           }
         } catch (error) {
           logger.error(
@@ -94,6 +96,10 @@ if (config.doBackgroundWork) {
             `Failed to process record. orderHash=${result.order_hash}, error=${error}`
           );
         }
+      }
+
+      if (orderInfos.length) {
+        await orderbookOrders.addToQueue(orderInfos);
       }
 
       logger.info(QUEUE_NAME, `Processed ${results.length} records`);
