@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 
 import { redshift } from "@/common/redshift";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orders from "@/orderbook/orders";
@@ -37,9 +37,9 @@ if (config.doBackgroundWork) {
       let continuationFilter = "";
 
       if (fromOrderHash) {
-        continuationFilter = ` AND (event_timestamp, order_hash) >= ($/toEventTimestamp/, $/fromOrderHash/) `;
+        continuationFilter = ` AND (event_timestamp, order_hash) >= ($/fromEventTimestamp/, $/fromOrderHash/) `;
       } else {
-        continuationFilter = ` AND (event_timestamp) >= ($/toEventTimestamp/) `;
+        continuationFilter = ` AND (event_timestamp) >= ($/fromEventTimestamp/) `;
       }
 
       // There was a period of time when we didn't properly set the source for OpenSea orders
@@ -131,6 +131,17 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
+
+  if (config.chainId === 1) {
+    redlock
+      .acquire([`${QUEUE_NAME}-lock-v2`], 60 * 60 * 24 * 30 * 1000)
+      .then(async () => {
+        await addToQueue("2022-12-20T03:00:00.000Z", "2022-12-20T04:30:00.000Z");
+      })
+      .catch(() => {
+        // Skip on any errors
+      });
+  }
 }
 
 export const addToQueue = async (
