@@ -3,6 +3,7 @@ import { parseCallTrace, searchForCall } from "@georgeroman/evm-tx-simulator";
 
 import { logger } from "@/common/logger";
 import { bn } from "@/common/utils";
+import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
@@ -27,7 +28,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   };
 
   // Handle the events
-  for (const { kind, baseEventParams } of events) {
+  for (const { kind, baseEventParams, log } of events) {
+    const eventData = getEventData([kind])[0];
     switch (kind) {
       // Sudoswap is extremely poorly designed from the perspective of events
       // that get emitted on trades. As such, we use transaction tracing when
@@ -426,6 +428,22 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Keep track of the "sell" trade
         trades.sell.set(`${txHash}-${address}`, tradeRank + 1);
+
+        break;
+      }
+
+      case "sudoswap-new-pair": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const pool = parsedLog.args["pool"].toLowerCase();
+
+        orders.push({
+          orderParams: {
+            pool,
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+          metadata: {},
+        });
 
         break;
       }
