@@ -37,7 +37,7 @@ if (config.doBackgroundWork) {
       let continuationFilter = "";
 
       if (fromOrderHash) {
-        continuationFilter = ` AND (event_timestamp, order_hash) >= ($/fromEventTimestamp/, $/fromOrderHash/) `;
+        continuationFilter = ` AND (event_timestamp, order_hash) > ($/fromEventTimestamp/, $/fromOrderHash/) `;
       } else {
         continuationFilter = ` AND (event_timestamp) >= ($/fromEventTimestamp/) `;
       }
@@ -134,7 +134,7 @@ if (config.doBackgroundWork) {
 
   if (config.chainId === 1) {
     redlock
-      .acquire([`${QUEUE_NAME}-lock-v2`], 60 * 60 * 24 * 30 * 1000)
+      .acquire([`${QUEUE_NAME}-lock-v3`], 60 * 60 * 24 * 30 * 1000)
       .then(async () => {
         await addToQueue("2022-12-20T03:00:00.000Z", "2022-12-20T04:30:00.000Z");
       })
