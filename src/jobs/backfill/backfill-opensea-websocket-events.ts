@@ -47,7 +47,7 @@ if (config.doBackgroundWork) {
         `
           SELECT order_hash, event_type, event_data, event_timestamp
           FROM opensea_websocket_events_mainnet
-          WHERE toEventTimestamp < $/toEventTimestamp/ 
+          WHERE event_timestamp < $/toEventTimestamp/ 
           ${continuationFilter}
           ORDER BY event_timestamp, order_hash
           LIMIT $/limit/
