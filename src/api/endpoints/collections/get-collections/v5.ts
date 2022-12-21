@@ -109,6 +109,10 @@ export const getCollectionsV5Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       useNonFlaggedFloorAsk: Joi.boolean()
+        .when("normalizeRoyalties", {
+          is: Joi.boolean().valid(true),
+          then: Joi.valid(false),
+        })
         .default(false)
         .description(
           "If true, return the non flagged floor ask. (only supported when `normalizeRoyalties` is false)"
