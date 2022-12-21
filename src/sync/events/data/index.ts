@@ -97,6 +97,7 @@ export type EventDataKind =
   | "sudoswap-token-withdrawal"
   | "sudoswap-spot-price-update"
   | "sudoswap-delta-update"
+  | "sudoswap-new-pair"
   | "universe-match"
   | "universe-cancel"
   | "nftx-redeemed"
@@ -191,6 +192,7 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       sudoswap.tokenWithdrawal,
       sudoswap.spotPriceUpdate,
       sudoswap.deltaUpdate,
+      sudoswap.newPair,
       universe.match,
       universe.cancel,
       nftx.minted,
@@ -349,6 +351,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return sudoswap.spotPriceUpdate;
     case "sudoswap-delta-update":
       return sudoswap.deltaUpdate;
+    case "sudoswap-new-pair":
+      return sudoswap.newPair;
     case "universe-match":
       return universe.match;
     case "universe-cancel":

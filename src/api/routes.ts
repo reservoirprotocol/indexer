@@ -527,6 +527,12 @@ export const setupRoutes = (server: Server) => {
     options: eventsEndpoints.getCollectionsTopBidV1Options,
   });
 
+  server.route({
+    method: "GET",
+    path: "/events/collections/top-bid/v2",
+    options: eventsEndpoints.getCollectionsTopBidV2Options,
+  });
+
   // Execute
 
   server.route({

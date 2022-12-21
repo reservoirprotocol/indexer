@@ -11,6 +11,10 @@ if (process.env.DATADOG_AGENT_URL) {
     service,
     url: process.env.DATADOG_AGENT_URL,
   });
+
+  tracer.use("hapi", {
+    headers: ["x-api-key"],
+  });
 }
 
 export default tracer;

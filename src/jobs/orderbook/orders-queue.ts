@@ -135,7 +135,7 @@ if (config.doBackgroundWork) {
         .acquire(["orders-queue-size-check-lock"], (60 - 5) * 1000)
         .then(async () => {
           const size = await queue.count();
-          if (size >= 10000) {
+          if (size >= 20000) {
             logger.error("orders-queue-size-check", `Orders queue buffering up: size=${size}`);
           }
         })

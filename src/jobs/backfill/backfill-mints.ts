@@ -39,7 +39,7 @@ if (config.doBackgroundWork) {
     async (job) => {
       const { block } = job.data;
 
-      const numBlocks = 50;
+      const numBlocks = 5;
       const results = await idb.manyOrNone(
         `
           SELECT
@@ -174,8 +174,8 @@ if (config.doBackgroundWork) {
 
       await es.fills.addEvents(fillEvents);
 
-      if (results.length && results[results.length - 1].block > 0) {
-        await addToQueue(results[results.length - 1].block);
+      if (block - numBlocks > 0) {
+        await addToQueue(block - numBlocks);
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
@@ -187,9 +187,9 @@ if (config.doBackgroundWork) {
 
   if (config.chainId === 1) {
     redlock
-      .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
+      .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
       .then(async () => {
-        await addToQueue(15450000);
+        await addToQueue(15018582);
       })
       .catch(() => {
         // Skip on any errors
@@ -198,5 +198,13 @@ if (config.doBackgroundWork) {
 }
 
 export const addToQueue = async (block: number) => {
-  await queue.add(randomUUID(), { block });
+  await queue.add(
+    randomUUID(),
+    { block },
+    {
+      jobId: `${block}-2`,
+      // Add some delay to avoid putting too much pressure on the database
+      delay: 10 * 1000,
+    }
+  );
 };

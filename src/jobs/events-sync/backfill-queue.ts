@@ -37,7 +37,7 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
       const maxMemUsage = 1024 * 1000 * 1000 * config.redisMaxMemoryGB; // Max size in GB
       const currentMemUsage = await getMemUsage();
       if (currentMemUsage > maxMemUsage) {
-        const delay = _.random(1000 * 60, 1000 * 60 * 5);
+        const delay = _.random(1000 * 60 * 30, 1000 * 60 * 60);
         logger.warn(
           QUEUE_NAME,
           `Max memory reached ${_.round(currentMemUsage / (1024 * 1000 * 1000), 2)} GB, delay job ${

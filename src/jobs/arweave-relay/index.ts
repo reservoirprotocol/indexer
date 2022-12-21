@@ -183,7 +183,7 @@ if (config.doBackgroundWork && config.arweaveRelayerKey) {
           try {
             let batch: string[] = [];
 
-            const batchSize = 1000;
+            const batchSize = 2000;
             const iterations = 5;
             for (let i = 0; i < iterations; i++) {
               batch = [

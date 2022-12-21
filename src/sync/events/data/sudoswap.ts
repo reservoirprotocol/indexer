@@ -1,5 +1,7 @@
 import { Interface } from "@ethersproject/abi";
+import { Sudoswap } from "@reservoir0x/sdk";
 
+import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
 
 export const sell: EventData = {
@@ -42,4 +44,12 @@ export const deltaUpdate: EventData = {
   topic: "0xc958ae052d28f8d17bc2c4ddbabb699a3cab5cccefd034d0fc971efdadc01da5",
   numTopics: 1,
   abi: new Interface([`event DeltaUpdate(uint128 newDelta)`]),
+};
+
+export const newPair: EventData = {
+  kind: "sudoswap-new-pair",
+  addresses: { [Sudoswap.Addresses.PairFactory[config.chainId]?.toLowerCase()]: true },
+  topic: "0xf5bdc103c3e68a20d5f97d2d46792d3fdddfa4efeb6761f8141e6a7b936ca66c",
+  numTopics: 1,
+  abi: new Interface([`event NewPair(address pool)`]),
 };
