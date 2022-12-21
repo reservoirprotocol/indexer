@@ -10,6 +10,7 @@ import { Sources } from "@/models/sources";
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
 const version = "v2";
 
@@ -67,7 +68,7 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             price: JoiPrice.allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.object().allow(null),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),
@@ -180,6 +181,8 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = rawResult.map(async (r) => {
+        const source: SourcesEntity | undefined = sources.get(r.order_source_id_int);
+
         return {
           collection: {
             id: r.collection_id,
@@ -205,7 +208,13 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
                 )
               : null,
             validUntil: r.price ? Number(r.valid_until) : null,
-            source: sources.get(r.order_source_id_int)?.name,
+            source: {
+              id: source?.address,
+              domain: source?.domain,
+              name: source?.metadata.title || source?.name,
+              icon: source?.getIcon(),
+              url: source?.metadata.url,
+            },
           },
           event: {
             id: r.id,
