@@ -11,12 +11,21 @@ import AWS from "aws-sdk";
 import { AskEventsDataSource } from "@/jobs/data-export/data-sources/ask-events";
 import { TokenFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/token-floor-ask-events";
 import { CollectionFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/collection-floor-ask-events";
-import { AsksDataSource } from "@/jobs/data-export/data-sources/asks";
+import { AsksDataSource, AsksDataSourceV2 } from "@/jobs/data-export/data-sources/asks";
 import { TokensDataSource, TokensDataSourceV2 } from "@/jobs/data-export/data-sources/tokens";
-import { CollectionsDataSource } from "@/jobs/data-export/data-sources/collections";
+import {
+  CollectionsDataSource,
+  CollectionsDataSourcev2,
+} from "@/jobs/data-export/data-sources/collections";
 import { SalesDataSourceV2 } from "@/jobs/data-export/data-sources/sales";
-import { AttributeKeysDataSource } from "@/jobs/data-export/data-sources/attribute-keys";
-import { AttributesDataSource } from "@/jobs/data-export/data-sources/attributes";
+import {
+  AttributeKeysDataSource,
+  AttributeKeysDataSourceV2,
+} from "@/jobs/data-export/data-sources/attribute-keys";
+import {
+  AttributesDataSource,
+  AttributesDataSourceV2,
+} from "@/jobs/data-export/data-sources/attributes";
 import {
   TokenAttributesDataSource,
   TokenAttributesDataSourceV2,
@@ -116,12 +125,16 @@ export enum DataSource {
   tokenFloorAskEvents = "token-floor-ask-events",
   collectionFloorAskEvents = "collection-floor-ask-events",
   asks = "asks",
+  asksV2 = "asks-v2",
   tokens = "tokens",
   tokensV2 = "tokens-v2",
   collections = "collections",
+  collectionsV2 = "collections-v2",
   salesV2 = "sales-v2",
   attributeKeys = "attribute-keys",
+  attributeKeysV2 = "attribute-keys-v2",
   attributes = "attributes",
+  attributesV2 = "attributes-v2",
   tokenAttributes = "token-attributes",
   tokenAttributesV2 = "token-attributes-v2",
 }
@@ -170,18 +183,26 @@ const getDataSourceImpl = (source: DataSource) => {
       return new CollectionFloorAskEventsDataSource();
     case DataSource.asks:
       return new AsksDataSource();
+    case DataSource.asksV2:
+      return new AsksDataSourceV2();
     case DataSource.tokens:
       return new TokensDataSource();
     case DataSource.tokensV2:
       return new TokensDataSourceV2();
     case DataSource.collections:
       return new CollectionsDataSource();
+    case DataSource.collectionsV2:
+      return new CollectionsDataSourcev2();
     case DataSource.salesV2:
       return new SalesDataSourceV2();
     case DataSource.attributeKeys:
       return new AttributeKeysDataSource();
+    case DataSource.attributeKeysV2:
+      return new AttributeKeysDataSourceV2();
     case DataSource.attributes:
       return new AttributesDataSource();
+    case DataSource.attributesV2:
+      return new AttributesDataSourceV2();
     case DataSource.tokenAttributes:
       return new TokenAttributesDataSource();
     case DataSource.tokenAttributesV2:
