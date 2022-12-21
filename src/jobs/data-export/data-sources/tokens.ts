@@ -3,7 +3,6 @@ import { Sources } from "@/models/sources";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { BaseDataSource } from "@/jobs/data-export/data-sources/index";
 import crypto from "crypto";
-import { logger } from "@/common/logger";
 
 export class TokensDataSource extends BaseDataSource {
   public async getSequenceData(cursor: CursorInfo | null, limit: number) {
@@ -97,7 +96,7 @@ export class TokensDataSourceV2 extends BaseDataSource {
     let continuationFilter = "";
 
     if (cursor) {
-      continuationFilter = `WHERE ("t"."updated_at", "t"."contract", "t"."token_id") > (to_timestamp($/updatedAt/), $/contract/, $/tokenId/)`;
+      continuationFilter = `AND ("t"."updated_at", "t"."contract", "t"."token_id") > (to_timestamp($/updatedAt/), $/contract/, $/tokenId/)`;
     }
 
     const query = `
@@ -125,6 +124,7 @@ export class TokensDataSourceV2 extends BaseDataSource {
           "t"."created_at",
           extract(epoch from "t"."updated_at") "updated_ts"
         FROM "tokens" "t"
+        WHERE "t"."updated_at" < NOW() - INTERVAL '1 minutes'
         ${continuationFilter}
         ORDER BY "t"."updated_at", "t"."contract", "t"."token_id"
         LIMIT $/limit/;  
@@ -164,13 +164,6 @@ export class TokensDataSourceV2 extends BaseDataSource {
       }));
 
       const lastResult = result[result.length - 1];
-
-      logger.info(
-        "TokensDataSource",
-        `getSequenceData. cursor:${JSON.stringify(cursor)}, firstResult:${JSON.stringify(
-          result[0]
-        )}, lastResult:${JSON.stringify(lastResult)}`
-      );
 
       return {
         data,
