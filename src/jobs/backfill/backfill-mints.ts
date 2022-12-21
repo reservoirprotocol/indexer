@@ -39,7 +39,7 @@ if (config.doBackgroundWork) {
     async (job) => {
       const { block } = job.data;
 
-      const numBlocks = 5;
+      const numBlocks = 10;
       const results = await idb.manyOrNone(
         `
           SELECT
@@ -204,7 +204,7 @@ export const addToQueue = async (block: number) => {
     {
       jobId: `${block}-2`,
       // Add some delay to avoid putting too much pressure on the database
-      delay: 10 * 1000,
+      delay: 5 * 1000,
     }
   );
 };

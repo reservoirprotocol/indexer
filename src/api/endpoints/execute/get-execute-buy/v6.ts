@@ -405,16 +405,18 @@ export const getExecuteBuyV6Options: RouteOptions = {
                       ? " AND orders.currency = $/currency/"
                       : ""
                   }
-                ORDER BY orders.value, ${
-                  preferredOrderSource
-                    ? `(
-                        CASE
-                          WHEN orders.source_id_int = $/sourceId/ THEN 0
-                          ELSE 1
-                        END
-                      )`
-                    : "orders.fee_bps"
-                }
+                ORDER BY
+                  ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
+                  ${
+                    preferredOrderSource
+                      ? `(
+                          CASE
+                            WHEN orders.source_id_int = $/sourceId/ THEN 0
+                            ELSE 1
+                          END
+                        )`
+                      : "orders.fee_bps"
+                  }
                 LIMIT 1
               `,
               {
@@ -486,6 +488,18 @@ export const getExecuteBuyV6Options: RouteOptions = {
                     payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
                       ? " AND orders.currency = $/currency/"
                       : ""
+                  }
+                ORDER BY
+                  ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
+                  ${
+                    preferredOrderSource
+                      ? `(
+                          CASE
+                            WHEN orders.source_id_int = $/sourceId/ THEN 0
+                            ELSE 1
+                          END
+                        )`
+                      : "orders.fee_bps"
                   }
                 LIMIT 1000
               `,

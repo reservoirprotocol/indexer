@@ -40,6 +40,10 @@ export const postSimulateFloorV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
+    if (config.chainId !== 1) {
+      return { message: "Simulation not supported" };
+    }
+
     const payload = request.payload as any;
 
     const invalidateOrder = async (orderId: string) => {
@@ -62,6 +66,8 @@ export const postSimulateFloorV1Options: RouteOptions = {
     try {
       const token = payload.token;
       const router = payload.router;
+
+      const [contract, tokenId] = token.split(":");
 
       const response = await inject({
         method: "POST",
@@ -92,8 +98,8 @@ export const postSimulateFloorV1Options: RouteOptions = {
               AND orders.kind IN ('seaport', 'x2y2', 'zeroex-v4-erc721', 'zeroex-v4-erc1155')
           `,
           {
-            contract: toBuffer(token.split(":")[0]),
-            tokenId: token.split(":")[1],
+            contract: toBuffer(contract),
+            tokenId,
           }
         );
 
@@ -120,10 +126,14 @@ export const postSimulateFloorV1Options: RouteOptions = {
           FROM contracts
           WHERE contracts.address = $/contract/
         `,
-        { contract: toBuffer(token.split(":")[0]) }
+        { contract: toBuffer(contract) }
       );
 
       const parsedPayload = JSON.parse(response.payload);
+      if (!parsedPayload?.path?.length) {
+        return { message: "Nothing to simulate" };
+      }
+
       const pathItem = parsedPayload.path[0];
 
       const success = await ensureBuyTxSucceeds(
