@@ -17,6 +17,8 @@ import { Assets } from "@/utils/assets";
 import _ from "lodash";
 import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
 import { Orders } from "@/utils/orders";
+import { ContractSets } from "@/models/contract-sets";
+import * as Boom from "@hapi/boom";
 
 const version = "v3";
 
@@ -45,6 +47,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
       ).description(
         "Filter to one or more collections. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
       ),
+      contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
@@ -129,6 +132,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
   handler: async (request: Request) => {
     const params = request.params as any;
     const query = request.query as any;
+    let contractFilter = "";
     let collectionFilter = "";
     let communityFilter = "";
     let sortField = "top_bid_value";
@@ -169,6 +173,16 @@ export const getUserTopBidsV3Options: RouteOptions = {
 
     if (query.community) {
       communityFilter = `AND community = $/community/`;
+    }
+
+    if (query.contractsSetId) {
+      const contracts = await ContractSets.getContracts(query.contractsSetId);
+      if (_.isEmpty(contracts)) {
+        throw Boom.badRequest(`No contracts for contracts set ${query.collectionsSetId}`);
+      }
+
+      query.contracts = contracts.map((contract: string) => toBuffer(contract));
+      contractFilter = `AND contract IN ($/contracts:csv/)`;
     }
 
     try {
@@ -229,6 +243,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
         ) c ON TRUE
         WHERE owner = $/user/
         AND amount > 0
+        ${contractFilter}
         ORDER BY ${sortField} ${query.sortDirection}, token_id ${query.sortDirection}
         OFFSET ${offset} LIMIT $/limit/
       `;
