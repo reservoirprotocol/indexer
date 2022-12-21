@@ -455,6 +455,7 @@ export const save = async (
       }
 
       let feeBps = 0;
+      let marketplaceFeeFound = false;
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
         const bps = price.eq(0)
           ? 0
@@ -466,15 +467,19 @@ export const save = async (
 
         feeBps += bps;
 
+        // First check for opensea hardcoded recipients
+        const kind = openSeaFeeRecipients.includes(recipient)
+          ? "marketplace"
+          : openSeaRoyalties.map(({ recipient }) => recipient).includes(recipient.toLowerCase()) // Check for locally stored royalties
+          ? "royalty"
+          : marketplaceFeeFound || bps > 250 // If bps is higher than 250 or we already found marketplace fee assume it is royalty otherwise marketplace fee
+          ? "royalty"
+          : "marketplace";
+
+        marketplaceFeeFound = kind === "marketplace" || marketplaceFeeFound;
+
         return {
-          // First check for opensea hardcoded recipients
-          kind: openSeaFeeRecipients.includes(recipient)
-            ? "marketplace"
-            : openSeaRoyalties.map(({ recipient }) => recipient).includes(recipient.toLowerCase()) // Check for locally stored royalties
-            ? "royalty"
-            : bps > 250 // If bps is higher than 250 assume it is royalty otherwise marketplace fee
-            ? "royalty"
-            : "marketplace",
+          kind,
           recipient,
           bps,
         };

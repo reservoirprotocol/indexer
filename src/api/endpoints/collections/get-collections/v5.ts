@@ -109,6 +109,10 @@ export const getCollectionsV5Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       useNonFlaggedFloorAsk: Joi.boolean()
+        .when("normalizeRoyalties", {
+          is: Joi.boolean().valid(true),
+          then: Joi.valid(false),
+        })
         .default(false)
         .description(
           "If true, return the non flagged floor ask. (only supported when `normalizeRoyalties` is false)"
@@ -158,6 +162,12 @@ export const getCollectionsV5Options: RouteOptions = {
           tokenSetId: Joi.string().allow(null),
           royalties: Joi.object({
             recipient: Joi.string().allow(null, ""),
+            breakdown: Joi.array().items(
+              Joi.object({
+                recipient: Joi.string().pattern(regex.address),
+                bps: Joi.number(),
+              })
+            ),
             bps: Joi.number(),
           }).allow(null),
           lastBuy: {
@@ -621,7 +631,16 @@ export const getCollectionsV5Options: RouteOptions = {
             onSaleCount: String(r.on_sale_count),
             primaryContract: fromBuffer(r.contract),
             tokenSetId: r.token_set_id,
-            royalties: r.royalties ? r.royalties[0] : null,
+            royalties: r.royalties
+              ? {
+                  // Main recipient, kept for backwards-compatibility only
+                  recipient: r.royalties.length ? r.royalties[0].recipient : null,
+                  breakdown: r.royalties,
+                  bps: r.royalties
+                    .map((r: any) => r.bps)
+                    .reduce((a: number, b: number) => a + b, 0),
+                }
+              : null,
             lastBuy: {
               value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
               timestamp: r.last_buy_timestamp,

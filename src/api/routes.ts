@@ -6,6 +6,7 @@ import * as apiKeysEndpoints from "@/api/endpoints/api-keys";
 import * as attributesEndpoints from "@/api/endpoints/attributes";
 import * as collectionsEndpoints from "@/api/endpoints/collections";
 import * as collectionsSetsEndpoints from "@/api/endpoints/collections-sets";
+import * as contractsSetsEndpoints from "@/api/endpoints/contracts-sets";
 import * as eventsEndpoints from "@/api/endpoints/events";
 import * as executeEndpoints from "@/api/endpoints/execute";
 import * as healthEndpoints from "@/api/endpoints/health";
@@ -471,6 +472,14 @@ export const setupRoutes = (server: Server) => {
     options: collectionsSetsEndpoints.getCollectionsSetOwnersDistributionV1Options,
   });
 
+  // Contracts Sets
+
+  server.route({
+    method: "POST",
+    path: "/contracts-sets/v1",
+    options: contractsSetsEndpoints.postCreateContractsSetV1Options,
+  });
+
   // Events
 
   server.route({
@@ -525,6 +534,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/events/collections/top-bid/v1",
     options: eventsEndpoints.getCollectionsTopBidV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/events/collections/top-bid/v2",
+    options: eventsEndpoints.getCollectionsTopBidV2Options,
   });
 
   // Execute

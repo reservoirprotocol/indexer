@@ -25,7 +25,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Statuses:
         // 0 - Opened
         // 1 - Closed
-        // 2 - Canceled
+        // 2 - Cancelled
         if (status !== 1) {
           break;
         }
@@ -82,12 +82,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Price when order is "buy" = maker price received + concract fee
         const orderSide = bn(amount).gt(0) ? "sell" : "buy";
 
-        currencyPrice = bn(
-          parsedTrace[orderSide === "sell" ? taker : maker].tokenBalanceState[currencyKey]
-        )
-          .add(bn(parsedTrace[baseEventParams.address].tokenBalanceState[currencyKey]))
-          .abs()
-          .toString();
+        if (orderSide === "sell") {
+          currencyPrice = bn(parsedTrace[taker].tokenBalanceState[currencyKey])
+            .add(bn(parsedTrace[baseEventParams.address].tokenBalanceState[currencyKey]))
+            .abs()
+            .toString();
+        } else {
+          currencyPrice = bn(parsedTrace[baseEventParams.address].tokenBalanceState[currencyKey])
+            .abs()
+            .toString();
+        }
 
         amount = bn(amount).abs().toString();
 

@@ -265,11 +265,12 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 137: {
       return {
         ...defaultNetworkSettings,
+        metadataMintDelay: 180,
         enableWebSocket: false,
         enableReorgCheck: true,
         realtimeSyncFrequencySeconds: 10,
         realtimeSyncMaxBlockLag: 128,
-        backfillBlockBatchSize: 20,
+        backfillBlockBatchSize: 25,
         reorgCheckFrequency: [30],
         coingecko: {
           networkId: "polygon-pos",

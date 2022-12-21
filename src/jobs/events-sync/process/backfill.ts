@@ -22,7 +22,7 @@ export const queue = new Queue(QUEUE_NAME, {
     timeout: 120000,
   },
 });
-new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
+new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate(), maxStalledCount: 10 });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
