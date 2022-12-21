@@ -3,7 +3,7 @@
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { redb } from "@/common/db";
+import { redbAlt } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
   buildContinuation,
@@ -234,7 +234,7 @@ export const getUserTopBidsV2Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
 
-      const bids = await redb.manyOrNone(baseQuery, query);
+      const bids = await redbAlt.manyOrNone(baseQuery, query);
       let totalTokensWithBids = 0;
 
       const results = bids.map((r) => {
