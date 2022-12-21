@@ -13,6 +13,7 @@ import { getOrderSourceByOrderKind, OrderKind } from "@/orderbook/orders";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
 import { JoiOrderCriteria } from "@/common/joi";
+import { ContractSets } from "@/models/contract-sets";
 
 const version = "v5";
 
@@ -53,6 +54,7 @@ export const getUserActivityV5Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set."),
+      contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
@@ -92,7 +94,7 @@ export const getUserActivityV5Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
-    }).oxor("collection", "collectionsSetId", "community"),
+    }).oxor("collection", "collectionsSetId", "contractsSetId", "community"),
   },
   response: {
     schema: Joi.object({
@@ -159,6 +161,13 @@ export const getUserActivityV5Options: RouteOptions = {
       }
     }
 
+    if (query.contractsSetId) {
+      query.contracts = await ContractSets.getContracts(query.contractsSetId);
+      if (_.isEmpty(query.contracts)) {
+        throw Boom.badRequest(`No contracts for contracts set ${query.contractsSetId}`);
+      }
+    }
+
     try {
       const activities = await UserActivities.getActivities(
         query.users,
@@ -169,7 +178,8 @@ export const getUserActivityV5Options: RouteOptions = {
         query.limit,
         query.sortBy,
         query.includeMetadata,
-        true
+        true,
+        query.contracts
       );
 
       // If no activities found
