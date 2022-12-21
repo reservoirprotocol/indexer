@@ -12,12 +12,15 @@ import { AskEventsDataSource } from "@/jobs/data-export/data-sources/ask-events"
 import { TokenFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/token-floor-ask-events";
 import { CollectionFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/collection-floor-ask-events";
 import { AsksDataSource } from "@/jobs/data-export/data-sources/asks";
-import { TokensDataSource } from "@/jobs/data-export/data-sources/tokens";
+import { TokensDataSource, TokensDataSourceV2 } from "@/jobs/data-export/data-sources/tokens";
 import { CollectionsDataSource } from "@/jobs/data-export/data-sources/collections";
-import { SalesDataSourceV1, SalesDataSourceV2 } from "@/jobs/data-export/data-sources/sales";
+import { SalesDataSourceV2 } from "@/jobs/data-export/data-sources/sales";
 import { AttributeKeysDataSource } from "@/jobs/data-export/data-sources/attribute-keys";
 import { AttributesDataSource } from "@/jobs/data-export/data-sources/attributes";
-import { TokenAttributesDataSource } from "@/jobs/data-export/data-sources/token-attributes";
+import {
+  TokenAttributesDataSource,
+  TokenAttributesDataSourceV2,
+} from "@/jobs/data-export/data-sources/token-attributes";
 
 const QUEUE_NAME = "export-data-queue";
 const QUERY_LIMIT = 1000;
@@ -114,12 +117,13 @@ export enum DataSource {
   collectionFloorAskEvents = "collection-floor-ask-events",
   asks = "asks",
   tokens = "tokens",
+  tokensV2 = "tokens-v2",
   collections = "collections",
-  sales = "sales",
   salesV2 = "sales-v2",
   attributeKeys = "attribute-keys",
   attributes = "attributes",
   tokenAttributes = "token-attributes",
+  tokenAttributesV2 = "token-attributes-v2",
 }
 
 export const getLockName = (taskId: number) => {
@@ -168,10 +172,10 @@ const getDataSourceImpl = (source: DataSource) => {
       return new AsksDataSource();
     case DataSource.tokens:
       return new TokensDataSource();
+    case DataSource.tokensV2:
+      return new TokensDataSourceV2();
     case DataSource.collections:
       return new CollectionsDataSource();
-    case DataSource.sales:
-      return new SalesDataSourceV1();
     case DataSource.salesV2:
       return new SalesDataSourceV2();
     case DataSource.attributeKeys:
@@ -180,6 +184,8 @@ const getDataSourceImpl = (source: DataSource) => {
       return new AttributesDataSource();
     case DataSource.tokenAttributes:
       return new TokenAttributesDataSource();
+    case DataSource.tokenAttributesV2:
+      return new TokenAttributesDataSourceV2();
   }
 
   throw new Error(`Unsupported data source`);
