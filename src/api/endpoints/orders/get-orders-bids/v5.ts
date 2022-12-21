@@ -95,6 +95,12 @@ export const getOrdersBidsV5Options: RouteOptions = {
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
+      startTimestamp: Joi.number().description(
+        "Get events after a particular unix timestamp (inclusive)"
+      ),
+      endTimestamp: Joi.number().description(
+        "Get events before a particular unix timestamp (inclusive)"
+      ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -227,11 +233,29 @@ export const getOrdersBidsV5Options: RouteOptions = {
         FROM orders
       `;
 
+      // We default in the code so that these values don't appear in the docs
+      if (query.startTimestamp || query.endTimestamp) {
+        if (!query.startTimestamp) {
+          query.startTimestamp = 0;
+        }
+        if (!query.endTimestamp) {
+          query.endTimestamp = 9999999999;
+        }
+      }
+
       // Filters
-      const conditions: string[] = [
-        "EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)",
-        "orders.side = 'buy'",
-      ];
+      const conditions: string[] =
+        query.startTimestamp || query.endTimestamp
+          ? [
+              `orders.created_at >= to_timestamp($/startTimestamp/)`,
+              `orders.created_at <= to_timestamp($/endTimestamp/)`,
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ]
+          : [
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ];
 
       let communityFilter = "";
       let orderStatusFilter;
