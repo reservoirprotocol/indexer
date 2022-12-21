@@ -153,7 +153,7 @@ export const handleEvent = (type: EventType, payload: unknown): PartialOrderComp
   }
 };
 
-const parseProtocolData = (payload: unknown): Sdk.Seaport.Order | undefined => {
+export const parseProtocolData = (payload: unknown): Sdk.Seaport.Order | undefined => {
   try {
     const protocolData = (payload as any).protocol_data;
 
