@@ -151,7 +151,7 @@ export const start = async (): Promise<void> => {
   server.ext("onPreAuth", async (request, reply) => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
     if ((request as any).isInjected) {
-      reply.continue;
+      return reply.continue;
     }
 
     const key = request.headers["x-api-key"];
