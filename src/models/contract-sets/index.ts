@@ -3,7 +3,7 @@
 import _ from "lodash";
 import crypto from "crypto";
 import { redb, idb, pgp } from "@/common/db";
-import { fromBuffer } from "@/common/utils";
+import { toBuffer, fromBuffer } from "@/common/utils";
 
 export class ContractSets {
   public static getContractsSetId(contracts: string[]) {
@@ -30,7 +30,10 @@ export class ContractSets {
       table: "contracts_sets_contracts",
     });
 
-    const values = contracts.map((contract) => ({ contracts_set_id: contractsHash, contract }));
+    const values = contracts.map((contract) => ({
+      contracts_set_id: contractsHash,
+      contract: toBuffer(contract),
+    }));
     const query = pgp.helpers.insert(values, cs) + "ON CONFLICT DO NOTHING";
 
     await idb.none(query);
