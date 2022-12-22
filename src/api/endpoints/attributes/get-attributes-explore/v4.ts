@@ -34,13 +34,13 @@ export const getAttributesExploreV4Options: RouteOptions = {
     }),
     query: Joi.object({
       includeTopBid: Joi.boolean()
-        .default(false)
+        .default(null)
         .description("If true, top bid will be returned in the response."),
       excludeRangeTraits: Joi.boolean()
-        .default(false)
+        .default(null)
         .description("If true, range traits will be excluded from the response."),
       excludeNumberTraits: Joi.boolean()
-        .default(false)
+        .default(null)
         .description("If true, number traits will be excluded from the response."),
       attributeKey: Joi.string().description(
         "Filter to a particular attribute key. Example: `Composition`"

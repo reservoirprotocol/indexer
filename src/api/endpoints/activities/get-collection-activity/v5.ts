@@ -57,7 +57,7 @@ export const getCollectionActivityV5Options: RouteOptions = {
         "Use continuation token to request next offset of items."
       ),
       includeMetadata: Joi.boolean()
-        .default(true)
+        .default(null)
         .description("If true, metadata is included in the response."),
       types: Joi.alternatives()
         .try(

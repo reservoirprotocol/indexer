@@ -66,7 +66,7 @@ export class Activities {
     limit = 20,
     byEventTimestamp = false,
     includeMetadata = true,
-    sortDirection = "asc",
+    sortDirection = "desc",
     includeCriteria = false
   ) {
     let eventTimestamp;

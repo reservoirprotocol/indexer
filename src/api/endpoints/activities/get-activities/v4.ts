@@ -24,14 +24,14 @@ export const getActivityV4Options: RouteOptions = {
   validate: {
     query: Joi.object({
       includeMetadata: Joi.boolean()
-        .default(false)
-        .description("If true, metadata is included in the response."),
+        .description("If true, metadata is included in the response.")
+        .default(null),
       limit: Joi.number().integer().min(1).max(1000).default(20),
       continuation: Joi.string().pattern(regex.base64),
       sortDirection: Joi.string()
         .lowercase()
-        .valid("asc", "desc")
-        .default("desc")
+        .valid("desc", "asc")
+        // .default("desc")
         .description("Order the items are returned in the response."),
     }),
   },

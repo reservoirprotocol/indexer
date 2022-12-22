@@ -77,7 +77,7 @@ export const getUserActivityV5Options: RouteOptions = {
           "Order the items are returned in the response, eventTimestamp = The blockchain event time, createdAt - The time in which event was recorded"
         ),
       includeMetadata: Joi.boolean()
-        .default(true)
+        .default(null)
         .description("If true, metadata is included in the response."),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
