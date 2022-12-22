@@ -170,6 +170,7 @@ export const getCollectionsV5Options: RouteOptions = {
             ),
             bps: Joi.number(),
           }).allow(null),
+          allRoyalties: Joi.object().allow(null),
           lastBuy: {
             value: Joi.number().unsafe().allow(null),
             timestamp: Joi.number().allow(null),
@@ -398,6 +399,7 @@ export const getCollectionsV5Options: RouteOptions = {
           (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
           (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
           collections.royalties,
+          collections.new_royalties,
           collections.contract,
           collections.token_id_range,
           collections.token_set_id,
@@ -641,6 +643,7 @@ export const getCollectionsV5Options: RouteOptions = {
                     .reduce((a: number, b: number) => a + b, 0),
                 }
               : null,
+            allRoyalties: r.new_royalties ?? null,
             lastBuy: {
               value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
               timestamp: r.last_buy_timestamp,
