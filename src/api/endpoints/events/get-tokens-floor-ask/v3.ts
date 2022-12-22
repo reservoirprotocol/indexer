@@ -47,12 +47,12 @@ export const getTokensFloorAskV3Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
-      sortDirection: Joi.string().valid("asc", "desc").default("desc"),
-      normalizeRoyalties: Joi.boolean()
-        .default(false)
-        .description("If true, prices will include missing royalties to be added on-top."),
+      sortDirection: Joi.string().valid("asc", "desc"),
+      normalizeRoyalties: Joi.boolean().description(
+        "If true, prices will include missing royalties to be added on-top."
+      ),
       continuation: Joi.string().pattern(regex.base64),
-      limit: Joi.number().integer().min(1).max(1000).default(50),
+      limit: Joi.number().integer().min(1).max(1000),
     }).oxor("contract", "token"),
   },
   response: {
@@ -102,6 +102,14 @@ export const getTokensFloorAskV3Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 50;
+    }
+
+    if (!query.sortDirection) {
+      query.sortDirection = "desc";
+    }
 
     try {
       let baseQuery = `
