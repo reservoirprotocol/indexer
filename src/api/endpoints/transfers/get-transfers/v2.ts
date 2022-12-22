@@ -48,7 +48,7 @@ export const getTransfersV2Options: RouteOptions = {
       attributes: Joi.object()
         .unknown()
         .description("Filter to a particular attribute, e.g. `attributes[Type]=Original`"),
-      limit: Joi.number().integer().min(1).max(100).default(20),
+      limit: Joi.number().integer().min(1).max(100),
       continuation: Joi.string().pattern(regex.base64),
     })
       .oxor("contract", "token", "collection")
@@ -89,6 +89,10 @@ export const getTransfersV2Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 20;
+    }
 
     try {
       // Associating sales to transfers is done by searching for transfer
