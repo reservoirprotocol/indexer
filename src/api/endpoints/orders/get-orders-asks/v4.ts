@@ -79,15 +79,13 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .pattern(regex.domain)
         .description("Filter to a source by domain. Example: `opensea.io`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
-      includePrivate: Joi.boolean()
-        .default(true)
-        .description("If true, private orders are included in the response."),
-      includeCriteriaMetadata: Joi.boolean()
-        .default(false)
-        .description("If true, criteria metadata is included in the response."),
-      includeRawData: Joi.boolean()
-        .default(false)
-        .description("If true, raw data is included in the response."),
+      includePrivate: Joi.boolean().description(
+        "If true, private orders are included in the response."
+      ),
+      includeCriteriaMetadata: Joi.boolean().description(
+        "If true, criteria metadata is included in the response."
+      ),
+      includeRawData: Joi.boolean().description("If true, raw data is included in the response."),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),
