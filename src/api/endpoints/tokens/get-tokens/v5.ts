@@ -659,7 +659,7 @@ export const getTokensV5Options: RouteOptions = {
             break;
           }
         }
-      } else if (query.contract) {
+      } else if (query.contract || query.tokens) {
         baseQuery += ` ORDER BY t.token_id ${query.sortDirection || "ASC"}`;
       }
 
