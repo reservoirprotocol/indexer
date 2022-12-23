@@ -11,7 +11,8 @@ const main = async () => {
   let iterations = 0;
   let result;
   const collections = [
-    "0x7ab8c4d9d6349a69809c641220de29156be1d2fd:soundxyz-fad77ef4-06c9-459f-a46a-74e660a1b3e7",
+    "0x112895a889ba439ffec427fbef499b4462376546",
+    "0x112895a889ba439ffec427fbef499b4462376546:soundxyz-e025ccfb-f974-4bb3-acee-312aa8375c12",
   ];
 
   for (const collection of collections) {
