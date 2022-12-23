@@ -28,6 +28,7 @@ import * as tofu from "@/events-sync/data/tofu";
 import * as nftTrader from "@/events-sync/data/nft-trader";
 import * as okex from "@/events-sync/data/okex";
 import * as bendDao from "@/events-sync/data/bend-dao";
+import * as superrare from "@/events-sync/data/superrare";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -117,7 +118,9 @@ export type EventDataKind =
   | "nft-trader-swap"
   | "okex-order-filled"
   | "bend-dao-taker-ask"
-  | "bend-dao-taker-bid";
+  | "bend-dao-taker-bid"
+  | "superrare-listing-filled"
+  | "superrare-bid-filled";
 
 export type EventData = {
   kind: EventDataKind;
@@ -213,6 +216,8 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       okex.orderFulfilled,
       bendDao.takerAsk,
       bendDao.takerBid,
+      superrare.listingFilled,
+      superrare.bidFilled,
     ];
   } else {
     return (
@@ -393,6 +398,10 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return bendDao.takerAsk;
     case "bend-dao-taker-bid":
       return bendDao.takerBid;
+    case "superrare-listing-filled":
+      return superrare.listingFilled;
+    case "superrare-bid-filled":
+      return superrare.bidFilled;
 
     default:
       return undefined;
