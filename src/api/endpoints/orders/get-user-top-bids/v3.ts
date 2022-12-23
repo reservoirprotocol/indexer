@@ -19,6 +19,7 @@ import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
 import { Orders } from "@/utils/orders";
 import { ContractSets } from "@/models/contract-sets";
 import * as Boom from "@hapi/boom";
+import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v3";
 
@@ -51,6 +52,9 @@ export const getUserTopBidsV3Options: RouteOptions = {
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
       optimizeCheckoutURL: Joi.boolean().description(
         "If true, urls will only be returned for optimized sources that support royalties."
       ),
@@ -131,6 +135,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
     let contractFilter = "";
     let collectionFilter = "";
     let communityFilter = "";
+    let collectionSetFilter = "";
     let sortField = "top_bid_value";
     let offset = 0;
 
@@ -181,6 +186,15 @@ export const getUserTopBidsV3Options: RouteOptions = {
 
     if (query.community) {
       communityFilter = `AND community = $/community/`;
+    }
+
+    if (query.collectionsSetId) {
+      query.collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+      if (_.isEmpty(query.collectionsIds)) {
+        throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+      }
+
+      collectionSetFilter = `AND id IN ($/collectionsIds:csv/)`;
     }
 
     if (query.contractsSetId) {
@@ -237,7 +251,9 @@ export const getUserTopBidsV3Options: RouteOptions = {
             WHERE t.contract = nb.contract
             AND t.token_id = nb.token_id
         ) t ON TRUE
-        ${query.collection || query.community ? "" : "LEFT"} JOIN LATERAL (
+        ${
+          query.collection || query.community || query.collectionsSetId ? "" : "LEFT"
+        } JOIN LATERAL (
             SELECT
                 id AS "collection_id",
                 name AS "collection_name",
@@ -247,6 +263,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
             FROM collections c
             WHERE id = t.collection_id
             ${communityFilter}
+            ${collectionSetFilter}
             ${collectionFilter}
         ) c ON TRUE
         WHERE owner = $/user/
