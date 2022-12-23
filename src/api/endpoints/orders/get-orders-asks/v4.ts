@@ -344,7 +344,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
         (query as any).id = id;
 
         if (query.sortBy === "price") {
-          conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          if (query.normalizeRoyalties) {
+            conditions.push(`(orders.normalized_value, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          } else {
+            conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          }
         } else {
           conditions.push(
             `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAt/), $/id/)`
@@ -360,7 +364,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
 
       // Sorting
       if (query.sortBy === "price") {
-        baseQuery += ` ORDER BY orders.price, orders.id`;
+        if (query.normalizeRoyalties) {
+          baseQuery += ` ORDER BY orders.normalized_value, orders.id`;
+        } else {
+          baseQuery += ` ORDER BY orders.price, orders.id`;
+        }
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
@@ -373,9 +381,17 @@ export const getOrdersAsksV4Options: RouteOptions = {
       let continuation = null;
       if (rawResult.length === query.limit) {
         if (query.sortBy === "price") {
-          continuation = buildContinuation(
-            rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
-          );
+          if (query.normalizeRoyalties) {
+            continuation = buildContinuation(
+              rawResult[rawResult.length - 1].normalized_value +
+                "_" +
+                rawResult[rawResult.length - 1].id
+            );
+          } else {
+            continuation = buildContinuation(
+              rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
+            );
+          }
         } else {
           continuation = buildContinuation(
             rawResult[rawResult.length - 1].created_at + "_" + rawResult[rawResult.length - 1].id
