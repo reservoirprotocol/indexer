@@ -306,6 +306,11 @@ export const syncEvents = async (
         events: enhancedEvents.filter(({ kind }) => kind.startsWith("okex")),
         backfill,
       },
+      {
+        kind: "superrare",
+        events: enhancedEvents.filter(({ kind }) => kind.startsWith("superrare")),
+        backfill,
+      },
     ]);
 
     // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs

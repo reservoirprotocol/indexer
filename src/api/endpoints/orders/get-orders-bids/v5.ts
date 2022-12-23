@@ -96,6 +96,12 @@ export const getOrdersBidsV5Options: RouteOptions = {
       normalizeRoyalties: Joi.boolean().description(
         "If true, prices will include missing royalties to be added on-top."
       ),
+      startTimestamp: Joi.number().description(
+        "Get events after a particular unix timestamp (inclusive)"
+      ),
+      endTimestamp: Joi.number().description(
+        "Get events before a particular unix timestamp (inclusive)"
+      ),
       sortBy: Joi.string()
         .when("token", {
           is: Joi.exist(),
@@ -151,6 +157,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
             .allow(null),
           expiration: Joi.number().required(),
           isReservoir: Joi.boolean().allow(null),
+          isDynamic: Joi.boolean(),
           createdAt: Joi.string().required(),
           updatedAt: Joi.string().required(),
           rawData: Joi.object().optional().allow(null),
@@ -206,6 +213,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           orders.currency,
           orders.currency_price,
           orders.currency_value,
+          dynamic,
           orders.normalized_value,
           orders.currency_normalized_value,
           orders.missing_royalties,
@@ -231,11 +239,29 @@ export const getOrdersBidsV5Options: RouteOptions = {
         FROM orders
       `;
 
+      // We default in the code so that these values don't appear in the docs
+      if (query.startTimestamp || query.endTimestamp) {
+        if (!query.startTimestamp) {
+          query.startTimestamp = 0;
+        }
+        if (!query.endTimestamp) {
+          query.endTimestamp = 9999999999;
+        }
+      }
+
       // Filters
-      const conditions: string[] = [
-        "EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)",
-        "orders.side = 'buy'",
-      ];
+      const conditions: string[] =
+        query.startTimestamp || query.endTimestamp
+          ? [
+              `orders.created_at >= to_timestamp($/startTimestamp/)`,
+              `orders.created_at <= to_timestamp($/endTimestamp/)`,
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ]
+          : [
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ];
 
       let communityFilter = "";
       let orderStatusFilter;
@@ -497,6 +523,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
+          isDynamic: Boolean(r.dynamic),
           createdAt: new Date(r.created_at * 1000).toISOString(),
           updatedAt: new Date(r.updated_at).toISOString(),
           rawData: query.includeRawData ? r.raw_data : undefined,

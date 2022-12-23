@@ -17,6 +17,7 @@ import { Sources } from "@/models/sources";
 import { Orders } from "@/utils/orders";
 
 import { JoiOrderCriteria } from "@/common/joi";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
 const version = "v2";
 
@@ -79,7 +80,7 @@ export const getBidEventsV2Options: RouteOptions = {
             nonce: Joi.string().pattern(regex.number).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.object().allow(null),
             criteria: JoiOrderCriteria.allow(null),
           }),
           event: Joi.object({
@@ -204,30 +205,47 @@ export const getBidEventsV2Options: RouteOptions = {
       }
 
       const sources = await Sources.getInstance();
-      const result = rawResult.map((r) => ({
-        bid: {
-          id: r.order_id,
-          status: r.status,
-          contract: fromBuffer(r.contract),
-          tokenSetId: r.token_set_id,
-          maker: r.maker ? fromBuffer(r.maker) : null,
-          price: r.price ? formatEth(r.price) : null,
-          value: r.value ? formatEth(r.value) : null,
-          quantityRemaining: Number(r.order_quantity_remaining),
-          nonce: r.order_nonce ?? null,
-          validFrom: r.valid_from ? Number(r.valid_from) : null,
-          validUntil: r.valid_until ? Number(r.valid_until) : null,
-          source: sources.get(r.order_source_id_int)?.name,
-          criteria: r.criteria,
-        },
-        event: {
-          id: r.id,
-          kind: r.kind,
-          txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
-          txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
-          createdAt: new Date(r.created_at * 1000).toISOString(),
-        },
-      }));
+      const result = rawResult.map((r) => {
+        let source: SourcesEntity | undefined;
+
+        if (r.token_set_id?.startsWith("token")) {
+          const [, contract, tokenId] = r.token_set_id.split(":");
+          source = sources.get(r.order_source_id_int, contract, tokenId);
+        } else {
+          source = sources.get(r.order_source_id_int);
+        }
+
+        return {
+          bid: {
+            id: r.order_id,
+            status: r.status,
+            contract: fromBuffer(r.contract),
+            tokenSetId: r.token_set_id,
+            maker: r.maker ? fromBuffer(r.maker) : null,
+            price: r.price ? formatEth(r.price) : null,
+            value: r.value ? formatEth(r.value) : null,
+            quantityRemaining: Number(r.order_quantity_remaining),
+            nonce: r.order_nonce ?? null,
+            validFrom: r.valid_from ? Number(r.valid_from) : null,
+            validUntil: r.valid_until ? Number(r.valid_until) : null,
+            source: {
+              id: source?.address,
+              domain: source?.domain,
+              name: source?.metadata.title || source?.name,
+              icon: source?.getIcon(),
+              url: source?.metadata.url,
+            },
+            criteria: r.criteria,
+          },
+          event: {
+            id: r.id,
+            kind: r.kind,
+            txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
+            txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
+            createdAt: new Date(r.created_at * 1000).toISOString(),
+          },
+        };
+      });
 
       return {
         events: result,
