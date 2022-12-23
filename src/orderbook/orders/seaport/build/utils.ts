@@ -39,7 +39,8 @@ export const getBuildInfo = async (
     `
       SELECT
         contracts.kind,
-        collections.royalties
+        collections.royalties,
+        collections.new_royalties
       FROM collections
       JOIN contracts
         ON collections.contract = contracts.address
@@ -85,7 +86,11 @@ export const getBuildInfo = async (
 
   if (options.automatedRoyalties) {
     // Include the royalties
-    for (const { recipient, bps } of collectionResult.royalties || []) {
+    const royalties =
+      options.orderbook === "opensea"
+        ? collectionResult.new_royalties?.opensea
+        : collectionResult.royalties;
+    for (const { recipient, bps } of royalties || []) {
       if (recipient && Number(bps) > 0) {
         const fee = bn(bps).mul(options.weiPrice).div(10000).toString();
         buildParams.fees!.push({
