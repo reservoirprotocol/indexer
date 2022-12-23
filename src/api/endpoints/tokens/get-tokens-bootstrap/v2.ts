@@ -15,10 +15,11 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
-const version = "v1";
+const version = "v2";
 
-export const getTokensBootstrapV1Options: RouteOptions = {
+export const getTokensBootstrapV2Options: RouteOptions = {
   description: "Token Events Bootstrap",
   notes:
     "Get the latest price event per token in a collection, so that you can listen to future events and keep track of prices",
@@ -48,6 +49,7 @@ export const getTokensBootstrapV1Options: RouteOptions = {
         .integer()
         .min(1)
         .max(500)
+        .default(500)
         .description("Amount of items returned in response."),
     })
       .or("collection", "contract")
@@ -65,7 +67,7 @@ export const getTokensBootstrapV1Options: RouteOptions = {
           validFrom: Joi.number().unsafe(),
           validUntil: Joi.number().unsafe(),
           price: Joi.number().unsafe(),
-          source: Joi.string().allow(null, ""),
+          source: Joi.object().allow(null),
         })
       ),
       continuation: Joi.string().pattern(regex.base64),
@@ -77,10 +79,6 @@ export const getTokensBootstrapV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
-
-    if (!query.limit) {
-      query.limit = 500;
-    }
 
     try {
       let baseQuery = `
@@ -131,7 +129,13 @@ export const getTokensBootstrapV1Options: RouteOptions = {
       const rawResult = await redb.manyOrNone(baseQuery, query);
 
       const sources = await Sources.getInstance();
-      const result = rawResult.map((r) => {
+      const result = rawResult.map(async (r) => {
+        const source: SourcesEntity | undefined = sources.get(
+          r.floor_sell_source_id_int,
+          fromBuffer(r.contract),
+          r.token_id
+        );
+
         return {
           contract: fromBuffer(r.contract),
           tokenId: r.token_id,
@@ -141,7 +145,13 @@ export const getTokensBootstrapV1Options: RouteOptions = {
           price: formatEth(r.floor_sell_value),
           validFrom: Number(r.floor_sell_valid_from),
           validUntil: Number(r.floor_sell_valid_to),
-          source: sources.get(r.floor_sell_source_id_int)?.name,
+          source: {
+            id: source?.address,
+            domain: source?.domain,
+            name: source?.metadata.title || source?.name,
+            icon: source?.getIcon(),
+            url: source?.metadata.url,
+          },
         };
       });
 
@@ -151,7 +161,7 @@ export const getTokensBootstrapV1Options: RouteOptions = {
         continuation = buildContinuation(`${lastResult.floor_sell_value}_${lastResult.token_id}`);
       }
 
-      return { tokens: result, continuation };
+      return { tokens: await Promise.all(result), continuation };
     } catch (error) {
       logger.error(`get-tokens-bootstrap-${version}-handler`, `Handler failure: ${error}`);
       throw error;

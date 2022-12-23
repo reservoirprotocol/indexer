@@ -7,10 +7,11 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { buildContinuation, formatEth, fromBuffer, regex, splitContinuation } from "@/common/utils";
 import { Sources } from "@/models/sources";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
-const version = "v1";
+const version = "v2";
 
-export const getCollectionsFloorAskV1Options: RouteOptions = {
+export const getCollectionsFloorAskV2Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 1000,
@@ -35,19 +36,9 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
-      normalizeRoyalties: Joi.boolean().description(
-        "If true, prices will include missing royalties to be added on-top."
-      ),
-      excludeFlaggedTokens: Joi.boolean()
-        .when("normalizeRoyalties", {
-          is: Joi.boolean().valid(true),
-          then: Joi.valid(false),
-        })
-        .description(
-          "If true, will exclude floor asks on flagged tokens. (only supported when `normalizeRoyalties` is false)"
-        ),
       sortDirection: Joi.string()
         .valid("asc", "desc")
+        .default("desc")
         .description("Order the items are returned in the response."),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -56,6 +47,7 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
         .integer()
         .min(1)
         .max(1000)
+        .default(50)
         .description("Amount of items returned in response."),
     }).oxor("collection"),
   },
@@ -73,7 +65,7 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             price: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.object().allow(null),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),
@@ -108,41 +100,27 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
   handler: async (request: Request) => {
     const query = request.query as any;
 
-    if (!query.limit) {
-      query.limit = 50;
-    }
-
-    if (!query.sortDirection) {
-      query.sortDirection = "desc";
-    }
-
     try {
       let baseQuery = `
         SELECT
           coalesce(
-            nullif(date_part('epoch', upper(events.order_valid_between)), 'Infinity'),
+            nullif(date_part('epoch', upper(collection_floor_sell_events.order_valid_between)), 'Infinity'),
             0
           ) AS valid_until,
-          events.id,
-          events.kind,
-          events.collection_id,
-          events.contract,
-          events.token_id,
-          events.order_id,
-          events.order_source_id_int,
-          events.maker,
-          events.price,
-          events.previous_price,
-          events.tx_hash,
-          events.tx_timestamp,
-          extract(epoch from events.created_at) AS created_at
-        FROM ${
-          query.normalizeRoyalties
-            ? "collection_normalized_floor_sell_events"
-            : query.excludeFlaggedTokens
-            ? "collection_non_flagged_floor_sell_events"
-            : "collection_floor_sell_events"
-        } events
+          collection_floor_sell_events.id,
+          collection_floor_sell_events.kind,
+          collection_floor_sell_events.collection_id,
+          collection_floor_sell_events.contract,
+          collection_floor_sell_events.token_id,
+          collection_floor_sell_events.order_id,
+          collection_floor_sell_events.order_source_id_int,
+          collection_floor_sell_events.maker,
+          collection_floor_sell_events.price,
+          collection_floor_sell_events.previous_price,
+          collection_floor_sell_events.tx_hash,
+          collection_floor_sell_events.tx_timestamp,
+          extract(epoch from collection_floor_sell_events.created_at) AS created_at
+        FROM collection_floor_sell_events
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -155,14 +133,14 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [
-        `events.created_at >= to_timestamp($/startTimestamp/)`,
-        `events.created_at <= to_timestamp($/endTimestamp/)`,
+        `collection_floor_sell_events.created_at >= to_timestamp($/startTimestamp/)`,
+        `collection_floor_sell_events.created_at <= to_timestamp($/endTimestamp/)`,
         // Fix for the issue with negative prices for dutch auction orders
         // (eg. due to orders not properly expired on time)
-        `coalesce(events.price, 0) >= 0`,
+        `coalesce(collection_floor_sell_events.price, 0) >= 0`,
       ];
       if (query.collection) {
-        conditions.push(`events.collection_id = $/collection/`);
+        conditions.push(`collection_floor_sell_events.collection_id = $/collection/`);
       }
       if (query.continuation) {
         const [createdAt, id] = splitContinuation(query.continuation, /^\d+(.\d+)?_\d+$/);
@@ -170,7 +148,7 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
         (query as any).id = id;
 
         conditions.push(
-          `(events.created_at, events.id) ${
+          `(collection_floor_sell_events.created_at, collection_floor_sell_events.id) ${
             query.sortDirection === "asc" ? ">" : "<"
           } (to_timestamp($/createdAt/), $/id/)`
         );
@@ -182,8 +160,8 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
       // Sorting
       baseQuery += `
         ORDER BY
-          events.created_at ${query.sortDirection},
-          events.id ${query.sortDirection}
+          collection_floor_sell_events.created_at ${query.sortDirection},
+          collection_floor_sell_events.id ${query.sortDirection}
       `;
 
       // Pagination
@@ -199,31 +177,45 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
       }
 
       const sources = await Sources.getInstance();
-      const result = rawResult.map((r) => ({
-        collection: {
-          id: r.collection_id,
-        },
-        floorAsk: {
-          orderId: r.order_id,
-          contract: r.contract ? fromBuffer(r.contract) : null,
-          tokenId: r.token_id,
-          maker: r.maker ? fromBuffer(r.maker) : null,
-          price: r.price ? formatEth(r.price) : null,
-          validUntil: r.price ? Number(r.valid_until) : null,
-          source: sources.get(r.order_source_id_int)?.name,
-        },
-        event: {
-          id: r.id,
-          previousPrice: r.previous_price ? formatEth(r.previous_price) : null,
-          kind: r.kind,
-          txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
-          txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
-          createdAt: new Date(r.created_at * 1000).toISOString(),
-        },
-      }));
+      const result = rawResult.map(async (r) => {
+        const source: SourcesEntity | undefined = sources.get(
+          r.order_source_id_int,
+          fromBuffer(r.contract),
+          r.token_id
+        );
+
+        return {
+          collection: {
+            id: r.collection_id,
+          },
+          floorAsk: {
+            orderId: r.order_id,
+            contract: r.contract ? fromBuffer(r.contract) : null,
+            tokenId: r.token_id,
+            maker: r.maker ? fromBuffer(r.maker) : null,
+            price: r.price ? formatEth(r.price) : null,
+            validUntil: r.price ? Number(r.valid_until) : null,
+            source: {
+              id: source?.address,
+              domain: source?.domain,
+              name: source?.metadata.title || source?.name,
+              icon: source?.getIcon(),
+              url: source?.metadata.url,
+            },
+          },
+          event: {
+            id: r.id,
+            previousPrice: r.previous_price ? formatEth(r.previous_price) : null,
+            kind: r.kind,
+            txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
+            txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
+            createdAt: new Date(r.created_at * 1000).toISOString(),
+          },
+        };
+      });
 
       return {
-        events: result,
+        events: await Promise.all(result),
         continuation,
       };
     } catch (error) {

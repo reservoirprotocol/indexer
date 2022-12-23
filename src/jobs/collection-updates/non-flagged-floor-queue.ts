@@ -160,7 +160,6 @@ if (config.doBackgroundWork) {
 
         if (nonFlaggedCollectionFloorAsk?.token_id) {
           const collection = await Collections.getById(collectionResult.collection_id);
-
           await metadataIndexFetch.addToQueue(
             [
               {

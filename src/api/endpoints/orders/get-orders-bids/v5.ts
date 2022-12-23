@@ -94,15 +94,19 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .pattern(regex.domain)
         .description("Filter to a source by domain. Example: `opensea.io`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
-      includeCriteriaMetadata: Joi.boolean()
-        .default(false)
-        .description("If true, criteria metadata is included in the response."),
-      includeRawData: Joi.boolean()
-        .default(false)
-        .description("If true, raw data is included in the response."),
-      normalizeRoyalties: Joi.boolean()
-        .default(false)
-        .description("If true, prices will include missing royalties to be added on-top."),
+      includeCriteriaMetadata: Joi.boolean().description(
+        "If true, criteria metadata is included in the response."
+      ),
+      includeRawData: Joi.boolean().description("If true, raw data is included in the response."),
+      normalizeRoyalties: Joi.boolean().description(
+        "If true, prices will include missing royalties to be added on-top."
+      ),
+      startTimestamp: Joi.number().description(
+        "Get events after a particular unix timestamp (inclusive)"
+      ),
+      endTimestamp: Joi.number().description(
+        "Get events before a particular unix timestamp (inclusive)"
+      ),
       sortBy: Joi.string()
         .when("token", {
           is: Joi.exist(),
@@ -110,7 +114,6 @@ export const getOrdersBidsV5Options: RouteOptions = {
           otherwise: Joi.valid("createdAt"),
         })
         .valid("createdAt", "price")
-        .default("createdAt")
         .description(
           "Order the items are returned in the response, Sorting by price allowed only when filtering by token"
         ),
@@ -121,7 +124,6 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .integer()
         .min(1)
         .max(1000)
-        .default(50)
         .description("Amount of items returned in response."),
     })
       .oxor("token", "tokenSetId", "contracts", "ids", "collection")
@@ -161,6 +163,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
             .allow(null),
           expiration: Joi.number().required(),
           isReservoir: Joi.boolean().allow(null),
+          isDynamic: Joi.boolean(),
           createdAt: Joi.string().required(),
           updatedAt: Joi.string().required(),
           rawData: Joi.object().optional().allow(null),
@@ -175,6 +178,14 @@ export const getOrdersBidsV5Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 50;
+    }
+
+    if (!query.sortBy) {
+      query.sortBy = "createdAt";
+    }
 
     try {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
@@ -208,6 +219,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           orders.currency,
           orders.currency_price,
           orders.currency_value,
+          dynamic,
           orders.normalized_value,
           orders.currency_normalized_value,
           orders.missing_royalties,
@@ -233,11 +245,29 @@ export const getOrdersBidsV5Options: RouteOptions = {
         FROM orders
       `;
 
+      // We default in the code so that these values don't appear in the docs
+      if (query.startTimestamp || query.endTimestamp) {
+        if (!query.startTimestamp) {
+          query.startTimestamp = 0;
+        }
+        if (!query.endTimestamp) {
+          query.endTimestamp = 9999999999;
+        }
+      }
+
       // Filters
-      const conditions: string[] = [
-        "EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)",
-        "orders.side = 'buy'",
-      ];
+      const conditions: string[] =
+        query.startTimestamp || query.endTimestamp
+          ? [
+              `orders.created_at >= to_timestamp($/startTimestamp/)`,
+              `orders.created_at <= to_timestamp($/endTimestamp/)`,
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ]
+          : [
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ];
 
       let communityFilter = "";
       let collectionSetFilter = "";
@@ -511,6 +541,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
+          isDynamic: Boolean(r.dynamic),
           createdAt: new Date(r.created_at * 1000).toISOString(),
           updatedAt: new Date(r.updated_at).toISOString(),
           rawData: query.includeRawData ? r.raw_data : undefined,
