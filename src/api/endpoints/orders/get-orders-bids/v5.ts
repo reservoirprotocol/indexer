@@ -2,6 +2,7 @@
 
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import * as Boom from "@hapi/boom";
 import Joi from "joi";
 import _ from "lodash";
 
@@ -14,6 +15,7 @@ import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { Orders } from "@/utils/orders";
 import { Attributes } from "@/models/attributes";
+import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v5";
 
@@ -52,6 +54,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -121,6 +126,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
     })
       .oxor("token", "tokenSetId", "contracts", "ids", "collection")
       .with("community", "maker")
+      .with("collectionsSetId", "maker")
       .with("attribute", "collection"),
   },
   response: {
@@ -234,6 +240,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       ];
 
       let communityFilter = "";
+      let collectionSetFilter = "";
       let orderStatusFilter;
 
       if (query.ids) {
@@ -340,6 +347,16 @@ export const getOrdersBidsV5Options: RouteOptions = {
           communityFilter =
             "JOIN (SELECT DISTINCT contract FROM collections WHERE community = $/community/) c ON orders.contract = c.contract";
         }
+
+        if (query.collectionsSetId) {
+          query.collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+          if (_.isEmpty(query.collectionsIds)) {
+            throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+          }
+
+          collectionSetFilter =
+            "JOIN (SELECT DISTINCT contract FROM collections WHERE id IN ($/collectionsIds:csv/)) c ON orders.contract = c.contract";
+        }
       }
 
       if (query.source) {
@@ -380,6 +397,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       }
 
       baseQuery += communityFilter;
+      baseQuery += collectionSetFilter;
 
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
