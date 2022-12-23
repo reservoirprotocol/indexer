@@ -89,21 +89,19 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .pattern(regex.domain)
         .description("Filter to a source by domain. Example: `opensea.io`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
-      includeCriteriaMetadata: Joi.boolean()
-        .default(false)
-        .description("If true, criteria metadata is included in the response."),
-      includeRawData: Joi.boolean()
-        .default(false)
-        .description("If true, raw data is included in the response."),
+      includeCriteriaMetadata: Joi.boolean().description(
+        "If true, criteria metadata is included in the response."
+      ),
+      includeRawData: Joi.boolean().description("If true, raw data is included in the response."),
+      normalizeRoyalties: Joi.boolean().description(
+        "If true, prices will include missing royalties to be added on-top."
+      ),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
-      normalizeRoyalties: Joi.boolean()
-        .default(false)
-        .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
         .when("token", {
           is: Joi.exist(),
@@ -111,7 +109,6 @@ export const getOrdersBidsV5Options: RouteOptions = {
           otherwise: Joi.valid("createdAt"),
         })
         .valid("createdAt", "price")
-        .default("createdAt")
         .description(
           "Order the items are returned in the response, Sorting by price allowed only when filtering by token"
         ),
@@ -122,7 +119,6 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .integer()
         .min(1)
         .max(1000)
-        .default(50)
         .description("Amount of items returned in response."),
     })
       .oxor("token", "tokenSetId", "contracts", "ids", "collection")
@@ -176,6 +172,14 @@ export const getOrdersBidsV5Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 50;
+    }
+
+    if (!query.sortBy) {
+      query.sortBy = "createdAt";
+    }
 
     try {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(

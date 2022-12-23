@@ -39,7 +39,6 @@ export const getSearchCollectionsV1Options: RouteOptions = {
         .integer()
         .min(1)
         .max(50)
-        .default(20)
         .description("Amount of items returned in response."),
     }),
   },
@@ -64,6 +63,11 @@ export const getSearchCollectionsV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 20;
+    }
+
     let whereClause = "";
     const conditions: string[] = [`token_count > 0`];
 
