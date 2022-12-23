@@ -3,7 +3,7 @@
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { redb } from "@/common/db";
+import { redbAlt } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
   buildContinuation,
@@ -23,7 +23,7 @@ const version = "v2";
 export const getUserTopBidsV2Options: RouteOptions = {
   description: "User Top Bids",
   notes: "Return the top bids for the given user tokens",
-  tags: ["api", "Orders"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 7,
@@ -59,6 +59,9 @@ export const getUserTopBidsV2Options: RouteOptions = {
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
+      useNonFlaggedFloorAsk: Joi.boolean()
+        .default(false)
+        .description("If true, will return the collection non flagged floor ask events."),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
@@ -176,6 +179,10 @@ export const getUserTopBidsV2Options: RouteOptions = {
         query.includeCriteriaMetadata
       );
 
+      const collectionFloorSellValueColumnName = query.useNonFlaggedFloorAsk
+        ? "non_flagged_floor_sell_value"
+        : "floor_sell_value";
+
       const baseQuery = `
         SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids",
                (${criteriaBuildQuery}) AS bid_criteria,
@@ -208,8 +215,12 @@ export const getUserTopBidsV2Options: RouteOptions = {
             AND t.token_id = nb.token_id
         ) t ON TRUE
         ${query.collection || query.community ? "" : "LEFT"} JOIN LATERAL (
-            SELECT id AS "collection_id", name AS "collection_name", metadata AS "collection_metadata", floor_sell_value AS "collection_floor_sell_value",
-                   (floor_sell_value * (1-((COALESCE(royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) AS "net_listing"
+            SELECT
+                id AS "collection_id",
+                name AS "collection_name",
+                metadata AS "collection_metadata",
+                ${collectionFloorSellValueColumnName} AS "collection_floor_sell_value",
+                (${collectionFloorSellValueColumnName} * (1-((COALESCE(royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) AS "net_listing"
             FROM collections c
             WHERE id = t.collection_id
             ${communityFilter}
@@ -223,7 +234,7 @@ export const getUserTopBidsV2Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
 
-      const bids = await redb.manyOrNone(baseQuery, query);
+      const bids = await redbAlt.manyOrNone(baseQuery, query);
       let totalTokensWithBids = 0;
 
       const results = bids.map((r) => {

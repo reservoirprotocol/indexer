@@ -33,7 +33,10 @@ import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsync
 import * as arweaveSyncBackfill from "@/jobs/arweave-sync/backfill-queue";
 import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
-import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
+import * as backfillBlurSales from "@/jobs/backfill/backfill-blur-sales";
+import * as backfillMints from "@/jobs/backfill/backfill-mints";
+import * as backfillTokensWithMissingCollection from "@/jobs/backfill/backfill-tokens-with-missing-collection";
+import * as backfillOpenseaWebsocketEvents from "@/jobs/backfill/backfill-opensea-websocket-events";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -42,6 +45,9 @@ import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections
 
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
+import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
+import * as collectionUpdatesSimulateFloorAsk from "@/jobs/collection-updates/simulate-floor-queue";
+import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
 
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
@@ -55,6 +61,7 @@ import * as dailyVolumes from "@/jobs/daily-volumes/daily-volumes";
 
 import * as exportData from "@/jobs/data-export/export-data";
 
+import * as eventsSyncProcessResyncRequest from "@/jobs/events-sync/process-resync-request-queue";
 import * as eventsSyncBackfill from "@/jobs/events-sync/backfill-queue";
 import * as eventsSyncBlockCheck from "@/jobs/events-sync/block-check-queue";
 import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
@@ -81,6 +88,9 @@ import * as orderFixes from "@/jobs/order-fixes/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle-queue";
+import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-queue";
+import * as erc20OrdersCron from "@/jobs/order-updates/cron/erc20-orders-queue";
+import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-queue";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
@@ -102,6 +112,17 @@ import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attrib
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
 
+export const gracefulShutdownJobWorkers = [
+  orderUpdatesById.worker,
+  orderUpdatesByMaker.worker,
+  bundleOrderUpdatesByMaker.worker,
+  dynamicOrdersCron.worker,
+  erc20OrdersCron.worker,
+  expiredOrdersCron.worker,
+  tokenUpdatesFloorAsk.worker,
+  tokenUpdatesNormalizedFloorAsk.worker,
+];
+
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,
   processActivityEvent.queue,
@@ -110,7 +131,10 @@ export const allJobQueues = [
   arweaveSyncBackfill.queue,
   arweaveSyncRealtime.queue,
 
-  backfillCollectionsRoyalties.queue,
+  backfillBlurSales.queue,
+  backfillMints.queue,
+  backfillTokensWithMissingCollection.queue,
+  backfillOpenseaWebsocketEvents.queue,
 
   currencies.queue,
 
@@ -121,6 +145,10 @@ export const allJobQueues = [
 
   collectionUpdatesFloorAsk.queue,
   collectionUpdatesNormalizedFloorAsk.queue,
+  collectionUpdatesNonFlaggedFloorAsk.queue,
+  collectionUpdatesSimulateFloorAsk.queue,
+  collectionSetCommunity.queue,
+
   collectionUpdatesMetadata.queue,
   rarity.queue,
   collectionUpdatesTopBid.queue,
@@ -131,6 +159,7 @@ export const allJobQueues = [
 
   exportData.queue,
 
+  eventsSyncProcessResyncRequest.queue,
   eventsSyncBackfill.queue,
   eventsSyncBlockCheck.queue,
   eventsSyncBackfillProcess.queue,
@@ -157,6 +186,9 @@ export const allJobQueues = [
   orderUpdatesById.queue,
   orderUpdatesByMaker.queue,
   bundleOrderUpdatesByMaker.queue,
+  dynamicOrdersCron.queue,
+  erc20OrdersCron.queue,
+  expiredOrdersCron.queue,
 
   orderbookOrders.queue,
   orderbookPostOrderExternal.queue,

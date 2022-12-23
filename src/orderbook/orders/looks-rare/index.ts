@@ -15,6 +15,7 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as tokenSet from "@/orderbook/token-sets";
 import * as royalties from "@/utils/royalties";
 import { Royalty } from "@/utils/royalties";
+import _ from "lodash";
 
 export type OrderInfo = {
   orderParams: Sdk.LooksRare.Types.MakerOrderParams;
@@ -219,14 +220,15 @@ export const save = async (
 
       const missingRoyalties = [];
       let missingRoyaltyAmount = bn(0);
+      let royaltyDeducted = false;
       for (const { bps, recipient } of defaultRoyalties) {
         // Get any built-in royalty payment to the current recipient
-        const existingRoyalty = feeBreakdown.find(
-          (r) => r.kind === "royalty" && r.recipient === recipient
-        );
+        const existingRoyalty = feeBreakdown.find((r) => r.kind === "royalty");
 
         // Deduce the 0.5% royalty LooksRare will pay if needed
-        const actualBps = existingRoyalty ? bps - 50 : bps;
+        const actualBps = existingRoyalty && !royaltyDeducted ? bps - 50 : bps;
+        royaltyDeducted = !_.isUndefined(existingRoyalty) || royaltyDeducted;
+
         const amount = bn(price).mul(actualBps).div(10000).toString();
         missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 

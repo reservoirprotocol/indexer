@@ -32,6 +32,7 @@ type SaveResult = {
   id: string;
   txHash: string;
   status: string;
+  triggerKind?: "new-order" | "reprice";
 };
 
 export const getOrderId = (pool: string, side: "sell" | "buy", tokenId?: string) =>
@@ -131,7 +132,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
             // Handle: royalties on top
             const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(
-              `contract:${pool.nft}`,
+              `contract:${pool.nft}`.toLowerCase(),
               "default"
             );
 
@@ -182,7 +183,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               const schemaHash = generateSchemaHash();
               const [{ id: tokenSetId }] = await tokenSet.contractWide.save([
                 {
-                  id: `contract:${pool.nft}`,
+                  id: `contract:${pool.nft}`.toLowerCase(),
                   schemaHash,
                   contract: pool.nft,
                 },
@@ -234,6 +235,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 id,
                 txHash: orderParams.txHash,
                 status: "success",
+                triggerKind: "new-order",
               });
             } else {
               await idb.none(
@@ -270,20 +272,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 }
               );
 
-              await ordersUpdateById.addToQueue([
-                {
-                  context: `reprice-${id}-${orderParams.txHash}`,
-                  id,
-                  trigger: {
-                    kind: "reprice",
-                  },
-                },
-              ]);
-
               results.push({
                 id,
                 txHash: orderParams.txHash,
                 status: "success",
+                triggerKind: "reprice",
               });
             }
           } else {
@@ -298,20 +291,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               { id }
             );
 
-            await ordersUpdateById.addToQueue([
-              {
-                context: `reprice-${id}-${orderParams.txHash}`,
-                id,
-                trigger: {
-                  kind: "reprice",
-                },
-              },
-            ]);
-
             results.push({
               id,
               txHash: orderParams.txHash,
               status: "success",
+              triggerKind: "reprice",
             });
           }
         }
@@ -349,7 +333,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
           // Handle: royalties on top
           const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(
-            `contract:${pool.nft}`,
+            `contract:${pool.nft}`.toLowerCase(),
             "default"
           );
 
@@ -405,7 +389,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 const schemaHash = generateSchemaHash();
                 const [{ id: tokenSetId }] = await tokenSet.singleToken.save([
                   {
-                    id: `token:${pool.nft}:${tokenId}`,
+                    id: `token:${pool.nft}:${tokenId}`.toLowerCase(),
                     schemaHash,
                     contract: pool.nft,
                     tokenId,
@@ -458,6 +442,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   id,
                   txHash: orderParams.txHash,
                   status: "success",
+                  triggerKind: "new-order",
                 });
               } else {
                 await idb.none(
@@ -493,20 +478,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   }
                 );
 
-                await ordersUpdateById.addToQueue([
-                  {
-                    context: `reprice-${id}-${orderParams.txHash}`,
-                    id,
-                    trigger: {
-                      kind: "reprice",
-                    },
-                  },
-                ]);
-
                 results.push({
                   id,
                   txHash: orderParams.txHash,
                   status: "success",
+                  triggerKind: "reprice",
                 });
               }
             } catch {
@@ -570,20 +546,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
     );
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
+  }
 
-    await ordersUpdateById.addToQueue(
-      results.map(
-        ({ id, txHash }) =>
+  await ordersUpdateById.addToQueue(
+    results
+      .filter(({ status }) => status === "success")
+      .map(
+        ({ id, txHash, triggerKind }) =>
           ({
-            context: `new-order-${id}-${txHash}`,
+            context: `${triggerKind}-${id}-${txHash}`,
             id,
             trigger: {
-              kind: "new-order",
+              kind: triggerKind,
             },
           } as ordersUpdateById.OrderInfo)
       )
-    );
-  }
+  );
 
   return results;
 };

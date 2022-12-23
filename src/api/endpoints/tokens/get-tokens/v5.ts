@@ -9,6 +9,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 import {
+  bn,
   buildContinuation,
   formatEth,
   fromBuffer,
@@ -76,6 +77,17 @@ export const getTokensV5Options: RouteOptions = {
       source: Joi.string().description(
         "Domain of the order source. Example `opensea.io` (Only listed tokens are returned when filtering by source)"
       ),
+      minRarityRank: Joi.number()
+        .integer()
+        .min(1)
+        .description("Get tokens with a min rarity rank (inclusive)"),
+      maxRarityRank: Joi.number()
+        .integer()
+        .min(1)
+        .description("Get tokens with a max rarity rank (inclusive)"),
+      flagStatus: Joi.number()
+        .allow(-1, 0, 1)
+        .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),
       sortBy: Joi.string()
         .valid("floorAskPrice", "tokenId", "rarity")
         .default("floorAskPrice")
@@ -98,6 +110,9 @@ export const getTokensV5Options: RouteOptions = {
         .description(
           "If true, quantity filled and quantity remaining will be returned in the response."
         ),
+      includeDynamicPricing: Joi.boolean()
+        .default(false)
+        .description("If true, dynamic pricing data will be returned in the response."),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -107,7 +122,8 @@ export const getTokensV5Options: RouteOptions = {
     })
       .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
-      .with("attributes", "collection"),
+      .with("attributes", "collection")
+      .with("flagStatus", "collection"),
   },
   response: {
     schema: Joi.object({
@@ -123,6 +139,7 @@ export const getTokensV5Options: RouteOptions = {
             kind: Joi.string().allow(null, ""),
             isFlagged: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow(null, ""),
+            lastFlagChange: Joi.string().allow(null, ""),
             rarity: Joi.number().unsafe().allow(null),
             rarityRank: Joi.number().unsafe().allow(null),
             collection: Joi.object({
@@ -162,6 +179,10 @@ export const getTokensV5Options: RouteOptions = {
               validUntil: Joi.number().unsafe().allow(null),
               quantityFilled: Joi.number().unsafe().allow(null),
               quantityRemaining: Joi.number().unsafe().allow(null),
+              dynamicPricing: Joi.object({
+                kind: Joi.string().valid("dutch", "pool"),
+                data: Joi.object(),
+              }),
               source: Joi.object().allow(null),
             },
             topBid: Joi.object({
@@ -175,10 +196,7 @@ export const getTokensV5Options: RouteOptions = {
                 .items(
                   Joi.object({
                     kind: Joi.string(),
-                    recipient: Joi.string()
-                      .lowercase()
-                      .pattern(/^0x[a-fA-F0-9]{40}$/)
-                      .allow(null),
+                    recipient: Joi.string().lowercase().pattern(regex.address).allow(null),
                     bps: Joi.number(),
                   })
                 )
@@ -216,6 +234,7 @@ export const getTokensV5Options: RouteOptions = {
             o.price AS top_buy_price,
             o.value AS top_buy_value,
             o.source_id_int AS top_buy_source_id_int,
+            o.missing_royalties AS top_buy_missing_royalties,
             DATE_PART('epoch', LOWER(o.valid_between)) AS top_buy_valid_from,
             COALESCE(
               NULLIF(DATE_PART('epoch', UPPER(o.valid_between)), 'Infinity'),
@@ -268,30 +287,29 @@ export const getTokensV5Options: RouteOptions = {
       `;
     }
 
-    let selectFloorData;
-
+    let selectFloorData: string;
     if (query.normalizeRoyalties) {
       selectFloorData = `
-      t.normalized_floor_sell_id AS floor_sell_id,
-      t.normalized_floor_sell_maker AS floor_sell_maker,
-      t.normalized_floor_sell_valid_from AS floor_sell_valid_from,
-      t.normalized_floor_sell_valid_to AS floor_sell_valid_to,
-      t.normalized_floor_sell_source_id_int AS floor_sell_source_id_int,
-      t.normalized_floor_sell_value AS floor_sell_value,
-      t.normalized_floor_sell_currency AS floor_sell_currency,
-      t.normalized_floor_sell_currency_value AS floor_sell_currency_value
-    `;
+        t.normalized_floor_sell_id AS floor_sell_id,
+        t.normalized_floor_sell_maker AS floor_sell_maker,
+        t.normalized_floor_sell_valid_from AS floor_sell_valid_from,
+        t.normalized_floor_sell_valid_to AS floor_sell_valid_to,
+        t.normalized_floor_sell_source_id_int AS floor_sell_source_id_int,
+        t.normalized_floor_sell_value AS floor_sell_value,
+        t.normalized_floor_sell_currency AS floor_sell_currency,
+        t.normalized_floor_sell_currency_value AS floor_sell_currency_value
+      `;
     } else {
       selectFloorData = `
-      t.floor_sell_id,
-      t.floor_sell_maker,
-      t.floor_sell_valid_from,
-      t.floor_sell_valid_to,
-      t.floor_sell_source_id_int,
-      t.floor_sell_value,
-      t.floor_sell_currency,
-      t.floor_sell_currency_value
-    `;
+        t.floor_sell_id,
+        t.floor_sell_maker,
+        t.floor_sell_valid_from,
+        t.floor_sell_valid_to,
+        t.floor_sell_source_id_int,
+        t.floor_sell_value,
+        t.floor_sell_currency,
+        t.floor_sell_currency_value
+      `;
     }
 
     let includeQuantityQuery = "";
@@ -299,16 +317,33 @@ export const getTokensV5Options: RouteOptions = {
     if (query.includeQuantity) {
       selectIncludeQuantity = ", q.*";
       includeQuantityQuery = `
-      LEFT JOIN LATERAL (
-        SELECT
-          o.quantity_filled AS floor_sell_quantity_filled,
-          o.quantity_remaining AS floor_sell_quantity_remaining
-        FROM
-          orders o
-        WHERE
-          o.id = t.floor_sell_id
+        LEFT JOIN LATERAL (
+          SELECT
+            o.quantity_filled AS floor_sell_quantity_filled,
+            o.quantity_remaining AS floor_sell_quantity_remaining
+          FROM
+            orders o
+          WHERE
+            o.id = t.floor_sell_id
         ) q ON TRUE
-        `;
+      `;
+    }
+
+    let includeDynamicPricingQuery = "";
+    let selectIncludeDynamicPricing = "";
+    if (query.includeDynamicPricing) {
+      selectIncludeDynamicPricing = ", d.*";
+      includeDynamicPricingQuery = `
+        LEFT JOIN LATERAL (
+          SELECT
+            o.kind AS floor_sell_order_kind,
+            o.dynamic AS floor_sell_dynamic,
+            o.raw_data AS floor_sell_raw_data,
+            o.missing_royalties AS floor_sell_missing_royalties
+          FROM orders o
+          WHERE o.id = t.floor_sell_id
+        ) d ON TRUE
+      `;
     }
 
     let sourceQuery = "";
@@ -329,61 +364,62 @@ export const getTokensV5Options: RouteOptions = {
       (query as any).source = source?.id;
       selectFloorData = "s.*";
 
-      if (query.normalizeRoyalties) {
-        sourceQuery = `
-        JOIN LATERAL (
-          SELECT o.id AS floor_sell_id,
-                 o.maker AS floor_sell_maker,
-                 o.id AS source_floor_sell_id,
-                 date_part('epoch', lower(o.valid_between)) AS floor_sell_valid_from,
-                 coalesce(
-                    nullif(date_part('epoch', upper(o.valid_between)), 'Infinity'),
-                    0
-                 ) AS floor_sell_valid_to,
-                 o.source_id_int AS floor_sell_source_id_int,
-                 o.normalized_value AS floor_sell_value,
-                 o.currency AS floor_sell_currency,
-                 o.currency_normalized_value AS floor_sell_currency_value
-          FROM orders o
-          JOIN token_sets_tokens tst ON o.token_set_id = tst.token_set_id
-          WHERE tst.contract = t.contract
-          AND tst.token_id = t.token_id
-          AND o.side = 'sell'
-          AND o.fillability_status = 'fillable'
-          AND o.approval_status = 'approved'
-          AND o.source_id_int = $/source/
-          ORDER BY o.normalized_value, o.value
-          LIMIT 1
-        ) s ON TRUE
-      `;
-      } else {
-        sourceQuery = `
-        JOIN LATERAL (
-          SELECT o.id AS floor_sell_id,
-                 o.maker AS floor_sell_maker,
-                 o.id AS source_floor_sell_id,
-                 date_part('epoch', lower(o.valid_between)) AS floor_sell_valid_from,
-                 coalesce(
-                    nullif(date_part('epoch', upper(o.valid_between)), 'Infinity'),
-                    0
-                 ) AS floor_sell_valid_to,
-                 o.source_id_int AS floor_sell_source_id_int,
-                 o.value AS floor_sell_value,
-                 o.currency AS floor_sell_currency,
-                 o.currency_value AS floor_sell_currency_value
-          FROM orders o
-          JOIN token_sets_tokens tst ON o.token_set_id = tst.token_set_id
-          WHERE tst.contract = t.contract
-          AND tst.token_id = t.token_id
-          AND o.side = 'sell'
-          AND o.fillability_status = 'fillable'
-          AND o.approval_status = 'approved'
-          AND o.source_id_int = $/source/
-          ORDER BY o.value
-          LIMIT 1
-        ) s ON TRUE
-      `;
+      const sourceConditions: string[] = [];
+      sourceConditions.push(`o.side = 'sell'`);
+      sourceConditions.push(`o.fillability_status = 'fillable'`);
+      sourceConditions.push(`o.approval_status = 'approved'`);
+      sourceConditions.push(`o.source_id_int = $/source/`);
+      sourceConditions.push(
+        `o.taker = '\\x0000000000000000000000000000000000000000' OR o.taker IS NULL`
+      );
+
+      if (query.contract) {
+        sourceConditions.push(`tst.contract = $/contract/`);
+      } else if (query.collection) {
+        let contractString = query.collection;
+        if (query.collection.includes(":")) {
+          const [contract, ,] = query.collection.split(":");
+          contractString = contract;
+        }
+
+        (query as any).contract = contractString;
+        sourceConditions.push(`tst.contract = $/contract/`);
       }
+
+      sourceQuery = `
+        JOIN LATERAL (
+          SELECT
+                  DISTINCT ON (token_id, contract)
+                  tst.token_id AS token_id,
+                  tst.contract AS contract,
+                  o.id AS floor_sell_id,
+                  o.maker AS floor_sell_maker,
+                  o.id AS source_floor_sell_id,
+                  date_part('epoch', lower(o.valid_between)) AS floor_sell_valid_from,
+                  coalesce(
+                    nullif(date_part('epoch', upper(o.valid_between)), 'Infinity'),
+                    0
+                  ) AS floor_sell_valid_to,
+                  o.source_id_int AS floor_sell_source_id_int,
+                  ${
+                    query.normalizeRoyalties ? "o.normalized_value" : "o.value"
+                  } AS floor_sell_value,
+                  o.currency AS floor_sell_currency,
+                  ${
+                    query.normalizeRoyalties ? "o.currency_normalized_value" : "o.currency_value"
+                  } AS floor_sell_currency_value
+          FROM orders o
+          JOIN token_sets_tokens tst ON o.token_set_id = tst.token_set_id
+          ${
+            sourceConditions.length
+              ? " WHERE " + sourceConditions.map((c) => `(${c})`).join(" AND ")
+              : ""
+          }
+          ORDER BY token_id, contract, ${
+            query.normalizeRoyalties ? "o.normalized_value" : "o.value"
+          }
+        ) s ON s.contract = t.contract AND s.token_id = t.token_id      
+      `;
     }
 
     try {
@@ -403,6 +439,7 @@ export const getTokensV5Options: RouteOptions = {
           t.rarity_rank,
           t.is_flagged,
           t.last_flag_update,
+          t.last_flag_change,
           c.slug,
           t.last_buy_value,
           t.last_buy_timestamp,
@@ -421,10 +458,12 @@ export const getTokensV5Options: RouteOptions = {
           ${selectAttributes}
           ${selectTopBid}
           ${selectIncludeQuantity}
+          ${selectIncludeDynamicPricing}
         FROM tokens t
         ${topBidQuery}
         ${sourceQuery}
         ${includeQuantityQuery}
+        ${includeDynamicPricingQuery}
         JOIN collections c ON t.collection_id = c.id
         JOIN contracts con ON t.contract = con.address
       `;
@@ -471,6 +510,10 @@ export const getTokensV5Options: RouteOptions = {
         conditions.push(`t.collection_id = $/collection/`);
       }
 
+      if (_.indexOf([0, 1], query.flagStatus) !== -1) {
+        conditions.push(`t.is_flagged = $/flagStatus/`);
+      }
+
       if (query.community) {
         conditions.push("c.community = $/community/");
       }
@@ -478,6 +521,14 @@ export const getTokensV5Options: RouteOptions = {
       if (query.contract) {
         (query as any).contract = toBuffer(query.contract);
         conditions.push(`t.contract = $/contract/`);
+      }
+
+      if (query.minRarityRank) {
+        conditions.push(`t.rarity_rank >= $/minRarityRank/`);
+      }
+
+      if (query.maxRarityRank) {
+        conditions.push(`t.rarity_rank <= $/maxRarityRank/`);
       }
 
       if (query.tokens) {
@@ -523,10 +574,10 @@ export const getTokensV5Options: RouteOptions = {
 
           switch (query.sortBy) {
             case "rarity": {
-              query.sortDirection = query.sortDirection || "desc"; // Default sorting for rarity is DESC
+              query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(
-                `(t.rarity_score, t.token_id) ${sign} ($/contRarity/, $/contTokenId/)`
+                `(t.rarity_rank, t.token_id) ${sign} ($/contRarity/, $/contTokenId/)`
               );
               (query as any).contRarity = contArr[0];
               (query as any).contTokenId = contArr[1];
@@ -583,9 +634,9 @@ export const getTokensV5Options: RouteOptions = {
       if (query.collection || query.attributes || query.tokenSetId || query.rarity) {
         switch (query.sortBy) {
           case "rarity": {
-            baseQuery += ` ORDER BY t.rarity_score ${
-              query.sortDirection || "DESC"
-            } NULLS LAST, t.token_id ${query.sortDirection || "DESC"}`;
+            baseQuery += ` ORDER BY t.rarity_rank ${
+              query.sortDirection || "ASC"
+            } NULLS LAST, t.token_id ${query.sortDirection || "ASC"}`;
             break;
           }
 
@@ -633,7 +684,7 @@ export const getTokensV5Options: RouteOptions = {
         if (query.collection || query.attributes || query.tokenSetId) {
           switch (query.sortBy) {
             case "rarity":
-              continuation = rawResult[rawResult.length - 1].rarity_score || "null";
+              continuation = rawResult[rawResult.length - 1].rarity_rank || "null";
               break;
 
             case "tokenId":
@@ -657,6 +708,29 @@ export const getTokensV5Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
+        const feeBreakdown = r.top_buy_fee_breakdown;
+
+        if (query.normalizeRoyalties && r.top_buy_missing_royalties) {
+          for (let i = 0; i < r.top_buy_missing_royalties.length; i++) {
+            const index: number = r.top_buy_fee_breakdown.findIndex(
+              (fee: { recipient: string }) =>
+                fee.recipient === r.top_buy_missing_royalties[i].recipient
+            );
+
+            const missingFeeBps = Number(r.top_buy_missing_royalties[i].bps);
+
+            if (index !== -1) {
+              feeBreakdown[index].bps += missingFeeBps;
+            } else {
+              feeBreakdown.push({
+                bps: missingFeeBps,
+                kind: "royalty",
+                recipient: r.top_buy_missing_royalties[i].recipient,
+              });
+            }
+          }
+        }
+
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
 
@@ -677,6 +751,75 @@ export const getTokensV5Options: RouteOptions = {
           ? fromBuffer(r.top_buy_currency)
           : Sdk.Common.Addresses.Weth[config.chainId];
 
+        let dynamicPricing = undefined;
+        if (query.includeDynamicPricing) {
+          // Add missing royalties on top of the raw prices
+          const missingRoyalties = query.normalizeRoyalties
+            ? ((r.floor_sell_missing_royalties ?? []) as any[])
+                .map((mr: any) => bn(mr.amount))
+                .reduce((a, b) => a.add(b), bn(0))
+            : bn(0);
+
+          if (r.floor_sell_raw_data) {
+            if (r.floor_sell_dynamic && r.floor_sell_order_kind === "seaport") {
+              const order = new Sdk.Seaport.Order(config.chainId, r.floor_sell_raw_data);
+
+              // Dutch auction
+              dynamicPricing = {
+                kind: "dutch",
+                data: {
+                  price: {
+                    start: await getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: bn(order.getMatchingPrice(order.params.startTime))
+                            .add(missingRoyalties)
+                            .toString(),
+                        },
+                      },
+                      floorAskCurrency
+                    ),
+                    end: await getJoiPriceObject(
+                      {
+                        gross: {
+                          amount: bn(order.getMatchingPrice(order.params.endTime))
+                            .add(missingRoyalties)
+                            .toString(),
+                        },
+                      },
+                      floorAskCurrency
+                    ),
+                  },
+                  time: {
+                    start: order.params.startTime,
+                    end: order.params.endTime,
+                  },
+                },
+              };
+            } else if (r.floor_sell_order_kind === "sudoswap") {
+              // Pool orders
+              dynamicPricing = {
+                kind: "pool",
+                data: {
+                  pool: r.floor_sell_raw_data.pair,
+                  prices: await Promise.all(
+                    (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
+                      getJoiPriceObject(
+                        {
+                          gross: {
+                            amount: bn(price).add(missingRoyalties).toString(),
+                          },
+                        },
+                        floorAskCurrency
+                      )
+                    )
+                  ),
+                },
+              };
+            }
+          }
+        }
+
         return {
           token: {
             contract,
@@ -688,6 +831,7 @@ export const getTokensV5Options: RouteOptions = {
             kind: r.kind,
             isFlagged: Boolean(Number(r.is_flagged)),
             lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
+            lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
             rarity: r.rarity_score,
             rarityRank: r.rarity_rank,
             collection: {
@@ -747,6 +891,7 @@ export const getTokensV5Options: RouteOptions = {
                 query.includeQuantity && r.floor_sell_value
                   ? r.floor_sell_quantity_remaining
                   : undefined,
+              dynamicPricing,
               source: {
                 id: floorSellSource?.address,
                 domain: floorSellSource?.domain,
@@ -787,7 +932,7 @@ export const getTokensV5Options: RouteOptions = {
                     icon: topBuySource?.getIcon(),
                     url: topBuySource?.metadata.url,
                   },
-                  feeBreakdown: r.top_buy_fee_breakdown,
+                  feeBreakdown: feeBreakdown,
                 }
               : undefined,
           },

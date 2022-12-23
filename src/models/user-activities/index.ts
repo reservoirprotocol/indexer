@@ -68,7 +68,8 @@ export class UserActivities {
     limit = 20,
     sortBy = "eventTimestamp",
     includeMetadata = true,
-    includeCriteria = false
+    includeCriteria = false,
+    contracts: string[] = []
   ) {
     const sortByColumn = sortBy == "eventTimestamp" ? "event_timestamp" : "created_at";
     let continuation = "";
@@ -76,6 +77,7 @@ export class UserActivities {
     let metadataQuery = "";
     let collectionFilter = "";
     let communityFilter = "";
+    let contractsFilter = "";
 
     if (!_.isNull(createdBefore)) {
       continuation = `AND ${sortByColumn} < $/createdBefore/`;
@@ -91,6 +93,10 @@ export class UserActivities {
       } else {
         collectionFilter = `AND collections.id = $/collections/`;
       }
+    }
+
+    if (!_.isEmpty(contracts)) {
+      contractsFilter = `AND contract IN ($/contracts:csv/)`;
     }
 
     if (community) {
@@ -221,6 +227,7 @@ export class UserActivities {
       types: _.join(types, "','"),
       collections,
       community,
+      contracts: contracts.map((contract: string) => toBuffer(contract)),
     };
 
     let usersFilter = "";
@@ -240,6 +247,7 @@ export class UserActivities {
              FROM user_activities
              ${metadataQuery}   
              WHERE ${usersFilter}
+             ${contractsFilter}
              ${continuation}
              ${typesFilter}
              ORDER BY ${sortByColumn} DESC NULLS LAST

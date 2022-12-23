@@ -49,6 +49,7 @@ type SaveResult = {
   status: string;
   txHash: string;
   unfillable?: boolean;
+  triggerKind?: "new-order" | "reprice";
 };
 
 export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
@@ -112,6 +113,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             id,
             txHash: orderParams.txHash,
             status: "success",
+            triggerKind: "reprice",
           });
         }
       }
@@ -175,6 +177,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             id,
             txHash: orderParams.txHash,
             status: "success",
+            triggerKind: "reprice",
           });
         } else {
           // If a newer order already exists, then we just skip processing
@@ -254,6 +257,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         txHash: orderParams.txHash,
         status: "success",
         unfillable,
+        triggerKind: "new-order",
       });
     } catch (error) {
       logger.error(
@@ -302,22 +306,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
     );
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
-
-    await ordersUpdateById.addToQueue(
-      results
-        .filter((r) => r.status === "success" && !r.unfillable)
-        .map(
-          ({ id, txHash }) =>
-            ({
-              context: `new-order-${id}-${txHash}`,
-              id,
-              trigger: {
-                kind: "new-order",
-              },
-            } as ordersUpdateById.OrderInfo)
-        )
-    );
   }
+
+  await ordersUpdateById.addToQueue(
+    results
+      .filter(({ status, unfillable }) => status === "success" && !unfillable)
+      .map(
+        ({ id, txHash, triggerKind }) =>
+          ({
+            context: `${triggerKind}-${id}-${txHash}`,
+            id,
+            trigger: {
+              kind: triggerKind,
+            },
+          } as ordersUpdateById.OrderInfo)
+      )
+  );
 
   return results;
 };

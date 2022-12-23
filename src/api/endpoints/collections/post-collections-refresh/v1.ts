@@ -100,6 +100,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         }
 
         await collectionUpdatesMetadata.addToQueue(
+          collection.id,
           collection.contract,
           tokenId,
           collection.community,
@@ -158,6 +159,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         }
 
         await collectionUpdatesMetadata.addToQueue(
+          collection.id,
           collection.contract,
           tokenId,
           collection.community,
@@ -166,7 +168,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         );
 
         // Refresh the contract floor sell and top bid
-        await collectionsRefreshCache.addToQueue(collection.contract);
+        await collectionsRefreshCache.addToQueue(collection.id);
 
         // Revalidate the contract orders
         await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);

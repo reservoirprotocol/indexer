@@ -9,8 +9,9 @@ import { logger } from "@/common/logger";
 import { Tokens } from "@/models/tokens";
 import { ApiKeyManager } from "@/models/api-keys";
 
-import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
-import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
+import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
+import { Collections } from "@/models/collections";
+import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 
 const version = "v1";
 
@@ -58,32 +59,35 @@ export const postFlagTokenV1Options: RouteOptions = {
 
     try {
       const currentUtcTime = new Date().toISOString();
-
-      await Tokens.update(contract, tokenId, {
+      const fields: TokensEntityUpdateParams = {
         isFlagged: payload.flag,
         lastFlagUpdate: currentUtcTime,
-      });
+      };
 
+      // If current flag status is different trigger a job to verify the new status
       if (token.isFlagged != payload.flag) {
-        const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
-        await pendingFlagStatusSyncJobs.add([
-          {
-            kind: "tokens",
-            data: {
-              collectionId: token.collectionId,
-              contract: contract,
-              tokens: [
-                {
-                  tokenId: tokenId,
-                  tokenIsFlagged: payload.flag,
-                },
-              ],
-            },
-          },
-        ]);
+        fields.lastFlagChange = currentUtcTime;
 
-        await flagStatusProcessQueue.addToQueue();
+        const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+
+        await metadataIndexFetch.addToQueue(
+          [
+            {
+              kind: "single-token",
+              data: {
+                method: metadataIndexFetch.getIndexingMethod(collection?.community || null),
+                contract,
+                tokenId,
+                collection: token.collectionId,
+              },
+            },
+          ],
+          true
+        );
       }
+
+      // Update the token status
+      await Tokens.update(contract, tokenId, fields);
 
       const key = request.headers["x-api-key"];
       const apiKey = await ApiKeyManager.getApiKey(key);
@@ -97,7 +101,7 @@ export const postFlagTokenV1Options: RouteOptions = {
 
       logger.info(
         `post-flag-token-${version}-handler`,
-        `${callingUser} updated ${payload.token} to ${payload.flag}`
+        `${callingUser} updated ${payload.token} to ${payload.flag} from ${token.isFlagged}`
       );
       return { message: "Request accepted" };
     } catch (error) {

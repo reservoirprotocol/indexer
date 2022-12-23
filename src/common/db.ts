@@ -19,7 +19,7 @@ export const edb = pgp({
 export const idb = pgp({
   connectionString: config.databaseUrl,
   keepAlive: true,
-  max: 60,
+  max: 120,
   connectionTimeoutMillis: 30 * 1000,
   query_timeout: 5 * 60 * 1000,
   statement_timeout: 5 * 60 * 1000,
@@ -45,6 +45,16 @@ export const redb = pgp({
   connectionTimeoutMillis: 10 * 1000,
   query_timeout: 10 * 1000,
   statement_timeout: 10 * 1000,
+  allowExitOnIdle: true,
+});
+
+export const redbAlt = pgp({
+  connectionString: config.readReplicaDatabaseUrl,
+  keepAlive: true,
+  max: 60,
+  connectionTimeoutMillis: 20 * 1000,
+  query_timeout: 20 * 1000,
+  statement_timeout: 20 * 1000,
   allowExitOnIdle: true,
 });
 

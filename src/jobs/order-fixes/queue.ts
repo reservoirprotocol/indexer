@@ -2,13 +2,14 @@ import * as Sdk from "@reservoir0x/sdk";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
-import { idb, redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
+import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as raribleCheck from "@/orderbook/orders/rarible/check";
 import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
 import * as seaportCheck from "@/orderbook/orders/seaport/check";
@@ -25,7 +26,7 @@ export const queue = new Queue(QUEUE_NAME, {
       type: "exponential",
       delay: 10000,
     },
-    removeOnComplete: 10000,
+    removeOnComplete: 1000,
     removeOnFail: 10000,
     timeout: 60000,
   },
@@ -43,9 +44,11 @@ if (config.doBackgroundWork) {
         switch (by) {
           case "id": {
             // If the order is valid or potentially valid, recheck it's status
-            const result = await redb.oneOrNone(
+            const result = await idb.oneOrNone(
               `
                 SELECT
+                  orders.side,
+                  orders.token_set_id,
                   orders.kind,
                   orders.raw_data
                 FROM orders
@@ -171,6 +174,29 @@ if (config.doBackgroundWork) {
                   break;
                 }
 
+                case "sudoswap": {
+                  try {
+                    // TODO: Add support for bid validation
+                    if (result.side === "sell") {
+                      const order = new Sdk.Sudoswap.Order(config.chainId, result.raw_data);
+
+                      const [, contract, tokenId] = result.token_set_id.split(":");
+                      const balance = await commonHelpers.getNftBalance(
+                        contract,
+                        tokenId,
+                        order.params.pair
+                      );
+                      if (balance.lte(0)) {
+                        fillabilityStatus = "no-balance";
+                      }
+                    }
+                  } catch {
+                    return;
+                  }
+
+                  break;
+                }
+
                 case "rarible": {
                   const order = new Sdk.Rarible.Order(config.chainId, result.raw_data);
                   try {
@@ -199,15 +225,26 @@ if (config.doBackgroundWork) {
                 }
               }
 
+              logger.info(
+                QUEUE_NAME,
+                `Detected order status: id=${data.id} fillability=${fillabilityStatus}, approval=${approvalStatus}`
+              );
+
               const fixResult = await idb.oneOrNone(
                 `
-                  UPDATE "orders" AS "o" SET
-                    "fillability_status" = $/fillabilityStatus/,
-                    "approval_status" = $/approvalStatus/,
-                    "updated_at" = now()
-                  WHERE "o"."id" = $/id/
-                    AND ("o"."fillability_status" != $/fillabilityStatus/ OR "o"."approval_status" != $/approvalStatus/)
-                  RETURNING "o"."id"
+                  UPDATE orders SET
+                    fillability_status = $/fillabilityStatus/,
+                    approval_status = $/approvalStatus/,
+                    expiration = (
+                      CASE
+                        WHEN $/fillabilityStatus/ = 'fillable' AND $/approvalStatus/ = 'approved' THEN nullif(upper(orders.valid_between), 'infinity')
+                        ELSE now()
+                      END
+                    ),
+                    updated_at = now()
+                  WHERE orders.id = $/id/
+                    AND (orders.fillability_status != $/fillabilityStatus/ OR orders.approval_status != $/approvalStatus/)
+                  RETURNING orders.id
                 `,
                 {
                   id: data.id,
@@ -235,7 +272,7 @@ if (config.doBackgroundWork) {
 
           case "token": {
             // Trigger a fix for all valid orders on the token
-            const result = await redb.manyOrNone(
+            const result = await idb.manyOrNone(
               `
                 SELECT "o"."id" FROM "orders" "o"
                 WHERE "o"."token_set_id" = $/tokenSetId/
@@ -254,7 +291,7 @@ if (config.doBackgroundWork) {
           case "maker": {
             // Trigger a fix for all of valid orders from the maker
             // TODO: Use keyset pagination to be able to handle large amounts of orders
-            const result = await redb.manyOrNone(
+            const result = await idb.manyOrNone(
               `
                 SELECT "o"."id" FROM "orders" "o"
                 WHERE "o"."maker" = $/maker/
@@ -275,7 +312,7 @@ if (config.doBackgroundWork) {
             // Trigger a fix for all valid orders on the contract
             for (const side of ["sell", "buy"]) {
               // TODO: Use keyset pagination to be able to handle large amounts of orders
-              const result = await redb.manyOrNone(
+              const result = await idb.manyOrNone(
                 `
                   SELECT "o"."id" FROM "orders" "o"
                   WHERE "o"."side" = $/side/ AND "o"."contract" = $/contract/

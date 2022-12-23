@@ -22,7 +22,7 @@ export const queue = new Queue(QUEUE_NAME, {
     timeout: 120000,
   },
 });
-new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
+new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate(), maxStalledCount: 10 });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
@@ -38,7 +38,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 10 : 20 }
+    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 3 : 20 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

@@ -10,9 +10,9 @@ export * as x2y2 from "@/orderbook/orders/x2y2";
 export * as zeroExV4 from "@/orderbook/orders/zeroex-v4";
 export * as zora from "@/orderbook/orders/zora";
 export * as universe from "@/orderbook/orders/universe";
-export * as element from "@/orderbook/orders/element";
 export * as blur from "@/orderbook/orders/blur";
 export * as rarible from "@/orderbook/orders/rarible";
+export * as manifold from "@/orderbook/orders/manifold";
 
 // Imports
 
@@ -50,7 +50,14 @@ export type OrderKind =
   | "universe"
   | "nftx"
   | "blur"
-  | "forward";
+  | "forward"
+  | "manifold"
+  | "tofu-nft"
+  | "decentraland"
+  | "nft-trader"
+  | "okex"
+  | "bend-dao"
+  | "superrare";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -105,6 +112,21 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("nftx.io");
       case "blur":
         return sources.getOrInsert("blur.io");
+      case "manifold":
+        return sources.getOrInsert("manifold.xyz");
+      case "tofu-nft":
+        return sources.getOrInsert("tofunft.com");
+      case "decentraland":
+        return sources.getOrInsert("market.decentraland.org");
+      case "nft-trader":
+        return sources.getOrInsert("nfttrader.io");
+      case "okex":
+        return sources.getOrInsert("okx.com");
+      case "bend-dao":
+        return sources.getOrInsert("benddao.xyz");
+      case "superrare":
+        return sources.getOrInsert("superrare.com");
+
       case "mint": {
         if (address && mintsSources.has(address)) {
           return sources.getOrInsert(mintsSources.get(address)!);
@@ -496,11 +518,11 @@ export const generateListingDetailsV6 = (
       };
     }
 
-    case "blur": {
+    case "manifold": {
       return {
-        kind: "blur",
+        kind: "manifold",
         ...common,
-        order: new Sdk.Blur.Order(config.chainId, order.rawData),
+        order: new Sdk.Manifold.Order(config.chainId, order.rawData),
       };
     }
 
@@ -515,6 +537,7 @@ export const generateBidDetailsV6 = async (
   order: {
     id: string;
     kind: OrderKind;
+    unitPrice: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rawData: any;
     fees?: Sdk.RouterV6.Types.Fee[];
@@ -578,6 +601,7 @@ export const generateBidDetailsV6 = async (
             contract: token.contract,
             tokenId: token.tokenId,
             id: order.id,
+            unitPrice: order.unitPrice,
             // eslint-disable-next-line
           } as any,
         };

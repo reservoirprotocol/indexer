@@ -23,6 +23,9 @@ const version = "v4";
 export const getExecuteBuyV4Options: RouteOptions = {
   description: "Buy tokens",
   tags: ["api", "x-deprecated"],
+  timeout: {
+    server: 20 * 1000,
+  },
   plugins: {
     "hapi-swagger": {
       order: 10,

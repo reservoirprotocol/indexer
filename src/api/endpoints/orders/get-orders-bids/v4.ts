@@ -527,26 +527,25 @@ export const getOrdersBidsV4Options: RouteOptions = {
 
         if (query.normalizeRoyalties && r.missing_royalties) {
           for (let i = 0; i < r.missing_royalties.length; i++) {
-            if (!Object.keys(r.missing_royalties[i]).includes("bps")) {
-              break;
-            }
             const index: number = r.fee_breakdown.findIndex(
               (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
             );
 
-            if (index > -1) {
-              feeBreakdown[index].bps += Number(r.missing_royalties[i].bps);
+            const missingFeeBps = Number(r.missing_royalties[i].bps);
+            feeBps += missingFeeBps;
+
+            if (index !== -1) {
+              feeBreakdown[index].bps += missingFeeBps;
             } else {
-              const missingRoyalty = {
-                bps: Number(r.missing_royalties[i].bps),
+              feeBreakdown.push({
+                bps: missingFeeBps,
                 kind: "royalty",
                 recipient: r.missing_royalties[i].recipient,
-              };
-              feeBreakdown.push(missingRoyalty);
-              feeBps += Number(r.missing_royalties[i].bps);
+              });
             }
           }
         }
+
         let source: SourcesEntity | undefined;
 
         if (r.token_set_id?.startsWith("token")) {

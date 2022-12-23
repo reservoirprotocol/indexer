@@ -40,12 +40,30 @@ if (config.doBackgroundWork) {
       const rateLimitExpiresIn = await getLockExpiration(getRateLimitLockName(method));
 
       if (rateLimitExpiresIn > 0) {
-        logger.info(QUEUE_NAME, `Rate Limited. rateLimitExpiresIn: ${rateLimitExpiresIn}`);
+        logger.info(
+          QUEUE_NAME,
+          `Rate Limited. rateLimitExpiresIn=${rateLimitExpiresIn}, method=${method}`
+        );
 
         useMetadataApiBaseUrlAlt = true;
       }
 
-      const count = method == "soundxyz" ? 10 : 20;
+      if (config.chainId === 1 && method === "simplehash") {
+        logger.info(QUEUE_NAME, `Forced alt. method=${method}`);
+
+        useMetadataApiBaseUrlAlt = true;
+      }
+
+      let count = 20; // Default number of tokens to fetch
+      switch (method) {
+        case "soundxyz":
+          count = 10;
+          break;
+
+        case "simplehash":
+          count = 50;
+          break;
+      }
 
       // Get the tokens from the list
       const pendingRefreshTokens = new PendingRefreshTokens(method);
@@ -73,7 +91,7 @@ if (config.doBackgroundWork) {
         if ((error as any).response?.status === 429) {
           logger.info(
             QUEUE_NAME,
-            `Too Many Requests. useMetadataApiBaseUrlAlt=${useMetadataApiBaseUrlAlt}, error: ${JSON.stringify(
+            `Too Many Requests. useMetadataApiBaseUrlAlt=${useMetadataApiBaseUrlAlt}, method=${method}, error: ${JSON.stringify(
               (error as any).response.data
             )}`
           );

@@ -13,6 +13,8 @@ import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attr
 import * as rarityQueue from "@/jobs/collection-updates/rarity-queue";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import { getUnixTime } from "date-fns";
+import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
+import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -50,12 +52,15 @@ if (config.doBackgroundWork) {
       } = job.data as TokenMetadataInfo;
 
       try {
+        const isFlagged = flagged === undefined ? null : Number(flagged);
+
         const flaggedQueryPart =
           flagged === undefined
             ? ""
             : `
               is_flagged = $/isFlagged/,
               last_flag_update = now(),
+              last_flag_change = CASE WHEN (is_flagged != $/isFlagged/) THEN NOW() ELSE last_flag_change END,
         `;
 
         // Update the token's metadata.
@@ -72,7 +77,13 @@ if (config.doBackgroundWork) {
               created_at = created_at
             WHERE tokens.contract = $/contract/
             AND tokens.token_id = $/tokenId/
-            RETURNING collection_id, created_at
+            RETURNING collection_id, created_at, (
+                  SELECT
+                    is_flagged
+                  FROM tokens
+                  WHERE tokens.contract = $/contract/
+                  AND tokens.token_id = $/tokenId/
+                ) AS old_is_flagged
           `,
           {
             contract: toBuffer(contract),
@@ -81,7 +92,7 @@ if (config.doBackgroundWork) {
             description: description || null,
             image: imageUrl || null,
             media: mediaUrl || null,
-            isFlagged: flagged === undefined ? null : Number(flagged),
+            isFlagged,
           }
         );
 
@@ -110,6 +121,25 @@ if (config.doBackgroundWork) {
           );
 
           return;
+        }
+
+        if (isFlagged != null && result.old_is_flagged != isFlagged) {
+          logger.info(
+            QUEUE_NAME,
+            `Flag Status Diff. collectionId:${result.collection_id}, contract:${contract}, tokenId: ${tokenId}, IsFlagged:${isFlagged}, OldIsFlagged:${result.old_is_flagged}`
+          );
+
+          await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
+            {
+              kind: "revalidation",
+              contract,
+              tokenId,
+              txHash: null,
+              txTimestamp: null,
+            },
+          ]);
+
+          await flagStatusGenerateCollectionTokenSet.addToQueue(contract, result.collection_id);
         }
 
         const addedTokenAttributes = [];
@@ -391,7 +421,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 30 }
+    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 10 : 30 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

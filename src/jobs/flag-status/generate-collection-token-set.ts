@@ -13,11 +13,7 @@ import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle"
 import * as tokenSet from "@/orderbook/token-sets";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
-import { idb, redb } from "@/common/db";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
-import * as flagStatusGenerateAttributeTokenSet from "@/jobs/flag-status/generate-attribute-token-set";
-import { toBuffer } from "@/common/utils";
-import { HashZero } from "@ethersproject/constants";
+import { redb } from "@/common/db";
 
 const QUEUE_NAME = "flag-status-generate-collection-token-set";
 
@@ -105,13 +101,6 @@ if (config.doBackgroundWork) {
 
           // Set the new non flagged tokens token set
           await Collections.update(collectionId, { nonFlaggedTokenSetId: tokenSetId });
-
-          await handleAttributes(
-            contract,
-            collectionId,
-            flaggedTokens.map((r) => r.tokenId)
-          );
-          await handleOrders(contract, collectionId, tokenSetId, schemaHash);
         }
       } else {
         logger.info(
@@ -166,83 +155,6 @@ const getCollectionTokens = async (collectionId: string) => {
   }
 
   return tokens;
-};
-
-const handleOrders = async (
-  contract: string,
-  collectionId: string,
-  tokenSetId: string,
-  tokenSetSchemaHash: string
-) => {
-  // Trigger new order flow for valid orders.
-  const orders = await idb.manyOrNone(
-    `
-                UPDATE orders
-                SET token_set_schema_hash = $/tokenSetSchemaHash/
-                WHERE orders.side = 'buy'
-                AND orders.fillability_status = 'fillable'
-                AND orders.approval_status = 'approved'
-                AND orders.token_set_id = $/tokenSetId/
-                AND orders.token_set_schema_hash = $/defaultSchemaHash/
-                RETURNING orders.id
-              `,
-    {
-      tokenSetId,
-      tokenSetSchemaHash: toBuffer(tokenSetSchemaHash),
-      defaultSchemaHash: toBuffer(HashZero),
-    }
-  );
-
-  if (orders?.length) {
-    logger.info(
-      QUEUE_NAME,
-      `Orders Found!. contract=${contract}, collectionId=${collectionId}, tokenSetId=${tokenSetId}, tokenSetSchemaHash=${tokenSetSchemaHash}, orders=${orders.length}`
-    );
-
-    await ordersUpdateById.addToQueue(
-      orders.map(
-        ({ id }) =>
-          ({
-            context: `new-order-${id}`,
-            id,
-            trigger: {
-              kind: "new-order",
-            },
-          } as ordersUpdateById.OrderInfo)
-      )
-    );
-  }
-};
-
-const handleAttributes = async (
-  contract: string,
-  collectionId: string,
-  flaggedTokenIds: string[]
-) => {
-  // Calculate non flagged token set for related attributes
-  const attributes = await redb.manyOrNone(
-    `
-            SELECT DISTINCT token_attributes.attribute_id
-            FROM token_attributes
-            WHERE token_attributes.collection_id = $/collectionId/      
-            AND token_attributes.token_id IN ($/flaggedTokenIds:list/)   
-          `,
-    {
-      collectionId,
-      flaggedTokenIds,
-    }
-  );
-
-  if (attributes?.length) {
-    logger.info(
-      QUEUE_NAME,
-      `Attributes Found!. contract=${contract}, collectionId=${collectionId}, attributes=${attributes.length}`
-    );
-
-    await flagStatusGenerateAttributeTokenSet.addToQueue(
-      attributes.map(({ attribute_id }) => attribute_id)
-    );
-  }
 };
 
 export const addToQueue = async (contract: string, collectionId: string) => {

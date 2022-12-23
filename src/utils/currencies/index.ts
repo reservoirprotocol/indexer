@@ -103,6 +103,7 @@ export const getCurrency = async (currencyAddress: string): Promise<Currency> =>
         }
       );
 
+      // Update the in-memory cache
       CURRENCY_MEMORY_CACHE.set(currencyAddress, {
         contract: currencyAddress,
         name,
@@ -145,6 +146,15 @@ export const tryGetCurrencyDetails = async (currencyAddress: string) => {
       metadata.image = result.image.large;
     }
   }
+
+  // Make sure to update the in-memory cache
+  CURRENCY_MEMORY_CACHE.set(currencyAddress, {
+    contract: currencyAddress,
+    name,
+    symbol,
+    decimals,
+    metadata,
+  });
 
   return {
     name,
