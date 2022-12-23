@@ -75,7 +75,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .description("Filter to a source by domain. Example: `opensea.io`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includePrivate: Joi.boolean()
-        .default(false)
+        .default(true)
         .description("If true, private orders are included in the response."),
       includeCriteriaMetadata: Joi.boolean()
         .default(false)
