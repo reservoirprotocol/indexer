@@ -676,7 +676,12 @@ export const save = async (
       });
 
       const unfillable =
-        fillabilityStatus !== "fillable" || approvalStatus !== "approved" ? true : undefined;
+        fillabilityStatus !== "fillable" ||
+        approvalStatus !== "approved" ||
+        // Skip private orders
+        info.taker !== AddressZero
+          ? true
+          : undefined;
 
       results.push({
         id,
@@ -1110,7 +1115,12 @@ export const save = async (
       });
 
       const unfillable =
-        fillabilityStatus !== "fillable" || approvalStatus !== "approved" ? true : undefined;
+        fillabilityStatus !== "fillable" ||
+        approvalStatus !== "approved" ||
+        // Skip private orders
+        (orderParams.taker ?? AddressZero) !== AddressZero
+          ? true
+          : undefined;
 
       results.push({
         id,

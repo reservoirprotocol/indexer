@@ -132,7 +132,7 @@ async function getTokensForCollection(
 export function getIndexingMethod(community: string | null) {
   switch (community) {
     case "sound.xyz":
-      return config.metadataIndexingMethod; // "soundxyz";
+      return "soundxyz";
   }
 
   return config.metadataIndexingMethod;

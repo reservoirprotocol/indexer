@@ -26,6 +26,7 @@ import * as tofu from "@/events-sync/handlers/tofu";
 import * as nftTrader from "@/events-sync/handlers/nft-trader";
 import * as okex from "@/events-sync/handlers/okex";
 import * as bendDao from "@/events-sync/handlers/bend-dao";
+import * as superrare from "@/events-sync/handlers/superrare";
 
 export type EventsInfo = {
   kind:
@@ -54,7 +55,8 @@ export type EventsInfo = {
     | "decentraland"
     | "nft-trader"
     | "okex"
-    | "bend-dao";
+    | "bend-dao"
+    | "superrare";
   events: EnhancedEvent[];
   backfill?: boolean;
 };
@@ -189,6 +191,11 @@ export const processEvents = async (info: EventsInfo) => {
 
     case "bend-dao": {
       data = await bendDao.handleEvents(info.events);
+      break;
+    }
+
+    case "superrare": {
+      data = await superrare.handleEvents(info.events);
       break;
     }
   }

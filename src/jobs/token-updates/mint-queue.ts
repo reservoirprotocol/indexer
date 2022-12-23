@@ -73,7 +73,7 @@ if (config.doBackgroundWork) {
               AND "t"."collection_id" IS NULL;
                   
               UPDATE "collections" SET
-                "token_count" = "token_count" + (SELECT COUNT(*) FROM "tokens" WHERE "collection_id" = $/collection/),
+                "token_count" = (SELECT COUNT(*) FROM "tokens" WHERE "collection_id" = $/collection/),
                 "updated_at" = now()
               WHERE "id" = $/collection/;
             `,

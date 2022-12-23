@@ -405,7 +405,9 @@ export const getTokensV5Options: RouteOptions = {
                     query.normalizeRoyalties ? "o.normalized_value" : "o.value"
                   } AS floor_sell_value,
                   o.currency AS floor_sell_currency,
-                  o.currency_normalized_value AS floor_sell_currency_value
+                  ${
+                    query.normalizeRoyalties ? "o.currency_normalized_value" : "o.currency_value"
+                  } AS floor_sell_currency_value
           FROM orders o
           JOIN token_sets_tokens tst ON o.token_set_id = tst.token_set_id
           ${
