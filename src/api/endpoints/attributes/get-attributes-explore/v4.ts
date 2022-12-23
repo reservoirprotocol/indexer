@@ -184,7 +184,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
             ) "recent_floor_values_info" ON TRUE
             `;
 
-      if (query.continuation && !query.attributeKey) {
+      if (query.continuation) {
         const contArr = splitContinuation(query.continuation, /^[0-9]+_[^_]+_[^_]+$/);
         if (contArr.length !== 3) {
           throw new Error("Invalid continuation string used");
