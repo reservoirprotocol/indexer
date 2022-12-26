@@ -5,13 +5,28 @@ import { baseProvider } from "@/common/provider";
 import { getEventsFromTx } from "../utils/test";
 import * as seaport from "@/events-sync/handlers/seaport";
 import { extractRoyalties } from "@/events-sync/handlers/royalties/seaport";
+import { getRoyalties } from "@/utils/royalties";
 
 jest.setTimeout(1000 * 1000);
+
+jest.mock("@/utils/royalties");
+const mockGetRoyalties = getRoyalties as jest.MockedFunction<typeof getRoyalties>;
 
 describe("Royalties - Seaport", () => {
   const TEST_COLLECTION = "0x33c6eec1723b12c46732f7ab41398de45641fa42";
 
   const testFeeExtract = async (txHash: string) => {
+    mockGetRoyalties.mockImplementation(async (contract: string) => {
+      return contract === TEST_COLLECTION
+        ? [
+            {
+              recipient: "0x459fe44490075a2ec231794f9548238e99bf25c0",
+              bps: 750,
+            },
+          ]
+        : [];
+    });
+
     const tx = await baseProvider.getTransactionReceipt(txHash);
     const events = await getEventsFromTx(tx);
     const result = await seaport.handleEvents(events);
