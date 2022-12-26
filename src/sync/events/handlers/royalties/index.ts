@@ -1,7 +1,11 @@
 import { Royalty } from "@/utils/royalties";
 import * as es from "@/events-sync/storage";
-
 import { logger } from "@/common/logger";
+
+import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
+import { parseEnhancedEventsToEventsInfo } from "@/events-sync/index";
+import { parseEventsInfo } from "@/events-sync/handlers";
+
 import * as seaport from "@/events-sync/handlers/royalties/seaport";
 
 const registry = new Map<string, RoyaltyAdapter>();
@@ -18,7 +22,16 @@ export interface RoyaltyAdapter {
   extractRoyalties(fillEvent: es.fills.Event): Promise<null | RoyaltyResult>;
 }
 
-registry.set("seaport", seaport as RoyaltyAdapter);
+export async function parseEnhancedEventToOnChainData(enhancedEvents: EnhancedEvent[]) {
+  const eventsInfos = await parseEnhancedEventsToEventsInfo(enhancedEvents, false);
+  const allOnChainData: OnChainData[] = [];
+  for (let index = 0; index < eventsInfos.length; index++) {
+    const eventsInfo = eventsInfos[index];
+    const onchainData = await parseEventsInfo(eventsInfo);
+    allOnChainData.push(onchainData);
+  }
+  return allOnChainData;
+}
 
 export const assignRoyaltiesToFillEvents = async (fillEvents: es.fills.Event[]) => {
   for (let index = 0; index < fillEvents.length; index++) {
@@ -43,3 +56,5 @@ export const assignRoyaltiesToFillEvents = async (fillEvents: es.fills.Event[]) 
     }
   }
 };
+
+registry.set("seaport", seaport as RoyaltyAdapter);
