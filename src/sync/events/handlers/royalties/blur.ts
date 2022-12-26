@@ -7,7 +7,7 @@ import * as utils from "@/events-sync/utils";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import { Royalty, getRoyalties } from "@/utils/royalties";
 import { formatEther } from "@ethersproject/units";
-import { parseEnhancedEventToOnChainData } from "./index"
+import { parseEnhancedEventToOnChainData } from "./index";
 import { concat } from "@/common/utils";
 import * as es from "@/events-sync/storage";
 
