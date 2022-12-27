@@ -13,6 +13,7 @@ import * as foundation from "@/events-sync/data/foundation";
 import * as looksRare from "@/events-sync/data/looks-rare";
 import * as nftx from "@/events-sync/data/nftx";
 import * as nouns from "@/events-sync/data/nouns";
+import * as infinity from "@/events-sync/data/infinity";
 import * as quixotic from "@/events-sync/data/quixotic";
 import * as rarible from "@/events-sync/data/rarible";
 import * as seaport from "@/events-sync/data/seaport";
@@ -104,6 +105,10 @@ export type EventDataKind =
   | "nftx-redeemed"
   | "nftx-minted"
   | "blur-orders-matched"
+  | "infinity-match-order-fulfilled"
+  | "infinity-take-order-fulfilled"
+  | "infinity-cancel-all-orders"
+  | "infinity-cancel-multiple-orders"
   | "blur-order-cancelled"
   | "blur-nonce-incremented"
   | "forward-order-filled"
@@ -201,6 +206,10 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       nftx.minted,
       nftx.redeemed,
       blur.ordersMatched,
+      infinity.matchOrderFulfilled,
+      infinity.takeOrderFulfilled,
+      infinity.cancelAllOrders,
+      infinity.cancelMultipleOrders,
       blur.orderCancelled,
       blur.nonceIncremented,
       forward.orderFilled,
@@ -368,6 +377,14 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return nftx.redeemed;
     case "blur-orders-matched":
       return blur.ordersMatched;
+    case "infinity-match-order-fulfilled":
+      return infinity.matchOrderFulfilled;
+    case "infinity-take-order-fulfilled":
+      return infinity.takeOrderFulfilled;
+    case "infinity-cancel-all-orders":
+      return infinity.cancelAllOrders;
+    case "infinity-cancel-multiple-orders":
+      return infinity.cancelMultipleOrders;
     case "blur-order-cancelled":
       return blur.orderCancelled;
     case "blur-nonce-incremented":

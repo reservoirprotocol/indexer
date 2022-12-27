@@ -57,7 +57,7 @@
     "dotenv": "^10.0.0",
     "eslint": "^8.10.0",
     "eslint-config-prettier": "^8.5.0",
-    "ethers": "5.6.8",
+    "ethers": "^5.7.2",
     "graphql": "^16.3.0",
     "graphql-request": "^4.0.0",
     "hapi-pulse": "^3.0.0",

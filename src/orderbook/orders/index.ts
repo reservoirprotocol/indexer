@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Exports
 
 export * as cryptopunks from "@/orderbook/orders/cryptopunks";
@@ -10,12 +11,12 @@ export * as x2y2 from "@/orderbook/orders/x2y2";
 export * as zeroExV4 from "@/orderbook/orders/zeroex-v4";
 export * as zora from "@/orderbook/orders/zora";
 export * as universe from "@/orderbook/orders/universe";
+export * as infinity from "@/orderbook/orders/infinity";
 export * as blur from "@/orderbook/orders/blur";
 export * as rarible from "@/orderbook/orders/rarible";
 export * as manifold from "@/orderbook/orders/manifold";
 
 // Imports
-
 import * as Sdk from "@reservoir0x/sdk";
 import * as SdkTypesV5 from "@reservoir0x/sdk/dist/router/v5/types";
 import * as SdkTypesV6 from "@reservoir0x/sdk/dist/router/v6/types";
@@ -50,6 +51,7 @@ export type OrderKind =
   | "universe"
   | "nftx"
   | "blur"
+  | "infinity"
   | "forward"
   | "manifold"
   | "tofu-nft"
@@ -112,6 +114,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("nftx.io");
       case "blur":
         return sources.getOrInsert("blur.io");
+      case "infinity":
+        return sources.getOrInsert("infinity.xyz");
       case "manifold":
         return sources.getOrInsert("manifold.xyz");
       case "tofu-nft":
@@ -502,6 +506,15 @@ export const generateListingDetailsV6 = (
       };
     }
 
+    case "infinity": {
+      const sdkOrder = new Sdk.Infinity.Order(config.chainId, order.rawData);
+      return {
+        kind: "infinity",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
     case "rarible": {
       return {
         kind: "rarible",
@@ -649,6 +662,15 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.Universe.Order(config.chainId, order.rawData);
       return {
         kind: "universe",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
+    case "infinity": {
+      const sdkOrder = new Sdk.Infinity.Order(config.chainId, order.rawData);
+      return {
+        kind: "infinity",
         ...common,
         order: sdkOrder,
       };

@@ -20,6 +20,7 @@ import * as x2y2 from "@/events-sync/handlers/x2y2";
 import * as zeroExV4 from "@/events-sync/handlers/zeroex-v4";
 import * as zora from "@/events-sync/handlers/zora";
 import * as universe from "@/events-sync/handlers/universe";
+import * as infinity from "@/events-sync/handlers/infinity";
 import * as rarible from "@/events-sync/handlers/rarible";
 import * as manifold from "@/events-sync/handlers/manifold";
 import * as tofu from "@/events-sync/handlers/tofu";
@@ -49,6 +50,7 @@ export type EventsInfo = {
     | "zeroex-v4"
     | "zora"
     | "universe"
+    | "infinity"
     | "rarible"
     | "manifold"
     | "tofu"
@@ -161,6 +163,11 @@ export const processEvents = async (info: EventsInfo) => {
 
     case "universe": {
       data = await universe.handleEvents(info.events);
+      break;
+    }
+
+    case "infinity": {
+      data = await infinity.handleEvents(info.events);
       break;
     }
 

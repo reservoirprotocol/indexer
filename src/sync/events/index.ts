@@ -275,6 +275,11 @@ export const syncEvents = async (
         backfill,
       },
       {
+        kind: "infinity",
+        events: enhancedEvents.filter(({ kind }) => kind.startsWith("infinity")),
+        backfill,
+      },
+      {
         kind: "rarible",
         events: enhancedEvents.filter(
           ({ kind }) =>
