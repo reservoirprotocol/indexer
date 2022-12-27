@@ -118,7 +118,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               break;
             }
 
-            let taker = decodedInput.nftRecipient;
+            let taker = decodedInput.nftRecipient.toLowerCase();
             const price = bn(estimatedInputAmount).div(decodedInput.numNFTs).toString();
 
             // Handle: attribution
@@ -233,7 +233,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               break;
             }
 
-            let taker = decodedInput.nftRecipient;
+            let taker = decodedInput.nftRecipient.toLowerCase();
             const price = bn(estimatedInputAmount).div(decodedInput.nftIds.length).toString();
 
             // Handle: attribution
@@ -389,7 +389,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               break;
             }
 
-            let taker = decodedInput.tokenRecipient;
+            let taker = decodedInput.tokenRecipient.toLowerCase();
             const price = bn(estimatedOutputAmount).div(decodedInput.nftIds.length).toString();
 
             // Handle: attribution
@@ -509,6 +509,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
     fillEventsOnChain,
 
     fillInfos,
+    orderInfos,
 
     orders: orders.map((info) => ({
       kind: "sudoswap",
