@@ -31,6 +31,7 @@ export type OrderInfo = {
 type SaveResult = {
   id: string;
   txHash: string;
+  txTimestamp: number;
   status: string;
   triggerKind?: "new-order" | "reprice";
 };
@@ -234,6 +235,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               results.push({
                 id,
                 txHash: orderParams.txHash,
+                txTimestamp: orderParams.txTimestamp,
                 status: "success",
                 triggerKind: "new-order",
               });
@@ -275,6 +277,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               results.push({
                 id,
                 txHash: orderParams.txHash,
+                txTimestamp: orderParams.txTimestamp,
                 status: "success",
                 triggerKind: "reprice",
               });
@@ -294,6 +297,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             results.push({
               id,
               txHash: orderParams.txHash,
+              txTimestamp: orderParams.txTimestamp,
               status: "success",
               triggerKind: "reprice",
             });
@@ -441,6 +445,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 results.push({
                   id,
                   txHash: orderParams.txHash,
+                  txTimestamp: orderParams.txTimestamp,
                   status: "success",
                   triggerKind: "new-order",
                 });
@@ -481,6 +486,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 results.push({
                   id,
                   txHash: orderParams.txHash,
+                  txTimestamp: orderParams.txTimestamp,
                   status: "success",
                   triggerKind: "reprice",
                 });
@@ -552,12 +558,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     results
       .filter(({ status }) => status === "success")
       .map(
-        ({ id, txHash, triggerKind }) =>
+        ({ id, txHash, txTimestamp, triggerKind }) =>
           ({
             context: `${triggerKind}-${id}-${txHash}`,
             id,
             trigger: {
               kind: triggerKind,
+              txHash: txHash,
+              txTimestamp: txTimestamp,
             },
           } as ordersUpdateById.OrderInfo)
       )
