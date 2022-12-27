@@ -44,7 +44,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Handle: attribution
         const orderKind = "decentraland";
         const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind);
-
         if (data.taker) {
           taker = data.taker;
         }

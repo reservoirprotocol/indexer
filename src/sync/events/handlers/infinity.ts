@@ -140,7 +140,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Handle: attribution
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId: sellOrderHash }
         );
 
         // Handle: prices
@@ -171,6 +172,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             const token = nft.tokens[0];
             const tokenId = bn(token.tokenId).toString();
             const numTokens = bn(token.numTokens).toString();
+
             fillEvents.push({
               orderKind,
               orderId: sellOrderHash,
@@ -309,7 +311,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Handle: attribution
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId: orderHash }
         );
 
         // Handle: prices
@@ -343,6 +346,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               const token = nft.tokens[0];
               const tokenId = bn(token.tokenId).toString();
               const numTokens = bn(token.numTokens).toString();
+
               fillEvents.push({
                 orderKind,
                 orderId: orderHash,

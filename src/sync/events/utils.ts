@@ -13,7 +13,7 @@ import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getTransaction, saveTransaction, saveTransactions } from "@/models/transactions";
 import { getTransactionLogs, saveTransactionLogs } from "@/models/transaction-logs";
 import { getTransactionTrace, saveTransactionTrace } from "@/models/transaction-traces";
-import { OrderKind, getOrderSourceByOrderKind } from "@/orderbook/orders";
+import { OrderKind, getOrderSourceByOrderId, getOrderSourceByOrderKind } from "@/orderbook/orders";
 
 export const fetchBlock = async (blockNumber: number, force = false) =>
   getBlocks(blockNumber)
@@ -121,7 +121,10 @@ export const fetchTransactionLogs = async (txHash: string) =>
 export const extractAttributionData = async (
   txHash: string,
   orderKind: OrderKind,
-  address?: string
+  options?: {
+    address?: string;
+    orderId?: string;
+  }
 ) => {
   const sources = await Sources.getInstance();
 
@@ -129,7 +132,15 @@ export const extractAttributionData = async (
   let fillSource: SourcesEntity | undefined;
   let taker: string | undefined;
 
-  const orderSource = await getOrderSourceByOrderKind(orderKind, address);
+  let orderSource: SourcesEntity | undefined;
+  if (options?.orderId) {
+    // First try to get the order's source by id
+    orderSource = await getOrderSourceByOrderId(options.orderId);
+  }
+  if (!orderSource) {
+    // Default to getting the order's source by kind
+    orderSource = await getOrderSourceByOrderKind(orderKind, options?.address);
+  }
 
   // Properly set the taker when filling through router contracts
   const tx = await fetchTransaction(txHash);

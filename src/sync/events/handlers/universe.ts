@@ -96,7 +96,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Handle: attribution
 
         const orderKind = "universe";
-        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind);
+        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind, {
+          orderId: leftHash,
+        });
         if (data.taker) {
           taker = data.taker;
         }

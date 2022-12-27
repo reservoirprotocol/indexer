@@ -76,6 +76,31 @@ mintsSources.set("0xb66a603f4cfe17e3d27b87a8bfcad319856518b8", "rarible.com");
 mintsSources.set("0xc143bbfcdbdbed6d454803804752a064a622c1f3", "async.art");
 mintsSources.set("0xfbeef911dc5821886e1dda71586d90ed28174b7d", "knownorigin.io");
 
+export const getOrderSourceByOrderId = async (
+  orderId: string
+): Promise<SourcesEntity | undefined> => {
+  try {
+    const result = await redb.oneOrNone(
+      `
+        SELECT
+          fill_events_2.order_source_id_int
+        FROM fill_events_2
+        WHERE fill_events_2.order_id = $/orderId/
+        LIMIT 1
+      `,
+      { orderId }
+    );
+    if (result) {
+      const sources = await Sources.getInstance();
+      return sources.get(result.order_source_id_int);
+    }
+  } catch {
+    // Skip any errors
+  }
+
+  // In case nothing matched, return `undefined` by default
+};
+
 export const getOrderSourceByOrderKind = async (
   orderKind: OrderKind,
   address?: string
@@ -138,7 +163,7 @@ export const getOrderSourceByOrderKind = async (
       }
     }
   } catch {
-    // Skip on any errors
+    // Skip any errors
   }
 
   // In case nothing matched, return `undefined` by default

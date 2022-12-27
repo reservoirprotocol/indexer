@@ -111,7 +111,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderKind = eventData.kind.startsWith("wyvern-v2.3") ? "wyvern-v2.3" : "wyvern-v2";
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId: buyOrderId }
         );
         if (attributionData.taker) {
           taker = attributionData.taker;

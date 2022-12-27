@@ -81,20 +81,20 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const erc20TokenAmount = args["erc20TokenAmount"].toString();
         const erc721Token = args["erc721Token"].toLowerCase();
         const erc721TokenId = args["erc721TokenId"].toString();
-        const orderHash = args["orderHash"].toLowerCase();
+        const orderId = args["orderHash"].toLowerCase();
 
         // Handle: attribution
         const orderKind = "element-erc721";
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId }
         );
         if (attributionData.taker) {
           taker = attributionData.taker;
         }
 
         // Handle: prices
-
         let currency = erc20Token;
         if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
@@ -112,11 +112,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        const orderSide = "sell";
-
         orderInfos.push({
-          context: `filled-${orderHash}`,
-          id: orderHash,
+          context: `filled-${orderId}`,
+          id: orderId,
           trigger: {
             kind: "sale",
             txHash: baseEventParams.txHash,
@@ -124,9 +122,10 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
+        const orderSide = "sell";
         fillEventsPartial.push({
           orderKind,
-          orderId: orderHash,
+          orderId,
           orderSide,
           maker,
           taker,
@@ -144,8 +143,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         });
 
         fillInfos.push({
-          context: orderHash,
-          orderId: orderHash,
+          context: orderId,
+          orderId: orderId,
           orderSide: "sell",
           contract: erc721Token,
           tokenId: erc721TokenId,
@@ -166,14 +165,14 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const erc20TokenAmount = args["erc20TokenAmount"].toString();
         const erc721Token = args["erc721Token"].toLowerCase();
         const erc721TokenId = args["erc721TokenId"].toString();
-        const orderHash = args["orderHash"].toLowerCase();
+        const orderId = args["orderHash"].toLowerCase();
 
         // Handle: attribution
-
         const orderKind = "element-erc721";
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId }
         );
 
         if (attributionData.taker) {
@@ -181,7 +180,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         }
 
         // Handle: prices
-
         let currency = erc20Token;
         if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
@@ -200,8 +198,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         }
 
         orderInfos.push({
-          context: `filled-${orderHash}`,
-          id: orderHash,
+          context: `filled-${orderId}`,
+          id: orderId,
           trigger: {
             kind: "sale",
             txHash: baseEventParams.txHash,
@@ -210,8 +208,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         });
 
         fillInfos.push({
-          context: orderHash,
-          orderId: orderHash,
+          context: orderId,
+          orderId: orderId,
           orderSide: "buy",
           contract: erc721Token,
           tokenId: erc721TokenId,
@@ -222,7 +220,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         fillEventsPartial.push({
           orderKind,
-          orderId: orderHash,
+          orderId: orderId,
           orderSide: "sell",
           maker,
           taker,
@@ -252,21 +250,20 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const erc1155Token = args["erc1155Token"].toLowerCase();
         const erc1155TokenId = args["erc1155TokenId"].toString();
         const erc1155FillAmount = args["erc1155FillAmount"].toString();
-        const orderHash = args["orderHash"].toLowerCase();
+        const orderId = args["orderHash"].toLowerCase();
 
         // Handle: attribution
-
         const orderKind = "element-erc1155";
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId }
         );
         if (attributionData.taker) {
           taker = attributionData.taker;
         }
 
         // Handle: prices
-
         let currency = erc20Token;
         if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
@@ -285,8 +282,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         }
 
         orderInfos.push({
-          context: `filled-${orderHash}-${baseEventParams.txHash}`,
-          id: orderHash,
+          context: `filled-${orderId}-${baseEventParams.txHash}`,
+          id: orderId,
           trigger: {
             kind: "sale",
             txHash: baseEventParams.txHash,
@@ -296,7 +293,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         fillEventsPartial.push({
           orderKind,
-          orderId: orderHash,
+          orderId: orderId,
           orderSide: "sell",
           maker,
           taker,
@@ -314,8 +311,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         });
 
         fillInfos.push({
-          context: orderHash,
-          orderId: orderHash,
+          context: orderId,
+          orderId: orderId,
           orderSide: "sell",
           contract: erc1155Token,
           tokenId: erc1155TokenId,
@@ -337,14 +334,15 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const erc1155Token = args["erc1155Token"].toLowerCase();
         const erc1155TokenId = args["erc1155TokenId"].toString();
         const erc1155FillAmount = args["erc1155FillAmount"].toString();
-        const orderHash = args["orderHash"].toLowerCase();
+        const orderId = args["orderHash"].toLowerCase();
 
         // Handle: attribution
 
         const orderKind = "element-erc1155";
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId }
         );
         if (attributionData.taker) {
           taker = attributionData.taker;
@@ -370,8 +368,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         }
 
         orderInfos.push({
-          context: `filled-${orderHash}-${baseEventParams.txHash}`,
-          id: orderHash,
+          context: `filled-${orderId}-${baseEventParams.txHash}`,
+          id: orderId,
           trigger: {
             kind: "sale",
             txHash: baseEventParams.txHash,
@@ -381,7 +379,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         fillEventsPartial.push({
           orderKind,
-          orderId: orderHash,
+          orderId,
           orderSide: "buy",
           maker,
           taker,
@@ -399,8 +397,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         });
 
         fillInfos.push({
-          context: orderHash,
-          orderId: orderHash,
+          context: orderId,
+          orderId,
           orderSide: "buy",
           contract: erc1155Token,
           tokenId: erc1155TokenId,

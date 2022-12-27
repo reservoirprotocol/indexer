@@ -70,16 +70,7 @@ export const handleEvents = async (
         const erc721Token = parsedLog.args["erc721Token"].toLowerCase();
         const erc721TokenId = parsedLog.args["erc721TokenId"].toString();
 
-        // Handle: attribution
-
         const orderKind = "zeroex-v4-erc721";
-        const attributionData = await utils.extractAttributionData(
-          baseEventParams.txHash,
-          orderKind
-        );
-        if (attributionData.taker) {
-          taker = attributionData.taker;
-        }
 
         // Handle: prices
 
@@ -122,6 +113,16 @@ export const handleEvents = async (
                 currencyPrice = result.price;
               }
             });
+        }
+
+        // Handle: attribution
+        const attributionData = await utils.extractAttributionData(
+          baseEventParams.txHash,
+          orderKind,
+          { orderId }
+        );
+        if (attributionData.taker) {
+          taker = attributionData.taker;
         }
 
         let currency = erc20Token;
@@ -226,16 +227,7 @@ export const handleEvents = async (
         const erc1155TokenId = parsedLog.args["erc1155TokenId"].toString();
         const erc1155FillAmount = parsedLog.args["erc1155FillAmount"].toString();
 
-        // Handle: attribution
-
         const orderKind = "zeroex-v4-erc1155";
-        const attributionData = await utils.extractAttributionData(
-          baseEventParams.txHash,
-          orderKind
-        );
-        if (attributionData.taker) {
-          taker = attributionData.taker;
-        }
 
         // Handle: prices
 
@@ -277,6 +269,16 @@ export const handleEvents = async (
                 currencyPrice = bn(result.price).mul(erc1155FillAmount).toString();
               }
             });
+        }
+
+        // Handle: attribution
+        const attributionData = await utils.extractAttributionData(
+          baseEventParams.txHash,
+          orderKind,
+          { orderId }
+        );
+        if (attributionData.taker) {
+          taker = attributionData.taker;
         }
 
         let currency = erc20Token;
