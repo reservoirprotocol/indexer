@@ -38,9 +38,9 @@ export const getStatsV2Options: RouteOptions = {
       attributes: Joi.object()
         .unknown()
         .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
-      normalizeRoyalties: Joi.boolean()
-        .default(false)
-        .description("If true, prices will include missing royalties to be added on-top."),
+      normalizeRoyalties: Joi.boolean().description(
+        "If true, prices will include missing royalties to be added on-top."
+      ),
     })
       .oxor("collection", "token")
       .or("collection", "token"),

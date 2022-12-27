@@ -99,6 +99,14 @@ if (config.doBackgroundWork) {
             break;
           }
 
+          case "infinity": {
+            result = await orders.infinity.save(
+              [info as orders.infinity.OrderInfo],
+              relayToArweave
+            );
+            break;
+          }
+
           case "blur": {
             result = await orders.blur.save([info as orders.blur.OrderInfo], relayToArweave);
             break;
@@ -209,6 +217,12 @@ export type GenericOrderInfo =
   | {
       kind: "forward";
       info: orders.forward.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "infinity";
+      info: orders.infinity.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     }

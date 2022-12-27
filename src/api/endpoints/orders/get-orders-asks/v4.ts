@@ -2,6 +2,7 @@
 
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import * as Boom from "@hapi/boom";
 import Joi from "joi";
 import _ from "lodash";
 
@@ -20,6 +21,7 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { Orders } from "@/utils/orders";
+import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v4";
 
@@ -53,6 +55,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
       contracts: Joi.alternatives()
         .try(
           Joi.array().max(50).items(Joi.string().lowercase().pattern(regex.address)),
@@ -74,24 +79,22 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .pattern(regex.domain)
         .description("Filter to a source by domain. Example: `opensea.io`"),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
-      includePrivate: Joi.boolean()
-        .default(false)
-        .description("If true, private orders are included in the response."),
-      includeCriteriaMetadata: Joi.boolean()
-        .default(false)
-        .description("If true, criteria metadata is included in the response."),
-      includeRawData: Joi.boolean()
-        .default(false)
-        .description("If true, raw data is included in the response."),
+      includePrivate: Joi.boolean().description(
+        "If true, private orders are included in the response."
+      ),
+      includeCriteriaMetadata: Joi.boolean().description(
+        "If true, criteria metadata is included in the response."
+      ),
+      includeRawData: Joi.boolean().description("If true, raw data is included in the response."),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
-      normalizeRoyalties: Joi.boolean()
-        .default(false)
-        .description("If true, prices will include missing royalties to be added on-top."),
+      normalizeRoyalties: Joi.boolean().description(
+        "If true, prices will include missing royalties to be added on-top."
+      ),
       sortBy: Joi.string()
         .when("token", {
           is: Joi.exist(),
@@ -99,7 +102,6 @@ export const getOrdersAsksV4Options: RouteOptions = {
           otherwise: Joi.valid("createdAt"),
         })
         .valid("createdAt", "price")
-        .default("createdAt")
         .description(
           "Order the items are returned in the response, Sorting by price allowed only when filtering by token"
         ),
@@ -110,9 +112,10 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .integer()
         .min(1)
         .max(1000)
-        .default(50)
         .description("Amount of items returned in response."),
-    }).with("community", "maker"),
+    })
+      .with("community", "maker")
+      .with("collectionsSetId", "maker"),
   },
   response: {
     schema: Joi.object({
@@ -161,6 +164,14 @@ export const getOrdersAsksV4Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 50;
+    }
+
+    if (!query.sortBy) {
+      query.sortBy = "createdAt";
+    }
 
     try {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
@@ -236,11 +247,16 @@ export const getOrdersAsksV4Options: RouteOptions = {
           ? [
               `orders.created_at >= to_timestamp($/startTimestamp/)`,
               `orders.created_at <= to_timestamp($/endTimestamp/)`,
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
               `orders.side = 'sell'`,
             ]
-          : [`orders.side = 'sell'`];
+          : [
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'sell'`,
+            ];
 
       let communityFilter = "";
+      let collectionSetFilter = "";
       let orderStatusFilter = "";
 
       if (query.ids) {
@@ -307,6 +323,16 @@ export const getOrdersAsksV4Options: RouteOptions = {
           communityFilter =
             "JOIN (SELECT DISTINCT contract FROM collections WHERE community = $/community/) c ON orders.contract = c.contract";
         }
+
+        if (query.collectionsSetId) {
+          query.collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+          if (_.isEmpty(query.collectionsIds)) {
+            throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+          }
+
+          collectionSetFilter =
+            "JOIN (SELECT DISTINCT contract FROM collections WHERE id IN ($/collectionsIds:csv/)) c ON orders.contract = c.contract";
+        }
       }
 
       if (query.source) {
@@ -344,7 +370,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
         (query as any).id = id;
 
         if (query.sortBy === "price") {
-          conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          if (query.normalizeRoyalties) {
+            conditions.push(`(orders.normalized_value, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          } else {
+            conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          }
         } else {
           conditions.push(
             `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAt/), $/id/)`
@@ -353,6 +383,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
       }
 
       baseQuery += communityFilter;
+      baseQuery += collectionSetFilter;
 
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
@@ -360,7 +391,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
 
       // Sorting
       if (query.sortBy === "price") {
-        baseQuery += ` ORDER BY orders.price, orders.id`;
+        if (query.normalizeRoyalties) {
+          baseQuery += ` ORDER BY orders.normalized_value, orders.id`;
+        } else {
+          baseQuery += ` ORDER BY orders.price, orders.id`;
+        }
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
@@ -373,9 +408,17 @@ export const getOrdersAsksV4Options: RouteOptions = {
       let continuation = null;
       if (rawResult.length === query.limit) {
         if (query.sortBy === "price") {
-          continuation = buildContinuation(
-            rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
-          );
+          if (query.normalizeRoyalties) {
+            continuation = buildContinuation(
+              rawResult[rawResult.length - 1].normalized_value +
+                "_" +
+                rawResult[rawResult.length - 1].id
+            );
+          } else {
+            continuation = buildContinuation(
+              rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
+            );
+          }
         } else {
           continuation = buildContinuation(
             rawResult[rawResult.length - 1].created_at + "_" + rawResult[rawResult.length - 1].id

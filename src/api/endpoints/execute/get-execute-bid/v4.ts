@@ -39,6 +39,10 @@ import * as forwardBuyAttribute from "@/orderbook/orders/forward/build/buy/attri
 import * as forwardBuyToken from "@/orderbook/orders/forward/build/buy/token";
 import * as forwardBuyCollection from "@/orderbook/orders/forward/build/buy/collection";
 
+// Infinity
+import * as infinityBuyToken from "@/orderbook/orders/infinity/build/buy/token";
+import * as infinityBuyCollection from "@/orderbook/orders/infinity/build/buy/collection";
+
 const version = "v4";
 
 export const getExecuteBidV4Options: RouteOptions = {
@@ -94,11 +98,11 @@ export const getExecuteBidV4Options: RouteOptions = {
             .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
             .required(),
           orderKind: Joi.string()
-            .valid("zeroex-v4", "seaport", "looks-rare", "x2y2", "universe", "forward")
+            .valid("zeroex-v4", "seaport", "looks-rare", "x2y2", "universe", "forward", "infinity")
             .default("seaport")
             .description("Exchange protocol used to create order. Example: `seaport`"),
           orderbook: Joi.string()
-            .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe")
+            .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
@@ -536,6 +540,96 @@ export const getExecuteBidV4Options: RouteOptions = {
                       collection && !attributeKey && !attributeValue ? collection : undefined,
                     orderbook: params.orderbook,
                     orderbookApiKey: params.orderbookApiKey,
+                    source,
+                  },
+                },
+              },
+              orderIndex: i,
+            });
+
+            // Go on with the next bid
+            continue;
+          }
+
+          case "infinity": {
+            if (!["infinity"].includes(params.orderbook)) {
+              throw Boom.badRequest("Only `infinity` is supported as orderbook");
+            }
+
+            if (params.fees?.length) {
+              throw Boom.badRequest("Infinity does not support custom fees");
+            }
+
+            if (params.excludeFlaggedTokens) {
+              throw Boom.badRequest("Infinity does not support excluded token bids");
+            }
+
+            if (attributeKey || attributeValue) {
+              throw Boom.badRequest("Infinity does not support attribute bids");
+            }
+
+            let order: Sdk.Infinity.Order | undefined;
+            if (token) {
+              const [contract, tokenId] = token.split(":");
+              order = await infinityBuyToken.build({
+                ...params,
+                maker,
+                collection: contract,
+                tokenId,
+              });
+            } else if (collection) {
+              order = await infinityBuyCollection.build({ ...params, maker, collection });
+            }
+
+            if (!order) {
+              throw Boom.internal("Failed to generate order");
+            }
+
+            let approvalTx: TxData | undefined;
+            const wethApproval = await currency.getAllowance(
+              maker,
+              Sdk.Infinity.Addresses.Exchange[config.chainId]
+            );
+
+            if (
+              bn(wethApproval).lt(bn(order.params.startPrice)) ||
+              bn(wethApproval).lt(bn(order.params.endPrice))
+            ) {
+              approvalTx = currency.approveTransaction(
+                maker,
+                Sdk.Forward.Addresses.Exchange[config.chainId]
+              );
+            }
+
+            steps[1].items.push({
+              status: !wrapEthTx ? "complete" : "incomplete",
+              data: wrapEthTx,
+              orderIndex: i,
+            });
+            steps[2].items.push({
+              status: !approvalTx ? "complete" : "incomplete",
+              data: approvalTx,
+              orderIndex: i,
+            });
+
+            steps[3].items.push({
+              status: "incomplete",
+              data: {
+                sign: order.getSignatureData(),
+                post: {
+                  endpoint: "/order/v3",
+                  method: "POST",
+                  body: {
+                    order: {
+                      kind: "infinity",
+                      data: {
+                        ...order.params,
+                      },
+                    },
+                    tokenSetId,
+                    collection:
+                      collection && !attributeKey && !attributeValue ? collection : undefined,
+                    orderbook: params.orderbook,
                     source,
                   },
                 },

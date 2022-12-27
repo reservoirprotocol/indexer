@@ -193,6 +193,11 @@ export const parseEnhancedEventsToEventsInfo = (
       events: enhancedEvents.filter(({ kind }) => kind.startsWith("superrare")),
       backfill,
     },
+    {
+      kind: "infinity",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("infinity")),
+      backfill,
+    },
   ];
 };
 

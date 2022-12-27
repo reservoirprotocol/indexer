@@ -28,7 +28,7 @@ export const queue = new Queue(QUEUE_NAME, {
       type: "exponential",
       delay: 10000,
     },
-    removeOnComplete: 100000,
+    removeOnComplete: 1000,
     removeOnFail: 10000,
     timeout: 60000,
   },
@@ -44,6 +44,13 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { id, trigger } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
+
+      if (
+        config.chainId === 1 &&
+        (trigger.kind === "new-order" || trigger.kind === "expiry" || trigger.kind === "reprice")
+      ) {
+        logger.info(QUEUE_NAME, `OrderUpdatesById: ${JSON.stringify(job.data)}`);
+      }
 
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
