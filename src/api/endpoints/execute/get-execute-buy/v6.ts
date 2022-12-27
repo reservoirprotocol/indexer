@@ -162,11 +162,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
         recipient: string;
         amount: string;
       }[] = [];
-      let totalFeesOnTop = bn(0);
       for (const fee of payload.feesOnTop ?? []) {
         const [recipient, amount] = fee.split(":");
         feesOnTop.push({ recipient, amount });
-        totalFeesOnTop = totalFeesOnTop.add(amount);
       }
 
       // We need each filled order's source for the path

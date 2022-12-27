@@ -72,6 +72,11 @@ export const getExecuteSellV6Options: RouteOptions = {
         .lowercase()
         .pattern(regex.domain)
         .description("Filling source used for attribution. Example: `reservoir.market`"),
+      feesOnTop: Joi.array()
+        .items(Joi.string().pattern(regex.fee))
+        .description(
+          "List of fees (formatted as `feeRecipient:feeAmount`) to be taken when filling.\nThe currency used for any fees on top matches the accepted bid's currency.\nExample: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:1000000000000000`"
+        ),
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
@@ -270,9 +275,19 @@ export const getExecuteSellV6Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const sourceId = orderResult.source_id_int;
 
+      // Handle fees on top
+      const feesOnTop: Sdk.RouterV6.Types.Fee[] = [];
+      for (const fee of payload.feesOnTop ?? []) {
+        const [recipient, amount] = fee.split(":");
+        feesOnTop.push({ recipient, amount });
+      }
+
       const fees: Sdk.RouterV6.Types.Fee[] = payload.normalizeRoyalties
         ? orderResult.missing_royalties ?? []
         : [];
+      if (feesOnTop.length) {
+        fees.push(...feesOnTop);
+      }
       const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
 
       const totalPrice = bn(orderResult.value)
