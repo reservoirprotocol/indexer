@@ -37,7 +37,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      ids: Joi.alternatives(Joi.string(), Joi.array().items(Joi.string())).description(
+      ids: Joi.alternatives(Joi.array().items(Joi.string()), Joi.string()).description(
         "Order id(s) to search for."
       ),
       token: Joi.string()
