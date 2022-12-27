@@ -22,6 +22,7 @@ export const parseEnhancedEventsToEventsInfo = (
   enhancedEvents: EnhancedEvent[],
   backfill: boolean
 ): EventsInfo[] => {
+  // TODO: More efficient filtering with a single iteration
   return [
     {
       kind: "erc20",
@@ -157,6 +158,16 @@ export const parseEnhancedEventsToEventsInfo = (
       backfill,
     },
     {
+      kind: "infinity",
+      events: enhancedEvents.filter(
+        ({ kind }) =>
+          kind.startsWith("infinity") ||
+          // To properly validate bids, we need some additional events
+          kind === "erc20-transfer"
+      ),
+      backfill,
+    },
+    {
       kind: "rarible",
       events: enhancedEvents.filter(
         ({ kind }) =>
@@ -191,11 +202,6 @@ export const parseEnhancedEventsToEventsInfo = (
     {
       kind: "superrare",
       events: enhancedEvents.filter(({ kind }) => kind.startsWith("superrare")),
-      backfill,
-    },
-    {
-      kind: "infinity",
-      events: enhancedEvents.filter(({ kind }) => kind.startsWith("infinity")),
       backfill,
     },
   ];
@@ -277,10 +283,6 @@ export const syncEvents = async (
       try {
         const baseEventParams = await parseEvent(log, blocksCache);
 
-        if (!backfill) {
-          logger.info("events-sync", `Processing event: ${JSON.stringify(baseEventParams)}`);
-        }
-
         // Cache the block data
         if (!blocksCache.has(baseEventParams.block)) {
           // It's very important from a performance perspective to have
@@ -324,9 +326,7 @@ export const syncEvents = async (
 
     // Process the retrieved events asynchronously
     const eventsSyncProcess = backfill ? eventsSyncBackfillProcess : eventsSyncRealtimeProcess;
-    await eventsSyncProcess.addToQueue(
-      await parseEnhancedEventsToEventsInfo(enhancedEvents, backfill)
-    );
+    await eventsSyncProcess.addToQueue(parseEnhancedEventsToEventsInfo(enhancedEvents, backfill));
 
     // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
     const ns = getNetworkSettings();

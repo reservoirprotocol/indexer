@@ -1,6 +1,7 @@
-import { EnhancedEvent, OnChainData, processOnChainData } from "@/events-sync/handlers/utils";
 import { Log } from "@ethersproject/abstract-provider";
+
 import { getEventData } from "@/events-sync/data";
+import { EnhancedEvent, OnChainData, processOnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
 
 import * as erc20 from "@/events-sync/handlers/erc20";

@@ -83,9 +83,9 @@ export const getOrderSourceByOrderId = async (
     const result = await redb.oneOrNone(
       `
         SELECT
-          fill_events_2.order_source_id_int
-        FROM fill_events_2
-        WHERE fill_events_2.order_id = $/orderId/
+          orders.source_id_int
+        FROM orders
+        WHERE orders.id = $/orderId/
         LIMIT 1
       `,
       { orderId }
