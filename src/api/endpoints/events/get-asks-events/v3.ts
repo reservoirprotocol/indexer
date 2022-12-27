@@ -73,7 +73,8 @@ export const getAsksEventsV3Options: RouteOptions = {
             nonce: Joi.string().pattern(regex.number).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.object().allow(null),
+            kind: Joi.string(),
+            source: Joi.string().allow(null),
             isDynamic: Joi.boolean(),
             criteria: JoiOrderCriteria.allow(null),
           }),
@@ -137,6 +138,7 @@ export const getAsksEventsV3Options: RouteOptions = {
           orders.dynamic,
           orders.currency_normalized_value,
           orders.normalized_value,
+          orders.kind AS order_kind,
           TRUNC(orders.currency_price, 0) AS currency_price,
           order_events.order_source_id_int,
           coalesce(
@@ -150,7 +152,7 @@ export const getAsksEventsV3Options: RouteOptions = {
           (${criteriaBuildQuery}) AS criteria
         FROM order_events
         LEFT JOIN LATERAL (
-           SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value, token_set_id
+           SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value, token_set_id, kind
            FROM orders
            WHERE orders.id = order_events.order_id
         ) orders ON TRUE
@@ -245,6 +247,7 @@ export const getAsksEventsV3Options: RouteOptions = {
               nonce: r.order_nonce ?? null,
               validFrom: r.valid_from ? Number(r.valid_from) : null,
               validUntil: r.valid_until ? Number(r.valid_until) : null,
+              kind: r.order_kind,
               source: {
                 id: source?.address,
                 domain: source?.domain,
