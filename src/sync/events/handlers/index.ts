@@ -1,4 +1,7 @@
 import { EnhancedEvent, OnChainData, processOnChainData } from "@/events-sync/handlers/utils";
+import { Log } from "@ethersproject/abstract-provider";
+import { getEventData } from "@/events-sync/data";
+import * as utils from "@/events-sync/utils";
 
 import * as erc20 from "@/events-sync/handlers/erc20";
 import * as erc721 from "@/events-sync/handlers/erc721";
@@ -64,6 +67,13 @@ export type EventsInfo = {
 };
 
 export const processEvents = async (info: EventsInfo) => {
+  const data = await parseEventsInfo(info);
+  if (data) {
+    await processOnChainData(data, info.backfill);
+  }
+};
+
+export const parseEventsInfo = async (info: EventsInfo) => {
   let data: OnChainData | undefined;
   switch (info.kind) {
     case "erc20": {
@@ -206,8 +216,48 @@ export const processEvents = async (info: EventsInfo) => {
       break;
     }
   }
-
-  if (data) {
-    await processOnChainData(data, info.backfill);
-  }
+  return data;
 };
+
+export function getEventParams(log: Log, timestamp: number) {
+  const address = log.address.toLowerCase() as string;
+  const block = log.blockNumber as number;
+  const blockHash = log.blockHash.toLowerCase() as string;
+  const txHash = log.transactionHash.toLowerCase() as string;
+  const txIndex = log.transactionIndex as number;
+  const logIndex = log.logIndex as number;
+  return {
+    address,
+    txHash,
+    txIndex,
+    block,
+    blockHash,
+    logIndex,
+    timestamp,
+    batchIndex: 1,
+  };
+}
+
+export async function getEnhancedEventFromTransaction(txHash: string) {
+  const enhancedEvents: EnhancedEvent[] = [];
+  const availableEventData = getEventData();
+  const transaction = await utils.fetchTransaction(txHash);
+  const txLog = await utils.fetchTransactionLogs(txHash);
+  for (let index = 0; index < txLog.logs.length; index++) {
+    const log = txLog.logs[index];
+    const eventData = availableEventData.find(
+      ({ addresses, topic, numTopics }) =>
+        log.topics[0] === topic &&
+        log.topics.length === numTopics &&
+        (addresses ? addresses[log.address.toLowerCase()] : true)
+    );
+    if (eventData) {
+      enhancedEvents.push({
+        kind: eventData.kind,
+        baseEventParams: getEventParams(log, transaction.blockTimestamp),
+        log,
+      });
+    }
+  }
+  return enhancedEvents;
+}
