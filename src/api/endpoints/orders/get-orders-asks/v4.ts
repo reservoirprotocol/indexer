@@ -19,7 +19,6 @@ import {
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { utils } from "ethers";
 import { Orders } from "@/utils/orders";
 
 const version = "v4";
@@ -345,7 +344,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
         (query as any).id = id;
 
         if (query.sortBy === "price") {
-          conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          if (query.normalizeRoyalties) {
+            conditions.push(`(orders.normalized_value, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          } else {
+            conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          }
         } else {
           conditions.push(
             `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAt/), $/id/)`
@@ -361,7 +364,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
 
       // Sorting
       if (query.sortBy === "price") {
-        baseQuery += ` ORDER BY orders.price, orders.id`;
+        if (query.normalizeRoyalties) {
+          baseQuery += ` ORDER BY orders.normalized_value, orders.id`;
+        } else {
+          baseQuery += ` ORDER BY orders.price, orders.id`;
+        }
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
@@ -374,9 +381,17 @@ export const getOrdersAsksV4Options: RouteOptions = {
       let continuation = null;
       if (rawResult.length === query.limit) {
         if (query.sortBy === "price") {
-          continuation = buildContinuation(
-            rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
-          );
+          if (query.normalizeRoyalties) {
+            continuation = buildContinuation(
+              rawResult[rawResult.length - 1].normalized_value +
+                "_" +
+                rawResult[rawResult.length - 1].id
+            );
+          } else {
+            continuation = buildContinuation(
+              rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
+            );
+          }
         } else {
           continuation = buildContinuation(
             rawResult[rawResult.length - 1].created_at + "_" + rawResult[rawResult.length - 1].id
@@ -387,27 +402,25 @@ export const getOrdersAsksV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
         const feeBreakdown = r.fee_breakdown;
-        let feeBps = utils.parseUnits(r.fee_bps.toString(), "wei");
+        let feeBps = r.fee_bps;
 
         if (query.normalizeRoyalties && r.missing_royalties) {
           for (let i = 0; i < r.missing_royalties.length; i++) {
-            const amount = utils.parseUnits(r.missing_royalties[i].amount, "wei");
-            const totalValue = utils.parseUnits(r.normalized_value.toString(), "wei").sub(amount);
-            const bps = amount.mul(10000).div(totalValue);
             const index: number = r.fee_breakdown.findIndex(
               (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
             );
 
-            if (index > -1) {
-              feeBreakdown[index].bps += Number(bps.toString());
+            const missingFeeBps = Number(r.missing_royalties[i].bps);
+            feeBps += missingFeeBps;
+
+            if (index !== -1) {
+              feeBreakdown[index].bps += missingFeeBps;
             } else {
-              const tempObj = {
-                bps: Number(bps.toString()),
+              feeBreakdown.push({
+                bps: missingFeeBps,
                 kind: "royalty",
                 recipient: r.missing_royalties[i].recipient,
-              };
-              feeBreakdown.push(tempObj);
-              feeBps = feeBps.add(bps);
+              });
             }
           }
         }

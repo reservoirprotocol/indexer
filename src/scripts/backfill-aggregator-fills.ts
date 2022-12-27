@@ -18,7 +18,7 @@ const main = async () => {
 
   console.log("Fetching entries");
 
-  const contract = "0x3729014ef28f01b3ddcf7f980d925e0b71b1f847";
+  const contract = "0x114e54a100a0415abf9727234c92c83dbcc59abf";
   const results = await idb.manyOrNone(
     `
       SELECT

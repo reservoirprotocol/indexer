@@ -108,6 +108,26 @@ export const getExecuteSellV5Options: RouteOptions = {
 
       const [contract, tokenId] = payload.token.split(":");
 
+      const tokenResult = await redb.oneOrNone(
+        `
+          SELECT
+            tokens.is_flagged
+          FROM tokens
+          WHERE tokens.contract = $/contract/
+            AND tokens.token_id = $/tokenId/
+        `,
+        {
+          contract: toBuffer(contract),
+          tokenId,
+        }
+      );
+      if (!tokenResult) {
+        throw Boom.badData("Unknown token");
+      }
+      if (tokenResult.is_flagged) {
+        throw Boom.badData("Token is flagged");
+      }
+
       // Scenario 1: explicitly passing an existing order to fill
       if (payload.orderId) {
         orderResult = await redb.oneOrNone(
@@ -209,6 +229,7 @@ export const getExecuteSellV5Options: RouteOptions = {
         {
           id: orderResult.id,
           kind: orderResult.kind,
+          unitPrice: orderResult.price,
           rawData: orderResult.raw_data,
         },
         {

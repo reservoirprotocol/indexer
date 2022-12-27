@@ -36,6 +36,9 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
       eip3668Calldata: Joi.string(),
       collection: Joi.string().lowercase(),
       token: Joi.string().pattern(regex.token).lowercase(),
+      useNonFlaggedFloorAsk: Joi.boolean()
+        .default(false)
+        .description("If true, will use the collection non flagged floor ask events."),
     })
       .or("collection", "token")
       .oxor("collection", "token"),
@@ -92,12 +95,16 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
     }
 
     try {
+      const eventsTableName = query.useNonFlaggedFloorAsk
+        ? "collection_non_flagged_floor_sell_events"
+        : "collection_floor_sell_events";
+
       const spotQuery = `
         SELECT
-          collection_floor_sell_events.price
-        FROM collection_floor_sell_events
-        WHERE collection_floor_sell_events.collection_id = $/collection/
-        ORDER BY collection_floor_sell_events.created_at DESC
+          events.price
+        FROM ${eventsTableName} events
+        WHERE events.collection_id = $/collection/
+        ORDER BY events.created_at DESC
         LIMIT 1
       `;
 
@@ -106,18 +113,18 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
           x AS (
             SELECT
               *
-            FROM collection_floor_sell_events
-            WHERE collection_floor_sell_events.collection_id = $/collection/
-              AND collection_floor_sell_events.created_at >= now() - interval '${query.twapSeconds} seconds'
-            ORDER BY collection_floor_sell_events.created_at
+            FROM ${eventsTableName} events
+            WHERE events.collection_id = $/collection/
+              AND events.created_at >= now() - interval '${query.twapSeconds} seconds'
+            ORDER BY events.created_at
           ),
           y AS (
             SELECT
               *
-            FROM collection_floor_sell_events
-            WHERE collection_floor_sell_events.collection_id = $/collection/
-              AND collection_floor_sell_events.created_at < (SELECT COALESCE(MIN(x.created_at), 'Infinity') FROM x)
-            ORDER BY collection_floor_sell_events.created_at DESC
+            FROM ${eventsTableName} events
+            WHERE events.collection_id = $/collection/
+              AND events.created_at < (SELECT COALESCE(MIN(x.created_at), 'Infinity') FROM x)
+            ORDER BY events.created_at DESC
             LIMIT 1
           ),
           z AS (

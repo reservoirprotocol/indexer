@@ -1,4 +1,3 @@
-import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { bn } from "@/common/utils";
@@ -42,14 +41,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   for (const { kind, baseEventParams, log } of events) {
     const eventData = getEventData([kind])[0];
     switch (kind) {
-      case "erc721-transfer": {
+      case "erc721-transfer":
+      case "erc721-like-transfer":
+      case "erc721-erc20-like-transfer": {
         const parsedLog = eventData.abi.parseLog(log);
         const from = parsedLog.args["from"].toLowerCase();
         const to = parsedLog.args["to"].toLowerCase();
         const tokenId = parsedLog.args["tokenId"].toString();
 
         nftTransferEvents.push({
-          kind: "erc721",
+          kind: kind === "erc721-transfer" ? "erc721" : "erc721-like",
           from,
           to,
           tokenId,
@@ -90,7 +91,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        if (from === AddressZero) {
+        if (ns.mintAddresses.includes(from)) {
           mintInfos.push({
             contract: baseEventParams.address,
             tokenId,
@@ -109,6 +110,85 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               baseEventParams,
             });
           }
+        }
+
+        break;
+      }
+
+      case "erc721-consecutive-transfer": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const from = parsedLog.args["fromAddress"].toLowerCase();
+        const to = parsedLog.args["toAddress"].toLowerCase();
+        const fromTokenId = parsedLog.args["fromTokenId"].toString();
+        const toTokenId = parsedLog.args["toTokenId"].toString();
+
+        const fromNumber = Number(fromTokenId);
+        const toNumber = Number(toTokenId);
+        for (let i = fromNumber; i <= toNumber; i++) {
+          const tokenId = i.toString();
+
+          nftTransferEvents.push({
+            kind: "erc721",
+            from,
+            to,
+            tokenId,
+            amount: "1",
+            baseEventParams,
+          });
+
+          if (ns.mintAddresses.includes(from)) {
+            mintInfos.push({
+              contract: baseEventParams.address,
+              tokenId,
+              mintedTimestamp: baseEventParams.timestamp,
+            });
+
+            if (!ns.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
+              if (!mintedTokens.has(baseEventParams.txHash)) {
+                mintedTokens.set(baseEventParams.txHash, []);
+              }
+              mintedTokens.get(baseEventParams.txHash)!.push({
+                contract: baseEventParams.address,
+                tokenId,
+                from,
+                amount: "1",
+                baseEventParams,
+              });
+            }
+          }
+
+          // Make sure to only handle the same data once per transaction
+          const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${tokenId}`;
+
+          makerInfos.push({
+            context: `${contextPrefix}-${from}-sell-balance`,
+            maker: from,
+            trigger: {
+              kind: "balance-change",
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            data: {
+              kind: "sell-balance",
+              contract: baseEventParams.address,
+              tokenId,
+            },
+          });
+
+          makerInfos.push({
+            context: `${contextPrefix}-${to}-sell-balance`,
+            maker: to,
+            trigger: {
+              kind: "balance-change",
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            data: {
+              kind: "sell-balance",
+              contract: baseEventParams.address,
+              tokenId,
+            },
+          });
         }
 
         break;

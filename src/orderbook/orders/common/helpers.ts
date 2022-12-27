@@ -1,13 +1,15 @@
 import { BigNumber } from "@ethersproject/bignumber";
 
-import { redb } from "@/common/db";
+// Must use `idb` and not `redb` since a lot of important processes
+// depend on having information as up-to-date as possible
+import { idb } from "@/common/db";
 import { toBuffer, bn } from "@/common/utils";
 import { OrderKind } from "@/orderbook/orders";
 
 export const getContractKind = async (
   contract: string
 ): Promise<"erc721" | "erc1155" | undefined> => {
-  const contractResult = await redb.oneOrNone(
+  const contractResult = await idb.oneOrNone(
     `
       SELECT contracts.kind FROM contracts
       WHERE contracts.address = $/address/
@@ -19,7 +21,7 @@ export const getContractKind = async (
 };
 
 export const getFtBalance = async (contract: string, owner: string): Promise<BigNumber> => {
-  const balanceResult = await redb.oneOrNone(
+  const balanceResult = await idb.oneOrNone(
     `
       SELECT ft_balances.amount FROM ft_balances
       WHERE ft_balances.contract = $/contract/
@@ -39,7 +41,7 @@ export const getNftBalance = async (
   tokenId: string,
   owner: string
 ): Promise<BigNumber> => {
-  const balanceResult = await redb.oneOrNone(
+  const balanceResult = await idb.oneOrNone(
     `
       SELECT nft_balances.amount FROM nft_balances
       WHERE nft_balances.contract = $/contract/
@@ -57,7 +59,7 @@ export const getNftBalance = async (
 };
 
 export const getNfts = async (contract: string, owner: string): Promise<string[]> => {
-  const nftsResult = await redb.manyOrNone(
+  const nftsResult = await idb.manyOrNone(
     `
       SELECT
         nft_balances.token_id
@@ -80,7 +82,7 @@ export const getNftApproval = async (
   owner: string,
   operator: string
 ): Promise<boolean> => {
-  const approvalResult = await redb.oneOrNone(
+  const approvalResult = await idb.oneOrNone(
     `
       SELECT nft_approval_events.approved FROM nft_approval_events
       WHERE nft_approval_events.address = $/address/
@@ -100,7 +102,7 @@ export const getNftApproval = async (
 };
 
 export const getMinNonce = async (orderKind: OrderKind, maker: string): Promise<BigNumber> => {
-  const bulkCancelResult: { nonce: string } | null = await redb.oneOrNone(
+  const bulkCancelResult: { nonce: string } | null = await idb.oneOrNone(
     `
       SELECT coalesce(
         (
@@ -127,7 +129,7 @@ export const isNonceCancelled = async (
   maker: string,
   nonce: string
 ): Promise<boolean> => {
-  const nonceCancelResult = await redb.oneOrNone(
+  const nonceCancelResult = await idb.oneOrNone(
     `
       SELECT nonce FROM nonce_cancel_events
       WHERE order_kind = $/orderKind/
@@ -145,7 +147,7 @@ export const isNonceCancelled = async (
 };
 
 export const isOrderCancelled = async (orderId: string): Promise<boolean> => {
-  const cancelResult = await redb.oneOrNone(
+  const cancelResult = await idb.oneOrNone(
     `
       SELECT order_id FROM cancel_events
       WHERE order_id = $/orderId/
@@ -157,7 +159,7 @@ export const isOrderCancelled = async (orderId: string): Promise<boolean> => {
 };
 
 export const getQuantityFilled = async (orderId: string): Promise<BigNumber> => {
-  const fillResult = await redb.oneOrNone(
+  const fillResult = await idb.oneOrNone(
     `
       SELECT SUM(amount) AS quantity_filled FROM fill_events_2
       WHERE order_id = $/orderId/

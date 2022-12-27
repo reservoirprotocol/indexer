@@ -359,7 +359,7 @@ export const save = async (
         currency = Sdk.Common.Addresses.Eth[config.chainId];
       }
 
-      const validFrom = `date_trunc('seconds', to_timestamp(0))`;
+      const validFrom = `date_trunc('seconds', to_timestamp(${currentTime}))`;
       const validTo = `date_trunc('seconds', to_timestamp(${order.params.expiry}))`;
       orderValues.push({
         id,

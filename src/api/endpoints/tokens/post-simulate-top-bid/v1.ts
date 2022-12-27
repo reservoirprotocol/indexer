@@ -39,13 +39,14 @@ export const postSimulateTopBidV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
+    if (config.chainId !== 1) {
+      return { message: "Simulation not supported" };
+    }
+
     const payload = request.payload as any;
 
     const invalidateOrder = async (orderId: string) => {
-      logger.warn(
-        `post-simulate-top-bid-${version}-handler`,
-        `Detected unfillable order ${orderId}`
-      );
+      logger.error(`post-simulate-top-bid-${version}-handler`, `StaleOrder: ${orderId}`);
 
       // Invalidate the order if the simulation failed
       await inject({
@@ -175,6 +176,10 @@ export const postSimulateTopBidV1Options: RouteOptions = {
       );
 
       const parsedPayload = JSON.parse(response.payload);
+      if (!parsedPayload?.path?.length) {
+        return { message: "Nothing to simulate" };
+      }
+
       const pathItem = parsedPayload.path[0];
 
       const success = await ensureSellTxSucceeds(

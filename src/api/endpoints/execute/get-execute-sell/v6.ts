@@ -42,7 +42,8 @@ export const getExecuteSellV6Options: RouteOptions = {
             "seaport",
             "seaport-partial",
             "x2y2",
-            "universe"
+            "universe",
+            "infinity"
           )
           .required(),
         data: Joi.object().required(),
@@ -67,9 +68,6 @@ export const getExecuteSellV6Options: RouteOptions = {
         .description(
           "Quantity of tokens user is selling. Only compatible when selling a single ERC1155 token. Example: `5`"
         ),
-      currency: Joi.string()
-        .pattern(regex.address)
-        .default(Sdk.Common.Addresses.Weth[config.chainId]),
       source: Joi.string()
         .lowercase()
         .pattern(regex.domain)
@@ -126,10 +124,31 @@ export const getExecuteSellV6Options: RouteOptions = {
   handler: async (request: Request) => {
     const payload = request.payload as any;
 
+    let path: any;
     try {
       let orderResult: any;
 
       const [contract, tokenId] = payload.token.split(":");
+
+      const tokenResult = await redb.oneOrNone(
+        `
+          SELECT
+            tokens.is_flagged
+          FROM tokens
+          WHERE tokens.contract = $/contract/
+            AND tokens.token_id = $/tokenId/
+        `,
+        {
+          contract: toBuffer(contract),
+          tokenId,
+        }
+      );
+      if (!tokenResult) {
+        throw Boom.badData("Unknown token");
+      }
+      if (tokenResult.is_flagged) {
+        throw Boom.badData("Token is flagged");
+      }
 
       // Scenario 3: pass raw orders that don't yet exist
       if (payload.rawOrder) {
@@ -155,81 +174,87 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       // Scenario 2: explicitly pass an order id to fill
       if (payload.orderId) {
-        orderResult = await redb.oneOrNone(
-          `
-            SELECT
-              orders.id,
-              orders.kind,
-              contracts.kind AS token_kind,
-              orders.value,
-              orders.raw_data,
-              orders.source_id_int,
-              orders.currency,
-              orders.missing_royalties,
-              orders.maker,
-              orders.token_set_id
-            FROM orders
-            JOIN contracts
-              ON orders.contract = contracts.address
-            JOIN token_sets_tokens
-              ON orders.token_set_id = token_sets_tokens.token_set_id
-            WHERE orders.id = $/id/
-              AND token_sets_tokens.contract = $/contract/
-              AND token_sets_tokens.token_id = $/tokenId/
-              AND orders.side = 'buy'
-              AND orders.fillability_status = 'fillable'
-              AND orders.approval_status = 'approved'
-              AND orders.quantity_remaining >= $/quantity/
-              AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-              AND orders.currency = $/currency/
-            LIMIT 1
-          `,
-          {
-            id: payload.orderId,
-            contract: toBuffer(contract),
-            tokenId,
-            quantity: payload.quantity ?? 1,
-            currency: toBuffer(payload.currency),
-          }
-        );
+        orderResult = await redb
+          .manyOrNone(
+            `
+              SELECT
+                orders.id,
+                orders.kind,
+                contracts.kind AS token_kind,
+                orders.value,
+                orders.price,
+                orders.raw_data,
+                orders.source_id_int,
+                orders.currency,
+                orders.missing_royalties,
+                orders.maker,
+                orders.token_set_id
+              FROM orders
+              JOIN contracts
+                ON orders.contract = contracts.address
+              JOIN token_sets_tokens
+                ON orders.token_set_id = token_sets_tokens.token_set_id
+              WHERE orders.id = $/id/
+                AND token_sets_tokens.contract = $/contract/
+                AND token_sets_tokens.token_id = $/tokenId/
+                AND orders.side = 'buy'
+                AND orders.fillability_status = 'fillable'
+                AND orders.approval_status = 'approved'
+                AND orders.quantity_remaining >= $/quantity/
+                AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+            `,
+            {
+              id: payload.orderId,
+              contract: toBuffer(contract),
+              tokenId,
+              quantity: payload.quantity ?? 1,
+            }
+          )
+          // Ideally we just have a `LIMIT 1` on the above query, however for some reason
+          // adding that results in extremely low performance:
+          // https://stackoverflow.com/questions/21385555/postgresql-query-very-slow-with-limit-1
+          .then((result) => result[0]);
       } else {
         // Scenario 3: fetch the best offer on specified current token
-        orderResult = await redb.oneOrNone(
-          `
-            SELECT
-              orders.id,
-              orders.kind,
-              contracts.kind AS token_kind,
-              orders.value,
-              orders.raw_data,
-              orders.source_id_int,
-              orders.currency,
-              orders.missing_royalties,
-              orders.maker,
-              orders.token_set_id
-            FROM orders
-            JOIN contracts
-              ON orders.contract = contracts.address
-            JOIN token_sets_tokens
-              ON orders.token_set_id = token_sets_tokens.token_set_id
-            WHERE token_sets_tokens.contract = $/contract/
-              AND token_sets_tokens.token_id = $/tokenId/
-              AND orders.side = 'buy'
-              AND orders.fillability_status = 'fillable'
-              AND orders.approval_status = 'approved'
-              AND orders.quantity_remaining >= $/quantity/
-              AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-              AND orders.currency = $/currency/
-            ORDER BY orders.value DESC
-            LIMIT 1
-          `,
-          {
-            contract: toBuffer(contract),
-            tokenId,
-            quantity: payload.quantity ?? 1,
-            currency: toBuffer(payload.currency),
-          }
-        );
+        orderResult = await redb
+          .manyOrNone(
+            `
+              SELECT
+                orders.id,
+                orders.kind,
+                contracts.kind AS token_kind,
+                orders.value,
+                orders.price,
+                orders.raw_data,
+                orders.source_id_int,
+                orders.currency,
+                orders.missing_royalties,
+                orders.maker,
+                orders.token_set_id
+              FROM orders
+              JOIN contracts
+                ON orders.contract = contracts.address
+              JOIN token_sets_tokens
+                ON orders.token_set_id = token_sets_tokens.token_set_id
+              WHERE token_sets_tokens.contract = $/contract/
+                AND token_sets_tokens.token_id = $/tokenId/
+                AND orders.side = 'buy'
+                AND orders.fillability_status = 'fillable'
+                AND orders.approval_status = 'approved'
+                AND orders.quantity_remaining >= $/quantity/
+                AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+              ORDER BY orders.value DESC
+            `,
+            {
+              contract: toBuffer(contract),
+              tokenId,
+              quantity: payload.quantity ?? 1,
+            }
+          )
+          // Ideally we just have a `LIMIT 1` on the above query, however for some reason
+          // adding that results in extremely low performance:
+          // https://stackoverflow.com/questions/21385555/postgresql-query-very-slow-with-limit-1
+          .then((result) => result[0]);
       }
 
       if (payload.quantity) {
@@ -253,14 +278,14 @@ export const getExecuteSellV6Options: RouteOptions = {
       const totalPrice = bn(orderResult.value)
         .sub(totalFee)
         .mul(payload.quantity ?? 1);
-      const path = [
+      path = [
         {
           orderId: orderResult.id,
           contract,
           tokenId,
           quantity: payload.quantity ?? 1,
           source: sourceId ? sources.get(sourceId)?.domain ?? null : null,
-          currency: payload.currency,
+          currency: fromBuffer(orderResult.currency),
           quote: formatPrice(
             totalPrice,
             (await getCurrency(fromBuffer(orderResult.currency))).decimals
@@ -272,6 +297,7 @@ export const getExecuteSellV6Options: RouteOptions = {
         {
           id: orderResult.id,
           kind: orderResult.kind,
+          unitPrice: orderResult.price,
           rawData: orderResult.raw_data,
           fees,
         },
@@ -357,6 +383,44 @@ export const getExecuteSellV6Options: RouteOptions = {
           });
         }
       }
+
+      if (bidDetails.kind === "infinity") {
+        const isApproved = await getNftApproval(
+          bidDetails.contract,
+          payload.taker,
+          Sdk.Infinity.Addresses.Exchange[config.chainId]
+        );
+
+        if (!isApproved) {
+          const approveTx =
+            bidDetails.contractKind === "erc721"
+              ? new Sdk.Common.Helpers.Erc721(baseProvider, bidDetails.contract).approveTransaction(
+                  payload.taker,
+                  Sdk.Infinity.Addresses.Exchange[config.chainId]
+                )
+              : new Sdk.Common.Helpers.Erc1155(
+                  baseProvider,
+                  bidDetails.contract
+                ).approveTransaction(
+                  payload.taker,
+                  Sdk.Infinity.Addresses.Exchange[config.chainId]
+                );
+
+          steps[0].items.push({
+            status: "incomplete",
+            data: {
+              ...approveTx,
+              maxFeePerGas: payload.maxFeePerGas
+                ? bn(payload.maxFeePerGas).toHexString()
+                : undefined,
+              maxPriorityFeePerGas: payload.maxPriorityFeePerGas
+                ? bn(payload.maxPriorityFeePerGas).toHexString()
+                : undefined,
+            },
+          });
+        }
+      }
+
       if (bidDetails.kind === "rarible") {
         const isApproved = await getNftApproval(
           bidDetails.contract,
@@ -409,7 +473,12 @@ export const getExecuteSellV6Options: RouteOptions = {
         path,
       };
     } catch (error) {
-      logger.error(`get-execute-sell-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(
+        `get-execute-sell-${version}-handler`,
+        `Handler failure: ${error} (path = ${JSON.stringify(path)}, request = ${JSON.stringify(
+          payload
+        )})`
+      );
       throw error;
     }
   },

@@ -10,8 +10,10 @@ import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/genera
 import MetadataApi from "@/utils/metadata-api";
 import { PendingFlagStatusSyncTokens } from "@/models/pending-flag-status-sync-tokens";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
+import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import { randomUUID } from "crypto";
 import _ from "lodash";
+import { TokensEntityUpdateParams } from "@/models/tokens/tokens-entity";
 
 const QUEUE_NAME = "flag-status-sync-queue";
 const LIMIT = 40;
@@ -33,7 +35,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { collectionId, contract } = job.data;
 
-      let delay = 2500;
+      let delay = 0;
 
       // Get the tokens from the list
       const pendingFlagStatusSyncTokensQueue = new PendingFlagStatusSyncTokens(collectionId);
@@ -79,17 +81,38 @@ if (config.doBackgroundWork) {
 
               const isFlagged = Number(tokenMetadata.flagged);
 
+              const currentUtcTime = new Date().toISOString();
+
+              const fields: TokensEntityUpdateParams = {
+                isFlagged,
+                lastFlagUpdate: currentUtcTime,
+                lastFlagChange:
+                  pendingSyncFlagStatusToken.isFlagged != isFlagged ? currentUtcTime : undefined,
+              };
+
+              await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, fields);
+
               if (pendingSyncFlagStatusToken.isFlagged != isFlagged) {
                 logger.info(
                   QUEUE_NAME,
                   `Flag Status Diff. collectionId:${collectionId}, contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}, isFlagged:${isFlagged}`
                 );
-              }
 
-              await Tokens.update(contract, pendingSyncFlagStatusToken.tokenId, {
-                isFlagged,
-                lastFlagUpdate: new Date().toISOString(),
-              });
+                await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
+                  {
+                    kind: "revalidation",
+                    contract,
+                    tokenId: pendingSyncFlagStatusToken.tokenId,
+                    txHash: null,
+                    txTimestamp: null,
+                  },
+                ]);
+              } else {
+                logger.info(
+                  QUEUE_NAME,
+                  `Flag Status No Change. collectionId:${collectionId}, contract:${contract}, tokenId: ${pendingSyncFlagStatusToken.tokenId}, tokenIsFlagged:${pendingSyncFlagStatusToken.isFlagged}, isFlagged:${isFlagged}`
+                );
+              }
             }
           } catch (error) {
             if ((error as any).response?.status === 429) {

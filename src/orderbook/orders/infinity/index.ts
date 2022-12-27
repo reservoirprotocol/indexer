@@ -1,20 +1,21 @@
 import * as Sdk from "@reservoir0x/sdk";
+import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { Sources } from "@/models/sources";
+import { offChainCheck } from "@/orderbook/orders/infinity/check";
+import { DbOrder, generateSchemaHash, OrderMetadata } from "@/orderbook/orders/utils";
+import * as tokenSet from "@/orderbook/token-sets";
+
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
-import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
-import { offChainCheck } from "@/orderbook/orders/element/check";
-import * as tokenSet from "@/orderbook/token-sets";
-import { Sources } from "@/models/sources";
 
 export type OrderInfo = {
-  orderParams: Sdk.Element.Types.BaseOrder;
+  orderParams: Sdk.Infinity.Types.OrderInput;
   metadata: OrderMetadata;
 };
 
@@ -24,31 +25,28 @@ type SaveResult = {
   unfillable?: boolean;
 };
 
-export const save = async (
-  orderInfos: OrderInfo[],
-  relayToArweave?: boolean
-): Promise<SaveResult[]> => {
+export const save = async (orderInfos: OrderInfo[], relayToArweave?: boolean) => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
 
   const arweaveData: {
-    order: Sdk.Element.Order;
+    order: Sdk.Infinity.Order;
     schemaHash?: string;
     source?: string;
   }[] = [];
 
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
-      const order = new Sdk.Element.Order(config.chainId, orderParams);
+      const order = new Sdk.Infinity.Order(config.chainId, orderParams);
       const id = order.hash();
 
-      // order.expiry & 0xffffffff <= block.timestamp
-      const expirationTime = bn(order.params.expiry).and(bn("0xffffffff")).toString();
+      try {
+        order.checkValidity();
+      } catch (err) {
+        return results.push({ id, status: "invalid-format" });
+      }
 
-      // Check: order doesn't already exist
-      const orderExists = await idb.oneOrNone(`SELECT 1 FROM orders WHERE orders.id = $/id/`, {
-        id,
-      });
+      const orderExists = await checkOrderExistence(id);
       if (orderExists) {
         return results.push({
           id,
@@ -56,29 +54,25 @@ export const save = async (
         });
       }
 
-      // Handle: get order kind
-      const kind = await commonHelpers.getContractKind(order.params.nft);
-      if (!kind) {
-        return results.push({
-          id,
-          status: "unknown-order-kind",
-        });
-      }
-
       const currentTime = now();
-
+      const orderExpires = order.endTime !== 0;
       // Check: order is not expired
-      if (currentTime >= Number(expirationTime)) {
+      if (orderExpires && currentTime >= order.endTime) {
         return results.push({
           id,
           status: "expired",
         });
       }
 
-      // Check: buy order has Weth as payment token
-      if (
-        order.params.direction === Sdk.Element.Types.TradeDirection.BUY &&
-        order.params.erc20Token !== Sdk.Common.Addresses.Weth[config.chainId]
+      // Check: listings are in ETH and offers are in WETH
+      if (order.isSellOrder && order.params.currency !== Sdk.Common.Addresses.Eth[config.chainId]) {
+        return results.push({
+          id,
+          status: "unsupported-payment-token",
+        });
+      } else if (
+        !order.isSellOrder &&
+        order.params.currency !== Sdk.Common.Addresses.Weth[config.chainId]
       ) {
         return results.push({
           id,
@@ -86,34 +80,10 @@ export const save = async (
         });
       }
 
-      // Check: sell order has Eth as payment token
-      if (
-        order.params.direction === Sdk.Element.Types.TradeDirection.SELL &&
-        order.params.erc20Token !== Sdk.Element.Addresses.Eth[config.chainId]
-      ) {
+      if (order.nfts.length > 1) {
         return results.push({
           id,
-          status: "unsupported-payment-token",
-        });
-      }
-
-      // Check: order is valid
-      try {
-        order.checkValidity();
-      } catch {
-        return results.push({
-          id,
-          status: "invalid",
-        });
-      }
-
-      // Check: order has a valid signature
-      try {
-        order.checkSignature();
-      } catch {
-        return results.push({
-          id,
-          status: "invalid-signature",
+          status: "unsupported-order-type",
         });
       }
 
@@ -144,37 +114,62 @@ export const save = async (
       let tokenSetId: string | undefined;
       const schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
 
-      const info = order.getInfo();
-      if (!info) {
-        return results.push({
-          id,
-          status: "unknown-info",
-        });
-      }
+      let collection: string;
+      switch (order.kind) {
+        case "single-token": {
+          const nft = order.nfts[0];
+          const tokenId = nft.tokens[0].tokenId;
+          collection = nft.collection;
 
-      const orderKind = order.params.kind?.split("-").slice(1).join("-");
-      switch (orderKind) {
-        case "contract-wide": {
-          [{ id: tokenSetId }] = await tokenSet.contractWide.save([
+          [{ id: tokenSetId }] = await tokenSet.singleToken.save([
             {
-              id: `contract:${order.params.nft}`,
+              id: `token:${collection}:${tokenId}`,
               schemaHash,
-              contract: order.params.nft,
+              contract: collection,
+              tokenId: tokenId,
             },
           ]);
 
           break;
         }
 
-        case "single-token": {
-          [{ id: tokenSetId }] = await tokenSet.singleToken.save([
+        case "contract-wide": {
+          const nft = order.nfts[0];
+          collection = nft.collection;
+
+          [{ id: tokenSetId }] = await tokenSet.contractWide.save([
             {
-              id: `token:${order.params.nft}:${order.params.nftId}`,
+              id: `contract:${collection}`,
               schemaHash,
-              contract: order.params.nft,
-              tokenId: order.params.nftId,
+              contract: collection,
             },
           ]);
+
+          break;
+        }
+
+        case "complex": {
+          const nfts = order.nfts;
+          if (nfts.length === 1) {
+            collection = nfts[0].collection;
+
+            const merkleRoot = generateMerkleTree(nfts[0].tokens.map((t) => t.tokenId));
+            if (merkleRoot) {
+              [{ id: tokenSetId }] = await tokenSet.tokenList.save([
+                {
+                  id: `list:${collection}:${merkleRoot.getHexRoot()}`,
+                  schemaHash,
+                  schema: metadata.schema,
+                },
+              ]);
+            }
+          } else {
+            // TODO: Add support for more complex orders once multi-collection token sets are supported
+            return results.push({
+              id,
+              status: "unsupported-order-type",
+            });
+          }
 
           break;
         }
@@ -187,85 +182,75 @@ export const save = async (
         });
       }
 
+      const side = order.isSellOrder ? "sell" : "buy";
+
       // Handle: fees
-      const feeAmount = order.getFeeAmount();
+      const FEE_BPS = 250;
+      const feeBreakdown = [
+        {
+          kind: "marketplace",
+          recipient: Sdk.Infinity.Addresses.Exchange[config.chainId],
+          bps: FEE_BPS,
+        },
+      ];
 
-      const side = order.params.direction === Sdk.Element.Types.TradeDirection.BUY ? "buy" : "sell";
+      let price = order.getMatchingPrice();
+      let feeAmount = bn(price).mul(FEE_BPS).div(10000);
+      // For buy orders, we set the value as `price - fee` since it
+      // is best for UX to show the user exactly what they're going
+      // to receive on offer acceptance.
+      let value = side === "buy" ? bn(price).sub(feeAmount) : price;
 
-      // Handle: price and value
-      let price = bn(order.params.erc20TokenAmount).add(feeAmount);
-      let value = price;
-      if (side === "buy") {
-        // For buy orders, we set the value as `price - fee` since it
-        // is best for UX to show the user exactly what they're going
-        // to receive on offer acceptance.
-        value = bn(price).sub(feeAmount);
-      }
-
-      // The price and value are for a single item
-      if (order.params.kind?.startsWith("erc1155")) {
-        price = price.div(order.params.nftAmount!);
-        value = value.div(order.params.nftAmount!);
-      }
-
-      const feeBps = price.eq(0) ? bn(0) : feeAmount.mul(10000).div(price);
-      if (feeBps.gt(10000)) {
-        return results.push({
-          id,
-          status: "fees-too-high",
-        });
+      if (order.numItems > 1) {
+        price = bn(price).div(order.numItems);
+        value = bn(value).div(order.numItems);
+        feeAmount = bn(feeAmount).div(order.numItems);
       }
 
       // Handle: source
       const sources = await Sources.getInstance();
-      const source = metadata.source ? await sources.getOrInsert(metadata.source) : undefined;
-
-      // Handle: native Reservoir orders
-      const isReservoir = false;
-
-      // Handle: fee breakdown
-      const feeBreakdown = order.params.fees.map(({ recipient, amount }) => ({
-        kind: "royalty",
-        recipient,
-        bps: price.eq(0) ? bn(0) : bn(amount).mul(10000).div(price).toNumber(),
-      }));
-
-      // Handle: currency
-      let currency = order.params.erc20Token;
-      if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
-        // ZeroEx-like exchanges use a non-standard ETH address
-        currency = Sdk.Common.Addresses.Eth[config.chainId];
+      let source = await sources.getOrInsert("infinity.xyz");
+      if (metadata.source) {
+        source = await sources.getOrInsert(metadata.source);
       }
 
-      const validFrom = `date_trunc('seconds', to_timestamp(0))`;
-      const validTo = `date_trunc('seconds', to_timestamp(${expirationTime}))`;
+      const validFrom = `date_trunc('seconds', to_timestamp(${order.startTime}))`;
+      const validTo =
+        order.endTime === 0
+          ? "'infinity'"
+          : `date_trunc('seconds', to_timestamp(${order.endTime}))`;
+
+      const isReservoir = false;
       orderValues.push({
         id,
-        kind: `element-${kind}`,
+        kind: "infinity",
         side,
         fillability_status: fillabilityStatus,
         approval_status: approvalStatus,
         token_set_id: tokenSetId,
         token_set_schema_hash: toBuffer(schemaHash),
-        maker: toBuffer(order.params.maker),
-        taker: toBuffer(order.params.taker),
+        offer_bundle_id: null,
+        consideration_bundle_id: null,
+        bundle_kind: null,
+        maker: toBuffer(order.signer),
+        taker: toBuffer(order.taker),
         price: price.toString(),
         value: value.toString(),
-        currency: toBuffer(currency),
+        currency: toBuffer(order.currency),
         currency_price: price.toString(),
         currency_value: value.toString(),
         needs_conversion: null,
-        quantity_remaining: order.params.nftAmount ?? "1",
+        quantity_remaining: order.numItems.toString(),
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
-        nonce: order.params.nonce,
+        nonce: order.nonce,
         source_id_int: source?.id,
-        is_reservoir: isReservoir ? isReservoir : null,
-        contract: toBuffer(order.params.nft),
-        conduit: toBuffer(Sdk.Element.Addresses.Exchange[config.chainId]),
-        fee_bps: feeBps.toNumber(),
-        fee_breakdown: feeBreakdown || null,
-        dynamic: null,
-        raw_data: order.params,
+        is_reservoir: isReservoir,
+        contract: toBuffer(collection),
+        conduit: toBuffer(Sdk.Infinity.Addresses.Exchange[config.chainId]),
+        fee_bps: FEE_BPS,
+        fee_breakdown: feeBreakdown,
+        dynamic: order.startPrice !== order.endPrice,
+        raw_data: order.getSignedOrder(),
         expiration: validTo,
         missing_royalties: null,
         normalized_value: null,
@@ -286,13 +271,12 @@ export const save = async (
       }
     } catch (error) {
       logger.error(
-        "orders-element-save",
+        "orders-infinity-save",
         `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
       );
     }
   };
 
-  // Process all orders concurrently
   const limit = pLimit(20);
   await Promise.all(orderInfos.map((orderInfo) => limit(() => handleOrder(orderInfo))));
 
@@ -306,6 +290,9 @@ export const save = async (
         "approval_status",
         "token_set_id",
         "token_set_schema_hash",
+        "offer_bundle_id",
+        "consideration_bundle_id",
+        "bundle_kind",
         "maker",
         "taker",
         "price",
@@ -326,6 +313,9 @@ export const save = async (
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        { name: "missing_royalties", mod: ":json" },
+        "normalized_value",
+        "currency_normalized_value",
       ],
       {
         table: "orders",
@@ -349,9 +339,16 @@ export const save = async (
     );
 
     if (relayToArweave) {
-      await arweaveRelay.addPendingOrdersElement(arweaveData);
+      await arweaveRelay.addPendingOrdersInfinity(arweaveData);
     }
   }
 
   return results;
+};
+
+const checkOrderExistence = async (id: string) => {
+  const orderExists = await idb.oneOrNone(`SELECT 1 FROM orders WHERE orders.id = $/id/`, {
+    id,
+  });
+  return orderExists ? true : false;
 };

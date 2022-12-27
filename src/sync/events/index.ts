@@ -3,8 +3,8 @@ import _ from "lodash";
 import pLimit from "p-limit";
 
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { getNetworkSettings } from "@/config/network";
+import { baseProvider } from "@/common/provider";
 import { EventDataKind, getEventData } from "@/events-sync/data";
 import { EventsInfo } from "@/events-sync/handlers";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
@@ -48,6 +48,11 @@ export const parseEnhancedEventsToEventsInfo = (
     {
       kind: "cryptopunks",
       events: enhancedEvents.filter(({ kind }) => kind.startsWith("cryptopunks")),
+      backfill,
+    },
+    {
+      kind: "decentraland",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("decentraland")),
       backfill,
     },
     {
@@ -152,6 +157,11 @@ export const parseEnhancedEventsToEventsInfo = (
       backfill,
     },
     {
+      kind: "infinity",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("infinity")),
+      backfill,
+    },
+    {
       kind: "rarible",
       events: enhancedEvents.filter(
         ({ kind }) =>
@@ -159,6 +169,34 @@ export const parseEnhancedEventsToEventsInfo = (
           // To properly validate bids, we need some additional events
           kind === "erc20-transfer"
       ),
+    },
+    {
+      kind: "manifold",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("manifold")),
+      backfill,
+    },
+    {
+      kind: "tofu",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("tofu")),
+    },
+    {
+      kind: "bend-dao",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("bend-dao")),
+    },
+    {
+      kind: "nft-trader",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("nft-trader")),
+      backfill,
+    },
+    {
+      kind: "okex",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("okex")),
+      backfill,
+    },
+    {
+      kind: "superrare",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("superrare")),
+      backfill,
     },
   ];
 };
@@ -205,7 +243,7 @@ export const syncEvents = async (
 
   // Generate the events filter with one of the following options:
   // - fetch all events
-  // - fetch a subset of all events
+  // - fetch a subset of events
   // - fetch all events from a particular address
 
   // By default, we want to get all events
@@ -217,6 +255,7 @@ export const syncEvents = async (
   if (options?.syncDetails?.method === "events") {
     // Filter to a subset of events
     eventFilter = {
+      // Remove any duplicate topics
       topics: [[...new Set(getEventData(options.syncDetails.events).map(({ topic }) => topic))]],
       fromBlock,
       toBlock,
@@ -233,9 +272,14 @@ export const syncEvents = async (
   const enhancedEvents: EnhancedEvent[] = [];
   await baseProvider.getLogs(eventFilter).then(async (logs) => {
     const availableEventData = getEventData();
+
     for (const log of logs) {
       try {
         const baseEventParams = await parseEvent(log, blocksCache);
+
+        if (!backfill) {
+          logger.info("events-sync", `Processing event: ${JSON.stringify(baseEventParams)}`);
+        }
 
         // Cache the block data
         if (!blocksCache.has(baseEventParams.block)) {
@@ -258,9 +302,9 @@ export const syncEvents = async (
         // Find first matching event:
         // - matching topic
         // - matching number of topics (eg. indexed fields)
-        // - matching addresses
+        // - matching address
         const eventData = availableEventData.find(
-          ({ addresses, topic, numTopics }) =>
+          ({ addresses, numTopics, topic }) =>
             log.topics[0] === topic &&
             log.topics.length === numTopics &&
             (addresses ? addresses[log.address.toLowerCase()] : true)
@@ -285,7 +329,6 @@ export const syncEvents = async (
     );
 
     // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
-
     const ns = getNetworkSettings();
     if (!backfill && ns.enableReorgCheck) {
       for (const blockData of blocksSet.values()) {

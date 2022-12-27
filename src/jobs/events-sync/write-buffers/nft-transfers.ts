@@ -1,10 +1,11 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
 import { acquireLock, redis, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { idb } from "@/common/db";
+import { MqJobsDataManager } from "@/models/mq-jobs-data";
+import _ from "lodash";
 
 const QUEUE_NAME = "events-sync-nft-transfers-write";
 
@@ -28,17 +29,28 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { query } = job.data;
+      const { id } = job.data;
 
-      try {
-        if (await acquireLock(getLockName(), 60)) {
-          await idb.none(query);
-        } else {
-          await addToQueue(query);
+      const lockName = getLockName();
+      if (await acquireLock(lockName, 45)) {
+        job.data.lockName = lockName;
+        const { query } = (await MqJobsDataManager.getJobData(id)) || {};
+
+        if (!query) {
+          return;
         }
-      } catch (error) {
-        logger.error(QUEUE_NAME, `Failed flushing nft transfer events to the database: ${error}`);
-        throw error;
+
+        try {
+          await idb.none(query);
+        } catch (error) {
+          logger.error(
+            QUEUE_NAME,
+            `Failed flushing nft transfer events to the database: ${query} error=${error}`
+          );
+          throw error;
+        }
+      } else {
+        await addToQueueByJobDataId(id);
       }
     },
     {
@@ -50,8 +62,14 @@ if (config.doBackgroundWork) {
     }
   );
 
-  worker.on("completed", async () => {
-    await releaseLock(getLockName());
+  worker.on("completed", async (job) => {
+    // If lockName was set release the lock
+    if (job.data.lockName) {
+      const { id } = job.data;
+      await MqJobsDataManager.deleteJobData(id);
+
+      await releaseLock(job.data.lockName);
+    }
   });
 
   worker.on("error", (error) => {
@@ -60,9 +78,14 @@ if (config.doBackgroundWork) {
 }
 
 export const getLockName = () => {
-  return `${QUEUE_NAME}-lock`;
+  return `${QUEUE_NAME}-lock-${_.random(1, 10)}`;
 };
 
 export const addToQueue = async (query: string) => {
-  await queue.add(randomUUID(), { query });
+  const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, { query });
+  await Promise.all(_.map(ids, async (id) => await queue.add(id, { id })));
+};
+
+export const addToQueueByJobDataId = async (id: string) => {
+  await queue.add(id, { id });
 };

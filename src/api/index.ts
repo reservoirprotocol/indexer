@@ -6,6 +6,7 @@ import { Boom } from "@hapi/boom";
 import Hapi from "@hapi/hapi";
 import Inert from "@hapi/inert";
 import Vision from "@hapi/vision";
+import HapiPulse from "hapi-pulse";
 import HapiSwagger from "hapi-swagger";
 import _ from "lodash";
 import { RateLimiterRes } from "rate-limiter-flexible";
@@ -15,7 +16,7 @@ import { setupRoutes } from "@/api/routes";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
-import { allJobQueues } from "@/jobs/index";
+import { allJobQueues, gracefulShutdownJobWorkers } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 
@@ -132,9 +133,27 @@ export const start = async (): Promise<void> => {
         },
       },
     },
+    {
+      plugin: HapiPulse,
+      options: {
+        timeout: 25 * 1000,
+        signals: ["SIGINT", "SIGTERM"],
+        preServerStop: async () => {
+          logger.info("process", "Shutting down");
+
+          // Close all workers which should be gracefully shutdown
+          await Promise.all(gracefulShutdownJobWorkers.map((worker) => worker?.close()));
+        },
+      },
+    },
   ]);
 
   server.ext("onPreAuth", async (request, reply) => {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    if ((request as any).isInjected) {
+      return reply.continue;
+    }
+
     const key = request.headers["x-api-key"];
     const apiKey = await ApiKeyManager.getApiKey(key);
     const tier = apiKey?.tier || 0;
@@ -248,6 +267,8 @@ export const start = async (): Promise<void> => {
   });
 
   setupRoutes(server);
+
+  server.listener.keepAliveTimeout = 61000;
 
   await server.start();
   logger.info("process", `Started on port ${config.port}`);
