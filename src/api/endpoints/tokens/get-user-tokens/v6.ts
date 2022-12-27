@@ -108,6 +108,7 @@ export const getUserTokensV6Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
+            kind: Joi.string(),
             name: Joi.string().allow(null, ""),
             image: Joi.string().allow(null, ""),
             collection: Joi.object({
@@ -342,7 +343,7 @@ export const getUserTokensV6Options: RouteOptions = {
                t.name, t.image, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
-               c.name as collection_name, c.metadata, ${
+               c.name as collection_name, con.kind, c.metadata, ${
                  query.useNonFlaggedFloorAsk
                    ? "c.floor_sell_value"
                    : "c.non_flagged_floor_sell_value"
@@ -371,6 +372,7 @@ export const getUserTokensV6Options: RouteOptions = {
           ) AS b
           ${tokensJoin}
           JOIN collections c ON c.id = t.collection_id
+          JOIN contracts con ON b.contract = con.address
       `;
 
       const conditions: string[] = [];
@@ -435,6 +437,7 @@ export const getUserTokensV6Options: RouteOptions = {
           token: {
             contract: contract,
             tokenId: tokenId,
+            kind: r.kind,
             name: r.name,
             image: r.image,
             collection: {
