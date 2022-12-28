@@ -127,7 +127,7 @@ if (config.doBackgroundWork) {
         logger.info(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
       }
     },
-    { connection: redis.duplicate(), concurrency: 40 }
+    { connection: redis.duplicate(), concurrency: 50 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
