@@ -3,10 +3,10 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-// import * as tokenUpdatesRefreshCache from "@/jobs/token-updates/token-refresh-cache";
+import * as tokenUpdatesRefreshCache from "@/jobs/token-updates/token-refresh-cache";
 
 const QUEUE_NAME = "collection-updates-floor-ask-queue";
 
@@ -158,26 +158,27 @@ if (config.doBackgroundWork) {
         if (collectionFloorAsk) {
           await redis.del(`collection-floor-ask:${collectionResult.collection_id}`);
 
-          // const floorToken = await idb.oneOrNone(
-          //   `
-          //     SELECT
-          //       tokens.contract,
-          //       tokens.token_id
-          //     FROM tokens
-          //     WHERE tokens.collection_id = $/collection/
-          //     ORDER BY tokens.floor_sell_value
-          //     LIMIT 1
-          //   `,
-          //   {
-          //     collection: collectionResult.collection_id,
-          //   }
-          // );
-          // if (floorToken) {
-          //   await tokenUpdatesRefreshCache.addToQueue(
-          //     fromBuffer(floorToken.contract),
-          //     floorToken.token_id
-          //   );
-          // }
+          const floorToken = await idb.oneOrNone(
+            `
+              SELECT
+                tokens.contract,
+                tokens.token_id
+              FROM tokens
+              WHERE tokens.collection_id = $/collection/
+              ORDER BY tokens.floor_sell_value
+              LIMIT 1
+            `,
+            {
+              collection: collectionResult.collection_id,
+            }
+          );
+          if (floorToken) {
+            await tokenUpdatesRefreshCache.addToQueue(
+              fromBuffer(floorToken.contract),
+              floorToken.token_id,
+              true
+            );
+          }
         }
       } catch (error) {
         logger.error(
