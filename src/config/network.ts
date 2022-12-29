@@ -152,6 +152,15 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
             },
           ],
+          [
+            "0x46898f15F99b8887D87669ab19d633F579939ad9",
+            {
+              contract: "0x46898f15F99b8887D87669ab19d633F579939ad9",
+              name: "Ribbit",
+              symbol: "RIBBIT",
+              decimals: 18,
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",

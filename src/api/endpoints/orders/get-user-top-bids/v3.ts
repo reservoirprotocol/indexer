@@ -265,6 +265,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
             ${communityFilter}
             ${collectionSetFilter}
             ${collectionFilter}
+            ${collectionSetFilter}
         ) c ON TRUE
         WHERE owner = $/user/
         AND amount > 0
