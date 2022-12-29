@@ -2,7 +2,7 @@ import { Interface } from "@ethersproject/abi";
 import { AddressZero } from "@ethersproject/constants";
 import { getTxTrace } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
-import { getSource } from "@reservoir0x/sdk/dist/utils";
+import { getSourceV1 } from "@reservoir0x/sdk/dist/utils";
 
 import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
@@ -165,7 +165,7 @@ export const extractAttributionData = async (
     taker = tx.from;
   }
 
-  let source = getSource(tx.data);
+  let source = getSourceV1(tx.data);
   if (!source) {
     const last4Bytes = "0x" + tx.data.slice(-8);
     source = sources.getByDomainHash(last4Bytes)?.domain;

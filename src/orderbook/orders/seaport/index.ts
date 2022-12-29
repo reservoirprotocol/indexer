@@ -1,5 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
+import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport/types";
 import _ from "lodash";
 import pLimit from "p-limit";
@@ -11,9 +12,6 @@ import { acquireLock, redis } from "@/common/redis";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import * as arweaveRelay from "@/jobs/arweave-relay";
-import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Collections } from "@/models/collections";
 import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
 import { Sources } from "@/models/sources";
@@ -22,13 +20,15 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck, offChainCheckPartial } from "@/orderbook/orders/seaport/check";
 import * as tokenSet from "@/orderbook/token-sets";
+import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { Royalty } from "@/utils/royalties";
-import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
-import { TokenSet } from "@/orderbook/token-sets/token-list";
+
+import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
-import { BigNumber } from "ethers";
+import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
+import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 
 export type OrderInfo =
   | {
@@ -528,9 +528,11 @@ export const save = async (
       const sources = await Sources.getInstance();
       let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
 
-      const sourceHash = BigNumber.from(order.params.salt)._hex.slice(0, 10);
+      const sourceHash = bn(order.params.salt)._hex.slice(0, 10);
       const matchedSource = sources.getByDomainHash(sourceHash);
-      if (matchedSource) source = matchedSource;
+      if (matchedSource) {
+        source = matchedSource;
+      }
 
       // If the order is native, override any default source
       if (isReservoir) {
