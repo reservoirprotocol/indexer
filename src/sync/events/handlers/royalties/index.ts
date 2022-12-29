@@ -47,6 +47,10 @@ export async function getFillEventsFromTx(txHash: string) {
   return fillEvents;
 }
 
+function checkFeeIsValid(result: RoyaltyResult) {
+  return result.marketplaceFeeBps + result.royaltyFeeBps < 10000;
+}
+
 export const assignRoyaltiesToFillEvents = async (fillEvents: es.fills.Event[]) => {
   for (let index = 0; index < fillEvents.length; index++) {
     const fillEvent = fillEvents[index];
@@ -55,6 +59,12 @@ export const assignRoyaltiesToFillEvents = async (fillEvents: es.fills.Event[]) 
       if (royaltyAdapter) {
         const result = await royaltyAdapter.extractRoyalties(fillEvent);
         if (result) {
+          const isValid = checkFeeIsValid(result);
+          if (!isValid) {
+            throw new Error(
+              `invalid royalties: marketplaceFeeBps=${result.marketplaceFeeBps}, royaltyFeeBps=${result.royaltyFeeBps}`
+            );
+          }
           fillEvents[index].royaltyFeeBps = result.royaltyFeeBps;
           fillEvents[index].marketplaceFeeBps = result.marketplaceFeeBps;
           fillEvents[index].royaltyFeeBreakdown = result.royaltyFeeBreakdown;

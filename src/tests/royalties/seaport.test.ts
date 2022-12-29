@@ -55,6 +55,7 @@ describe("Royalties - Seaport", () => {
       "multiple sales with same collection",
       "0x28cb9371d6d986a00e19797270c542ad6901abec7b67bbef7b2ae947b3c37c0b",
     ],
+    ["test", "0x60355582e37bab762807c3066ada4e79cc6432a745551f06ae8c534650aecca7"],
   ];
 
   for (const [name, txHash] of txIds) {
