@@ -81,6 +81,7 @@ export const getBidEventsV2Options: RouteOptions = {
             nonce: Joi.string().pattern(regex.number).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
+            kind: Joi.string(),
             source: Joi.string().allow(null, ""),
             criteria: JoiOrderCriteria.allow(null),
           }),
@@ -142,8 +143,14 @@ export const getBidEventsV2Options: RouteOptions = {
           bid_events.tx_hash,
           bid_events.tx_timestamp,
           extract(epoch from bid_events.created_at) AS created_at,
-          (${criteriaBuildQuery}) AS criteria
+          (${criteriaBuildQuery}) AS criteria,
+          orders.kind AS order_kind
         FROM bid_events
+        LEFT JOIN LATERAL (
+          SELECT kind
+          FROM orders
+          WHERE orders.id = bid_events.order_id
+          ) orders ON TRUE
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -211,6 +218,7 @@ export const getBidEventsV2Options: RouteOptions = {
           nonce: r.order_nonce ?? null,
           validFrom: r.valid_from ? Number(r.valid_from) : null,
           validUntil: r.valid_until ? Number(r.valid_until) : null,
+          kind: r.order_kind,
           source: sources.get(r.order_source_id_int)?.name,
           criteria: r.criteria,
         },
