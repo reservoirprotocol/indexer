@@ -28,6 +28,7 @@ import { Royalty } from "@/utils/royalties";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
+import { BigNumber } from "ethers";
 
 export type OrderInfo =
   | {
@@ -526,6 +527,10 @@ export const save = async (
       // Handle: source
       const sources = await Sources.getInstance();
       let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
+
+      const sourceHash = BigNumber.from(order.params.salt)._hex.slice(0, 10);
+      const matchedSource = sources.getByDomainHash(sourceHash);
+      if (matchedSource) source = matchedSource;
 
       // If the order is native, override any default source
       if (isReservoir) {
