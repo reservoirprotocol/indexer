@@ -318,37 +318,30 @@ export const getTokensV5Options: RouteOptions = {
       `;
     }
 
-    let includeQuantityQuery = "";
-    let selectIncludeQuantity = "";
-    if (query.includeQuantity) {
-      selectIncludeQuantity = ", q.*";
-      includeQuantityQuery = `
+    let includeOrdersQuery = "";
+    let selectIncludeOrdersQuery = "";
+    if (query.includeQuantity || query.includeDynamicPricing) {
+      selectIncludeOrdersQuery = ", q.*";
+
+      const includeQuantitySelectQuery = `o.quantity_filled AS floor_sell_quantity_filled,
+      o.quantity_remaining AS floor_sell_quantity_remaining`;
+
+      const includeDynamicPricingSelectQuery = `o.kind AS floor_sell_order_kind,
+      o.dynamic AS floor_sell_dynamic,
+      o.raw_data AS floor_sell_raw_data,
+      o.missing_royalties AS floor_sell_missing_royalties`;
+
+      includeOrdersQuery = `
         LEFT JOIN LATERAL (
           SELECT
-            o.quantity_filled AS floor_sell_quantity_filled,
-            o.quantity_remaining AS floor_sell_quantity_remaining
+            ${query.includeQuantity ? includeQuantitySelectQuery : ""}
+            ${query.includeQuantity && query.includeDynamicPricing ? ", " : ""}
+            ${query.includeDynamicPricing ? includeDynamicPricingSelectQuery : ""}
           FROM
             orders o
           WHERE
             o.id = t.floor_sell_id
         ) q ON TRUE
-      `;
-    }
-
-    let includeDynamicPricingQuery = "";
-    let selectIncludeDynamicPricing = "";
-    if (query.includeDynamicPricing) {
-      selectIncludeDynamicPricing = ", d.*";
-      includeDynamicPricingQuery = `
-        LEFT JOIN LATERAL (
-          SELECT
-            o.kind AS floor_sell_order_kind,
-            o.dynamic AS floor_sell_dynamic,
-            o.raw_data AS floor_sell_raw_data,
-            o.missing_royalties AS floor_sell_missing_royalties
-          FROM orders o
-          WHERE o.id = t.floor_sell_id
-        ) d ON TRUE
       `;
     }
 
@@ -463,13 +456,11 @@ export const getTokensV5Options: RouteOptions = {
           ) AS owner
           ${selectAttributes}
           ${selectTopBid}
-          ${selectIncludeQuantity}
-          ${selectIncludeDynamicPricing}
+          ${selectIncludeOrdersQuery}
         FROM tokens t
         ${topBidQuery}
         ${sourceQuery}
-        ${includeQuantityQuery}
-        ${includeDynamicPricingQuery}
+        ${includeOrdersQuery}
         JOIN collections c ON t.collection_id = c.id
         JOIN contracts con ON t.contract = con.address
       `;
