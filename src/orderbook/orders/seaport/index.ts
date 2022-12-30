@@ -28,6 +28,7 @@ import { Royalty } from "@/utils/royalties";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
+import { Attributes } from "@/models/attributes";
 
 export type OrderInfo =
   | {
@@ -370,14 +371,73 @@ export const save = async (
             // This is due to a mismatch between the collection flags in our system and OpenSea.
             // The actual merkle root is returned by the build collection offer API from OpenSea (see the logic in the execute bid API).
             if (metadata?.target === "opensea") {
-              tokenSetId = `contract:${info.contract}`;
-              await tokenSet.contractWide.save([
-                {
-                  id: tokenSetId,
-                  schemaHash,
-                  contract: info.contract,
-                },
-              ]);
+              if (metadata.schema?.kind === "attribute") {
+                const attribute = await Attributes.getAttributeByCollectionKeyValue(
+                  metadata.schema.data.collection,
+                  metadata.schema.data.attributes[0].key,
+                  metadata.schema.data.attributes[0].value
+                );
+
+                const limit = 5000;
+                let checkForMore = true;
+                let continuation = "";
+
+                let tokens: { tokenId: string; isFlagged: number }[] = [];
+
+                while (checkForMore) {
+                  const query = `
+                    SELECT token_attributes.token_id, tokens.is_flagged
+                    FROM token_attributes
+                    JOIN tokens ON tokens.contract = token_attributes.contract AND tokens.token_id = token_attributes.token_id
+                    WHERE attribute_id = $/attributeId/
+                    ${continuation}
+                    ORDER BY token_attributes.token_id ASC
+                    LIMIT ${limit}
+                  `;
+
+                  const result = await redb.manyOrNone(query, {
+                    attributeId: attribute?.id,
+                  });
+
+                  if (!_.isEmpty(result)) {
+                    tokens = _.concat(
+                      tokens,
+                      _.map(result, (r) => ({
+                        tokenId: r.token_id,
+                        isFlagged: r.is_flagged,
+                      }))
+                    );
+                    continuation = `AND token_attributes.token_id > ${_.last(result).token_id}`;
+                  }
+
+                  if (limit > _.size(result)) {
+                    checkForMore = false;
+                  }
+                }
+
+                const nonFlaggedTokensIds = tokens
+                  .filter((r) => !r.isFlagged)
+                  .map((r) => r.tokenId);
+                const merkleTree = generateMerkleTree(nonFlaggedTokensIds);
+                const tokenSetId = `list:${info.contract}:${merkleTree.getHexRoot()}`;
+
+                await tokenSet.tokenList.save([
+                  {
+                    id: tokenSetId,
+                    schemaHash,
+                    schema: metadata.schema,
+                  },
+                ]);
+              } else {
+                tokenSetId = `contract:${info.contract}`;
+                await tokenSet.contractWide.save([
+                  {
+                    id: tokenSetId,
+                    schemaHash,
+                    contract: info.contract,
+                  },
+                ]);
+              }
             } else {
               const typedInfo = info as typeof info & { merkleRoot: string };
               const merkleRoot = typedInfo.merkleRoot;

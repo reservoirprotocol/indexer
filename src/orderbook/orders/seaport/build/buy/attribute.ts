@@ -5,6 +5,7 @@ import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as utils from "@/orderbook/orders/seaport/build/utils";
+import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 
 interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
   // TODO: refactor
@@ -61,11 +62,28 @@ export const build = async (options: BuildOrderOptions) => {
       "buy"
     );
 
-    const excludeFlaggedTokens = options.excludeFlaggedTokens ? "AND tokens.is_flagged = 0" : "";
+    if (options.orderbook === "opensea" && config.chainId === 1) {
+      const buildCollectionOfferParams = await OpenSeaApi.buildAttributeOffer(
+        options.maker,
+        options.quantity || 1,
+        attributeResult.slug,
+        options.attributes[0].key,
+        options.attributes[0].value
+      );
 
-    // Fetch all tokens matching the attributes
-    const tokens = await redb.manyOrNone(
-      `
+      if (
+        buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria != "0"
+      ) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (buildInfo.params as any).merkleRoot =
+          buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria;
+      }
+    } else {
+      const excludeFlaggedTokens = options.excludeFlaggedTokens ? "AND tokens.is_flagged = 0" : "";
+
+      // Fetch all tokens matching the attributes
+      const tokens = await redb.manyOrNone(
+        `
         SELECT
           token_attributes.token_id
         FROM token_attributes
@@ -82,15 +100,16 @@ export const build = async (options: BuildOrderOptions) => {
           ${excludeFlaggedTokens}
         ORDER BY token_attributes.token_id
       `,
-      {
-        collection: options.collection,
-        key: options.attributes[0].key,
-        value: options.attributes[0].value,
-      }
-    );
+        {
+          collection: options.collection,
+          key: options.attributes[0].key,
+          value: options.attributes[0].value,
+        }
+      );
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (buildInfo.params as any).tokenIds = tokens.map(({ token_id }) => token_id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (buildInfo.params as any).tokenIds = tokens.map(({ token_id }) => token_id);
+    }
 
     return builder?.build(buildInfo.params);
   } else {

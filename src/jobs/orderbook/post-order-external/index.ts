@@ -213,29 +213,65 @@ const postOrder = async (
         order.getInfo()?.side === "buy" &&
         ["contract-wide", "token-list"].includes(order.params.kind!)
       ) {
-        const { collectionSlug } = await redb.oneOrNone(
+        const { collectionInfo } = await redb.oneOrNone(
           `
-                SELECT c.slug AS "collectionSlug"
-                FROM orders o
-                JOIN token_sets ts
-                  ON o.token_set_id = ts.id
-                JOIN collections c   
-                  ON c.id = ts.collection_id  
-                WHERE o.id = $/orderId/
-                AND ts.collection_id IS NOT NULL
-                AND ts.attribute_id IS NULL
-                LIMIT 1
+          SELECT
+          (CASE
+            WHEN orders.token_set_id LIKE 'contract:%' THEN
+              (SELECT
+                json_build_object(
+                  'collection_slug', collections.slug
+                )
+              FROM collections
+              WHERE collections.id = substring(orders.token_set_id from 10))
+            WHEN orders.token_set_id LIKE 'list:%' THEN
+              (SELECT
+                CASE
+                  WHEN token_sets.attribute_id IS NULL THEN
+                    (SELECT
+                    json_build_object(
+                      'collection_slug', collections.slug
+                    )
+                    FROM collections
+                    WHERE token_sets.collection_id = collections.id)
+                  ELSE
+                    (SELECT
+                      json_build_object(
+                        'collection_slug', collections.slug,
+                        'attribute', json_build_object('key', attribute_keys.key, 'value', attributes.value))
+                    FROM attributes
+                    JOIN attribute_keys
+                    ON attributes.attribute_key_id = attribute_keys.id
+                    JOIN collections
+                    ON attribute_keys.collection_id = collections.id
+                    WHERE token_sets.attribute_id = attributes.id)
+                END
+              FROM token_sets
+              WHERE token_sets.id = orders.token_set_id
+              LIMIT 1)
+            ELSE NULL
+          END)
+        FROM
+          orders
+        WHERE
+          orders.id = $/orderId/
+        LIMIT 1
             `,
           {
             orderId: orderId,
           }
         );
 
-        if (!collectionSlug) {
+        if (!collectionInfo) {
           throw new Error("Invalid collection offer.");
         }
 
-        return OpenSeaApi.postCollectionOffer(order, collectionSlug, orderbookApiKey);
+        return OpenSeaApi.postCollectionOrTraitOffer(
+          order,
+          collectionInfo.collection_slug,
+          orderbookApiKey,
+          collectionInfo?.attribute ?? null
+        );
       }
 
       return OpenSeaApi.postOrder(order, orderbookApiKey);

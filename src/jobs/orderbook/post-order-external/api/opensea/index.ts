@@ -116,10 +116,11 @@ export const buildCollectionOffer = async (
   );
 };
 
-export const postCollectionOffer = async (
+export const postCollectionOrTraitOffer = async (
   order: Sdk.Seaport.Order,
   collectionSlug: string,
-  apiKey: string
+  apiKey: string,
+  attribute?: { key: string; value: string }
 ) => {
   const url = `https://${config.chainId === 5 ? "testnets-api." : "api."}opensea.io/v2/offers`;
   const data = JSON.stringify({
@@ -127,6 +128,12 @@ export const postCollectionOffer = async (
       collection: {
         slug: collectionSlug,
       },
+      trait: attribute
+        ? {
+            type: attribute.key,
+            value: attribute.value,
+          }
+        : undefined,
     },
     protocol_data: {
       parameters: {
@@ -173,6 +180,72 @@ export const postCollectionOffer = async (
 
       throw new Error(`Failed to post offer to OpenSea`);
     });
+};
+
+export const buildAttributeOffer = async (
+  offerer: string,
+  quantity: number,
+  collectionSlug: string,
+  traitType: string,
+  traitValue: string,
+  apiKey = ""
+) => {
+  const url = `https://${
+    config.chainId === 5 ? "testnets-api." : "api."
+  }opensea.io/v2/offers/build`;
+
+  return (
+    axios
+      .post(
+        url,
+        JSON.stringify({
+          offerer,
+          quantity,
+          criteria: {
+            collection: {
+              slug: collectionSlug,
+            },
+            trait: {
+              type: traitType,
+              value: traitValue,
+            },
+          },
+        }),
+        {
+          headers:
+            config.chainId === 1
+              ? {
+                  "Content-Type": "application/json",
+                  "X-Api-Key": apiKey || config.openSeaApiKey,
+                }
+              : {
+                  "Content-Type": "application/json",
+                  // The request will fail if passing the API key on Rinkeby
+                },
+        }
+      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((response) => response.data as any)
+      .catch((error) => {
+        logger.error(
+          "opensea_orderbook_api",
+          `Build OpenSea attribute offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, traitType=${traitType}, traitValue=${traitValue}, error=${error}`
+        );
+
+        if (error.response) {
+          logger.error(
+            "opensea_orderbook_api",
+            `Failed to build OpenSea attribute offer. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, traitType=${traitType}, traitValue=${traitValue}, status: ${
+              error.response.status
+            }, data:${JSON.stringify(error.response.data)}`
+          );
+
+          handleErrorResponse(error.response);
+        }
+
+        throw new Error(`Failed to build OpenSea attribute offer`);
+      })
+  );
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
