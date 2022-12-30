@@ -74,7 +74,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
             kind: Joi.string(),
-            source: Joi.string().allow(null),
+            source: Joi.object().allow(null),
             isDynamic: Joi.boolean(),
             criteria: JoiOrderCriteria.allow(null),
           }),
@@ -139,6 +139,7 @@ export const getAsksEventsV3Options: RouteOptions = {
           orders.currency_normalized_value,
           orders.normalized_value,
           orders.kind AS order_kind,
+          orders.kind AS order_kind,
           TRUNC(orders.currency_price, 0) AS currency_price,
           order_events.order_source_id_int,
           coalesce(
@@ -152,6 +153,7 @@ export const getAsksEventsV3Options: RouteOptions = {
           (${criteriaBuildQuery}) AS criteria
         FROM order_events
         LEFT JOIN LATERAL (
+           SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value, token_set_id, kind
            SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value, token_set_id, kind
            FROM orders
            WHERE orders.id = order_events.order_id

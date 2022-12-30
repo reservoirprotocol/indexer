@@ -55,11 +55,14 @@ if (config.doBackgroundWork) {
           const infos: CollectionMetadataInfo[] = [];
 
           for (const contractCollection of contractCollections) {
-            let tokenId = "1";
+            let tokenId;
 
-            if (_.isNull(contractCollection.token_id_range)) {
+            if (
+              _.isNull(contractCollection.token_id_range) ||
+              contractCollection.token_id_range === "(,)"
+            ) {
               tokenId = await Tokens.getSingleToken(contractCollection.id);
-            } else if (contractCollection.token_id_range != "(,)") {
+            } else {
               tokenId = `${JSON.parse(contractCollection.token_id_range)[0]}`;
             }
 

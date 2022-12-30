@@ -255,7 +255,29 @@ export const getOrdersBidsV5Options: RouteOptions = {
         }
       }
 
+      // We default in the code so that these values don't appear in the docs
+      if (query.startTimestamp || query.endTimestamp) {
+        if (!query.startTimestamp) {
+          query.startTimestamp = 0;
+        }
+        if (!query.endTimestamp) {
+          query.endTimestamp = 9999999999;
+        }
+      }
+
       // Filters
+      const conditions: string[] =
+        query.startTimestamp || query.endTimestamp
+          ? [
+              `orders.created_at >= to_timestamp($/startTimestamp/)`,
+              `orders.created_at <= to_timestamp($/endTimestamp/)`,
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ]
+          : [
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ];
       const conditions: string[] =
         query.startTimestamp || query.endTimestamp
           ? [

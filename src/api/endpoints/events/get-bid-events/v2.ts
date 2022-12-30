@@ -152,7 +152,14 @@ export const getBidEventsV2Options: RouteOptions = {
           extract(epoch from bid_events.created_at) AS created_at,
           (${criteriaBuildQuery}) AS criteria,
           orders.kind AS order_kind
+          (${criteriaBuildQuery}) AS criteria,
+          orders.kind AS order_kind
         FROM bid_events
+        LEFT JOIN LATERAL (
+          SELECT kind
+          FROM orders
+          WHERE orders.id = bid_events.order_id
+          ) orders ON TRUE
         LEFT JOIN LATERAL (
           SELECT kind
           FROM orders
