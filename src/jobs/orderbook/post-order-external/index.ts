@@ -263,7 +263,7 @@ const postOrder = async (
         );
 
         if (!collectionInfo) {
-          throw new Error("Invalid collection offer.");
+          throw new Error("Invalid collection/trait offer.");
         }
 
         return OpenSeaApi.postCollectionOrTraitOffer(
