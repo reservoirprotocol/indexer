@@ -39,6 +39,7 @@ if (config.doBackgroundWork) {
             `
                 SELECT
                   o.token_set_id,
+                  fe.maker,
                   fe.taker
                 FROM orders o
                 LEFT JOIN fill_events_2 fe
@@ -84,7 +85,7 @@ if (config.doBackgroundWork) {
               {
                 contract: toBuffer(contract),
                 tokenId,
-                owner: result.taker,
+                owner: orderSide === "sell" ? result.taker : result.maker,
                 price: bn(price).div(amount).toString(),
                 timestamp,
               }
