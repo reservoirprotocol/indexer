@@ -81,10 +81,10 @@ export const postRefreshCollectionOptions: RouteOptions = {
 
         // Refresh the collection metadata
         let tokenId;
-        if (_.isNull(collection.tokenIdRange)) {
-          tokenId = await Tokens.getSingleToken(payload.collection);
+        if (collection.tokenIdRange?.length) {
+          tokenId = `${collection.tokenIdRange[0]}`;
         } else {
-          tokenId = _.isEmpty(collection.tokenIdRange) ? "1" : `${collection.tokenIdRange[0]}`;
+          tokenId = await Tokens.getSingleToken(payload.collection);
         }
 
         await collectionUpdatesMetadata.addToQueue(
