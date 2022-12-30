@@ -27,20 +27,12 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      let cursor = job.data.cursor as CursorInfo;
+      const cursor = job.data.cursor as CursorInfo;
       let continuationFilter = "";
 
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1;
       const owner =
         (await redis.get(`${QUEUE_NAME}-owner`)) || "0x133d9838d8e1627a4fddbd00034a4dc64dadfc05";
-
-      if (!cursor) {
-        const cursorJson = await redis.get(`${QUEUE_NAME}-next-cursor`);
-
-        if (cursorJson) {
-          cursor = JSON.parse(cursorJson);
-        }
-      }
 
       if (cursor) {
         continuationFilter = `AND (nft_balances.contract, nft_balances.token_id) > ($/contract/, $/tokenId/)`;
@@ -56,7 +48,7 @@ if (config.doBackgroundWork) {
                           y.timestamp,
                           y.price
                         FROM nft_balances
-                        JOIN LATERAL(
+                        LEFT JOIN LATERAL(
                             SELECT fill_events_2."timestamp", fill_events_2.price
                             FROM fill_events_2
                             WHERE fill_events_2.contract = nft_balances.contract
@@ -98,8 +90,6 @@ if (config.doBackgroundWork) {
           tokenId: lastToken.token_id,
         };
 
-        await redis.set(`${QUEUE_NAME}-next-cursor`, JSON.stringify(nextCursor));
-
         await addToQueue(nextCursor);
       }
 
@@ -118,7 +108,7 @@ if (config.doBackgroundWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v2`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue();
     })
