@@ -213,7 +213,7 @@ const postOrder = async (
         order.getInfo()?.side === "buy" &&
         ["contract-wide", "token-list"].includes(order.params.kind!)
       ) {
-        const { collectionInfo } = await redb.oneOrNone(
+        const { orderKindInfo } = await redb.oneOrNone(
           `
           SELECT
           (CASE
@@ -250,7 +250,7 @@ const postOrder = async (
               WHERE token_sets.id = orders.token_set_id
               LIMIT 1)
             ELSE NULL
-          END)
+          END) AS "orderKindInfo"
         FROM
           orders
         WHERE
@@ -262,15 +262,15 @@ const postOrder = async (
           }
         );
 
-        if (!collectionInfo) {
+        if (!orderKindInfo) {
           throw new Error("Invalid collection/trait offer.");
         }
 
         return OpenSeaApi.postCollectionOrTraitOffer(
           order,
-          collectionInfo.collection_slug,
+          orderKindInfo.collection_slug,
           orderbookApiKey,
-          collectionInfo?.attribute ?? null
+          orderKindInfo?.attribute
         );
       }
 

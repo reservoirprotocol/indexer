@@ -28,7 +28,6 @@ import { Royalty } from "@/utils/royalties";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
-import { Attributes } from "@/models/attributes";
 
 export type OrderInfo =
   | {
@@ -367,58 +366,23 @@ export const save = async (
           }
 
           case "token-list": {
-            // For collection offers, if the target orderbook is opensea, the token set should always be a contract wide.
-            // This is due to a mismatch between the collection flags in our system and OpenSea.
-            // The actual merkle root is returned by the build collection offer API from OpenSea (see the logic in the execute bid API).
             if (metadata?.target === "opensea") {
               if (metadata.schema?.kind === "attribute") {
-                const attribute = await Attributes.getAttributeByCollectionKeyValue(
+                const tokens: { tokenId: string; isFlagged: number }[] = await getAttributeTokens(
                   metadata.schema.data.collection,
                   metadata.schema.data.attributes[0].key,
                   metadata.schema.data.attributes[0].value
                 );
 
-                const limit = 5000;
-                let checkForMore = true;
-                let continuation = "";
+                let tokenIds: string[] = [];
 
-                let tokens: { tokenId: string; isFlagged: number }[] = [];
-
-                while (checkForMore) {
-                  const query = `
-                    SELECT token_attributes.token_id, tokens.is_flagged
-                    FROM token_attributes
-                    JOIN tokens ON tokens.contract = token_attributes.contract AND tokens.token_id = token_attributes.token_id
-                    WHERE attribute_id = $/attributeId/
-                    ${continuation}
-                    ORDER BY token_attributes.token_id ASC
-                    LIMIT ${limit}
-                  `;
-
-                  const result = await redb.manyOrNone(query, {
-                    attributeId: attribute?.id,
-                  });
-
-                  if (!_.isEmpty(result)) {
-                    tokens = _.concat(
-                      tokens,
-                      _.map(result, (r) => ({
-                        tokenId: r.token_id,
-                        isFlagged: r.is_flagged,
-                      }))
-                    );
-                    continuation = `AND token_attributes.token_id > ${_.last(result).token_id}`;
-                  }
-
-                  if (limit > _.size(result)) {
-                    checkForMore = false;
-                  }
+                if (metadata?.schema.data.isNonFlagged) {
+                  tokenIds = tokens.filter((r) => !r.isFlagged).map((r) => r.tokenId);
+                } else {
+                  tokenIds = tokens.map((r) => r.tokenId);
                 }
 
-                const nonFlaggedTokensIds = tokens
-                  .filter((r) => !r.isFlagged)
-                  .map((r) => r.tokenId);
-                const merkleTree = generateMerkleTree(nonFlaggedTokensIds);
+                const merkleTree = generateMerkleTree(tokenIds);
                 const tokenSetId = `list:${info.contract}:${merkleTree.getHexRoot()}`;
 
                 await tokenSet.tokenList.save([
@@ -429,6 +393,9 @@ export const save = async (
                   },
                 ]);
               } else {
+                // For collection offers, if the target orderbook is opensea, the token set should always be a contract wide.
+                // This is due to a mismatch between the collection flags in our system and OpenSea.
+                // The actual merkle root is returned by the build collection offer API from OpenSea (see the logic in the execute bid API).
                 tokenSetId = `contract:${info.contract}`;
                 await tokenSet.contractWide.save([
                   {
@@ -1719,4 +1686,54 @@ const getCollectionFloorAskValue = async (
       return collectionFloorAskValue;
     }
   }
+};
+
+const getAttributeTokens = async (collection: string, key: string, value: string) => {
+  const limit = 5000;
+  let checkForMore = true;
+  let continuation = "";
+  let tokens: { tokenId: string; isFlagged: number }[] = [];
+
+  while (checkForMore) {
+    const query = `
+      SELECT token_attributes.token_id
+      FROM token_attributes
+      JOIN attributes
+        ON token_attributes.attribute_id = attributes.id
+      JOIN attribute_keys
+        ON attributes.attribute_key_id = attribute_keys.id
+      JOIN tokens 
+        ON tokens.contract = token_attributes.contract 
+        AND tokens.token_id = token_attributes.token_id
+      WHERE attribute_keys.collection_id = $/collection/
+        AND attribute_keys.key = $/key/
+        AND attributes.value = $/value/
+      ${continuation}
+      ORDER BY token_attributes.token_id ASC
+      LIMIT ${limit}
+    `;
+
+    const result = await redb.manyOrNone(query, {
+      collection: collection,
+      key: key,
+      value: value,
+    });
+
+    if (!_.isEmpty(result)) {
+      tokens = _.concat(
+        tokens,
+        _.map(result, (r) => ({
+          tokenId: r.token_id,
+          isFlagged: r.is_flagged,
+        }))
+      );
+      continuation = `AND token_attributes.token_id > ${_.last(result).token_id}`;
+    }
+
+    if (limit > _.size(result)) {
+      checkForMore = false;
+    }
+  }
+
+  return tokens;
 };

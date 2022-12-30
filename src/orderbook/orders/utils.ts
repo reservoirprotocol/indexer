@@ -15,6 +15,7 @@ export type OrderMetadata = {
     kind: "attribute";
     data: {
       collection: string;
+      isNonFlagged?: boolean;
       attributes: [
         {
           key: string;
