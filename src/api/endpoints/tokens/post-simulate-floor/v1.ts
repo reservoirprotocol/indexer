@@ -128,6 +128,9 @@ export const postSimulateFloorV1Options: RouteOptions = {
         `,
         { contract: toBuffer(contract) }
       );
+      if (!["erc721", "erc1155"].includes(contractResult.kind)) {
+        return { message: "Non-standard contracts not supported" };
+      }
 
       const parsedPayload = JSON.parse(response.payload);
       if (!parsedPayload?.path?.length) {
