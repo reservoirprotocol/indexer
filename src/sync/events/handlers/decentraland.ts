@@ -74,6 +74,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;

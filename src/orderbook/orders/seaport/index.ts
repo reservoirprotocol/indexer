@@ -528,10 +528,13 @@ export const save = async (
       const sources = await Sources.getInstance();
       let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
 
-      const sourceHash = bn(order.params.salt)._hex.slice(0, 10);
-      const matchedSource = sources.getByDomainHash(sourceHash);
-      if (matchedSource) {
-        source = matchedSource;
+      // If cross posting, source should always be opensea.
+      if (metadata?.target !== "opensea") {
+        const sourceHash = bn(order.params.salt)._hex.slice(0, 10);
+        const matchedSource = sources.getByDomainHash(sourceHash);
+        if (matchedSource) {
+          source = matchedSource;
+        }
       }
 
       // If the order is native, override any default source

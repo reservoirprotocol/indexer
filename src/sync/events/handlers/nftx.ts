@@ -125,6 +125,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                   amount: amounts.length ? amounts[i] : "1",
                   price: priceData.nativePrice,
                   timestamp: baseEventParams.timestamp,
+                  maker: baseEventParams.address,
+                  taker,
                 });
               }
             }
@@ -235,6 +237,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                   amount: "1",
                   price: priceData.nativePrice,
                   timestamp: baseEventParams.timestamp,
+                  maker: baseEventParams.address,
+                  taker,
                 });
               }
             }
