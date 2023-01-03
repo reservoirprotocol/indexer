@@ -32,7 +32,7 @@ type OrderBuildInfo = {
   kind: "erc721" | "erc1155";
 };
 
-const padSourceToSalt = (source: string, salt: string) => {
+export const padSourceToSalt = (source: string, salt: string) => {
   const sourceHash = generateSourceBytes(source);
   const saltHex = bn(salt)._hex.slice(6);
   return bn(`0x${sourceHash}${saltHex}`).toString();
