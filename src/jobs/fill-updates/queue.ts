@@ -73,6 +73,13 @@ if (config.doBackgroundWork) {
           }
 
           if (result && result.taker) {
+            logger.info(
+              QUEUE_NAME,
+              `Updating nft balance last sale. ${JSON.stringify(job.data)}: ${JSON.stringify(
+                result
+              )}`
+            );
+
             await idb.none(
               `
                   UPDATE nft_balances SET
