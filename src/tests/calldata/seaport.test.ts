@@ -4,6 +4,8 @@ import { config } from "@/config/index";
 import { Seaport } from "@reservoir0x/sdk";
 import { keccak256 } from "ethers/lib/utils";
 import { toUtf8Bytes } from "@ethersproject/strings";
+import { BigNumber } from "ethers";
+import { padSourceToSalt } from "@/orderbook/orders/seaport/build/utils";
 
 jest.setTimeout(1000 * 1000);
 
@@ -19,9 +21,16 @@ describe("CallData - Seaport", () => {
     const args = exchange.contract.interface.decodeFunctionData("fulfillBasicOrder", inputData);
     const orderSourceHash = args.parameters.salt._hex.slice(2, 10);
 
+    const openseaHash = "360c6ebe";
     const source = "opensea.io";
     const sourceHash = generateSourceBytes(source);
-    expect(sourceHash).toBe("360c6ebe");
-    expect(orderSourceHash).toBe("360c6ebe");
+
+    const salt = "1234";
+    const saltSource = padSourceToSalt(source, salt);
+    const saltWithSource = BigNumber.from(saltSource)._hex;
+
+    expect(saltWithSource.slice(2, 10)).toBe(openseaHash);
+    expect(sourceHash).toBe(openseaHash);
+    expect(orderSourceHash).toBe(openseaHash);
   });
 });

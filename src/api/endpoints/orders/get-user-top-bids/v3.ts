@@ -19,6 +19,7 @@ import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
 import { Orders } from "@/utils/orders";
 import { ContractSets } from "@/models/contract-sets";
 import * as Boom from "@hapi/boom";
+import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v3";
 
@@ -51,6 +52,9 @@ export const getUserTopBidsV3Options: RouteOptions = {
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
       optimizeCheckoutURL: Joi.boolean()
         .default(false)
         .description(
@@ -79,7 +83,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
         .max(100)
         .default(20)
         .description("Amount of items returned in response."),
-    }),
+    }).oxor("collection", "collectionsSetId"),
   },
   response: {
     schema: Joi.object({
@@ -163,8 +167,15 @@ export const getUserTopBidsV3Options: RouteOptions = {
       offset = Number(splitContinuation(query.continuation));
     }
 
-    if (query.collection) {
-      if (Array.isArray(query.collection)) {
+    if (query.collection || query.collectionsSetId) {
+      if (query.collectionsSetId) {
+        query.collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+        if (_.isEmpty(query.collectionsIds)) {
+          throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+        }
+
+        collectionFilter = `AND id IN ($/collectionsIds:csv/)`;
+      } else if (Array.isArray(query.collection)) {
         collectionFilter = `AND id IN ($/collection:csv/)`;
       } else {
         collectionFilter = `AND id = $/collection/`;
@@ -229,7 +240,9 @@ export const getUserTopBidsV3Options: RouteOptions = {
             WHERE t.contract = nb.contract
             AND t.token_id = nb.token_id
         ) t ON TRUE
-        ${query.collection || query.community ? "" : "LEFT"} JOIN LATERAL (
+        ${
+          query.collection || query.community || query.collectionsSetId ? "" : "LEFT"
+        } JOIN LATERAL (
             SELECT
                 id AS "collection_id",
                 name AS "collection_name",
