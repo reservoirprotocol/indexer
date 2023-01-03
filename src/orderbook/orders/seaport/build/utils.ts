@@ -1,6 +1,7 @@
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { BaseBuildParams } from "@reservoir0x/sdk/dist/seaport/builders/base";
+import { generateSourceBytes } from "@reservoir0x/sdk/dist/utils";
 
 import { redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
@@ -23,12 +24,21 @@ export interface BaseOrderBuildOptions {
   salt?: string;
   automatedRoyalties?: boolean;
   excludeFlaggedTokens?: boolean;
+  source?: string;
 }
 
 type OrderBuildInfo = {
   params: BaseBuildParams;
   kind: "erc721" | "erc1155";
 };
+
+export function padSourceToSalt(source: string, salt: string) {
+  const sourceHash = generateSourceBytes(source);
+  const saltHex = bn(salt)._hex.slice(6);
+  const padSourceHex = `0x${sourceHash}${saltHex}`;
+  const saltWithSource = bn(padSourceHex).toString();
+  return saltWithSource;
+}
 
 export const getBuildInfo = async (
   options: BaseOrderBuildOptions,
@@ -76,7 +86,8 @@ export const getBuildInfo = async (
     conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero,
     startTime: options.listingTime || now() - 1 * 60,
     endTime: options.expirationTime || now() + 6 * 30 * 24 * 3600,
-    salt: options.salt,
+    salt:
+      options.source && options.salt ? padSourceToSalt(options.source, options.salt) : options.salt,
     counter: (await exchange.getCounter(baseProvider, options.maker)).toString(),
     orderType: options.orderType,
   };

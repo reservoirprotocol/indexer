@@ -248,12 +248,14 @@ export const getExecuteBidV3Options: RouteOptions = {
                 maker,
                 contract,
                 tokenId,
+                source,
               });
             } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
               order = await seaportBuyAttribute.build({
                 ...params,
                 maker,
                 collection,
+                source,
                 attributes: [
                   {
                     key: attributeKey,
@@ -266,6 +268,7 @@ export const getExecuteBidV3Options: RouteOptions = {
                 ...params,
                 maker,
                 collection,
+                source,
               });
             } else {
               throw Boom.internal("Wrong metadata");
