@@ -164,6 +164,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             amount: associatedNftTransferEvent.amount,
             price: priceData.nativePrice,
             timestamp: baseEventParams.timestamp,
+            maker,
+            taker,
           });
         }
 
@@ -196,6 +198,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             amount: associatedNftTransferEvent.amount,
             price: priceData.nativePrice,
             timestamp: baseEventParams.timestamp,
+            maker,
+            taker,
           });
         }
 
