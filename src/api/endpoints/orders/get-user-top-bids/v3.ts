@@ -260,7 +260,6 @@ export const getUserTopBidsV3Options: RouteOptions = {
             FROM collections c
             WHERE id = t.collection_id
             ${communityFilter}
-            ${collectionSetFilter}
             ${collectionFilter}
         ) c ON TRUE
         WHERE owner = $/user/
