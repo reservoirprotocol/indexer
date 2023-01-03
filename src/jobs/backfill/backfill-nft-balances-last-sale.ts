@@ -32,7 +32,7 @@ if (config.doBackgroundWork) {
 
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1;
       const owner =
-        (await redis.get(`${QUEUE_NAME}-owner`)) || "0x133d9838d8e1627a4fddbd00034a4dc64dadfc05";
+        (await redis.get(`${QUEUE_NAME}-owner`)) || "0xf0d6999725115e3ead3d927eb3329d63afaec09b";
 
       if (cursor) {
         continuationFilter = `AND (nft_balances.contract, nft_balances.token_id) > ($/contract/, $/tokenId/)`;
@@ -108,7 +108,7 @@ if (config.doBackgroundWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v3`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue();
     })
