@@ -155,7 +155,7 @@ if (config.doBackgroundWork) {
           (collection.royalties ?? []) as royalties.Royalty[],
           (collection.openseaRoyalties ?? []) as royalties.Royalty[]
         );
-        await royalties.refreshDefaulRoyalties(collection.id);
+        await royalties.refreshDefaultRoyalties(collection.id);
       } catch (error) {
         logger.error(
           QUEUE_NAME,

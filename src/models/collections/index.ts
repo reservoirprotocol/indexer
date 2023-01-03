@@ -118,7 +118,7 @@ export class Collections {
       (collection.royalties ?? []) as royalties.Royalty[],
       (collection.openseaRoyalties ?? []) as royalties.Royalty[]
     );
-    await royalties.refreshDefaulRoyalties(collection.id);
+    await royalties.refreshDefaultRoyalties(collection.id);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {
