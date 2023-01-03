@@ -44,7 +44,7 @@ CREATE INDEX "token_normalized_floor_sell_events_contract_token_id_created_at_id
   ON "token_normalized_floor_sell_events"("contract", "token_id", "created_at", "id");
 
 CREATE INDEX "tokens_contract_normalized_floor_sell_value_index"
-  ON "token_normalized_floor_sell_events"("contract", "normalized_floor_sell_value");
+  ON "token_normalized_floor_sell_events"("contract", "price");
 
 -- Down Migration
 
