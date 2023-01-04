@@ -193,7 +193,7 @@ export const addToQueue = async (infos: FetchCollectionMetadataInfo[], jobId = "
         data: info,
         opts: {
           // Deterministic job id so that we don't perform duplicated work
-          jobId: jobId,
+          jobId,
         },
       };
     })
