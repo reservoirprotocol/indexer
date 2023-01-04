@@ -123,7 +123,7 @@ if (config.doBackgroundWork) {
       }
 
       // Don't log already-exists
-      if (!(result[0]?.status === "already-exists")) {
+      if (!["already-exists", "success"].includes(result[0]?.status)) {
         logger.info(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
       }
     },
