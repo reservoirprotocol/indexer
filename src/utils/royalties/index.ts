@@ -194,7 +194,7 @@ export const refreshDefaultRoyalties = async (collection: string) => {
   const royaltiesResult = await idb.oneOrNone(
     `
       SELECT
-        COALESCE(collections.new_royalties, '{}')
+        COALESCE(collections.new_royalties, '{}') AS new_royalties
       FROM collections
       WHERE collections.id = $/collection/
     `,
