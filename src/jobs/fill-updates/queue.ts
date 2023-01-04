@@ -69,24 +69,23 @@ if (config.doBackgroundWork) {
           }
         }
 
+        // TODO: Remove condition after deployment.
         if (maker && taker) {
           logger.info(QUEUE_NAME, `Updating nft balance last sale. ${JSON.stringify(job.data)}`);
 
           await idb.none(
             `
-        UPDATE nft_balances SET
-          last_sale_timestamp = $/timestamp/,
-          last_sale_value = $/price/
-        WHERE contract = $/contract/
-        AND token_id = $/tokenId/
-        AND owner = $/owner/
-      `,
+                UPDATE nft_balances SET
+                  last_token_appraisal_value = $/price/
+                WHERE contract = $/contract/
+                AND token_id = $/tokenId/
+                AND owner = $/owner/
+              `,
             {
               contract: toBuffer(contract),
               tokenId,
               owner: orderSide === "sell" ? toBuffer(taker) : toBuffer(maker),
               price: bn(price).div(amount).toString(),
-              timestamp,
             }
           );
         }
