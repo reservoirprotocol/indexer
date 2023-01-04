@@ -23,15 +23,10 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const { contract, tokenId } = job.data;
-      const tokenAttributes = await Tokens.getTokenAttributes(contract, tokenId);
+      const tokenAttributes = await Tokens.getTokenAttributes(contract, tokenId, 5000);
 
       // Recalculate the number of tokens on sale for each attribute
       for (const tokenAttribute of tokenAttributes) {
-        // Skip attributes with too many tokens
-        if (tokenAttribute.tokenCount > 10000) {
-          continue;
-        }
-
         const { floorSellValue, onSaleCount } = await Tokens.getSellFloorValueAndOnSaleCount(
           tokenAttribute.collectionId,
           tokenAttribute.key,
