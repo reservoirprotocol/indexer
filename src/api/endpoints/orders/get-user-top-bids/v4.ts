@@ -218,7 +218,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
          SELECT contract, token_id, "owner", amount
          FROM nft_balances
          WHERE "owner" = $/user/ AND amount > 0
-         ORDER BY last_sale_value DESC NULLS LAST
+         ORDER BY last_token_appraisal_value DESC NULLS LAST
          LIMIT ${query.sampleSize}
         )
         SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids",
