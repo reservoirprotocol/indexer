@@ -65,7 +65,7 @@ if (config.doBackgroundWork) {
                     WHERE nb.contract = x.contract
                     AND nb.token_id = x.token_id
                     AND nb.owner = x.owner
-                    RETURNING nb.contract, nb.token_id;
+                    RETURNING nb.owner, nb.contract, nb.token_id;
           `,
         {
           owner: cursor?.owner ? toBuffer(cursor?.owner) : null,
