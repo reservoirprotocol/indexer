@@ -119,6 +119,10 @@ export const getActivityV4Options: RouteOptions = {
                       domain: orderSource?.domain,
                       name: orderSource?.getTitle(),
                       icon: orderSource?.getIcon(),
+                      id: orderSource?.id ?? undefined,
+                      address: orderSource?.address ?? undefined,
+                      optimized: orderSource?.optimized ?? undefined,
+                      url: orderSource?.getUrl() ?? undefined,
                     }
                   : undefined,
                 criteria: activity.order.criteria,

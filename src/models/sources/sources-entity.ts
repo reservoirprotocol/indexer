@@ -44,4 +44,8 @@ export class SourcesEntity {
   getTitle() {
     return this.metadata.adminTitle || this.metadata.title || this.name;
   }
+
+  getUrl() {
+    return this.metadata.tokenUrlMainnet || this.metadata.tokenUrlRinkeby;
+  }
 }
