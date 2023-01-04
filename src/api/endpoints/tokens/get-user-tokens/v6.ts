@@ -225,6 +225,11 @@ export const getUserTokensV6Options: RouteOptions = {
       addCollectionToFilter(query.collection);
     }
 
+    if (query.contract) {
+      (query as any)[`contract`] = toBuffer(query.contract);
+      nftBalanceCollectionFilters.push(`(nft_balances.contract = $/contract/)`);
+    }
+
     const tokensFilter: string[] = [];
 
     if (query.tokens) {
