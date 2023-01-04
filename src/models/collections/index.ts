@@ -115,10 +115,10 @@ export class Collections {
     // Refresh all royalty specs and the default royalties
     await royalties.refreshAllRoyaltySpecs(
       collection.id,
-      (collection.royalties ?? []) as royalties.Royalty[],
-      (collection.openseaRoyalties ?? []) as royalties.Royalty[]
+      collection.royalties as royalties.Royalty[] | undefined,
+      collection.openseaRoyalties as royalties.Royalty[] | undefined
     );
-    await royalties.refreshDefaulRoyalties(collection.id);
+    await royalties.refreshDefaultRoyalties(collection.id);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {

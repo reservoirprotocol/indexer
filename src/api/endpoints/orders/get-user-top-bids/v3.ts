@@ -20,6 +20,7 @@ import { Orders } from "@/utils/orders";
 import { ContractSets } from "@/models/contract-sets";
 import * as Boom from "@hapi/boom";
 import { CollectionSets } from "@/models/collection-sets";
+import { BigNumber } from "@ethersproject/bignumber";
 
 const version = "v3";
 
@@ -88,6 +89,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
   response: {
     schema: Joi.object({
       totalTokensWithBids: Joi.number(),
+      totalAmount: Joi.number(),
       topBids: Joi.array().items(
         Joi.object({
           id: Joi.string(),
@@ -208,7 +210,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
         : "floor_sell_value";
 
       const baseQuery = `
-        SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids",
+        SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids", SUM(y.top_bid_price) OVER() as total_amount,
                (${criteriaBuildQuery}) AS bid_criteria,
               COALESCE(((top_bid_value / net_listing) - 1) * 100, 0) AS floor_difference_percentage
         FROM nft_balances nb
@@ -265,12 +267,14 @@ export const getUserTopBidsV3Options: RouteOptions = {
 
       const bids = await redbAlt.manyOrNone(baseQuery, query);
       let totalTokensWithBids = 0;
+      let totalAmount = BigNumber.from(0);
 
       const results = await Promise.all(
         bids.map(async (r) => {
           const contract = fromBuffer(r.contract);
           const tokenId = r.token_id;
           totalTokensWithBids = Number(r.total_tokens_with_bids);
+          totalAmount = BigNumber.from(r.total_amount);
 
           const source = sources.get(
             Number(r.source_id_int),
@@ -358,6 +362,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
       }
 
       return {
+        totalAmount: formatEth(totalAmount),
         totalTokensWithBids,
         topBids: results,
         continuation: continuation ? buildContinuation(continuation.toString()) : undefined,
