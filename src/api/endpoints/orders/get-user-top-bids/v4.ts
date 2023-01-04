@@ -226,7 +226,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
         SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids", SUM(y.top_bid_price) OVER() as total_amount,
                (${criteriaBuildQuery}) AS bid_criteria,
               COALESCE(((top_bid_value / net_listing) - 1) * 100, 0) AS floor_difference_percentage
-        FROM nft_balances nb
+        FROM nb
         JOIN LATERAL (
             SELECT o.token_set_id, o.id AS "top_bid_id", o.price AS "top_bid_price", o.value AS "top_bid_value",
                    o.currency AS "top_bid_currency", o.currency_value AS "top_bid_currency_value", o.missing_royalties,
