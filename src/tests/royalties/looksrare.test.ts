@@ -3,7 +3,7 @@ dotEnvConfig();
 
 import { baseProvider } from "@/common/provider";
 import { getEventsFromTx } from "../utils/test";
-import * as blur from "@/events-sync/handlers/blur";
+import * as platform from "@/events-sync/handlers/looks-rare";
 import { extractRoyalties } from "@/events-sync/handlers/royalties/core";
 import { getRoyalties } from "@/utils/royalties";
 
@@ -19,8 +19,9 @@ type TestCase = {
   marketplaceFeeBps: number;
 };
 
-describe("Royalties - Blur", () => {
+describe("Royalties - LooksRare", () => {
   const TEST_COLLECTION = "0x33c6eec1723b12c46732f7ab41398de45641fa42";
+  const TEST_KIND = "x2y2";
 
   const testFeeExtract = async (
     txHash: string,
@@ -39,11 +40,12 @@ describe("Royalties - Blur", () => {
 
     const tx = await baseProvider.getTransactionReceipt(txHash);
     const events = await getEventsFromTx(tx);
-    const result = await blur.handleEvents(events);
+    const result = await platform.handleEvents(events);
 
     const fillEvents = result.fillEvents ?? [];
     for (let index = 0; index < fillEvents.length; index++) {
       const fillEvent = fillEvents[index];
+      if (fillEvent.orderKind != TEST_KIND) continue;
       const fees = await extractRoyalties(fillEvent);
       if (fees?.sale.contract === TEST_COLLECTION) {
         expect(fees?.royaltyFeeBps).toEqual(royaltyFeeBps);
@@ -54,16 +56,22 @@ describe("Royalties - Blur", () => {
 
   const txIds: TestCase[] = [
     {
-      name: "single sale",
-      tx: "0xb79639640d8cfe44decc069eb8d7a22f20776557e69f9e3ea3de5c86d9adf181",
-      royaltyFeeBps: 750,
-      marketplaceFeeBps: 0,
+      name: "single-sale",
+      tx: "0xf2031ab1dfc341224702490cd45ea173a4e226959856d8480ceccca869a7dae0",
+      royaltyFeeBps: 50,
+      marketplaceFeeBps: 150,
     },
     {
-      name: "bulk-execute",
-      tx: "0x29273e21b3704ea1c6284cc56e87d6baaecf183564be725c28d2b8c3a70cec3d",
-      royaltyFeeBps: 0,
-      marketplaceFeeBps: 0,
+      name: "multiple-sale-gem-swap",
+      tx: "0x546a28f697d3bb2ba1e25132d0f1913306d3ee274266a5a2fc4d296840409402",
+      royaltyFeeBps: 50,
+      marketplaceFeeBps: 150,
+    },
+    {
+      name: "multiple-sale-gem-swap-with-x2y2",
+      tx: "0x330a369f5c321db9d267732a1a440fba7b32f89da8f200a30933777b72a2af2a",
+      royaltyFeeBps: 50,
+      marketplaceFeeBps: 150,
     },
   ];
 

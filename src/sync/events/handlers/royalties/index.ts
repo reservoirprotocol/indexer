@@ -1,8 +1,7 @@
 import { logger } from "@/common/logger";
 import { concat } from "@/common/utils";
 import { getEnhancedEventFromTransaction, parseEventsInfo } from "@/events-sync/handlers";
-import * as blur from "@/events-sync/handlers/royalties/blur";
-import * as seaport from "@/events-sync/handlers/royalties/seaport";
+import * as fallback from "@/events-sync/handlers/royalties/core";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import { parseEnhancedEventsToEventsInfo } from "@/events-sync/index";
 import * as es from "@/events-sync/storage";
@@ -54,7 +53,7 @@ function checkFeeIsValid(result: RoyaltyResult) {
 export const assignRoyaltiesToFillEvents = async (fillEvents: es.fills.Event[]) => {
   for (let index = 0; index < fillEvents.length; index++) {
     const fillEvent = fillEvents[index];
-    const royaltyAdapter = registry.get(fillEvent.orderKind);
+    const royaltyAdapter = registry.get(fillEvent.orderKind) ?? registry.get("fallback");
     try {
       if (royaltyAdapter) {
         const result = await royaltyAdapter.extractRoyalties(fillEvent);
@@ -81,5 +80,4 @@ export const assignRoyaltiesToFillEvents = async (fillEvents: es.fills.Event[]) 
   }
 };
 
-registry.set("seaport", seaport as RoyaltyAdapter);
-registry.set("blur", blur as RoyaltyAdapter);
+registry.set("fallback", fallback as RoyaltyAdapter);
