@@ -205,23 +205,21 @@ export const refreshDefaultRoyalties = async (collection: string) => {
   }
 
   // Default royalties priority: custom, on-chain, opensea
-  let defultRoyalties: Royalty[] = [];
+  let defaultRoyalties: Royalty[] = [];
   if (royaltiesResult.new_royalties["custom"]) {
-    defultRoyalties = royaltiesResult.new_royalties["custom"];
-  }
-  if (royaltiesResult.new_royalties["onchain"]) {
-    defultRoyalties = royaltiesResult.new_royalties["onchain"];
-  } else {
+    defaultRoyalties = royaltiesResult.new_royalties["custom"];
+  } else if (royaltiesResult.new_royalties["onchain"]) {
+    defaultRoyalties = royaltiesResult.new_royalties["onchain"];
+  } else if (
     // TODO: Remove (for backwards-compatibility only)
+    Object.keys(royaltiesResult.new_royalties).find((kind) => !["custom", "opensea"].includes(kind))
+  ) {
     const oldSpec = Object.keys(royaltiesResult.new_royalties).find(
       (kind) => !["custom", "opensea"].includes(kind)
     );
-    if (oldSpec) {
-      defultRoyalties = royaltiesResult.new_royalties[oldSpec];
-    }
-  }
-  if (royaltiesResult.new_royalties["opensea"]) {
-    defultRoyalties = royaltiesResult.new_royalties["opensea"];
+    defaultRoyalties = royaltiesResult.new_royalties[oldSpec!];
+  } else if (royaltiesResult.new_royalties["opensea"]) {
+    defaultRoyalties = royaltiesResult.new_royalties["opensea"];
   }
 
   await idb.none(
@@ -233,8 +231,8 @@ export const refreshDefaultRoyalties = async (collection: string) => {
     `,
     {
       id: collection,
-      royalties: defultRoyalties,
-      royaltiesBps: _.sumBy(defultRoyalties, (royalty) => royalty.bps),
+      royalties: defaultRoyalties,
+      royaltiesBps: _.sumBy(defaultRoyalties, (royalty) => royalty.bps),
     }
   );
 };
