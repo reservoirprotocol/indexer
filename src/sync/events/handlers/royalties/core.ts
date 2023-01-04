@@ -4,7 +4,6 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 
 import { bn } from "@/common/utils";
-import { config } from "@/config/index";
 import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
