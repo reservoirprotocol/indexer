@@ -225,7 +225,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             // TODO: Handle lost precision (by paying it to the last or first recipient)
             missingRoyalties.push({
               bps: Math.floor((bpsDiff * bps) / totalBps),
-              amount: amount.mul(bps).div(totalBps),
+              amount: amount.mul(bps).div(totalBps).toString(),
               recipient,
             });
           }
