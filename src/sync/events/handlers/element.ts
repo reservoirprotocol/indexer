@@ -151,6 +151,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: "1",
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;
@@ -216,6 +218,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: "1",
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         fillEventsPartial.push({
@@ -319,6 +323,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: erc1155FillAmount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;
@@ -405,6 +411,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: erc1155FillAmount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;

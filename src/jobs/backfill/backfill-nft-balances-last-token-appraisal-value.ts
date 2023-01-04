@@ -10,7 +10,7 @@ import { redis, redlock } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-const QUEUE_NAME = "backfill-nft-balances-last-sale-queue";
+const QUEUE_NAME = "backfill-nft-balances-last-token-appraisal-value-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -31,11 +31,9 @@ if (config.doBackgroundWork) {
       let continuationFilter = "";
 
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1;
-      const owner =
-        (await redis.get(`${QUEUE_NAME}-owner`)) || "0xf0d6999725115e3ead3d927eb3329d63afaec09b";
 
       if (cursor) {
-        continuationFilter = `AND (nft_balances.contract, nft_balances.token_id) > ($/contract/, $/tokenId/)`;
+        continuationFilter = `AND (nft_balances.owner, nft_balances.contract, nft_balances.token_id) > ($/owner/, $/contract/, $/tokenId/)`;
       }
 
       const tokens = await idb.manyOrNone(
@@ -45,35 +43,32 @@ if (config.doBackgroundWork) {
                           nft_balances.contract,
                           nft_balances.token_id,
                           nft_balances.owner,
-                          y.timestamp,
                           y.price
                         FROM nft_balances
                         LEFT JOIN LATERAL(
-                            SELECT fill_events_2."timestamp", fill_events_2.price
+                            SELECT fill_events_2.price
                             FROM fill_events_2
                             WHERE fill_events_2.contract = nft_balances.contract
                             AND fill_events_2.token_id = nft_balances.token_id
                             ORDER BY fill_events_2.timestamp DESC
                             LIMIT 1
                         ) y ON TRUE
-                        WHERE nft_balances.owner = $/owner/
-                        AND nft_balances.amount > 0
+                        WHERE nft_balances.amount > 0
                         ${continuationFilter}
-                        ORDER BY nft_balances.contract, nft_balances.token_id
+                        ORDER BY nft_balances.owner, nft_balances.contract, nft_balances.token_id
                         LIMIT $/limit/
                     )
                     UPDATE nft_balances AS nb
                     SET
-                        last_sale_value = x.price,
-                        last_sale_timestamp = x.timestamp
+                        last_token_appraisal_value = x.price
                     FROM x
                     WHERE nb.contract = x.contract
                     AND nb.token_id = x.token_id
                     AND nb.owner = x.owner
-                    RETURNING nb.contract, nb.token_id;
+                    RETURNING nb.owner, nb.contract, nb.token_id;
           `,
         {
-          owner: toBuffer(owner),
+          owner: cursor?.owner ? toBuffer(cursor?.owner) : null,
           contract: cursor?.contract ? toBuffer(cursor?.contract) : null,
           tokenId: cursor?.tokenId,
           limit,
@@ -86,6 +81,7 @@ if (config.doBackgroundWork) {
         const lastToken = _.last(tokens);
 
         nextCursor = {
+          owner: fromBuffer(lastToken.owner),
           contract: fromBuffer(lastToken.contract),
           tokenId: lastToken.token_id,
         };
@@ -118,6 +114,7 @@ if (config.doBackgroundWork) {
 }
 
 export type CursorInfo = {
+  owner: string;
   contract: string;
   tokenId: string;
 };
