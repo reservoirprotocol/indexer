@@ -132,9 +132,15 @@ export const getRoyaltiesByTokenSet = async (
   }
 };
 
-export const updateRoyaltySpec = async (collection: string, spec: string, royalties: Royalty[]) => {
+export const updateRoyaltySpec = async (
+  collection: string,
+  spec: string,
+  royalties?: Royalty[]
+) => {
   // For safety, skip any zero bps or recipients
-  royalties = royalties.filter(({ bps, recipient }) => bps && recipient !== AddressZero);
+  royalties = royalties
+    ? royalties.filter(({ bps, recipient }) => bps && recipient !== AddressZero)
+    : undefined;
 
   // Fetch the current royalties
   const currentRoyalties = await idb.oneOrNone(
@@ -150,7 +156,7 @@ export const updateRoyaltySpec = async (collection: string, spec: string, royalt
   if (currentRoyalties) {
     // Always keep the latest royalty per spec
     if (!_.isEqual(currentRoyalties.royalties[spec], royalties)) {
-      currentRoyalties.royalties[spec] = royalties.length ? royalties : undefined;
+      currentRoyalties.royalties[spec] = royalties;
 
       await idb.none(
         `
@@ -170,8 +176,8 @@ export const updateRoyaltySpec = async (collection: string, spec: string, royalt
 // At the moment we support: custom, opensea and royalty registry specs
 export const refreshAllRoyaltySpecs = async (
   collection: string,
-  customRoyalties: Royalty[],
-  openseaRoyalties: Royalty[]
+  customRoyalties?: Royalty[],
+  openseaRoyalties?: Royalty[]
 ) => {
   // Update custom royalties
   await updateRoyaltySpec(collection, "custom", customRoyalties);
