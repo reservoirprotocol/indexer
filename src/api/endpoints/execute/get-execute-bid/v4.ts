@@ -206,7 +206,7 @@ export const getExecuteBidV4Options: RouteOptions = {
           items: [],
         },
         {
-          id: "currency-wrapping",
+          id: "weth-wrapping", // todo in v5 change this to currency-wrapping
           action: `Wrapping ${currency}`,
           description: `We'll ask your approval for converting ${currency} to ${wrappedCurrency}. Gas fee required.`,
           kind: "transaction",
