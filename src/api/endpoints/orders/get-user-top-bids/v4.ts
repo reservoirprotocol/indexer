@@ -26,7 +26,7 @@ const version = "v4";
 export const getUserTopBidsV4Options: RouteOptions = {
   description: "User Top Bids",
   notes: "Return the top bids for the given user tokens",
-  tags: ["api", "Orders"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 7,
