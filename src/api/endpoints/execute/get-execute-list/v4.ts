@@ -444,7 +444,7 @@ export const getExecuteListV4Options: RouteOptions = {
                   method: "POST",
                   body: {
                     order: {
-                      kind: params.orderKind,
+                      kind: params.orderKind === "seaport-forward" ? "seaport-forward" : "seaport",
                       data: {
                         ...order.params,
                       },
