@@ -53,7 +53,6 @@ export const getActivityV4Options: RouteOptions = {
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
-          orderSourceId: Joi.number().allow(null),
           order: Joi.object({
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
@@ -89,9 +88,8 @@ export const getActivityV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = _.map(activities, (activity) => {
-        const orderSource = activity.order?.sourceIdInt
-          ? sources.get(activity.order.sourceIdInt)
-          : undefined;
+        const orderSourceId = activity.order?.sourceIdInt || activity.metadata.orderSourceIdInt;
+        const orderSource = orderSourceId ? sources.get(orderSourceId) : undefined;
 
         return {
           id: Number(activity.id),
@@ -107,7 +105,6 @@ export const getActivityV4Options: RouteOptions = {
           txHash: activity.metadata.transactionHash,
           logIndex: activity.metadata.logIndex,
           batchIndex: activity.metadata.batchIndex,
-          orderSourceId: activity.metadata.orderSourceIdInt ?? undefined,
           order: activity.order?.id
             ? {
                 id: activity.order.id,
