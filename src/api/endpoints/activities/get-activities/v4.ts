@@ -53,6 +53,7 @@ export const getActivityV4Options: RouteOptions = {
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
+          orderSourceId: Joi.number().allow(null),
           order: Joi.object({
             id: Joi.string().allow(null),
             side: Joi.string().valid("ask", "bid").allow(null),
@@ -106,6 +107,7 @@ export const getActivityV4Options: RouteOptions = {
           txHash: activity.metadata.transactionHash,
           logIndex: activity.metadata.logIndex,
           batchIndex: activity.metadata.batchIndex,
+          orderSourceId: activity.metadata.orderSourceIdInt ?? undefined,
           order: activity.order?.id
             ? {
                 id: activity.order.id,
@@ -119,10 +121,6 @@ export const getActivityV4Options: RouteOptions = {
                       domain: orderSource?.domain,
                       name: orderSource?.getTitle(),
                       icon: orderSource?.getIcon(),
-                      id: orderSource?.id ?? undefined,
-                      address: orderSource?.address ?? undefined,
-                      optimized: orderSource?.optimized ?? undefined,
-                      url: orderSource?.getUrl() ?? undefined,
                     }
                   : undefined,
                 criteria: activity.order.criteria,
