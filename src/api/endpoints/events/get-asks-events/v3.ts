@@ -74,7 +74,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
             kind: Joi.string(),
-            source: Joi.string().allow(null, ""),
+            source: Joi.object().allow(null),
             isDynamic: Joi.boolean(),
             criteria: JoiOrderCriteria.allow(null),
           }),
@@ -139,6 +139,7 @@ export const getAsksEventsV3Options: RouteOptions = {
           orders.currency_normalized_value,
           orders.normalized_value,
           orders.kind AS order_kind,
+          orders.kind AS order_kind,
           TRUNC(orders.currency_price, 0) AS currency_price,
           order_events.order_source_id_int,
           coalesce(
@@ -152,6 +153,7 @@ export const getAsksEventsV3Options: RouteOptions = {
           (${criteriaBuildQuery}) AS criteria
         FROM order_events
         LEFT JOIN LATERAL (
+           SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value, token_set_id, kind
            SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value, token_set_id, kind
            FROM orders
            WHERE orders.id = order_events.order_id
@@ -240,27 +242,33 @@ export const getAsksEventsV3Options: RouteOptions = {
                         usdAmount: r.usd_price,
                       },
                     },
-                  },
-                  fromBuffer(r.currency)
-                )
-              : null,
-            quantityRemaining: Number(r.order_quantity_remaining),
-            nonce: r.order_nonce ?? null,
-            validFrom: r.valid_from ? Number(r.valid_from) : null,
-            validUntil: r.valid_until ? Number(r.valid_until) : null,
-            kind: r.order_kind,
-            source: sources.get(r.order_source_id_int)?.name,
-            isDynamic: Boolean(r.dynamic),
-            criteria: r.criteria,
-          },
-          event: {
-            id: r.id,
-            kind: r.kind,
-            txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
-            txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
-            createdAt: new Date(r.created_at * 1000).toISOString(),
-          },
-        }))
+                    fromBuffer(r.currency)
+                  )
+                : null,
+              quantityRemaining: Number(r.order_quantity_remaining),
+              nonce: r.order_nonce ?? null,
+              validFrom: r.valid_from ? Number(r.valid_from) : null,
+              validUntil: r.valid_until ? Number(r.valid_until) : null,
+              kind: r.order_kind,
+              source: {
+                id: source?.address,
+                domain: source?.domain,
+                name: source?.metadata.title || source?.name,
+                icon: source?.getIcon(),
+                url: source?.metadata.url,
+              },
+              isDynamic: Boolean(r.dynamic),
+              criteria: r.criteria,
+            },
+            event: {
+              id: r.id,
+              kind: r.kind,
+              txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
+              txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
+              createdAt: new Date(r.created_at * 1000).toISOString(),
+            },
+          };
+        })
       );
 
       return {
