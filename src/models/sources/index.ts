@@ -357,7 +357,6 @@ export class Sources {
     return sourceEntity;
   }
 
-  // TODO: Are we using this anymore? What about support for other chains?
   public getTokenUrl(sourceEntity: SourcesEntity, contract: string, tokenId: string) {
     if (config.chainId == 1) {
       if (sourceEntity.metadata.tokenUrlMainnet && contract && tokenId) {
@@ -369,10 +368,20 @@ export class Sources {
 
         return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
       }
-    } else {
-      if (sourceEntity.metadata.tokenUrlRinkeby && contract && tokenId) {
+    } else if (config.chainId == 137) {
+      if (sourceEntity.metadata.tokenUrlPolygon && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
-          sourceEntity.metadata.tokenUrlRinkeby,
+          sourceEntity.metadata.tokenUrlPolygon,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else {
+      if (sourceEntity.metadata.tokenUrlGoerli && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlGoerli,
           "${contract}",
           contract
         );
