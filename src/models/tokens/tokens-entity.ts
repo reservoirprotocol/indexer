@@ -54,6 +54,8 @@ export type TokensEntityParams = {
   is_flagged: number;
   last_flag_update: string;
   last_flag_change: string;
+  rarity_score: number;
+  rarity_rank: number;
 };
 
 export class TokensEntity {
@@ -81,6 +83,8 @@ export class TokensEntity {
   isFlagged: number;
   lastFlagUpdate: string;
   lastFlagChange: string;
+  rarityScore: number;
+  rarityRank: number;
 
   constructor(params: TokensEntityParams) {
     this.contract = fromBuffer(params.contract);
@@ -111,5 +115,7 @@ export class TokensEntity {
     this.isFlagged = Number(params.is_flagged);
     this.lastFlagUpdate = params.last_flag_update;
     this.lastFlagChange = params.last_flag_change;
+    this.rarityScore = params.rarity_score;
+    this.rarityRank = params.rarity_rank;
   }
 }
