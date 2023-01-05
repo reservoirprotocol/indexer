@@ -111,8 +111,14 @@ export const getUserTokensV6Options: RouteOptions = {
             kind: Joi.string(),
             name: Joi.string().allow(null, ""),
             image: Joi.string().allow(null, ""),
-            lastBuyValue: Joi.number().unsafe().allow(null),
-            lastSellValue: Joi.number().unsafe().allow(null),
+            lastBuy: {
+              value: Joi.number().unsafe().allow(null),
+              timestamp: Joi.number().unsafe().allow(null),
+            },
+            lastSell: {
+              value: Joi.number().unsafe().allow(null),
+              timestamp: Joi.number().unsafe().allow(null),
+            },
             rarityScore: Joi.number().allow(null),
             rarityRank: Joi.number().allow(null),
             collection: Joi.object({
@@ -286,8 +292,10 @@ export const getUserTokensV6Options: RouteOptions = {
           t.collection_id,
           t.rarity_score,
           t.rarity_rank,
-          t.last_sell_value,
           t.last_buy_value,
+          t.last_buy_timestamp,
+          t.last_sell_value,
+          t.last_sell_timestamp,
           null AS top_bid_id,
           null AS top_bid_price,
           null AS top_bid_value,
@@ -458,8 +466,14 @@ export const getUserTokensV6Options: RouteOptions = {
             kind: r.kind,
             name: r.name,
             image: r.image,
-            lastSellValue: r.last_sell_value,
-            lastBuyValue: r.last_buy_value,
+            lastBuy: {
+              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
+              timestamp: r.last_buy_timestamp,
+            },
+            lastSell: {
+              value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
+              timestamp: r.last_sell_timestamp,
+            },
             rarityScore: r.rarity_score,
             rarityRank: r.rarity_rank,
             collection: {
