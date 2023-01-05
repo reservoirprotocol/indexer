@@ -123,11 +123,7 @@ export class UserActivities {
                   'data', json_build_object(
                     'collectionName', collections.name,
                     'tokenName', tokens.name,
-                    'image', tokens.image,
-                    'tokenLastBuyValue', tokens.last_buy_value,
-                    'tokenLastSellValue', tokens.last_sell_value,
-                    'tokenRarityScore', tokens.rarity_score,
-                    'tokenRarityRank', tokens.rarity_rank
+                    'image', tokens.image
                   )
                 )
               FROM tokens

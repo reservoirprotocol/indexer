@@ -16,12 +16,8 @@ export class Orders {
                   'data', json_build_object(
                     'token', json_build_object(
                       'tokenId', tokens.token_id::TEXT,
-                      'tokenName', tokens.name,
-                      'tokenImage', tokens.image,
-                      'tokenLastBuyValue', tokens.last_buy_value,
-                      'tokenLastSellValue', tokens.last_sell_value,
-                      'tokenRarityScore', tokens.rarity_score,
-                      'tokenRarityRank', tokens.rarity_rank
+                      'name', tokens.name,
+                      'image', tokens.image
                     ),
                     'collection', json_build_object(
                       'id', collections.id,
@@ -124,7 +120,7 @@ export class Orders {
                   'kind', 'token',
                   'data', json_build_object(
                     'token', json_build_object(
-                      'tokenId', (split_part(${tableName}.${tokenSetIdColumnName}, ':', 3)),
+                      'tokenId', (split_part(${tableName}.${tokenSetIdColumnName}, ':', 3))
                     )
                   )
                 )
