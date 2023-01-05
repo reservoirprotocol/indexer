@@ -21,6 +21,7 @@ export interface BaseOrderBuildOptions {
   feeRecipient?: string[];
   listingTime?: number;
   expirationTime?: number;
+  zone?: string;
   salt?: string;
   automatedRoyalties?: boolean;
   excludeFlaggedTokens?: boolean;
@@ -79,7 +80,7 @@ export const getBuildInfo = async (
     zone:
       options.orderbook === "opensea"
         ? Sdk.Seaport.Addresses.PausableZone[config.chainId] ?? AddressZero
-        : AddressZero,
+        : options.zone,
     // Use OpenSea's conduit for sharing approvals (where available)
     conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero,
     startTime: options.listingTime || now() - 1 * 60,
