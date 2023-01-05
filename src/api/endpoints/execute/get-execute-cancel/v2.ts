@@ -6,6 +6,7 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
+import axios from "axios";
 import Joi from "joi";
 
 import { idb, redb } from "@/common/db";
@@ -49,7 +50,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
           id: Joi.string().required(),
           action: Joi.string().required(),
           description: Joi.string().required(),
-          kind: Joi.string().valid("transaction").required(),
+          kind: Joi.string().valid("signature", "transaction").required(),
           items: Joi.array()
             .items(
               Joi.object({
@@ -92,13 +93,33 @@ export const getExecuteCancelV2Options: RouteOptions = {
 
       const maker = fromBuffer(orderResult.maker);
 
+      const isCancelXOrder =
+        orderResult.kind === "seaport" &&
+        orderResult.raw_data.zone === Sdk.Seaport.Addresses.CancelXZone[config.chainId];
+
       // Handle soft-cancelling
-      if (query.softCancel || query.signature) {
+      if (query.softCancel || query.signature || isCancelXOrder) {
         if (query.signature) {
-          // Check signature
-          const signer = verifyMessage(arrayify(query.id), query.signature);
-          if (signer.toLowerCase() !== maker) {
-            throw Boom.unauthorized("Invalid signature");
+          if (!isCancelXOrder) {
+            // Soft cancellation
+
+            // Check signature
+            const signer = verifyMessage(arrayify(query.id), query.signature);
+            if (signer.toLowerCase() !== maker) {
+              throw Boom.unauthorized("Invalid signature");
+            }
+          } else {
+            // CancelX cancellation
+
+            await axios.post(
+              `https://cancelx-${
+                config.chainId === 1 ? "production" : "development"
+              }.up.railway.app/api/cancellations`,
+              {
+                orderHashes: [query.id],
+                signature: query.signature,
+              }
+            );
           }
 
           // Mark the order as cancelled
@@ -127,33 +148,78 @@ export const getExecuteCancelV2Options: RouteOptions = {
           return { steps: [] };
         } else {
           // TODO: Should not reuse the same API for step retrieval and cancellation
-          return {
-            steps: [
-              {
-                id: "cancellation-signature",
-                action: "Soft-cancel order",
-                description: "Authorize the soft-cancellation of the order",
-                kind: "signature",
-                items: [
-                  {
-                    status: "incomplete",
-                    data: {
-                      sign: {
-                        signatureKind: "eip191",
-                        message: orderResult.id,
+          if (!isCancelXOrder) {
+            // Soft cancellation
+
+            return {
+              steps: [
+                {
+                  id: "cancellation-signature",
+                  action: "Soft-cancel order",
+                  description: "Authorize the soft-cancellation of the order",
+                  kind: "signature",
+                  items: [
+                    {
+                      status: "incomplete",
+                      data: {
+                        sign: {
+                          signatureKind: "eip191",
+                          message: query.id,
+                        },
+                        post: {
+                          endpoint: `/execute/cancel/v2?id=${query.id}`,
+                          method: "POST",
+                          body: {},
+                        },
                       },
-                      post: {
-                        endpoint: "/execute/cancel/v2",
-                        method: "POST",
-                        body: {},
-                      },
+                      orderIndex: 0,
                     },
-                    orderIndex: 0,
-                  },
-                ],
-              },
-            ],
-          };
+                  ],
+                },
+              ],
+            };
+          } else {
+            // CancelX cancellation
+
+            return {
+              steps: [
+                {
+                  id: "cancellation-signature",
+                  action: "Soft-cancel order",
+                  description: "Authorize the soft-cancellation of the order",
+                  kind: "signature",
+                  items: [
+                    {
+                      status: "incomplete",
+                      data: {
+                        sign: {
+                          signatureKind: "eip712",
+                          domain: {
+                            name: "CancelX",
+                            version: "1.0.0",
+                            chainId: config.chainId,
+                            verifyingContract: Sdk.Seaport.Addresses.CancelXZone[config.chainId],
+                          },
+                          types: {
+                            OrderHashes: [{ name: "orderHashes", type: "bytes32[]" }],
+                          },
+                          value: {
+                            orderHashes: [query.id],
+                          },
+                        },
+                        post: {
+                          endpoint: `/execute/cancel/v2?id=${query.id}`,
+                          method: "POST",
+                          body: {},
+                        },
+                      },
+                      orderIndex: 0,
+                    },
+                  ],
+                },
+              ],
+            };
+          }
         }
       }
 
