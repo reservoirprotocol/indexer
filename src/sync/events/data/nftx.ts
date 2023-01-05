@@ -42,3 +42,18 @@ export const staked: EventData = {
     )`,
   ]),
 };
+
+export const swapped: EventData = {
+  kind: "nftx-swapped",
+  topic: "0x66982ed4a058811a8004bdcec9adcb3671f2b4f1a788667a3a74959d7c09af3c",
+  numTopics: 1,
+  abi: new Interface([
+    `event Swapped (
+      uint256[] nftIds,
+      uint256[] amounts,
+      uint256[] specificIds, 
+      uint256[] redeemedIds, 
+      address to
+    )`,
+  ]),
+};

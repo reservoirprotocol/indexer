@@ -6,13 +6,14 @@ import * as erc1155 from "@/events-sync/data/erc1155";
 
 import * as blur from "@/events-sync/data/blur";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
-import * as cryptoKitties from "@/events-sync/data/cryptokitties";
+import * as decentraland from "@/events-sync/data/decentraland";
 import * as element from "@/events-sync/data/element";
 import * as forward from "@/events-sync/data/forward";
 import * as foundation from "@/events-sync/data/foundation";
 import * as looksRare from "@/events-sync/data/looks-rare";
 import * as nftx from "@/events-sync/data/nftx";
 import * as nouns from "@/events-sync/data/nouns";
+import * as infinity from "@/events-sync/data/infinity";
 import * as quixotic from "@/events-sync/data/quixotic";
 import * as rarible from "@/events-sync/data/rarible";
 import * as seaport from "@/events-sync/data/seaport";
@@ -24,6 +25,11 @@ import * as x2y2 from "@/events-sync/data/x2y2";
 import * as zeroExV4 from "@/events-sync/data/zeroex-v4";
 import * as zora from "@/events-sync/data/zora";
 import * as manifold from "@/events-sync/data/manifold";
+import * as tofu from "@/events-sync/data/tofu";
+import * as nftTrader from "@/events-sync/data/nft-trader";
+import * as okex from "@/events-sync/data/okex";
+import * as bendDao from "@/events-sync/data/bend-dao";
+import * as superrare from "@/events-sync/data/superrare";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -32,6 +38,8 @@ import * as manifold from "@/events-sync/data/manifold";
 
 export type EventDataKind =
   | "erc721-transfer"
+  | "erc721-like-transfer"
+  | "erc721-erc20-like-transfer"
   | "erc721-consecutive-transfer"
   | "erc1155-transfer-single"
   | "erc1155-transfer-batch"
@@ -85,19 +93,24 @@ export type EventDataKind =
   | "cryptopunks-punk-transfer"
   | "cryptopunks-assign"
   | "cryptopunks-transfer"
-  | "cryptokitties-transfer"
   | "sudoswap-buy"
   | "sudoswap-sell"
   | "sudoswap-token-deposit"
   | "sudoswap-token-withdrawal"
   | "sudoswap-spot-price-update"
   | "sudoswap-delta-update"
+  | "sudoswap-new-pair"
   | "universe-match"
   | "universe-cancel"
   | "nftx-redeemed"
   | "nftx-minted"
   | "nftx-user-staked"
+  | "nftx-swapped"
   | "blur-orders-matched"
+  | "infinity-match-order-fulfilled"
+  | "infinity-take-order-fulfilled"
+  | "infinity-cancel-all-orders"
+  | "infinity-cancel-multiple-orders"
   | "blur-order-cancelled"
   | "blur-nonce-incremented"
   | "forward-order-filled"
@@ -106,7 +119,15 @@ export type EventDataKind =
   | "manifold-purchase"
   | "manifold-modify"
   | "manifold-cancel"
-  | "manifold-finalize";
+  | "manifold-finalize"
+  | "tofu-inventory-update"
+  | "decentraland-sale"
+  | "nft-trader-swap"
+  | "okex-order-filled"
+  | "bend-dao-taker-ask"
+  | "bend-dao-taker-bid"
+  | "superrare-listing-filled"
+  | "superrare-bid-filled";
 
 export type EventData = {
   kind: EventDataKind;
@@ -124,6 +145,8 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       erc20.deposit,
       erc20.withdrawal,
       erc721.transfer,
+      erc721.likeTransfer,
+      erc721.erc20LikeTransfer,
       erc721.approvalForAll,
       erc721.consecutiveTransfer,
       erc1155.transferSingle,
@@ -173,19 +196,24 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       cryptoPunks.punkTransfer,
       cryptoPunks.assign,
       cryptoPunks.transfer,
-      cryptoKitties.transfer,
       sudoswap.buy,
       sudoswap.sell,
       sudoswap.tokenDeposit,
       sudoswap.tokenWithdrawal,
       sudoswap.spotPriceUpdate,
       sudoswap.deltaUpdate,
+      sudoswap.newPair,
       universe.match,
       universe.cancel,
       nftx.minted,
       nftx.redeemed,
       nftx.staked,
+      nftx.swapped,
       blur.ordersMatched,
+      infinity.matchOrderFulfilled,
+      infinity.takeOrderFulfilled,
+      infinity.cancelAllOrders,
+      infinity.cancelMultipleOrders,
       blur.orderCancelled,
       blur.nonceIncremented,
       forward.orderFilled,
@@ -195,6 +223,14 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       manifold.finalize,
       manifold.purchase,
       manifold.cancel,
+      tofu.inventoryUpdate,
+      decentraland.sale,
+      nftTrader.swap,
+      okex.orderFulfilled,
+      bendDao.takerAsk,
+      bendDao.takerBid,
+      superrare.listingFilled,
+      superrare.bidFilled,
     ];
   } else {
     return (
@@ -219,6 +255,10 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return erc20.withdrawal;
     case "erc721-transfer":
       return erc721.transfer;
+    case "erc721-like-transfer":
+      return erc721.likeTransfer;
+    case "erc721-erc20-like-transfer":
+      return erc721.erc20LikeTransfer;
     case "erc721/1155-approval-for-all":
       return erc721.approvalForAll;
     case "erc721-consecutive-transfer":
@@ -317,8 +357,6 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return cryptoPunks.assign;
     case "cryptopunks-transfer":
       return cryptoPunks.transfer;
-    case "cryptokitties-transfer":
-      return cryptoKitties.transfer;
     case "sudoswap-buy":
       return sudoswap.buy;
     case "sudoswap-sell":
@@ -331,6 +369,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return sudoswap.spotPriceUpdate;
     case "sudoswap-delta-update":
       return sudoswap.deltaUpdate;
+    case "sudoswap-new-pair":
+      return sudoswap.newPair;
     case "universe-match":
       return universe.match;
     case "universe-cancel":
@@ -341,8 +381,18 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return nftx.redeemed;
     case "nftx-user-staked":
       return nftx.staked;
+    case "nftx-swapped":
+      return nftx.swapped;
     case "blur-orders-matched":
       return blur.ordersMatched;
+    case "infinity-match-order-fulfilled":
+      return infinity.matchOrderFulfilled;
+    case "infinity-take-order-fulfilled":
+      return infinity.takeOrderFulfilled;
+    case "infinity-cancel-all-orders":
+      return infinity.cancelAllOrders;
+    case "infinity-cancel-multiple-orders":
+      return infinity.cancelMultipleOrders;
     case "blur-order-cancelled":
       return blur.orderCancelled;
     case "blur-nonce-incremented":
@@ -361,6 +411,23 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return manifold.purchase;
     case "manifold-modify":
       return manifold.modify;
+    case "tofu-inventory-update":
+      return tofu.inventoryUpdate;
+    case "decentraland-sale":
+      return decentraland.sale;
+    case "nft-trader-swap":
+      return nftTrader.swap;
+    case "okex-order-filled":
+      return okex.orderFulfilled;
+    case "bend-dao-taker-ask":
+      return bendDao.takerAsk;
+    case "bend-dao-taker-bid":
+      return bendDao.takerBid;
+    case "superrare-listing-filled":
+      return superrare.listingFilled;
+    case "superrare-bid-filled":
+      return superrare.bidFilled;
+
     default:
       return undefined;
   }

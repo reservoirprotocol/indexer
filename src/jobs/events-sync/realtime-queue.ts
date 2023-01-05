@@ -69,13 +69,13 @@ if (config.doBackgroundWork) {
         // once, which is exactly what we are looking for (since events for the
         // latest blocks might be missing due to upstream chain reorgs):
         // https://ethereum.stackexchange.com/questions/109660/eth-getlogs-and-some-missing-logs
-        await redis.set(`${QUEUE_NAME}-last-block`, headBlock - 3);
+        await redis.set(`${QUEUE_NAME}-last-block`, headBlock - 5);
       } catch (error) {
         logger.error(QUEUE_NAME, `Events realtime syncing failed: ${error}`);
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 3 }
+    { connection: redis.duplicate(), concurrency: 5 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

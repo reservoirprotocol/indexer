@@ -130,6 +130,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           const sdkOrder = new Sdk.Nftx.Order(config.chainId, {
             vaultId: pool.vaultId.toString(),
             collection: pool.nft,
+            pool: pool.address,
             specificIds: [],
             currency: Sdk.Common.Addresses.Weth[config.chainId],
             path: [pool.address, Sdk.Common.Addresses.Weth[config.chainId]],
@@ -335,6 +336,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               const sdkOrder = new Sdk.Nftx.Order(config.chainId, {
                 vaultId: pool.vaultId.toString(),
                 collection: pool.nft,
+                pool: pool.address,
                 specificIds: [tokenId],
                 currency: Sdk.Common.Addresses.Weth[config.chainId],
                 amount: "1",

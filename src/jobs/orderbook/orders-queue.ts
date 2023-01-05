@@ -99,6 +99,14 @@ if (config.doBackgroundWork) {
             break;
           }
 
+          case "infinity": {
+            result = await orders.infinity.save(
+              [info as orders.infinity.OrderInfo],
+              relayToArweave
+            );
+            break;
+          }
+
           case "blur": {
             result = await orders.blur.save([info as orders.blur.OrderInfo], relayToArweave);
             break;
@@ -121,10 +129,10 @@ if (config.doBackgroundWork) {
 
       // Don't log already-exists
       if (!(result[0]?.status === "already-exists")) {
-        logger.info(QUEUE_NAME, `[${kind}-2] Order save result: ${JSON.stringify(result)}`);
+        logger.info(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
       }
     },
-    { connection: redis.duplicate(), concurrency: 30 }
+    { connection: redis.duplicate(), concurrency: 50 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
@@ -140,7 +148,7 @@ if (config.doBackgroundWork) {
         .acquire(["orders-queue-size-check-lock"], (60 - 5) * 1000)
         .then(async () => {
           const size = await queue.count();
-          if (size >= 10000) {
+          if (size >= 20000) {
             logger.error("orders-queue-size-check", `Orders queue buffering up: size=${size}`);
           }
         })
@@ -214,6 +222,12 @@ export type GenericOrderInfo =
   | {
       kind: "forward";
       info: orders.forward.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "infinity";
+      info: orders.infinity.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     }

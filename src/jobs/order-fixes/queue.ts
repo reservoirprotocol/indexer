@@ -2,7 +2,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
-import { idb, redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
@@ -44,7 +44,7 @@ if (config.doBackgroundWork) {
         switch (by) {
           case "id": {
             // If the order is valid or potentially valid, recheck it's status
-            const result = await redb.oneOrNone(
+            const result = await idb.oneOrNone(
               `
                 SELECT
                   orders.side,
@@ -225,15 +225,26 @@ if (config.doBackgroundWork) {
                 }
               }
 
+              logger.info(
+                QUEUE_NAME,
+                `Detected order status: id=${data.id} fillability=${fillabilityStatus}, approval=${approvalStatus}`
+              );
+
               const fixResult = await idb.oneOrNone(
                 `
-                  UPDATE "orders" AS "o" SET
-                    "fillability_status" = $/fillabilityStatus/,
-                    "approval_status" = $/approvalStatus/,
-                    "updated_at" = now()
-                  WHERE "o"."id" = $/id/
-                    AND ("o"."fillability_status" != $/fillabilityStatus/ OR "o"."approval_status" != $/approvalStatus/)
-                  RETURNING "o"."id"
+                  UPDATE orders SET
+                    fillability_status = $/fillabilityStatus/,
+                    approval_status = $/approvalStatus/,
+                    expiration = (
+                      CASE
+                        WHEN $/fillabilityStatus/ = 'fillable' AND $/approvalStatus/ = 'approved' THEN nullif(upper(orders.valid_between), 'infinity')
+                        ELSE now()
+                      END
+                    ),
+                    updated_at = now()
+                  WHERE orders.id = $/id/
+                    AND (orders.fillability_status != $/fillabilityStatus/ OR orders.approval_status != $/approvalStatus/)
+                  RETURNING orders.id
                 `,
                 {
                   id: data.id,
@@ -261,7 +272,7 @@ if (config.doBackgroundWork) {
 
           case "token": {
             // Trigger a fix for all valid orders on the token
-            const result = await redb.manyOrNone(
+            const result = await idb.manyOrNone(
               `
                 SELECT "o"."id" FROM "orders" "o"
                 WHERE "o"."token_set_id" = $/tokenSetId/
@@ -280,7 +291,7 @@ if (config.doBackgroundWork) {
           case "maker": {
             // Trigger a fix for all of valid orders from the maker
             // TODO: Use keyset pagination to be able to handle large amounts of orders
-            const result = await redb.manyOrNone(
+            const result = await idb.manyOrNone(
               `
                 SELECT "o"."id" FROM "orders" "o"
                 WHERE "o"."maker" = $/maker/
@@ -301,7 +312,7 @@ if (config.doBackgroundWork) {
             // Trigger a fix for all valid orders on the contract
             for (const side of ["sell", "buy"]) {
               // TODO: Use keyset pagination to be able to handle large amounts of orders
-              const result = await redb.manyOrNone(
+              const result = await idb.manyOrNone(
                 `
                   SELECT "o"."id" FROM "orders" "o"
                   WHERE "o"."side" = $/side/ AND "o"."contract" = $/contract/

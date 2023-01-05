@@ -3,6 +3,7 @@ import { AddressZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
+import _ from "lodash";
 import pLimit from "p-limit";
 
 import { idb, pgp, redb } from "@/common/db";
@@ -31,6 +32,7 @@ export type OrderInfo = {
 type SaveResult = {
   id: string;
   txHash: string;
+  txTimestamp: number;
   status: string;
   triggerKind?: "new-order" | "reprice";
 };
@@ -149,15 +151,19 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               );
               if (validRecipients.length) {
                 const bpsDiff = totalDefaultBps - totalBuiltInBps;
-                const amount = bn(price).mul(bpsDiff).div(10000).toString();
+                const amount = bn(price).mul(bpsDiff).div(10000);
                 missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
-                missingRoyalties.push({
-                  bps: bpsDiff,
-                  amount,
-                  // TODO: We should probably split pro-rata across all royalty recipients
-                  recipient: validRecipients[0].recipient,
-                });
+                // Split the missing royalties pro-rata across all royalty recipients
+                const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+                for (const { bps, recipient } of validRecipients) {
+                  // TODO: Handle lost precision (by paying it to the last or first recipient)
+                  missingRoyalties.push({
+                    bps: Math.floor((bpsDiff * bps) / totalBps),
+                    amount: amount.mul(bps).div(totalBps).toString(),
+                    recipient,
+                  });
+                }
               }
             }
 
@@ -234,6 +240,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               results.push({
                 id,
                 txHash: orderParams.txHash,
+                txTimestamp: orderParams.txTimestamp,
                 status: "success",
                 triggerKind: "new-order",
               });
@@ -275,6 +282,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               results.push({
                 id,
                 txHash: orderParams.txHash,
+                txTimestamp: orderParams.txTimestamp,
                 status: "success",
                 triggerKind: "reprice",
               });
@@ -294,6 +302,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             results.push({
               id,
               txHash: orderParams.txHash,
+              txTimestamp: orderParams.txTimestamp,
               status: "success",
               triggerKind: "reprice",
             });
@@ -348,15 +357,19 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             );
             if (validRecipients.length) {
               const bpsDiff = totalDefaultBps - totalBuiltInBps;
-              const amount = bn(price).mul(bpsDiff).div(10000).toString();
+              const amount = bn(price).mul(bpsDiff).div(10000);
               missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
-              missingRoyalties.push({
-                bps: bpsDiff,
-                amount,
-                // TODO: We should probably split pro-rata across all royalty recipients
-                recipient: validRecipients[0].recipient,
-              });
+              // Split the missing royalties pro-rata across all royalty recipients
+              const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+              for (const { bps, recipient } of validRecipients) {
+                // TODO: Handle lost precision (by paying it to the last or first recipient)
+                missingRoyalties.push({
+                  bps: Math.floor((bpsDiff * bps) / totalBps),
+                  amount: amount.mul(bps).div(totalBps).toString(),
+                  recipient,
+                });
+              }
             }
           }
 
@@ -441,6 +454,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 results.push({
                   id,
                   txHash: orderParams.txHash,
+                  txTimestamp: orderParams.txTimestamp,
                   status: "success",
                   triggerKind: "new-order",
                 });
@@ -481,6 +495,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 results.push({
                   id,
                   txHash: orderParams.txHash,
+                  txTimestamp: orderParams.txTimestamp,
                   status: "success",
                   triggerKind: "reprice",
                 });
@@ -552,12 +567,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     results
       .filter(({ status }) => status === "success")
       .map(
-        ({ id, txHash, triggerKind }) =>
+        ({ id, txHash, txTimestamp, triggerKind }) =>
           ({
             context: `${triggerKind}-${id}-${txHash}`,
             id,
             trigger: {
               kind: triggerKind,
+              txHash: txHash,
+              txTimestamp: txTimestamp,
             },
           } as ordersUpdateById.OrderInfo)
       )

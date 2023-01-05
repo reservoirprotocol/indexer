@@ -7,8 +7,8 @@ import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getCurrency } from "@/utils/currencies";
 import { getNetworkSettings } from "@/config/network";
+import { getCurrency } from "@/utils/currencies";
 
 const USD_DECIMALS = 6;
 // TODO: This should be a per-network setting
@@ -79,21 +79,21 @@ const getUpstreamUSDPrice = async (
         };
       }
     } else if (getNetworkSettings().whitelistedCurrencies.has(currencyAddress)) {
-      //  Whitelisted currencies are 1:1 with USD
+      // Whitelisted currencies are 1:1 with USD
       const value = "1";
 
       await idb.none(
         `
-            INSERT INTO usd_prices (
-              currency,
-              timestamp,
-              value
-            ) VALUES (
-              $/currency/,
-              date_trunc('day', to_timestamp($/timestamp/)),
-              $/value/
-            ) ON CONFLICT DO NOTHING
-          `,
+          INSERT INTO usd_prices (
+            currency,
+            timestamp,
+            value
+          ) VALUES (
+            $/currency/,
+            date_trunc('day', to_timestamp($/timestamp/)),
+            $/value/
+          ) ON CONFLICT DO NOTHING
+        `,
         {
           currency: toBuffer(currencyAddress),
           timestamp: truncatedTimestamp,

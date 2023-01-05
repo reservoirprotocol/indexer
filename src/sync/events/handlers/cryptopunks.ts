@@ -129,16 +129,17 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Handle: attribution
 
         const orderKind = "cryptopunks";
+        const orderId = cryptopunks.getOrderId(tokenId);
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId }
         );
         if (attributionData.taker) {
           taker = attributionData.taker;
         }
 
         // Handle: prices
-
         const priceData = await getUSDAndNativePrices(
           Sdk.Common.Addresses.Eth[config.chainId],
           value,
@@ -157,8 +158,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: "1",
           baseEventParams,
         });
-
-        const orderId = cryptopunks.getOrderId(tokenId);
 
         fillEventsOnChain.push({
           orderId,

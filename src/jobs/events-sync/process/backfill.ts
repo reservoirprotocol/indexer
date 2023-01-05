@@ -22,7 +22,7 @@ export const queue = new Queue(QUEUE_NAME, {
     timeout: 120000,
   },
 });
-new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
+new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate(), maxStalledCount: 10 });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
@@ -58,16 +58,15 @@ if (config.doBackgroundWork) {
 
 export const addToQueue = async (infos: EventsInfo[]) => {
   const jobs: { name: string; data: { id: string } }[] = [];
+  infos = _.filter(infos, (info) => !_.isEmpty(info.events));
 
-  for (const info of infos) {
-    if (!_.isEmpty(info.events)) {
-      const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, info);
-      _.map(ids, (id) => jobs.push({ name: id, data: { id } }));
+  if (!_.isEmpty(infos)) {
+    const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, infos);
+    _.map(ids, (id) => jobs.push({ name: id, data: { id } }));
+
+    if (!_.isEmpty(jobs)) {
+      await queue.addBulk(jobs);
     }
-  }
-
-  if (!_.isEmpty(jobs)) {
-    await queue.addBulk(jobs);
   }
 };
 

@@ -90,10 +90,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
         ),
       partial: Joi.boolean()
         .default(false)
-        .description("If true, partial orders will be accepted."),
-      skipErrors: Joi.boolean()
-        .default(false)
-        .description("If true, then skip any errors in processing."),
+        .description("If true, any off-chain or on-chain errors will be skipped."),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional. Set custom gas price."),
@@ -286,8 +283,9 @@ export const getExecuteBuyV5Options: RouteOptions = {
             }
           );
           if (!orderResult) {
-            if (!payload.skipErrors) {
-              throw Boom.badData(`Could not use order id ${orderId}`);
+            if (!payload.partial) {
+              // Return an error if the client does not accept partial fills
+              throw Boom.badData(`Order ${orderId} not found or not fillable`);
             } else {
               continue;
             }
@@ -535,7 +533,6 @@ export const getExecuteBuyV5Options: RouteOptions = {
           source: payload.source,
           globalFees: feesOnTop,
           partial: payload.partial,
-          skipErrors: payload.skipErrors,
           forceRouter: payload.forceRouter,
           directFillingData: {
             conduitKey:

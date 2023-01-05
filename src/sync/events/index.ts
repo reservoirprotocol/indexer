@@ -3,9 +3,10 @@ import _ from "lodash";
 import pLimit from "p-limit";
 
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { getNetworkSettings } from "@/config/network";
+import { baseProvider } from "@/common/provider";
 import { EventDataKind, getEventData } from "@/events-sync/data";
+import { EventsInfo } from "@/events-sync/handlers";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
 import { parseEvent } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
@@ -16,6 +17,195 @@ import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsync
 import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
+
+export const parseEnhancedEventsToEventsInfo = (
+  enhancedEvents: EnhancedEvent[],
+  backfill: boolean
+): EventsInfo[] => {
+  // TODO: More efficient filtering with a single iteration
+  return [
+    {
+      kind: "erc20",
+      events: enhancedEvents.filter(
+        ({ kind }) => kind.startsWith("erc20") || kind.startsWith("weth")
+      ),
+      backfill,
+    },
+    {
+      kind: "erc721",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("erc721")),
+      backfill,
+    },
+    {
+      kind: "erc1155",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("erc1155")),
+      backfill,
+    },
+    {
+      kind: "blur",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("blur")),
+      backfill,
+    },
+    {
+      kind: "cryptopunks",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("cryptopunks")),
+      backfill,
+    },
+    {
+      kind: "decentraland",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("decentraland")),
+      backfill,
+    },
+    {
+      kind: "element",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("element")),
+      backfill,
+    },
+    {
+      kind: "forward",
+      events: enhancedEvents.filter(
+        ({ kind }) =>
+          kind.startsWith("forward") ||
+          // To properly validate bids, we need some additional events
+          kind === "erc20-transfer"
+      ),
+    },
+    {
+      kind: "foundation",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("foundation")),
+      backfill,
+    },
+    {
+      kind: "looks-rare",
+      events: enhancedEvents.filter(
+        ({ kind }) =>
+          kind.startsWith("looks-rare") ||
+          // To properly validate bids, we need some additional events
+          kind === "erc20-transfer"
+      ),
+      backfill,
+    },
+    {
+      kind: "nftx",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("nftx")),
+      backfill,
+    },
+    {
+      kind: "nouns",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("nouns")),
+      backfill,
+    },
+    {
+      kind: "quixotic",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("quixotic")),
+      backfill,
+    },
+    {
+      kind: "seaport",
+      events: enhancedEvents.filter(
+        ({ kind }) =>
+          kind.startsWith("seaport") ||
+          // To properly validate bids, we need some additional events
+          kind === "erc20-transfer"
+      ),
+      backfill,
+    },
+    {
+      kind: "sudoswap",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("sudoswap")),
+      backfill,
+    },
+    {
+      kind: "wyvern",
+      events: enhancedEvents.filter(
+        ({ kind }) =>
+          kind.startsWith("wyvern") ||
+          // To properly handle Wyvern sales, we need some additional events
+          kind === "erc721-transfer" ||
+          kind === "erc1155-transfer-single" ||
+          kind === "erc20-transfer"
+      ),
+      backfill,
+    },
+    {
+      kind: "x2y2",
+      events: enhancedEvents.filter(
+        ({ kind }) =>
+          kind.startsWith("x2y2") ||
+          // To properly validate bids, we need some additional events
+          kind === "erc20-transfer"
+      ),
+      backfill,
+    },
+    {
+      kind: "zeroex-v4",
+      events: enhancedEvents.filter(
+        ({ kind }) =>
+          kind.startsWith("zeroex-v4") ||
+          // To properly validate bids, we need some additional events
+          kind === "erc20-transfer"
+      ),
+      backfill,
+    },
+    {
+      kind: "zora",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("zora")),
+      backfill,
+    },
+    {
+      kind: "universe",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("universe")),
+      backfill,
+    },
+    {
+      kind: "infinity",
+      events: enhancedEvents.filter(
+        ({ kind }) =>
+          kind.startsWith("infinity") ||
+          // To properly validate bids, we need some additional events
+          kind === "erc20-transfer"
+      ),
+      backfill,
+    },
+    {
+      kind: "rarible",
+      events: enhancedEvents.filter(
+        ({ kind }) =>
+          kind.startsWith("rarible") ||
+          // To properly validate bids, we need some additional events
+          kind === "erc20-transfer"
+      ),
+    },
+    {
+      kind: "manifold",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("manifold")),
+      backfill,
+    },
+    {
+      kind: "tofu",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("tofu")),
+    },
+    {
+      kind: "bend-dao",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("bend-dao")),
+    },
+    {
+      kind: "nft-trader",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("nft-trader")),
+      backfill,
+    },
+    {
+      kind: "okex",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("okex")),
+      backfill,
+    },
+    {
+      kind: "superrare",
+      events: enhancedEvents.filter(({ kind }) => kind.startsWith("superrare")),
+      backfill,
+    },
+  ];
+};
 
 export const syncEvents = async (
   fromBlock: number,
@@ -59,12 +249,11 @@ export const syncEvents = async (
 
   // Generate the events filter with one of the following options:
   // - fetch all events
-  // - fetch a subset of all events
+  // - fetch a subset of events
   // - fetch all events from a particular address
 
   // By default, we want to get all events
   let eventFilter: Filter = {
-    // Remove any duplicate topics
     topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
     fromBlock,
     toBlock,
@@ -89,6 +278,7 @@ export const syncEvents = async (
   const enhancedEvents: EnhancedEvent[] = [];
   await baseProvider.getLogs(eventFilter).then(async (logs) => {
     const availableEventData = getEventData();
+
     for (const log of logs) {
       try {
         const baseEventParams = await parseEvent(log, blocksCache);
@@ -114,9 +304,9 @@ export const syncEvents = async (
         // Find first matching event:
         // - matching topic
         // - matching number of topics (eg. indexed fields)
-        // - matching addresses
+        // - matching address
         const eventData = availableEventData.find(
-          ({ addresses, topic, numTopics }) =>
+          ({ addresses, numTopics, topic }) =>
             log.topics[0] === topic &&
             log.topics.length === numTopics &&
             (addresses ? addresses[log.address.toLowerCase()] : true)
@@ -136,158 +326,9 @@ export const syncEvents = async (
 
     // Process the retrieved events asynchronously
     const eventsSyncProcess = backfill ? eventsSyncBackfillProcess : eventsSyncRealtimeProcess;
-    await eventsSyncProcess.addToQueue([
-      {
-        kind: "erc20",
-        events: enhancedEvents.filter(
-          ({ kind }) => kind.startsWith("erc20") || kind.startsWith("weth")
-        ),
-        backfill,
-      },
-      {
-        kind: "erc721",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("erc721")),
-        backfill,
-      },
-      {
-        kind: "erc1155",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("erc1155")),
-        backfill,
-      },
-      {
-        kind: "blur",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("blur")),
-        backfill,
-      },
-      {
-        kind: "cryptopunks",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("cryptopunks")),
-        backfill,
-      },
-      {
-        kind: "cryptokitties",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("cryptokitties")),
-        backfill,
-      },
-      {
-        kind: "element",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("element")),
-        backfill,
-      },
-      {
-        kind: "forward",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("forward") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-      },
-      {
-        kind: "foundation",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("foundation")),
-        backfill,
-      },
-      {
-        kind: "looks-rare",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("looks-rare") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-        backfill,
-      },
-      {
-        kind: "nftx",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("nftx")),
-        backfill,
-      },
-      {
-        kind: "nouns",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("nouns")),
-        backfill,
-      },
-      {
-        kind: "quixotic",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("quixotic")),
-        backfill,
-      },
-      {
-        kind: "seaport",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("seaport") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-        backfill,
-      },
-      {
-        kind: "sudoswap",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("sudoswap")),
-        backfill,
-      },
-      {
-        kind: "wyvern",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("wyvern") ||
-            // To properly handle Wyvern sales, we need some additional events
-            kind === "erc721-transfer" ||
-            kind === "erc1155-transfer-single" ||
-            kind === "erc20-transfer"
-        ),
-        backfill,
-      },
-      {
-        kind: "x2y2",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("x2y2") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-        backfill,
-      },
-      {
-        kind: "zeroex-v4",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("zeroex-v4") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-        backfill,
-      },
-      {
-        kind: "zora",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("zora")),
-        backfill,
-      },
-      {
-        kind: "universe",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("universe")),
-        backfill,
-      },
-      {
-        kind: "rarible",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("rarible") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-      },
-      {
-        kind: "manifold",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("manifold")),
-        backfill,
-      },
-    ]);
+    await eventsSyncProcess.addToQueue(parseEnhancedEventsToEventsInfo(enhancedEvents, backfill));
 
     // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
-
     const ns = getNetworkSettings();
     if (!backfill && ns.enableReorgCheck) {
       for (const blockData of blocksSet.values()) {

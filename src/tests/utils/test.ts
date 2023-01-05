@@ -2,6 +2,30 @@ import { EnhancedEvent } from "@/events-sync/handlers/utils";
 import { getEventData } from "@/events-sync/data";
 import { TransactionReceipt, Log, Block } from "@ethersproject/abstract-provider";
 import { baseProvider } from "@/common/provider";
+import { idb, pgp } from "@/common/db";
+import { toBuffer } from "@/common/utils";
+
+export async function saveContract(address: string, kind: string) {
+  const columns = new pgp.helpers.ColumnSet(["address", "kind"], {
+    table: "contracts",
+  });
+  const queries = [
+    `
+  INSERT INTO "contracts" (
+    "address",
+    "kind"
+  ) VALUES ${pgp.helpers.values(
+    {
+      address: toBuffer(address),
+      kind,
+    },
+    columns
+  )}
+  ON CONFLICT DO NOTHING
+`,
+  ];
+  await idb.none(pgp.helpers.concat(queries));
+}
 
 export function getEventParams(log: Log, blockResult: Block) {
   const address = log.address.toLowerCase() as string;

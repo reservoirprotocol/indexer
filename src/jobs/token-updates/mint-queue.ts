@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { PgPromiseQuery, idb, pgp } from "@/common/db";
@@ -11,6 +9,7 @@ import { getNetworkSettings } from "@/config/network";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
+import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 
 const QUEUE_NAME = "token-updates-mint-queue";
 
@@ -51,6 +50,8 @@ if (config.doBackgroundWork) {
             FROM "collections" "c"
             WHERE "c"."contract" = $/contract/
               AND "c"."token_id_range" @> $/tokenId/::NUMERIC(78, 0)
+            ORDER BY "c"."created_at" DESC
+            LIMIT 1
           `,
           {
             contract: toBuffer(contract),
@@ -65,19 +66,12 @@ if (config.doBackgroundWork) {
           // all we needed to do is to associate it with the token
           queries.push({
             query: `
-              WITH "x" AS (
-                UPDATE "tokens" AS "t" SET
-                  "collection_id" = $/collection/,
+              UPDATE "tokens" AS "t"
+              SET "collection_id" = $/collection/,
                   "updated_at" = now()
-                WHERE "t"."contract" = $/contract/
-                  AND "t"."token_id" = $/tokenId/
-                  AND "t"."collection_id" IS NULL
-                RETURNING 1
-              )
-              UPDATE "collections" SET
-                "token_count" = "token_count" + (SELECT COUNT(*) FROM "x"),
-                "updated_at" = now()
-              WHERE "id" = $/collection/
+              WHERE "t"."contract" = $/contract/
+              AND "t"."token_id" = $/tokenId/
+              AND "t"."collection_id" IS NULL;
             `,
             values: {
               contract: toBuffer(contract),
@@ -85,6 +79,9 @@ if (config.doBackgroundWork) {
               collection: collection.id,
             },
           });
+
+          // Schedule a job to re-count tokens in the collection
+          await collectionRecalcTokenCount.addToQueue(collection.id);
 
           // We also need to include the new token to any collection-wide token set
           if (collection.token_set_id) {
@@ -119,12 +116,25 @@ if (config.doBackgroundWork) {
           await idb.none(pgp.helpers.concat(queries));
 
           if (!config.disableRealtimeMetadataRefresh) {
+            let delay = getNetworkSettings().metadataMintDelay;
+            let method = metadataIndexFetch.getIndexingMethod(collection.community);
+
+            if (contract === "0x11708dc8a3ea69020f520c81250abb191b190110") {
+              delay = 0;
+              method = "simplehash";
+
+              logger.info(
+                QUEUE_NAME,
+                `Forced rtfkt. contract=${contract}, tokenId=${tokenId}, delay=${delay}, method=${method}`
+              );
+            }
+
             await metadataIndexFetch.addToQueue(
               [
                 {
                   kind: "single-token",
                   data: {
-                    method: metadataIndexFetch.getIndexingMethod(collection.community),
+                    method,
                     contract,
                     tokenId,
                     collection: collection.id,
@@ -132,7 +142,7 @@ if (config.doBackgroundWork) {
                 },
               ],
               true,
-              getNetworkSettings().metadataMintDelay
+              delay
             );
           }
         } else {

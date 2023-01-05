@@ -3,8 +3,10 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+
+import * as tokenUpdatesRefreshCache from "@/jobs/token-updates/token-refresh-cache";
 
 const QUEUE_NAME = "collection-updates-floor-ask-queue";
 
@@ -49,7 +51,7 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        const collectionFloorAskChanged = await idb.oneOrNone(
+        const collectionFloorAsk = await idb.oneOrNone(
           `
             WITH y AS (
               UPDATE collections SET
@@ -141,7 +143,7 @@ if (config.doBackgroundWork) {
               WHERE orders.id = y.floor_sell_id
               LIMIT 1
             ) z ON TRUE
-            RETURNING 1
+            RETURNING order_id
           `,
           {
             kind,
@@ -153,8 +155,30 @@ if (config.doBackgroundWork) {
           }
         );
 
-        if (collectionFloorAskChanged) {
+        if (collectionFloorAsk) {
           await redis.del(`collection-floor-ask:${collectionResult.collection_id}`);
+
+          const floorToken = await idb.oneOrNone(
+            `
+              SELECT
+                tokens.contract,
+                tokens.token_id
+              FROM tokens
+              WHERE tokens.collection_id = $/collection/
+              ORDER BY tokens.floor_sell_value
+              LIMIT 1
+            `,
+            {
+              collection: collectionResult.collection_id,
+            }
+          );
+          if (floorToken) {
+            await tokenUpdatesRefreshCache.addToQueue(
+              fromBuffer(floorToken.contract),
+              floorToken.token_id,
+              true
+            );
+          }
         }
       } catch (error) {
         logger.error(

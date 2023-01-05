@@ -3,7 +3,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { fromBuffer, now, toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
@@ -18,16 +18,18 @@ export const queue = new Queue(QUEUE_NAME, {
       type: "exponential",
       delay: 20000,
     },
-    removeOnComplete: 50000,
+    removeOnComplete: 500,
     removeOnFail: 10000,
     timeout: 60000,
   },
 });
+export let worker: Worker | undefined;
+
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
-  const worker = new Worker(
+  worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
       const { kind, tokenSetId, txHash, txTimestamp } = job.data as FloorAskInfo;
@@ -75,7 +77,7 @@ if (config.doBackgroundWork) {
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
                   AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                ORDER BY COALESCE(orders.normalized_value, orders."value"), orders."value", orders.fee_bps
+                ORDER BY COALESCE(orders.normalized_value, orders.value), orders.value, orders.fee_bps, orders.id
                 LIMIT 1
               ) y ON TRUE
             ),
@@ -123,7 +125,7 @@ if (config.doBackgroundWork) {
                     AND tokens.token_id = z.token_id
                 ) AS old_floor_sell_value
             )
-            INSERT INTO token_normalized_floor_sell_events(
+            INSERT INTO token_normalized_floor_sell_events (
               kind,
               contract,
               token_id,
@@ -176,6 +178,10 @@ if (config.doBackgroundWork) {
             ? fromBuffer(sellOrderResult.txHash)
             : null;
           await collectionUpdatesNormalizedFloorAsk.addToQueue([sellOrderResult]);
+
+          if (kind === "revalidation") {
+            logger.error(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
+          }
         }
       } catch (error) {
         logger.error(
@@ -185,7 +191,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 10 }
+    { connection: redis.duplicate(), concurrency: 30 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
@@ -204,10 +210,6 @@ export const addToQueue = async (floorAskInfos: FloorAskInfo[]) => {
     floorAskInfos.map((floorAskInfo) => ({
       name: `${floorAskInfo.tokenSetId}`,
       data: floorAskInfo,
-      opts: {
-        // Deterministic job id so that we don't perform duplicated work
-        jobId: floorAskInfo.txHash ? floorAskInfo.txHash : `${floorAskInfo.tokenSetId}-${now()}`,
-      },
     }))
   );
 };

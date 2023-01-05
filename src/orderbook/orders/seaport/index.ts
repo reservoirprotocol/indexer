@@ -1,5 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
+import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport/types";
 import _ from "lodash";
 import pLimit from "p-limit";
@@ -11,9 +12,6 @@ import { acquireLock, redis } from "@/common/redis";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import * as arweaveRelay from "@/jobs/arweave-relay";
-import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Collections } from "@/models/collections";
 import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
 import { Sources } from "@/models/sources";
@@ -22,12 +20,15 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck, offChainCheckPartial } from "@/orderbook/orders/seaport/check";
 import * as tokenSet from "@/orderbook/token-sets";
+import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { Royalty } from "@/utils/royalties";
-import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
-import { TokenSet } from "@/orderbook/token-sets/token-list";
+
+import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
+import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
+import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 
 export type OrderInfo =
   | {
@@ -35,6 +36,7 @@ export type OrderInfo =
       orderParams: Sdk.Seaport.Types.OrderComponents;
       metadata: OrderMetadata;
       isReservoir?: boolean;
+      openSeaOrderParams?: PartialOrderComponents;
     }
   | {
       kind: "partial";
@@ -83,7 +85,8 @@ export const save = async (
   const handleOrder = async (
     orderParams: Sdk.Seaport.Types.OrderComponents,
     metadata: OrderMetadata,
-    isReservoir?: boolean
+    isReservoir?: boolean,
+    openSeaOrderParams?: PartialOrderComponents
   ) => {
     try {
       const order = new Sdk.Seaport.Order(config.chainId, orderParams);
@@ -218,48 +221,139 @@ export const save = async (
         }
       }
 
+      let saveRawData = true;
+
       // Check and save: associated token set
-      const schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
-
       let tokenSetId: string | undefined;
-      switch (order.params.kind) {
-        case "single-token": {
-          const typedInfo = info as typeof info & { tokenId: string };
-          const tokenId = typedInfo.tokenId;
+      let schemaHash;
 
-          tokenSetId = `token:${info.contract}:${tokenId}`;
-          if (tokenId) {
-            await tokenSet.singleToken.save([
-              {
-                id: tokenSetId,
-                schemaHash,
-                contract: info.contract,
-                tokenId,
-              },
-            ]);
+      if (openSeaOrderParams && openSeaOrderParams.kind != "single-token") {
+        // Currently, we don't save the raw data on the order to make sure we utilize the OS graphql to fill the order (due to inconsistency with flagged tokens).
+        saveRawData = false;
+
+        const collection = await getCollection(openSeaOrderParams);
+
+        if (!collection) {
+          return results.push({
+            id,
+            status: "unknown-collection",
+          });
+        }
+
+        schemaHash = generateSchemaHash();
+
+        switch (openSeaOrderParams.kind) {
+          case "contract-wide": {
+            if (collection?.token_set_id) {
+              tokenSetId = collection.token_set_id;
+            }
+
+            if (tokenSetId) {
+              if (tokenSetId.startsWith("contract:")) {
+                await tokenSet.contractWide.save([
+                  {
+                    id: tokenSetId,
+                    schemaHash,
+                    contract: info.contract,
+                  },
+                ]);
+              } else if (tokenSetId.startsWith("range:")) {
+                const [, , startTokenId, endTokenId] = tokenSetId.split(":");
+
+                await tokenSet.tokenRange.save([
+                  {
+                    id: tokenSetId,
+                    schemaHash,
+                    contract: info.contract,
+                    startTokenId,
+                    endTokenId,
+                  },
+                ]);
+              }
+            }
+
+            break;
           }
 
-          break;
+          case "token-list": {
+            const schema = {
+              kind: "attribute",
+              data: {
+                collection: collection.id,
+                attributes: [
+                  {
+                    key: openSeaOrderParams.attributeKey,
+                    value: openSeaOrderParams.attributeValue,
+                  },
+                ],
+              },
+            };
+
+            schemaHash = generateSchemaHash(schema);
+
+            // Fetch all tokens matching the attributes
+            const tokens = await redb.manyOrNone(
+              `
+              SELECT token_attributes.token_id
+              FROM token_attributes
+              WHERE token_attributes.collection_id = $/collection/
+                AND token_attributes.key = $/key/
+                AND token_attributes.value = $/value/
+              ORDER BY token_attributes.token_id
+            `,
+              {
+                collection: collection.id,
+                key: openSeaOrderParams.attributeKey,
+                value: openSeaOrderParams.attributeValue,
+              }
+            );
+
+            if (tokens.length) {
+              const tokensIds = tokens.map((r) => r.token_id);
+              const merkleTree = generateMerkleTree(tokensIds);
+
+              tokenSetId = `list:${info.contract}:${merkleTree.getHexRoot()}`;
+
+              await tokenSet.tokenList.save([
+                {
+                  id: tokenSetId,
+                  schema,
+                  schemaHash: generateSchemaHash(schema),
+                  items: {
+                    contract: info.contract,
+                    tokenIds: tokensIds,
+                  },
+                } as TokenSet,
+              ]);
+            }
+
+            break;
+          }
         }
+      } else {
+        schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
 
-        case "contract-wide": {
-          tokenSetId = `contract:${info.contract}`;
-          await tokenSet.contractWide.save([
-            {
-              id: tokenSetId,
-              schemaHash,
-              contract: info.contract,
-            },
-          ]);
+        switch (order.params.kind) {
+          case "single-token": {
+            const typedInfo = info as typeof info & { tokenId: string };
+            const tokenId = typedInfo.tokenId;
 
-          break;
-        }
+            tokenSetId = `token:${info.contract}:${tokenId}`;
+            if (tokenId) {
+              await tokenSet.singleToken.save([
+                {
+                  id: tokenSetId,
+                  schemaHash,
+                  contract: info.contract,
+                  tokenId,
+                },
+              ]);
+            }
 
-        case "token-list": {
-          // For collection offers, if the target orderbook is opensea, the token set should always be a contract wide.
-          // This is due to a mismatch between the collection flags in our system and OpenSea.
-          // The actual merkle root is returned by the build collection offer API from OpenSea (see the logic in the execute bid API).
-          if (metadata?.target === "opensea") {
+            break;
+          }
+
+          case "contract-wide": {
             tokenSetId = `contract:${info.contract}`;
             await tokenSet.contractWide.save([
               {
@@ -268,28 +362,46 @@ export const save = async (
                 contract: info.contract,
               },
             ]);
-          } else {
-            const typedInfo = info as typeof info & { merkleRoot: string };
-            const merkleRoot = typedInfo.merkleRoot;
 
-            if (merkleRoot) {
-              tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
+            break;
+          }
 
-              await tokenSet.tokenList.save([
+          case "token-list": {
+            // For collection offers, if the target orderbook is opensea, the token set should always be a contract wide.
+            // This is due to a mismatch between the collection flags in our system and OpenSea.
+            // The actual merkle root is returned by the build collection offer API from OpenSea (see the logic in the execute bid API).
+            if (metadata?.target === "opensea") {
+              tokenSetId = `contract:${info.contract}`;
+              await tokenSet.contractWide.save([
                 {
                   id: tokenSetId,
                   schemaHash,
-                  schema: metadata.schema,
+                  contract: info.contract,
                 },
               ]);
+            } else {
+              const typedInfo = info as typeof info & { merkleRoot: string };
+              const merkleRoot = typedInfo.merkleRoot;
 
-              if (!isReservoir) {
-                await handleTokenList(id, info.contract, tokenSetId, merkleRoot);
+              if (merkleRoot) {
+                tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
+
+                await tokenSet.tokenList.save([
+                  {
+                    id: tokenSetId,
+                    schemaHash,
+                    schema: metadata.schema,
+                  },
+                ]);
+
+                if (!isReservoir) {
+                  await handleTokenList(id, info.contract, tokenSetId, merkleRoot);
+                }
               }
             }
-          }
 
-          break;
+            break;
+          }
         }
       }
 
@@ -320,14 +432,6 @@ export const save = async (
         feeAmount = feeAmount.div(info.amount);
       }
 
-      const feeBps = price.eq(0) ? bn(0) : feeAmount.mul(10000).div(price);
-      if (feeBps.gt(10000)) {
-        return results.push({
-          id,
-          status: "fees-too-high",
-        });
-      }
-
       // Handle: royalties
       const openSeaFeeRecipients = [
         "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
@@ -351,13 +455,43 @@ export const save = async (
         );
       }
 
-      const feeBreakdown = info.fees.map(({ recipient, amount }) => ({
-        kind: openSeaRoyalties.map(({ recipient }) => recipient).includes(recipient.toLowerCase())
+      let feeBps = 0;
+      let marketplaceFeeFound = false;
+      const feeBreakdown = info.fees.map(({ recipient, amount }) => {
+        const bps = price.eq(0)
+          ? 0
+          : bn(amount)
+              .div(info.amount ?? 1)
+              .mul(10000)
+              .div(price)
+              .toNumber();
+
+        feeBps += bps;
+
+        // First check for opensea hardcoded recipients
+        const kind: "marketplace" | "royalty" = openSeaFeeRecipients.includes(recipient)
+          ? "marketplace"
+          : openSeaRoyalties.map(({ recipient }) => recipient).includes(recipient.toLowerCase()) // Check for locally stored royalties
           ? "royalty"
-          : "marketplace",
-        recipient,
-        bps: price.eq(0) ? 0 : bn(amount).mul(10000).div(price).toNumber(),
-      }));
+          : marketplaceFeeFound || bps > 250 // If bps is higher than 250 or we already found marketplace fee assume it is royalty otherwise marketplace fee
+          ? "royalty"
+          : "marketplace";
+
+        marketplaceFeeFound = kind === "marketplace" || marketplaceFeeFound;
+
+        return {
+          kind,
+          recipient,
+          bps,
+        };
+      });
+
+      if (feeBps > 10000) {
+        return results.push({
+          id,
+          status: "fees-too-high",
+        });
+      }
 
       // Handle: royalties on top
       const defaultRoyalties =
@@ -378,21 +512,34 @@ export const save = async (
         );
         if (validRecipients.length) {
           const bpsDiff = totalDefaultBps - totalBuiltInBps;
-          const amount = bn(price).mul(bpsDiff).div(10000).toString();
+          const amount = bn(price).mul(bpsDiff).div(10000);
           missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
-          missingRoyalties.push({
-            bps: bpsDiff,
-            amount,
-            // TODO: We should probably split pro-rata across all royalty recipients
-            recipient: validRecipients[0].recipient,
-          });
+          // Split the missing royalties pro-rata across all royalty recipients
+          const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+          for (const { bps, recipient } of validRecipients) {
+            // TODO: Handle lost precision (by paying it to the last or first recipient)
+            missingRoyalties.push({
+              bps: Math.floor((bpsDiff * bps) / totalBps),
+              amount: amount.mul(bps).div(totalBps).toString(),
+              recipient,
+            });
+          }
         }
       }
 
       // Handle: source
       const sources = await Sources.getInstance();
       let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
+
+      // If cross posting, source should always be opensea.
+      if (metadata?.target !== "opensea") {
+        const sourceHash = bn(order.params.salt)._hex.slice(0, 10);
+        const matchedSource = sources.getByDomainHash(sourceHash);
+        if (matchedSource) {
+          source = matchedSource;
+        }
+      }
 
       // If the order is native, override any default source
       if (isReservoir) {
@@ -474,7 +621,7 @@ export const save = async (
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
-        const seaportBidPercentageThreshold = 90;
+        const seaportBidPercentageThreshold = 80;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
@@ -532,10 +679,10 @@ export const save = async (
         conduit: toBuffer(
           new Sdk.Seaport.Exchange(config.chainId).deriveConduit(order.params.conduitKey)
         ),
-        fee_bps: feeBps.toNumber(),
+        fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
         dynamic: info.isDynamic ?? null,
-        raw_data: order.params,
+        raw_data: saveRawData ? order.params : null,
         expiration: validTo,
         missing_royalties: missingRoyalties,
         normalized_value: normalizedValue,
@@ -543,7 +690,12 @@ export const save = async (
       });
 
       const unfillable =
-        fillabilityStatus !== "fillable" || approvalStatus !== "approved" ? true : undefined;
+        fillabilityStatus !== "fillable" ||
+        approvalStatus !== "approved" ||
+        // Skip private orders
+        info.taker !== AddressZero
+          ? true
+          : undefined;
 
       results.push({
         id,
@@ -557,7 +709,13 @@ export const save = async (
     } catch (error) {
       logger.warn(
         "orders-seaport-save",
-        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error} (will retry)`
+        `Failed to handle order (will retry). orderParams=${JSON.stringify(
+          orderParams
+        )}, metadata=${JSON.stringify(
+          metadata
+        )}, isReservoir=${isReservoir}, openSeaOrderParams=${JSON.stringify(
+          openSeaOrderParams
+        )}, error=${error}`
       );
 
       // Throw so that we retry with he bundle-handling code
@@ -791,7 +949,8 @@ export const save = async (
       ];
 
       if (collection) {
-        for (const royalty of collection.new_royalties?.["opensea"] ?? []) {
+        const royalties = collection.new_royalties?.["opensea"] ?? [];
+        for (const royalty of royalties) {
           feeBps += royalty.bps;
 
           feeBreakdown.push({
@@ -821,15 +980,19 @@ export const save = async (
         );
         if (validRecipients.length) {
           const bpsDiff = totalDefaultBps - totalBuiltInBps;
-          const amount = bn(price).mul(bpsDiff).div(10000).toString();
+          const amount = bn(price).mul(bpsDiff).div(10000);
           missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
-          missingRoyalties.push({
-            bps: bpsDiff,
-            amount,
-            // TODO: We should probably split pro-rata across all royalty recipients
-            recipient: validRecipients[0].recipient,
-          });
+          // Split the missing royalties pro-rata across all royalty recipients
+          const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+          for (const { bps, recipient } of validRecipients) {
+            // TODO: Handle lost precision (by paying it to the last or first recipient)
+            missingRoyalties.push({
+              bps: Math.floor((bpsDiff * bps) / totalBps),
+              amount: amount.mul(bps).div(totalBps).toString(),
+              recipient,
+            });
+          }
         }
       }
 
@@ -902,7 +1065,7 @@ export const save = async (
 
       if (orderParams.side === "buy" && orderParams.kind === "single-token" && validateBidValue) {
         const tokenId = orderParams.tokenId;
-        const seaportBidPercentageThreshold = 90;
+        const seaportBidPercentageThreshold = 80;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
@@ -912,7 +1075,6 @@ export const save = async (
 
           if (collectionFloorAskValue) {
             const percentage = (Number(value.toString()) / collectionFloorAskValue) * 100;
-
             if (percentage < seaportBidPercentageThreshold) {
               return results.push({
                 id,
@@ -971,7 +1133,12 @@ export const save = async (
       });
 
       const unfillable =
-        fillabilityStatus !== "fillable" || approvalStatus !== "approved" ? true : undefined;
+        fillabilityStatus !== "fillable" ||
+        approvalStatus !== "approved" ||
+        // Skip private orders
+        (orderParams.taker ?? AddressZero) !== AddressZero
+          ? true
+          : undefined;
 
       results.push({
         id,
@@ -1268,7 +1435,8 @@ export const save = async (
           : handleOrder(
               orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
               orderInfo.metadata,
-              orderInfo.isReservoir
+              orderInfo.isReservoir,
+              orderInfo.openSeaOrderParams
             )
       )
     )
@@ -1357,14 +1525,13 @@ export const handleTokenList = async (
 
     if (handleTokenSetId) {
       const collectionDay30Rank = await redis.zscore("collections_day30_rank", contract);
-
       if (!collectionDay30Rank || Number(collectionDay30Rank) <= 1000) {
         const tokenSetTokensExist = await redb.oneOrNone(
           `
-                  SELECT 1 FROM "token_sets" "ts"
-                  WHERE "ts"."id" = $/tokenSetId/
-                  LIMIT 1
-                `,
+            SELECT 1 FROM "token_sets" "ts"
+            WHERE "ts"."id" = $/tokenSetId/
+            LIMIT 1
+          `,
           { tokenSetId }
         );
 
@@ -1375,14 +1542,13 @@ export const handleTokenList = async (
           );
 
           const pendingFlagStatusSyncJobs = new PendingFlagStatusSyncJobs();
-
           if (getNetworkSettings().multiCollectionContracts.includes(contract)) {
             const collectionIds = await redb.manyOrNone(
               `
-                      SELECT id FROM "collections" "c"
-                      WHERE "c"."contract" = $/contract/
-                      AND day30_rank <= 1000
-                    `,
+                SELECT id FROM "collections" "c"
+                WHERE "c"."contract" = $/contract/
+                AND day30_rank <= 1000
+              `,
               { contract: toBuffer(contract) }
             );
 
@@ -1424,6 +1590,8 @@ const getCollection = async (
 ): Promise<{
   id: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  royalties: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   new_royalties: any;
   token_set_id: string | null;
 } | null> => {
@@ -1432,6 +1600,7 @@ const getCollection = async (
       `
         SELECT
           collections.id,
+          collections.royalties,
           collections.new_royalties,
           collections.token_set_id
         FROM tokens
@@ -1449,14 +1618,17 @@ const getCollection = async (
   } else {
     const collection = await redb.oneOrNone(
       `
-          SELECT
-            collections.id,
-            collections.new_royalties,
-            collections.token_set_id
-          FROM collections
-          WHERE collections.contract = $/contract/
-            AND collections.slug = $/collectionSlug/
-        `,
+        SELECT
+          collections.id,
+          collections.royalties,
+          collections.new_royalties,
+          collections.token_set_id
+        FROM collections
+        WHERE collections.contract = $/contract/
+          AND collections.slug = $/collectionSlug/
+        ORDER BY created_at DESC  
+        LIMIT 1  
+      `,
       {
         contract: toBuffer(orderParams.contract),
         collectionSlug: orderParams.collectionSlug,

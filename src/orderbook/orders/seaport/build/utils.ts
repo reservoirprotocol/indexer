@@ -1,6 +1,7 @@
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { BaseBuildParams } from "@reservoir0x/sdk/dist/seaport/builders/base";
+import { generateSourceBytes, getRandomBytes } from "@reservoir0x/sdk/dist/utils";
 
 import { redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
@@ -23,11 +24,18 @@ export interface BaseOrderBuildOptions {
   salt?: string;
   automatedRoyalties?: boolean;
   excludeFlaggedTokens?: boolean;
+  source?: string;
 }
 
 type OrderBuildInfo = {
   params: BaseBuildParams;
   kind: "erc721" | "erc1155";
+};
+
+export const padSourceToSalt = (source: string, salt: string) => {
+  const sourceHash = generateSourceBytes(source);
+  const saltHex = bn(salt)._hex.slice(6);
+  return bn(`0x${sourceHash}${saltHex}`).toString();
 };
 
 export const getBuildInfo = async (
@@ -39,7 +47,8 @@ export const getBuildInfo = async (
     `
       SELECT
         contracts.kind,
-        collections.royalties
+        collections.royalties,
+        collections.new_royalties
       FROM collections
       JOIN contracts
         ON collections.contract = contracts.address
@@ -75,7 +84,9 @@ export const getBuildInfo = async (
     conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero,
     startTime: options.listingTime || now() - 1 * 60,
     endTime: options.expirationTime || now() + 6 * 30 * 24 * 3600,
-    salt: options.salt,
+    salt: options.source
+      ? padSourceToSalt(options.source, options.salt ?? getRandomBytes(16).toString())
+      : undefined,
     counter: (await exchange.getCounter(baseProvider, options.maker)).toString(),
     orderType: options.orderType,
   };
@@ -85,7 +96,11 @@ export const getBuildInfo = async (
 
   if (options.automatedRoyalties) {
     // Include the royalties
-    for (const { recipient, bps } of collectionResult.royalties || []) {
+    const royalties =
+      options.orderbook === "opensea"
+        ? collectionResult.new_royalties?.opensea
+        : collectionResult.royalties;
+    for (const { recipient, bps } of royalties || []) {
       if (recipient && Number(bps) > 0) {
         const fee = bn(bps).mul(options.weiPrice).div(10000).toString();
         buildParams.fees!.push({

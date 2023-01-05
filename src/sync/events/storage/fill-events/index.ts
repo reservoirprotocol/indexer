@@ -1,5 +1,6 @@
 import { BaseEventParams } from "@/events-sync/parser";
 import { OrderKind } from "@/orderbook/orders";
+import { Royalty } from "@/utils/royalties";
 
 export * from "@/events-sync/storage/fill-events/common";
 export * from "@/events-sync/storage/fill-events/partial";
@@ -24,6 +25,12 @@ export type Event = {
   usdPrice?: string;
   isPrimary?: boolean;
   baseEventParams: BaseEventParams;
+
+  royaltyFeeBps?: number;
+  marketplaceFeeBps?: number;
+  royaltyFeeBreakdown?: Royalty[];
+  marketplaceFeeBreakdown?: Royalty[];
+  paidFullRoyalty?: boolean;
 };
 
 export type DbEvent = {
@@ -52,4 +59,9 @@ export type DbEvent = {
   currency_price: string | null;
   usd_price: string | null;
   is_primary: boolean | null;
+  royalty_fee_bps?: number;
+  marketplace_fee_bps?: number;
+  royalty_fee_breakdown?: Royalty[];
+  marketplace_fee_breakdown?: Royalty[];
+  paid_full_royalty?: boolean;
 };

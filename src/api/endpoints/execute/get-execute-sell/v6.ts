@@ -42,7 +42,8 @@ export const getExecuteSellV6Options: RouteOptions = {
             "seaport",
             "seaport-partial",
             "x2y2",
-            "universe"
+            "universe",
+            "infinity"
           )
           .required(),
         data: Joi.object().required(),
@@ -71,6 +72,11 @@ export const getExecuteSellV6Options: RouteOptions = {
         .lowercase()
         .pattern(regex.domain)
         .description("Filling source used for attribution. Example: `reservoir.market`"),
+      feesOnTop: Joi.array()
+        .items(Joi.string().pattern(regex.fee))
+        .description(
+          "List of fees (formatted as `feeRecipient:feeAmount`) to be taken when filling.\nThe currency used for any fees on top matches the accepted bid's currency.\nExample: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:1000000000000000`"
+        ),
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
@@ -269,9 +275,19 @@ export const getExecuteSellV6Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const sourceId = orderResult.source_id_int;
 
+      // Handle fees on top
+      const feesOnTop: Sdk.RouterV6.Types.Fee[] = [];
+      for (const fee of payload.feesOnTop ?? []) {
+        const [recipient, amount] = fee.split(":");
+        feesOnTop.push({ recipient, amount });
+      }
+
       const fees: Sdk.RouterV6.Types.Fee[] = payload.normalizeRoyalties
         ? orderResult.missing_royalties ?? []
         : [];
+      if (feesOnTop.length) {
+        fees.push(...feesOnTop);
+      }
       const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
 
       const totalPrice = bn(orderResult.value)
@@ -382,6 +398,44 @@ export const getExecuteSellV6Options: RouteOptions = {
           });
         }
       }
+
+      if (bidDetails.kind === "infinity") {
+        const isApproved = await getNftApproval(
+          bidDetails.contract,
+          payload.taker,
+          Sdk.Infinity.Addresses.Exchange[config.chainId]
+        );
+
+        if (!isApproved) {
+          const approveTx =
+            bidDetails.contractKind === "erc721"
+              ? new Sdk.Common.Helpers.Erc721(baseProvider, bidDetails.contract).approveTransaction(
+                  payload.taker,
+                  Sdk.Infinity.Addresses.Exchange[config.chainId]
+                )
+              : new Sdk.Common.Helpers.Erc1155(
+                  baseProvider,
+                  bidDetails.contract
+                ).approveTransaction(
+                  payload.taker,
+                  Sdk.Infinity.Addresses.Exchange[config.chainId]
+                );
+
+          steps[0].items.push({
+            status: "incomplete",
+            data: {
+              ...approveTx,
+              maxFeePerGas: payload.maxFeePerGas
+                ? bn(payload.maxFeePerGas).toHexString()
+                : undefined,
+              maxPriorityFeePerGas: payload.maxPriorityFeePerGas
+                ? bn(payload.maxPriorityFeePerGas).toHexString()
+                : undefined,
+            },
+          });
+        }
+      }
+
       if (bidDetails.kind === "rarible") {
         const isApproved = await getNftApproval(
           bidDetails.contract,

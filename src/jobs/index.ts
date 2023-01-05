@@ -35,8 +35,10 @@ import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
 import * as backfillBlurSales from "@/jobs/backfill/backfill-blur-sales";
 import * as backfillMints from "@/jobs/backfill/backfill-mints";
-import * as backfillRefreshSudoswapOrders from "@/jobs/backfill/backfill-refresh-sudoswap-orders";
-import * as backCollectionsNonFlaggedFloorAsk from "@/jobs/backfill/backfill-collections-non-flagged-floor-ask";
+import * as backfillRefreshCryptopunksOrders from "@/jobs/backfill/backfill-refresh-cryptopunks-orders";
+import * as backfillTokensWithMissingCollection from "@/jobs/backfill/backfill-tokens-with-missing-collection";
+import * as backfillOpenseaWebsocketEvents from "@/jobs/backfill/backfill-opensea-websocket-events";
+import * as backfillONftBalancesLastSale from "@/jobs/backfill/backfill-nft-balances-last-sale";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -46,6 +48,8 @@ import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
+import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
+import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
@@ -86,6 +90,9 @@ import * as orderFixes from "@/jobs/order-fixes/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle-queue";
+import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-queue";
+import * as erc20OrdersCron from "@/jobs/order-updates/cron/erc20-orders-queue";
+import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-queue";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
@@ -107,6 +114,17 @@ import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attrib
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
 
+export const gracefulShutdownJobWorkers = [
+  orderUpdatesById.worker,
+  orderUpdatesByMaker.worker,
+  bundleOrderUpdatesByMaker.worker,
+  dynamicOrdersCron.worker,
+  erc20OrdersCron.worker,
+  expiredOrdersCron.worker,
+  tokenUpdatesFloorAsk.worker,
+  tokenUpdatesNormalizedFloorAsk.worker,
+];
+
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,
   processActivityEvent.queue,
@@ -117,8 +135,10 @@ export const allJobQueues = [
 
   backfillBlurSales.queue,
   backfillMints.queue,
-  backfillRefreshSudoswapOrders.queue,
-  backCollectionsNonFlaggedFloorAsk.queue,
+  backfillRefreshCryptopunksOrders.queue,
+  backfillTokensWithMissingCollection.queue,
+  backfillOpenseaWebsocketEvents.queue,
+  backfillONftBalancesLastSale.queue,
 
   currencies.queue,
 
@@ -130,6 +150,8 @@ export const allJobQueues = [
   collectionUpdatesFloorAsk.queue,
   collectionUpdatesNormalizedFloorAsk.queue,
   collectionUpdatesNonFlaggedFloorAsk.queue,
+  collectionSetCommunity.queue,
+  collectionRecalcTokenCount.queue,
 
   collectionUpdatesMetadata.queue,
   rarity.queue,
@@ -168,6 +190,9 @@ export const allJobQueues = [
   orderUpdatesById.queue,
   orderUpdatesByMaker.queue,
   bundleOrderUpdatesByMaker.queue,
+  dynamicOrdersCron.queue,
+  erc20OrdersCron.queue,
+  expiredOrdersCron.queue,
 
   orderbookOrders.queue,
   orderbookPostOrderExternal.queue,

@@ -10,6 +10,7 @@ import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 import * as LooksrareApi from "@/jobs/orderbook/post-order-external/api/looksrare";
 import * as X2Y2Api from "@/jobs/orderbook/post-order-external/api/x2y2";
 import * as UniverseApi from "@/jobs/orderbook/post-order-external/api/universe";
+import * as InfinityApi from "@/jobs/orderbook/post-order-external/api/infinity";
 
 import { OrderbookApiRateLimiter } from "@/jobs/orderbook/post-order-external/api-rate-limiter";
 import {
@@ -43,7 +44,7 @@ if (config.doBackgroundWork) {
         throw new Error("Unsupported network");
       }
 
-      if (!["opensea", "looks-rare", "x2y2", "universe"].includes(orderbook)) {
+      if (!["opensea", "looks-rare", "x2y2", "universe", "infinity"].includes(orderbook)) {
         throw new Error("Unsupported orderbook");
       }
 
@@ -149,6 +150,8 @@ const getOrderbookDefaultApiKey = (orderbook: string) => {
       return config.x2y2ApiKey;
     case "universe":
       return "";
+    case "infinity":
+      return config.infinityApiKey;
   }
 
   throw new Error(`Unsupported orderbook ${orderbook}`);
@@ -184,6 +187,13 @@ const getRateLimiter = (orderbook: string, orderbookApiKey: string) => {
         UniverseApi.RATE_LIMIT_REQUEST_COUNT,
         UniverseApi.RATE_LIMIT_INTERVAL
       );
+    case "infinity":
+      return new OrderbookApiRateLimiter(
+        orderbook,
+        orderbookApiKey,
+        InfinityApi.RATE_LIMIT_REQUEST_COUNT,
+        InfinityApi.RATE_LIMIT_INTERVAL
+      );
   }
 
   throw new Error(`Unsupported orderbook ${orderbook}`);
@@ -192,7 +202,7 @@ const getRateLimiter = (orderbook: string, orderbookApiKey: string) => {
 const postOrder = async (
   orderbook: string,
   orderId: string,
-  orderData: Record<string, unknown>,
+  orderData: PostOrderExternalParams["orderData"],
   orderbookApiKey: string
 ) => {
   switch (orderbook) {
@@ -257,6 +267,14 @@ const postOrder = async (
     case "x2y2": {
       return X2Y2Api.postOrder(orderData as Sdk.X2Y2.Types.LocalOrder, orderbookApiKey);
     }
+
+    case "infinity": {
+      const order = new Sdk.Infinity.Order(
+        config.chainId,
+        orderData as Sdk.Infinity.Types.OrderInput
+      );
+      return InfinityApi.postOrders(order, orderbookApiKey);
+    }
   }
 
   throw new Error(`Unsupported orderbook ${orderbook}`);
@@ -289,11 +307,17 @@ export type PostOrderExternalParams =
       orderData: Sdk.Universe.Types.Order;
       orderbook: "universe";
       retry: number;
+    }
+  | {
+      orderId: string;
+      orderData: Sdk.Infinity.Types.OrderInput;
+      orderbook: "infinity";
+      retry: number;
     };
 
 export const addToQueue = async (
   orderId: string | null,
-  orderData: Record<string, unknown>,
+  orderData: PostOrderExternalParams["orderData"],
   orderbook: string,
   orderbookApiKey: string | null,
   retry = 0,

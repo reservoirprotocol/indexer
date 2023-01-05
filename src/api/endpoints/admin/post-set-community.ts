@@ -7,6 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { Collections } from "@/models/collections";
+import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
 
 export const postSetCollectionCommunity: RouteOptions = {
   description: "Set a community for a specific collection",
@@ -26,6 +27,7 @@ export const postSetCollectionCommunity: RouteOptions = {
           "Update community for a particular collection, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       community: Joi.string().lowercase().required().allow(""),
+      doRetries: Joi.boolean().default(false),
     }),
   },
   handler: async (request: Request) => {
@@ -39,7 +41,20 @@ export const postSetCollectionCommunity: RouteOptions = {
       const collection = payload.collection;
       const community = payload.community;
 
-      await Collections.update(collection, { community });
+      // Check if the collection exist
+      const collectionData = await Collections.getById(collection);
+
+      if (collectionData) {
+        // If we have the collection update it
+        await Collections.update(collection, { community });
+        logger.info(
+          "post-set-community-handler",
+          `Setting community ${community} to collection ${collection}`
+        );
+      } else if (payload.doRetries) {
+        // We currently don't have the collection but might have in the future trigger a delayed job
+        await collectionSetCommunity.addToQueue(collection, community);
+      }
 
       return { message: "Request accepted" };
     } catch (error) {

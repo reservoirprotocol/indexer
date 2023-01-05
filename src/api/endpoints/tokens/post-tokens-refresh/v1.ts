@@ -7,15 +7,16 @@ import _ from "lodash";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as orderFixes from "@/jobs/order-fixes/queue";
 import * as resyncAttributeCache from "@/jobs/update-attribute/resync-attribute-cache";
 import * as tokenRefreshCacheQueue from "@/jobs/token-updates/token-refresh-cache";
+import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
-import { ApiKeyManager } from "@/models/api-keys";
 
 const version = "v1";
 
@@ -31,7 +32,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
     payload: Joi.object({
       token: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
+        .pattern(regex.token)
         .description(
           "Refresh the given token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         )
@@ -54,7 +55,9 @@ export const postTokensRefreshV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const payload = request.payload as any;
-    const refreshCoolDownMin = 60; // How many minutes between each refresh
+
+    // How many minutes to enforce between each refresh
+    const refreshCoolDownMin = 60;
     let overrideCoolDown = false;
 
     try {
@@ -62,7 +65,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
 
       const token = await Tokens.getByContractAndTokenId(contract, tokenId, true);
 
-      // If no token found
+      // If no token was found found
       if (_.isNull(token)) {
         throw Boom.badRequest(`Token ${payload.token} not found`);
       }
@@ -101,7 +104,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
         await OpenseaIndexerApi.fastTokenSync(payload.token);
       }
 
-      // Refresh meta data
+      // Refresh metadata
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
       if (!collection) {
@@ -111,12 +114,23 @@ export const postTokensRefreshV1Options: RouteOptions = {
         );
       }
 
+      let method = metadataIndexFetch.getIndexingMethod(collection?.community || null);
+
+      if (contract === "0x11708dc8a3ea69020f520c81250abb191b190110") {
+        method = "simplehash";
+
+        logger.info(
+          `post-tokens-refresh-${version}-handler`,
+          `Forced rtfkt. contract=${contract}, tokenId=${tokenId}, method=${method}`
+        );
+      }
+
       await metadataIndexFetch.addToQueue(
         [
           {
             kind: "single-token",
             data: {
-              method: metadataIndexFetch.getIndexingMethod(collection?.community || null),
+              method,
               contract,
               tokenId,
               collection: collection?.id || contract,

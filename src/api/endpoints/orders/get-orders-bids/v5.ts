@@ -12,7 +12,6 @@ import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } fro
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { utils } from "ethers";
 import { Orders } from "@/utils/orders";
 import { Attributes } from "@/models/attributes";
 
@@ -30,7 +29,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      ids: Joi.alternatives(Joi.string(), Joi.array().items(Joi.string())).description(
+      ids: Joi.alternatives(Joi.array().items(Joi.string()), Joi.string()).description(
         "Order id(s) to search for (only fillable and approved orders will be returned)"
       ),
       token: Joi.string()
@@ -96,6 +95,12 @@ export const getOrdersBidsV5Options: RouteOptions = {
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
+      startTimestamp: Joi.number().description(
+        "Get events after a particular unix timestamp (inclusive)"
+      ),
+      endTimestamp: Joi.number().description(
+        "Get events before a particular unix timestamp (inclusive)"
+      ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -228,11 +233,29 @@ export const getOrdersBidsV5Options: RouteOptions = {
         FROM orders
       `;
 
+      // We default in the code so that these values don't appear in the docs
+      if (query.startTimestamp || query.endTimestamp) {
+        if (!query.startTimestamp) {
+          query.startTimestamp = 0;
+        }
+        if (!query.endTimestamp) {
+          query.endTimestamp = 9999999999;
+        }
+      }
+
       // Filters
-      const conditions: string[] = [
-        "EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)",
-        "orders.side = 'buy'",
-      ];
+      const conditions: string[] =
+        query.startTimestamp || query.endTimestamp
+          ? [
+              `orders.created_at >= to_timestamp($/startTimestamp/)`,
+              `orders.created_at <= to_timestamp($/endTimestamp/)`,
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ]
+          : [
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ];
 
       let communityFilter = "";
       let orderStatusFilter;
@@ -414,30 +437,29 @@ export const getOrdersBidsV5Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
         const feeBreakdown = r.fee_breakdown;
-        let feeBps = utils.parseUnits(r.fee_bps.toString(), "wei");
+        let feeBps = r.fee_bps;
 
         if (query.normalizeRoyalties && r.missing_royalties) {
           for (let i = 0; i < r.missing_royalties.length; i++) {
-            const amount = utils.parseUnits(r.missing_royalties[i].amount, "wei");
-            const totalValue = utils.parseUnits(r.normalized_value.toString(), "wei").sub(amount);
-            const bps = amount.mul(10000).div(totalValue);
             const index: number = r.fee_breakdown.findIndex(
               (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
             );
 
-            if (index > -1) {
-              feeBreakdown[index].bps += Number(bps.toString());
+            const missingFeeBps = Number(r.missing_royalties[i].bps);
+            feeBps += missingFeeBps;
+
+            if (index !== -1) {
+              feeBreakdown[index].bps += missingFeeBps;
             } else {
-              const tempObj = {
-                bps: Number(bps.toString()),
+              feeBreakdown.push({
+                bps: missingFeeBps,
                 kind: "royalty",
                 recipient: r.missing_royalties[i].recipient,
-              };
-              feeBreakdown.push(tempObj);
-              feeBps = feeBps.add(bps);
+              });
             }
           }
         }
+
         let source: SourcesEntity | undefined;
 
         if (r.token_set_id?.startsWith("token")) {

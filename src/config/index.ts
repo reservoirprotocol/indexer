@@ -41,6 +41,7 @@ export const config = {
   ),
   redisUrl: String(process.env.REDIS_URL),
   rateLimitRedisUrl: String(process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL),
+  redshiftUrl: String(process.env.REDSHIFT_URL),
 
   master: Boolean(Number(process.env.MASTER)),
   catchup: Boolean(Number(process.env.CATCHUP)),
@@ -51,8 +52,10 @@ export const config = {
 
   maxTokenSetSize: 100000,
 
-  awsAccessKeyId: String(process.env.AWS_ACCESS_KEY_ID),
-  awsSecretAccessKey: String(process.env.AWS_SECRET_ACCESS_KEY),
+  awsAccessKeyId: String(process.env.AWS_ACCESS_KEY_ID || process.env.FC_AWS_ACCESS_KEY_ID),
+  awsSecretAccessKey: String(
+    process.env.AWS_SECRET_ACCESS_KEY || process.env.FC_AWS_SECRET_ACCESS_KEY
+  ),
 
   dataExportS3BucketName: String(process.env.DATA_EXPORT_S3_BUCKET_NAME),
   dataExportAwsAccessRole: String(process.env.DATA_EXPORT_AWS_ACCESS_ROLE),
@@ -62,10 +65,18 @@ export const config = {
     ? String(process.env.DATA_EXPORT_S3_ARCHIVE_BUCKET_NAME)
     : undefined,
 
+  openseaWebsocketEventsAwsFirehoseDeliveryStreamName: String(
+    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_NAME
+  ),
+  openseaWebsocketEventsAwsFirehoseDeliveryStreamRegion: String(
+    process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_REGION
+  ),
+
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
+  infinityApiKey: String(process.env.INFINITY_API_KEY),
 
   railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 

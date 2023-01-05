@@ -43,14 +43,15 @@ export const postOrderV3Options: RouteOptions = {
             "seaport-forward",
             "x2y2",
             "universe",
-            "forward"
+            "forward",
+            "infinity"
           )
           .required(),
         data: Joi.object().required(),
       }),
       orderbook: Joi.string()
         .lowercase()
-        .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe")
+        .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity")
         .default("reservoir"),
       orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
       source: Joi.string().pattern(regex.domain).description("The source domain"),
@@ -164,6 +165,11 @@ export const postOrderV3Options: RouteOptions = {
           }
 
           const [result] = await orders.zeroExV4.save([orderInfo]);
+
+          if (result.status === "already-exists") {
+            return { message: "Success", orderId: result.id };
+          }
+
           if (result.status === "success") {
             return { message: "Success", orderId: result.id };
           } else {
@@ -190,6 +196,10 @@ export const postOrderV3Options: RouteOptions = {
           };
 
           const [result] = await orders.seaport.save([orderInfo]);
+
+          if (result.status === "already-exists") {
+            return { message: "Success", orderId: result.id };
+          }
 
           if (result.status !== "success") {
             const error = Boom.badRequest(result.status);
@@ -295,6 +305,10 @@ export const postOrderV3Options: RouteOptions = {
 
           const [result] = await orders.seaport.save([orderInfo]);
 
+          if (result.status === "already-exists") {
+            return { message: "Success", orderId: result.id };
+          }
+
           if (result.status !== "success") {
             const error = Boom.badRequest(result.status);
             error.output.payload.orderId = result.id;
@@ -329,6 +343,10 @@ export const postOrderV3Options: RouteOptions = {
           };
 
           const [result] = await orders.looksRare.save([orderInfo]);
+
+          if (result.status === "already-exists") {
+            return { message: "Success", orderId: result.id };
+          }
 
           if (result.status !== "success") {
             const error = Boom.badRequest(result.status);
@@ -371,6 +389,10 @@ export const postOrderV3Options: RouteOptions = {
 
             const [result] = await orders.x2y2.save([orderInfo]);
 
+            if (result.status === "already-exists") {
+              return { message: "Success", orderId: result.id };
+            }
+
             if (result.status !== "success") {
               const error = Boom.badRequest(result.status);
               error.output.payload.orderId = result.id;
@@ -403,11 +425,48 @@ export const postOrderV3Options: RouteOptions = {
 
           const [result] = await orders.universe.save([orderInfo]);
 
+          if (result.status === "already-exists") {
+            return { message: "Success", orderId: result.id };
+          }
+
           if (result.status !== "success") {
             throw Boom.badRequest(result.status);
           }
 
           if (orderbook === "universe") {
+            await postOrderExternal.addToQueue(result.id, order.data, orderbook, orderbookApiKey);
+
+            logger.info(
+              `post-order-${version}-handler`,
+              `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}, orderId: ${
+                result.id
+              }`
+            );
+          }
+
+          return { message: "Success", orderId: result.id };
+        }
+
+        case "infinity": {
+          if (!["infinity"].includes(orderbook)) {
+            throw new Error("Unknown orderbook");
+          }
+
+          const orderInfo: orders.infinity.OrderInfo = {
+            orderParams: order.data,
+            metadata: {
+              schema,
+              source: orderbook === "infinity" ? source : undefined,
+            },
+          };
+
+          const [result] = await orders.infinity.save([orderInfo]);
+
+          if (result.status !== "success") {
+            throw Boom.badRequest(result.status);
+          }
+
+          if (orderbook === "infinity") {
             await postOrderExternal.addToQueue(result.id, order.data, orderbook, orderbookApiKey);
 
             logger.info(
@@ -435,6 +494,10 @@ export const postOrderV3Options: RouteOptions = {
           };
 
           const [result] = await orders.forward.save([orderInfo]);
+
+          if (result.status === "already-exists") {
+            return { message: "Success", orderId: result.id };
+          }
 
           if (result.status !== "success") {
             throw Boom.badRequest(result.status);

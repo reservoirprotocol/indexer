@@ -28,20 +28,29 @@ export const queue = new Queue(QUEUE_NAME, {
       type: "exponential",
       delay: 10000,
     },
-    removeOnComplete: 10000,
+    removeOnComplete: 1000,
     removeOnFail: 10000,
     timeout: 60000,
   },
 });
+export let worker: Worker | undefined;
+
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
-  const worker = new Worker(
+  worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
       const { id, trigger } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
+
+      if (
+        config.chainId === 1 &&
+        (trigger.kind === "new-order" || trigger.kind === "expiry" || trigger.kind === "reprice")
+      ) {
+        logger.info(QUEUE_NAME, `OrderUpdatesById: ${JSON.stringify(job.data)}`);
+      }
 
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -123,7 +132,7 @@ if (config.doBackgroundWork) {
             );
 
             if (!buyOrderResult.length && trigger.kind === "revalidation") {
-              // When revalidating, force revalidation of the attribute / collection.
+              // When revalidating, force revalidation of the attribute / collection
               const tokenSetsResult = await redb.manyOrNone(
                 `
                   SELECT
@@ -390,7 +399,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 20 }
+    { connection: redis.duplicate(), concurrency: 50 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
