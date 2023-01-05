@@ -67,7 +67,9 @@ if (config.doBackgroundWork) {
           done = true;
         }
 
-        lastId = cancellations[cancellations.length - 1]._id;
+        if (cancellations.length) {
+          lastId = cancellations[cancellations.length - 1]._id;
+        }
       }
 
       if (values.length) {
