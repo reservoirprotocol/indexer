@@ -39,14 +39,12 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
           "Refresh the given collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         )
         .required(),
-      overrideCoolDown: Joi.boolean()
-        .default(false)
-        .description(
-          "If true, will force a refresh regardless of cool down. Requires an authorized api key to be passed."
-        ),
-      metadataOnly: Joi.boolean()
-        .default(false)
-        .description("If true, will only refresh the collection metadata."),
+      overrideCoolDown: Joi.boolean().description(
+        "If true, will force a refresh regardless of cool down. Requires an authorized api key to be passed."
+      ),
+      metadataOnly: Joi.boolean().description(
+        "If true, will only refresh the collection metadata."
+      ),
     }),
   },
   response: {
@@ -100,6 +98,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         }
 
         await collectionUpdatesMetadata.addToQueue(
+          collection.id,
           collection.contract,
           tokenId,
           collection.community,
@@ -158,6 +157,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         }
 
         await collectionUpdatesMetadata.addToQueue(
+          collection.id,
           collection.contract,
           tokenId,
           collection.community,

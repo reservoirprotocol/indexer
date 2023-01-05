@@ -47,7 +47,7 @@ if (config.doBackgroundWork) {
 
       // if (
       //   config.chainId === 1 &&
-      //   (trigger.kind === "new-order" || trigger.kind === "expiry" || trigger.kind === "reprice")
+      //   (trigger.kind === "expiry" || trigger.kind === "reprice")
       // ) {
       //   logger.info(QUEUE_NAME, `OrderUpdatesById: ${JSON.stringify(job.data)}`);
       // }

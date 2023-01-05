@@ -490,6 +490,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/events/collections/floor-ask/v2",
+    options: eventsEndpoints.getCollectionsFloorAskV2Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/events/orders/v1",
     options: eventsEndpoints.getOrderEventsV1Options,
   });
@@ -516,6 +522,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/events/tokens/floor-ask/v3",
     options: eventsEndpoints.getTokensFloorAskV3Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/events/tokens/floor-ask/v4",
+    options: eventsEndpoints.getTokensFloorAskV4Options,
   });
 
   server.route({
@@ -1007,6 +1019,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/tokens/bootstrap/v2",
+    options: tokensEndpoints.getTokensBootstrapV2Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/tokens/details/v2",
     options: tokensEndpoints.getTokensDetailsV2Options,
   });
@@ -1129,6 +1147,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/sales/v4",
     options: transfersEndpoints.getSalesV4Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/sales/v5",
+    options: transfersEndpoints.getSalesV5Options,
   });
 
   server.route({

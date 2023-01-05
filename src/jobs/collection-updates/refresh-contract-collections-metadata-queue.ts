@@ -67,6 +67,7 @@ if (config.doBackgroundWork) {
             }
 
             infos.push({
+              collectionId: contractCollection.id,
               contract,
               tokenId,
               community: contractCollection.community,
