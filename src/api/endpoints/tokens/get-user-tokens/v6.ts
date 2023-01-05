@@ -113,6 +113,10 @@ export const getUserTokensV6Options: RouteOptions = {
             kind: Joi.string(),
             name: Joi.string().allow(null, ""),
             image: Joi.string().allow(null, ""),
+            lastBuyValue: Joi.number().unsafe().allow(null),
+            lastSellValue: Joi.number().unsafe().allow(null),
+            rarityScore: Joi.number().allow(null),
+            rarityRank: Joi.number().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow(null, ""),
@@ -274,6 +278,10 @@ export const getUserTokensV6Options: RouteOptions = {
           t.name,
           t.image,
           t.collection_id,
+          t.rarity_score,
+          t.rarity_rank,
+          t.last_sell_value,
+          t.last_buy_value,
           null AS top_bid_id,
           null AS top_bid_price,
           null AS top_bid_value,
@@ -298,6 +306,10 @@ export const getUserTokensV6Options: RouteOptions = {
             t.name,
             t.image,
             t.collection_id,
+            t.rarity_score,
+            t.rarity_rank,
+            t.last_sell_value,
+            t.last_buy_value,
             ${selectFloorData}
           FROM tokens t
           WHERE b.token_id = t.token_id
@@ -341,6 +353,7 @@ export const getUserTokensV6Options: RouteOptions = {
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at,
                t.name, t.image, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
+               t.rarity_score, t.rarity_rank, t.last_sell_value, t.last_buy_value,
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                c.name as collection_name, con.kind, c.metadata, ${
                  query.useNonFlaggedFloorAsk
@@ -439,6 +452,10 @@ export const getUserTokensV6Options: RouteOptions = {
             kind: r.kind,
             name: r.name,
             image: r.image,
+            lastSellValue: r.last_sell_value,
+            lastBuyValue: r.last_buy_value,
+            rarityScore: r.rarity_score,
+            rarityRank: r.rarity_rank,
             collection: {
               id: r.collection_id,
               name: r.collection_name,
