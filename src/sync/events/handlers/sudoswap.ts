@@ -183,6 +183,18 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                   amount: "1",
                   price: priceData.nativePrice,
                   timestamp: baseEventParams.timestamp,
+                  maker: baseEventParams.address,
+                  taker,
+                });
+
+                orderInfos.push({
+                  context: `filled-${orderId}-${baseEventParams.txHash}`,
+                  id: orderId,
+                  trigger: {
+                    kind: "sale",
+                    txHash: baseEventParams.txHash,
+                    txTimestamp: baseEventParams.timestamp,
+                  },
                 });
 
                 orderInfos.push({
@@ -293,6 +305,18 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 amount: "1",
                 price: priceData.nativePrice,
                 timestamp: baseEventParams.timestamp,
+                maker: baseEventParams.address,
+                taker,
+              });
+
+              orderInfos.push({
+                context: `filled-${orderId}-${baseEventParams.txHash}`,
+                id: orderId,
+                trigger: {
+                  kind: "sale",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
               });
 
               orderInfos.push({
@@ -449,6 +473,18 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 amount: "1",
                 price: priceData.nativePrice,
                 timestamp: baseEventParams.timestamp,
+                maker: baseEventParams.address,
+                taker,
+              });
+
+              orderInfos.push({
+                context: `filled-${orderId}-${baseEventParams.txHash}`,
+                id: orderId,
+                trigger: {
+                  kind: "sale",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
               });
 
               orderInfos.push({

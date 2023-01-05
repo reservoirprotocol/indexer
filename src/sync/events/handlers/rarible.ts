@@ -334,6 +334,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount,
           price: prices.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         orderInfos.push({

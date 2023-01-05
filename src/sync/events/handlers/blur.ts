@@ -419,6 +419,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: sell.amount.toString(),
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         trades.order.set(`${txHash}-${exchangeAddress}`, tradeRank + 1);

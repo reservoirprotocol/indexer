@@ -30,11 +30,14 @@ const main = async () => {
     `;
 
     const collections = await redb.manyOrNone(query);
-    const contracts = _.map(collections, (collection) => ({
+    const infos = _.map(collections, (collection) => ({
+      collectionId: collection.id,
+      tokenId: "1",
       contract: fromBuffer(collection.contract),
       community: collection.community,
     }));
-    await collectionUpdatesMetadata.addToQueue(contracts);
+
+    await collectionUpdatesMetadata.addToQueueBulk(infos);
 
     if (_.size(collections) < limit) {
       keepIterate = false;
