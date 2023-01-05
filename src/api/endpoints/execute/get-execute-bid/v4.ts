@@ -98,7 +98,16 @@ export const getExecuteBidV4Options: RouteOptions = {
             .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
             .required(),
           orderKind: Joi.string()
-            .valid("zeroex-v4", "seaport", "looks-rare", "x2y2", "universe", "forward", "infinity")
+            .valid(
+              "zeroex-v4",
+              "seaport",
+              "seaport-cancelx",
+              "looks-rare",
+              "x2y2",
+              "universe",
+              "forward",
+              "infinity"
+            )
             .default("seaport")
             .description("Exchange protocol used to create order. Example: `seaport`"),
           orderbook: Joi.string()
@@ -277,7 +286,8 @@ export const getExecuteBidV4Options: RouteOptions = {
         }
 
         switch (params.orderKind) {
-          case "seaport": {
+          case "seaport":
+          case "seaport-cancelx": {
             if (!["reservoir", "opensea"].includes(params.orderbook)) {
               throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
             }
@@ -291,6 +301,10 @@ export const getExecuteBidV4Options: RouteOptions = {
                 contract,
                 tokenId,
                 source,
+                zone:
+                  params.orderKind === "seaport-cancelx"
+                    ? Sdk.Seaport.Addresses.CancelXZone[config.chainId]
+                    : undefined,
               });
             } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
               order = await seaportBuyAttribute.build({
@@ -304,6 +318,10 @@ export const getExecuteBidV4Options: RouteOptions = {
                   },
                 ],
                 source,
+                zone:
+                  params.orderKind === "seaport-cancelx"
+                    ? Sdk.Seaport.Addresses.CancelXZone[config.chainId]
+                    : undefined,
               });
             } else if (collection) {
               order = await seaportBuyCollection.build({
@@ -311,6 +329,10 @@ export const getExecuteBidV4Options: RouteOptions = {
                 maker,
                 collection,
                 source,
+                zone:
+                  params.orderKind === "seaport-cancelx"
+                    ? Sdk.Seaport.Addresses.CancelXZone[config.chainId]
+                    : undefined,
               });
             } else {
               throw Boom.internal("Wrong metadata");

@@ -16,6 +16,7 @@ import "@/jobs/order-updates/by-maker-bundle-queue";
 
 // Various cron jobs that must run once in a while
 
+import "@/jobs/order-updates/cron/cancelx-sync-queue";
 import "@/jobs/order-updates/cron/dynamic-orders-queue";
 import "@/jobs/order-updates/cron/erc20-orders-queue";
 import "@/jobs/order-updates/cron/expired-orders-queue";

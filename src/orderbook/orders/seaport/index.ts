@@ -170,6 +170,8 @@ export const save = async (
           AddressZero,
           // Pausable zone
           Sdk.Seaport.Addresses.PausableZone[config.chainId],
+          // CancelX zone
+          Sdk.Seaport.Addresses.CancelXZone[config.chainId],
         ].includes(order.params.zone)
       ) {
         return results.push({
@@ -294,13 +296,13 @@ export const save = async (
             // Fetch all tokens matching the attributes
             const tokens = await redb.manyOrNone(
               `
-              SELECT token_attributes.token_id
-              FROM token_attributes
-              WHERE token_attributes.collection_id = $/collection/
-                AND token_attributes.key = $/key/
-                AND token_attributes.value = $/value/
-              ORDER BY token_attributes.token_id
-            `,
+                SELECT token_attributes.token_id
+                FROM token_attributes
+                WHERE token_attributes.collection_id = $/collection/
+                  AND token_attributes.key = $/key/
+                  AND token_attributes.value = $/value/
+                ORDER BY token_attributes.token_id
+              `,
               {
                 collection: collection.id,
                 key: openSeaOrderParams.attributeKey,

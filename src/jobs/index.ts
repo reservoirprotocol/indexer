@@ -90,6 +90,7 @@ import * as orderFixes from "@/jobs/order-fixes/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle-queue";
+import * as cancelxSyncCron from "@/jobs/order-updates/cron/cancelx-sync-queue";
 import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-queue";
 import * as erc20OrdersCron from "@/jobs/order-updates/cron/erc20-orders-queue";
 import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-queue";
@@ -119,6 +120,7 @@ export const gracefulShutdownJobWorkers = [
   orderUpdatesByMaker.worker,
   bundleOrderUpdatesByMaker.worker,
   dynamicOrdersCron.worker,
+  cancelxSyncCron.worker,
   erc20OrdersCron.worker,
   expiredOrdersCron.worker,
   tokenUpdatesFloorAsk.worker,
@@ -190,6 +192,7 @@ export const allJobQueues = [
   orderUpdatesById.queue,
   orderUpdatesByMaker.queue,
   bundleOrderUpdatesByMaker.queue,
+  cancelxSyncCron.queue,
   dynamicOrdersCron.queue,
   erc20OrdersCron.queue,
   expiredOrdersCron.queue,

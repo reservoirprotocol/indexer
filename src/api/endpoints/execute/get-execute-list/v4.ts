@@ -86,6 +86,7 @@ export const getExecuteListV4Options: RouteOptions = {
               "looks-rare",
               "zeroex-v4",
               "seaport",
+              "seaport-cancelx",
               "seaport-forward",
               "x2y2",
               "universe",
@@ -361,6 +362,7 @@ export const getExecuteListV4Options: RouteOptions = {
           }
 
           case "seaport":
+          case "seaport-cancelx":
           case "seaport-forward": {
             if (!["reservoir", "opensea"].includes(params.orderbook)) {
               throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
@@ -382,6 +384,10 @@ export const getExecuteListV4Options: RouteOptions = {
               contract,
               tokenId,
               source,
+              zone:
+                params.orderKind === "seaport-cancelx"
+                  ? Sdk.Seaport.Addresses.CancelXZone[config.chainId]
+                  : undefined,
               orderType: isForward ? Sdk.Seaport.Types.OrderType.PARTIAL_OPEN : undefined,
             });
             if (!order) {
@@ -438,7 +444,7 @@ export const getExecuteListV4Options: RouteOptions = {
                   method: "POST",
                   body: {
                     order: {
-                      kind: params.orderKind,
+                      kind: params.orderKind === "seaport-forward" ? "seaport-forward" : "seaport",
                       data: {
                         ...order.params,
                       },

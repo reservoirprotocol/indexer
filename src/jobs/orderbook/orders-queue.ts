@@ -39,6 +39,11 @@ if (config.doBackgroundWork) {
             break;
           }
 
+          case "element": {
+            result = await orders.element.save([info as orders.element.OrderInfo]);
+            break;
+          }
+
           case "foundation": {
             result = await orders.foundation.save([info as orders.foundation.OrderInfo]);
             break;
@@ -235,6 +240,12 @@ export type GenericOrderInfo =
   | {
       kind: "manifold";
       info: orders.manifold.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "element";
+      info: orders.element.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     };
