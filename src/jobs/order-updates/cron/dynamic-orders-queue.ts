@@ -126,6 +126,7 @@ if (config.doBackgroundWork) {
   });
 
   const addToQueue = async (continuation?: string) => queue.add(QUEUE_NAME, { continuation });
+
   cron.schedule(
     // Every 10 minutes
     "*/10 * * * *",

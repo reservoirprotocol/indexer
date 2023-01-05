@@ -124,6 +124,7 @@ if (config.doBackgroundWork) {
   });
 
   const addToQueue = async (continuation?: string) => queue.add(QUEUE_NAME, { continuation });
+
   cron.schedule(
     // Every 1 day (the frequency should match the granularity of the price data)
     "0 0 1 * * *",

@@ -75,6 +75,7 @@ if (config.doBackgroundWork) {
   });
 
   const addToQueue = async () => queue.add(QUEUE_NAME, {});
+
   cron.schedule(
     // Every 5 seconds
     "*/5 * * * * *",
