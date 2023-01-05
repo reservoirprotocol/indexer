@@ -198,6 +198,7 @@ export class UserActivities {
              LEFT JOIN LATERAL (
                 SELECT name AS "token_name", image AS "token_image", 
                 last_buy_value as "token_last_buy_value", last_sell_value as "token_last_sell_value",
+                last_buy_timestamp as "token_last_buy_timestamp", last_sell_timestamp as "token_last_sell_timestamp",
                 rarity_score as "token_rarity_score", rarity_rank as "token_rarity_rank"
                 FROM tokens
                 WHERE user_activities.contract = tokens.contract
