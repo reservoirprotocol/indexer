@@ -116,7 +116,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
                 config.chainId === 1 ? "production" : "development"
               }.up.railway.app/api/cancellations`,
               {
-                orderHashes: [query.id],
+                orders: [orderResult.raw_data],
                 signature: query.signature,
               }
             );
