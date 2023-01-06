@@ -83,7 +83,7 @@ const isValid = async (tokenSet: TokenSet) => {
         }
 
         const excludeFlaggedTokens = tokenSet.schema.data.isNonFlagged
-          ? "AND tokens.is_flagged = 0"
+          ? "AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
           : "";
 
         tokens = await redb.manyOrNone(
@@ -131,7 +131,7 @@ const isValid = async (tokenSet: TokenSet) => {
             WHERE tokens.collection_id = $/collection/
               ${
                 tokenSet.schema.kind === "collection-non-flagged"
-                  ? " AND tokens.is_flagged = 0"
+                  ? " AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
                   : ""
               }
           `,

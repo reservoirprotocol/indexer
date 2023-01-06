@@ -150,7 +150,7 @@ export const start = async (): Promise<void> => {
 
   server.ext("onPreAuth", async (request, reply) => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
-    if ((request as any).isInjected) {
+    if ((request as any).isInjected || request.route.path === "/livez") {
       return reply.continue;
     }
 
@@ -228,7 +228,7 @@ export const start = async (): Promise<void> => {
             .code(429)
             .takeover();
         } else {
-          logger.error("rate-limiter", `Rate limit error ${error}`);
+          logger.warn("rate-limiter", `Rate limit error ${error}`);
         }
       }
     }

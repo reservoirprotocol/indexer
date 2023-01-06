@@ -2,6 +2,7 @@
 // Exports
 
 export * as cryptopunks from "@/orderbook/orders/cryptopunks";
+export * as element from "@/orderbook/orders/element";
 export * as forward from "@/orderbook/orders/forward";
 export * as foundation from "@/orderbook/orders/foundation";
 export * as looksRare from "@/orderbook/orders/looks-rare";

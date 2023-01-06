@@ -13,7 +13,9 @@ interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
 
 export const build = async (options: BuildOrderOptions) => {
   try {
-    const excludeFlaggedTokens = options.excludeFlaggedTokens ? "AND tokens.is_flagged = 0" : "";
+    const excludeFlaggedTokens = options.excludeFlaggedTokens
+      ? "AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
+      : "";
 
     const collectionResult = await redb.oneOrNone(
       `

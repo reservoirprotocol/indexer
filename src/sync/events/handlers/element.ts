@@ -10,6 +10,7 @@ import { getUSDAndNativePrices } from "@/utils/prices";
 
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import { defaultAbiCoder, keccak256 } from "ethers/lib/utils";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const bulkCancelEvents: es.bulkCancels.Event[] = [];
@@ -73,6 +74,182 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
 
       case "element-erc721-sell-order-filled-v2":
+      case "element-erc721-buy-order-filled-v2": {
+        const { args } = eventData.abi.parseLog(log);
+        const orderHash = args["orderHash"].toLowerCase();
+        const maker = args["maker"].toLowerCase();
+        let taker = args["taker"].toLowerCase();
+        const nonce = args["nonce"].toString();
+        const erc20Token = args["erc20Token"].toLowerCase();
+        const erc20TokenAmount = args["erc20TokenAmount"].toString();
+        const erc721Token = args["erc721Token"].toLowerCase();
+        const erc721TokenId = args["erc721TokenId"].toString();
+        const orderId = keccak256(
+          defaultAbiCoder.encode(["bytes32", "uint256"], [orderHash, nonce])
+        );
+
+        // Handle: attribution
+        const orderKind = "element-erc721";
+
+        const attributionData = await utils.extractAttributionData(
+          baseEventParams.txHash,
+          orderKind
+        );
+        if (attributionData.taker) {
+          taker = attributionData.taker;
+        }
+
+        // Handle: prices
+
+        let currency = erc20Token;
+        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
+          // Map the weird ZeroEx ETH address to the default ETH address
+          currency = Sdk.Common.Addresses.Eth[config.chainId];
+        }
+        const currencyPrice = erc20TokenAmount;
+
+        const priceData = await getUSDAndNativePrices(
+          currency,
+          currencyPrice,
+          baseEventParams.timestamp
+        );
+        if (!priceData.nativePrice) {
+          // We must always have the native price
+          break;
+        }
+
+        orderInfos.push({
+          context: `filled-${orderId}`,
+          id: orderId,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+        });
+
+        const orderSide = kind === "element-erc721-sell-order-filled-v2" ? "sell" : "buy";
+        fillEventsPartial.push({
+          orderKind,
+          orderId,
+          orderSide,
+          maker,
+          taker,
+          price: priceData.nativePrice,
+          currency,
+          currencyPrice,
+          usdPrice: priceData.usdPrice,
+          contract: erc721Token,
+          tokenId: erc721TokenId,
+          amount: "1",
+          orderSourceId: attributionData.orderSource?.id,
+          aggregatorSourceId: attributionData.aggregatorSource?.id,
+          fillSourceId: attributionData.fillSource?.id,
+          baseEventParams,
+        });
+
+        fillInfos.push({
+          context: orderId,
+          orderId,
+          orderSide,
+          contract: erc721Token,
+          tokenId: erc721TokenId,
+          amount: "1",
+          price: priceData.nativePrice,
+          timestamp: baseEventParams.timestamp,
+        });
+        break;
+      }
+
+      case "element-erc1155-sell-order-filled-v2":
+      case "element-erc1155-buy-order-filled-v2": {
+        const { args } = eventData.abi.parseLog(log);
+        const orderHash = args["orderHash"].toLowerCase();
+        const maker = args["maker"].toLowerCase();
+        let taker = args["taker"].toLowerCase();
+        const nonce = args["nonce"].toString();
+        const erc20Token = args["erc20Token"].toLowerCase();
+        const erc20FillAmount = args["erc20FillAmount"].toString();
+        const erc1155Token = args["erc1155Token"].toLowerCase();
+        const erc1155TokenId = args["erc1155TokenId"].toString();
+        const erc1155FillAmount = args["erc1155FillAmount"].toString();
+        const orderId = keccak256(
+          defaultAbiCoder.encode(["bytes32", "uint256"], [orderHash, nonce])
+        );
+        // Handle: attribution
+
+        const orderKind = "element-erc1155";
+        const attributionData = await utils.extractAttributionData(
+          baseEventParams.txHash,
+          orderKind
+        );
+        if (attributionData.taker) {
+          taker = attributionData.taker;
+        }
+
+        // Handle: prices
+
+        let currency = erc20Token;
+        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
+          // Map the weird ZeroEx ETH address to the default ETH address
+          currency = Sdk.Common.Addresses.Eth[config.chainId];
+        }
+        const currencyPrice = bn(erc20FillAmount).div(erc1155FillAmount).toString();
+
+        const priceData = await getUSDAndNativePrices(
+          currency,
+          currencyPrice,
+          baseEventParams.timestamp
+        );
+        if (!priceData.nativePrice) {
+          // We must always have the native price
+          break;
+        }
+
+        orderInfos.push({
+          context: `filled-${orderId}-${baseEventParams.txHash}`,
+          id: orderId,
+          trigger: {
+            kind: "sale",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+        });
+
+        const orderSide = kind === "element-erc1155-sell-order-filled-v2" ? "sell" : "buy";
+        fillEventsPartial.push({
+          orderKind,
+          orderId,
+          orderSide,
+          maker,
+          taker,
+          price: priceData.nativePrice,
+          currency,
+          currencyPrice,
+          usdPrice: priceData.usdPrice,
+          contract: erc1155Token,
+          tokenId: erc1155TokenId,
+          amount: erc1155FillAmount,
+          orderSourceId: attributionData.orderSource?.id,
+          aggregatorSourceId: attributionData.aggregatorSource?.id,
+          fillSourceId: attributionData.fillSource?.id,
+          baseEventParams,
+        });
+
+        fillInfos.push({
+          context: orderId,
+          orderId,
+          orderSide,
+          contract: erc1155Token,
+          tokenId: erc1155TokenId,
+          amount: erc1155FillAmount,
+          price: priceData.nativePrice,
+          timestamp: baseEventParams.timestamp,
+        });
+
+        break;
+      }
+
       case "element-erc721-sell-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
@@ -96,7 +273,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Handle: prices
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
           currency = Sdk.Common.Addresses.Eth[config.chainId];
         }
@@ -158,7 +335,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
-      case "element-erc721-buy-order-filled-v2":
       case "element-erc721-buy-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
@@ -183,7 +359,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Handle: prices
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
           currency = Sdk.Common.Addresses.Eth[config.chainId];
         }
@@ -244,7 +420,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
-      case "element-erc1155-sell-order-filled-v2":
       case "element-erc1155-sell-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
@@ -269,7 +444,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Handle: prices
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
           currency = Sdk.Common.Addresses.Eth[config.chainId];
         }
@@ -330,7 +505,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
-      case "element-erc1155-buy-order-filled-v2":
       case "element-erc1155-buy-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const maker = args["maker"].toLowerCase();
@@ -357,7 +531,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Handle: prices
 
         let currency = erc20Token;
-        if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
+        if (currency === Sdk.Element.Addresses.Eth[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
           currency = Sdk.Common.Addresses.Eth[config.chainId];
         }

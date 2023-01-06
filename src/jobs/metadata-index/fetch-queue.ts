@@ -87,10 +87,14 @@ if (config.doBackgroundWork) {
       // Add the tokens to the list
       const pendingRefreshTokens = new PendingRefreshTokens(data.method);
       const pendingCount = await pendingRefreshTokens.add(refreshTokens, prioritized);
-      logger.info(
-        QUEUE_NAME,
-        `There are ${pendingCount} tokens pending to refresh for ${data.method}`
-      );
+
+      // Sample logs
+      if (_.random(100) <= 5) {
+        logger.info(
+          QUEUE_NAME,
+          `There are ${pendingCount} tokens pending to refresh for ${data.method}`
+        );
+      }
 
       if (await acquireLock(metadataIndexProcess.getLockName(data.method), 60 * 5)) {
         // Trigger a job to process the queue

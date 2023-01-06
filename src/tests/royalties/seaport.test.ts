@@ -4,7 +4,7 @@ dotEnvConfig();
 import { baseProvider } from "@/common/provider";
 import { getEventsFromTx } from "../utils/test";
 import * as seaport from "@/events-sync/handlers/seaport";
-import { extractRoyalties } from "@/events-sync/handlers/royalties/seaport";
+import { extractRoyalties } from "@/events-sync/handlers/royalties/core";
 import { getRoyalties } from "@/utils/royalties";
 
 jest.setTimeout(1000 * 1000);

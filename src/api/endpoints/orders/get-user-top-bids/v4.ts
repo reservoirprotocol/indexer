@@ -86,8 +86,8 @@ export const getUserTopBidsV4Options: RouteOptions = {
         .description("Amount of items returned in response."),
       sampleSize: Joi.number()
         .integer()
-        .min(1)
-        .max(1000)
+        .min(1000)
+        .max(10000)
         .default(1000)
         .description("Amount of tokens considered."),
     }).oxor("collection", "collectionsSetId"),
