@@ -220,6 +220,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               amount: numTokens,
               price: bn(priceDataPerToken.nativePrice).mul(token.numTokens).toString(),
               timestamp: baseEventParams.timestamp,
+              maker: buyer,
+              taker: seller,
             });
 
             fillInfos.push({
@@ -231,6 +233,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               amount: numTokens,
               price: bn(priceDataPerToken.nativePrice).mul(token.numTokens).toString(),
               timestamp: baseEventParams.timestamp,
+              maker: seller,
+              taker: buyer,
             });
           }
         }
@@ -375,6 +379,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 amount: numTokens,
                 price: bn(priceDataPerToken.nativePrice).mul(token.numTokens).toString(),
                 timestamp: baseEventParams.timestamp,
+                maker: orderSideResult.maker,
+                taker: orderSideResult.taker,
               });
             }
           }

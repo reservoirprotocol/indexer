@@ -46,7 +46,7 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
         );
 
         job.opts.attempts = _.toInteger(job.opts.attempts) + 2;
-        await addToQueue(fromBlock, toBlock, _.merge(job.opts, { delay }));
+        await addToQueue(fromBlock, toBlock, _.merge(job.opts, job.data, { delay }));
         return;
       }
 

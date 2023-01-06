@@ -85,6 +85,12 @@ export const getTokensV5Options: RouteOptions = {
         .integer()
         .min(1)
         .description("Get tokens with a max rarity rank (inclusive)"),
+      minFloorAskPrice: Joi.number().description(
+        "Get tokens with a min floor ask price (inclusive)"
+      ),
+      maxFloorAskPrice: Joi.number().description(
+        "Get tokens with a max floor ask price (inclusive)"
+      ),
       flagStatus: Joi.number()
         .allow(-1, 0, 1)
         .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),
@@ -533,6 +539,24 @@ export const getTokensV5Options: RouteOptions = {
         conditions.push(`t.rarity_rank <= $/maxRarityRank/`);
       }
 
+      if (query.minFloorAskPrice !== undefined) {
+        (query as any).minFloorSellValue = query.minFloorAskPrice * 10 ** 18;
+        conditions.push(
+          `${query.source ? "s." : "t."}${
+            query.normalizeRoyalties ? "normalized_" : ""
+          }floor_sell_value >= $/minFloorSellValue/`
+        );
+      }
+
+      if (query.maxFloorAskPrice !== undefined) {
+        (query as any).maxFloorSellValue = query.maxFloorAskPrice * 10 ** 18;
+        conditions.push(
+          `${query.source ? "s." : "t."}${
+            query.normalizeRoyalties ? "normalized_" : ""
+          }floor_sell_value <= $/maxFloorSellValue/`
+        );
+      }
+
       if (query.tokens) {
         if (!_.isArray(query.tokens)) {
           query.tokens = [query.tokens];
@@ -661,7 +685,7 @@ export const getTokensV5Options: RouteOptions = {
             break;
           }
         }
-      } else if (query.contract) {
+      } else if (query.contract || query.tokens) {
         baseQuery += ` ORDER BY t.token_id ${query.sortDirection || "ASC"}`;
       }
 

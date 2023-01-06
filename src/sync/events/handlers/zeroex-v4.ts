@@ -190,6 +190,8 @@ export const handleEvents = async (
           amount: "1",
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         // If an ERC20 transfer occured in the same transaction as a sale
@@ -338,6 +340,8 @@ export const handleEvents = async (
           amount: erc1155FillAmount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         // If an ERC20 transfer occured in the same transaction as a sale

@@ -71,7 +71,7 @@ export const offChainCheck = async (
       if (
         bn(
           await onChainData
-            .fetchAndUpdateFtApproval(info.paymentToken, order.params.offerer, conduit)
+            .fetchAndUpdateFtApproval(info.paymentToken, order.params.offerer, conduit, true)
             .then((a) => a.value)
         ).lt(info.price)
       ) {
@@ -178,7 +178,7 @@ export const offChainCheckPartial = async (
       if (
         bn(
           await onChainData
-            .fetchAndUpdateFtApproval(orderParams.paymentToken, orderParams.offerer, conduit)
+            .fetchAndUpdateFtApproval(orderParams.paymentToken, orderParams.offerer, conduit, true)
             .then((a) => a.value)
         ).lt(orderParams.price)
       ) {

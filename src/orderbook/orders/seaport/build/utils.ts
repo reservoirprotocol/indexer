@@ -69,6 +69,7 @@ export const getBuildInfo = async (
     tokenKind: collectionResult.kind,
     contract: options.contract,
     price: options.weiPrice,
+    amount: options.quantity,
     paymentToken: options.currency
       ? options.currency
       : side === "buy"

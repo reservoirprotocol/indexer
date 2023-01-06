@@ -1,5 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
+import _ from "lodash";
 import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
@@ -215,15 +216,19 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         );
         if (validRecipients.length) {
           const bpsDiff = totalDefaultBps - totalBuiltInBps;
-          const amount = bn(price).mul(bpsDiff).div(10000).toString();
+          const amount = bn(price).mul(bpsDiff).div(10000);
           missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
-          missingRoyalties.push({
-            bps: bpsDiff,
-            amount,
-            // TODO: We should probably split pro-rata across all royalty recipients
-            recipient: validRecipients[0].recipient,
-          });
+          // Split the missing royalties pro-rata across all royalty recipients
+          const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+          for (const { bps, recipient } of validRecipients) {
+            // TODO: Handle lost precision (by paying it to the last or first recipient)
+            missingRoyalties.push({
+              bps: Math.floor((bpsDiff * bps) / totalBps),
+              amount: amount.mul(bps).div(totalBps).toString(),
+              recipient,
+            });
+          }
         }
       }
 

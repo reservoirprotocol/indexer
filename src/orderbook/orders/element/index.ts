@@ -1,4 +1,6 @@
+import { defaultAbiCoder } from "@ethersproject/abi";
 import { AddressZero } from "@ethersproject/constants";
+import { keccak256 } from "@ethersproject/keccak256";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
@@ -9,16 +11,13 @@ import { config } from "@/config/index";
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
-import { offChainCheck } from "@/orderbook/orders/looks-rare/check";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
+import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
+import { offChainCheck } from "@/orderbook/orders/element/check";
 import * as tokenSet from "@/orderbook/token-sets";
-import * as royalties from "@/utils/royalties";
-import { Royalty } from "@/utils/royalties";
-import _ from "lodash";
 
 export type OrderInfo = {
-  orderParams: Sdk.LooksRare.Types.MakerOrderParams;
+  orderParams: Sdk.Element.Types.BaseOrder | Sdk.Element.Types.BatchSignedOrder;
   metadata: OrderMetadata;
 };
 
@@ -36,18 +35,20 @@ export const save = async (
   const orderValues: DbOrder[] = [];
 
   const arweaveData: {
-    order: Sdk.LooksRare.Order;
+    order: Sdk.Element.Order;
     schemaHash?: string;
     source?: string;
   }[] = [];
 
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
-      const order = new Sdk.LooksRare.Order(config.chainId, orderParams);
-      const id = order.hash();
+      const order = new Sdk.Element.Order(config.chainId, orderParams);
+      const id = keccak256(
+        defaultAbiCoder.encode(["bytes32", "uint256"], [order.hash(), order.params.nonce])
+      );
 
       // Check: order doesn't already exist
-      const orderExists = await idb.oneOrNone(`SELECT 1 FROM "orders" "o" WHERE "o"."id" = $/id/`, {
+      const orderExists = await idb.oneOrNone(`SELECT 1 FROM orders WHERE orders.id = $/id/`, {
         id,
       });
       if (orderExists) {
@@ -57,12 +58,20 @@ export const save = async (
         });
       }
 
+      // Handle: get order kind
+      const kind = await commonHelpers.getContractKind(order.params.nft!);
+      if (!kind) {
+        return results.push({
+          id,
+          status: "unknown-order-kind",
+        });
+      }
+
       const currentTime = now();
 
       // Check: order has a valid listing time
-      const listingTime = order.params.startTime;
-      if (listingTime - 5 * 60 >= currentTime) {
-        // TODO: Add support for not-yet-valid orders
+      const listingTime = order.listingTime();
+      if (listingTime >= currentTime + 5 * 60) {
         return results.push({
           id,
           status: "invalid-listing-time",
@@ -70,7 +79,7 @@ export const save = async (
       }
 
       // Check: order is not expired
-      const expirationTime = order.params.endTime;
+      const expirationTime = order.expirationTime();
       if (currentTime >= expirationTime) {
         return results.push({
           id,
@@ -78,8 +87,17 @@ export const save = async (
         });
       }
 
-      // Check: order has Weth as payment token
-      if (order.params.currency !== Sdk.Common.Addresses.Weth[config.chainId]) {
+      // Check: buy order has Weth as payment token
+      const side = order.side() === "buy" ? "buy" : "sell";
+      if (side === "buy" && order.erc20Token() !== Sdk.Common.Addresses.Weth[config.chainId]) {
+        return results.push({
+          id,
+          status: "unsupported-payment-token",
+        });
+      }
+
+      // Check: sell order has Eth as payment token
+      if (side === "sell" && order.erc20Token() !== Sdk.Common.Addresses.Eth[config.chainId]) {
         return results.push({
           id,
           status: "unsupported-payment-token",
@@ -133,13 +151,21 @@ export const save = async (
       let tokenSetId: string | undefined;
       const schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
 
-      switch (order.params.kind) {
+      const info = order.getInfo();
+      if (!info) {
+        return results.push({
+          id,
+          status: "unknown-info",
+        });
+      }
+
+      switch (order.orderKind()) {
         case "contract-wide": {
           [{ id: tokenSetId }] = await tokenSet.contractWide.save([
             {
-              id: `contract:${order.params.collection}`,
+              id: `contract:${order.params.nft}`,
               schemaHash,
-              contract: order.params.collection,
+              contract: order.params.nft!,
             },
           ]);
 
@@ -149,10 +175,10 @@ export const save = async (
         case "single-token": {
           [{ id: tokenSetId }] = await tokenSet.singleToken.save([
             {
-              id: `token:${order.params.collection}:${order.params.tokenId}`,
+              id: `token:${order.params.nft}:${order.params.nftId}`,
               schemaHash,
-              contract: order.params.collection,
-              tokenId: order.params.tokenId,
+              contract: order.params.nft!,
+              tokenId: order.params.nftId!,
             },
           ]);
 
@@ -167,115 +193,38 @@ export const save = async (
         });
       }
 
-      const side = order.params.isOrderAsk ? "sell" : "buy";
-
-      // Handle: currency
-      let currency = order.params.currency;
-      if (side === "sell" && currency === Sdk.Common.Addresses.Weth[config.chainId]) {
-        // LooksRare sell orders are always in WETH (although fillable in ETH)
-        currency = Sdk.Common.Addresses.Eth[config.chainId];
-      }
-
       // Handle: fees
-      let feeBreakdown = [
-        {
-          kind: "marketplace",
-          recipient: "0x5924a28caaf1cc016617874a2f0c3710d881f3c1",
-          bps: 150,
-        },
-      ];
-
-      // Handle: royalties
-      let onChainRoyalties: Royalty[];
-
-      if (order.params.kind === "single-token") {
-        onChainRoyalties = await royalties.getRoyalties(
-          order.params.collection,
-          order.params.tokenId,
-          "onchain"
-        );
-      } else {
-        onChainRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain");
-      }
-
-      // TODO: Remove (for backwards-compatibility only)
-      if (!onChainRoyalties.length) {
-        if (order.params.kind === "single-token") {
-          onChainRoyalties = await royalties.getRoyalties(
-            order.params.collection,
-            order.params.tokenId,
-            "eip2981"
-          );
-        } else {
-          onChainRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "eip2981");
-        }
-      }
-
-      if (onChainRoyalties.length) {
-        feeBreakdown = [
-          ...feeBreakdown,
-          {
-            kind: "royalty",
-            recipient: onChainRoyalties[0].recipient,
-            // LooksRare has fixed 0.5% royalties
-            bps: 50,
-          },
-        ];
-      }
-
-      const price = order.params.price;
-
-      // Handle: royalties on top
-      const defaultRoyalties =
-        side === "sell"
-          ? await royalties.getRoyalties(order.params.collection, order.params.tokenId, "default")
-          : await royalties.getRoyaltiesByTokenSet(tokenSetId, "default");
-
-      const missingRoyalties = [];
-      let missingRoyaltyAmount = bn(0);
-      let royaltyDeducted = false;
-      for (const { bps, recipient } of defaultRoyalties) {
-        // Get any built-in royalty payment to the current recipient
-        const existingRoyalty = feeBreakdown.find((r) => r.kind === "royalty");
-
-        // Deduce the 0.5% royalty LooksRare will pay if needed
-        const actualBps = existingRoyalty && !royaltyDeducted ? bps - 50 : bps;
-        royaltyDeducted = !_.isUndefined(existingRoyalty) || royaltyDeducted;
-
-        const amount = bn(price).mul(actualBps).div(10000).toString();
-        missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
-
-        missingRoyalties.push({
-          bps: actualBps,
-          amount,
-          recipient,
-        });
-      }
-
-      const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
+      const feeAmount = order.getFeeAmount();
 
       // Handle: price and value
-      let value: string;
-      let normalizedValue: string | undefined;
+      let price = order.getTotalPrice();
+      let value = price;
       if (side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
         // is best for UX to show the user exactly what they're going
         // to receive on offer acceptance.
-        value = bn(price)
-          .sub(bn(price).mul(bn(feeBps)).div(10000))
-          .toString();
-        // The normalized value excludes the royalties from the value
-        normalizedValue = bn(value).sub(missingRoyaltyAmount).toString();
-      } else {
-        // For sell orders, the value is the same as the price
-        value = price;
-        // The normalized value includes the royalties on top of the price
-        normalizedValue = bn(value).add(missingRoyaltyAmount).toString();
+        value = bn(price).sub(feeAmount);
+      }
+
+      // The price and value are for a single item
+      let nftAmount = "1";
+      if (order.contractKind() === "erc1155") {
+        nftAmount = (order.params as Sdk.Element.Types.BaseOrder).nftAmount!;
+        price = price.div(nftAmount);
+        value = value.div(nftAmount);
+      }
+
+      const feeBps = price.eq(0) ? bn(0) : feeAmount.mul(10000).div(price);
+      if (feeBps.gt(10000)) {
+        return results.push({
+          id,
+          status: "fees-too-high",
+        });
       }
 
       // Handle: source
       const sources = await Sources.getInstance();
-      let source = await sources.getOrInsert("looksrare.org");
+      let source = await sources.getOrInsert("element.market");
       if (metadata.source) {
         source = await sources.getOrInsert(metadata.source);
       }
@@ -283,48 +232,75 @@ export const save = async (
       // Handle: native Reservoir orders
       const isReservoir = false;
 
-      // Handle: conduit
-      let conduit = Sdk.LooksRare.Addresses.Exchange[config.chainId];
-      if (side === "sell") {
-        const contractKind = await commonHelpers.getContractKind(order.params.collection);
-        conduit =
-          contractKind === "erc721"
-            ? Sdk.LooksRare.Addresses.TransferManagerErc721[config.chainId]
-            : Sdk.LooksRare.Addresses.TransferManagerErc1155[config.chainId];
+      // Handle: fee breakdown
+      let taker;
+      let feeBreakdown;
+      if (order.isBatchSignedOrder()) {
+        taker = AddressZero;
+        const params = order.params as Sdk.Element.Types.BatchSignedOrder;
+        feeBreakdown = [
+          ...(params.platformFee
+            ? [
+                {
+                  kind: "marketplace",
+                  recipient: params.platformFeeRecipient,
+                  bps: params.platformFee,
+                },
+              ]
+            : []),
+          ...(params.royaltyFee
+            ? [
+                {
+                  kind: "royalty",
+                  recipient: params.royaltyFeeRecipient,
+                  bps: params.royaltyFee,
+                },
+              ]
+            : []),
+        ];
+      } else {
+        const params = order.params as Sdk.Element.Types.BaseOrder;
+        taker = params.taker;
+        feeBreakdown = params.fees.map(({ recipient, amount }, index) => ({
+          kind: index === 0 ? "marketplace" : "royalty",
+          recipient,
+          bps: price.eq(0) ? bn(0) : bn(amount).mul(10000).div(price).toNumber(),
+        }));
       }
 
-      const validFrom = `date_trunc('seconds', to_timestamp(${order.params.startTime}))`;
-      const validTo = `date_trunc('seconds', to_timestamp(${order.params.endTime}))`;
+      const validFrom = `date_trunc('seconds', to_timestamp(${listingTime}))`;
+      const validTo = `date_trunc('seconds', to_timestamp(${expirationTime}))`;
       orderValues.push({
         id,
-        kind: "looks-rare",
+        kind: `element-${kind}`,
         side,
         fillability_status: fillabilityStatus,
         approval_status: approvalStatus,
         token_set_id: tokenSetId,
         token_set_schema_hash: toBuffer(schemaHash),
-        maker: toBuffer(order.params.signer),
-        taker: toBuffer(AddressZero),
-        price,
-        value,
-        currency: toBuffer(currency),
-        currency_price: price,
-        currency_value: value,
+        maker: toBuffer(order.params.maker),
+        taker: toBuffer(taker),
+        price: price.toString(),
+        value: value.toString(),
+        currency: toBuffer(order.erc20Token()),
+        currency_price: price.toString(),
+        currency_value: value.toString(),
         needs_conversion: null,
+        quantity_remaining: nftAmount,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
-        nonce: order.params.nonce,
+        nonce: order.params.nonce.toString(),
         source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
-        contract: toBuffer(order.params.collection),
-        conduit: toBuffer(conduit),
-        fee_bps: feeBps,
+        contract: toBuffer(order.params.nft!),
+        conduit: toBuffer(Sdk.Element.Addresses.Exchange[config.chainId]),
+        fee_bps: feeBps.toNumber(),
         fee_breakdown: feeBreakdown || null,
         dynamic: null,
         raw_data: order.params,
         expiration: validTo,
-        missing_royalties: missingRoyalties,
-        normalized_value: normalizedValue,
-        currency_normalized_value: normalizedValue,
+        missing_royalties: null,
+        normalized_value: null,
+        currency_normalized_value: null,
       });
 
       const unfillable =
@@ -341,7 +317,7 @@ export const save = async (
       }
     } catch (error) {
       logger.error(
-        "orders-looks-rare-save",
+        "orders-element-save",
         `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
       );
     }
@@ -369,6 +345,7 @@ export const save = async (
         "currency_price",
         "currency_value",
         "needs_conversion",
+        "quantity_remaining",
         { name: "valid_between", mod: ":raw" },
         "nonce",
         "source_id_int",
@@ -380,9 +357,6 @@ export const save = async (
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
-        { name: "missing_royalties", mod: ":json" },
-        "normalized_value",
-        "currency_normalized_value",
       ],
       {
         table: "orders",
@@ -406,7 +380,7 @@ export const save = async (
     );
 
     if (relayToArweave) {
-      await arweaveRelay.addPendingOrdersLooksRare(arweaveData);
+      await arweaveRelay.addPendingOrdersElement(arweaveData);
     }
   }
 

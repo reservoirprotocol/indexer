@@ -150,7 +150,11 @@ const getCachedUSDPrice = async (
     .catch(() => undefined);
 
 const USD_PRICE_MEMORY_CACHE = new Map<string, Price>();
-const getAvailableUSDPrice = async (currencyAddress: string, timestamp: number) => {
+const getAvailableUSDPrice = async (
+  currencyAddress: string,
+  timestamp: number,
+  acceptStalePrice?: boolean
+) => {
   // At the moment, we support day-level granularity for prices
   const DAY = 24 * 3600;
 
@@ -159,13 +163,21 @@ const getAvailableUSDPrice = async (currencyAddress: string, timestamp: number) 
   if (!USD_PRICE_MEMORY_CACHE.has(key)) {
     // If the price is not available in the memory cache, use any available database cached price
     let cachedPrice = await getCachedUSDPrice(currencyAddress, timestamp);
-    if (
-      // If the database cached price is not available
-      !cachedPrice ||
-      // Or if the database cached price is stale (older than what is requested)
-      Math.floor(cachedPrice.timestamp / DAY) !== normalizedTimestamp
-    ) {
-      // Then try to fetch the price from upstream
+
+    // Fetch the latest price from upstream if:
+    // - we have no price available
+    // - we have a stale price available and stale prices are not accepted
+    let fetchFromUpstream = false;
+    if (cachedPrice) {
+      const isStale = Math.floor(cachedPrice.timestamp / DAY) !== normalizedTimestamp;
+      if (isStale && !acceptStalePrice) {
+        fetchFromUpstream = true;
+      }
+    } else {
+      fetchFromUpstream = true;
+    }
+
+    if (fetchFromUpstream) {
       const upstreamPrice = await getUpstreamUSDPrice(currencyAddress, timestamp);
       if (upstreamPrice) {
         cachedPrice = upstreamPrice;
@@ -191,6 +203,7 @@ export const getUSDAndNativePrices = async (
   timestamp: number,
   options?: {
     onlyUSD?: boolean;
+    acceptStalePrice?: boolean;
   }
 ): Promise<USDAndNativePrices> => {
   let usdPrice: string | undefined;
@@ -204,11 +217,19 @@ export const getUSDAndNativePrices = async (
       "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
     ].includes(currencyAddress);
   if (getNetworkSettings().coingecko?.networkId || force) {
-    const currencyUSDPrice = await getAvailableUSDPrice(currencyAddress, timestamp);
+    const currencyUSDPrice = await getAvailableUSDPrice(
+      currencyAddress,
+      timestamp,
+      options?.acceptStalePrice
+    );
 
     let nativeUSDPrice: Price | undefined;
     if (!options?.onlyUSD) {
-      nativeUSDPrice = await getAvailableUSDPrice(AddressZero, timestamp);
+      nativeUSDPrice = await getAvailableUSDPrice(
+        AddressZero,
+        timestamp,
+        options?.acceptStalePrice
+      );
     }
 
     const currency = await getCurrency(currencyAddress);

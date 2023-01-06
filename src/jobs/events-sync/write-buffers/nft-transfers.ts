@@ -58,7 +58,7 @@ if (config.doBackgroundWork) {
       // It's very important to have this queue be single-threaded
       // in order to avoid database write deadlocks (and it can be
       // even better to have it be single-process).
-      concurrency: 1,
+      concurrency: config.chainId === 137 ? 3 : 1,
     }
   );
 
@@ -78,7 +78,7 @@ if (config.doBackgroundWork) {
 }
 
 export const getLockName = () => {
-  return `${QUEUE_NAME}-lock-${_.random(1, 10)}`;
+  return `${QUEUE_NAME}-lock-${_.random(1, 100)}`;
 };
 
 export const addToQueue = async (query: string) => {
