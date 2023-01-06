@@ -72,7 +72,9 @@ export const build = async (options: BuildOrderOptions) => {
 
       return builder?.build(buildInfo.params);
     } else {
-      const excludeFlaggedTokens = options.excludeFlaggedTokens ? "AND tokens.is_flagged = 0" : "";
+      const excludeFlaggedTokens = options.excludeFlaggedTokens
+        ? "AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
+        : "";
 
       // Fetch all non-flagged tokens from the collection
       const tokens = await redb.manyOrNone(

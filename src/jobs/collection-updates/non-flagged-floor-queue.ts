@@ -74,7 +74,7 @@ if (config.doBackgroundWork) {
                             JOIN orders
                               ON tokens.floor_sell_id = orders.id
                             WHERE tokens.collection_id = $/collection/
-                            AND tokens.is_flagged = 0
+                            AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)
                             ORDER BY tokens.floor_sell_value
                             LIMIT 1
                         )

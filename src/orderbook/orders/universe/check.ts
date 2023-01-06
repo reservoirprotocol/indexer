@@ -72,7 +72,8 @@ export const offChainCheck = async (
             .fetchAndUpdateFtApproval(
               order.params.make.assetType.contract!,
               order.params.maker,
-              Sdk.Universe.Addresses.Exchange[config.chainId]
+              Sdk.Universe.Addresses.Exchange[config.chainId],
+              true
             )
             .then((a) => a.value)
         ).lt(order.params.make.value)

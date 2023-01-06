@@ -84,7 +84,8 @@ export const offChainCheck = async (
       const approval = await onChainData.fetchAndUpdateFtApproval(
         order.currency,
         order.signer,
-        Sdk.Infinity.Addresses.Exchange[config.chainId]
+        Sdk.Infinity.Addresses.Exchange[config.chainId],
+        true
       );
       hasApproval = bn(approval.value).gte(currentOrStartPrice);
     }
