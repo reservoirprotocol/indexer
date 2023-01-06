@@ -84,4 +84,9 @@ export const config = {
 
   slackApiKeyWebhookUrl: String(process.env.SLACK_API_KEY_WEBHOOK_URL),
   redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 22), // Used to prevent redis from being overloaded in heavy process like backfilling
+
+  websocketServerHost: String(process.env.WEBSOCKET_SERVER_HOST),
+  websocketServerAppId: String(process.env.WEBSOCKET_SERVER_APP_ID),
+  websocketServerAppKey: String(process.env.WEBSOCKET_SERVER_APP_KEY),
+  websocketServerAppSecret: String(process.env.WEBSOCKET_SERVER_APP_SECRET),
 };

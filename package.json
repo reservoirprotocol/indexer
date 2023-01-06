@@ -76,6 +76,7 @@
     "pg": "^8.7.1",
     "pg-promise": "^10.11.1",
     "prettier": "^2.5.1",
+    "pusher": "^5.1.2",
     "qs": "^6.10.1",
     "rate-limiter-flexible": "^2.3.11",
     "redlock": "^5.0.0-beta.1",

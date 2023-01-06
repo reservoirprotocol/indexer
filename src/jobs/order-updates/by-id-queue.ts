@@ -17,6 +17,7 @@ import * as processActivityEvent from "@/jobs/activities/process-activity-event"
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
+import * as websocketEventQueue from "@/jobs/websocket-events/queue";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -126,7 +127,8 @@ if (config.doBackgroundWork) {
                 RETURNING
                   collection_id AS "collectionId",
                   attribute_id AS "attributeId",
-                  top_buy_value AS "topBuyValue"
+                  top_buy_value AS "topBuyValue",
+                  top_buy_id AS "topBuyId"
               `,
               { tokenSetId }
             );
@@ -174,6 +176,8 @@ if (config.doBackgroundWork) {
                   } as collectionUpdatesTopBid.TopBidInfo,
                 ]);
               }
+
+              await websocketEventQueue.addToQueue({ orderId: result.topBuyId });
             }
           }
 
