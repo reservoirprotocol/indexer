@@ -184,7 +184,7 @@ export class Tokens {
     let contractFilter = "";
 
     if (nonFlaggedOnly) {
-      flagFilter = "AND is_flagged = 0";
+      flagFilter = "AND (is_flagged = 0 OR is_flagged IS NULL)";
     }
 
     if (contract) {
