@@ -88,9 +88,8 @@ export const getActivityV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = _.map(activities, (activity) => {
-        const orderSource = activity.order?.sourceIdInt
-          ? sources.get(activity.order.sourceIdInt)
-          : undefined;
+        const orderSourceId = activity.order?.sourceIdInt || activity.metadata.orderSourceIdInt;
+        const orderSource = orderSourceId ? sources.get(orderSourceId) : undefined;
 
         return {
           id: Number(activity.id),
