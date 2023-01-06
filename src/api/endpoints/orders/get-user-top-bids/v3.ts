@@ -225,7 +225,10 @@ export const getUserTopBidsV3Options: RouteOptions = {
         )
         SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids", SUM(y.top_bid_price) OVER() as total_amount,
                (${criteriaBuildQuery}) AS bid_criteria,
-              COALESCE(((top_bid_value / net_listing) - 1) * 100, 0) AS floor_difference_percentage
+               (CASE net_listing
+                 WHEN 0 THEN NULL
+                 ELSE COALESCE(((top_bid_value / net_listing) - 1) * 100, 0)
+               END) AS floor_difference_percentage
         FROM nb
         JOIN LATERAL (
             SELECT o.token_set_id, o.id AS "top_bid_id", o.price AS "top_bid_price", o.value AS "top_bid_value",
