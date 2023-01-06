@@ -189,7 +189,7 @@ const getLowestFloorAskTokens = async (collectionId: string) => {
             FROM tokens
             WHERE collection_id = $/collectionId/
             AND floor_sell_value IS NOT NULL
-            AND is_flagged = 0
+            AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)
             ORDER BY floor_sell_value ASC
             LIMIT $/limit/
         `;
@@ -229,7 +229,7 @@ const getRecentTransferredTokens = async (collectionId: string) => {
             WHERE nft_transfer_events.address = $/contract/
             ${tokensRangeFilter}
             AND (nft_transfer_events.timestamp > extract(epoch from tokens.last_flag_update) OR tokens.last_flag_update IS NULL)
-            AND tokens.is_flagged = 0
+            AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)
             ORDER BY nft_transfer_events.token_id, nft_transfer_events.timestamp DESC
       `;
 
