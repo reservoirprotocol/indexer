@@ -252,7 +252,6 @@ export const getOrdersAsksV4Options: RouteOptions = {
             ];
 
       let communityFilter = "";
-      let collectionSetFilter = "";
       let orderStatusFilter = "";
 
       if (query.ids) {
@@ -326,8 +325,25 @@ export const getOrdersAsksV4Options: RouteOptions = {
             throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
           }
 
-          collectionSetFilter =
-            "JOIN (SELECT DISTINCT contract FROM collections WHERE id IN ($/collectionsIds:csv/)) c ON orders.contract = c.contract";
+          conditions.push(
+            `(
+              CASE
+                WHEN orders.token_set_id LIKE 'token:%' THEN
+                  (EXISTS (SELECT
+                  FROM tokens 
+                  JOIN collections 
+                    ON tokens.collection_id = collections.id 
+                  WHERE collections.id IN ($/collectionsIds:csv/) 
+                    AND tokens.contract = decode(substring(split_part(orders.token_set_id, ':', 2) from 3), 'hex') 
+                    AND tokens.token_id = (split_part(orders.token_set_id, ':', 3)::NUMERIC(78, 0))))
+                WHEN orders.token_set_id LIKE 'contract:%' THEN
+                  (EXISTS (SELECT
+                  FROM collections
+                  WHERE collections.id IN ($/collectionsIds:csv/)))
+                ELSE TRUE
+              END
+            )`
+          );
         }
       }
 
@@ -379,7 +395,6 @@ export const getOrdersAsksV4Options: RouteOptions = {
       }
 
       baseQuery += communityFilter;
-      baseQuery += collectionSetFilter;
 
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
