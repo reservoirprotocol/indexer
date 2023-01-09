@@ -48,9 +48,9 @@ export const getTokensFloorAskV4Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
-      sortDirection: Joi.string().valid("asc", "desc").default("desc"),
+      sortDirection: Joi.string().valid("asc", "desc"),
       continuation: Joi.string().pattern(regex.base64),
-      limit: Joi.number().integer().min(1).max(1000).default(50),
+      limit: Joi.number().integer().min(1).max(1000),
     }).oxor("contract", "token"),
   },
   response: {
@@ -100,6 +100,14 @@ export const getTokensFloorAskV4Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 50;
+    }
+
+    if (!query.sortDirection) {
+      query.sortDirection = "desc";
+    }
 
     try {
       let baseQuery = `

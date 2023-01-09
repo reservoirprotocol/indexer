@@ -38,7 +38,6 @@ export const getCollectionsFloorAskV2Options: RouteOptions = {
       ),
       sortDirection: Joi.string()
         .valid("asc", "desc")
-        .default("desc")
         .description("Order the items are returned in the response."),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -47,7 +46,6 @@ export const getCollectionsFloorAskV2Options: RouteOptions = {
         .integer()
         .min(1)
         .max(1000)
-        .default(50)
         .description("Amount of items returned in response."),
     }).oxor("collection"),
   },
@@ -99,6 +97,14 @@ export const getCollectionsFloorAskV2Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 50;
+    }
+
+    if (!query.sortDirection) {
+      query.sortDirection = "desc";
+    }
 
     try {
       let baseQuery = `
