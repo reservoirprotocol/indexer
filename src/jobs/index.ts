@@ -23,7 +23,7 @@ import "@/jobs/orderbook";
 import "@/jobs/sources";
 import "@/jobs/token-updates";
 import "@/jobs/update-attribute";
-// import "@/jobs/websocket-events";
+import "@/jobs/websocket-events";
 
 // Export all job queues for monitoring through the BullMQ UI
 
@@ -115,7 +115,7 @@ import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attrib
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
 
-// import * as websocketEventQueue from "@/jobs/websocket-events/queue";
+import * as websocketEventQueue from "@/jobs/websocket-events/queue";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -217,5 +217,5 @@ export const allJobQueues = [
   resyncAttributeKeyCounts.queue,
   resyncAttributeValueCounts.queue,
 
-  // websocketEventQueue.queue,
+  websocketEventQueue.queue,
 ];
