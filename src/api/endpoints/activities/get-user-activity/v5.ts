@@ -125,6 +125,7 @@ export const getUserActivityV5Options: RouteOptions = {
             },
             tokenRarityScore: Joi.number().allow(null),
             tokenRarityRank: Joi.number().allow(null),
+            tokenMedia: Joi.string().allow(null),
           }),
           collection: Joi.object({
             collectionId: Joi.string().allow(null),
