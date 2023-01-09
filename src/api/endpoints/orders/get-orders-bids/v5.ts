@@ -379,7 +379,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           }
 
           collectionSetFilter =
-            "JOIN (SELECT DISTINCT contract FROM collections WHERE id IN ($/collectionsIds:csv/)) c ON orders.contract = c.contract";
+            "JOIN (SELECT DISTINCT token_set_id FROM collections WHERE id IN ($/collectionsIds:csv/)) c ON orders.token_set_id = c.token_set_id";
         }
       }
 
