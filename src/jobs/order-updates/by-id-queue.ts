@@ -17,7 +17,9 @@ import * as processActivityEvent from "@/jobs/activities/process-activity-event"
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
-import * as websocketEventQueue from "@/jobs/websocket-events/queue";
+
+import * as websocketEventsqueue from "@/jobs/websocket-events/process-queue";
+import { EventKind } from "@/jobs/websocket-events/process-queue";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -177,7 +179,12 @@ if (config.doBackgroundWork) {
                 ]);
               }
 
-              await websocketEventQueue.addToQueue({ orderId: result.topBuyId });
+              await websocketEventsqueue.addToQueue([
+                {
+                  kind: EventKind.tokenSetTopBidChanged,
+                  data: { tokenSetId, orderId: result.topBuyId },
+                },
+              ]);
             }
           }
 

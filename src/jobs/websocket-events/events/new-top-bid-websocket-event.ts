@@ -6,8 +6,8 @@ import _ from "lodash";
 import { BatchEvent } from "pusher";
 import { config } from "@/config/index";
 
-export class UserTopBidEvent {
-  public static async handleEvent(data: TokenSetTopBidEventData) {
+export class NewTopBidWebsocketEvent {
+  public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
     const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
     const order = await idb.oneOrNone(
@@ -79,6 +79,6 @@ export class UserTopBidEvent {
   }
 }
 
-export type TokenSetTopBidEventData = {
+export type NewTopBidWebsocketEventInfo = {
   orderId: string;
 };
