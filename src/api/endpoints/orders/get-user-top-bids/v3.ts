@@ -84,6 +84,12 @@ export const getUserTopBidsV3Options: RouteOptions = {
         .max(100)
         .default(20)
         .description("Amount of items returned in response."),
+      sampleSize: Joi.number()
+        .integer()
+        .min(1000)
+        .max(100000)
+        .default(10000)
+        .description("Amount of tokens considered."),
     }).oxor("collection", "collectionsSetId"),
   },
   response: {
@@ -210,10 +216,22 @@ export const getUserTopBidsV3Options: RouteOptions = {
         : "floor_sell_value";
 
       const baseQuery = `
+        WITH nb AS (
+         SELECT contract, token_id, "owner", amount
+         FROM nft_balances
+         WHERE "owner" = $/user/
+         AND amount > 0
+         ${contractFilter}
+         ORDER BY last_token_appraisal_value DESC NULLS LAST
+         LIMIT ${query.sampleSize}
+        )
         SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids", SUM(y.top_bid_price) OVER() as total_amount,
                (${criteriaBuildQuery}) AS bid_criteria,
-              COALESCE(((top_bid_value / net_listing) - 1) * 100, 0) AS floor_difference_percentage
-        FROM nft_balances nb
+               (CASE net_listing
+                 WHEN 0 THEN NULL
+                 ELSE COALESCE(((top_bid_value / net_listing) - 1) * 100, 0)
+               END) AS floor_difference_percentage
+        FROM nb
         JOIN LATERAL (
             SELECT o.token_set_id, o.id AS "top_bid_id", o.price AS "top_bid_price", o.value AS "top_bid_value",
                    o.currency AS "top_bid_currency", o.currency_value AS "top_bid_currency_value", o.missing_royalties,
@@ -256,9 +274,6 @@ export const getUserTopBidsV3Options: RouteOptions = {
             ${communityFilter}
             ${collectionFilter}
         ) c ON TRUE
-        WHERE owner = $/user/
-        AND amount > 0
-        ${contractFilter}
         ORDER BY ${sortField} ${query.sortDirection}, token_id ${query.sortDirection}
         OFFSET ${offset} LIMIT $/limit/
       `;

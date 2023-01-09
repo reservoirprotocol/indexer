@@ -468,6 +468,15 @@ export const generateListingDetailsV6 = (
       };
     }
 
+    case "element-erc721":
+    case "element-erc1155": {
+      return {
+        kind: "element",
+        ...common,
+        order: new Sdk.Element.Order(config.chainId, order.rawData),
+      };
+    }
+
     case "looks-rare": {
       return {
         kind: "looks-rare",
@@ -653,6 +662,15 @@ export const generateBidDetailsV6 = async (
         kind: "looks-rare",
         ...common,
         order: sdkOrder,
+      };
+    }
+
+    case "element-erc721":
+    case "element-erc1155": {
+      return {
+        kind: "element",
+        ...common,
+        order: new Sdk.Element.Order(config.chainId, order.rawData),
       };
     }
 
