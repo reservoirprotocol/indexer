@@ -50,7 +50,6 @@ export const getCommonCollectionsOwnersV1Options: RouteOptions = {
         .integer()
         .min(1)
         .max(50)
-        .default(20)
         .description("Amount of collections returned in response."),
     }),
   },
@@ -75,6 +74,10 @@ export const getCommonCollectionsOwnersV1Options: RouteOptions = {
   handler: async (request: Request) => {
     let ownersFilter = "";
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 20;
+    }
 
     if (query.owners) {
       if (!_.isArray(query.owners)) {

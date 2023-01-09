@@ -48,7 +48,6 @@ export const getTokensBootstrapV1Options: RouteOptions = {
         .integer()
         .min(1)
         .max(500)
-        .default(500)
         .description("Amount of items returned in response."),
     })
       .or("collection", "contract")
@@ -78,6 +77,10 @@ export const getTokensBootstrapV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 500;
+    }
 
     try {
       let baseQuery = `

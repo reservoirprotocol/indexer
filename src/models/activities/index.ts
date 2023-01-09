@@ -65,8 +65,8 @@ export class Activities {
     continuation: null | string = null,
     limit = 50,
     byEventTimestamp = false,
-    includeMetadata = true,
-    sortDirection = "asc",
+    includeMetadata = false,
+    sortDirection = "desc",
     includeCriteria = false
   ) {
     let eventTimestamp;
