@@ -4,7 +4,7 @@ import { fromBuffer } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import _ from "lodash";
 import { BatchEvent } from "pusher";
-import { config } from "config";
+import { config } from "@/config/index";
 
 export class UserTopBidEvent {
   public static async handleEvent(data: TokenSetTopBidEventData) {
