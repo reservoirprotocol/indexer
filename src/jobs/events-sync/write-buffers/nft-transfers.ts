@@ -18,7 +18,7 @@ export const queue = new Queue(QUEUE_NAME, {
       delay: 10000,
     },
     removeOnComplete: true,
-    removeOnFail: 10000,
+    removeOnFail: 20000,
     timeout: 60000,
   },
 });
@@ -58,7 +58,7 @@ if (config.doBackgroundWork) {
       // It's very important to have this queue be single-threaded
       // in order to avoid database write deadlocks (and it can be
       // even better to have it be single-process).
-      concurrency: config.chainId === 137 ? 3 : 1,
+      concurrency: 1,
     }
   );
 

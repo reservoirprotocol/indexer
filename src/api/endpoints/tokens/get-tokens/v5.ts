@@ -42,16 +42,31 @@ export const getTokensV5Options: RouteOptions = {
         ),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description("Filter to a particular collection set.")
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
       community: Joi.string()
         .lowercase()
-        .description("Filter to a particular community. Example: `artblocks`"),
+        .description("Filter to a particular community. Example: `artblocks`")
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
       contract: Joi.string()
         .lowercase()
         .pattern(regex.address)
         .description(
           "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        ),
+        )
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
       tokens: Joi.alternatives().try(
         Joi.array()
           .max(50)
@@ -70,7 +85,12 @@ export const getTokensV5Options: RouteOptions = {
         .lowercase()
         .description(
           "Filter to a particular token set. `Example: token:0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270:129000685`"
-        ),
+        )
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
       attributes: Joi.object()
         .unknown()
         .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
@@ -93,7 +113,9 @@ export const getTokensV5Options: RouteOptions = {
       ),
       flagStatus: Joi.number()
         .allow(-1, 0, 1)
-        .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),
+        .description(
+          "Allowed only with collection and tokens filtering!\n-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"
+        ),
       sortBy: Joi.string()
         .valid("floorAskPrice", "tokenId", "rarity")
         .default("floorAskPrice")
@@ -128,8 +150,7 @@ export const getTokensV5Options: RouteOptions = {
     })
       .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
-      .with("attributes", "collection")
-      .with("flagStatus", "collection"),
+      .with("attributes", "collection"),
   },
   response: {
     schema: Joi.object({

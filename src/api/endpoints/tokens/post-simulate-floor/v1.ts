@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
@@ -46,8 +47,11 @@ export const postSimulateFloorV1Options: RouteOptions = {
 
     const payload = request.payload as any;
 
-    const invalidateOrder = async (orderId: string) => {
-      logger.error(`post-simulate-floor-${version}-handler`, `StaleOrder: ${orderId}`);
+    const invalidateOrder = async (orderId: string, callTrace?: CallTrace, payload?: any) => {
+      logger.error(
+        `post-simulate-floor-${version}-handler`,
+        JSON.stringify({ error: "stale-order", callTrace, payload })
+      );
 
       // Invalidate the order if the simulation failed
       await inject({
@@ -139,7 +143,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
 
       const pathItem = parsedPayload.path[0];
 
-      const success = await ensureBuyTxSucceeds(
+      const { result: success, callTrace } = await ensureBuyTxSucceeds(
         genericTaker,
         {
           kind: contractResult.kind as "erc721" | "erc1155",
@@ -153,7 +157,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
       if (success) {
         return { message: "Floor order is fillable" };
       } else {
-        await invalidateOrder(pathItem.orderId);
+        await invalidateOrder(pathItem.orderId, callTrace, parsedPayload);
         return { message: "Floor order is not fillable (got invalidated)" };
       }
     } catch (error) {
