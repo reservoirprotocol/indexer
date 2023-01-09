@@ -40,7 +40,7 @@ export const getUserTokensV6Options: RouteOptions = {
     params: Joi.object({
       user: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .pattern(regex.address)
         .required()
         .description(
           "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
@@ -60,7 +60,7 @@ export const getUserTokensV6Options: RouteOptions = {
         ),
       contract: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .pattern(regex.address)
         .description(
           "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
@@ -92,7 +92,7 @@ export const getUserTokensV6Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(100)
+        .max(200)
         .default(20)
         .description("Amount of items returned in response."),
       includeTopBid: Joi.boolean()
