@@ -143,7 +143,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
     }
 
     if (!query.sortDirection) {
-      query.sortBy = "desc";
+      query.sortDirection = "desc";
     }
 
     // Set the user value for the query
