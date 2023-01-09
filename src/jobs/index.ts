@@ -115,7 +115,8 @@ import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attrib
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
 
-import * as websocketEventQueue from "@/jobs/websocket-events/queue";
+import * as websocketEventsqueue from "@/jobs/websocket-events/process-queue";
+import * as websocketEventsTriggerQueue from "@/jobs/websocket-events/trigger-queue";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -217,5 +218,6 @@ export const allJobQueues = [
   resyncAttributeKeyCounts.queue,
   resyncAttributeValueCounts.queue,
 
-  websocketEventQueue.queue,
+  websocketEventsqueue.queue,
+  websocketEventsTriggerQueue.queue,
 ];

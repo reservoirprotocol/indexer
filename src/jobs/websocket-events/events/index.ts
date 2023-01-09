@@ -1,1 +1,1 @@
-import "@/jobs/websocket-events/events/user-top-bid-event";
+import "@/jobs/websocket-events/events/new-top-bid-websocket-event";
