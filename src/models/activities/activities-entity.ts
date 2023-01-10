@@ -142,14 +142,20 @@ export class ActivitiesEntity {
       tokenId: params.token_id,
       tokenImage: params.token_image,
       tokenName: params.token_name,
-      lastBuy: params.token_last_buy_value ? {
-        value: params.token_last_buy_value ? formatEth(params.token_last_buy_value) : undefined,
-        timestamp: params.token_last_buy_timestamp,
-      } : undefined,
-      lastSell: params.token_last_sell_value ? {
-        value: params.token_last_sell_value ? formatEth(params.token_last_sell_value) : undefined,
-        timestamp: params.token_last_sell_timestamp,
-      } : undefined,
+      lastBuy: params.token_last_buy_value
+        ? {
+            value: params.token_last_buy_value ? formatEth(params.token_last_buy_value) : undefined,
+            timestamp: params.token_last_buy_timestamp,
+          }
+        : undefined,
+      lastSell: params.token_last_sell_value
+        ? {
+            value: params.token_last_sell_value
+              ? formatEth(params.token_last_sell_value)
+              : undefined,
+            timestamp: params.token_last_sell_timestamp,
+          }
+        : undefined,
       tokenRarityRank: params.token_rarity_rank,
       tokenRarityScore: params.token_rarity_score,
       tokenMedia: params.token_media,
