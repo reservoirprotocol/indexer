@@ -244,13 +244,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
           ? [
               `orders.created_at >= to_timestamp($/startTimestamp/)`,
               `orders.created_at <= to_timestamp($/endTimestamp/)`,
-              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
               `orders.side = 'sell'`,
             ]
-          : [
-              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
-              `orders.side = 'sell'`,
-            ];
+          : [`orders.side = 'sell'`];
 
       let communityFilter = "";
       let collectionSetFilter = "";

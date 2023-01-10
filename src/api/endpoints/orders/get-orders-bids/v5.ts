@@ -255,13 +255,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
           ? [
               `orders.created_at >= to_timestamp($/startTimestamp/)`,
               `orders.created_at <= to_timestamp($/endTimestamp/)`,
-              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
               `orders.side = 'buy'`,
             ]
-          : [
-              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
-              `orders.side = 'buy'`,
-            ];
+          : [`orders.side = 'buy'`];
 
       let communityFilter = "";
       let collectionSetFilter = "";
