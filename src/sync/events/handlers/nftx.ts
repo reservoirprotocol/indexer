@@ -5,7 +5,7 @@ import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as nftxUtils from "@/utils/nftx";
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 
 import * as nftx from "@/orderbook/orders/nftx";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
@@ -212,8 +212,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           const orderIds = tokenIds.map((tokenId: string) =>
             nftx.getOrderId(baseEventParams.address, "sell", tokenId)
           );
-          const dbOrders = await redb.manyOrNone(
-            `SELECT * FROM orders where id IN ($/orderIds:list/)`,
+          const dbOrders = await idb.manyOrNone(
+            `SELECT id, currency, price FROM orders where id IN ($/orderIds:list/)`,
             {
               orderIds,
             }
@@ -416,8 +416,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderIds = tokenIds.map((tokenId: string) =>
           nftx.getOrderId(baseEventParams.address, "sell", tokenId)
         );
-        const dbOrders = await redb.manyOrNone(
-          `SELECT * FROM orders where id IN ($/orderIds:list/)`,
+        const dbOrders = await idb.manyOrNone(
+          `SELECT id, currency, price FROM orders where id IN ($/orderIds:list/)`,
           {
             orderIds,
           }
