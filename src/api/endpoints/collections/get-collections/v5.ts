@@ -433,7 +433,6 @@ export const getCollectionsV5Options: RouteOptions = {
               tokens.image
             FROM tokens
             WHERE tokens.collection_id = collections.id
-              AND tokens.image IS NOT NULL
             LIMIT 4
           ) AS sample_images
         FROM collections
@@ -615,21 +614,25 @@ export const getCollectionsV5Options: RouteOptions = {
             ? fromBuffer(r.top_buy_currency)
             : Sdk.Common.Addresses.Weth[config.chainId];
 
+          const sampleImages = _.filter(
+            r.sample_images,
+            (image) => !_.isNull(image) && _.startsWith(image, "http")
+          );
+
           return {
             id: r.id,
             slug: r.slug,
             createdAt: new Date(r.created_at).toISOString(),
             name: r.name,
             image:
-              r.image ??
-              (r.sample_images?.length ? Assets.getLocalAssetsLink(r.sample_images[0]) : null),
+              r.image ?? (sampleImages.length ? Assets.getLocalAssetsLink(sampleImages[0]) : null),
             banner: r.banner,
             discordUrl: r.discord_url,
             externalUrl: r.external_url,
             twitterUsername: r.twitter_username,
             openseaVerificationStatus: r.opensea_verification_status,
             description: r.description,
-            sampleImages: Assets.getLocalAssetsLink(r.sample_images) ?? [],
+            sampleImages: Assets.getLocalAssetsLink(sampleImages) ?? [],
             tokenCount: String(r.token_count),
             onSaleCount: String(r.on_sale_count),
             primaryContract: fromBuffer(r.contract),
