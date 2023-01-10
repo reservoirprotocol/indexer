@@ -118,7 +118,6 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .default(50)
         .description("Amount of items returned in response."),
     })
-      .oxor("token", "contracts", "ids", "collectionsSetId")
       .with("community", "maker")
       .with("collectionsSetId", "maker"),
   },
