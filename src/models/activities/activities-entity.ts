@@ -80,8 +80,8 @@ export type ActivityToken = {
   tokenId: string | null;
   tokenName?: string;
   tokenImage?: string;
-  lastBuy: { value?: number; timestamp?: number };
-  lastSell: { value?: number; timestamp?: number };
+  lastBuy?: { value?: number; timestamp?: number };
+  lastSell?: { value?: number; timestamp?: number };
   tokenRarityScore?: number;
   tokenRarityRank?: number;
   tokenMedia?: string;
@@ -142,14 +142,14 @@ export class ActivitiesEntity {
       tokenId: params.token_id,
       tokenImage: params.token_image,
       tokenName: params.token_name,
-      lastBuy: {
+      lastBuy: params.token_last_buy_value ? {
         value: params.token_last_buy_value ? formatEth(params.token_last_buy_value) : undefined,
         timestamp: params.token_last_buy_timestamp,
-      },
-      lastSell: {
+      } : undefined,
+      lastSell: params.token_last_sell_value ? {
         value: params.token_last_sell_value ? formatEth(params.token_last_sell_value) : undefined,
         timestamp: params.token_last_sell_timestamp,
-      },
+      } : undefined,
       tokenRarityRank: params.token_rarity_rank,
       tokenRarityScore: params.token_rarity_score,
       tokenMedia: params.token_media,
