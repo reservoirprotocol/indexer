@@ -323,18 +323,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
             throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
           }
 
-          collectionSetFilter = `JOIN (
-                  SELECT
-                    DISTINCT token_set_id
-                  FROM
-                    token_sets_tokens tst
-                  JOIN tokens
-                    ON tst.contract = tokens.contract
-                    AND tst.token_id = tokens.token_id
-                  WHERE
-                  tokens.collection_id IN ($/collectionsIds:csv/)
-                  
-              ) tst ON tst.token_set_id = orders.token_set_id`;
+          collectionSetFilter = `JOIN token_sets_tokens tst ON tst.token_set_id = orders.token_set_id
+          JOIN tokens ON tokens.contract = tst.contract AND tokens.token_id = tokens.token_id
+          WHERE orders.side = 'buy' AND tokens.collection_id IN ($/collectionsIds:csv/)`;
         }
       }
 
