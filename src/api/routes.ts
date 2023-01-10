@@ -10,6 +10,7 @@ import * as contractsSetsEndpoints from "@/api/endpoints/contracts-sets";
 import * as eventsEndpoints from "@/api/endpoints/events";
 import * as executeEndpoints from "@/api/endpoints/execute";
 import * as healthEndpoints from "@/api/endpoints/health";
+import * as managementEndpoints from "@/api/endpoints/management";
 import * as oracleEndpoints from "@/api/endpoints/oracle";
 import * as ordersEndpoints from "@/api/endpoints/orders";
 import * as ownersEndpoints from "@/api/endpoints/owners";
@@ -232,8 +233,8 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
-    path: "/admin/invalidate-order",
-    options: adminEndpoints.postInvalidateOrderOptions,
+    path: "/admin/revalidate-order",
+    options: adminEndpoints.postRevalidateOrderOptions,
   });
 
   server.route({
@@ -693,6 +694,14 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/readyz",
     options: healthEndpoints.getLiveOptions,
+  });
+
+  // Management
+
+  server.route({
+    method: "POST",
+    path: "/management/orders/simulate/v1",
+    options: managementEndpoints.postSimulateOrderV1Options,
   });
 
   // Oracle
