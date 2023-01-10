@@ -38,13 +38,13 @@ export const getCollectionActivityV5Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .default(20)
+        .default(50)
         .description(
-          "Amount of items returned in response. If `includeMetadata=true` max limit is 20, otherwise max limit is 1,000."
+          "Amount of items returned in response. If `includeMetadata=true` max limit is 50, otherwise max limit is 1,000."
         )
         .when("includeMetadata", {
           is: true,
-          then: Joi.number().integer().max(20),
+          then: Joi.number().integer().max(50),
           otherwise: Joi.number().integer().max(1000),
         }),
       sortBy: Joi.string()
@@ -148,9 +148,8 @@ export const getCollectionActivityV5Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = _.map(activities, (activity) => {
-        const orderSource = activity.order?.sourceIdInt
-          ? sources.get(activity.order.sourceIdInt)
-          : undefined;
+          const orderSourceId = activity.order?.sourceIdInt || activity.metadata.orderSourceIdInt;
+          const orderSource = orderSourceId ? sources.get(orderSourceId) : undefined;
 
         return {
           type: activity.type,
