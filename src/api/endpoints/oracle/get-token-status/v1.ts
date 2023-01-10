@@ -14,7 +14,7 @@ import { config } from "@/config/index";
 const version = "v1";
 
 export const getTokenStatusOracleV1Options: RouteOptions = {
-  description: "Token status",
+  description: "Token status oracle",
   notes: "Get a signed message of a token's details (flagged status and last transfer time)",
   tags: ["api", "Oracle"],
   plugins: {
