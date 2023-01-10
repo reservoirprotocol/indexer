@@ -111,6 +111,17 @@ export const getUserActivityV5Options: RouteOptions = {
             tokenId: Joi.string().allow(null),
             tokenName: Joi.string().allow("", null),
             tokenImage: Joi.string().allow("", null),
+            lastBuy: {
+              value: Joi.number().unsafe().allow(null),
+              timestamp: Joi.number().unsafe().allow(null),
+            },
+            lastSell: {
+              value: Joi.number().unsafe().allow(null),
+              timestamp: Joi.number().unsafe().allow(null),
+            },
+            tokenRarityScore: Joi.number().allow(null),
+            tokenRarityRank: Joi.number().allow(null),
+            tokenMedia: Joi.string().allow(null),
           }),
           collection: Joi.object({
             collectionId: Joi.string().allow(null),
