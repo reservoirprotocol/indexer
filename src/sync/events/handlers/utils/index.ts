@@ -78,7 +78,9 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
 
     const timeElapsed = Math.floor((performance.now() - timeBefore) / 1000);
 
-    logger.info("sales-latency-debug", `timeElapsed=${timeElapsed}`);
+    if (timeElapsed > 0) {
+      logger.info("sales-latency-debug", `timeElapsed=${timeElapsed}`);
+    }
   }
 
   // Persist events
