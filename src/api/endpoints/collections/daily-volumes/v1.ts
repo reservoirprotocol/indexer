@@ -26,7 +26,7 @@ export const getDailyVolumesV1Options: RouteOptions = {
           "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         )
         .required(),
-      limit: Joi.number().default(60).description("Amount of items returned in response."),
+      limit: Joi.number().description("Amount of items returned in response."),
       startTimestamp: Joi.number().description("The start timestamp you want to filter on (UTC)"),
       endTimestamp: Joi.number().description("The end timestamp you want to filter on (UTC)"),
     }),
@@ -51,6 +51,10 @@ export const getDailyVolumesV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 60;
+    }
 
     let baseQuery = `
         SELECT
