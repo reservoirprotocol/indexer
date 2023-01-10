@@ -1,10 +1,9 @@
+import { BigNumberish } from "@ethersproject/bignumber";
 import Joi from "joi";
 
-import { formatEth, formatPrice, formatUsd, now, regex } from "@/common/utils";
+import { bn, formatEth, formatPrice, formatUsd, now, regex } from "@/common/utils";
 import { Currency, getCurrency } from "@/utils/currencies";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { bn } from "@/common/utils";
-import { BigNumberish } from "ethers";
 
 // --- Prices ---
 
@@ -82,7 +81,6 @@ export const getJoiPriceObject = async (
   totalFeeBps?: number
 ) => {
   const currency = await getCurrency(currencyAddress);
-  const netAmountPrice = prices.net ?? prices.gross;
   return {
     currency: {
       contract: currency.contract,
@@ -96,16 +94,22 @@ export const getJoiPriceObject = async (
       prices.gross.nativeAmount,
       prices.gross.usdAmount
     ),
-    netAmount:
-      netAmountPrice &&
-      totalFeeBps &&
-      (await getJoiAmountObject(
-        currency,
-        netAmountPrice.amount,
-        netAmountPrice.nativeAmount,
-        netAmountPrice.usdAmount,
-        totalFeeBps
-      )),
+    netAmount: prices.net
+      ? await getJoiAmountObject(
+          currency,
+          prices.net.amount,
+          prices.net.nativeAmount,
+          prices.net.usdAmount
+        )
+      : totalFeeBps
+      ? await getJoiAmountObject(
+          currency,
+          prices.gross.amount,
+          prices.gross.nativeAmount,
+          prices.gross.usdAmount,
+          totalFeeBps
+        )
+      : undefined,
   };
 };
 
