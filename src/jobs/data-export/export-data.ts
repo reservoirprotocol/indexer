@@ -9,6 +9,7 @@ import { EOL } from "os";
 import AWS from "aws-sdk";
 
 import { AskEventsDataSource } from "@/jobs/data-export/data-sources/ask-events";
+import { BidEventsDataSource } from "@/jobs/data-export/data-sources/bid-events";
 import { TokenFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/token-floor-ask-events";
 import { CollectionFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/collection-floor-ask-events";
 import { CollectionTopBidEventsDataSourceV2 } from "@/jobs/data-export/data-sources/collection_top_bid_events";
@@ -124,6 +125,7 @@ if (config.doBackgroundWork) {
 
 export enum DataSource {
   askEvents = "ask-events",
+  bidEvents = "bid-events",
   tokenFloorAskEvents = "token-floor-ask-events",
   collectionFloorAskEvents = "collection-floor-ask-events",
   collectionTopBidEventsV2 = "collection-top-bid-events-v2",
@@ -181,6 +183,8 @@ const getDataSourceImpl = (source: DataSource) => {
   switch (source) {
     case DataSource.askEvents:
       return new AskEventsDataSource();
+    case DataSource.bidEvents:
+      return new BidEventsDataSource();
     case DataSource.tokenFloorAskEvents:
       return new TokenFloorAskEventsDataSource();
     case DataSource.collectionFloorAskEvents:
