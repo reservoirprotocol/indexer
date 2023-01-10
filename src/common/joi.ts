@@ -3,6 +3,8 @@ import Joi from "joi";
 import { formatEth, formatPrice, formatUsd, now, regex } from "@/common/utils";
 import { Currency, getCurrency } from "@/utils/currencies";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import { bn } from "@/common/utils";
+import { BigNumberish } from "ethers";
 
 // --- Prices ---
 
@@ -26,11 +28,16 @@ export const JoiPrice = Joi.object({
   netAmount: JoiPriceAmount.optional(),
 });
 
+const subFeeWithBps = (amount: BigNumberish, totalFeeBps: number) => {
+  return bn(amount).sub(bn(amount).mul(totalFeeBps).div(10000)).toString();
+};
+
 export const getJoiAmountObject = async (
   currency: Currency,
   amount: string,
   nativeAmount?: string,
-  usdAmount?: string
+  usdAmount?: string,
+  totalFeeBps?: number
 ) => {
   let usdPrice = usdAmount;
   if (amount && !usdPrice) {
@@ -40,6 +47,14 @@ export const getJoiAmountObject = async (
         acceptStalePrice: true,
       })
     ).usdPrice;
+  }
+
+  if (totalFeeBps) {
+    amount = subFeeWithBps(amount, totalFeeBps);
+    if (usdPrice) {
+      usdPrice = subFeeWithBps(usdPrice, totalFeeBps);
+    }
+    if (nativeAmount) nativeAmount = subFeeWithBps(nativeAmount, totalFeeBps);
   }
 
   return {
@@ -63,9 +78,11 @@ export const getJoiPriceObject = async (
       usdAmount?: string;
     };
   },
-  currencyAddress: string
+  currencyAddress: string,
+  totalFeeBps?: number
 ) => {
   const currency = await getCurrency(currencyAddress);
+  const netAmountPrice = prices.net ?? prices.gross;
   return {
     currency: {
       contract: currency.contract,
@@ -80,12 +97,14 @@ export const getJoiPriceObject = async (
       prices.gross.usdAmount
     ),
     netAmount:
-      prices.net &&
+      netAmountPrice &&
+      totalFeeBps &&
       (await getJoiAmountObject(
         currency,
-        prices.net.amount,
-        prices.net.nativeAmount,
-        prices.net.usdAmount
+        netAmountPrice.amount,
+        netAmountPrice.nativeAmount,
+        netAmountPrice.usdAmount,
+        totalFeeBps
       )),
   };
 };
