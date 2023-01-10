@@ -130,7 +130,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .default(50)
         .description("Amount of items returned in response."),
     })
-      .oxor("token", "tokenSetId", "contracts", "ids", "collection")
+      .oxor("token", "tokenSetId", "contracts", "ids", "collection", "collectionsSetId")
       .with("community", "maker")
       .with("collectionsSetId", "maker")
       .with("attribute", "collection"),
@@ -264,6 +264,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
             ];
 
       let communityFilter = "";
+      let collectionSetFilter = "";
       let orderStatusFilter;
 
       if (query.ids) {
@@ -377,33 +378,17 @@ export const getOrdersBidsV5Options: RouteOptions = {
             throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
           }
 
-          conditions.push(
-            `(
-              CASE
-                WHEN orders.token_set_id LIKE 'token:%' THEN
-                  (EXISTS (SELECT
-                  FROM tokens 
-                  JOIN collections 
-                    ON tokens.collection_id = collections.id 
-                  WHERE collections.id IN ($/collectionsIds:csv/) 
-                    AND tokens.contract = decode(substring(split_part(orders.token_set_id, ':', 2) from 3), 'hex') 
-                    AND tokens.token_id = (split_part(orders.token_set_id, ':', 3)::NUMERIC(78, 0))))
-                WHEN orders.token_set_id LIKE 'contract:%' THEN
-                  (EXISTS (SELECT
-                  FROM collections
-                  WHERE collections.id IN ($/collectionsIds:csv/)
-                  AND collections.contract = decode(substring(split_part(orders.token_set_id, ':', 2) from 3), 'hex')))
-                WHEN orders.token_set_id LIKE 'range:%' THEN
-                  (EXISTS (SELECT
-                  FROM collections
-                  WHERE collections.id IN ($/collectionsIds:csv/)
-                  AND collections.token_set_id = orders.token_set_id))
-                WHEN orders.token_set_id LIKE 'list:%' THEN
-                  (FALSE)
-                ELSE TRUE
-              END
-            )`
-          );
+          collectionSetFilter = `JOIN (
+            SELECT
+              DISTINCT token_set_id
+            FROM
+              token_sets_tokens tst
+            JOIN tokens
+              ON tst.contract = tokens.contract
+              AND tst.token_id = tokens.token_id
+            WHERE
+            tokens.collection_id IN ($/collectionsIds:csv/)
+        ) tst ON tst.token_set_id = orders.token_set_id`;
         }
       }
 
@@ -445,6 +430,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       }
 
       baseQuery += communityFilter;
+      baseQuery += collectionSetFilter;
 
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
