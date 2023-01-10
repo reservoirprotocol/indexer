@@ -379,8 +379,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
           }
 
           collectionSetFilter = `JOIN token_sets_tokens tst ON tst.token_set_id = orders.token_set_id
-          JOIN tokens ON tokens.contract = tst.contract AND tokens.token_id = tokens.token_id
-          WHERE orders.side = 'sell' AND tokens.collection_id IN ($/collectionsIds:csv/)`;
+          JOIN tokens ON tokens.contract = tst.contract AND tokens.token_id = tst.token_id`;
+
+          conditions.push(`tokens.collection_id IN ($/collectionsIds:csv/)`);
         }
       }
 
@@ -427,6 +428,8 @@ export const getOrdersBidsV5Options: RouteOptions = {
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
+
+      baseQuery += ` GROUP BY orders.id`;
 
       // Sorting
       if (query.sortBy === "price") {
