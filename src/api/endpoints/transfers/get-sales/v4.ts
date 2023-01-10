@@ -386,13 +386,13 @@ export const getSalesV4Options: RouteOptions = {
           marketplaceFeeBps,
           paidFullRoyalty: r.paid_full_royalty,
           feeBreakdown: [].concat(
-            r.royalty_fee_breakdown.map((detail: any) => {
+            (r.royalty_fee_breakdown ?? []).map((detail: any) => {
               return {
                 kind: "royalty",
                 ...detail,
               };
             }),
-            r.marketplace_fee_breakdown.map((detail: any) => {
+            (r.marketplace_fee_breakdown ?? []).map((detail: any) => {
               return {
                 type: "marketplace",
                 ...detail,
