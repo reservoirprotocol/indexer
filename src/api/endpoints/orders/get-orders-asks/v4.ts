@@ -2,6 +2,7 @@
 
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import * as Boom from "@hapi/boom";
 import Joi from "joi";
 import _ from "lodash";
 
@@ -20,6 +21,7 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { Orders } from "@/utils/orders";
+import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v4";
 
@@ -53,6 +55,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
       contracts: Joi.alternatives()
         .try(
           Joi.array().max(50).items(Joi.string().lowercase().pattern(regex.address)),
@@ -108,7 +113,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .min(1)
         .max(1000)
         .description("Amount of items returned in response."),
-    }).with("community", "maker"),
+    })
+      .with("community", "maker")
+      .with("collectionsSetId", "maker"),
   },
   response: {
     schema: Joi.object({
@@ -245,6 +252,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           : [`orders.side = 'sell'`];
 
       let communityFilter = "";
+      let collectionSetFilter = "";
       let orderStatusFilter = "";
 
       if (query.ids) {
@@ -311,6 +319,17 @@ export const getOrdersAsksV4Options: RouteOptions = {
           communityFilter =
             "JOIN (SELECT DISTINCT contract FROM collections WHERE community = $/community/) c ON orders.contract = c.contract";
         }
+
+        if (query.collectionsSetId) {
+          query.collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+          if (_.isEmpty(query.collectionsIds)) {
+            throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+          }
+
+          collectionSetFilter = `JOIN token_sets_tokens tst ON tst.token_set_id = orders.token_set_id
+          JOIN tokens ON tokens.contract = tst.contract AND tokens.token_id = tokens.token_id
+          WHERE orders.side = 'buy' AND tokens.collection_id IN ($/collectionsIds:csv/)`;
+        }
       }
 
       if (query.source) {
@@ -361,6 +380,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
       }
 
       baseQuery += communityFilter;
+      baseQuery += collectionSetFilter;
 
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
