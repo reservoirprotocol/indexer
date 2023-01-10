@@ -18,6 +18,7 @@ import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
+import { logger } from "@/common/logger";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -67,11 +68,19 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   // Post-process fill events
   const allFillEvents = concat(data.fillEvents, data.fillEventsPartial, data.fillEventsOnChain);
   if (!backfill) {
+    const timeBefore = performance.now();
+
     await Promise.all([
       assignSourceToFillEvents(allFillEvents),
       assignWashTradingScoreToFillEvents(allFillEvents),
       assignRoyaltiesToFillEvents(allFillEvents),
     ]);
+
+    const timeElapsed = Math.floor((performance.now() - timeBefore) / 1000);
+
+    if (timeElapsed > 0) {
+      logger.info("sales-latency-debug", `timeElapsed=${timeElapsed}`);
+    }
   }
 
   // Persist events
