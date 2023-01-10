@@ -253,7 +253,7 @@ export class Activities {
     collectionsSetId = "",
     createdBefore: null | string = null,
     types: string[] = [],
-    limit = 20,
+    limit = 50,
     sortBy = "eventTimestamp",
     includeMetadata = true,
     includeCriteria = false
