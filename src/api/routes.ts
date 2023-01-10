@@ -721,6 +721,12 @@ export const setupRoutes = (server: Server) => {
     options: oracleEndpoints.getCollectionFloorAskOracleV4Options,
   });
 
+  server.route({
+    method: "GET",
+    path: "/oracle/tokens/status/v1",
+    options: oracleEndpoints.getTokenStatusOracleV1Options,
+  });
+
   // Orders
 
   server.route({
