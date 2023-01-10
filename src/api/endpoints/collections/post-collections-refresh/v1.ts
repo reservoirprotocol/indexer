@@ -63,7 +63,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const payload = request.payload as any;
-    let refreshCoolDownMin = 60 * 4; // How many minutes between each refresh
+    const refreshCoolDownMin = 60 * 4; // How many minutes between each refresh
     let overrideCoolDown = false;
 
     try {
@@ -110,9 +110,9 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         const isLargeCollection = collection.tokenCount > 30000;
 
         if (!overrideCoolDown) {
-          // For large collections allow refresh once a day
+          // Disable large collections refresh
           if (isLargeCollection) {
-            refreshCoolDownMin = 60 * 24;
+            throw Boom.badRequest("Refreshing large collections is currently disabled");
           }
 
           // Check when the last sync was performed

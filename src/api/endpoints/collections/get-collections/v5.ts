@@ -334,17 +334,17 @@ export const getCollectionsV5Options: RouteOptions = {
         LEFT JOIN LATERAL (
           SELECT
             SUM(CASE
-                  WHEN fe.created_at > NOW() - INTERVAL '24 HOURS'
+                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '24 HOURS'
                   THEN 1
                   ELSE 0
                 END) AS day_sale_count,
             SUM(CASE
-                  WHEN fe.created_at > NOW() - INTERVAL '7 DAYS'
+                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '7 DAYS'
                   THEN 1
                   ELSE 0
                 END) AS week_sale_count,
             SUM(CASE
-                  WHEN fe.created_at > NOW() - INTERVAL '30 DAYS'
+                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '30 DAYS'
                   THEN 1
                   ELSE 0
                 END) AS month_sale_count,
