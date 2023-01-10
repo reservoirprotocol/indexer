@@ -129,7 +129,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderKind = "manifold";
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId }
         );
 
         if (attributionData.taker) {
@@ -215,6 +216,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: purchasedAmount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;
@@ -319,7 +322,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Handle: attribution
         const orderKind = "manifold";
-        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind);
+        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind, {
+          orderId,
+        });
         if (data.taker) {
           taker = data.taker;
         }
@@ -363,6 +368,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: purchasedAmount,
           price: prices.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
         break;
       }

@@ -63,7 +63,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderKind = "foundation";
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId }
         );
         if (attributionData.taker) {
           taker = attributionData.taker;
@@ -123,6 +124,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: "1",
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;

@@ -35,8 +35,10 @@ import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
 import * as backfillBlurSales from "@/jobs/backfill/backfill-blur-sales";
 import * as backfillMints from "@/jobs/backfill/backfill-mints";
+import * as backfillRefreshCryptopunksOrders from "@/jobs/backfill/backfill-refresh-cryptopunks-orders";
 import * as backfillTokensWithMissingCollection from "@/jobs/backfill/backfill-tokens-with-missing-collection";
 import * as backfillOpenseaWebsocketEvents from "@/jobs/backfill/backfill-opensea-websocket-events";
+import * as backfillONftBalancesLastTokenAppraisalValue from "@/jobs/backfill/backfill-nft-balances-last-token-appraisal-value";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -46,8 +48,8 @@ import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
-import * as collectionUpdatesSimulateFloorAsk from "@/jobs/collection-updates/simulate-floor-queue";
 import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
+import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
@@ -133,8 +135,10 @@ export const allJobQueues = [
 
   backfillBlurSales.queue,
   backfillMints.queue,
+  backfillRefreshCryptopunksOrders.queue,
   backfillTokensWithMissingCollection.queue,
   backfillOpenseaWebsocketEvents.queue,
+  backfillONftBalancesLastTokenAppraisalValue.queue,
 
   currencies.queue,
 
@@ -146,8 +150,8 @@ export const allJobQueues = [
   collectionUpdatesFloorAsk.queue,
   collectionUpdatesNormalizedFloorAsk.queue,
   collectionUpdatesNonFlaggedFloorAsk.queue,
-  collectionUpdatesSimulateFloorAsk.queue,
   collectionSetCommunity.queue,
+  collectionRecalcTokenCount.queue,
 
   collectionUpdatesMetadata.queue,
   rarity.queue,

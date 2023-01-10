@@ -132,13 +132,15 @@ export const getRoyaltiesByTokenSet = async (
   }
 };
 
-export const updateRoyaltySpec = async (collection: string, spec: string, royalties: Royalty[]) => {
-  if (!royalties.length) {
-    return;
-  }
-
+export const updateRoyaltySpec = async (
+  collection: string,
+  spec: string,
+  royalties?: Royalty[]
+) => {
   // For safety, skip any zero bps or recipients
-  royalties = royalties.filter(({ bps, recipient }) => bps && recipient !== AddressZero);
+  royalties = royalties
+    ? royalties.filter(({ bps, recipient }) => bps && recipient !== AddressZero)
+    : undefined;
 
   // Fetch the current royalties
   const currentRoyalties = await idb.oneOrNone(
@@ -159,7 +161,7 @@ export const updateRoyaltySpec = async (collection: string, spec: string, royalt
       await idb.none(
         `
           UPDATE collections
-          SET new_royalties = $/royalties:json/
+            SET new_royalties = $/royalties:json/
           WHERE collections.id = $/collection/
         `,
         {
@@ -174,8 +176,8 @@ export const updateRoyaltySpec = async (collection: string, spec: string, royalt
 // At the moment we support: custom, opensea and royalty registry specs
 export const refreshAllRoyaltySpecs = async (
   collection: string,
-  customRoyalties: Royalty[],
-  openseaRoyalties: Royalty[]
+  customRoyalties?: Royalty[],
+  openseaRoyalties?: Royalty[]
 ) => {
   // Update custom royalties
   await updateRoyaltySpec(collection, "custom", customRoyalties);
@@ -188,11 +190,11 @@ export const refreshAllRoyaltySpecs = async (
 };
 
 // The default royalties are represented by the max royalties across all royalty specs
-export const refreshDefaulRoyalties = async (collection: string) => {
+export const refreshDefaultRoyalties = async (collection: string) => {
   const royaltiesResult = await idb.oneOrNone(
     `
       SELECT
-        collections.new_royalties
+        COALESCE(collections.new_royalties, '{}') AS new_royalties
       FROM collections
       WHERE collections.id = $/collection/
     `,
@@ -202,31 +204,35 @@ export const refreshDefaulRoyalties = async (collection: string) => {
     return [];
   }
 
-  const getTotalRoyaltyBps = (royalties?: Royalty[]) =>
-    (royalties || []).map(({ bps }) => bps).reduce((a, b) => a + b, 0);
-
-  let defultRoyalties: Royalty[] = [];
-  let currentTotalBps = 0;
-  for (const kind of Object.keys(royaltiesResult.new_royalties || {})) {
-    const newRoyaltiesTotalBps = getTotalRoyaltyBps(royaltiesResult.new_royalties[kind]);
-    if (newRoyaltiesTotalBps > currentTotalBps) {
-      defultRoyalties = royaltiesResult.new_royalties[kind];
-      currentTotalBps = newRoyaltiesTotalBps;
-    }
+  // Default royalties priority: custom, on-chain, opensea
+  let defaultRoyalties: Royalty[] = [];
+  if (royaltiesResult.new_royalties["custom"]) {
+    defaultRoyalties = royaltiesResult.new_royalties["custom"];
+  } else if (royaltiesResult.new_royalties["onchain"]) {
+    defaultRoyalties = royaltiesResult.new_royalties["onchain"];
+  } else if (
+    // TODO: Remove (for backwards-compatibility only)
+    Object.keys(royaltiesResult.new_royalties).find((kind) => !["custom", "opensea"].includes(kind))
+  ) {
+    const oldSpec = Object.keys(royaltiesResult.new_royalties).find(
+      (kind) => !["custom", "opensea"].includes(kind)
+    );
+    defaultRoyalties = royaltiesResult.new_royalties[oldSpec!];
+  } else if (royaltiesResult.new_royalties["opensea"]) {
+    defaultRoyalties = royaltiesResult.new_royalties["opensea"];
   }
-
-  const royaltiesBpsSum = _.sumBy(defultRoyalties, (royalty) => royalty.bps);
 
   await idb.none(
     `
       UPDATE collections SET
-        royalties = $/royalties:json/, royalties_bps = $/royaltiesBpsSum/
+        royalties = $/royalties:json/,
+        royalties_bps = $/royaltiesBps/
       WHERE collections.id = $/id/
     `,
     {
       id: collection,
-      royalties: defultRoyalties,
-      royaltiesBpsSum,
+      royalties: defaultRoyalties,
+      royaltiesBps: _.sumBy(defaultRoyalties, (royalty) => royalty.bps),
     }
   );
 };

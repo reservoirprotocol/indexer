@@ -26,8 +26,7 @@ export const getNetworkName = () => {
 };
 
 export const getServiceName = () => {
-  const isRailway = config.railwayStaticUrl !== "";
-  return `indexer-${isRailway ? "" : "fc-"}${config.version}-${getNetworkName()}`;
+  return `indexer-${config.version}-${getNetworkName()}`;
 };
 
 type NetworkSettings = {
@@ -149,6 +148,15 @@ export const getNetworkSettings = (): NetworkSettings => {
               contract: "0x726516B20c4692a6beA3900971a37e0cCf7A6BFf",
               name: "Frog Coin",
               symbol: "FRG",
+              decimals: 18,
+            },
+          ],
+          [
+            "0x46898f15F99b8887D87669ab19d633F579939ad9",
+            {
+              contract: "0x46898f15F99b8887D87669ab19d633F579939ad9",
+              name: "Ribbit",
+              symbol: "RIBBIT",
               decimals: 18,
             },
           ],

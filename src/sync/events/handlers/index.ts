@@ -1,4 +1,8 @@
+import { Log } from "@ethersproject/abstract-provider";
+
+import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData, processOnChainData } from "@/events-sync/handlers/utils";
+import * as utils from "@/events-sync/utils";
 
 import * as erc20 from "@/events-sync/handlers/erc20";
 import * as erc721 from "@/events-sync/handlers/erc721";
@@ -20,12 +24,14 @@ import * as x2y2 from "@/events-sync/handlers/x2y2";
 import * as zeroExV4 from "@/events-sync/handlers/zeroex-v4";
 import * as zora from "@/events-sync/handlers/zora";
 import * as universe from "@/events-sync/handlers/universe";
+import * as infinity from "@/events-sync/handlers/infinity";
 import * as rarible from "@/events-sync/handlers/rarible";
 import * as manifold from "@/events-sync/handlers/manifold";
 import * as tofu from "@/events-sync/handlers/tofu";
 import * as nftTrader from "@/events-sync/handlers/nft-trader";
 import * as okex from "@/events-sync/handlers/okex";
 import * as bendDao from "@/events-sync/handlers/bend-dao";
+import * as superrare from "@/events-sync/handlers/superrare";
 
 export type EventsInfo = {
   kind:
@@ -48,18 +54,27 @@ export type EventsInfo = {
     | "zeroex-v4"
     | "zora"
     | "universe"
+    | "infinity"
     | "rarible"
     | "manifold"
     | "tofu"
     | "decentraland"
     | "nft-trader"
     | "okex"
-    | "bend-dao";
+    | "bend-dao"
+    | "superrare";
   events: EnhancedEvent[];
   backfill?: boolean;
 };
 
 export const processEvents = async (info: EventsInfo) => {
+  const data = await parseEventsInfo(info);
+  if (data) {
+    await processOnChainData(data, info.backfill);
+  }
+};
+
+export const parseEventsInfo = async (info: EventsInfo) => {
   let data: OnChainData | undefined;
   switch (info.kind) {
     case "erc20": {
@@ -162,6 +177,11 @@ export const processEvents = async (info: EventsInfo) => {
       break;
     }
 
+    case "infinity": {
+      data = await infinity.handleEvents(info.events);
+      break;
+    }
+
     case "rarible": {
       data = await rarible.handleEvents(info.events);
       break;
@@ -191,9 +211,54 @@ export const processEvents = async (info: EventsInfo) => {
       data = await bendDao.handleEvents(info.events);
       break;
     }
-  }
 
-  if (data) {
-    await processOnChainData(data, info.backfill);
+    case "superrare": {
+      data = await superrare.handleEvents(info.events);
+      break;
+    }
   }
+  return data;
 };
+
+export function getEventParams(log: Log, timestamp: number) {
+  const address = log.address.toLowerCase() as string;
+  const block = log.blockNumber as number;
+  const blockHash = log.blockHash.toLowerCase() as string;
+  const txHash = log.transactionHash.toLowerCase() as string;
+  const txIndex = log.transactionIndex as number;
+  const logIndex = log.logIndex as number;
+  return {
+    address,
+    txHash,
+    txIndex,
+    block,
+    blockHash,
+    logIndex,
+    timestamp,
+    batchIndex: 1,
+  };
+}
+
+export async function getEnhancedEventFromTransaction(txHash: string) {
+  const enhancedEvents: EnhancedEvent[] = [];
+  const availableEventData = getEventData();
+  const transaction = await utils.fetchTransaction(txHash);
+  const txLog = await utils.fetchTransactionLogs(txHash);
+  for (let index = 0; index < txLog.logs.length; index++) {
+    const log = txLog.logs[index];
+    const eventData = availableEventData.find(
+      ({ addresses, topic, numTopics }) =>
+        log.topics[0] === topic &&
+        log.topics.length === numTopics &&
+        (addresses ? addresses[log.address.toLowerCase()] : true)
+    );
+    if (eventData) {
+      enhancedEvents.push({
+        kind: eventData.kind,
+        baseEventParams: getEventParams(log, transaction.blockTimestamp),
+        log,
+      });
+    }
+  }
+  return enhancedEvents;
+}

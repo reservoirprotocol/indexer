@@ -30,7 +30,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderKind = "bend-dao";
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId }
         );
         if (attributionData.taker) {
           taker = attributionData.taker;
@@ -76,6 +77,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;
@@ -96,7 +99,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderKind = "bend-dao";
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId }
         );
         if (attributionData.taker) {
           taker = attributionData.taker;
@@ -143,6 +147,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         break;

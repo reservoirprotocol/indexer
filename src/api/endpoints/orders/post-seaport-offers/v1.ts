@@ -19,14 +19,16 @@ export const postSeaportOffersV1Options: RouteOptions = {
   },
   validate: {
     payload: Joi.object({
-      seaport_offers: Joi.array().items(
-        Joi.object({
-          protocol_data: Joi.object({
-            parameters: Joi.any(),
-            signature: Joi.string(),
-          }),
-        }).options({ allowUnknown: true })
-      ),
+      seaport_offers: Joi.array()
+        .items(
+          Joi.object({
+            protocol_data: Joi.object({
+              parameters: Joi.any(),
+              signature: Joi.string(),
+            }),
+          }).options({ allowUnknown: true })
+        )
+        .min(1),
     }),
   },
   handler: async (request: Request) => {
@@ -39,7 +41,9 @@ export const postSeaportOffersV1Options: RouteOptions = {
     try {
       const orders = payload.seaport_offers;
 
-      logger.info(`post-seaport-offers-${version}-handler`, `Got ${orders.length} offers`);
+      if (orders) {
+        logger.info(`post-seaport-offers-${version}-handler`, `Got ${orders.length} offers`);
+      }
 
       // Disabled logic in order to support filling partial collection offers from OS Realtime API
       // const orderInfos: orderbookOrders.GenericOrderInfo[] = [];

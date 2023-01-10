@@ -42,16 +42,31 @@ export const getTokensV5Options: RouteOptions = {
         ),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description("Filter to a particular collection set.")
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
       community: Joi.string()
         .lowercase()
-        .description("Filter to a particular community. Example: `artblocks`"),
+        .description("Filter to a particular community. Example: `artblocks`")
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
       contract: Joi.string()
         .lowercase()
         .pattern(regex.address)
         .description(
           "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        ),
+        )
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
       tokens: Joi.alternatives().try(
         Joi.array()
           .max(50)
@@ -70,7 +85,12 @@ export const getTokensV5Options: RouteOptions = {
         .lowercase()
         .description(
           "Filter to a particular token set. `Example: token:0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270:129000685`"
-        ),
+        )
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
       attributes: Joi.object()
         .unknown()
         .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
@@ -85,9 +105,17 @@ export const getTokensV5Options: RouteOptions = {
         .integer()
         .min(1)
         .description("Get tokens with a max rarity rank (inclusive)"),
+      minFloorAskPrice: Joi.number().description(
+        "Get tokens with a min floor ask price (inclusive)"
+      ),
+      maxFloorAskPrice: Joi.number().description(
+        "Get tokens with a max floor ask price (inclusive)"
+      ),
       flagStatus: Joi.number()
         .allow(-1, 0, 1)
-        .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),
+        .description(
+          "Allowed only with collection and tokens filtering!\n-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"
+        ),
       sortBy: Joi.string()
         .valid("floorAskPrice", "tokenId", "rarity")
         .description("Order the items are returned in the response."),
@@ -118,8 +146,7 @@ export const getTokensV5Options: RouteOptions = {
     })
       .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
-      .with("attributes", "collection")
-      .with("flagStatus", "collection"),
+      .with("attributes", "collection"),
   },
   response: {
     schema: Joi.object({
@@ -157,11 +184,13 @@ export const getTokensV5Options: RouteOptions = {
               .items(
                 Joi.object({
                   key: Joi.string(),
+                  kind: Joi.string(),
                   value: Joi.string(),
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
                   floorAskPrice: Joi.number().unsafe().allow(null),
                   topBidValue: Joi.number().unsafe().allow(null),
+                  createdAt: Joi.string(),
                 })
               )
               .optional(),
@@ -274,7 +303,9 @@ export const getTokensV5Options: RouteOptions = {
             array_agg(
               json_build_object(
                 'key', ta.key,
+                'kind', attributes.kind,
                 'value', ta.value,
+                'createdAt', ta.created_at,
                 'tokenCount', attributes.token_count,
                 'onSaleCount', attributes.on_sale_count,
                 'floorAskPrice', attributes.floor_sell_value::TEXT,
@@ -409,7 +440,9 @@ export const getTokensV5Options: RouteOptions = {
                     query.normalizeRoyalties ? "o.normalized_value" : "o.value"
                   } AS floor_sell_value,
                   o.currency AS floor_sell_currency,
-                  o.currency_normalized_value AS floor_sell_currency_value
+                  ${
+                    query.normalizeRoyalties ? "o.currency_normalized_value" : "o.currency_value"
+                  } AS floor_sell_currency_value
           FROM orders o
           JOIN token_sets_tokens tst ON o.token_set_id = tst.token_set_id
           ${
@@ -531,6 +564,24 @@ export const getTokensV5Options: RouteOptions = {
 
       if (query.maxRarityRank) {
         conditions.push(`t.rarity_rank <= $/maxRarityRank/`);
+      }
+
+      if (query.minFloorAskPrice !== undefined) {
+        (query as any).minFloorSellValue = query.minFloorAskPrice * 10 ** 18;
+        conditions.push(
+          `${query.source ? "s." : "t."}${
+            query.normalizeRoyalties ? "normalized_" : ""
+          }floor_sell_value >= $/minFloorSellValue/`
+        );
+      }
+
+      if (query.maxFloorAskPrice !== undefined) {
+        (query as any).maxFloorSellValue = query.maxFloorAskPrice * 10 ** 18;
+        conditions.push(
+          `${query.source ? "s." : "t."}${
+            query.normalizeRoyalties ? "normalized_" : ""
+          }floor_sell_value <= $/maxFloorSellValue/`
+        );
       }
 
       if (query.tokens) {
@@ -661,7 +712,7 @@ export const getTokensV5Options: RouteOptions = {
             break;
           }
         }
-      } else if (query.contract) {
+      } else if (query.contract || query.tokens) {
         baseQuery += ` ORDER BY t.token_id ${query.sortDirection || "ASC"}`;
       }
 
@@ -855,6 +906,7 @@ export const getTokensV5Options: RouteOptions = {
               ? r.attributes
                 ? _.map(r.attributes, (attribute) => ({
                     key: attribute.key,
+                    kind: attribute.kind,
                     value: attribute.value,
                     tokenCount: attribute.tokenCount,
                     onSaleCount: attribute.onSaleCount,
@@ -864,6 +916,7 @@ export const getTokensV5Options: RouteOptions = {
                     topBidValue: attribute.topBidValue
                       ? formatEth(attribute.topBidValue)
                       : attribute.topBidValue,
+                    createdAt: new Date(attribute.createdAt).toISOString(),
                   }))
                 : []
               : undefined,

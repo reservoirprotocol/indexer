@@ -18,7 +18,7 @@ export const queue = new Queue(QUEUE_NAME, {
       delay: 10000,
     },
     removeOnComplete: true,
-    removeOnFail: 10000,
+    removeOnFail: 20000,
     timeout: 60000,
   },
 });
@@ -78,7 +78,7 @@ if (config.doBackgroundWork) {
 }
 
 export const getLockName = () => {
-  return `${QUEUE_NAME}-lock-${_.random(1, 10)}`;
+  return `${QUEUE_NAME}-lock-${_.random(1, 100)}`;
 };
 
 export const addToQueue = async (query: string) => {

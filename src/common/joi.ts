@@ -37,6 +37,7 @@ export const getJoiAmountObject = async (
     usdPrice = (
       await getUSDAndNativePrices(currency.contract, amount, now(), {
         onlyUSD: true,
+        acceptStalePrice: true,
       })
     ).usdPrice;
   }

@@ -55,10 +55,15 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const askCurrency = ask["askCurrency"].toLowerCase();
         const askPrice = ask["askPrice"].toString();
 
+        const orderParams = getOrderParams(args);
+        const orderId = getOrderId(orderParams);
+
         // Handle: attribution
 
         const orderKind = "zora-v3";
-        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind);
+        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind, {
+          orderId,
+        });
         if (data.taker) {
           taker = data.taker;
         }
@@ -74,9 +79,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           // We must always have the native price
           break;
         }
-
-        const orderParams = getOrderParams(args);
-        const orderId = getOrderId(orderParams);
 
         fillEventsOnChain.push({
           orderKind,
@@ -105,6 +107,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: "1",
           price: prices.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker: seller,
+          taker,
         });
 
         break;
@@ -236,6 +240,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: "1",
           price: prices.nativePrice,
           timestamp: baseEventParams.timestamp,
+          taker,
+          maker: tokenOwner,
         });
 
         break;

@@ -352,9 +352,11 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Handle: attribution
         const orderKind = "blur";
+        const orderId = orderSide === "sell" ? sellHash : buyHash;
         const attributionData = await utils.extractAttributionData(
           baseEventParams.txHash,
-          orderKind
+          orderKind,
+          { orderId }
         );
 
         if (attributionData.taker) {
@@ -378,8 +380,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           // We must always have the native price
           break;
         }
-
-        const orderId = orderSide === "sell" ? sellHash : buyHash;
 
         orderInfos.push({
           context: `filled-${orderId}`,
@@ -419,6 +419,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: sell.amount.toString(),
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         trades.order.set(`${txHash}-${exchangeAddress}`, tradeRank + 1);

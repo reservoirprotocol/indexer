@@ -58,7 +58,8 @@ export const offChainCheck = async (
             .fetchAndUpdateFtApproval(
               order.params.currency,
               order.params.maker,
-              Sdk.X2Y2.Addresses.Exchange[config.chainId]
+              Sdk.X2Y2.Addresses.Exchange[config.chainId],
+              true
             )
             .then((a) => a.value)
         ).lt(order.params.price)

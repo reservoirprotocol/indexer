@@ -98,11 +98,9 @@ if (config.doBackgroundWork) {
           }) =>
             plimit(async () => {
               if (order_source_id_int && (!fill_source_id || !aggregator_source_id)) {
-                const data = await extractAttributionData(
-                  fromBuffer(tx_hash),
-                  order_kind,
-                  fromBuffer(address)
-                );
+                const data = await extractAttributionData(fromBuffer(tx_hash), order_kind, {
+                  address: fromBuffer(address),
+                });
                 if (data.fillSource || data.aggregatorSource || data.taker) {
                   values.push({
                     tx_hash,

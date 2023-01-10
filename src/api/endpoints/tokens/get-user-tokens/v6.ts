@@ -40,7 +40,7 @@ export const getUserTokensV6Options: RouteOptions = {
     params: Joi.object({
       user: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .pattern(regex.address)
         .required()
         .description(
           "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
@@ -60,7 +60,7 @@ export const getUserTokensV6Options: RouteOptions = {
         ),
       contract: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .pattern(regex.address)
         .description(
           "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
@@ -91,7 +91,7 @@ export const getUserTokensV6Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(100)
+        .max(200)
         .description("Amount of items returned in response."),
       includeTopBid: Joi.boolean().description(
         "If true, top bid will be returned in the response."
@@ -108,6 +108,7 @@ export const getUserTokensV6Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
+            kind: Joi.string(),
             name: Joi.string().allow(null, ""),
             image: Joi.string().allow(null, ""),
             collection: Joi.object({
@@ -222,6 +223,11 @@ export const getUserTokensV6Options: RouteOptions = {
 
     if (query.collection) {
       addCollectionToFilter(query.collection);
+    }
+
+    if (query.contract) {
+      (query as any)[`contract`] = toBuffer(query.contract);
+      nftBalanceCollectionFilters.push(`(nft_balances.contract = $/contract/)`);
     }
 
     const tokensFilter: string[] = [];
@@ -342,7 +348,7 @@ export const getUserTokensV6Options: RouteOptions = {
                t.name, t.image, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
-               c.name as collection_name, c.metadata, ${
+               c.name as collection_name, con.kind, c.metadata, ${
                  query.useNonFlaggedFloorAsk
                    ? "c.floor_sell_value"
                    : "c.non_flagged_floor_sell_value"
@@ -371,6 +377,7 @@ export const getUserTokensV6Options: RouteOptions = {
           ) AS b
           ${tokensJoin}
           JOIN collections c ON c.id = t.collection_id
+          JOIN contracts con ON b.contract = con.address
       `;
 
       const conditions: string[] = [];
@@ -435,6 +442,7 @@ export const getUserTokensV6Options: RouteOptions = {
           token: {
             contract: contract,
             tokenId: tokenId,
+            kind: r.kind,
             name: r.name,
             image: r.image,
             collection: {

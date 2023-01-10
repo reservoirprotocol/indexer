@@ -93,7 +93,11 @@ export const build = async (options: BuildOrderOptions) => {
             tokens.token_id
           FROM tokens
           WHERE tokens.collection_id = $/collection/
-          ${options.excludeFlaggedTokens ? "AND tokens.is_flagged = 0" : ""}
+          ${
+            options.excludeFlaggedTokens
+              ? "AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
+              : ""
+          }
         `,
         { collection: options.collection }
       );
