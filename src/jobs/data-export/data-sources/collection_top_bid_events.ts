@@ -3,7 +3,7 @@ import { Sources } from "@/models/sources";
 import { fromBuffer } from "@/common/utils";
 import { BaseDataSource } from "@/jobs/data-export/data-sources/index";
 
-export class CollectionTopBidEventsDataSourceV2 extends BaseDataSource {
+export class CollectionTopBidEventsDataSource extends BaseDataSource {
   public async getSequenceData(cursor: CursorInfo | null, limit: number) {
     let continuationFilter = "";
 
