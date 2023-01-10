@@ -12,9 +12,9 @@ import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } fro
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
 
-const version = "v4";
+const version = "v5";
 
-export const getSalesV4Options: RouteOptions = {
+export const getSalesV5Options: RouteOptions = {
   description: "Sales",
   notes: "Get recent sales for a contract or token.",
   tags: ["api", "Sales"],
@@ -88,14 +88,14 @@ export const getSalesV4Options: RouteOptions = {
               name: Joi.string().allow(null, ""),
             }),
           }),
-          orderSource: Joi.string().allow(null, ""),
+          orderSource: Joi.object().allow(null),
           orderSide: Joi.string().valid("ask", "bid"),
           orderKind: Joi.string(),
           orderId: Joi.string().allow(null),
           from: Joi.string().lowercase().pattern(regex.address),
           to: Joi.string().lowercase().pattern(regex.address),
           amount: Joi.string(),
-          fillSource: Joi.string().allow(null),
+          fillSource: Joi.object().allow(null),
           block: Joi.number(),
           txHash: Joi.string().lowercase().pattern(regex.bytes32),
           logIndex: Joi.number(),
@@ -276,7 +276,7 @@ export const getSalesV4Options: RouteOptions = {
         ${
           query.includeTokenMetadata
             ? `
-                LEFT JOIN LATERAL (
+                JOIN LATERAL (
                   SELECT
                     tokens.name,
                     tokens.image,
@@ -309,9 +309,13 @@ export const getSalesV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
         const orderSource =
-          r.order_source_id_int !== null ? sources.get(Number(r.order_source_id_int)) : undefined;
+          r.order_source_id_int !== null
+            ? sources.get(Number(r.order_source_id_int), fromBuffer(r.contract), r.token_id)
+            : undefined;
         const fillSource =
-          r.fill_source_id !== null ? sources.get(Number(r.fill_source_id)) : undefined;
+          r.fill_source_id !== null
+            ? sources.get(Number(r.fill_source_id), fromBuffer(r.contract), r.token_id)
+            : undefined;
 
         return {
           id: crypto
@@ -335,13 +339,29 @@ export const getSalesV4Options: RouteOptions = {
             },
           },
           orderId: r.order_id,
-          orderSource: orderSource?.domain ?? null,
+          orderSource: orderSource
+            ? {
+                id: orderSource?.address,
+                domain: orderSource?.domain,
+                name: orderSource?.metadata.title || orderSource?.name,
+                icon: orderSource?.getIcon(),
+                url: orderSource?.metadata.url,
+              }
+            : undefined,
           orderSide: r.order_side === "sell" ? "ask" : "bid",
           orderKind: r.order_kind,
           from: r.order_side === "sell" ? fromBuffer(r.maker) : fromBuffer(r.taker),
           to: r.order_side === "sell" ? fromBuffer(r.taker) : fromBuffer(r.maker),
           amount: String(r.amount),
-          fillSource: fillSource?.domain ?? orderSource?.domain ?? null,
+          fillSource: fillSource
+            ? {
+                id: fillSource?.address,
+                domain: fillSource?.domain,
+                name: fillSource?.metadata.title || fillSource?.name,
+                icon: fillSource?.getIcon(),
+                url: fillSource?.metadata.url,
+              }
+            : undefined,
           block: r.block,
           txHash: fromBuffer(r.tx_hash),
           logIndex: r.log_index,

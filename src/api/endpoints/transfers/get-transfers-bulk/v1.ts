@@ -48,7 +48,6 @@ export const getTransfersBulkV1Options: RouteOptions = {
         .integer()
         .min(1)
         .max(1000)
-        .default(100)
         .description("Amount of items returned in response."),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -83,6 +82,10 @@ export const getTransfersBulkV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 100;
+    }
 
     try {
       let baseQuery = `

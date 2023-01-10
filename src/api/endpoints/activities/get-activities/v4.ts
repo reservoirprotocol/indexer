@@ -23,15 +23,12 @@ export const getActivityV4Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      includeMetadata: Joi.boolean()
-        .default(false)
-        .description("If true, metadata is included in the response."),
-      limit: Joi.number().integer().min(1).max(1000).default(20),
+      includeMetadata: Joi.boolean().description("If true, metadata is included in the response."),
+      limit: Joi.number().integer().min(1).max(1000),
       continuation: Joi.string().pattern(regex.base64),
       sortDirection: Joi.string()
         .lowercase()
-        .valid("asc", "desc")
-        .default("desc")
+        .valid("desc", "asc")
         .description("Order the items are returned in the response."),
     }),
   },
@@ -80,6 +77,10 @@ export const getActivityV4Options: RouteOptions = {
         true
       );
 
+      if (!query.limit) {
+        query.limit = 20;
+      }
+
       // If no activities found
       if (!activities.length) {
         return { activities: [] };
@@ -88,9 +89,8 @@ export const getActivityV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = _.map(activities, (activity) => {
-        const orderSource = activity.order?.sourceIdInt
-          ? sources.get(activity.order.sourceIdInt)
-          : undefined;
+        const orderSourceId = activity.order?.sourceIdInt || activity.metadata.orderSourceIdInt;
+        const orderSource = orderSourceId ? sources.get(orderSourceId) : undefined;
 
         return {
           id: Number(activity.id),

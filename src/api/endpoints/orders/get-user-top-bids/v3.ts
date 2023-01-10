@@ -56,34 +56,36 @@ export const getUserTopBidsV3Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set."),
-      optimizeCheckoutURL: Joi.boolean()
-        .default(false)
-        .description(
-          "If true, urls will only be returned for optimized sources that support royalties."
-        ),
-      includeCriteriaMetadata: Joi.boolean()
-        .default(true)
-        .description("If true, criteria metadata is included in the response."),
-      normalizeRoyalties: Joi.boolean()
-        .default(false)
-        .description("If true, prices will include missing royalties to be added on-top."),
-      useNonFlaggedFloorAsk: Joi.boolean()
-        .default(false)
-        .description("If true, will return the collection non flagged floor ask events."),
+      optimizeCheckoutURL: Joi.boolean().description(
+        "If true, urls will only be returned for optimized sources that support royalties."
+      ),
+      includeCriteriaMetadata: Joi.boolean().description(
+        "If true, criteria metadata is included in the response."
+      ),
+      normalizeRoyalties: Joi.boolean().description(
+        "If true, prices will include missing royalties to be added on-top."
+      ),
+      useNonFlaggedFloorAsk: Joi.boolean().description(
+        "If true, will return the collection non flagged floor ask events."
+      ),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
       sortBy: Joi.string()
         .valid("topBidValue", "dateCreated", "orderExpiry", "floorDifferencePercentage")
-        .default("topBidValue")
         .description("Order of the items are returned in the response."),
-      sortDirection: Joi.string().lowercase().valid("asc", "desc").default("desc"),
+      sortDirection: Joi.string().lowercase().valid("asc", "desc"),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(100)
-        .default(20)
         .description("Amount of items returned in response."),
+      sampleSize: Joi.number()
+        .integer()
+        .min(1000)
+        .max(100000)
+        .default(10000)
+        .description("Amount of tokens considered."),
     }).oxor("collection", "collectionsSetId"),
   },
   response: {
@@ -143,6 +145,18 @@ export const getUserTopBidsV3Options: RouteOptions = {
     let communityFilter = "";
     let sortField = "top_bid_value";
     let offset = 0;
+
+    if (!query.limit) {
+      query.limit = 20;
+    }
+
+    if (!query.sortBy) {
+      query.sortBy = "topBidValue";
+    }
+
+    if (!query.sortDirection) {
+      query.sortDirection = "desc";
+    }
 
     // Set the user value for the query
     (query as any).user = toBuffer(params.user);
@@ -210,10 +224,22 @@ export const getUserTopBidsV3Options: RouteOptions = {
         : "floor_sell_value";
 
       const baseQuery = `
+        WITH nb AS (
+         SELECT contract, token_id, "owner", amount
+         FROM nft_balances
+         WHERE "owner" = $/user/
+         AND amount > 0
+         ${contractFilter}
+         ORDER BY last_token_appraisal_value DESC NULLS LAST
+         LIMIT ${query.sampleSize}
+        )
         SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids", SUM(y.top_bid_price) OVER() as total_amount,
                (${criteriaBuildQuery}) AS bid_criteria,
-              COALESCE(((top_bid_value / net_listing) - 1) * 100, 0) AS floor_difference_percentage
-        FROM nft_balances nb
+               (CASE net_listing
+                 WHEN 0 THEN NULL
+                 ELSE COALESCE(((top_bid_value / net_listing) - 1) * 100, 0)
+               END) AS floor_difference_percentage
+        FROM nb
         JOIN LATERAL (
             SELECT o.token_set_id, o.id AS "top_bid_id", o.price AS "top_bid_price", o.value AS "top_bid_value",
                    o.currency AS "top_bid_currency", o.currency_value AS "top_bid_currency_value", o.missing_royalties,
@@ -256,9 +282,6 @@ export const getUserTopBidsV3Options: RouteOptions = {
             ${communityFilter}
             ${collectionFilter}
         ) c ON TRUE
-        WHERE owner = $/user/
-        AND amount > 0
-        ${contractFilter}
         ORDER BY ${sortField} ${query.sortDirection}, token_id ${query.sortDirection}
         OFFSET ${offset} LIMIT $/limit/
       `;

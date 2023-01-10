@@ -53,13 +53,11 @@ export const getOwnersV1Options: RouteOptions = {
       offset: Joi.number()
         .integer()
         .min(0)
-        .default(0)
         .description("Use offset to request the next batch of items."),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(500)
-        .default(20)
         .description("Amount of items returned in response."),
     })
       .oxor("collectionsSetId", "collection", "contract", "token")
@@ -88,6 +86,14 @@ export const getOwnersV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 20;
+    }
+
+    if (!query.offset) {
+      query.offset = 0;
+    }
 
     let nftBalancesFilter = "";
     let tokensFilter = "";
