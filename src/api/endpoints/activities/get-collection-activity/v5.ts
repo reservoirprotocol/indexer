@@ -148,8 +148,8 @@ export const getCollectionActivityV5Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = _.map(activities, (activity) => {
-        const orderSourceId = activity.order?.sourceIdInt || activity.metadata.orderSourceIdInt;
-        const orderSource = orderSourceId ? sources.get(orderSourceId) : undefined;
+          const orderSourceId = activity.order?.sourceIdInt || activity.metadata.orderSourceIdInt;
+          const orderSource = orderSourceId ? sources.get(orderSourceId) : undefined;
 
         return {
           type: activity.type,
