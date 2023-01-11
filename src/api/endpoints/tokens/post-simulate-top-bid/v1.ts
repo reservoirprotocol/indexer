@@ -16,10 +16,10 @@ const version = "v1";
 
 export const postSimulateTopBidV1Options: RouteOptions = {
   description: "Simulate the top bid of any token",
-  tags: ["api", "Management"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 13,
+      deprecated: true,
     },
   },
   timeout: {
@@ -55,13 +55,14 @@ export const postSimulateTopBidV1Options: RouteOptions = {
       // Invalidate the order if the simulation failed
       await inject({
         method: "POST",
-        url: `/admin/invalidate-order`,
+        url: `/admin/revalidate-order`,
         headers: {
           "Content-Type": "application/json",
           "X-Admin-Api-Key": config.adminApiKey,
         },
         payload: {
           id: orderId,
+          status: "inactive",
         },
       });
     };

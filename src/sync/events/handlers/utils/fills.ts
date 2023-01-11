@@ -58,11 +58,6 @@ export const assignSourceToFillEvents = async (fillEvents: es.fills.Event[]) => 
             if (!event.aggregatorSourceId && !event.fillSourceId) {
               event.fillSourceId = orderSourceId;
             }
-
-            logger.info(
-              "assign-source-to-fill-events",
-              `Source id ${orderSourceId} assigned to fill event: ${JSON.stringify(event)}`
-            );
           }
         });
       }

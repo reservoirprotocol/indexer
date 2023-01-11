@@ -2,7 +2,7 @@ export * from "@/api/endpoints/admin/post-fix-blocks";
 export * from "@/api/endpoints/admin/post-fix-cache";
 export * from "@/api/endpoints/admin/post-fix-orders";
 export * from "@/api/endpoints/admin/post-fix-token-cache";
-export * from "@/api/endpoints/admin/post-invalidate-order";
+export * from "@/api/endpoints/admin/post-revalidate-order";
 export * from "@/api/endpoints/admin/post-metadata-index";
 export * from "@/api/endpoints/admin/post-resync-floor-events";
 export * from "@/api/endpoints/admin/post-set-community";

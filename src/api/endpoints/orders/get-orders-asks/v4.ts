@@ -383,9 +383,8 @@ export const getOrdersAsksV4Options: RouteOptions = {
         if (query.sortBy === "price") {
           if (query.normalizeRoyalties) {
             continuation = buildContinuation(
-              rawResult[rawResult.length - 1].normalized_value +
-                "_" +
-                rawResult[rawResult.length - 1].id
+              rawResult[rawResult.length - 1].normalized_value ??
+                rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
             );
           } else {
             continuation = buildContinuation(
