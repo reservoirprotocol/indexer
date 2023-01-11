@@ -372,11 +372,6 @@ export const getSalesV4Options: RouteOptions = {
                 nativeAmount: r.price,
                 usdAmount: r.usd_price,
               },
-              net: {
-                amount: r.currency_price ?? r.price,
-                nativeAmount: r.price,
-                usdAmount: r.usd_price,
-              },
             },
             fromBuffer(r.currency),
             royaltyFeeBps + marketplaceFeeBps
