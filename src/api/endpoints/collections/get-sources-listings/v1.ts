@@ -17,7 +17,7 @@ export const getSourcesListingsV1Options: RouteOptions = {
   },
   description: "Collection Source Stats",
   notes: "This API returns aggregated listings info for the given collection per source",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 9,
