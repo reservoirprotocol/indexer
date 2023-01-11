@@ -213,7 +213,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             nftx.getOrderId(baseEventParams.address, "sell", tokenId)
           );
           const dbOrders = await idb.manyOrNone(
-            `SELECT id, currency, price FROM orders where id IN ($/orderIds:list/)`,
+            `SELECT id, currency, price, updated_at FROM orders where id IN ($/orderIds:list/)`,
             {
               orderIds,
             }
@@ -225,6 +225,11 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             const orderInfo = dbOrders.find((c) => c.id === orderId);
             if (!orderInfo) {
               // Not found order info in database
+              continue;
+            }
+
+            if (baseEventParams.timestamp * 1000 < new Date(orderInfo.updated_at).getTime()) {
+              // Skip
               continue;
             }
 
@@ -429,6 +434,11 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           const orderInfo = dbOrders.find((c) => c.id === orderId);
           if (!orderInfo) {
             // Not found order info in database
+            continue;
+          }
+
+          if (baseEventParams.timestamp * 1000 < new Date(orderInfo.updated_at).getTime()) {
+            // Skip
             continue;
           }
 

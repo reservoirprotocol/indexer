@@ -26,6 +26,7 @@ export type Event = {
   isPrimary?: boolean;
   baseEventParams: BaseEventParams;
 
+  updateOrderOnly?: boolean;
   royaltyFeeBps?: number;
   marketplaceFeeBps?: number;
   royaltyFeeBreakdown?: Royalty[];
