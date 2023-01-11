@@ -114,6 +114,11 @@ export const getExecuteBuyV6Options: RouteOptions = {
       skipBalanceCheck: Joi.boolean()
         .default(false)
         .description("If true, balance check will be skipped."),
+      allowInactiveOrderIds: Joi.boolean()
+        .default(false)
+        .description(
+          "If true, do not filter out inactive orders (only relevant for order id filtering)."
+        ),
       x2y2ApiKey: Joi.string().description("Override the X2Y2 API key used for filling."),
     }),
   },
@@ -313,10 +318,13 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 ON orders.token_set_id = token_sets_tokens.token_set_id
               WHERE orders.id = $/id/
                 AND orders.side = 'sell'
-                AND orders.fillability_status = 'fillable'
-                AND orders.approval_status = 'approved'
-                AND orders.quantity_remaining >= $/quantity/
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                AND orders.quantity_remaining >= $/quantity/
+                ${
+                  payload.allowInactiveOrderIds
+                    ? ""
+                    : " AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'"
+                }
                 ${
                   // TODO: Add support for buying in ERC20 tokens
                   payload.currency && payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]

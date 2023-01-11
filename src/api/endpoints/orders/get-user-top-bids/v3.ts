@@ -219,7 +219,9 @@ export const getUserTopBidsV3Options: RouteOptions = {
         WITH nb AS (
          SELECT contract, token_id, "owner", amount
          FROM nft_balances
-         WHERE "owner" = $/user/ AND amount > 0
+         WHERE "owner" = $/user/
+         AND amount > 0
+         ${contractFilter}
          ORDER BY last_token_appraisal_value DESC NULLS LAST
          LIMIT ${query.sampleSize}
         )
@@ -272,7 +274,6 @@ export const getUserTopBidsV3Options: RouteOptions = {
             ${communityFilter}
             ${collectionFilter}
         ) c ON TRUE
-        ${contractFilter}
         ORDER BY ${sortField} ${query.sortDirection}, token_id ${query.sortDirection}
         OFFSET ${offset} LIMIT $/limit/
       `;

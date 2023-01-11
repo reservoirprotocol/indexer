@@ -18,7 +18,7 @@ export const queue = new Queue(QUEUE_NAME, {
       delay: 10000,
     },
     removeOnComplete: true,
-    removeOnFail: 10000,
+    removeOnFail: 20000,
     timeout: 60000,
   },
 });
