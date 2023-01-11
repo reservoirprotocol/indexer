@@ -1,4 +1,4 @@
-import { formatEth, fromBuffer } from "@/common/utils";
+import { fromBuffer } from "@/common/utils";
 import { CollectionsMetadata } from "@/models/collections/collections-entity";
 
 export enum ActivityType {
@@ -47,13 +47,6 @@ export type ActivitiesEntityParams = {
   metadata: ActivityMetadata;
   token_name: string;
   token_image: string;
-  token_last_buy_value: number;
-  token_last_sell_value: number;
-  token_last_buy_timestamp: number;
-  token_last_sell_timestamp: number;
-  token_rarity_score: number;
-  token_rarity_rank: number;
-  token_media: string;
   collection_name: string;
   collection_metadata: CollectionsMetadata;
   order_side: string;
@@ -80,11 +73,6 @@ export type ActivityToken = {
   tokenId: string | null;
   tokenName?: string;
   tokenImage?: string;
-  lastBuy?: { value?: number; timestamp?: number };
-  lastSell?: { value?: number; timestamp?: number };
-  tokenRarityScore?: number;
-  tokenRarityRank?: number;
-  tokenMedia?: string;
 };
 
 export type ActivityCollection = {
@@ -142,23 +130,6 @@ export class ActivitiesEntity {
       tokenId: params.token_id,
       tokenImage: params.token_image,
       tokenName: params.token_name,
-      lastBuy: params.token_last_buy_value
-        ? {
-            value: params.token_last_buy_value ? formatEth(params.token_last_buy_value) : undefined,
-            timestamp: params.token_last_buy_timestamp,
-          }
-        : undefined,
-      lastSell: params.token_last_sell_value
-        ? {
-            value: params.token_last_sell_value
-              ? formatEth(params.token_last_sell_value)
-              : undefined,
-            timestamp: params.token_last_sell_timestamp,
-          }
-        : undefined,
-      tokenRarityRank: params.token_rarity_rank,
-      tokenRarityScore: params.token_rarity_score,
-      tokenMedia: params.token_media,
     };
     this.collection = {
       collectionId: params.collection_id,

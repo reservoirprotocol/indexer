@@ -107,12 +107,12 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
       } else {
         const isLargeCollection = collection.tokenCount > 30000;
 
-        if (!overrideCoolDown) {
-          // Disable large collections refresh
-          if (isLargeCollection) {
-            throw Boom.badRequest("Refreshing large collections is currently disabled");
-          }
+        // Disable large collections refresh
+        if (isLargeCollection) {
+          throw Boom.badRequest("Refreshing large collections is currently disabled");
+        }
 
+        if (!overrideCoolDown) {
           // Check when the last sync was performed
           const nextAvailableSync = add(new Date(collection.lastMetadataSync), {
             minutes: refreshCoolDownMin,

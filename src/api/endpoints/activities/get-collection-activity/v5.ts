@@ -165,11 +165,7 @@ export const getCollectionActivityV5Options: RouteOptions = {
           timestamp: activity.eventTimestamp,
           createdAt: activity.createdAt.toISOString(),
           contract: activity.contract,
-          token: {
-            tokenId: activity.token?.tokenId,
-            tokenName: activity.token?.tokenName,
-            tokenImage: activity.token?.tokenImage,
-          },
+          token: activity.token,
           collection: activity.collection,
           txHash: activity.metadata.transactionHash,
           logIndex: activity.metadata.logIndex,
