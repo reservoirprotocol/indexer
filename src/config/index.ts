@@ -89,4 +89,6 @@ export const config = {
   websocketServerAppId: String(process.env.WEBSOCKET_SERVER_APP_ID),
   websocketServerAppKey: String(process.env.WEBSOCKET_SERVER_APP_KEY),
   websocketServerAppSecret: String(process.env.WEBSOCKET_SERVER_APP_SECRET),
+  websocketServerEventMaxSizeInKb: String(process.env.WEBSOCKET_SERVER_EVENT_MAX_SIZE_IN_KB || 100),
+  websocketServerEventMaxBatchSize: String(process.env.WEBSOCKET_SERVER_EVENT_MAX_BATCH_SIZE || 10),
 };
