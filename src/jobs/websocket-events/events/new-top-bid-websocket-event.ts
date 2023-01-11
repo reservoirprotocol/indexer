@@ -1,11 +1,13 @@
 import { idb } from "@/common/db";
 import * as Pusher from "pusher";
-import { fromBuffer } from "@/common/utils";
+import { formatEth, fromBuffer } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import _ from "lodash";
 import { BatchEvent } from "pusher";
 import { config } from "@/config/index";
 import { redis } from "@/common/redis";
+import { logger } from "@/common/logger";
+import { Sources } from "@/models/sources";
 
 export class NewTopBidWebsocketEvent {
   public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
@@ -15,13 +17,13 @@ export class NewTopBidWebsocketEvent {
       `
               SELECT
                 orders.id,
-                orders.side,
                 orders.token_set_id,
                 orders.source_id_int,
                 orders.nonce,
                 orders.maker,
                 orders.price,
                 orders.value,
+                orders.created_at,
                 (${criteriaBuildQuery}) AS criteria
               FROM orders
               WHERE orders.id = $/orderId/
@@ -30,16 +32,35 @@ export class NewTopBidWebsocketEvent {
       { orderId: data.orderId }
     );
 
+    logger.info(
+      "new-top-bid-websocket-event",
+      `Start. orderId=${data.orderId}, tokenSetId=${order.token_set_id}`
+    );
+
     const payloads = [];
 
     const owners = await NewTopBidWebsocketEvent.getOwners(order.token_set_id);
     const ownersChunks = _.chunk(owners, Number(config.websocketServerEventMaxSizeInKb) * 20);
 
+    const source = (await Sources.getInstance()).get(Number(order.source_id_int));
+
     for (const ownersChunk of ownersChunks) {
       payloads.push({
-        id: order.id,
-        maker: fromBuffer(order.maker),
-        criteria: order.criteria,
+        order: {
+          id: order.id,
+          maker: fromBuffer(order.maker),
+          createdAt: new Date(order.created_at).toISOString(),
+          source: {
+            id: source?.address,
+            domain: source?.domain,
+            name: source?.getTitle(),
+            icon: source?.getIcon(),
+            url: source?.metadata.url,
+          },
+          price: formatEth(order.price),
+          value: formatEth(order.value),
+          criteria: order.criteria,
+        },
         owners: ownersChunk,
       });
     }
@@ -72,6 +93,8 @@ export class NewTopBidWebsocketEvent {
     const ownersString = await redis.get(`token-set-owners:${tokenSetId}`);
 
     if (ownersString) {
+      logger.info("new-top-bid-websocket-event", `Got owners from cache. tokenSetId=${tokenSetId}`);
+
       owners = JSON.parse(ownersString);
     }
 
