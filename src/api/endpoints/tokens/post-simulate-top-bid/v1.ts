@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
@@ -15,10 +16,10 @@ const version = "v1";
 
 export const postSimulateTopBidV1Options: RouteOptions = {
   description: "Simulate the top bid of any token",
-  tags: ["api", "Management"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 13,
+      deprecated: true,
     },
   },
   timeout: {
@@ -45,19 +46,23 @@ export const postSimulateTopBidV1Options: RouteOptions = {
 
     const payload = request.payload as any;
 
-    const invalidateOrder = async (orderId: string) => {
-      logger.error(`post-simulate-top-bid-${version}-handler`, `StaleOrder: ${orderId}`);
+    const invalidateOrder = async (orderId: string, callTrace?: CallTrace, payload?: any) => {
+      logger.error(
+        `post-simulate-top-bid-${version}-handler`,
+        JSON.stringify({ error: "stale-order", callTrace, payload })
+      );
 
       // Invalidate the order if the simulation failed
       await inject({
         method: "POST",
-        url: `/admin/invalidate-order`,
+        url: `/admin/revalidate-order`,
         headers: {
           "Content-Type": "application/json",
           "X-Admin-Api-Key": config.adminApiKey,
         },
         payload: {
           id: orderId,
+          status: "inactive",
         },
       });
     };
@@ -182,7 +187,7 @@ export const postSimulateTopBidV1Options: RouteOptions = {
 
       const pathItem = parsedPayload.path[0];
 
-      const success = await ensureSellTxSucceeds(
+      const { result: success, callTrace } = await ensureSellTxSucceeds(
         owner,
         {
           kind: contractResult.kind as "erc721" | "erc1155",
@@ -196,7 +201,7 @@ export const postSimulateTopBidV1Options: RouteOptions = {
       if (success) {
         return { message: "Top bid order is fillable" };
       } else {
-        await invalidateOrder(pathItem.orderId);
+        await invalidateOrder(pathItem.orderId, callTrace, parsedPayload);
         return { message: "Top bid order is not fillable (got invalidated)" };
       }
     } catch (error) {

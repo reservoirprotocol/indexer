@@ -10,6 +10,7 @@ import { Sources } from "@/models/sources";
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
 const version = "v2";
 
@@ -40,7 +41,6 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
       ),
       sortDirection: Joi.string()
         .valid("asc", "desc")
-        .default("desc")
         .description("Order the items are returned in the response."),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -49,7 +49,6 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
         .integer()
         .min(1)
         .max(1000)
-        .default(50)
         .description("Amount of items returned in response."),
     }).oxor("collection"),
   },
@@ -67,7 +66,7 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             price: JoiPrice.allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.object().allow(null),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),
@@ -98,6 +97,14 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 50;
+    }
+
+    if (!query.sortDirection) {
+      query.sortDirection = "desc";
+    }
 
     try {
       let baseQuery = `
@@ -180,6 +187,8 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = rawResult.map(async (r) => {
+        const source: SourcesEntity | undefined = sources.get(r.order_source_id_int);
+
         return {
           collection: {
             id: r.collection_id,
@@ -205,7 +214,13 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
                 )
               : null,
             validUntil: r.price ? Number(r.valid_until) : null,
-            source: sources.get(r.order_source_id_int)?.name,
+            source: {
+              id: source?.address,
+              domain: source?.domain,
+              name: source?.metadata.title || source?.name,
+              icon: source?.getIcon(),
+              url: source?.metadata.url,
+            },
           },
           event: {
             id: r.id,

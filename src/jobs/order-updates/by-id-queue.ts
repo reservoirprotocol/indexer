@@ -18,6 +18,9 @@ import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queu
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
 
+import * as websocketEventsqueue from "@/jobs/websocket-events/process-queue";
+import { EventKind } from "@/jobs/websocket-events/process-queue";
+
 const QUEUE_NAME = "order-updates-by-id";
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -45,12 +48,12 @@ if (config.doBackgroundWork) {
       const { id, trigger } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
-      if (
-        config.chainId === 1 &&
-        (trigger.kind === "new-order" || trigger.kind === "expiry" || trigger.kind === "reprice")
-      ) {
-        logger.info(QUEUE_NAME, `OrderUpdatesById: ${JSON.stringify(job.data)}`);
-      }
+      // if (
+      //   config.chainId === 1 &&
+      //   (trigger.kind === "new-order" || trigger.kind === "expiry" || trigger.kind === "reprice")
+      // ) {
+      //   logger.info(QUEUE_NAME, `OrderUpdatesById: ${JSON.stringify(job.data)}`);
+      // }
 
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -126,7 +129,8 @@ if (config.doBackgroundWork) {
                 RETURNING
                   collection_id AS "collectionId",
                   attribute_id AS "attributeId",
-                  top_buy_value AS "topBuyValue"
+                  top_buy_value AS "topBuyValue",
+                  top_buy_id AS "topBuyId"
               `,
               { tokenSetId }
             );
@@ -174,6 +178,13 @@ if (config.doBackgroundWork) {
                   } as collectionUpdatesTopBid.TopBidInfo,
                 ]);
               }
+
+              await websocketEventsqueue.addToQueue([
+                {
+                  kind: EventKind.tokenSetTopBidChanged,
+                  data: { tokenSetId, orderId: result.topBuyId },
+                },
+              ]);
             }
           }
 

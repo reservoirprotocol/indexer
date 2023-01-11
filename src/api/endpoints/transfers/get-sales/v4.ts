@@ -64,7 +64,6 @@ export const getSalesV4Options: RouteOptions = {
         .integer()
         .min(1)
         .max(1000)
-        .default(100)
         .description("Amount of items returned in response."),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -104,6 +103,16 @@ export const getSalesV4Options: RouteOptions = {
           timestamp: Joi.number(),
           price: JoiPrice,
           washTradingScore: Joi.number(),
+          royaltyFeeBps: Joi.number(),
+          marketplaceFeeBps: Joi.number(),
+          paidFullRoyalty: Joi.boolean(),
+          feeBreakdown: Joi.array().items(
+            Joi.object({
+              kind: Joi.string(),
+              bps: Joi.number(),
+              recipient: Joi.string(),
+            })
+          ),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
@@ -115,6 +124,10 @@ export const getSalesV4Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 100;
+    }
 
     let paginationFilter = "";
     let tokenFilter = "";
@@ -254,7 +267,12 @@ export const getSalesV4Options: RouteOptions = {
             fill_events_2.block,
             fill_events_2.log_index,
             fill_events_2.batch_index,
-            fill_events_2.wash_trading_score
+            fill_events_2.wash_trading_score,
+            fill_events_2.royalty_fee_bps,
+            fill_events_2.marketplace_fee_bps,
+            fill_events_2.royalty_fee_breakdown,
+            fill_events_2.marketplace_fee_breakdown,
+            fill_events_2.paid_full_royalty
           FROM fill_events_2
           LEFT JOIN currencies
             ON fill_events_2.currency = currencies.contract
@@ -310,6 +328,9 @@ export const getSalesV4Options: RouteOptions = {
         const fillSource =
           r.fill_source_id !== null ? sources.get(Number(r.fill_source_id)) : undefined;
 
+        const royaltyFeeBps = r.royalty_fee_bps ?? 0;
+        const marketplaceFeeBps = r.marketplace_fee_bps ?? 0;
+
         return {
           id: crypto
             .createHash("sha256")
@@ -351,10 +372,33 @@ export const getSalesV4Options: RouteOptions = {
                 nativeAmount: r.price,
                 usdAmount: r.usd_price,
               },
+              net: {
+                amount: r.currency_price ?? r.price,
+                nativeAmount: r.price,
+                usdAmount: r.usd_price,
+              },
             },
-            fromBuffer(r.currency)
+            fromBuffer(r.currency),
+            royaltyFeeBps + marketplaceFeeBps
           ),
           washTradingScore: r.wash_trading_score,
+          royaltyFeeBps,
+          marketplaceFeeBps,
+          paidFullRoyalty: r.paid_full_royalty,
+          feeBreakdown: [].concat(
+            (r.royalty_fee_breakdown ?? []).map((detail: any) => {
+              return {
+                kind: "royalty",
+                ...detail,
+              };
+            }),
+            (r.marketplace_fee_breakdown ?? []).map((detail: any) => {
+              return {
+                type: "marketplace",
+                ...detail,
+              };
+            })
+          ),
         };
       });
 

@@ -23,7 +23,7 @@ export const rateLimitRedis = new Redis(config.rateLimitRedisUrl, {
   maxRetriesPerRequest: 1,
   enableReadyCheck: false,
   enableOfflineQueue: false,
-  commandTimeout: 1000,
+  commandTimeout: 600,
 });
 
 // https://redis.io/topics/distlock

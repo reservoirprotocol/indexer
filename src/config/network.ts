@@ -26,8 +26,7 @@ export const getNetworkName = () => {
 };
 
 export const getServiceName = () => {
-  const isRailway = config.railwayStaticUrl !== "";
-  return `indexer-${isRailway ? "" : "fc-"}${config.version}-${getNetworkName()}`;
+  return `indexer-${config.version}-${getNetworkName()}`;
 };
 
 type NetworkSettings = {

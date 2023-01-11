@@ -16,6 +16,8 @@ export type SourcesMetadata = {
   url?: string;
   tokenUrlMainnet?: string;
   tokenUrlRinkeby?: string;
+  tokenUrlPolygon?: string;
+  tokenUrlGoerli?: string;
 };
 
 export class SourcesEntity {

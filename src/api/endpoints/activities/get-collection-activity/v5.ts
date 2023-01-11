@@ -38,27 +38,24 @@ export const getCollectionActivityV5Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .default(20)
+        .default(50)
         .description(
-          "Amount of items returned in response. If `includeMetadata=true` max limit is 20, otherwise max limit is 1,000."
+          "Amount of items returned in response. If `includeMetadata=true` max limit is 50, otherwise max limit is 1,000."
         )
         .when("includeMetadata", {
           is: true,
-          then: Joi.number().integer().max(20),
+          then: Joi.number().integer().max(50),
           otherwise: Joi.number().integer().max(1000),
         }),
       sortBy: Joi.string()
         .valid("eventTimestamp", "createdAt")
-        .default("eventTimestamp")
         .description(
           "Order the items are returned in the response, eventTimestamp = The blockchain event time, createdAt - The time in which event was recorded"
         ),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
-      includeMetadata: Joi.boolean()
-        .default(true)
-        .description("If true, metadata is included in the response."),
+      includeMetadata: Joi.boolean().description("If true, metadata is included in the response."),
       types: Joi.alternatives()
         .try(
           Joi.array().items(
@@ -140,6 +137,14 @@ export const getCollectionActivityV5Options: RouteOptions = {
         true
       );
 
+      if (!query.limit) {
+        query.limit = 50;
+      }
+
+      if (!query.sortBy) {
+        query.sortBy = "eventTimestamp";
+      }
+
       // If no activities found
       if (!activities.length) {
         return { activities: [] };
@@ -148,9 +153,8 @@ export const getCollectionActivityV5Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = _.map(activities, (activity) => {
-        const orderSource = activity.order?.sourceIdInt
-          ? sources.get(activity.order.sourceIdInt)
-          : undefined;
+        const orderSourceId = activity.order?.sourceIdInt || activity.metadata.orderSourceIdInt;
+        const orderSource = orderSourceId ? sources.get(orderSourceId) : undefined;
 
         return {
           type: activity.type,
@@ -161,7 +165,11 @@ export const getCollectionActivityV5Options: RouteOptions = {
           timestamp: activity.eventTimestamp,
           createdAt: activity.createdAt.toISOString(),
           contract: activity.contract,
-          token: activity.token,
+          token: {
+            tokenId: activity.token?.tokenId,
+            tokenName: activity.token?.tokenName,
+            tokenImage: activity.token?.tokenImage,
+          },
           collection: activity.collection,
           txHash: activity.metadata.transactionHash,
           logIndex: activity.metadata.logIndex,

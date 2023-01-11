@@ -10,6 +10,7 @@ import * as contractsSetsEndpoints from "@/api/endpoints/contracts-sets";
 import * as eventsEndpoints from "@/api/endpoints/events";
 import * as executeEndpoints from "@/api/endpoints/execute";
 import * as healthEndpoints from "@/api/endpoints/health";
+import * as managementEndpoints from "@/api/endpoints/management";
 import * as oracleEndpoints from "@/api/endpoints/oracle";
 import * as ordersEndpoints from "@/api/endpoints/orders";
 import * as ownersEndpoints from "@/api/endpoints/owners";
@@ -232,8 +233,8 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
-    path: "/admin/invalidate-order",
-    options: adminEndpoints.postInvalidateOrderOptions,
+    path: "/admin/revalidate-order",
+    options: adminEndpoints.postRevalidateOrderOptions,
   });
 
   server.route({
@@ -490,6 +491,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/events/collections/floor-ask/v2",
+    options: eventsEndpoints.getCollectionsFloorAskV2Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/events/orders/v1",
     options: eventsEndpoints.getOrderEventsV1Options,
   });
@@ -516,6 +523,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/events/tokens/floor-ask/v3",
     options: eventsEndpoints.getTokensFloorAskV3Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/events/tokens/floor-ask/v4",
+    options: eventsEndpoints.getTokensFloorAskV4Options,
   });
 
   server.route({
@@ -683,6 +696,14 @@ export const setupRoutes = (server: Server) => {
     options: healthEndpoints.getLiveOptions,
   });
 
+  // Management
+
+  server.route({
+    method: "POST",
+    path: "/management/orders/simulate/v1",
+    options: managementEndpoints.postSimulateOrderV1Options,
+  });
+
   // Oracle
 
   server.route({
@@ -707,6 +728,18 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/oracle/collections/floor-ask/v4",
     options: oracleEndpoints.getCollectionFloorAskOracleV4Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/oracle/collections/top-bid/v1",
+    options: oracleEndpoints.getCollectionTopBidOracleV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/oracle/tokens/status/v1",
+    options: oracleEndpoints.getTokenStatusOracleV1Options,
   });
 
   // Orders
@@ -1001,6 +1034,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/tokens/bootstrap/v2",
+    options: tokensEndpoints.getTokensBootstrapV2Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/tokens/details/v2",
     options: tokensEndpoints.getTokensDetailsV2Options,
   });
@@ -1123,6 +1162,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/sales/v4",
     options: transfersEndpoints.getSalesV4Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/sales/v5",
+    options: transfersEndpoints.getSalesV5Options,
   });
 
   server.route({

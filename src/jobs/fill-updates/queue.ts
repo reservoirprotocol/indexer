@@ -28,7 +28,7 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { orderId, orderSide, contract, tokenId, amount, price, timestamp } =
+      const { orderId, orderSide, contract, tokenId, amount, price, timestamp, maker, taker } =
         job.data as FillInfo;
 
       try {
@@ -67,6 +67,27 @@ if (config.doBackgroundWork) {
               );
             }
           }
+        }
+
+        // TODO: Remove condition after deployment.
+        if (maker && taker) {
+          logger.info(QUEUE_NAME, `Updating nft balance last sale. ${JSON.stringify(job.data)}`);
+
+          await idb.none(
+            `
+                UPDATE nft_balances SET
+                  last_token_appraisal_value = $/price/
+                WHERE contract = $/contract/
+                AND token_id = $/tokenId/
+                AND owner = $/owner/
+              `,
+            {
+              contract: toBuffer(contract),
+              tokenId,
+              owner: orderSide === "sell" ? toBuffer(taker) : toBuffer(maker),
+              price: bn(price).div(amount).toString(),
+            }
+          );
         }
 
         await idb.none(
@@ -120,6 +141,8 @@ export type FillInfo = {
   amount: string;
   price: string;
   timestamp: number;
+  maker?: string;
+  taker?: string;
 };
 
 export const addToQueue = async (fillInfos: FillInfo[]) => {

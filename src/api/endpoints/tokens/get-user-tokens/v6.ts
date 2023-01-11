@@ -40,7 +40,7 @@ export const getUserTokensV6Options: RouteOptions = {
     params: Joi.object({
       user: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .pattern(regex.address)
         .required()
         .description(
           "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
@@ -60,7 +60,7 @@ export const getUserTokensV6Options: RouteOptions = {
         ),
       contract: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .pattern(regex.address)
         .description(
           "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
@@ -78,13 +78,12 @@ export const getUserTokensV6Options: RouteOptions = {
             "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           )
       ),
-      normalizeRoyalties: Joi.boolean()
-        .default(false)
-        .description("If true, prices will include missing royalties to be added on-top."),
+      normalizeRoyalties: Joi.boolean().description(
+        "If true, prices will include missing royalties to be added on-top."
+      ),
       sortDirection: Joi.string()
         .lowercase()
         .valid("asc", "desc")
-        .default("desc")
         .description("Order the items are returned in the response."),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -93,14 +92,13 @@ export const getUserTokensV6Options: RouteOptions = {
         .integer()
         .min(1)
         .max(100)
-        .default(20)
         .description("Amount of items returned in response."),
-      includeTopBid: Joi.boolean()
-        .default(false)
-        .description("If true, top bid will be returned in the response."),
-      useNonFlaggedFloorAsk: Joi.boolean()
-        .default(false)
-        .description("If true, will return the collection non flagged floor ask."),
+      includeTopBid: Joi.boolean().description(
+        "If true, top bid will be returned in the response."
+      ),
+      useNonFlaggedFloorAsk: Joi.boolean().description(
+        "If true, will return the collection non flagged floor ask."
+      ),
     }),
   },
   response: {
@@ -113,6 +111,17 @@ export const getUserTokensV6Options: RouteOptions = {
             kind: Joi.string(),
             name: Joi.string().allow(null, ""),
             image: Joi.string().allow(null, ""),
+            lastBuy: {
+              value: Joi.number().unsafe().allow(null),
+              timestamp: Joi.number().unsafe().allow(null),
+            },
+            lastSell: {
+              value: Joi.number().unsafe().allow(null),
+              timestamp: Joi.number().unsafe().allow(null),
+            },
+            rarityScore: Joi.number().allow(null),
+            rarityRank: Joi.number().allow(null),
+            media: Joi.string().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
               name: Joi.string().allow(null, ""),
@@ -149,6 +158,14 @@ export const getUserTokensV6Options: RouteOptions = {
   handler: async (request: Request) => {
     const params = request.params as any;
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 20;
+    }
+
+    if (!query.sortDirection) {
+      query.sortDirection = "desc";
+    }
 
     // Filters
     (params as any).user = toBuffer(params.user);
@@ -274,6 +291,13 @@ export const getUserTokensV6Options: RouteOptions = {
           t.name,
           t.image,
           t.collection_id,
+          t.rarity_score,
+          t.rarity_rank,
+          t.last_buy_value,
+          t.last_buy_timestamp,
+          t.last_sell_value,
+          t.last_sell_timestamp,
+          t.media,
           null AS top_bid_id,
           null AS top_bid_price,
           null AS top_bid_value,
@@ -298,6 +322,13 @@ export const getUserTokensV6Options: RouteOptions = {
             t.name,
             t.image,
             t.collection_id,
+            t.rarity_score,
+            t.rarity_rank,
+            t.last_sell_value,
+            t.last_buy_value,
+            t.last_sell_timestamp,
+            t.last_buy_timestamp,
+            t.media,
             ${selectFloorData}
           FROM tokens t
           WHERE b.token_id = t.token_id
@@ -341,6 +372,7 @@ export const getUserTokensV6Options: RouteOptions = {
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at,
                t.name, t.image, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
+               t.rarity_score, t.rarity_rank, t.last_sell_value, t.last_buy_value, t.last_sell_timestamp, t.last_buy_timestamp, t.media,
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                c.name as collection_name, con.kind, c.metadata, ${
                  query.useNonFlaggedFloorAsk
@@ -428,7 +460,7 @@ export const getUserTokensV6Options: RouteOptions = {
         const topBidCurrency = r.top_bid_currency
           ? fromBuffer(r.top_bid_currency)
           : Sdk.Common.Addresses.Weth[config.chainId];
-        const floorSellSource = r.floor_sell_value
+        const source = r.floor_sell_value
           ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
           : undefined;
         const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
@@ -439,6 +471,17 @@ export const getUserTokensV6Options: RouteOptions = {
             kind: r.kind,
             name: r.name,
             image: r.image,
+            lastBuy: {
+              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
+              timestamp: r.last_buy_timestamp,
+            },
+            lastSell: {
+              value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
+              timestamp: r.last_sell_timestamp,
+            },
+            rarityScore: r.rarity_score,
+            rarityRank: r.rarity_rank,
+            media: r.media,
             collection: {
               id: r.collection_id,
               name: r.collection_name,
@@ -488,11 +531,11 @@ export const getUserTokensV6Options: RouteOptions = {
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
               source: {
-                id: floorSellSource?.address,
-                domain: floorSellSource?.domain,
-                name: floorSellSource?.metadata.title || floorSellSource?.name,
-                icon: floorSellSource?.getIcon(),
-                url: floorSellSource?.metadata.url,
+                id: source?.address,
+                domain: source?.domain,
+                name: source?.metadata.title || source?.name,
+                icon: source?.getIcon(),
+                url: source?.metadata.url,
               },
             },
             acquiredAt: acquiredTime,

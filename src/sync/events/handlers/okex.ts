@@ -92,6 +92,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             amount: saleInfo.amount,
             price: priceData.nativePrice,
             timestamp: baseEventParams.timestamp,
+            maker,
+            taker,
           });
         }
 

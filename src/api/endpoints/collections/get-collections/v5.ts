@@ -63,9 +63,9 @@ export const getCollectionsV5Options: RouteOptions = {
       name: Joi.string()
         .lowercase()
         .description("Search for collections that match a string. Example: `bored`"),
-      includeTopBid: Joi.boolean()
-        .default(false)
-        .description("If true, top bid will be returned in the response."),
+      includeTopBid: Joi.boolean().description(
+        "If true, top bid will be returned in the response."
+      ),
       includeAttributes: Joi.boolean()
         .when("id", {
           is: Joi.exist(),
@@ -105,15 +105,14 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. (supported only when filtering to a particular collection using `id` or `slug`)"
         ),
-      normalizeRoyalties: Joi.boolean()
-        .default(false)
-        .description("If true, prices will include missing royalties to be added on-top."),
+      normalizeRoyalties: Joi.boolean().description(
+        "If true, prices will include missing royalties to be added on-top."
+      ),
       useNonFlaggedFloorAsk: Joi.boolean()
         .when("normalizeRoyalties", {
           is: Joi.boolean().valid(true),
           then: Joi.valid(false),
         })
-        .default(false)
         .description(
           "If true, return the non flagged floor ask. (only supported when `normalizeRoyalties` is false)"
         ),
@@ -126,13 +125,11 @@ export const getCollectionsV5Options: RouteOptions = {
           "createdAt",
           "floorAskPrice"
         )
-        .default("allTimeVolume")
         .description("Order the items are returned in the response."),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(20)
-        .default(20)
         .description("Amount of items returned in response."),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
@@ -253,6 +250,10 @@ export const getCollectionsV5Options: RouteOptions = {
     const query = request.query as any;
 
     try {
+      if (!query.limit) {
+        query.limit = 20;
+      }
+
       // Include top bid
       let topBidSelectQuery = "";
       let topBidJoinQuery = "";
@@ -334,17 +335,17 @@ export const getCollectionsV5Options: RouteOptions = {
         LEFT JOIN LATERAL (
           SELECT
             SUM(CASE
-                  WHEN fe.created_at > NOW() - INTERVAL '24 HOURS'
+                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '24 HOURS'
                   THEN 1
                   ELSE 0
                 END) AS day_sale_count,
             SUM(CASE
-                  WHEN fe.created_at > NOW() - INTERVAL '7 DAYS'
+                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '7 DAYS'
                   THEN 1
                   ELSE 0
                 END) AS week_sale_count,
             SUM(CASE
-                  WHEN fe.created_at > NOW() - INTERVAL '30 DAYS'
+                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '30 DAYS'
                   THEN 1
                   ELSE 0
                 END) AS month_sale_count,
@@ -432,7 +433,6 @@ export const getCollectionsV5Options: RouteOptions = {
               tokens.image
             FROM tokens
             WHERE tokens.collection_id = collections.id
-              AND tokens.image IS NOT NULL
             LIMIT 4
           ) AS sample_images
         FROM collections
@@ -614,21 +614,25 @@ export const getCollectionsV5Options: RouteOptions = {
             ? fromBuffer(r.top_buy_currency)
             : Sdk.Common.Addresses.Weth[config.chainId];
 
+          const sampleImages = _.filter(
+            r.sample_images,
+            (image) => !_.isNull(image) && _.startsWith(image, "http")
+          );
+
           return {
             id: r.id,
             slug: r.slug,
             createdAt: new Date(r.created_at).toISOString(),
             name: r.name,
             image:
-              r.image ??
-              (r.sample_images?.length ? Assets.getLocalAssetsLink(r.sample_images[0]) : null),
+              r.image ?? (sampleImages.length ? Assets.getLocalAssetsLink(sampleImages[0]) : null),
             banner: r.banner,
             discordUrl: r.discord_url,
             externalUrl: r.external_url,
             twitterUsername: r.twitter_username,
             openseaVerificationStatus: r.opensea_verification_status,
             description: r.description,
-            sampleImages: Assets.getLocalAssetsLink(r.sample_images) ?? [],
+            sampleImages: Assets.getLocalAssetsLink(sampleImages) ?? [],
             tokenCount: String(r.token_count),
             onSaleCount: String(r.on_sale_count),
             primaryContract: fromBuffer(r.contract),

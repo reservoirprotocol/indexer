@@ -52,6 +52,11 @@ function checkFeeIsValid(result: RoyaltyResult) {
 
 export const assignRoyaltiesToFillEvents = async (fillEvents: es.fills.Event[]) => {
   for (let index = 0; index < fillEvents.length; index++) {
+    // Skip mints
+    if (fillEvents[index].orderKind === "mint") {
+      continue;
+    }
+
     const fillEvent = fillEvents[index];
     const royaltyAdapter = registry.get(fillEvent.orderKind) ?? registry.get("fallback");
     try {

@@ -1,6 +1,7 @@
+import { BigNumberish } from "@ethersproject/bignumber";
 import Joi from "joi";
 
-import { formatEth, formatPrice, formatUsd, now, regex } from "@/common/utils";
+import { bn, formatEth, formatPrice, formatUsd, now, regex } from "@/common/utils";
 import { Currency, getCurrency } from "@/utils/currencies";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
@@ -26,19 +27,33 @@ export const JoiPrice = Joi.object({
   netAmount: JoiPriceAmount.optional(),
 });
 
+const subFeeWithBps = (amount: BigNumberish, totalFeeBps: number) => {
+  return bn(amount).sub(bn(amount).mul(totalFeeBps).div(10000)).toString();
+};
+
 export const getJoiAmountObject = async (
   currency: Currency,
   amount: string,
   nativeAmount?: string,
-  usdAmount?: string
+  usdAmount?: string,
+  totalFeeBps?: number
 ) => {
   let usdPrice = usdAmount;
   if (amount && !usdPrice) {
     usdPrice = (
       await getUSDAndNativePrices(currency.contract, amount, now(), {
         onlyUSD: true,
+        acceptStalePrice: true,
       })
     ).usdPrice;
+  }
+
+  if (totalFeeBps) {
+    amount = subFeeWithBps(amount, totalFeeBps);
+    if (usdPrice) {
+      usdPrice = subFeeWithBps(usdPrice, totalFeeBps);
+    }
+    if (nativeAmount) nativeAmount = subFeeWithBps(nativeAmount, totalFeeBps);
   }
 
   return {
@@ -62,7 +77,8 @@ export const getJoiPriceObject = async (
       usdAmount?: string;
     };
   },
-  currencyAddress: string
+  currencyAddress: string,
+  totalFeeBps?: number
 ) => {
   const currency = await getCurrency(currencyAddress);
   return {
@@ -78,14 +94,22 @@ export const getJoiPriceObject = async (
       prices.gross.nativeAmount,
       prices.gross.usdAmount
     ),
-    netAmount:
-      prices.net &&
-      (await getJoiAmountObject(
-        currency,
-        prices.net.amount,
-        prices.net.nativeAmount,
-        prices.net.usdAmount
-      )),
+    netAmount: prices.net
+      ? await getJoiAmountObject(
+          currency,
+          prices.net.amount,
+          prices.net.nativeAmount,
+          prices.net.usdAmount
+        )
+      : totalFeeBps
+      ? await getJoiAmountObject(
+          currency,
+          prices.gross.amount,
+          prices.gross.nativeAmount,
+          prices.gross.usdAmount,
+          totalFeeBps
+        )
+      : undefined,
   };
 };
 

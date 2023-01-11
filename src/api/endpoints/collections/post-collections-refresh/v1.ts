@@ -39,14 +39,12 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
           "Refresh the given collection. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         )
         .required(),
-      overrideCoolDown: Joi.boolean()
-        .default(false)
-        .description(
-          "If true, will force a refresh regardless of cool down. Requires an authorized api key to be passed."
-        ),
-      metadataOnly: Joi.boolean()
-        .default(false)
-        .description("If true, will only refresh the collection metadata."),
+      overrideCoolDown: Joi.boolean().description(
+        "If true, will force a refresh regardless of cool down. Requires an authorized api key to be passed."
+      ),
+      metadataOnly: Joi.boolean().description(
+        "If true, will only refresh the collection metadata."
+      ),
     }),
   },
   response: {
@@ -63,7 +61,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const payload = request.payload as any;
-    let refreshCoolDownMin = 60 * 4; // How many minutes between each refresh
+    const refreshCoolDownMin = 60 * 4; // How many minutes between each refresh
     let overrideCoolDown = false;
 
     try {
@@ -110,9 +108,9 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         const isLargeCollection = collection.tokenCount > 30000;
 
         if (!overrideCoolDown) {
-          // For large collections allow refresh once a day
+          // Disable large collections refresh
           if (isLargeCollection) {
-            refreshCoolDownMin = 60 * 24;
+            throw Boom.badRequest("Refreshing large collections is currently disabled");
           }
 
           // Check when the last sync was performed

@@ -170,6 +170,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: "1",
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         // If an ERC20 transfer occured in the same transaction as a sale
