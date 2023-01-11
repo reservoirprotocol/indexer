@@ -163,12 +163,14 @@ if (config.doBackgroundWork) {
             }
 
             if (buyOrderResult.length) {
-              await websocketEventsTriggerQueue.addToQueue([
-                {
-                  kind: websocketEventsTriggerQueue.EventKind.NewTopBid,
-                  data: { orderId: buyOrderResult[0].topBuyId },
-                },
-              ]);
+              if (trigger.kind === "new-order") {
+                await websocketEventsTriggerQueue.addToQueue([
+                  {
+                    kind: websocketEventsTriggerQueue.EventKind.NewTopBid,
+                    data: { orderId: buyOrderResult[0].topBuyId },
+                  },
+                ]);
+              }
 
               for (const result of buyOrderResult) {
                 if (!_.isNull(result.attributeId)) {
