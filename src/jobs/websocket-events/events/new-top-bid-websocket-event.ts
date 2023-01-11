@@ -5,6 +5,7 @@ import { Orders } from "@/utils/orders";
 import _ from "lodash";
 import { BatchEvent } from "pusher";
 import { config } from "@/config/index";
+import { redis } from "@/common/redis";
 
 export class NewTopBidWebsocketEvent {
   public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
@@ -29,30 +30,17 @@ export class NewTopBidWebsocketEvent {
       { orderId: data.orderId }
     );
 
-    const results = await idb.manyOrNone(
-      `
-                SELECT
-                  DISTINCT nft_balances.owner
-                FROM orders
-                JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id
-                JOIN nft_balances ON nft_balances.contract = token_sets_tokens.contract AND nft_balances.token_id = token_sets_tokens.token_id
-                WHERE orders.id = $/orderId/
-                  AND nft_balances.amount > 0
-              `,
-      {
-        orderId: data.orderId,
-      }
-    );
-
     const payloads = [];
-    const resultsChunks = _.chunk(results, 1000);
 
-    for (const resultsChunk of resultsChunks) {
+    const owners = await NewTopBidWebsocketEvent.getOwners(order.token_set_id);
+    const ownersChunks = _.chunk(owners, Number(config.websocketServerEventMaxSizeInKb) * 20);
+
+    for (const ownersChunk of ownersChunks) {
       payloads.push({
         id: order.id,
         maker: fromBuffer(order.maker),
         criteria: order.criteria,
-        owners: resultsChunk.map((result) => fromBuffer(result.owner)),
+        owners: ownersChunk,
       });
     }
 
@@ -63,7 +51,7 @@ export class NewTopBidWebsocketEvent {
       host: config.websocketServerHost,
     });
 
-    const payloadsBatches = _.chunk(payloads, 10);
+    const payloadsBatches = _.chunk(payloads, Number(config.websocketServerEventMaxBatchSize));
 
     for (const payloadsBatch of payloadsBatches) {
       const events: BatchEvent[] = payloadsBatch.map((payload) => {
@@ -76,6 +64,38 @@ export class NewTopBidWebsocketEvent {
 
       await server.triggerBatch(events);
     }
+  }
+
+  static async getOwners(tokenSetId: string): Promise<string[]> {
+    let owners: string[] | undefined = undefined;
+
+    const ownersString = await redis.get(`token-set-owners:${tokenSetId}`);
+
+    if (ownersString) {
+      owners = JSON.parse(ownersString);
+    }
+
+    if (!owners) {
+      owners = (
+        await idb.manyOrNone(
+          `
+                SELECT
+                  DISTINCT nb.owner
+                FROM nft_balances nb
+                JOIN token_sets_tokens tst ON tst.contract = nb.contract AND tst.token_id = nb.token_id
+                WHERE tst.token_set_id = $/tokenSetId/
+                  AND nb.amount > 0
+              `,
+          {
+            tokenSetId,
+          }
+        )
+      ).map((result) => fromBuffer(result.owner));
+
+      await redis.set(`token-set-owners:${tokenSetId}`, JSON.stringify(owners), "EX", 60);
+    }
+
+    return owners;
   }
 }
 
