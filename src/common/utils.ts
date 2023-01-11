@@ -1,7 +1,7 @@
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { formatEther, formatUnits } from "@ethersproject/units";
 import crypto from "crypto";
-
+import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 
 // --- BigNumbers ---
@@ -25,9 +25,14 @@ export const getNetAmount = (value: BigNumberish, bps: number) =>
 // --- Encrypt / Decrypt ---
 
 export const encrypt = (text: string) => {
-  const cipher = crypto.createCipheriv("aes-256-ecb", config.cipherSecret, null);
-  const encryptedText = Buffer.concat([cipher.update(text), cipher.final()]);
-  return encryptedText.toString("hex");
+  try {
+    const cipher = crypto.createCipheriv("aes-256-ecb", config.cipherSecret, null);
+    const encryptedText = Buffer.concat([cipher.update(text), cipher.final()]);
+    return encryptedText.toString("hex");
+  } catch (e: any) {
+    logger.error(`utils.encrypt`, `Invalid key length on cipher.update: ${e.message}`);
+    return "";
+  }
 };
 
 export const decrypt = (text: string) => {
