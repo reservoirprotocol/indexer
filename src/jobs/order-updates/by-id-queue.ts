@@ -159,30 +159,32 @@ if (config.doBackgroundWork) {
                     txTimestamp: trigger.txTimestamp || null,
                   })
                 );
-
-                await websocketEventsTriggerQueue.addToQueue([
-                  {
-                    kind: websocketEventsTriggerQueue.EventKind.NewTopBid,
-                    data: { orderId: tokenSetsResult[0].topBuyId },
-                  },
-                ]);
               }
             }
 
-            for (const result of buyOrderResult) {
-              if (!_.isNull(result.attributeId)) {
-                await handleNewBuyOrder.addToQueue(result);
-              }
+            if (buyOrderResult.length) {
+              await websocketEventsTriggerQueue.addToQueue([
+                {
+                  kind: websocketEventsTriggerQueue.EventKind.NewTopBid,
+                  data: { orderId: buyOrderResult[0].topBuyId },
+                },
+              ]);
 
-              if (!_.isNull(result.collectionId)) {
-                await collectionUpdatesTopBid.addToQueue([
-                  {
-                    collectionId: result.collectionId,
-                    kind: trigger.kind,
-                    txHash: trigger.txHash || null,
-                    txTimestamp: trigger.txTimestamp || null,
-                  } as collectionUpdatesTopBid.TopBidInfo,
-                ]);
+              for (const result of buyOrderResult) {
+                if (!_.isNull(result.attributeId)) {
+                  await handleNewBuyOrder.addToQueue(result);
+                }
+
+                if (!_.isNull(result.collectionId)) {
+                  await collectionUpdatesTopBid.addToQueue([
+                    {
+                      collectionId: result.collectionId,
+                      kind: trigger.kind,
+                      txHash: trigger.txHash || null,
+                      txTimestamp: trigger.txTimestamp || null,
+                    } as collectionUpdatesTopBid.TopBidInfo,
+                  ]);
+                }
               }
             }
           }
