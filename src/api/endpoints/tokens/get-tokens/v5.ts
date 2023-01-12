@@ -869,6 +869,26 @@ export const getTokensV5Options: RouteOptions = {
                   ),
                 },
               };
+            } else if (r.floor_sell_order_kind === "nftx") {
+              // Pool orders
+              dynamicPricing = {
+                kind: "pool",
+                data: {
+                  pool: r.floor_sell_raw_data.pool,
+                  prices: await Promise.all(
+                    (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
+                      getJoiPriceObject(
+                        {
+                          gross: {
+                            amount: bn(price).add(missingRoyalties).toString(),
+                          },
+                        },
+                        floorAskCurrency
+                      )
+                    )
+                  ),
+                },
+              };
             }
           }
         }

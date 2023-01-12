@@ -2,7 +2,6 @@ import { Interface } from "@ethersproject/abi";
 import { Log } from "@ethersproject/abstract-provider";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
-
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 import * as nftx from "@/events-sync/data/nftx";

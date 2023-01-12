@@ -108,6 +108,11 @@ if (config.doBackgroundWork) {
             result = await orders.manifold.save([info]);
             break;
           }
+
+          case "nftx": {
+            result = await orders.nftx.save([info as orders.nftx.OrderInfo]);
+            break;
+          }
         }
       } catch (error) {
         logger.error(QUEUE_NAME, `Failed to process order ${JSON.stringify(job.data)}: ${error}`);
@@ -233,6 +238,12 @@ export type GenericOrderInfo =
   | {
       kind: "element";
       info: orders.element.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "nftx";
+      info: orders.nftx.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     };
