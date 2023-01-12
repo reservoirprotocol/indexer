@@ -255,34 +255,34 @@ export const getAsksEventsV3Options: RouteOptions = {
                         usdAmount: r.usd_price,
                       },
                     },
-                  },
-                  fromBuffer(r.currency)
-                )
-              : null,
-            quantityRemaining: Number(r.order_quantity_remaining),
-            nonce: r.order_nonce ?? null,
-            validFrom: r.valid_from ? Number(r.valid_from) : null,
-            validUntil: r.valid_until ? Number(r.valid_until) : null,
-            rawData: r.raw_data ? r.raw_data : undefined,
-            kind: r.order_kind,
-            source: {
-              id: source?.address,
-              domain: source?.domain,
-              name: source?.metadata.title || source?.name,
-              icon: source?.getIcon(),
-              url: source?.metadata.url,
+                    fromBuffer(r.currency)
+                  )
+                : null,
+              quantityRemaining: Number(r.order_quantity_remaining),
+              nonce: r.order_nonce ?? null,
+              validFrom: r.valid_from ? Number(r.valid_from) : null,
+              validUntil: r.valid_until ? Number(r.valid_until) : null,
+              rawData: r.raw_data ? r.raw_data : undefined,
+              kind: r.order_kind,
+              source: {
+                id: source?.address,
+                domain: source?.domain,
+                name: source?.metadata.title || source?.name,
+                icon: source?.getIcon(),
+                url: source?.metadata.url,
+              },
+              isDynamic: Boolean(r.dynamic),
+              criteria: r.criteria,
             },
-            isDynamic: Boolean(r.dynamic),
-            criteria: r.criteria,
-          },
-          event: {
-            id: r.id,
-            kind: r.kind,
-            txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
-            txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
-            createdAt: new Date(r.created_at * 1000).toISOString(),
-          },
-        }))
+            event: {
+              id: r.id,
+              kind: r.kind,
+              txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
+              txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
+              createdAt: new Date(r.created_at * 1000).toISOString(),
+            },
+          };
+        })
       );
 
       return {
