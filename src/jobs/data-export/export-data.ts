@@ -14,7 +14,7 @@ import { TokenFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/t
 import { CollectionFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/collection-floor-ask-events";
 import { CollectionTopBidEventsDataSource } from "@/jobs/data-export/data-sources/collection_top_bid_events";
 import { AsksDataSource, AsksDataSourceV2 } from "@/jobs/data-export/data-sources/asks";
-import { BidsDataSourceV2 } from "@/jobs/data-export/data-sources/bids";
+import { BidsDataSource } from "@/jobs/data-export/data-sources/bids";
 import { TokensDataSource, TokensDataSourceV2 } from "@/jobs/data-export/data-sources/tokens";
 import {
   CollectionsDataSource,
@@ -131,7 +131,7 @@ export enum DataSource {
   collectionTopBidEvents = "collection-top-bid-events",
   asks = "asks",
   asksV2 = "asks-v2",
-  bidsV2 = "bids-v2",
+  bids = "bids",
   tokens = "tokens",
   tokensV2 = "tokens-v2",
   collections = "collections",
@@ -195,8 +195,8 @@ const getDataSourceImpl = (source: DataSource) => {
       return new AsksDataSource();
     case DataSource.asksV2:
       return new AsksDataSourceV2();
-    case DataSource.bidsV2:
-      return new BidsDataSourceV2();
+    case DataSource.bids:
+      return new BidsDataSource();
     case DataSource.tokens:
       return new TokensDataSource();
     case DataSource.tokensV2:

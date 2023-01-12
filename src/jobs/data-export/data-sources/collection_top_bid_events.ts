@@ -49,7 +49,7 @@ export class CollectionTopBidEventsDataSource extends BaseDataSource {
         kind: r.kind,
         collection_id: r.collection_id,
         contract: r.contract ? fromBuffer(r.contract) : null,
-        token_id: r.token_id,
+        token_set_id: r.token_set_id,
         order_id: r.order_id,
         maker: r.maker ? fromBuffer(r.maker) : null,
         price: r.price ? r.price.toString() : null,

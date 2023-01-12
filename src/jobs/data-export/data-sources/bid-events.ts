@@ -51,7 +51,7 @@ export class BidEventsDataSource extends BaseDataSource {
         kind: r.kind,
         status: r.status,
         contract: fromBuffer(r.contract),
-        token_id: r.token_id,
+        token_set_id: r.token_set_id,
         order_id: r.order_id,
         maker: r.maker ? fromBuffer(r.maker) : null,
         price: r.price ? r.price.toString() : null,

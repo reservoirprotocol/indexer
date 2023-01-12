@@ -7,7 +7,7 @@ import { config } from "@/config/index";
 import { getCurrency } from "@/utils/currencies";
 import { AddressZero } from "@ethersproject/constants";
 
-export class BidsDataSourceV2 extends BaseDataSource {
+export class BidsDataSource extends BaseDataSource {
   public async getSequenceData(cursor: CursorInfo | null, limit: number) {
     let continuationFilter = "";
 
@@ -25,6 +25,7 @@ export class BidsDataSourceV2 extends BaseDataSource {
           orders.maker,
           orders.taker,
           orders.price,
+          orders.value,
           orders.currency,
           orders.currency_price,
           COALESCE(orders.dynamic, FALSE) AS dynamic,
@@ -83,8 +84,6 @@ export class BidsDataSourceV2 extends BaseDataSource {
 
         const currencyPrice = r.currency_price ?? r.price;
 
-        const [, , tokenId] = r.token_set_id.split(":");
-
         let startPrice = r.price;
         let endPrice = r.price;
 
@@ -110,10 +109,11 @@ export class BidsDataSourceV2 extends BaseDataSource {
           kind: r.kind,
           status: r.status,
           contract: fromBuffer(r.contract),
-          token_id: tokenId,
+          token_set_id: r.token_set_id,
           maker: fromBuffer(r.maker),
           taker: fromBuffer(r.taker),
           price: r.price.toString(),
+          value: r.value.toString(),
           currency_address: currency.contract,
           currency_symbol: currency.symbol,
           currency_price: currencyPrice ? currencyPrice.toString() : null,
