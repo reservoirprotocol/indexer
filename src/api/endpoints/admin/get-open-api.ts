@@ -17,6 +17,19 @@ const parseMethod = (object: { [key: string]: any }) => {
   }
 };
 
+// eslint-disable-next-line
+const getMethod = (object: { [key: string]: any }) => {
+  if (object["get"]) {
+    return "get";
+  } else if (object["post"]) {
+    return "post";
+  } else if (object["put"]) {
+    return "put";
+  } else if (object["delete"]) {
+    return "delete";
+  }
+};
+
 export const getOpenApiOptions: RouteOptions = {
   description: "Get swagger json in OpenApi V3",
   tags: ["api", "x-admin"],
@@ -79,11 +92,13 @@ export const getOpenApiOptions: RouteOptions = {
             for (const parameter of pathMethod.parameters) {
               const parameterDefault = parameter.schema?.default;
 
-              if (parameterDefault) {
-                delete parameter.schema?.default;
+              if (parameterDefault !== undefined) {
+                delete parameter.schema.default;
                 parameter.description = `${parameter.description} (defaults to **${parameterDefault}**)`;
               }
             }
+
+            path[1][getMethod(path[1])!] = pathMethod;
           }
 
           return path;
