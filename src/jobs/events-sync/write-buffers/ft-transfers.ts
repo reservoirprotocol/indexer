@@ -28,18 +28,17 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { query } = job.data;
+      let { query } = job.data;
+      if (!_.includes(query, "ORDER BY")) {
+        query = _.replace(query, `FROM "x"`, `FROM "x" ORDER BY "owner" ASC`);
+      }
 
       try {
-        await idb.none(_.replace(query, `FROM "x"`, `FROM "x" ORDER BY "owner" ASC`));
+        await idb.none(query);
       } catch (error) {
         logger.error(
           QUEUE_NAME,
-          `Failed flushing ft transfer events to the database: ${error} ${_.replace(
-            query,
-            `FROM "x"`,
-            `FROM "x" ORDER BY "owner" ASC`
-          )}`
+          `Failed flushing ft transfer events to the database: ${error} ${query}`
         );
         throw error;
       }

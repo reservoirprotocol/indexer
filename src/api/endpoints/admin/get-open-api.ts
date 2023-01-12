@@ -94,7 +94,11 @@ export const getOpenApiOptions: RouteOptions = {
 
               if (parameterDefault !== undefined) {
                 delete parameter.schema.default;
-                parameter.description = `${parameter.description} (defaults to **${parameterDefault}**)`;
+                const defaultDescription = `defaults to **${parameterDefault}**`;
+
+                parameter.description = parameter.description
+                  ? `${parameter.description} ${defaultDescription}`
+                  : defaultDescription;
               }
             }
 
