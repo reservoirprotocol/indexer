@@ -9,6 +9,7 @@ import { buildContinuation, fromBuffer, splitContinuation, regex, toBuffer } fro
 import { Sources } from "@/models/sources";
 import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
 import { Orders } from "@/utils/orders";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
 const version = "v3";
 
@@ -39,12 +40,11 @@ export const getAsksEventsV3Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
-      includeCriteriaMetadata: Joi.boolean()
-        .default(false)
-        .description("If true, criteria metadata is included in the response."),
+      includeCriteriaMetadata: Joi.boolean().description(
+        "If true, criteria metadata is included in the response."
+      ),
       sortDirection: Joi.string()
         .valid("asc", "desc")
-        .default("desc")
         .description("Order the items are returned in the response."),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -53,11 +53,10 @@ export const getAsksEventsV3Options: RouteOptions = {
         .integer()
         .min(1)
         .max(1000)
-        .default(50)
         .description("Amount of items returned in response."),
-      normalizeRoyalties: Joi.boolean()
-        .default(false)
-        .description("If true, prices will include missing royalties to be added on-top."),
+      normalizeRoyalties: Joi.boolean().description(
+        "If true, prices will include missing royalties to be added on-top."
+      ),
     }).oxor("contract"),
   },
   response: {
@@ -76,7 +75,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             validUntil: Joi.number().unsafe().allow(null),
             rawData: Joi.object(),
             kind: Joi.string(),
-            source: Joi.string().allow(null, ""),
+            source: Joi.object().allow(null),
             isDynamic: Joi.boolean(),
             criteria: JoiOrderCriteria.allow(null),
           }),
@@ -108,6 +107,14 @@ export const getAsksEventsV3Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 50;
+    }
+
+    if (!query.sortDirection) {
+      query.sortDirection = "desc";
+    }
 
     try {
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
@@ -222,23 +229,31 @@ export const getAsksEventsV3Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const result = await Promise.all(
-        rawResult.map(async (r) => ({
-          order: {
-            id: r.order_id,
-            status: r.status,
-            contract: fromBuffer(r.contract),
-            maker: r.maker ? fromBuffer(r.maker) : null,
-            price: r.price
-              ? await getJoiPriceObject(
-                  {
-                    gross: {
-                      amount: query.normalizeRoyalties
-                        ? r.currency_normalized_value ?? r.price
-                        : r.currency_price ?? r.price,
-                      nativeAmount: query.normalizeRoyalties
-                        ? r.normalized_value ?? r.price
-                        : r.price,
-                      usdAmount: r.usd_price,
+        rawResult.map(async (r) => {
+          const source: SourcesEntity | undefined = sources.get(
+            r.order_source_id_int,
+            fromBuffer(r.contract),
+            r.token_id
+          );
+
+          return {
+            order: {
+              id: r.order_id,
+              status: r.status,
+              contract: fromBuffer(r.contract),
+              maker: r.maker ? fromBuffer(r.maker) : null,
+              price: r.price
+                ? await getJoiPriceObject(
+                    {
+                      gross: {
+                        amount: query.normalizeRoyalties
+                          ? r.currency_normalized_value ?? r.price
+                          : r.currency_price ?? r.price,
+                        nativeAmount: query.normalizeRoyalties
+                          ? r.normalized_value ?? r.price
+                          : r.price,
+                        usdAmount: r.usd_price,
+                      },
                     },
                   },
                   fromBuffer(r.currency)
@@ -250,7 +265,13 @@ export const getAsksEventsV3Options: RouteOptions = {
             validUntil: r.valid_until ? Number(r.valid_until) : null,
             rawData: r.raw_data ? r.raw_data : undefined,
             kind: r.order_kind,
-            source: sources.get(r.order_source_id_int)?.name,
+            source: {
+              id: source?.address,
+              domain: source?.domain,
+              name: source?.metadata.title || source?.name,
+              icon: source?.getIcon(),
+              url: source?.metadata.url,
+            },
             isDynamic: Boolean(r.dynamic),
             criteria: r.criteria,
           },

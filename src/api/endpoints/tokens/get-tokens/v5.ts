@@ -118,32 +118,28 @@ export const getTokensV5Options: RouteOptions = {
         ),
       sortBy: Joi.string()
         .valid("floorAskPrice", "tokenId", "rarity")
-        .default("floorAskPrice")
         .description("Order the items are returned in the response."),
       sortDirection: Joi.string().lowercase().valid("asc", "desc"),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(100)
-        .default(20)
         .description("Amount of items returned in response."),
-      includeTopBid: Joi.boolean()
-        .default(false)
-        .description("If true, top bid will be returned in the response."),
-      includeAttributes: Joi.boolean()
-        .default(false)
-        .description("If true, attributes will be returned in the response."),
-      includeQuantity: Joi.boolean()
-        .default(false)
-        .description(
-          "If true, quantity filled and quantity remaining will be returned in the response."
-        ),
-      includeDynamicPricing: Joi.boolean()
-        .default(false)
-        .description("If true, dynamic pricing data will be returned in the response."),
-      normalizeRoyalties: Joi.boolean()
-        .default(false)
-        .description("If true, prices will include missing royalties to be added on-top."),
+      includeTopBid: Joi.boolean().description(
+        "If true, top bid will be returned in the response."
+      ),
+      includeAttributes: Joi.boolean().description(
+        "If true, attributes will be returned in the response."
+      ),
+      includeQuantity: Joi.boolean().description(
+        "If true, quantity filled and quantity remaining will be returned in the response."
+      ),
+      includeDynamicPricing: Joi.boolean().description(
+        "If true, dynamic pricing data will be returned in the response."
+      ),
+      normalizeRoyalties: Joi.boolean().description(
+        "If true, prices will include missing royalties to be added on-top."
+      ),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
@@ -243,6 +239,14 @@ export const getTokensV5Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 20;
+    }
+
+    if (!query.sortBy) {
+      query.sortBy = "floorAskPrice";
+    }
 
     // Include top bid
     let selectTopBid = "";
@@ -851,6 +855,26 @@ export const getTokensV5Options: RouteOptions = {
                 kind: "pool",
                 data: {
                   pool: r.floor_sell_raw_data.pair,
+                  prices: await Promise.all(
+                    (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
+                      getJoiPriceObject(
+                        {
+                          gross: {
+                            amount: bn(price).add(missingRoyalties).toString(),
+                          },
+                        },
+                        floorAskCurrency
+                      )
+                    )
+                  ),
+                },
+              };
+            } else if (r.floor_sell_order_kind === "nftx") {
+              // Pool orders
+              dynamicPricing = {
+                kind: "pool",
+                data: {
+                  pool: r.floor_sell_raw_data.pool,
                   prices: await Promise.all(
                     (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
                       getJoiPriceObject(

@@ -15,6 +15,7 @@ export * as universe from "@/orderbook/orders/universe";
 export * as infinity from "@/orderbook/orders/infinity";
 export * as blur from "@/orderbook/orders/blur";
 export * as rarible from "@/orderbook/orders/rarible";
+export * as nftx from "@/orderbook/orders/nftx";
 export * as manifold from "@/orderbook/orders/manifold";
 
 // Imports
