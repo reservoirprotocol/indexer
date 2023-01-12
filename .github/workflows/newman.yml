@@ -1,3 +1,5 @@
+name: Newman CLI (Postman) Action
+
 - name: Checkout
   uses: actions/checkout@v1
 
