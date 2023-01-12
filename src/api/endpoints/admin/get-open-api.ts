@@ -86,7 +86,7 @@ export const getOpenApiOptions: RouteOptions = {
             }
           }
 
-          return pathMethod;
+          return path;
         })
       );
 
