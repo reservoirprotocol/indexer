@@ -67,6 +67,9 @@ export const getTokensV5Options: RouteOptions = {
           then: Joi.forbidden(),
           otherwise: Joi.allow(),
         }),
+      tokenName: Joi.string().description(
+        "Filter to a particular token by name. Example: `token #1`"
+      ),
       tokens: Joi.alternatives().try(
         Joi.array()
           .max(50)
@@ -146,7 +149,8 @@ export const getTokensV5Options: RouteOptions = {
     })
       .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
-      .with("attributes", "collection"),
+      .with("attributes", "collection")
+      .with("tokenName", "collection"),
   },
   response: {
     schema: Joi.object({
@@ -603,6 +607,10 @@ export const getTokensV5Options: RouteOptions = {
         (query as any).tokensFilter = _.join((query as any).tokensFilter, ",");
 
         conditions.push(`(t.contract, t.token_id) IN ($/tokensFilter:raw/)`);
+      }
+
+      if (query.tokenName) {
+        conditions.push(`t.name = $/tokenName/`);
       }
 
       if (query.tokenSetId) {

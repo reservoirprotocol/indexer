@@ -70,6 +70,26 @@ export const getOpenApiOptions: RouteOptions = {
         })
       );
 
+      data.openapi["paths"] = Object.fromEntries(
+        // eslint-disable-next-line
+        Object.entries(data.openapi["paths"]).map((path: any) => {
+          const pathMethod = parseMethod(path[1]);
+
+          if (pathMethod.parameters?.length) {
+            for (const parameter of pathMethod.parameters) {
+              const parameterDefault = parameter.schema?.default;
+
+              if (parameterDefault) {
+                delete parameter.schema?.default;
+                parameter.description = `${parameter.description} (defaults to **${parameterDefault}**)`;
+              }
+            }
+          }
+
+          return pathMethod;
+        })
+      );
+
       return data.openapi;
     } catch (error) {
       logger.error("get-open-api-handler", `Handler failure: ${error}`);

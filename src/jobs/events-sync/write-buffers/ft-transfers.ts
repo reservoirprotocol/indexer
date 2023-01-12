@@ -5,7 +5,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { idb } from "@/common/db";
-
+import _ from "lodash";
 const QUEUE_NAME = "events-sync-ft-transfers-write";
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -31,9 +31,16 @@ if (config.doBackgroundWork) {
       const { query } = job.data;
 
       try {
-        await idb.none(query);
+        await idb.none(_.replace(query, `FROM "x"`, `FROM "x" ORDER BY "owner" ASC`));
       } catch (error) {
-        logger.error(QUEUE_NAME, `Failed flushing ft transfer events to the database: ${error}`);
+        logger.error(
+          QUEUE_NAME,
+          `Failed flushing ft transfer events to the database: ${error} ${_.replace(
+            query,
+            `FROM "x"`,
+            `FROM "x" ORDER BY "owner" ASC`
+          )}`
+        );
         throw error;
       }
     },
