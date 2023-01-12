@@ -73,6 +73,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             nonce: Joi.string().pattern(regex.number).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
+            rawData: Joi.object(),
             kind: Joi.string(),
             source: Joi.object().allow(null),
             isDynamic: Joi.boolean(),
@@ -139,6 +140,7 @@ export const getAsksEventsV3Options: RouteOptions = {
           orders.currency_normalized_value,
           orders.normalized_value,
           orders.kind AS order_kind,
+          orders.raw_data,
           TRUNC(orders.currency_price, 0) AS currency_price,
           order_events.order_source_id_int,
           coalesce(
@@ -152,9 +154,22 @@ export const getAsksEventsV3Options: RouteOptions = {
           (${criteriaBuildQuery}) AS criteria
         FROM order_events
         LEFT JOIN LATERAL (
-           SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value, token_set_id, kind
-           FROM orders
-           WHERE orders.id = order_events.order_id
+          SELECT
+            orders.currency,
+            orders.currency_price,
+            orders.normalized_value,
+            orders.currency_normalized_value,
+            orders.token_set_id,
+            orders.dynamic,
+            orders.kind,
+            (
+              CASE
+                WHEN orders.kind IN ('nftx', 'sudoswap') THEN orders.raw_data
+                ELSE NULL
+              END
+            ) AS raw_data
+         FROM orders
+         WHERE orders.id = order_events.order_id
         ) orders ON TRUE
       `;
 
@@ -240,33 +255,34 @@ export const getAsksEventsV3Options: RouteOptions = {
                         usdAmount: r.usd_price,
                       },
                     },
-                    fromBuffer(r.currency)
-                  )
-                : null,
-              quantityRemaining: Number(r.order_quantity_remaining),
-              nonce: r.order_nonce ?? null,
-              validFrom: r.valid_from ? Number(r.valid_from) : null,
-              validUntil: r.valid_until ? Number(r.valid_until) : null,
-              kind: r.order_kind,
-              source: {
-                id: source?.address,
-                domain: source?.domain,
-                name: source?.metadata.title || source?.name,
-                icon: source?.getIcon(),
-                url: source?.metadata.url,
-              },
-              isDynamic: Boolean(r.dynamic),
-              criteria: r.criteria,
+                  },
+                  fromBuffer(r.currency)
+                )
+              : null,
+            quantityRemaining: Number(r.order_quantity_remaining),
+            nonce: r.order_nonce ?? null,
+            validFrom: r.valid_from ? Number(r.valid_from) : null,
+            validUntil: r.valid_until ? Number(r.valid_until) : null,
+            rawData: r.raw_data ? r.raw_data : undefined,
+            kind: r.order_kind,
+            source: {
+              id: source?.address,
+              domain: source?.domain,
+              name: source?.metadata.title || source?.name,
+              icon: source?.getIcon(),
+              url: source?.metadata.url,
             },
-            event: {
-              id: r.id,
-              kind: r.kind,
-              txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
-              txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
-              createdAt: new Date(r.created_at * 1000).toISOString(),
-            },
-          };
-        })
+            isDynamic: Boolean(r.dynamic),
+            criteria: r.criteria,
+          },
+          event: {
+            id: r.id,
+            kind: r.kind,
+            txHash: r.tx_hash ? fromBuffer(r.tx_hash) : null,
+            txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
+            createdAt: new Date(r.created_at * 1000).toISOString(),
+          },
+        }))
       );
 
       return {
