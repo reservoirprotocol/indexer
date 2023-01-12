@@ -328,9 +328,6 @@ export const getSalesV4Options: RouteOptions = {
         const fillSource =
           r.fill_source_id !== null ? sources.get(Number(r.fill_source_id)) : undefined;
 
-        const royaltyFeeBps = r.royalty_fee_bps ?? 0;
-        const marketplaceFeeBps = r.marketplace_fee_bps ?? 0;
-
         return {
           id: crypto
             .createHash("sha256")
@@ -374,26 +371,29 @@ export const getSalesV4Options: RouteOptions = {
               },
             },
             fromBuffer(r.currency),
-            royaltyFeeBps + marketplaceFeeBps
+            (r.royalty_fee_bps ?? 0) + (r.marketplace_fee_bps ?? 0)
           ),
           washTradingScore: r.wash_trading_score,
-          royaltyFeeBps,
-          marketplaceFeeBps,
-          paidFullRoyalty: r.paid_full_royalty,
-          feeBreakdown: [].concat(
-            (r.royalty_fee_breakdown ?? []).map((detail: any) => {
-              return {
-                kind: "royalty",
-                ...detail,
-              };
-            }),
-            (r.marketplace_fee_breakdown ?? []).map((detail: any) => {
-              return {
-                type: "marketplace",
-                ...detail,
-              };
-            })
-          ),
+          royaltyFeeBps: r.royalty_fee_bps !== null ? r.royalty_fee_bps : undefined,
+          marketplaceFeeBps: r.marketplace_fee_bps !== null ? r.marketplace_fee_bps : undefined,
+          paidFullRoyalty: r.paid_full_royalty !== null ? r.paid_full_royalty : undefined,
+          feeBreakdown:
+            r.royalty_fee_breakdown !== null || r.marketplace_fee_breakdown !== null
+              ? [].concat(
+                  (r.royalty_fee_breakdown ?? []).map((detail: any) => {
+                    return {
+                      kind: "royalty",
+                      ...detail,
+                    };
+                  }),
+                  (r.marketplace_fee_breakdown ?? []).map((detail: any) => {
+                    return {
+                      type: "marketplace",
+                      ...detail,
+                    };
+                  })
+                )
+              : undefined,
         };
       });
 
