@@ -1,15 +1,24 @@
 name: Newman CLI (Postman) Action
 
-- name: Checkout
-  uses: actions/checkout@v1
+on:
+  push:
+    branches:
+      - development
 
-- name: Run API Tests
-  id: run-newman
-  uses: anthonyvscode/newman-action@v1
-  with:
-    apiKey: ${{ secrets.postmanApiKey }}
-    collection: 23920752-ad8be3fc-9b59-45d5-8b68-aaf96521baef
-    reporters: cli
+jobs:
+  newman:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
 
-- name: Output summary to console
-  run: echo ${{ steps.run-newman.outputs.summary }}
+      - name: Run API Tests
+        id: run-newman
+        uses: anthonyvscode/newman-action@v1
+        with:
+          apiKey: ${{ secrets.postmanApiKey }}
+          collection: 23920752-ad8be3fc-9b59-45d5-8b68-aaf96521baef
+          reporters: cli
+
+      - name: Output summary to console
+        run: echo ${{ steps.run-newman.outputs.summary }}
