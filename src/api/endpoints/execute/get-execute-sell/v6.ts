@@ -156,9 +156,6 @@ export const getExecuteSellV6Options: RouteOptions = {
       if (!tokenResult) {
         throw Boom.badData("Unknown token");
       }
-      if (tokenResult.is_flagged) {
-        throw Boom.badData("Token is flagged");
-      }
 
       // Scenario 3: pass raw orders that don't yet exist
       if (payload.rawOrder) {
@@ -331,6 +328,12 @@ export const getExecuteSellV6Options: RouteOptions = {
           amount: payload.quantity,
         }
       );
+
+      if (["x2y2", "seaport-partial"].includes(bidDetails!.kind)) {
+        if (tokenResult.is_flagged) {
+          throw Boom.badData("Token is flagged");
+        }
+      }
 
       if (payload.onlyPath) {
         // Skip generating any transactions if only the path was requested
