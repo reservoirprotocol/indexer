@@ -175,7 +175,12 @@ export const extractAttributionData = async (
   // Reference: https://github.com/reservoirprotocol/core/issues/22#issuecomment-1191040945
   if (source) {
     // TODO: Properly handle aggregator detection
-    if (source !== "opensea.io" && source !== "gem.xyz" && source !== "blur.io") {
+    if (
+      source !== "opensea.io" &&
+      source !== "gem.xyz" &&
+      source !== "blur.io" &&
+      source !== "alphasharks.io"
+    ) {
       // Do not associate OpenSea / Gem direct fills to Reservoir
       aggregatorSource = await sources.getOrInsert("reservoir.tools");
     } else if (source === "gem.xyz") {
@@ -184,6 +189,9 @@ export const extractAttributionData = async (
     } else if (source === "blur.io") {
       // Associate Blur direct fills to Blur
       aggregatorSource = await sources.getOrInsert("blur.io");
+    } else if (source === "alphasharks.io") {
+      // Associate Alphasharks direct fills to Alphasharks
+      aggregatorSource = await sources.getOrInsert("alphasharks.io");
     }
     fillSource = await sources.getOrInsert(source);
   } else if (router?.domain === "reservoir.tools") {
