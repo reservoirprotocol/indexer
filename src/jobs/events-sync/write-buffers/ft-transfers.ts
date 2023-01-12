@@ -29,10 +29,10 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       let { query } = job.data;
-      if(!_.includes(query, "ORDER BY")) {
+      if (!_.includes(query, "ORDER BY")) {
         query = _.replace(query, `FROM "x"`, `FROM "x" ORDER BY "owner" ASC`);
       }
-      
+
       try {
         await idb.none(query);
       } catch (error) {
