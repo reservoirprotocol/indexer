@@ -285,6 +285,12 @@ export const setupRoutes = (server: Server) => {
     options: adminEndpoints.postFlagAddressOptions,
   });
 
+  server.route({
+    method: "POST",
+    path: "/admin/routers",
+    options: adminEndpoints.postRoutersOptions,
+  });
+
   // API keys
 
   server.route({
