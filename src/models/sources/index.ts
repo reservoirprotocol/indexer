@@ -102,6 +102,7 @@ export class Sources {
         tokenUrlRinkeby: "https://dev.reservoir.market/${contract}/${tokenId}",
       },
       optimized: true,
+      createdAt: "2022-02-05 04:50:47.191 +0200",
     });
   }
 
@@ -357,7 +358,7 @@ export class Sources {
     return sourceEntity;
   }
 
-  public getTokenUrl(sourceEntity: SourcesEntity, contract: string, tokenId: string) {
+  public getTokenUrl(sourceEntity: SourcesEntity, contract?: string, tokenId?: string) {
     if (config.chainId == 1) {
       if (sourceEntity.metadata.tokenUrlMainnet && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
