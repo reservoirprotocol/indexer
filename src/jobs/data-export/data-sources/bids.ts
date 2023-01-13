@@ -28,7 +28,6 @@ export class BidsDataSource extends BaseDataSource {
           orders.value,
           orders.currency,
           orders.currency_price,
-          COALESCE(orders.dynamic, FALSE) AS dynamic,
           orders.quantity_filled,
           orders.quantity_remaining,
           DATE_PART('epoch', LOWER(orders.valid_between)) AS valid_from,
@@ -84,26 +83,6 @@ export class BidsDataSource extends BaseDataSource {
 
         const currencyPrice = r.currency_price ?? r.price;
 
-        let startPrice = r.price;
-        let endPrice = r.price;
-
-        if (r.raw_data) {
-          switch (r.kind) {
-            case "wyvern-v2.3": {
-              const wyvernOrder = new Sdk.WyvernV23.Order(config.chainId, r.raw_data);
-              startPrice = wyvernOrder.getMatchingPrice(r.valid_from);
-              endPrice = wyvernOrder.getMatchingPrice(r.valid_until);
-              break;
-            }
-            case "seaport": {
-              const seaportOrder = new Sdk.Seaport.Order(config.chainId, r.raw_data);
-              startPrice = seaportOrder.getMatchingPrice(r.valid_from);
-              endPrice = seaportOrder.getMatchingPrice(r.valid_until);
-              break;
-            }
-          }
-        }
-
         data.push({
           id: r.id,
           kind: r.kind,
@@ -117,9 +96,6 @@ export class BidsDataSource extends BaseDataSource {
           currency_address: currency.contract,
           currency_symbol: currency.symbol,
           currency_price: currencyPrice ? currencyPrice.toString() : null,
-          start_price: startPrice.toString(),
-          end_price: endPrice.toString(),
-          dynamic: r.dynamic,
           quantity: Number(r.quantity_filled) + Number(r.quantity_remaining),
           quantity_filled: Number(r.quantity_filled),
           quantity_remaining: Number(r.quantity_remaining),
