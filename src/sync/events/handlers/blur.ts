@@ -11,6 +11,7 @@ import * as utils from "@/events-sync/utils";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import { getRouters } from "@/utils/routers";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const fillEvents: es.fills.Event[] = [];
@@ -72,7 +73,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const executeCallTrace = executeCallTraceCall || executeCallTraceDelegate;
 
         let orderSide: "sell" | "buy" = "sell";
-        const routers = Sdk.Common.Addresses.Routers[config.chainId];
+        const routers = await getRouters();
 
         if (executeCallTrace) {
           // TODO: Update the SDK Blur contract ABI
@@ -346,7 +347,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           taker = isSellOrder ? traderOfBuy : traderOfSell;
         }
 
-        if (maker in routers) {
+        if (routers.get(maker)) {
           maker = sell.trader.toLowerCase();
         }
 

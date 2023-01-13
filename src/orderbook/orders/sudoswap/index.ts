@@ -249,6 +249,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 `
                   UPDATE orders SET
                     fillability_status = 'fillable',
+                    approval_status = 'approved',
                     price = $/price/,
                     currency_price = $/price/,
                     value = $/value/,
@@ -463,6 +464,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   `
                     UPDATE orders SET
                       fillability_status = 'fillable',
+                      approval_status = 'approved',
                       price = $/price/,
                       currency_price = $/price/,
                       value = $/value/,

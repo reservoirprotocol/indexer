@@ -49,7 +49,7 @@ export const postSimulateTopBidV1Options: RouteOptions = {
     const invalidateOrder = async (orderId: string, callTrace?: CallTrace, payload?: any) => {
       logger.error(
         `post-simulate-top-bid-${version}-handler`,
-        JSON.stringify({ error: "stale-order", callTrace, payload })
+        JSON.stringify({ error: "stale-order", callTrace, payload, orderId })
       );
 
       // Invalidate the order if the simulation failed

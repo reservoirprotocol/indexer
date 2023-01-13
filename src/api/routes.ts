@@ -21,6 +21,7 @@ import * as tokensEndpoints from "@/api/endpoints/tokens";
 import * as transactionsEndpoints from "@/api/endpoints/transactions";
 import * as transfersEndpoints from "@/api/endpoints/transfers";
 import * as assetsEndpoints from "@/api/endpoints/assets";
+import * as sourcesEndpoints from "@/api/endpoints/sources";
 
 export const setupRoutes = (server: Server) => {
   // Activity
@@ -283,6 +284,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/admin/flag-address",
     options: adminEndpoints.postFlagAddressOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/routers",
+    options: adminEndpoints.postRoutersOptions,
   });
 
   // API keys
@@ -1162,5 +1169,13 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/transfers/bulk/v1",
     options: transfersEndpoints.getTransfersBulkV1Options,
+  });
+
+  // sources
+
+  server.route({
+    method: "GET",
+    path: "/sources/v1",
+    options: sourcesEndpoints.getSourcesV1Options,
   });
 };

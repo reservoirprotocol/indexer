@@ -74,6 +74,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             nonce: Joi.string().pattern(regex.number).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
+            rawData: Joi.object(),
             kind: Joi.string(),
             source: Joi.string().allow(null, ""),
             isDynamic: Joi.boolean(),
@@ -132,6 +133,7 @@ export const getAsksEventsV3Options: RouteOptions = {
           orders.currency_normalized_value,
           orders.normalized_value,
           orders.kind AS order_kind,
+          orders.raw_data,
           TRUNC(orders.currency_price, 0) AS currency_price,
           order_events.order_source_id_int,
           coalesce(
@@ -145,9 +147,22 @@ export const getAsksEventsV3Options: RouteOptions = {
           (${criteriaBuildQuery}) AS criteria
         FROM order_events
         LEFT JOIN LATERAL (
-           SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value, token_set_id, kind
-           FROM orders
-           WHERE orders.id = order_events.order_id
+          SELECT
+            orders.currency,
+            orders.currency_price,
+            orders.normalized_value,
+            orders.currency_normalized_value,
+            orders.token_set_id,
+            orders.dynamic,
+            orders.kind,
+            (
+              CASE
+                WHEN orders.kind IN ('nftx', 'sudoswap') THEN orders.raw_data
+                ELSE NULL
+              END
+            ) AS raw_data
+         FROM orders
+         WHERE orders.id = order_events.order_id
         ) orders ON TRUE
       `;
 
@@ -233,6 +248,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             nonce: r.order_nonce ?? null,
             validFrom: r.valid_from ? Number(r.valid_from) : null,
             validUntil: r.valid_until ? Number(r.valid_until) : null,
+            rawData: r.raw_data ? r.raw_data : undefined,
             kind: r.order_kind,
             source: sources.get(r.order_source_id_int)?.name,
             isDynamic: Boolean(r.dynamic),

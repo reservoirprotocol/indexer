@@ -177,6 +177,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
               unnest("amount_deltas") AS "amount_delta",
               unnest("timestamps") AS "timestamp"
             FROM "x"
+            ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
           ) "y"
           GROUP BY "y"."address", "y"."token_id", "y"."owner"
         )
@@ -223,7 +224,9 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "token_id",
             "minted_timestamp"
           ) VALUES ${pgp.helpers.values(tokenValuesChunk, columns)}
-          ON CONFLICT (contract, token_id) DO UPDATE SET minted_timestamp = EXCLUDED.minted_timestamp WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
+          ON CONFLICT (contract, token_id) DO UPDATE 
+          SET minted_timestamp = EXCLUDED.minted_timestamp
+          WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
         `);
       } else {
         const columns = new pgp.helpers.ColumnSet(
@@ -240,7 +243,9 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "token_id",
             "minted_timestamp"
           ) VALUES ${pgp.helpers.values(tokenValuesChunk, columns)}
-          ON CONFLICT (contract, token_id) DO UPDATE SET minted_timestamp = EXCLUDED.minted_timestamp WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
+          ON CONFLICT (contract, token_id) DO UPDATE
+          SET minted_timestamp = EXCLUDED.minted_timestamp
+          WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
         `);
       }
 
@@ -300,6 +305,7 @@ export const removeEvents = async (block: number, blockHash: string) => {
             unnest("owners") AS "owner",
             unnest("amount_deltas") AS "amount_delta"
           FROM "x"
+          ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
         ) "y"
         GROUP BY "y"."address", "y"."token_id", "y"."owner"
       )

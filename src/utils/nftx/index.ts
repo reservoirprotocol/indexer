@@ -2,7 +2,6 @@ import { Interface } from "@ethersproject/abi";
 import { Log } from "@ethersproject/abstract-provider";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
-
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 import * as nftx from "@/events-sync/data/nftx";
@@ -12,6 +11,28 @@ import {
   saveNftxFtPool,
   saveNftxNftPool,
 } from "@/models/nftx-pools";
+
+const ifaceUniV2 = new Interface([
+  `event Swap(
+    address indexed sender,
+    uint256 amount0In,
+    uint256 amount1In,
+    uint256 amount0Out,
+    uint256 amount1Out,
+    address indexed to
+  )`,
+]);
+const ifaceUniV3 = new Interface([
+  `event Swap(
+    address indexed sender,
+    address indexed recipient,
+    int256 amount0,
+    int256 amount1,
+    uint160 sqrtPriceX96,
+    uint128 liquidity,
+    int24 tick
+  )`,
+]);
 
 export const getNftPoolDetails = async (address: string) =>
   getNftxNftPool(address).catch(async () => {
@@ -25,7 +46,7 @@ export const getNftPoolDetails = async (address: string) =>
       try {
         const pool = new Contract(address, iface, baseProvider);
 
-        const nft = await pool.assetAddress();
+        const nft = (await pool.assetAddress()).toLowerCase();
         const vaultId = await pool.vaultId();
 
         const factory = new Contract(
@@ -57,8 +78,8 @@ export const getFtPoolDetails = async (address: string) =>
       try {
         const pool = new Contract(address, iface, baseProvider);
 
-        const token0 = await pool.token0();
-        const token1 = await pool.token1();
+        const token0 = (await pool.token0()).toLowerCase();
+        const token1 = (await pool.token1()).toLowerCase();
 
         return saveNftxFtPool({
           address,
@@ -78,6 +99,7 @@ export const isMint = (log: Log, address: string) => {
   ) {
     return true;
   }
+  return false;
 };
 
 export const isRedeem = (log: Log, address: string) => {
@@ -87,29 +109,8 @@ export const isRedeem = (log: Log, address: string) => {
   ) {
     return true;
   }
+  return false;
 };
-
-const ifaceUniV2 = new Interface([
-  `event Swap(
-    address indexed sender,
-    uint256 amount0In,
-    uint256 amount1In,
-    uint256 amount0Out,
-    uint256 amount1Out,
-    address indexed to
-  )`,
-]);
-const ifaceUniV3 = new Interface([
-  `event Swap(
-    address indexed sender,
-    address indexed recipient,
-    int256 amount0,
-    int256 amount1,
-    uint160 sqrtPriceX96,
-    uint128 liquidity,
-    int24 tick
-  )`,
-]);
 
 export const isSwap = (log: Log) => {
   if (

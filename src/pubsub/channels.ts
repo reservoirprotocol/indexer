@@ -1,5 +1,6 @@
-export enum channels {
-  sourcesUpdated = "sources-updated",
-  apiKeyUpdated = "api-key-updated",
-  rateLimitRuleUpdated = "rate-limit-rule-updated",
+export enum Channel {
+  ApiKeyUpdated = "api-key-updated",
+  RateLimitRuleUpdated = "rate-limit-rule-updated",
+  RoutersUpdated = "routers-updated",
+  SourcesUpdated = "sources-updated",
 }

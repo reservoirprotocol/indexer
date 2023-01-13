@@ -15,6 +15,7 @@ export * as universe from "@/orderbook/orders/universe";
 export * as infinity from "@/orderbook/orders/infinity";
 export * as blur from "@/orderbook/orders/blur";
 export * as rarible from "@/orderbook/orders/rarible";
+export * as nftx from "@/orderbook/orders/nftx";
 export * as manifold from "@/orderbook/orders/manifold";
 
 // Imports
@@ -566,6 +567,14 @@ export const generateListingDetailsV6 = (
       };
     }
 
+    case "nftx": {
+      return {
+        kind: "nftx",
+        ...common,
+        order: new Sdk.Nftx.Order(config.chainId, order.rawData),
+      };
+    }
+
     case "manifold": {
       return {
         kind: "manifold",
@@ -697,6 +706,15 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.Sudoswap.Order(config.chainId, order.rawData);
       return {
         kind: "sudoswap",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
+    case "nftx": {
+      const sdkOrder = new Sdk.Nftx.Order(config.chainId, order.rawData);
+      return {
+        kind: "nftx",
         ...common,
         order: sdkOrder,
       };

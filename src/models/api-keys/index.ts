@@ -8,7 +8,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { ApiKeyEntity, ApiKeyUpdateParams } from "@/models/api-keys/api-key-entity";
 import getUuidByString from "uuid-by-string";
-import { channels } from "@/pubsub/channels";
+import { Channel } from "@/pubsub/channels";
 import axios from "axios";
 import { getNetworkName } from "@/config/network";
 import { config } from "@/config/index";
@@ -229,7 +229,7 @@ export class ApiKeyManager {
     await idb.none(query, replacementValues);
 
     await ApiKeyManager.deleteCachedApiKey(key); // reload the cache
-    await redis.publish(channels.apiKeyUpdated, JSON.stringify({ key }));
+    await redis.publish(Channel.ApiKeyUpdated, JSON.stringify({ key }));
   }
 
   static async notifyApiKeyCreated(values: ApiKeyRecord) {

@@ -17,6 +17,7 @@ import { Sources } from "@/models/sources";
 import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
+import * as nftx from "@/orderbook/orders/nftx";
 import { getCurrency } from "@/utils/currencies";
 
 const version = "v6";
@@ -48,7 +49,8 @@ export const getExecuteBuyV6Options: RouteOptions = {
               "universe",
               "rarible",
               "infinity",
-              "sudoswap"
+              "sudoswap",
+              "nftx"
             )
             .required(),
           data: Joi.object().required(),
@@ -210,17 +212,28 @@ export const getExecuteBuyV6Options: RouteOptions = {
         const fees = payload.normalizeRoyalties ? order.fees ?? [] : [];
         const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
 
-        if (order.kind === "sudoswap") {
-          const rawData = order.rawData as Sdk.Sudoswap.OrderParams;
+        if (["sudoswap", "nftx"].includes(order.kind)) {
+          let poolId: string;
+          let priceList: string[];
 
-          if (!poolPrices[rawData.pair]) {
-            poolPrices[rawData.pair] = [];
+          if (order.kind === "sudoswap") {
+            const rawData = order.rawData as Sdk.Sudoswap.OrderParams;
+            poolId = rawData.pair;
+            priceList = rawData.extra.prices;
+          } else {
+            const rawData = order.rawData as Sdk.Nftx.Types.OrderParams;
+            poolId = rawData.pool;
+            priceList = rawData.extra.prices;
+          }
+
+          if (!poolPrices[poolId]) {
+            poolPrices[poolId] = [];
           }
 
           // Fetch the price corresponding to the order's index per pool
-          const price = rawData.extra.prices[poolPrices[rawData.pair].length];
+          const price = priceList[poolPrices[poolId].length];
           // Save the latest price per pool
-          poolPrices[rawData.pair].push(price);
+          poolPrices[poolId].push(price);
           // Override the order's price
           order.price = price;
         }
@@ -277,6 +290,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
           if (order.kind === "sudoswap") {
             // Sudoswap orders cannot be "posted"
             payload.orderIds.push(sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId));
+          } else if (order.kind === "nftx") {
+            payload.orderIds.push(
+              nftx.getOrderId(order.data.pool, "sell", order.data.specificIds[0])
+            );
           } else {
             const response = await inject({
               method: "POST",
