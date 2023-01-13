@@ -290,14 +290,14 @@ export const getUserTokensV6Options: RouteOptions = {
           t.token_id,
           t.name,
           t.image,
+          t.media,
+          t.rarity_rank,
           t.collection_id,
           t.rarity_score,
-          t.rarity_rank,
           t.last_buy_value,
           t.last_buy_timestamp,
           t.last_sell_value,
           t.last_sell_timestamp,
-          t.media,
           null AS top_bid_id,
           null AS top_bid_price,
           null AS top_bid_value,
@@ -321,14 +321,14 @@ export const getUserTokensV6Options: RouteOptions = {
             t.token_id,
             t.name,
             t.image,
+            t.media,
+            t.rarity_rank,
             t.collection_id,
             t.rarity_score,
-            t.rarity_rank,
             t.last_sell_value,
             t.last_buy_value,
             t.last_sell_timestamp,
             t.last_buy_timestamp,
-            t.media,
             ${selectFloorData}
           FROM tokens t
           WHERE b.token_id = t.token_id
@@ -370,9 +370,9 @@ export const getUserTokensV6Options: RouteOptions = {
     try {
       let baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at,
-               t.name, t.image, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
+               t.name, t.image, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
-               t.rarity_score, t.rarity_rank, t.last_sell_value, t.last_buy_value, t.last_sell_timestamp, t.last_buy_timestamp, t.media,
+               t.rarity_score, t.last_sell_value, t.last_buy_value, t.last_sell_timestamp, t.last_buy_timestamp,
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                c.name as collection_name, con.kind, c.metadata, ${
                  query.useNonFlaggedFloorAsk
