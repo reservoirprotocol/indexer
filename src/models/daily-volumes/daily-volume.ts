@@ -259,7 +259,7 @@ export class DailyVolume {
           FROM daily_volumes
           WHERE timestamp = $4
           AND collection_id != '-1'
-          ${collectionId ? `AND collection_id = $/collectionId/` : ""}
+          ${collectionId ? `AND collection_id = $5` : ""}
       `,
         ["day1_rank", "day1_volume", "day1_floor_sell_value", day1Timestamp, collectionId]
       );
@@ -270,7 +270,7 @@ export class DailyVolume {
       );
     }
 
-    if (!day1Results.length) {
+    if (!collectionId && !day1Results.length) {
       logger.error(
         "daily-volumes",
         `No daily volumes found for the previous day, should be impossible. dateTimestamp=${dateTimestamp}, day1Timestamp=${day1Timestamp}`
@@ -289,7 +289,7 @@ export class DailyVolume {
         FROM daily_volumes
         WHERE timestamp >= $4
         AND collection_id != '-1'
-        ${collectionId ? `AND collection_id = $/collectionId/` : ""}
+        ${collectionId ? `AND collection_id = $5` : ""}
         GROUP BY collection_id
       `;
 
