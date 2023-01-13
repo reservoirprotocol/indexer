@@ -58,10 +58,12 @@ export class DailyVolume {
    *
    * @param startTime
    * @param ignoreInsertedRows
+   * @param collectionId
    */
   public static async calculateDay(
     startTime: number,
-    ignoreInsertedRows = false
+    ignoreInsertedRows = false,
+    collectionId = ""
   ): Promise<boolean> {
     logger.info("daily-volumes", `Calculating daily volumes. startTime=${startTime}`);
     // Don't recalculate if the day was already calculated
@@ -106,6 +108,7 @@ export class DailyVolume {
               AND "fe"."timestamp" < $/endTime/
               AND fe.price > 0
               AND fe.is_primary IS NOT TRUE 
+              ${collectionId ? "AND collection_id = $/collectionId/" : ""}
             GROUP BY "collection_id") t1
           LEFT JOIN
             (SELECT
@@ -123,12 +126,14 @@ export class DailyVolume {
               AND fe.price > 0
               AND fe.is_primary IS NOT TRUE 
               AND coalesce(fe.wash_trading_score, 0) = 0
+              ${collectionId ? "AND collection_id = $/collectionId/" : ""}
             GROUP BY "collection_id") t2
           ON (t1.collection_id = t2.collection_id)
         `,
         {
           startTime,
           endTime,
+          collectionId,
         }
       );
     } catch (error) {
@@ -222,7 +227,10 @@ export class DailyVolume {
    *
    * @return boolean Returns false when it fails to update the collection, will need to reschedule the job
    */
-  public static async updateCollections(useCleanValues = false): Promise<boolean> {
+  public static async updateCollections(
+    useCleanValues = false,
+    collectionId = ""
+  ): Promise<boolean> {
     // Skip the query when the collection_id = -1
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0);
@@ -249,9 +257,11 @@ export class DailyVolume {
                  volume${valuesPostfix} AS $2:name,
                  floor_sell_value${valuesPostfix} as $3:name
           FROM daily_volumes
-          WHERE timestamp = $4 AND collection_id != '-1'
+          WHERE timestamp = $4
+          AND collection_id != '-1'
+          ${collectionId ? `AND collection_id = $/collectionId/` : ""}
       `,
-        ["day1_rank", "day1_volume", "day1_floor_sell_value", day1Timestamp]
+        ["day1_rank", "day1_volume", "day1_floor_sell_value", day1Timestamp, collectionId]
       );
     } catch (error: any) {
       logger.error(
@@ -277,7 +287,9 @@ export class DailyVolume {
                SUM(volume${valuesPostfix}) AS $2:name,
                MIN(floor_sell_value${valuesPostfix}) AS $3:name
         FROM daily_volumes
-        WHERE timestamp >= $4 AND collection_id != '-1'
+        WHERE timestamp >= $4
+        AND collection_id != '-1'
+        ${collectionId ? `AND collection_id = $/collectionId/` : ""}
         GROUP BY collection_id
       `;
 
@@ -287,6 +299,7 @@ export class DailyVolume {
         "day7_volume",
         "day7_floor_sell_value",
         day7Timestamp,
+        collectionId,
       ]);
     } catch (error: any) {
       logger.error(
@@ -303,6 +316,7 @@ export class DailyVolume {
         "day30_volume",
         "day30_floor_sell_value",
         day30Timestamp,
+        collectionId,
       ]);
     } catch (error: any) {
       logger.error(
@@ -319,6 +333,7 @@ export class DailyVolume {
         "all_time_volume",
         "all_time_floor_sell_value",
         0,
+        collectionId,
       ]);
     } catch (error: any) {
       logger.error(
@@ -343,18 +358,19 @@ export class DailyVolume {
     try {
       const queries: any = [];
       mergedArr.forEach((row: any) => {
+        // When updating single collection don't update the rank
         queries.push({
           query: `
             UPDATE collections
             SET
                 day1_volume = $/day1_volume/,
-                day1_rank   = $/day1_rank/,
+                ${collectionId ? `day1_rank   = $/day1_rank/,` : ""}
                 day7_volume = $/day7_volume/,
-                day7_rank   = $/day7_rank/,
+                ${collectionId ? `day7_rank   = $/day7_rank/,` : ""}
                 day30_volume = $/day30_volume/,
-                day30_rank   = $/day30_rank/,
+                ${collectionId ? `day30_rank   = $/day30_rank/,` : ""}
                 all_time_volume = $/all_time_volume/,
-                all_time_rank = $/all_time_rank/,
+                ${collectionId ? `all_time_rank = $/all_time_rank/,` : ""}
                 updated_at = now()
             WHERE
                 id = $/collection_id/`,
