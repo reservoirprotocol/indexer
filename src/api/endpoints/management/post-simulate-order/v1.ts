@@ -27,6 +27,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
   validate: {
     payload: Joi.object({
       id: Joi.string().lowercase().required(),
+      skipRevalidation: Joi.boolean().default(false),
     }),
   },
   response: {
@@ -54,28 +55,31 @@ export const postSimulateOrderV1Options: RouteOptions = {
         payload?: object;
       }
     ) => {
-      logger.error(
-        `post-revalidate-order-${version}-handler`,
-        JSON.stringify({
-          error: "stale-order",
-          callTrace: options?.callTrace,
-          payload: options?.payload,
-        })
-      );
+      if (!payload.skipRevalidation) {
+        logger.error(
+          `post-revalidate-order-${version}-handler`,
+          JSON.stringify({
+            error: "stale-order",
+            callTrace: options?.callTrace,
+            payload: options?.payload,
+            orderId: id,
+          })
+        );
 
-      // Revalidate the order
-      await inject({
-        method: "POST",
-        url: `/admin/revalidate-order`,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Admin-Api-Key": config.adminApiKey,
-        },
-        payload: {
-          id,
-          status,
-        },
-      });
+        // Revalidate the order
+        await inject({
+          method: "POST",
+          url: `/admin/revalidate-order`,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Api-Key": config.adminApiKey,
+          },
+          payload: {
+            id,
+            status,
+          },
+        });
+      }
     };
 
     try {
