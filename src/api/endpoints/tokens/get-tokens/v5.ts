@@ -123,6 +123,20 @@ export const getTokensV5Options: RouteOptions = {
         .valid("floorAskPrice", "tokenId", "rarity")
         .description("Order the items are returned in the response."),
       sortDirection: Joi.string().lowercase().valid("asc", "desc"),
+      currencies: Joi.alternatives().try(
+        Joi.array()
+          .max(50)
+          .items(Joi.string().lowercase().pattern(regex.address))
+          .description(
+            "Filter to tokens with a listing in a particular currency. `Example: currencies[0]: 0x0000000000000000000000000000000000000000`"
+          ),
+        Joi.string()
+          .lowercase()
+          .pattern(regex.address)
+          .description(
+            "Filter to tokens with a listing in a particular currency. `Example: currencies[0]: 0x0000000000000000000000000000000000000000`"
+          )
+      ),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -411,6 +425,9 @@ export const getTokensV5Options: RouteOptions = {
       sourceConditions.push(
         `o.taker = '\\x0000000000000000000000000000000000000000' OR o.taker IS NULL`
       );
+      if (query.currencies) {
+        sourceConditions.push(`o.currency IN ($/currenciesFilter:raw/)`);
+      }
 
       if (query.contract) {
         sourceConditions.push(`tst.contract = $/contract/`);
@@ -619,6 +636,31 @@ export const getTokensV5Options: RouteOptions = {
 
       if (query.collectionsSetId) {
         conditions.push(`csc.collections_set_id = $/collectionsSetId/`);
+      }
+
+      if (query.currencies) {
+        if (!_.isArray(query.currencies)) {
+          query.currencies = [query.currencies];
+        }
+
+        for (const currency of query.currencies) {
+          const currencyFilter = `'${_.replace(currency, "0x", "\\x")}'`;
+
+          if (_.isUndefined((query as any).currenciesFilter)) {
+            (query as any).currenciesFilter = [];
+          }
+
+          (query as any).currenciesFilter.push(currencyFilter);
+        }
+
+        (query as any).currenciesFilter = _.join((query as any).currenciesFilter, ",");
+
+        if (query.source) {
+          // if source is passed in, then we have two floor_sell_currency columns
+          conditions.push(`s.floor_sell_currency IN ($/currenciesFilter:raw/)`);
+        } else {
+          conditions.push(`floor_sell_currency IN ($/currenciesFilter:raw/)`);
+        }
       }
 
       // Continue with the next page, this depends on the sorting used

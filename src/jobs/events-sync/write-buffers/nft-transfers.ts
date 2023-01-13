@@ -1,7 +1,7 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { logger } from "@/common/logger";
-import { acquireLock, redis, releaseLock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { idb } from "@/common/db";
 import { MqJobsDataManager } from "@/models/mq-jobs-data";
@@ -17,7 +17,7 @@ export const queue = new Queue(QUEUE_NAME, {
       type: "exponential",
       delay: 10000,
     },
-    removeOnComplete: true,
+    removeOnComplete: 5,
     removeOnFail: 20000,
     timeout: 60000,
   },
@@ -30,27 +30,28 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const { id } = job.data;
+      let { query } = (await MqJobsDataManager.getJobData(id)) || {};
 
-      const lockName = getLockName();
-      if (await acquireLock(lockName, 45)) {
-        job.data.lockName = lockName;
-        const { query } = (await MqJobsDataManager.getJobData(id)) || {};
+      if (!query) {
+        return;
+      }
 
-        if (!query) {
-          return;
-        }
+      if (!_.includes(query, "ORDER BY")) {
+        query = _.replace(
+          query,
+          `FROM "x"`,
+          `FROM "x" ORDER BY "address" ASC, "token_id" ASC, "owner" ASC`
+        );
+      }
 
-        try {
-          await idb.none(query);
-        } catch (error) {
-          logger.error(
-            QUEUE_NAME,
-            `Failed flushing nft transfer events to the database: ${query} error=${error}`
-          );
-          throw error;
-        }
-      } else {
-        await addToQueueByJobDataId(id);
+      try {
+        await idb.none(query);
+      } catch (error) {
+        logger.error(
+          QUEUE_NAME,
+          `Failed flushing nft transfer events to the database: ${query} error=${error}`
+        );
+        throw error;
       }
     },
     {
@@ -58,28 +59,19 @@ if (config.doBackgroundWork) {
       // It's very important to have this queue be single-threaded
       // in order to avoid database write deadlocks (and it can be
       // even better to have it be single-process).
-      concurrency: 1,
+      concurrency: 5,
     }
   );
 
   worker.on("completed", async (job) => {
-    // If lockName was set release the lock
-    if (job.data.lockName) {
-      const { id } = job.data;
-      await MqJobsDataManager.deleteJobData(id);
-
-      await releaseLock(job.data.lockName);
-    }
+    const { id } = job.data;
+    await MqJobsDataManager.deleteJobData(id);
   });
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 }
-
-export const getLockName = () => {
-  return `${QUEUE_NAME}-lock-${_.random(1, 100)}`;
-};
 
 export const addToQueue = async (query: string) => {
   const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, { query });
