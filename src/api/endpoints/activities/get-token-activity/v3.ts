@@ -153,7 +153,11 @@ export const getTokenActivityV3Options: RouteOptions = {
           timestamp: activity.eventTimestamp,
           createdAt: activity.createdAt.toISOString(),
           contract: activity.contract,
-          token: activity.token,
+          token: {
+            tokenId: activity.token?.tokenId,
+            tokenName: activity.token?.tokenName,
+            tokenImage: activity.token?.tokenImage,
+          },
           collection: activity.collection,
           txHash: activity.metadata.transactionHash,
           logIndex: activity.metadata.logIndex,
