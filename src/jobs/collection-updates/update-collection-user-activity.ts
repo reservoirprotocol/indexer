@@ -55,6 +55,10 @@ if (config.doBackgroundWork) {
         tokenId,
       });
 
+      logger.info(
+        QUEUE_NAME,
+        `Updated ${result.length} user_activities from ${oldCollectionId} to ${newCollectionId}`
+      );
       job.data.continueUpdate = result.length > 0;
     },
     { connection: redis.duplicate(), concurrency: 15 }

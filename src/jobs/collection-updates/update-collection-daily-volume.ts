@@ -58,12 +58,18 @@ if (config.doBackgroundWork) {
         // Recalculate daily volumes from the first sale date
         while (getUnixTime(saleDate) < currentTime - 24 * 60 * 60) {
           await DailyVolume.calculateDay(getUnixTime(saleDate), true, newCollectionId);
+          logger.info(
+            QUEUE_NAME,
+            `Calculate daily volume for date ${saleDate.toISOString()} collection ${newCollectionId} `
+          );
           saleDate = add(saleDate, { days: 1 });
           saleDate.setUTCHours(0, 0, 0, 0);
         }
 
         // Update the collections table
         const updated = await DailyVolume.updateCollections(true, newCollectionId);
+        logger.info(QUEUE_NAME, `Updated collections table collection ${newCollectionId}`);
+
         if (updated) {
           logger.info(
             "daily-volumes",
