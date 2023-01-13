@@ -113,21 +113,21 @@ if (config.doBackgroundWork) {
 
           // Update the activities to the new collection
           await updateCollectionActivity.addToQueue(
-            result.collection_id,
             collection,
+            result.collection_id,
             contract,
             tokenId
           );
 
           await updateCollectionUserActivity.addToQueue(
-            result.collection_id,
             collection,
+            result.collection_id,
             contract,
             tokenId
           );
 
           // Trigger a delayed job to recalc the daily volumes
-          await updateCollectionDailyVolume.addToQueue(result.collection_id, contract);
+          await updateCollectionDailyVolume.addToQueue(collection, contract);
 
           // Set the new collection and update the token association
           await fetchCollectionMetadata.addToQueue(
