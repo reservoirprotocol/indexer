@@ -47,25 +47,26 @@ export const postSimulateOrderV1Options: RouteOptions = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
 
-    const revalidateOrder = async (
+    const logAndRevalidateOrder = async (
       id: string,
       status: "active" | "inactive",
       options?: {
         callTrace?: CallTrace;
         payload?: object;
+        revalidate?: boolean;
       }
     ) => {
-      if (!payload.skipRevalidation) {
-        logger.error(
-          `post-revalidate-order-${version}-handler`,
-          JSON.stringify({
-            error: "stale-order",
-            callTrace: options?.callTrace,
-            payload: options?.payload,
-            orderId: id,
-          })
-        );
+      logger.warn(
+        `post-revalidate-order-${version}-handler`,
+        JSON.stringify({
+          error: "stale-order",
+          callTrace: options?.callTrace,
+          payload: options?.payload,
+          orderId: id,
+        })
+      );
 
+      if (!payload.skipRevalidation && options?.revalidate) {
         // Revalidate the order
         await inject({
           method: "POST",
@@ -143,9 +144,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status === "fillable" &&
             orderResult.approval_status === "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "inactive");
-          }
+          await logAndRevalidateOrder(id, "inactive", { revalidate: needRevalidation });
 
           return { message: "Order is not fillable" };
         }
@@ -177,9 +176,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status !== "fillable" ||
             orderResult.approval_status !== "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "active", { callTrace, payload: parsedPayload });
-          }
+          await logAndRevalidateOrder(id, "active", {
+            callTrace,
+            payload: parsedPayload,
+            revalidate: needRevalidation,
+          });
 
           return { message: "Order is fillable" };
         } else {
@@ -187,9 +188,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status === "fillable" &&
             orderResult.approval_status === "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "inactive", { callTrace, payload: parsedPayload });
-          }
+          await logAndRevalidateOrder(id, "inactive", {
+            callTrace,
+            payload: parsedPayload,
+            revalidate: needRevalidation,
+          });
 
           return { message: "Order is not fillable" };
         }
@@ -248,9 +251,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status === "fillable" &&
             orderResult.approval_status === "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "inactive");
-          }
+          await logAndRevalidateOrder(id, "inactive", { revalidate: needRevalidation });
 
           return { message: "Order is not fillable" };
         }
@@ -282,9 +283,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status !== "fillable" ||
             orderResult.approval_status !== "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "active", { callTrace, payload: parsedPayload });
-          }
+          await logAndRevalidateOrder(id, "active", {
+            callTrace,
+            payload: parsedPayload,
+            revalidate: needRevalidation,
+          });
 
           return { message: "Order is fillable" };
         } else {
@@ -292,9 +295,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status === "fillable" &&
             orderResult.approval_status === "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "inactive", { callTrace, payload: parsedPayload });
-          }
+          await logAndRevalidateOrder(id, "inactive", {
+            callTrace,
+            payload: parsedPayload,
+            revalidate: needRevalidation,
+          });
 
           return { message: "Order is not fillable" };
         }
