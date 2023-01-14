@@ -166,7 +166,7 @@ export const getNetworkSettings = (): NetworkSettings => {
               contract: "0x4c7C1EC97279a6f3323EAB9AB317202Dee7AD922",
               name: "FEWL",
               symbol: "FEWL",
-              decimals: 18,
+              decimals: 18, 
             },
           ],
         ]),
