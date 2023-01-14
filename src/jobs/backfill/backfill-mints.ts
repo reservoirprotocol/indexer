@@ -39,14 +39,14 @@ if (config.doBackgroundWork) {
     async (job) => {
       const { block } = job.data;
 
-      const numBlocks = 7;
+      const numBlocks = 20;
       const results = await idb.manyOrNone(
         `
           SELECT
             nft_transfer_events.*
           FROM nft_transfer_events
           WHERE nft_transfer_events.block < $/endBlock/
-            AND nft_transfer_events.block > $/startBlock/
+            AND nft_transfer_events.block >= $/startBlock/
           ORDER BY nft_transfer_events.block DESC
         `,
         {
