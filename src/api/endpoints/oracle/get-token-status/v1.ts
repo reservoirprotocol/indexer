@@ -70,7 +70,7 @@ export const getTokenStatusOracleV1Options: RouteOptions = {
       for (const token of tokens) {
         const [contract, tokenId] = token.split(":");
 
-        const result = await edb.oneOrNone(
+        let result = await edb.oneOrNone(
           `
             SELECT
               (
@@ -97,8 +97,13 @@ export const getTokenStatusOracleV1Options: RouteOptions = {
             tokenId,
           }
         );
+
+        // Use a default response for unknown tokens
         if (!result) {
-          throw Boom.badRequest("Unknown token");
+          result = {
+            is_flagged: false,
+            last_transfer_time: 0,
+          };
         }
 
         // Use EIP-712 structured hashing (https://eips.ethereum.org/EIPS/eip-712)
