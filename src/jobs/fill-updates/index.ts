@@ -4,3 +4,4 @@
 // sale could offer valuable information to users.
 
 import "@/jobs/fill-updates/queue";
+import "@/jobs/fill-updates/fill-post-process";

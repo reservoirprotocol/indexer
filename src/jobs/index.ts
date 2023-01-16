@@ -74,6 +74,7 @@ import * as eventsSyncFtTransfersWriteBuffer from "@/jobs/events-sync/write-buff
 import * as eventsSyncNftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
 
 import * as fillUpdates from "@/jobs/fill-updates/queue";
+import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
 
 import * as flagStatusProcessJob from "@/jobs/flag-status/process-queue";
 import * as flagStatusSyncJob from "@/jobs/flag-status/sync-queue";
@@ -178,6 +179,7 @@ export const allJobQueues = [
   eventsSyncNftTransfersWriteBuffer.queue,
 
   fillUpdates.queue,
+  fillPostProcess.queue,
 
   flagStatusProcessJob.queue,
   flagStatusSyncJob.queue,
