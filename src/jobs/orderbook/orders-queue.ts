@@ -110,7 +110,7 @@ if (config.doBackgroundWork) {
           }
 
           case "nftx": {
-            result = await orders.nftx.save([info as orders.nftx.OrderInfo]);
+            result = await orders.nftx.save([info]);
             break;
           }
         }
