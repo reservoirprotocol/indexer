@@ -21,6 +21,8 @@ import * as tokensEndpoints from "@/api/endpoints/tokens";
 import * as transactionsEndpoints from "@/api/endpoints/transactions";
 import * as transfersEndpoints from "@/api/endpoints/transfers";
 import * as assetsEndpoints from "@/api/endpoints/assets";
+import * as sourcesEndpoints from "@/api/endpoints/sources";
+import * as websocketEndpoints from "@/api/endpoints/websocket";
 
 export const setupRoutes = (server: Server) => {
   // Activity
@@ -497,6 +499,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/events/collections/floor-ask/v2",
+    options: eventsEndpoints.getCollectionsFloorAskV2Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/events/orders/v1",
     options: eventsEndpoints.getOrderEventsV1Options,
   });
@@ -523,6 +531,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/events/tokens/floor-ask/v3",
     options: eventsEndpoints.getTokensFloorAskV3Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/events/tokens/floor-ask/v4",
+    options: eventsEndpoints.getTokensFloorAskV4Options,
   });
 
   server.route({
@@ -1028,6 +1042,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/tokens/bootstrap/v2",
+    options: tokensEndpoints.getTokensBootstrapV2Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/tokens/details/v2",
     options: tokensEndpoints.getTokensDetailsV2Options,
   });
@@ -1154,6 +1174,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/sales/v5",
+    options: transfersEndpoints.getSalesV5Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/sales/bulk/v1",
     options: transfersEndpoints.getSalesBulkV1Options,
   });
@@ -1168,5 +1194,21 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/transfers/bulk/v1",
     options: transfersEndpoints.getTransfersBulkV1Options,
+  });
+
+  // sources
+
+  server.route({
+    method: "GET",
+    path: "/sources/v1",
+    options: sourcesEndpoints.getSourcesV1Options,
+  });
+
+  // Websocket
+
+  server.route({
+    method: "POST",
+    path: "/websocket/user-auth",
+    options: websocketEndpoints.postUserAuthOptions,
   });
 };

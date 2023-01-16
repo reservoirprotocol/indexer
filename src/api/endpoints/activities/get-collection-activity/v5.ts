@@ -49,16 +49,13 @@ export const getCollectionActivityV5Options: RouteOptions = {
         }),
       sortBy: Joi.string()
         .valid("eventTimestamp", "createdAt")
-        .default("eventTimestamp")
         .description(
           "Order the items are returned in the response, eventTimestamp = The blockchain event time, createdAt - The time in which event was recorded"
         ),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
-      includeMetadata: Joi.boolean()
-        .default(true)
-        .description("If true, metadata is included in the response."),
+      includeMetadata: Joi.boolean().description("If true, metadata is included in the response."),
       types: Joi.alternatives()
         .try(
           Joi.array().items(
@@ -140,6 +137,14 @@ export const getCollectionActivityV5Options: RouteOptions = {
         true
       );
 
+      if (!query.limit) {
+        query.limit = 50;
+      }
+
+      if (!query.sortBy) {
+        query.sortBy = "eventTimestamp";
+      }
+
       // If no activities found
       if (!activities.length) {
         return { activities: [] };
@@ -160,7 +165,11 @@ export const getCollectionActivityV5Options: RouteOptions = {
           timestamp: activity.eventTimestamp,
           createdAt: activity.createdAt.toISOString(),
           contract: activity.contract,
-          token: activity.token,
+          token: {
+            tokenId: activity.token?.tokenId,
+            tokenName: activity.token?.tokenName,
+            tokenImage: activity.token?.tokenImage,
+          },
           collection: activity.collection,
           txHash: activity.metadata.transactionHash,
           logIndex: activity.metadata.logIndex,

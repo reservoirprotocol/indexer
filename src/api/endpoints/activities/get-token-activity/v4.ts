@@ -10,6 +10,7 @@ import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { Sources } from "@/models/sources";
 import { JoiOrderCriteria } from "@/common/joi";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
 const version = "v4";
 
@@ -37,17 +38,13 @@ export const getTokenActivityV4Options: RouteOptions = {
         .integer()
         .min(1)
         .max(20)
-        .default(20)
         .description("Amount of items returned in response."),
       sortBy: Joi.string()
         .valid("eventTimestamp", "createdAt")
-        .default("eventTimestamp")
         .description(
           "Order the items are returned in the response, eventTimestamp = The blockchain event time, createdAt - The time in which event was recorded"
         ),
-      includeMetadata: Joi.boolean()
-        .default(true)
-        .description("If true, metadata is included in the response."),
+      includeMetadata: Joi.boolean().description("If true, metadata is included in the response."),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
@@ -133,6 +130,14 @@ export const getTokenActivityV4Options: RouteOptions = {
         true
       );
 
+      if (!query.limit) {
+        query.limit = 20;
+      }
+
+      if (!query.sortBy) {
+        query.sortBy = "eventTimestamp";
+      }
+
       // If no activities found
       if (!activities.length) {
         return { activities: [] };
@@ -141,8 +146,10 @@ export const getTokenActivityV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
 
       const result = _.map(activities, (activity) => {
-        const orderSource = activity.order?.sourceIdInt
-          ? sources.get(activity.order.sourceIdInt)
+        const orderSourceIdInt = activity.order?.sourceIdInt;
+
+        const source: SourcesEntity | undefined = orderSourceIdInt
+          ? sources.get(orderSourceIdInt, activity.contract, activity.tokenId ?? undefined)
           : undefined;
 
         return {
@@ -154,7 +161,11 @@ export const getTokenActivityV4Options: RouteOptions = {
           timestamp: activity.eventTimestamp,
           createdAt: activity.createdAt.toISOString(),
           contract: activity.contract,
-          token: activity.token,
+          token: {
+            tokenId: activity.token?.tokenId,
+            tokenName: activity.token?.tokenName,
+            tokenImage: activity.token?.tokenImage,
+          },
           collection: activity.collection,
           txHash: activity.metadata.transactionHash,
           logIndex: activity.metadata.logIndex,
@@ -167,13 +178,13 @@ export const getTokenActivityV4Options: RouteOptions = {
                     ? "ask"
                     : "bid"
                   : undefined,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.getTitle(),
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
+                source: {
+                  id: source?.address,
+                  domain: source?.domain,
+                  name: source?.getTitle(),
+                  icon: source?.getIcon(),
+                  url: source?.metadata.url,
+                },
                 criteria: activity.order.criteria,
               }
             : undefined,

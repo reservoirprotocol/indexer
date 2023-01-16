@@ -6,7 +6,7 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { buildContinuation, formatEth, regex, splitContinuation } from "@/common/utils";
+import { buildContinuation, formatEth, fromBuffer, regex, splitContinuation } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 
 const version = "v4";
@@ -33,15 +33,15 @@ export const getAttributesExploreV4Options: RouteOptions = {
         ),
     }),
     query: Joi.object({
-      includeTopBid: Joi.boolean()
-        .default(false)
-        .description("If true, top bid will be returned in the response."),
-      excludeRangeTraits: Joi.boolean()
-        .default(false)
-        .description("If true, range traits will be excluded from the response."),
-      excludeNumberTraits: Joi.boolean()
-        .default(false)
-        .description("If true, number traits will be excluded from the response."),
+      includeTopBid: Joi.boolean().description(
+        "If true, top bid will be returned in the response."
+      ),
+      excludeRangeTraits: Joi.boolean().description(
+        "If true, range traits will be excluded from the response."
+      ),
+      excludeNumberTraits: Joi.boolean().description(
+        "If true, number traits will be excluded from the response."
+      ),
       attributeKey: Joi.string().description(
         "Filter to a particular attribute key. Example: `Composition`"
       ),
@@ -49,13 +49,11 @@ export const getAttributesExploreV4Options: RouteOptions = {
         .integer()
         .min(1)
         .max(20)
-        .default(1)
         .description("Max number of items returned in the response."),
       maxLastSells: Joi.number()
         .integer()
         .min(0)
         .max(20)
-        .default(0)
         .description("Max number of items returned in the response."),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -64,7 +62,6 @@ export const getAttributesExploreV4Options: RouteOptions = {
         .integer()
         .min(1)
         .max(5000)
-        .default(20)
         .description("Amount of items returned in response."),
     }),
   },
@@ -116,7 +113,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
     const query = request.query as any;
     const params = request.params as any;
     const conditions: string[] = [];
-    const selectQuery =
+    let selectQuery =
       "SELECT attributes.id, kind, floor_sell_value, token_count, on_sale_count, key, value, sample_images, recent_floor_values_info.*";
 
     conditions.push(`attributes.collection_id = $/collection/`);
@@ -131,6 +128,18 @@ export const getAttributesExploreV4Options: RouteOptions = {
 
     if (query.excludeNumberTraits) {
       conditions.push("attributes.kind != 'number'");
+    }
+
+    if (!query.maxLastSells) {
+      query.maxLastSells = 0;
+    }
+
+    if (!query.maxFloorAskPrices) {
+      query.maxFloorAskPrices = 1;
+    }
+
+    if (!query.limit) {
+      query.limit = 20;
     }
 
     // If the client asks for multiple floor prices
@@ -175,10 +184,29 @@ export const getAttributesExploreV4Options: RouteOptions = {
       `;
     }
 
+    let topBidQuery = "";
+    if (query.includeTopBid) {
+      selectQuery += ", top_buy_info.*";
+
+      topBidQuery = `LEFT JOIN LATERAL (
+          SELECT  token_sets.top_buy_id,
+                  token_sets.top_buy_value,
+                  token_sets.top_buy_maker,
+                  date_part('epoch', lower(orders.valid_between)) AS "top_buy_valid_from",
+                  coalesce(nullif(date_part('epoch', upper(orders.valid_between)), 'Infinity'), 0) AS "top_buy_valid_until"
+          FROM token_sets
+          LEFT JOIN orders ON token_sets.top_buy_id = orders.id
+          WHERE token_sets.attribute_id = attributes.id
+          ORDER BY token_sets.top_buy_value DESC NULLS LAST
+          LIMIT 1
+      ) "top_buy_info" ON TRUE`;
+    }
+
     try {
       let attributesQuery = `
             ${selectQuery}
             FROM attributes
+             ${topBidQuery}
             JOIN LATERAL (
                 ${tokensInfoQuery}
             ) "recent_floor_values_info" ON TRUE
@@ -208,7 +236,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
       const attributesData = await redb.manyOrNone(attributesQuery, { ...query, ...params });
 
       let continuation = null;
-      if (attributesData.length === query.limit) {
+      if (attributesData.length === query.limit ? query.limit : 20) {
         continuation = buildContinuation(
           attributesData[attributesData.length - 1].floor_sell_value +
             "_" +
@@ -246,6 +274,15 @@ export const getAttributesExploreV4Options: RouteOptions = {
               value: formatEth(value),
               timestamp: Number(timestamp),
             }))
+          : undefined,
+        topBid: query.includeTopBid
+          ? {
+              id: r.top_buy_id,
+              value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+              maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
+              validFrom: r.top_buy_valid_from,
+              validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
+            }
           : undefined,
       }));
 
