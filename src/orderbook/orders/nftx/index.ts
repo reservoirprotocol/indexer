@@ -52,20 +52,29 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         throw new Error("Could not fetch pool details");
       }
 
+      const nftResult = await idb.oneOrNone(
+        `
+          SELECT
+            contracts.kind
+          FROM contracts
+          WHERE contracts.address = $/address/
+        `,
+        { address: toBuffer(pool.nft) }
+      );
+      if (!nftResult || nftResult.kind !== "erc721") {
+        // For now, only ERC721 collections are supported
+        return;
+      }
+
       // For now, only support a single collection for testing
       if (
         ![
           "0x569a0ff212efe6b2fac806765ef59ce6685f2dd2",
           "0xca7ffb829835f3946998cb8d02a0c0b02012c3c5",
           "0x227c7df69d3ed1ae7574a1a7685fded90292eb48",
+          "0x87931e7ad81914e7898d07c68f145fc0a553d8fb",
         ].includes(orderParams.pool)
       ) {
-        return;
-      }
-
-      const poolFeatures = await Sdk.Nftx.Helpers.getPoolFeatures(orderParams.pool, baseProvider);
-      if (poolFeatures.is1155) {
-        // For now, ERC1155 is not supported
         return;
       }
 
@@ -76,6 +85,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         recipient: string;
         bps: number;
       }[] = [];
+
+      const poolFeatures = await Sdk.Nftx.Helpers.getPoolFeatures(orderParams.pool, baseProvider);
 
       // Handle buy orders
       try {
