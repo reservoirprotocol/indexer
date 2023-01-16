@@ -89,6 +89,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
       const orderResult = await idb.oneOrNone(
         `
           SELECT
+            orders.kind,
             orders.side,
             orders.contract,
             orders.token_set_id,
@@ -101,6 +102,9 @@ export const postSimulateOrderV1Options: RouteOptions = {
       );
       if (!orderResult?.side || !orderResult?.contract) {
         throw Boom.badRequest("Could not find order");
+      }
+      if (["nftx", "sudoswap"].includes(orderResult.kind)) {
+        return { message: "Pool orders not supported" };
       }
 
       const contractResult = await redb.one(

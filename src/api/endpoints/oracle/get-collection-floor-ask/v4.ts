@@ -30,9 +30,11 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      kind: Joi.string().valid("spot", "twap", "lower", "upper"),
-      currency: Joi.string().lowercase(),
-      twapSeconds: Joi.number(),
+      kind: Joi.string().valid("spot", "twap", "lower", "upper").default("spot"),
+      currency: Joi.string().lowercase().default(AddressZero),
+      twapSeconds: Joi.number()
+        .greater(0)
+        .default(24 * 3600),
       eip3668Calldata: Joi.string(),
       collection: Joi.string().lowercase(),
       token: Joi.string().pattern(regex.token).lowercase(),

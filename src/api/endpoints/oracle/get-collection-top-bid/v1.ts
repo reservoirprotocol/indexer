@@ -30,7 +30,9 @@ export const getCollectionTopBidOracleV1Options: RouteOptions = {
     query: Joi.object({
       kind: Joi.string().valid("spot", "twap", "lower", "upper").default("spot"),
       currency: Joi.string().lowercase().default(AddressZero),
-      twapSeconds: Joi.number().default(0),
+      twapSeconds: Joi.number()
+        .greater(0)
+        .default(24 * 3600),
       collection: Joi.string().lowercase(),
       token: Joi.string().pattern(regex.token).lowercase(),
     })
@@ -180,23 +182,23 @@ export const getCollectionTopBidOracleV1Options: RouteOptions = {
             { name: "timestamp", type: "uint256" },
           ],
         },
-        ContractWideCollectionPrice: {
-          ContractWideCollectionPrice: [
+        ContractWideCollectionTopBidPrice: {
+          ContractWideCollectionTopBidPrice: [
             { name: "kind", type: "uint8" },
             { name: "twapSeconds", type: "uint256" },
             { name: "contract", type: "address" },
           ],
         },
-        TokenRangeCollectionPrice: {
-          TokenRangeCollectionPrice: [
+        TokenRangeCollectionTopBidPrice: {
+          TokenRangeCollectionTopBidPrice: [
             { name: "kind", type: "uint8" },
             { name: "twapSeconds", type: "uint256" },
             { name: "startTokenId", type: "uint256" },
             { name: "endTokenId", type: "uint256" },
           ],
         },
-        CollectionPriceByToken: {
-          CollectionPriceByToken: [
+        CollectionTopBidPriceByToken: {
+          CollectionTopBidPriceByToken: [
             { name: "kind", type: "uint8" },
             { name: "twapSeconds", type: "uint256" },
             { name: "token", type: "address" },
@@ -209,8 +211,8 @@ export const getCollectionTopBidOracleV1Options: RouteOptions = {
       if (query.token) {
         const [token, tokenId] = query.token.split(":");
         id = _TypedDataEncoder.hashStruct(
-          "CollectionPriceByToken",
-          EIP712_TYPES.CollectionPriceByToken,
+          "CollectionTopBidPriceByToken",
+          EIP712_TYPES.CollectionTopBidPriceByToken,
           {
             kind,
             twapSeconds: query.twapSeconds,
@@ -221,8 +223,8 @@ export const getCollectionTopBidOracleV1Options: RouteOptions = {
       } else if (query.collection.includes(":")) {
         const [contract, startTokenId, endTokenId] = query.collection.split(":");
         id = _TypedDataEncoder.hashStruct(
-          "TokenRangeCollectionPrice",
-          EIP712_TYPES.TokenRangeCollectionPrice,
+          "TokenRangeCollectionTopBidPrice",
+          EIP712_TYPES.TokenRangeCollectionTopBidPrice,
           {
             kind,
             twapSeconds: query.twapSeconds,
@@ -233,8 +235,8 @@ export const getCollectionTopBidOracleV1Options: RouteOptions = {
         );
       } else {
         id = _TypedDataEncoder.hashStruct(
-          "ContractWideCollectionPrice",
-          EIP712_TYPES.ContractWideCollectionPrice,
+          "ContractWideCollectionTopBidPrice",
+          EIP712_TYPES.ContractWideCollectionTopBidPrice,
           {
             kind,
             twapSeconds: query.twapSeconds,

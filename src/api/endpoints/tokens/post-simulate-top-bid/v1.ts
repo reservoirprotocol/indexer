@@ -201,8 +201,12 @@ export const postSimulateTopBidV1Options: RouteOptions = {
       if (success) {
         return { message: "Top bid order is fillable" };
       } else {
-        await invalidateOrder(pathItem.orderId, callTrace, parsedPayload);
-        return { message: "Top bid order is not fillable (got invalidated)" };
+        if (!["sudoswap.xyz", "nftx.io"].includes(pathItem.source)) {
+          await invalidateOrder(pathItem.orderId, callTrace, parsedPayload);
+          return { message: "Top bid order is not fillable (got invalidated)" };
+        } else {
+          return { message: "Pool orders not supported" };
+        }
       }
     } catch (error) {
       logger.error(`post-simulate-top-bid-${version}-handler`, `Handler failure: ${error}`);
