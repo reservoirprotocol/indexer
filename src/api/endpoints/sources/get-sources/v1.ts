@@ -24,11 +24,9 @@ export const getSourcesV1Options: RouteOptions = {
     query: Joi.object({
       sortBy: Joi.string()
         .valid("name", "domain", "createdAt")
-        .default("createdAt")
         .description("Order of the items are returned in the response."),
       sortDirection: Joi.string()
         .valid("asc", "desc")
-        .default("desc")
         .description("Order the items are returned in the response."),
       domain: Joi.string()
         .lowercase()
@@ -37,7 +35,6 @@ export const getSourcesV1Options: RouteOptions = {
         .integer()
         .min(1)
         .max(100)
-        .default(20)
         .description("Amount of items returned in response."),
       continuation: Joi.string().pattern(regex.base64),
     }),
@@ -64,6 +61,7 @@ export const getSourcesV1Options: RouteOptions = {
     const query = request.query as any;
     let sourcesFilter = "";
     let offset = 0;
+    const limit = query.limit ?? 20;
     if (query.domain) {
       sourcesFilter = `domain = $/domain/`;
     }
@@ -78,14 +76,15 @@ export const getSourcesV1Options: RouteOptions = {
         ${sourcesFilter}
       `;
 
-      baseQuery += `
+      if (query.sortBy) {
+        baseQuery += `
         ORDER BY
           sources_v2.${query.sortBy === "createdAt" ? "created_at" : query.sortBy} ${
-        query.sortDirection
-      }
+          query.sortDirection ? query.sortDirection : ""
+        }
       `;
-
-      baseQuery += `OFFSET ${offset} LIMIT ${query.limit}`;
+      }
+      baseQuery += `OFFSET ${offset} LIMIT ${limit}`;
 
       const rawResult = await redb.manyOrNone(baseQuery, query);
       const sources = await Sources.getInstance();
