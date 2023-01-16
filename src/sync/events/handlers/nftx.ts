@@ -1,5 +1,5 @@
 import { idb } from "@/common/db";
-import { bn } from "@/common/utils";
+import { bn, fromBuffer } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as es from "@/events-sync/storage";
@@ -214,7 +214,15 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             nftx.getOrderId(baseEventParams.address, "sell", tokenId)
           );
           const dbOrders = await idb.manyOrNone(
-            `SELECT id, currency, price, updated_at FROM orders where id IN ($/orderIds:list/)`,
+            `
+              SELECT
+                orders.id,
+                orders.currency,
+                orders.price,
+                orders.updated_at
+              FROM orders
+              WHERE orders.id IN ($/orderIds:list/)
+            `,
             {
               orderIds,
             }
@@ -234,7 +242,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               continue;
             }
 
-            const currency = orderInfo.currency;
+            const currency = fromBuffer(orderInfo.currency);
             const currencyPrice = orderInfo.price;
 
             const priceData = await getUSDAndNativePrices(
@@ -425,7 +433,15 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           nftx.getOrderId(baseEventParams.address, "sell", tokenId)
         );
         const dbOrders = await idb.manyOrNone(
-          `SELECT id, currency, price FROM orders where id IN ($/orderIds:list/)`,
+          `
+            SELECT
+              orders.id,
+              orders.currency,
+              orders.price,
+              orders.updated_at
+            FROM orders
+            WHERE orders.id IN ($/orderIds:list/)
+          `,
           {
             orderIds,
           }
@@ -445,7 +461,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             continue;
           }
 
-          const currency = orderInfo.currency;
+          const currency = fromBuffer(orderInfo.currency);
           const currencyPrice = orderInfo.price;
 
           const priceData = await getUSDAndNativePrices(
