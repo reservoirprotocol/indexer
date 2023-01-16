@@ -1,23 +1,22 @@
+import { idb } from "@/common/db";
 import { bn } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
-import { getUSDAndNativePrices } from "@/utils/prices";
-import * as nftxUtils from "@/utils/nftx";
-import { idb } from "@/common/db";
-
 import * as nftx from "@/orderbook/orders/nftx";
+import * as nftxUtils from "@/utils/nftx";
+import { getUSDAndNativePrices } from "@/utils/prices";
+
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
 export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
   const fillEventsPartial: es.fills.Event[] = [];
   const fillEventsOnChain: es.fills.Event[] = [];
-  const orderInfos: orderUpdatesById.OrderInfo[] = [];
-  const cancelEvents: es.cancels.Event[] = [];
 
   const fillInfos: fillUpdates.FillInfo[] = [];
+  const orderInfos: orderUpdatesById.OrderInfo[] = [];
 
   const orders: nftx.OrderInfo[] = [];
 
@@ -505,14 +504,33 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         break;
       }
+
+      case "nftx-vault-init":
+      case "nftx-vault-shutdown":
+      case "nftx-eligibility-deployed":
+      case "nftx-enable-mint-updated":
+      case "nftx-enable-target-redeem-updated": {
+        // Update pool
+        orders.push({
+          orderParams: {
+            pool: baseEventParams.address,
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+          },
+          metadata: {},
+        });
+
+        break;
+      }
     }
   }
 
   return {
+    fillEventsOnChain,
+    fillEventsPartial,
+
     fillInfos,
     orderInfos,
-    fillEventsPartial,
-    cancelEvents,
 
     orders: orders.map((info) => ({
       kind: "nftx",

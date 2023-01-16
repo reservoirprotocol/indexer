@@ -106,6 +106,11 @@ export type EventDataKind =
   | "nftx-minted"
   | "nftx-user-staked"
   | "nftx-swapped"
+  | "nftx-vault-init"
+  | "nftx-vault-shutdown"
+  | "nftx-eligibility-deployed"
+  | "nftx-enable-mint-updated"
+  | "nftx-enable-target-redeem-updated"
   | "blur-orders-matched"
   | "infinity-match-order-fulfilled"
   | "infinity-take-order-fulfilled"
@@ -209,6 +214,11 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       nftx.redeemed,
       nftx.staked,
       nftx.swapped,
+      nftx.vaultInit,
+      nftx.vaultShutdown,
+      nftx.eligibilityDeployed,
+      nftx.enableMintUpdated,
+      nftx.enableTargetRedeemUpdated,
       blur.ordersMatched,
       infinity.matchOrderFulfilled,
       infinity.takeOrderFulfilled,
@@ -383,6 +393,16 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return nftx.staked;
     case "nftx-swapped":
       return nftx.swapped;
+    case "nftx-vault-init":
+      return nftx.vaultInit;
+    case "nftx-vault-shutdown":
+      return nftx.vaultShutdown;
+    case "nftx-eligibility-deployed":
+      return nftx.eligibilityDeployed;
+    case "nftx-enable-mint-updated":
+      return nftx.enableMintUpdated;
+    case "nftx-enable-target-redeem-updated":
+      return nftx.enableTargetRedeemUpdated;
     case "blur-orders-matched":
       return blur.ordersMatched;
     case "infinity-match-order-fulfilled":
