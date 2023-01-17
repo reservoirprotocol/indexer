@@ -378,8 +378,18 @@ export const getOrdersBidsV5Options: RouteOptions = {
             throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
           }
 
-          collectionSetFilter = `JOIN token_sets_tokens tst ON tst.token_set_id = orders.token_set_id
-          JOIN tokens ON tokens.contract = tst.contract AND tokens.token_id = tst.token_id`;
+          collectionSetFilter = `
+          JOIN LATERAL (
+            SELECT
+              *
+            FROM
+              token_sets_tokens
+            WHERE
+              token_sets_tokens.token_set_id = orders.token_set_id
+            LIMIT 1) tst ON TRUE
+          JOIN tokens ON tokens.contract = tst.contract
+            AND tokens.token_id = tst.token_id
+          `;
 
           conditions.push(`tokens.collection_id IN ($/collectionsIds:csv/)`);
         }
@@ -428,8 +438,6 @@ export const getOrdersBidsV5Options: RouteOptions = {
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
-
-      baseQuery += ` GROUP BY orders.id`;
 
       // Sorting
       if (query.sortBy === "price") {
