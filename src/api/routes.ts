@@ -21,6 +21,8 @@ import * as tokensEndpoints from "@/api/endpoints/tokens";
 import * as transactionsEndpoints from "@/api/endpoints/transactions";
 import * as transfersEndpoints from "@/api/endpoints/transfers";
 import * as assetsEndpoints from "@/api/endpoints/assets";
+import * as sourcesEndpoints from "@/api/endpoints/sources";
+import * as websocketEndpoints from "@/api/endpoints/websocket";
 
 export const setupRoutes = (server: Server) => {
   // Activity
@@ -1192,5 +1194,21 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/transfers/bulk/v1",
     options: transfersEndpoints.getTransfersBulkV1Options,
+  });
+
+  // sources
+
+  server.route({
+    method: "GET",
+    path: "/sources/v1",
+    options: sourcesEndpoints.getSourcesV1Options,
+  });
+
+  // Websocket
+
+  server.route({
+    method: "POST",
+    path: "/websocket/user-auth",
+    options: websocketEndpoints.postUserAuthOptions,
   });
 };

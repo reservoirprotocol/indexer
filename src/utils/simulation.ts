@@ -35,36 +35,32 @@ export const ensureBuyTxSucceeds = async (
         [taker]: tx.value ?? 0,
       },
     },
-    provider
+    provider,
+    { skipReverts: true }
   );
-
-  try {
-    const result = parseCallTrace(callTrace);
-
-    if (
-      result[taker].tokenBalanceState[`${token.kind}:${token.contract}:${token.tokenId}`] !==
-      bn(token.amount).toString()
-    ) {
-      return {
-        result: false,
-        callTrace,
-      };
-    }
-
+  if (callTrace.error) {
     return {
-      result: true,
+      result: false,
       callTrace,
     };
-  } catch (error: any) {
-    if (error.message === "execution-reverted") {
-      return {
-        result: false,
-        callTrace,
-      };
-    } else {
-      throw error;
-    }
   }
+
+  const result = parseCallTrace(callTrace);
+
+  if (
+    result[taker].tokenBalanceState[`${token.kind}:${token.contract}:${token.tokenId}`] !==
+    bn(token.amount).toString()
+  ) {
+    return {
+      result: false,
+      callTrace,
+    };
+  }
+
+  return {
+    result: true,
+    callTrace,
+  };
 };
 
 // Simulate the sell transaction
@@ -79,6 +75,7 @@ export const ensureSellTxSucceeds = async (
   tx: TxData
 ) => {
   const provider = new JsonRpcProvider(config.traceNetworkHttpUrl);
+
   const callTrace = await getCallTrace(
     {
       from: tx.from,
@@ -92,34 +89,30 @@ export const ensureSellTxSucceeds = async (
         [taker]: parseEther("0.1"),
       },
     },
-    provider
+    provider,
+    { skipReverts: true }
   );
-
-  try {
-    const result = parseCallTrace(callTrace);
-
-    if (
-      result[taker].tokenBalanceState[`${token.kind}:${token.contract}:${token.tokenId}`] !==
-      bn(token.amount).mul(-1).toString()
-    ) {
-      return {
-        result: false,
-        callTrace,
-      };
-    }
-
+  if (callTrace.error) {
     return {
-      result: true,
+      result: false,
       callTrace,
     };
-  } catch (error: any) {
-    if (error.message === "execution-reverted") {
-      return {
-        result: false,
-        callTrace,
-      };
-    } else {
-      throw error;
-    }
   }
+
+  const result = parseCallTrace(callTrace);
+
+  if (
+    result[taker].tokenBalanceState[`${token.kind}:${token.contract}:${token.tokenId}`] !==
+    bn(token.amount).mul(-1).toString()
+  ) {
+    return {
+      result: false,
+      callTrace,
+    };
+  }
+
+  return {
+    result: true,
+    callTrace,
+  };
 };

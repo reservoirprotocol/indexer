@@ -1,6 +1,6 @@
 import { idb } from "@/common/db";
 import * as Pusher from "pusher";
-import { formatEth, fromBuffer } from "@/common/utils";
+import { formatEth, fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import _ from "lodash";
 import { BatchEvent } from "pusher";
@@ -32,10 +32,14 @@ export class NewTopBidWebsocketEvent {
       { orderId: data.orderId }
     );
 
-    logger.info(
-      "new-top-bid-websocket-event",
-      `Start. orderId=${data.orderId}, tokenSetId=${order.token_set_id}`
-    );
+    if (await NewTopBidWebsocketEvent.isRateLimited(order.token_set_id)) {
+      logger.info(
+        "new-top-bid-websocket-event",
+        `Rate limited. orderId=${data.orderId}, tokenSetId=${order.token_set_id}`
+      );
+
+      return;
+    }
 
     const payloads = [];
 
@@ -93,8 +97,6 @@ export class NewTopBidWebsocketEvent {
     const ownersString = await redis.get(`token-set-owners:${tokenSetId}`);
 
     if (ownersString) {
-      logger.info("new-top-bid-websocket-event", `Got owners from cache. tokenSetId=${tokenSetId}`);
-
       owners = JSON.parse(ownersString);
     }
 
@@ -119,6 +121,17 @@ export class NewTopBidWebsocketEvent {
     }
 
     return owners;
+  }
+
+  static async isRateLimited(tokenSetId: string): Promise<boolean> {
+    const setResult = await redis.set(
+      `new-top-bid-rate-limiter:${tokenSetId}`,
+      now(),
+      "EX",
+      60,
+      "NX"
+    );
+    return setResult === null;
   }
 }
 

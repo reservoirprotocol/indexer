@@ -215,31 +215,29 @@ export const getExecuteBuyV6Options: RouteOptions = {
         const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
 
         if (["sudoswap", "nftx"].includes(order.kind)) {
-          let poolId: string | null = null;
-          let priceList: string[] = [];
+          let poolId: string;
+          let priceList: string[];
 
           if (order.kind === "sudoswap") {
             const rawData = order.rawData as Sdk.Sudoswap.OrderParams;
             poolId = rawData.pair;
             priceList = rawData.extra.prices;
-          } else if (order.kind === "nftx") {
+          } else {
             const rawData = order.rawData as Sdk.Nftx.Types.OrderParams;
             poolId = rawData.pool;
             priceList = rawData.extra.prices;
           }
 
-          if (poolId) {
-            if (!poolPrices[poolId]) {
-              poolPrices[poolId] = [];
-            }
-
-            // Fetch the price corresponding to the order's index per pool
-            const price = priceList[poolPrices[poolId].length];
-            // Save the latest price per pool
-            poolPrices[poolId].push(price);
-            // Override the order's price
-            order.price = price;
+          if (!poolPrices[poolId]) {
+            poolPrices[poolId] = [];
           }
+
+          // Fetch the price corresponding to the order's index per pool
+          const price = priceList[poolPrices[poolId].length];
+          // Save the latest price per pool
+          poolPrices[poolId].push(price);
+          // Override the order's price
+          order.price = price;
         }
 
         const totalPrice = bn(order.price)

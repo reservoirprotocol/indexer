@@ -27,6 +27,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
   validate: {
     payload: Joi.object({
       id: Joi.string().lowercase().required(),
+      skipRevalidation: Joi.boolean().default(false),
     }),
   },
   response: {
@@ -46,36 +47,40 @@ export const postSimulateOrderV1Options: RouteOptions = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
 
-    const revalidateOrder = async (
+    const logAndRevalidateOrder = async (
       id: string,
       status: "active" | "inactive",
       options?: {
         callTrace?: CallTrace;
         payload?: object;
+        revalidate?: boolean;
       }
     ) => {
-      logger.error(
+      logger.warn(
         `post-revalidate-order-${version}-handler`,
         JSON.stringify({
           error: "stale-order",
           callTrace: options?.callTrace,
           payload: options?.payload,
+          orderId: id,
         })
       );
 
-      // Revalidate the order
-      await inject({
-        method: "POST",
-        url: `/admin/revalidate-order`,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Admin-Api-Key": config.adminApiKey,
-        },
-        payload: {
-          id,
-          status,
-        },
-      });
+      if (!payload.skipRevalidation && options?.revalidate) {
+        // Revalidate the order
+        await inject({
+          method: "POST",
+          url: `/admin/revalidate-order`,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Api-Key": config.adminApiKey,
+          },
+          payload: {
+            id,
+            status,
+          },
+        });
+      }
     };
 
     try {
@@ -84,6 +89,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
       const orderResult = await idb.oneOrNone(
         `
           SELECT
+            orders.kind,
             orders.side,
             orders.contract,
             orders.token_set_id,
@@ -96,6 +102,9 @@ export const postSimulateOrderV1Options: RouteOptions = {
       );
       if (!orderResult?.side || !orderResult?.contract) {
         throw Boom.badRequest("Could not find order");
+      }
+      if (["nftx", "sudoswap"].includes(orderResult.kind)) {
+        return { message: "Pool orders not supported" };
       }
 
       const contractResult = await redb.one(
@@ -139,9 +148,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status === "fillable" &&
             orderResult.approval_status === "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "inactive");
-          }
+          await logAndRevalidateOrder(id, "inactive", { revalidate: needRevalidation });
 
           return { message: "Order is not fillable" };
         }
@@ -173,9 +180,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status !== "fillable" ||
             orderResult.approval_status !== "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "active", { callTrace, payload: parsedPayload });
-          }
+          await logAndRevalidateOrder(id, "active", {
+            callTrace,
+            payload: parsedPayload,
+            revalidate: needRevalidation,
+          });
 
           return { message: "Order is fillable" };
         } else {
@@ -183,9 +192,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status === "fillable" &&
             orderResult.approval_status === "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "inactive", { callTrace, payload: parsedPayload });
-          }
+          await logAndRevalidateOrder(id, "inactive", {
+            callTrace,
+            payload: parsedPayload,
+            revalidate: needRevalidation,
+          });
 
           return { message: "Order is not fillable" };
         }
@@ -244,9 +255,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status === "fillable" &&
             orderResult.approval_status === "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "inactive");
-          }
+          await logAndRevalidateOrder(id, "inactive", { revalidate: needRevalidation });
 
           return { message: "Order is not fillable" };
         }
@@ -278,9 +287,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status !== "fillable" ||
             orderResult.approval_status !== "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "active", { callTrace, payload: parsedPayload });
-          }
+          await logAndRevalidateOrder(id, "active", {
+            callTrace,
+            payload: parsedPayload,
+            revalidate: needRevalidation,
+          });
 
           return { message: "Order is fillable" };
         } else {
@@ -288,9 +299,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
           const needRevalidation =
             orderResult.fillability_status === "fillable" &&
             orderResult.approval_status === "approved";
-          if (needRevalidation) {
-            await revalidateOrder(id, "inactive", { callTrace, payload: parsedPayload });
-          }
+          await logAndRevalidateOrder(id, "inactive", {
+            callTrace,
+            payload: parsedPayload,
+            revalidate: needRevalidation,
+          });
 
           return { message: "Order is not fillable" };
         }
