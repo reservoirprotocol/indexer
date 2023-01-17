@@ -106,6 +106,7 @@ export type EventDataKind =
   | "nftx-minted"
   | "nftx-user-staked"
   | "nftx-swapped"
+  | "nftx-swap"
   | "nftx-vault-init"
   | "nftx-vault-shutdown"
   | "nftx-eligibility-deployed"
@@ -214,6 +215,7 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       nftx.redeemed,
       nftx.staked,
       nftx.swapped,
+      nftx.swap,
       nftx.vaultInit,
       nftx.vaultShutdown,
       nftx.eligibilityDeployed,
@@ -393,6 +395,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return nftx.staked;
     case "nftx-swapped":
       return nftx.swapped;
+    case "nftx-swap":
+      return nftx.swap;
     case "nftx-vault-init":
       return nftx.vaultInit;
     case "nftx-vault-shutdown":

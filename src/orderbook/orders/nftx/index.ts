@@ -44,12 +44,15 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
 
-  const slippage = 100;
+  // Save prices without any slippage
+  const slippage = 0;
+
   const handleOrder = async ({ orderParams }: OrderInfo) => {
     try {
       const pool = await nftx.getNftPoolDetails(orderParams.pool);
       if (!pool) {
-        throw new Error("Could not fetch pool details");
+        // Return early if no pool was found
+        return;
       }
 
       const nftResult = await idb.oneOrNone(

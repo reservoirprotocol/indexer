@@ -20,7 +20,7 @@ for (const name of Object.keys(nets)) {
   }
 }
 
-const log = (level: "error" | "info" | "warn") => {
+const log = (level: "error" | "info" | "warn" | "debug") => {
   const service = getServiceName();
 
   const logger = createLogger({
@@ -56,4 +56,5 @@ export const logger = {
   error: log("error"),
   info: log("info"),
   warn: log("warn"),
+  debug: log("debug"),
 };

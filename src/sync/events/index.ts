@@ -326,7 +326,22 @@ export const syncEvents = async (
 
     // Process the retrieved events asynchronously
     const eventsSyncProcess = backfill ? eventsSyncBackfillProcess : eventsSyncRealtimeProcess;
-    await eventsSyncProcess.addToQueue(parseEnhancedEventsToEventsInfo(enhancedEvents, backfill));
+    const eventsInfo = parseEnhancedEventsToEventsInfo(enhancedEvents, backfill);
+    logger.info(
+      "debug",
+      JSON.stringify(
+        eventsInfo
+          .filter((e) => e.kind === "erc1155" || e.kind === "seaport")
+          .map((e) =>
+            e.events.map((e) => ({
+              txHash: e.baseEventParams.txHash,
+              logIndex: e.baseEventParams.logIndex,
+              batchIndex: e.baseEventParams.batchIndex,
+            }))
+          )
+      )
+    );
+    await eventsSyncProcess.addToQueue(eventsInfo);
 
     // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
     const ns = getNetworkSettings();

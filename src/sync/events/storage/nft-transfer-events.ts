@@ -1,10 +1,10 @@
+import _ from "lodash";
+
 import { idb, pgp } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as nftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
-import _ from "lodash";
-import { logger } from "@/common/logger";
 
 export type Event = {
   kind: ContractKind;
@@ -265,12 +265,7 @@ async function insertQueries(queries: string[], backfill: boolean) {
     // on the events to have been written to the database at the time
     // they get to run and we have no way to easily enforce this when
     // using the write buffer.
-    try {
-      await idb.none(pgp.helpers.concat(queries));
-    } catch (error) {
-      await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(queries));
-      logger.error("nft-transfer-event", pgp.helpers.concat(queries));
-    }
+    await idb.none(pgp.helpers.concat(queries));
   }
 }
 

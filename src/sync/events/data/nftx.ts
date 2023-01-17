@@ -48,12 +48,28 @@ export const swapped: EventData = {
   topic: "0x66982ed4a058811a8004bdcec9adcb3671f2b4f1a788667a3a74959d7c09af3c",
   numTopics: 1,
   abi: new Interface([
-    `event Swapped (
+    `event Swapped(
       uint256[] nftIds,
       uint256[] amounts,
       uint256[] specificIds, 
       uint256[] redeemedIds, 
       address to
+    )`,
+  ]),
+};
+
+export const swap: EventData = {
+  kind: "nftx-swap",
+  topic: "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
+  numTopics: 3,
+  abi: new Interface([
+    `event Swap(
+      address indexed sender,
+      uint256 amount0In,
+      uint256 amount1In,
+      uint256 amount0Out,
+      uint256 amount1Out,
+      address indexed to
     )`,
   ]),
 };
