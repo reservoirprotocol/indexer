@@ -31,10 +31,6 @@ if (config.doBackgroundWork) {
       const { contract, tokenId, price, previousPrice } = job.data as HandleSellOrderParams;
       const tokenAttributes = await Tokens.getTokenAttributes(contract, tokenId);
       if (_.isEmpty(tokenAttributes)) {
-        logger.info(
-          QUEUE_NAME,
-          `No attributes found for contract = ${contract}, tokenId = ${tokenId}`
-        );
         return;
       }
 
@@ -68,7 +64,7 @@ if (config.doBackgroundWork) {
               sellUpdatedAt: new Date().toISOString(),
             });
 
-            logger.info(
+            logger.debug(
               QUEUE_NAME,
               `Old price=${tokenAttribute.floorSellValue}, New price=${price}, key=${tokenAttribute.key}, value=${tokenAttribute.value}, id=${tokenAttribute.attributeId}`
             );
