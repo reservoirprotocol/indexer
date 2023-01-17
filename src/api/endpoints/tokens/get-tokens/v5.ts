@@ -733,32 +733,37 @@ export const getTokensV5Options: RouteOptions = {
 
       // Sorting
 
-      switch (query.sortBy) {
-        case "rarity": {
-          baseQuery += ` ORDER BY t.rarity_rank ${
-            query.sortDirection || "ASC"
-          } NULLS LAST, t.token_id ${query.sortDirection || "ASC"}`;
-          break;
-        }
+      // Only allow sorting on floorSell when we filter by collection / attributes / tokenSetId / rarity
+      if (query.collection || query.attributes || query.tokenSetId || query.rarity) {
+        switch (query.sortBy) {
+          case "rarity": {
+            baseQuery += ` ORDER BY t.rarity_rank ${
+              query.sortDirection || "ASC"
+            } NULLS LAST, t.token_id ${query.sortDirection || "ASC"}`;
+            break;
+          }
 
-        case "tokenId": {
-          baseQuery += ` ORDER BY t.contract, t.token_id ${query.sortDirection || "ASC"}`;
-          break;
-        }
+          case "tokenId": {
+            baseQuery += ` ORDER BY t.contract, t.token_id ${query.sortDirection || "ASC"}`;
+            break;
+          }
 
-        case "floorAskPrice":
-        default: {
-          const sortColumn = query.source
-            ? "s.floor_sell_value"
-            : query.normalizeRoyalties
-            ? "t.normalized_floor_sell_value"
-            : "t.floor_sell_value";
+          case "floorAskPrice":
+          default: {
+            const sortColumn = query.source
+              ? "s.floor_sell_value"
+              : query.normalizeRoyalties
+              ? "t.normalized_floor_sell_value"
+              : "t.floor_sell_value";
 
-          baseQuery += ` ORDER BY ${sortColumn} ${
-            query.sortDirection || "ASC"
-          } NULLS LAST, t.token_id`;
-          break;
+            baseQuery += ` ORDER BY ${sortColumn} ${
+              query.sortDirection || "ASC"
+            } NULLS LAST, t.token_id`;
+            break;
+          }
         }
+      } else if (query.contract || query.tokens) {
+        baseQuery += ` ORDER BY t.token_id ${query.sortDirection || "ASC"}`;
       }
 
       baseQuery += ` LIMIT $/limit/`;
