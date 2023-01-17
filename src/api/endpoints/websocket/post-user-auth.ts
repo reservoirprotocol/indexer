@@ -6,6 +6,8 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 
 import * as Pusher from "pusher";
+import { ApiKeyManager } from "@/models/api-keys";
+import * as Boom from "@hapi/boom";
 
 export const postUserAuthOptions: RouteOptions = {
   description: "Websocket User Authentication",
@@ -22,12 +24,22 @@ export const postUserAuthOptions: RouteOptions = {
       logger.info("post-user-auth-handler", `Start. payload=${JSON.stringify(payload)}`);
 
       const socketId = payload.socket_id;
+      const apiKey = payload.api_key;
 
-      // Replace this with code to retrieve the actual user id and info
+      let apiKeyEntity;
+
+      if (apiKey) {
+        apiKeyEntity = await ApiKeyManager.getApiKey(apiKey);
+      }
+
+      if (!apiKeyEntity) {
+        throw Boom.forbidden("Wrong or missing admin API key");
+      }
+
       const user = {
-        id: "some_id",
+        id: apiKey,
         user_info: {
-          name: "John Smith",
+          app_name: apiKeyEntity.appName,
         },
       };
 
