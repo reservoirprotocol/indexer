@@ -1209,6 +1209,6 @@ export const setupRoutes = (server: Server) => {
   server.route({
     method: "POST",
     path: "/websocket/user-auth",
-    options: websocketEndpoints.postUserAuthOptions,
+    options: websocketEndpoints.postWebsocketUserAuthOptions,
   });
 };

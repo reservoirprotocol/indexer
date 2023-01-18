@@ -23,8 +23,8 @@ import * as sudoswap from "@/utils/sudoswap";
 export type OrderInfo = {
   orderParams: {
     pool: string;
-    txTimestamp: number;
     txHash: string;
+    txTimestamp: number;
   };
   metadata: OrderMetadata;
 };
@@ -265,6 +265,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     fee_bps = $/feeBps/,
                     fee_breakdown = $/feeBreakdown:json/
                   WHERE orders.id = $/id/
+                    AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
                 `,
                 {
                   id,
@@ -296,6 +297,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   expiration = to_timestamp(${orderParams.txTimestamp}),
                   updated_at = now()
                 WHERE orders.id = $/id/
+                  AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
               `,
               { id }
             );
@@ -484,6 +486,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                           fee_bps = $/feeBps/,
                           fee_breakdown = $/feeBreakdown:json/
                         WHERE orders.id = $/id/
+                          AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
                       `,
                       {
                         id,

@@ -44,6 +44,7 @@ export class NewTopBidWebsocketEvent {
     const payloads = [];
 
     const owners = await NewTopBidWebsocketEvent.getOwners(order.token_set_id);
+
     const ownersChunks = _.chunk(owners, Number(config.websocketServerEventMaxSizeInKb) * 20);
 
     const source = (await Sources.getInstance()).get(Number(order.source_id_int));
@@ -78,6 +79,8 @@ export class NewTopBidWebsocketEvent {
 
     const payloadsBatches = _.chunk(payloads, Number(config.websocketServerEventMaxBatchSize));
 
+    const timeStart = performance.now();
+
     for (const payloadsBatch of payloadsBatches) {
       const events: BatchEvent[] = payloadsBatch.map((payload) => {
         return {
@@ -89,6 +92,13 @@ export class NewTopBidWebsocketEvent {
 
       await server.triggerBatch(events);
     }
+
+    const timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+    logger.info(
+      "new-top-bid-websocket-event",
+      `Debug triggerBatch. orderId=${data.orderId}, tokenSetId=${order.token_set_id}, payloads=${payloads.length}, payloadsBatches=${payloadsBatches.length},timeElapsed=${timeElapsed}`
+    );
   }
 
   static async getOwners(tokenSetId: string): Promise<string[]> {

@@ -9,7 +9,7 @@ import * as Pusher from "pusher";
 import { ApiKeyManager } from "@/models/api-keys";
 import * as Boom from "@hapi/boom";
 
-export const postUserAuthOptions: RouteOptions = {
+export const postWebsocketUserAuthOptions: RouteOptions = {
   description: "Websocket User Authentication",
   tags: ["api", "x-admin"],
   plugins: {
@@ -21,8 +21,6 @@ export const postUserAuthOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      logger.info("post-user-auth-handler", `Start. payload=${JSON.stringify(payload)}`);
-
       const socketId = payload.socket_id;
       const apiKey = payload.api_key;
 
@@ -61,7 +59,7 @@ export const postUserAuthOptions: RouteOptions = {
 
       return authResponse;
     } catch (error) {
-      logger.error("post-user-auth-handler", `Handler failure: ${error}`);
+      logger.error("post-websocket-user-auth-handler", `Handler failure: ${error}`);
       throw error;
     }
   },

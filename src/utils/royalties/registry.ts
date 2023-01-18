@@ -2,6 +2,7 @@ import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -66,11 +67,9 @@ export const refreshRegistryRoyalties = async (collection: string) => {
       // The royalties are returned in full amounts, but we store them as a percentage
       // so here we just use a default price (which is a round number) and deduce then
       // deduce the percentage taken as royalties from that
-      const { recipients, amounts } = await royaltyEngine.getRoyaltyView(
-        token,
-        tokenId,
-        DEFAULT_PRICE
-      );
+      const { recipients, amounts } = await royaltyEngine
+        .getRoyaltyView(token, tokenId, DEFAULT_PRICE)
+        .catch(() => ({ recipients: [], amounts: [] }));
 
       const latestRoyalties: Royalty[] = [];
       for (let i = 0; i < amounts.length; i++) {
@@ -83,6 +82,11 @@ export const refreshRegistryRoyalties = async (collection: string) => {
         const bps = Math.round(bn(amount).mul(10000).div(DEFAULT_PRICE).toNumber());
         latestRoyalties.push({ recipient, bps });
       }
+
+      logger.info(
+        "debug",
+        `Onchain royalties: ${latestRoyalties.length ? latestRoyalties : undefined}`
+      );
 
       // Save the retrieved royalty spec
       await updateRoyaltySpec(

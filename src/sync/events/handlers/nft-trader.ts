@@ -76,15 +76,21 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Price when order is "buy" = maker price received + concract fee
         const orderSide = bn(amount).gt(0) ? "sell" : "buy";
 
-        if (orderSide === "sell") {
-          currencyPrice = bn(parsedTrace[taker].tokenBalanceState[currencyKey])
-            .add(bn(parsedTrace[baseEventParams.address].tokenBalanceState[currencyKey]))
-            .abs()
-            .toString();
-        } else {
-          currencyPrice = bn(parsedTrace[baseEventParams.address].tokenBalanceState[currencyKey])
-            .abs()
-            .toString();
+        // This try catch block is used to avoid errors from a few faulty nft-trader transactions
+        // that are not getting parsed properly
+        try {
+          if (orderSide === "sell") {
+            currencyPrice = bn(parsedTrace[taker].tokenBalanceState[currencyKey])
+              .add(bn(parsedTrace[baseEventParams.address].tokenBalanceState[currencyKey]))
+              .abs()
+              .toString();
+          } else {
+            currencyPrice = bn(parsedTrace[baseEventParams.address].tokenBalanceState[currencyKey])
+              .abs()
+              .toString();
+          }
+        } catch (error) {
+          break;
         }
 
         amount = bn(amount).abs().toString();
