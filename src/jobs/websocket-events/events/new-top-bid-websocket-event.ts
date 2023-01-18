@@ -13,6 +13,8 @@ export class NewTopBidWebsocketEvent {
   public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
     const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
+    const timeStart = performance.now();
+
     const order = await idb.oneOrNone(
       `
               SELECT
@@ -44,6 +46,14 @@ export class NewTopBidWebsocketEvent {
     const payloads = [];
 
     const owners = await NewTopBidWebsocketEvent.getOwners(order.token_set_id);
+
+    timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+    logger.info(
+      "new-top-bid-websocket-event",
+      `Debug 2. orderId=${data.orderId}, tokenSetId=${order.token_set_id}, timeElapsed=${timeElapsed}`
+    );
+
     const ownersChunks = _.chunk(owners, Number(config.websocketServerEventMaxSizeInKb) * 20);
 
     const source = (await Sources.getInstance()).get(Number(order.source_id_int));
@@ -68,6 +78,13 @@ export class NewTopBidWebsocketEvent {
         owners: ownersChunk,
       });
     }
+
+    timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+    logger.info(
+      "new-top-bid-websocket-event",
+      `Debug 3. orderId=${data.orderId}, tokenSetId=${order.token_set_id}, timeElapsed=${timeElapsed}`
+    );
 
     const server = new Pusher.default({
       appId: config.websocketServerAppId,
