@@ -6,7 +6,7 @@ import _ from "lodash";
 import { logger } from "@/common/logger";
 
 export const handleEvent = (payload: ItemListedEventPayload): PartialOrderComponents | null => {
-  logger.info("opensea-websocket", `handleItemListedEvent. payload=${payload}`);
+  logger.info("opensea-websocket", `handleItemListedEvent. payload=${JSON.stringify(payload)}`);
 
   if (getSupportedChainName() != payload.item.chain.name) {
     return null;
