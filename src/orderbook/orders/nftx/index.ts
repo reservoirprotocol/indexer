@@ -20,8 +20,8 @@ import * as royalties from "@/utils/royalties";
 export type OrderInfo = {
   orderParams: {
     pool: string;
-    txTimestamp: number;
     txHash: string;
+    txTimestamp: number;
   };
   metadata: OrderMetadata;
 };
@@ -29,6 +29,7 @@ export type OrderInfo = {
 type SaveResult = {
   id: string;
   txHash: string;
+  txTimestamp: number;
   status: string;
   triggerKind?: "new-order" | "reprice" | "cancel";
 };
@@ -76,6 +77,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           "0xca7ffb829835f3946998cb8d02a0c0b02012c3c5",
           "0x227c7df69d3ed1ae7574a1a7685fded90292eb48",
           "0x87931e7ad81914e7898d07c68f145fc0a553d8fb",
+          "0x0e050b2b7adb2cae5e8593e280ed5582953f9ad2",
         ].includes(orderParams.pool)
       ) {
         return;
@@ -112,12 +114,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 expiration = to_timestamp(${orderParams.txTimestamp}),
                 updated_at = now()
               WHERE orders.id = $/id/
+                AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
             `,
             { id }
           );
           results.push({
             id,
             txHash: orderParams.txHash,
+            txTimestamp: orderParams.txTimestamp,
             status: "success",
             triggerKind: "cancel",
           });
@@ -277,6 +281,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               results.push({
                 id,
                 txHash: orderParams.txHash,
+                txTimestamp: orderParams.txTimestamp,
                 status: "success",
                 triggerKind: "new-order",
               });
@@ -302,6 +307,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     fee_breakdown = $/feeBreakdown:json/,
                     currency = $/currency/
                   WHERE orders.id = $/id/
+                    AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
                 `,
                 {
                   id,
@@ -320,6 +326,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               results.push({
                 id,
                 txHash: orderParams.txHash,
+                txTimestamp: orderParams.txTimestamp,
                 status: "success",
                 triggerKind: "reprice",
               });
@@ -332,12 +339,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   expiration = to_timestamp(${orderParams.txTimestamp}),
                   updated_at = now()
                 WHERE orders.id = $/id/
+                  AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
               `,
               { id }
             );
             results.push({
               id,
               txHash: orderParams.txHash,
+              txTimestamp: orderParams.txTimestamp,
               status: "success",
               triggerKind: "reprice",
             });
@@ -444,12 +453,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                         expiration = to_timestamp(${orderParams.txTimestamp}),
                         updated_at = now()
                       WHERE orders.id = $/id/
+                        AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
                     `,
                     { id }
                   );
                   results.push({
                     id,
                     txHash: orderParams.txHash,
+                    txTimestamp: orderParams.txTimestamp,
                     status: "success",
                     triggerKind: "cancel",
                   });
@@ -537,6 +548,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     results.push({
                       id,
                       txHash: orderParams.txHash,
+                      txTimestamp: orderParams.txTimestamp,
                       status: "success",
                       triggerKind: "new-order",
                     });
@@ -562,6 +574,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                           fee_breakdown = $/feeBreakdown:json/,
                           currency = $/currency/
                         WHERE orders.id = $/id/
+                          AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
                       `,
                       {
                         id,
@@ -580,6 +593,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     results.push({
                       id,
                       txHash: orderParams.txHash,
+                      txTimestamp: orderParams.txTimestamp,
                       status: "success",
                       triggerKind: "reprice",
                     });
@@ -653,12 +667,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     results
       .filter(({ status }) => status === "success")
       .map(
-        ({ id, txHash, triggerKind }) =>
+        ({ id, txHash, txTimestamp, triggerKind }) =>
           ({
             context: `${triggerKind}-${id}-${txHash}`,
             id,
             trigger: {
               kind: triggerKind,
+              txHash: txHash,
+              txTimestamp: txTimestamp,
             },
           } as ordersUpdateById.OrderInfo)
       )
