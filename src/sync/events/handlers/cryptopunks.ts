@@ -5,27 +5,11 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import * as cryptopunks from "@/orderbook/orders/cryptopunks";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const cancelEventsOnChain: es.cancels.Event[] = [];
-  const fillEventsOnChain: es.fills.Event[] = [];
-  const nftTransferEvents: es.nftTransfers.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-  const mintInfos: tokenUpdatesMint.MintInfo[] = [];
-  const orderInfos: orderUpdatesById.OrderInfo[] = [];
-
-  // Keep track of any on-chain orders
-  const orders: cryptopunks.OrderInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Keep track of any Cryptopunks transfers (for working around a contract bug)
   const transfers: {
     to: string;
@@ -42,17 +26,20 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const price = parsedLog.args["minValue"].toString();
         const taker = parsedLog.args["toAddress"].toLowerCase();
 
-        orders.push({
-          orderParams: {
-            maker: (await utils.fetchTransaction(baseEventParams.txHash)).from.toLowerCase(),
-            side: "sell",
-            tokenId,
-            price,
-            taker: taker !== AddressZero ? taker : undefined,
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
+        onChainData.orders.push({
+          kind: "cryptopunks",
+          info: {
+            orderParams: {
+              maker: (await utils.fetchTransaction(baseEventParams.txHash)).from.toLowerCase(),
+              side: "sell",
+              tokenId,
+              price,
+              taker: taker !== AddressZero ? taker : undefined,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            metadata: {},
           },
-          metadata: {},
         });
 
         break;
@@ -64,13 +51,13 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         const orderId = cryptopunks.getOrderId(tokenId);
 
-        cancelEventsOnChain.push({
+        onChainData.cancelEventsOnChain.push({
           orderKind: "cryptopunks",
           orderId,
           baseEventParams,
         });
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `cancelled-${orderId}-${baseEventParams.txHash}`,
           id: orderId,
           trigger: {
@@ -150,7 +137,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        nftTransferEvents.push({
+        onChainData.nftTransferEvents.push({
           kind: "cryptopunks",
           from: fromAddress,
           to: toAddress,
@@ -159,7 +146,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillEventsOnChain.push({
+        onChainData.fillEventsOnChain.push({
           orderId,
           orderKind,
           orderSide,
@@ -178,7 +165,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}-${baseEventParams.txHash}`,
           id: orderId,
           trigger: {
@@ -188,7 +175,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId,
           orderId: orderId,
           orderSide: "sell",
@@ -210,7 +197,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const to = args["to"].toLowerCase();
         const tokenId = args["punkIndex"].toString();
 
-        nftTransferEvents.push({
+        onChainData.nftTransferEvents.push({
           kind: "cryptopunks",
           from,
           to,
@@ -227,7 +214,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const to = args["to"].toLowerCase();
         const tokenId = args["punkIndex"].toString();
 
-        nftTransferEvents.push({
+        onChainData.nftTransferEvents.push({
           kind: "cryptopunks",
           from: AddressZero,
           to,
@@ -236,7 +223,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        mintInfos.push({
+        onChainData.mintInfos.push({
           contract: baseEventParams.address,
           tokenId,
           mintedTimestamp: baseEventParams.timestamp,
@@ -258,19 +245,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    fillEventsOnChain,
-    cancelEventsOnChain,
-    nftTransferEvents,
-
-    fillInfos,
-    orderInfos,
-    mintInfos,
-
-    orders: orders.map((info) => ({
-      kind: "cryptopunks",
-      info,
-    })),
-  };
 };

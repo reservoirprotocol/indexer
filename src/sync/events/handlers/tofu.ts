@@ -1,32 +1,13 @@
-import { Log } from "@ethersproject/abstract-provider";
+import { Interface } from "@ethersproject/abi";
 
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
+import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
-import * as utils from "@/events-sync/utils";
-import * as es from "@/events-sync/storage";
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import { Interface } from "ethers/lib/utils";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const fillInfos: fillUpdates.FillInfo[] = [];
-  const fillEvents: es.fills.Event[] = [];
-
-  // Keep track of any on-chain orders
-
-  // Keep track of all events within the currently processing transaction
-  let currentTx: string | undefined;
-  let currentTxLogs: Log[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
   for (const { kind, baseEventParams, log } of events) {
-    if (currentTx !== baseEventParams.txHash) {
-      currentTx = baseEventParams.txHash;
-      currentTxLogs = [];
-    }
-    currentTxLogs.push(log);
-
     const eventData = getEventData([kind])[0];
     switch (kind) {
       case "tofu-inventory-update": {
@@ -97,7 +78,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEvents.push({
+        onChainData.fillEvents.push({
           orderKind,
           currency,
           orderSide,
@@ -115,7 +96,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: `tofu-${contract}-${tokenId}-${orderId}-${baseEventParams.txHash}`,
           orderSide,
           contract,
@@ -131,9 +112,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    fillInfos,
-    fillEvents,
-  };
 };

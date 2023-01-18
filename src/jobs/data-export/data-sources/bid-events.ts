@@ -3,7 +3,7 @@ import { Sources } from "@/models/sources";
 import { fromBuffer } from "@/common/utils";
 import { BaseDataSource } from "@/jobs/data-export/data-sources/index";
 
-export class CollectionFloorAskEventsDataSource extends BaseDataSource {
+export class BidEventsDataSource extends BaseDataSource {
   public async getSequenceData(cursor: CursorInfo | null, limit: number) {
     let continuationFilter = "";
 
@@ -13,24 +13,26 @@ export class CollectionFloorAskEventsDataSource extends BaseDataSource {
 
     const query = `
             SELECT
+              bid_events.id,
+              bid_events.kind,
+              bid_events.status,
+              bid_events.contract,
+              bid_events.token_set_id,
+              bid_events.order_id,
+              bid_events.order_quantity_remaining,
+              bid_events.maker,
+              bid_events.price,
+              bid_events.value,
+              bid_events.order_source_id_int,
               coalesce(
-                nullif(date_part('epoch', upper(collection_floor_sell_events.order_valid_between)), 'Infinity'),
+                nullif(date_part('epoch', upper(bid_events.order_valid_between)), 'Infinity'),
                 0
               ) AS valid_until,
-              collection_floor_sell_events.id,
-              collection_floor_sell_events.kind,
-              collection_floor_sell_events.collection_id,
-              collection_floor_sell_events.contract,
-              collection_floor_sell_events.token_id,
-              collection_floor_sell_events.order_id,
-              collection_floor_sell_events.order_source_id_int,
-              collection_floor_sell_events.maker,
-              collection_floor_sell_events.price,
-              collection_floor_sell_events.previous_price,
-              collection_floor_sell_events.tx_hash,
-              collection_floor_sell_events.tx_timestamp,
-              extract(epoch from collection_floor_sell_events.created_at) AS created_at
-            FROM collection_floor_sell_events
+              date_part('epoch', lower(bid_events.order_valid_between)) AS valid_from,
+              bid_events.tx_hash,
+              bid_events.tx_timestamp,
+              extract(epoch from bid_events.created_at) AS created_at
+            FROM bid_events
             ${continuationFilter}
             ORDER BY id 
             LIMIT $/limit/;
@@ -47,13 +49,15 @@ export class CollectionFloorAskEventsDataSource extends BaseDataSource {
       const data = result.map((r) => ({
         id: r.id,
         kind: r.kind,
-        collection_id: r.collection_id,
-        contract: r.contract ? fromBuffer(r.contract) : null,
-        token_id: r.token_id,
+        status: r.status,
+        contract: fromBuffer(r.contract),
+        token_set_id: r.token_set_id,
         order_id: r.order_id,
         maker: r.maker ? fromBuffer(r.maker) : null,
         price: r.price ? r.price.toString() : null,
-        previous_price: r.previous_price ? r.previous_price.toString() : null,
+        value: r.value ? r.value.toString() : null,
+        quantity_remaining: Number(r.order_quantity_remaining),
+        valid_from: r.valid_from ? Number(r.valid_from) : null,
         valid_until: r.valid_until ? Number(r.valid_until) : null,
         source: sources.get(r.order_source_id_int)?.name,
         tx_hash: r.tx_hash ? fromBuffer(r.tx_hash) : null,

@@ -160,6 +160,15 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
             },
           ],
+          [
+            "0x4c7C1EC97279a6f3323EAB9AB317202Dee7AD922",
+            {
+              contract: "0x4c7C1EC97279a6f3323EAB9AB317202Dee7AD922",
+              name: "FEWL",
+              symbol: "FEWL",
+              decimals: 18,
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",

@@ -1,16 +1,10 @@
 import { bn } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const fillEvents: es.fills.Event[] = [];
-  const fillInfos: fillUpdates.FillInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
   for (const { kind, baseEventParams, log } of events) {
     const eventData = getEventData([kind])[0];
@@ -49,7 +43,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEvents.push({
+        onChainData.fillEvents.push({
           orderKind,
           orderId,
           orderSide: "buy",
@@ -68,7 +62,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId,
           orderId: orderId,
           orderSide: "buy",
@@ -119,7 +113,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEvents.push({
+        onChainData.fillEvents.push({
           orderKind,
           orderId,
           orderSide: "sell",
@@ -138,7 +132,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId,
           orderId: orderId,
           orderSide: "sell",
@@ -155,9 +149,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    fillEvents,
-    fillInfos,
-  };
 };

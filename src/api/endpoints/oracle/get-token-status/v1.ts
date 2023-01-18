@@ -8,7 +8,8 @@ import Joi from "joi";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { now, regex, toBuffer } from "@/common/utils";
+import { baseProvider } from "@/common/provider";
+import { regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v1";
@@ -24,19 +25,27 @@ export const getTokenStatusOracleV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      token: Joi.string().pattern(regex.token).required(),
+      tokens: Joi.alternatives(
+        Joi.array().items(Joi.string().pattern(regex.token)),
+        Joi.string().pattern(regex.token)
+      ).required(),
     }),
   },
   response: {
     schema: Joi.object({
-      isFlagged: Joi.boolean().required(),
-      lastTransferTime: Joi.number().required(),
-      message: Joi.object({
-        id: Joi.string().required(),
-        payload: Joi.string().required(),
-        timestamp: Joi.number().required(),
-        signature: Joi.string().required(),
-      }),
+      messages: Joi.array().items(
+        Joi.object({
+          token: Joi.string().pattern(regex.token).required(),
+          isFlagged: Joi.boolean().required(),
+          lastTransferTime: Joi.number().required(),
+          message: Joi.object({
+            id: Joi.string().required(),
+            payload: Joi.string().required(),
+            timestamp: Joi.number().required(),
+            signature: Joi.string().required(),
+          }),
+        })
+      ),
     }).label(`getTokenStatusOracle${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`get-token-status-oracle-${version}-handler`, `Wrong response schema: ${error}`);
@@ -47,89 +56,106 @@ export const getTokenStatusOracleV1Options: RouteOptions = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query = request.query as any;
 
-    try {
-      const [contract, tokenId] = query.token.split(":");
+    if (!config.oraclePrivateKey) {
+      throw Boom.badRequest("Instance cannot act as oracle");
+    }
 
-      const result = await edb.oneOrNone(
-        `
-          SELECT
-            (
-              CASE
-                WHEN tokens.is_flagged = 1 THEN true
-                ELSE false
-              END
-            ) AS is_flagged,
-            (
-              SELECT
-                nft_transfer_events.timestamp
-              FROM nft_transfer_events
-              WHERE nft_transfer_events.address = tokens.contract
-                AND nft_transfer_events.token_id = tokens.token_id
-              ORDER BY nft_transfer_events.timestamp DESC
-              LIMIT 1
-            ) AS last_transfer_time
-          FROM tokens
-          WHERE tokens.contract = $/contract/
-            AND tokens.token_id = $/tokenId/
-        `,
-        {
-          contract: toBuffer(contract),
-          tokenId,
-        }
-      );
-      if (!result) {
-        throw Boom.badRequest("Unknown token");
+    try {
+      let tokens = query.tokens;
+      if (!Array.isArray(tokens)) {
+        tokens = [tokens];
       }
 
-      // Use EIP-712 structured hashing (https://eips.ethereum.org/EIPS/eip-712)
-      const EIP712_TYPES = {
-        Message: {
-          Message: [
-            { name: "id", type: "bytes32" },
-            { name: "payload", type: "bytes" },
-            { name: "timestamp", type: "uint256" },
-          ],
-        },
-        TokenDetails: {
-          TokenDetails: [
-            { name: "isFlagged", type: "bool" },
-            { name: "lastTransferTime", type: "uint256" },
-          ],
-        },
-      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const messages: any[] = [];
+      for (const token of tokens) {
+        const [contract, tokenId] = token.split(":");
 
-      const id = _TypedDataEncoder.hashStruct("TokenDetails", EIP712_TYPES.TokenDetails, {
-        isFlagged: result.is_flagged,
-        lastTransferTime: result.last_transfer_time,
-      });
+        let result = await edb.oneOrNone(
+          `
+            SELECT
+              (
+                CASE
+                  WHEN tokens.is_flagged = 1 THEN true
+                  ELSE false
+                END
+              ) AS is_flagged,
+              (
+                SELECT
+                  nft_transfer_events.timestamp
+                FROM nft_transfer_events
+                WHERE nft_transfer_events.address = tokens.contract
+                  AND nft_transfer_events.token_id = tokens.token_id
+                ORDER BY nft_transfer_events.timestamp DESC
+                LIMIT 1
+              ) AS last_transfer_time
+            FROM tokens
+            WHERE tokens.contract = $/contract/
+              AND tokens.token_id = $/tokenId/
+          `,
+          {
+            contract: toBuffer(contract),
+            tokenId,
+          }
+        );
 
-      const message: {
-        id: string;
-        payload: string;
-        timestamp: number;
-        signature?: string;
-      } = {
-        id,
-        payload: defaultAbiCoder.encode(
-          ["bool", "uint256"],
-          [result.is_flagged, result.last_transfer_time]
-        ),
-        timestamp: now(),
-      };
+        // Use a default response for unknown tokens
+        if (!result) {
+          result = {
+            is_flagged: false,
+            last_transfer_time: 0,
+          };
+        }
 
-      if (config.oraclePrivateKey) {
+        // Use EIP-712 structured hashing (https://eips.ethereum.org/EIPS/eip-712)
+        const EIP712_TYPES = {
+          Message: {
+            Message: [
+              { name: "id", type: "bytes32" },
+              { name: "payload", type: "bytes" },
+              { name: "timestamp", type: "uint256" },
+            ],
+          },
+          Token: {
+            Token: [
+              { name: "contract", type: "address" },
+              { name: "tokenId", type: "uint256" },
+            ],
+          },
+        };
+
+        const id = _TypedDataEncoder.hashStruct("Token", EIP712_TYPES.Token, {
+          contract,
+          tokenId,
+        });
+
+        const message: {
+          id: string;
+          payload: string;
+          timestamp: number;
+          signature?: string;
+        } = {
+          id,
+          payload: defaultAbiCoder.encode(
+            ["bool", "uint256"],
+            [result.is_flagged, result.last_transfer_time]
+          ),
+          timestamp: await baseProvider.getBlock("latest").then((b) => b.timestamp),
+        };
+
         message.signature = await new Wallet(config.oraclePrivateKey).signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
-      } else {
-        throw Boom.badRequest("Instance cannot act as oracle");
+
+        messages.push({
+          token,
+          isFlagged: result.is_flagged,
+          lastTransferTime: result.last_transfer_time,
+          message,
+        });
       }
 
-      return {
-        isFlagged: result.is_flagged,
-        lastTransferTime: result.last_transfer_time,
-        message,
-      };
+      return { messages };
     } catch (error) {
       logger.error(`get-token-status-oracle-${version}-handler`, `Handler failure: ${error}`);
       throw error;

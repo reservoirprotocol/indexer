@@ -1,7 +1,7 @@
 import { Log } from "@ethersproject/abstract-provider";
 
 import { getEventData } from "@/events-sync/data";
-import { EnhancedEvent, OnChainData, processOnChainData } from "@/events-sync/handlers/utils";
+import { EnhancedEvent, initOnChainData, processOnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
 
 import * as erc20 from "@/events-sync/handlers/erc20";
@@ -33,7 +33,8 @@ import * as okex from "@/events-sync/handlers/okex";
 import * as bendDao from "@/events-sync/handlers/bend-dao";
 import * as superrare from "@/events-sync/handlers/superrare";
 
-export type EventsInfo = {
+// A list of events having the same high-level kind
+export type EventsByKind = {
   kind:
     | "erc20"
     | "erc721"
@@ -63,170 +64,178 @@ export type EventsInfo = {
     | "okex"
     | "bend-dao"
     | "superrare";
-  events: EnhancedEvent[];
+  data: EnhancedEvent[];
+};
+
+// A batch of events to get processed together
+export type EventsBatch = {
+  id: string;
+  events: EventsByKind[];
   backfill?: boolean;
 };
 
-export const processEvents = async (info: EventsInfo) => {
-  const data = await parseEventsInfo(info);
-  if (data) {
-    await processOnChainData(data, info.backfill);
-  }
-};
+export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {
+  const onChainData = initOnChainData();
 
-export const parseEventsInfo = async (info: EventsInfo) => {
-  let data: OnChainData | undefined;
-  switch (info.kind) {
-    case "erc20": {
-      data = await erc20.handleEvents(info.events);
-      break;
-    }
+  for (const events of batch.events) {
+    switch (events.kind) {
+      case "erc20": {
+        await erc20.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "erc721": {
-      data = await erc721.handleEvents(info.events);
-      break;
-    }
+      case "erc721": {
+        await erc721.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "erc1155": {
-      data = await erc1155.handleEvents(info.events);
-      break;
-    }
+      case "erc1155": {
+        await erc1155.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "blur": {
-      data = await blur.handleEvents(info.events);
-      break;
-    }
+      case "blur": {
+        await blur.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "cryptopunks": {
-      data = await cryptopunks.handleEvents(info.events);
-      break;
-    }
+      case "cryptopunks": {
+        await cryptopunks.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "decentraland": {
-      data = await decentraland.handleEvents(info.events);
-      break;
-    }
+      case "decentraland": {
+        await decentraland.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "element": {
-      data = await element.handleEvents(info.events);
-      break;
-    }
+      case "element": {
+        await element.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "forward": {
-      data = await forward.handleEvents(info.events);
-      break;
-    }
+      case "forward": {
+        await forward.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "foundation": {
-      data = await foundation.handleEvents(info.events);
-      break;
-    }
+      case "foundation": {
+        await foundation.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "looks-rare": {
-      data = await looksrare.handleEvents(info.events);
-      break;
-    }
+      case "looks-rare": {
+        await looksrare.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "nftx": {
-      data = await nftx.handleEvents(info.events);
-      break;
-    }
+      case "nftx": {
+        await nftx.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "nouns": {
-      data = await nouns.handleEvents(info.events);
-      break;
-    }
+      case "nouns": {
+        await nouns.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "quixotic": {
-      data = await quixotic.handleEvents(info.events);
-      break;
-    }
+      case "quixotic": {
+        await quixotic.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "seaport": {
-      data = await seaport.handleEvents(info.events);
-      break;
-    }
+      case "seaport": {
+        await seaport.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "sudoswap": {
-      data = await sudoswap.handleEvents(info.events);
-      break;
-    }
+      case "sudoswap": {
+        await sudoswap.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "wyvern": {
-      data = await wyvern.handleEvents(info.events);
-      break;
-    }
+      case "wyvern": {
+        await wyvern.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "x2y2": {
-      data = await x2y2.handleEvents(info.events);
-      break;
-    }
+      case "x2y2": {
+        await x2y2.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "zeroex-v4": {
-      data = await zeroExV4.handleEvents(info.events, info.backfill);
-      break;
-    }
+      case "zeroex-v4": {
+        await zeroExV4.handleEvents(events.data, onChainData, batch.backfill);
+        break;
+      }
 
-    case "zora": {
-      data = await zora.handleEvents(info.events);
-      break;
-    }
+      case "zora": {
+        await zora.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "universe": {
-      data = await universe.handleEvents(info.events);
-      break;
-    }
+      case "universe": {
+        await universe.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "infinity": {
-      data = await infinity.handleEvents(info.events);
-      break;
-    }
+      case "infinity": {
+        await infinity.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "rarible": {
-      data = await rarible.handleEvents(info.events);
-      break;
-    }
+      case "rarible": {
+        await rarible.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "manifold": {
-      data = await manifold.handleEvents(info.events);
-      break;
-    }
+      case "manifold": {
+        await manifold.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "tofu": {
-      data = await tofu.handleEvents(info.events);
-      break;
-    }
+      case "tofu": {
+        await tofu.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "nft-trader": {
-      data = await nftTrader.handleEvents(info.events);
-      break;
-    }
+      case "nft-trader": {
+        await nftTrader.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "okex": {
-      data = await okex.handleEvents(info.events);
-      break;
-    }
+      case "okex": {
+        await okex.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "bend-dao": {
-      data = await bendDao.handleEvents(info.events);
-      break;
-    }
+      case "bend-dao": {
+        await bendDao.handleEvents(events.data, onChainData);
+        break;
+      }
 
-    case "superrare": {
-      data = await superrare.handleEvents(info.events);
-      break;
+      case "superrare": {
+        await superrare.handleEvents(events.data, onChainData);
+        break;
+      }
     }
   }
-  return data;
+
+  if (!skipProcessing) {
+    await processOnChainData(onChainData, batch.backfill);
+  }
+
+  return onChainData;
 };
 
-export function getEventParams(log: Log, timestamp: number) {
+export const getEventParams = (log: Log, timestamp: number) => {
   const address = log.address.toLowerCase() as string;
   const block = log.blockNumber as number;
   const blockHash = log.blockHash.toLowerCase() as string;
   const txHash = log.transactionHash.toLowerCase() as string;
   const txIndex = log.transactionIndex as number;
   const logIndex = log.logIndex as number;
+
   return {
     address,
     txHash,
@@ -237,15 +246,17 @@ export function getEventParams(log: Log, timestamp: number) {
     timestamp,
     batchIndex: 1,
   };
-}
+};
 
-export async function getEnhancedEventFromTransaction(txHash: string) {
+export const getEnhancedEventsFromTx = async (txHash: string) => {
   const enhancedEvents: EnhancedEvent[] = [];
+
   const availableEventData = getEventData();
-  const transaction = await utils.fetchTransaction(txHash);
-  const txLog = await utils.fetchTransactionLogs(txHash);
-  for (let index = 0; index < txLog.logs.length; index++) {
-    const log = txLog.logs[index];
+  const tx = await utils.fetchTransaction(txHash);
+  const { logs } = await utils.fetchTransactionLogs(txHash);
+
+  for (let i = 0; i < logs.length; i++) {
+    const log = logs[i];
     const eventData = availableEventData.find(
       ({ addresses, topic, numTopics }) =>
         log.topics[0] === topic &&
@@ -255,10 +266,11 @@ export async function getEnhancedEventFromTransaction(txHash: string) {
     if (eventData) {
       enhancedEvents.push({
         kind: eventData.kind,
-        baseEventParams: getEventParams(log, transaction.blockTimestamp),
+        baseEventParams: getEventParams(log, tx.blockTimestamp),
         log,
       });
     }
   }
+
   return enhancedEvents;
-}
+};

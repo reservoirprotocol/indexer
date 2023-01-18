@@ -110,7 +110,7 @@ if (config.doBackgroundWork) {
           }
 
           case "nftx": {
-            result = await orders.nftx.save([info as orders.nftx.OrderInfo]);
+            result = await orders.nftx.save([info]);
             break;
           }
         }
@@ -119,10 +119,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
 
-      // Don't log already-exists
-      if (!["already-exists", "success"].includes(result[0]?.status)) {
-        logger.info(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
-      }
+      logger.debug(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
     },
     { connection: redis.duplicate(), concurrency: 50 }
   );

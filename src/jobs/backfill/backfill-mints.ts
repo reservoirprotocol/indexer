@@ -39,14 +39,14 @@ if (config.doBackgroundWork) {
     async (job) => {
       const { block } = job.data;
 
-      const numBlocks = 7;
+      const numBlocks = 40;
       const results = await idb.manyOrNone(
         `
           SELECT
             nft_transfer_events.*
           FROM nft_transfer_events
           WHERE nft_transfer_events.block < $/endBlock/
-            AND nft_transfer_events.block > $/startBlock/
+            AND nft_transfer_events.block >= $/startBlock/
           ORDER BY nft_transfer_events.block DESC
         `,
         {
@@ -204,7 +204,7 @@ export const addToQueue = async (block: number) => {
     {
       jobId: `${block}-2`,
       // Add some delay to avoid putting too much pressure on the database
-      delay: 10 * 1000,
+      delay: 2 * 1000,
     }
   );
 };

@@ -158,8 +158,12 @@ export const postSimulateFloorV1Options: RouteOptions = {
       if (success) {
         return { message: "Floor order is fillable" };
       } else {
-        await invalidateOrder(pathItem.orderId, callTrace, parsedPayload);
-        return { message: "Floor order is not fillable (got invalidated)" };
+        if (!["sudoswap.xyz", "nftx.io"].includes(pathItem.source)) {
+          await invalidateOrder(pathItem.orderId, callTrace, parsedPayload);
+          return { message: "Floor order is not fillable (got invalidated)" };
+        } else {
+          return { message: "Pool orders not supported" };
+        }
       }
     } catch (error) {
       logger.error(`post-simulate-floor-${version}-handler`, `Handler failure: ${error}`);

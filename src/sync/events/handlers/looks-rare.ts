@@ -3,24 +3,11 @@ import { Log } from "@ethersproject/abstract-provider";
 import { bn } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const bulkCancelEvents: es.bulkCancels.Event[] = [];
-  const nonceCancelEvents: es.nonceCancels.Event[] = [];
-  const fillEvents: es.fills.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-  const orderInfos: orderUpdatesById.OrderInfo[] = [];
-  const makerInfos: orderUpdatesByMaker.MakerInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Keep track of all events within the currently processing transaction
   let currentTx: string | undefined;
   let currentTxLogs: Log[] = [];
@@ -40,7 +27,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const maker = parsedLog.args["user"].toLowerCase();
         const newMinNonce = parsedLog.args["newMinNonce"].toString();
 
-        bulkCancelEvents.push({
+        onChainData.bulkCancelEvents.push({
           orderKind: "looks-rare",
           maker,
           minNonce: newMinNonce,
@@ -57,7 +44,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         let batchIndex = 1;
         for (const orderNonce of orderNonces) {
-          nonceCancelEvents.push({
+          onChainData.nonceCancelEvents.push({
             orderKind: "looks-rare",
             maker,
             nonce: orderNonce,
@@ -108,7 +95,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEvents.push({
+        onChainData.fillEvents.push({
           orderKind,
           orderId,
           orderSide: "buy",
@@ -128,14 +115,14 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         });
 
         // Cancel all the other orders of the maker having the same nonce
-        nonceCancelEvents.push({
+        onChainData.nonceCancelEvents.push({
           orderKind: "looks-rare",
           maker,
           nonce: orderNonce,
           baseEventParams,
         });
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}`,
           id: orderId,
           trigger: {
@@ -145,7 +132,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId,
           orderId: orderId,
           orderSide: "buy",
@@ -162,7 +149,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // then we need resync the maker's ERC20 approval to the exchange
         const erc20 = getERC20Transfer(currentTxLogs);
         if (erc20) {
-          makerInfos.push({
+          onChainData.makerInfos.push({
             context: `${baseEventParams.txHash}-buy-approval`,
             maker,
             trigger: {
@@ -218,7 +205,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEvents.push({
+        onChainData.fillEvents.push({
           orderKind,
           orderId,
           orderSide: "sell",
@@ -238,14 +225,14 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         });
 
         // Cancel all the other orders of the maker having the same nonce
-        nonceCancelEvents.push({
+        onChainData.nonceCancelEvents.push({
           orderKind: "looks-rare",
           maker,
           nonce: orderNonce,
           baseEventParams,
         });
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}`,
           id: orderId,
           trigger: {
@@ -255,7 +242,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId,
           orderId: orderId,
           orderSide: "sell",
@@ -272,7 +259,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // then we need resync the maker's ERC20 approval to the exchange
         const erc20 = getERC20Transfer(currentTxLogs);
         if (erc20) {
-          makerInfos.push({
+          onChainData.makerInfos.push({
             context: `${baseEventParams.txHash}-buy-approval`,
             maker,
             trigger: {
@@ -292,14 +279,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    bulkCancelEvents,
-    nonceCancelEvents,
-    fillEvents,
-
-    fillInfos,
-    orderInfos,
-    makerInfos,
-  };
 };

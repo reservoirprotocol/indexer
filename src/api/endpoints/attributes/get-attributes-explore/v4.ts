@@ -6,7 +6,7 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { buildContinuation, formatEth, regex, splitContinuation } from "@/common/utils";
+import { buildContinuation, formatEth, fromBuffer, regex, splitContinuation } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 
 const version = "v4";
@@ -116,7 +116,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
     const query = request.query as any;
     const params = request.params as any;
     const conditions: string[] = [];
-    const selectQuery =
+    let selectQuery =
       "SELECT attributes.id, kind, floor_sell_value, token_count, on_sale_count, key, value, sample_images, recent_floor_values_info.*";
 
     conditions.push(`attributes.collection_id = $/collection/`);
@@ -175,10 +175,29 @@ export const getAttributesExploreV4Options: RouteOptions = {
       `;
     }
 
+    let topBidQuery = "";
+    if (query.includeTopBid) {
+      selectQuery += ", top_buy_info.*";
+
+      topBidQuery = `LEFT JOIN LATERAL (
+          SELECT  token_sets.top_buy_id,
+                  token_sets.top_buy_value,
+                  token_sets.top_buy_maker,
+                  date_part('epoch', lower(orders.valid_between)) AS "top_buy_valid_from",
+                  coalesce(nullif(date_part('epoch', upper(orders.valid_between)), 'Infinity'), 0) AS "top_buy_valid_until"
+          FROM token_sets
+          LEFT JOIN orders ON token_sets.top_buy_id = orders.id
+          WHERE token_sets.attribute_id = attributes.id
+          ORDER BY token_sets.top_buy_value DESC NULLS LAST
+          LIMIT 1
+      ) "top_buy_info" ON TRUE`;
+    }
+
     try {
       let attributesQuery = `
             ${selectQuery}
             FROM attributes
+             ${topBidQuery}
             JOIN LATERAL (
                 ${tokensInfoQuery}
             ) "recent_floor_values_info" ON TRUE
@@ -246,6 +265,15 @@ export const getAttributesExploreV4Options: RouteOptions = {
               value: formatEth(value),
               timestamp: Number(timestamp),
             }))
+          : undefined,
+        topBid: query.includeTopBid
+          ? {
+              id: r.top_buy_id,
+              value: r.top_buy_value ? formatEth(r.top_buy_value) : null,
+              maker: r.top_buy_maker ? fromBuffer(r.top_buy_maker) : null,
+              validFrom: r.top_buy_valid_from,
+              validUntil: r.top_buy_value ? r.top_buy_valid_until : null,
+            }
           : undefined,
       }));
 
