@@ -21,13 +21,7 @@ export interface RoyaltyAdapter {
   extractRoyalties(fillEvent: es.fills.Event): Promise<RoyaltyResult | null>;
 }
 
-function parseHrtimeToSeconds(hrtime: [number, number]) {
-  return (hrtime[0] + hrtime[1] / 1e9).toFixed(3);
-}
-
 export async function extractOnChainData(enhancedEvents: EnhancedEvent[]) {
-  const startTime = process.hrtime();
-
   const allOnChainData: OnChainData[] = [];
 
   const eventBatches = extractEventsBatches(enhancedEvents, true);
@@ -36,17 +30,10 @@ export async function extractOnChainData(enhancedEvents: EnhancedEvent[]) {
     allOnChainData.push(onChainData);
   }
 
-  logger.info(
-    "debug",
-    `Time extractOnChainData: ${parseHrtimeToSeconds(process.hrtime(startTime))}`
-  );
-
   return allOnChainData;
 }
 
 export async function getFillEventsFromTx(txHash: string) {
-  const startTime = process.hrtime();
-
   const events = await getEnhancedEventsFromTx(txHash);
   const allOnChainData = await extractOnChainData(events);
 
@@ -60,11 +47,6 @@ export async function getFillEventsFromTx(txHash: string) {
     ).filter((e) => e.orderKind !== "mint");
     fillEvents = [...fillEvents, ...allEvents];
   }
-
-  logger.info(
-    "debug",
-    `Time getFillEventsFromTx(${txHash}): ${parseHrtimeToSeconds(process.hrtime(startTime))}`
-  );
 
   return fillEvents;
 }

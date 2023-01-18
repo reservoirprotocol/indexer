@@ -149,8 +149,6 @@ if (config.doBackgroundWork) {
           );
         }
 
-        logger.info("debug", `${JSON.stringify(collection)}`);
-
         // Refresh all royalty specs and the default royalties
         await royalties.refreshAllRoyaltySpecs(
           collection.id,
