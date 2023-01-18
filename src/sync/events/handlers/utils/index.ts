@@ -12,7 +12,7 @@ import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
-// import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
+import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -128,7 +128,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   await fillUpdates.addToQueue(data.fillInfos);
 
   if (allFillEvents.length) {
-    // await fillPostProcess.addToQueue([allFillEvents]);
+    await fillPostProcess.addToQueue([allFillEvents]);
   }
 
   // TODO: Is this the best place to handle activities?

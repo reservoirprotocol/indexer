@@ -8,9 +8,8 @@ import { config } from "@/config/index";
 import * as es from "@/events-sync/storage";
 import { randomUUID } from "crypto";
 
+// import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import { assignWashTradingScoreToFillEvents } from "@/events-sync/handlers/utils/fills";
-
-import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 
 const QUEUE_NAME = "fill-post-process";
 
@@ -35,10 +34,11 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const allFillEvents = job.data as es.fills.Event[];
+
       try {
         await Promise.all([
           assignWashTradingScoreToFillEvents(allFillEvents),
-          assignRoyaltiesToFillEvents(allFillEvents),
+          // assignRoyaltiesToFillEvents(allFillEvents),
         ]);
         const queries: PgPromiseQuery[] = allFillEvents.map((event) => {
           return {
