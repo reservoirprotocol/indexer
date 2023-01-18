@@ -1,11 +1,9 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
-import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { EventsInfo, processEvents } from "@/events-sync/handlers";
-import _ from "lodash";
+import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 
 const QUEUE_NAME = "events-sync-process-realtime";
 
@@ -29,10 +27,10 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
-      const info = job.data as EventsInfo;
+      const { batch } = job.data as { batch: EventsBatch };
 
       try {
-        await processEvents(info);
+        await processEventsBatch(batch);
       } catch (error) {
         logger.error(QUEUE_NAME, `Events processing failed: ${error}`);
         throw error;
@@ -45,15 +43,10 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (infos: EventsInfo[]) => {
-  const jobs: { name: string; data: EventsInfo }[] = [];
-  infos.map((info) => {
-    if (!_.isEmpty(info.events)) {
-      jobs.push({ name: randomUUID(), data: info });
-    }
-  });
-
-  if (!_.isEmpty(jobs)) {
-    await queue.addBulk(jobs);
-  }
-};
+export const addToQueue = async (batches: EventsBatch[]) =>
+  queue.addBulk(
+    batches.map((batch) => ({
+      name: batch.id,
+      data: { batch },
+    }))
+  );

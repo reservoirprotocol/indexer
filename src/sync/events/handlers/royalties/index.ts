@@ -1,9 +1,9 @@
 import { logger } from "@/common/logger";
 import { concat } from "@/common/utils";
-import { getEnhancedEventFromTransaction, parseEventsInfo } from "@/events-sync/handlers";
+import { getEnhancedEventsFromTx, processEventsBatch } from "@/events-sync/handlers";
 import * as fallback from "@/events-sync/handlers/royalties/core";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import { parseEnhancedEventsToEventsInfo } from "@/events-sync/index";
+import { extractEventsBatches } from "@/events-sync/index";
 import * as es from "@/events-sync/storage";
 import { Royalty } from "@/utils/royalties";
 
@@ -18,27 +18,28 @@ export type RoyaltyResult = {
 };
 
 export interface RoyaltyAdapter {
-  extractRoyalties(fillEvent: es.fills.Event): Promise<null | RoyaltyResult>;
+  extractRoyalties(fillEvent: es.fills.Event): Promise<RoyaltyResult | null>;
 }
 
-export async function parseEnhancedEventToOnChainData(enhancedEvents: EnhancedEvent[]) {
-  const eventsInfos = parseEnhancedEventsToEventsInfo(enhancedEvents, false);
+export async function extractOnChainData(enhancedEvents: EnhancedEvent[]) {
   const allOnChainData: OnChainData[] = [];
-  for (let index = 0; index < eventsInfos.length; index++) {
-    const eventsInfo = eventsInfos[index];
-    const onchainData = await parseEventsInfo(eventsInfo);
-    allOnChainData.push(onchainData);
+
+  const eventBatches = extractEventsBatches(enhancedEvents, true);
+  for (const batch of eventBatches) {
+    const onChainData = await processEventsBatch(batch, true);
+    allOnChainData.push(onChainData);
   }
+
   return allOnChainData;
 }
 
 export async function getFillEventsFromTx(txHash: string) {
-  const events = await getEnhancedEventFromTransaction(txHash);
-  const allOnChainData = await parseEnhancedEventToOnChainData(events);
-  let fillEvents: es.fills.Event[] = [];
+  const events = await getEnhancedEventsFromTx(txHash);
+  const allOnChainData = await extractOnChainData(events);
 
-  for (let index = 0; index < allOnChainData.length; index++) {
-    const data = allOnChainData[index];
+  let fillEvents: es.fills.Event[] = [];
+  for (let i = 0; i < allOnChainData.length; i++) {
+    const data = allOnChainData[i];
     const allEvents = concat(data.fillEvents, data.fillEventsPartial, data.fillEventsOnChain);
     fillEvents = [...fillEvents, ...allEvents];
   }

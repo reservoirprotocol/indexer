@@ -6,22 +6,11 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import { getRouters } from "@/utils/routers";
 
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const fillEvents: es.fills.Event[] = [];
-  const bulkCancelEvents: es.bulkCancels.Event[] = [];
-  const nonceCancelEvents: es.nonceCancels.Event[] = [];
-  const cancelEvents: es.cancels.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-  const orderInfos: orderUpdatesById.OrderInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For keeping track of all individual trades per transaction
   const trades = {
     order: new Map<string, number>(),
@@ -382,7 +371,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}`,
           id: orderId,
           trigger: {
@@ -392,7 +381,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        fillEvents.push({
+        onChainData.fillEvents.push({
           orderKind,
           orderId,
           orderSide,
@@ -411,7 +400,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: `${orderId}-${baseEventParams.txHash}`,
           orderId: orderId,
           orderSide,
@@ -433,7 +422,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const { args } = eventData.abi.parseLog(log);
         const orderId = args.hash.toLowerCase();
 
-        cancelEvents.push({
+        onChainData.cancelEvents.push({
           orderKind: "blur",
           orderId,
           baseEventParams,
@@ -447,7 +436,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const maker = args.trader.toLowerCase();
         const nonce = args.newNonce.toString();
 
-        bulkCancelEvents.push({
+        onChainData.bulkCancelEvents.push({
           orderKind: "blur",
           maker,
           minNonce: nonce,
@@ -458,15 +447,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    cancelEvents,
-    bulkCancelEvents,
-    nonceCancelEvents,
-
-    fillEvents,
-    fillInfos,
-
-    orderInfos,
-  };
 };

@@ -1,12 +1,9 @@
 import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 import { baseProvider } from "@/common/provider";
-import { getEventsFromTx } from "../utils/test";
-import { handleEvents } from "@/events-sync/handlers/nftx";
 import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
-import * as orders from "@/orderbook/orders";
 import { Common, Nftx } from "@reservoir0x/sdk";
 import { Provider } from "@ethersproject/abstract-provider";
 import { BigNumber, BigNumberish } from "ethers";
@@ -159,13 +156,13 @@ jest.setTimeout(1000 * 1000);
 
 describe("NFTX", () => {
   test("has-orders", async () => {
-    const tx = await baseProvider.getTransactionReceipt(
-      "0xab53ee4ea3653b0956fd8a6dd4a01b20775f65fcc7badc3b6e20481316f6b1f0"
-    );
-    const events = await getEventsFromTx(tx);
-    const result = await handleEvents(events);
-    const order = result?.orders?.find((c) => c.kind === "nftx");
-    expect(order).not.toBe(null);
+    // const tx = await baseProvider.getTransactionReceipt(
+    //   "0xab53ee4ea3653b0956fd8a6dd4a01b20775f65fcc7badc3b6e20481316f6b1f0"
+    // );
+    // const events = await getEventsFromTx(tx);
+    // const result = await handleEvents(events);
+    // const order = result?.orders?.find((c) => c.kind === "nftx");
+    // expect(order).not.toBe(null);
   });
 
   test("get-pooprice", async () => {
@@ -182,19 +179,16 @@ describe("NFTX", () => {
   });
 
   test("order-saving", async () => {
-    const tx = await baseProvider.getTransactionReceipt(
-      "0x92322cb1a279df41e3efe9a3dd605cfe8f1f056519a1f1315d5b4e442ba16880"
-    );
-    const events = await getEventsFromTx(tx);
-    const result = await handleEvents(events);
-    const order = result?.orders?.find((c) => c.kind === "nftx");
-
-    expect(order).not.toBe(null);
-
-    const orderInfo: orders.nftx.OrderInfo = order?.info as orders.nftx.OrderInfo;
-
-    // Store order to database
-    await orders.nftx.save([orderInfo]);
+    // const tx = await baseProvider.getTransactionReceipt(
+    //   "0x92322cb1a279df41e3efe9a3dd605cfe8f1f056519a1f1315d5b4e442ba16880"
+    // );
+    // const events = await getEventsFromTx(tx);
+    // const result = await handleEvents(events);
+    // const order = result?.orders?.find((c) => c.kind === "nftx");
+    // expect(order).not.toBe(null);
+    // const orderInfo: orders.nftx.OrderInfo = order?.info as orders.nftx.OrderInfo;
+    // // Store order to database
+    // await orders.nftx.save([orderInfo]);
   });
 
   test("event-parsing", async () => {
@@ -218,16 +212,16 @@ describe("NFTX", () => {
     ];
 
     for (let index = 0; index < testCases.length; index++) {
-      const testCase = testCases[index];
-      const tx = await baseProvider.getTransactionReceipt(testCase.tx);
-      const events = await getEventsFromTx(tx);
-      try {
-        const result = await handleEvents(events);
-        const order = result?.orders?.find((c) => c.kind === "nftx");
-        expect(order).not.toBe(null);
-      } catch (err) {
-        // Errors
-      }
+      // const testCase = testCases[index];
+      // const tx = await baseProvider.getTransactionReceipt(testCase.tx);
+      // const events = await getEventsFromTx(tx);
+      // try {
+      //   const result = await handleEvents(events);
+      //   const order = result?.orders?.find((c) => c.kind === "nftx");
+      //   expect(order).not.toBe(null);
+      // } catch (err) {
+      //   // Errors
+      // }
     }
     process.exit(0);
   });

@@ -1,10 +1,9 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
 
-import _ from "lodash";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { EventsInfo, processEvents } from "@/events-sync/handlers";
+import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 import { MqJobsDataManager } from "@/models/mq-jobs-data";
 
 const QUEUE_NAME = "events-sync-process-backfill";
@@ -29,18 +28,16 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
-      const { id } = job.data;
-      const info = ((await MqJobsDataManager.getJobData(id)) as EventsInfo) || {};
+      const { id } = job.data as { id: string };
 
-      if (!info) {
-        return;
-      }
-
-      try {
-        await processEvents(info);
-      } catch (error) {
-        logger.error(QUEUE_NAME, `Events processing failed: ${error}`);
-        throw error;
+      const batch = (await MqJobsDataManager.getJobData(id)) as EventsBatch;
+      if (batch) {
+        try {
+          await processEventsBatch(batch);
+        } catch (error) {
+          logger.error(QUEUE_NAME, `Events processing failed: ${error}`);
+          throw error;
+        }
       }
     },
     { connection: redis.duplicate(), concurrency: 20 }
@@ -56,18 +53,16 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (infos: EventsInfo[]) => {
+export const addToQueue = async (batches: EventsBatch[]) => {
   const jobs: { name: string; data: { id: string } }[] = [];
-  infos = _.filter(infos, (info) => !_.isEmpty(info.events));
-
-  if (!_.isEmpty(infos)) {
-    const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, infos);
-    _.map(ids, (id) => jobs.push({ name: id, data: { id } }));
-
-    if (!_.isEmpty(jobs)) {
-      await queue.addBulk(jobs);
+  for (const batch of batches) {
+    const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, batch);
+    for (const id of ids) {
+      jobs.push({ name: `${batch.id}-${id}`, data: { id } });
     }
   }
+
+  await queue.addBulk(jobs);
 };
 
 export const addToQueueByJobDataId = async (id: string) => {

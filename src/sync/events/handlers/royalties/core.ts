@@ -1,14 +1,14 @@
 import { formatEther } from "@ethersproject/units";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
-import { config } from "@/config/index";
 
 import { bn } from "@/common/utils";
+import { config } from "@/config/index";
 import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
+import { platformFeeRecipientsRegistry } from "@/events-sync/handlers/royalties/config";
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { Royalty, getRoyalties } from "@/utils/royalties";
-import { platformFeeRecipientsRegistry } from "./config";
 
 export async function extractRoyalties(fillEvent: es.fills.Event) {
   const royaltyFeeBreakdown: Royalty[] = [];
