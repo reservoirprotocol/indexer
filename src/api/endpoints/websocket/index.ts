@@ -1,1 +1,1 @@
-export * from "@/api/endpoints/websocket/post-user-auth";
+export * from "@/api/endpoints/websocket/post-websocket-user-auth";
