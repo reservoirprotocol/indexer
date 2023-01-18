@@ -11,9 +11,7 @@ import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
 const DEFAULT_PRICE = "1000000000000000000";
 
 // Assume there are no per-token royalties but everything is per-contract
-export const refreshRegistryRoyalties = async (
-  collection: string
-): Promise<Royalty[] | undefined> => {
+export const refreshRegistryRoyalties = async (collection: string) => {
   // Fetch the collection's contract
   const collectionResult = await idb.oneOrNone(
     `
@@ -25,7 +23,7 @@ export const refreshRegistryRoyalties = async (
     { collection }
   );
   if (!collectionResult?.contract) {
-    return undefined;
+    return;
   }
 
   // Fetch a random token from the collection
@@ -40,7 +38,7 @@ export const refreshRegistryRoyalties = async (
     { collection }
   );
   if (!tokenResult?.token_id) {
-    return undefined;
+    return;
   }
 
   const token = fromBuffer(collectionResult.contract);
@@ -92,10 +90,8 @@ export const refreshRegistryRoyalties = async (
         "onchain",
         latestRoyalties.length ? latestRoyalties : undefined
       );
-
-      return latestRoyalties;
     } catch {
-      return undefined;
+      // Skip errors
     }
   }
 };
