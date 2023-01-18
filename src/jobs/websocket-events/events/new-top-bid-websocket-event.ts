@@ -13,6 +13,8 @@ export class NewTopBidWebsocketEvent {
   public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
     const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
+    const timeStart = performance.now();
+
     const order = await idb.oneOrNone(
       `
               SELECT
