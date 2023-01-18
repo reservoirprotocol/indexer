@@ -2,7 +2,6 @@ import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 
-import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -82,11 +81,6 @@ export const refreshRegistryRoyalties = async (collection: string) => {
         const bps = Math.round(bn(amount).mul(10000).div(DEFAULT_PRICE).toNumber());
         latestRoyalties.push({ recipient, bps });
       }
-
-      logger.info(
-        "debug",
-        `Onchain royalties: ${latestRoyalties.length ? latestRoyalties : undefined}`
-      );
 
       // Save the retrieved royalty spec
       await updateRoyaltySpec(

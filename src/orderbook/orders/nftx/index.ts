@@ -215,13 +215,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               },
             });
 
-            const orderResult = await redb.oneOrNone(
+            let orderResult = await idb.oneOrNone(
               `
-                SELECT 1 FROM orders
+                SELECT
+                  orders.token_set_id
+                FROM orders
                 WHERE orders.id = $/id/
               `,
               { id }
             );
+            if (orderResult && !orderResult.token_set_id) {
+              // Delete the order since it is an incomplete one resulted from 'partial' insertion of
+              // fill events. The issue only occurs for buy orders since sell orders are handled via
+              // 'on-chain' fill events which don't insert such incomplete orders.
+              await idb.none(`DELETE FROM orders WHERE orders.id = $/id/`, { id });
+              orderResult = false;
+            }
 
             if (!orderResult) {
               // Handle: token set
