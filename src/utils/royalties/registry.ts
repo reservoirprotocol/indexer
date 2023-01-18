@@ -87,7 +87,11 @@ export const refreshRegistryRoyalties = async (
       }
 
       // Save the retrieved royalty spec
-      await updateRoyaltySpec(collection, "onchain", latestRoyalties);
+      await updateRoyaltySpec(
+        collection,
+        "onchain",
+        latestRoyalties.length ? latestRoyalties : undefined
+      );
 
       return latestRoyalties;
     } catch {

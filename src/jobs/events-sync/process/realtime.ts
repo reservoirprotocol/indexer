@@ -31,7 +31,7 @@ if (config.doBackgroundWork) {
       const { batch } = job.data as { batch: EventsBatch };
 
       try {
-        if (batch.id) {
+        if (batch) {
           await processEventsBatch(batch);
         } else {
           await processEventsBatch({
