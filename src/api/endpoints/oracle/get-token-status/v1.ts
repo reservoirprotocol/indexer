@@ -6,8 +6,9 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { idb, edb } from "@/common/db";
+import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -128,16 +129,6 @@ export const getTokenStatusOracleV1Options: RouteOptions = {
           tokenId,
         });
 
-        const timestampResult = await idb.oneOrNone(
-          `
-            SELECT
-              blocks.timestamp
-            FROM blocks
-            ORDER BY blocks.number DESC
-            LIMIT 1
-          `
-        );
-
         const message: {
           id: string;
           payload: string;
@@ -149,7 +140,7 @@ export const getTokenStatusOracleV1Options: RouteOptions = {
             ["bool", "uint256"],
             [result.is_flagged, result.last_transfer_time]
           ),
-          timestamp: timestampResult.timestamp,
+          timestamp: await baseProvider.getBlock("latest").then((b) => b.timestamp),
         };
 
         message.signature = await new Wallet(config.oraclePrivateKey).signMessage(

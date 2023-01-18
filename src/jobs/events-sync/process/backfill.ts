@@ -5,6 +5,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 import { MqJobsDataManager } from "@/models/mq-jobs-data";
+import { randomUUID } from "crypto";
 
 const QUEUE_NAME = "events-sync-process-backfill";
 
@@ -33,7 +34,22 @@ if (config.doBackgroundWork) {
       const batch = (await MqJobsDataManager.getJobData(id)) as EventsBatch;
       if (batch) {
         try {
-          await processEventsBatch(batch);
+          if (batch.id) {
+            await processEventsBatch(batch);
+          } else {
+            await processEventsBatch({
+              id: randomUUID(),
+              events: [
+                {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  kind: (batch as any).kind,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  data: (batch as any).events,
+                },
+              ],
+              backfill: batch.backfill,
+            });
+          }
         } catch (error) {
           logger.error(QUEUE_NAME, `Events processing failed: ${error}`);
           throw error;

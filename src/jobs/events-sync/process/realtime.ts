@@ -4,6 +4,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
+import { randomUUID } from "crypto";
 
 const QUEUE_NAME = "events-sync-process-realtime";
 
@@ -30,7 +31,20 @@ if (config.doBackgroundWork) {
       const { batch } = job.data as { batch: EventsBatch };
 
       try {
-        await processEventsBatch(batch);
+        if (batch.id) {
+          await processEventsBatch(batch);
+        } else {
+          await processEventsBatch({
+            id: randomUUID(),
+            events: [
+              {
+                kind: job.data.kind,
+                data: job.data.events,
+              },
+            ],
+            backfill: job.data.backfill,
+          });
+        }
       } catch (error) {
         logger.error(QUEUE_NAME, `Events processing failed: ${error}`);
         throw error;
