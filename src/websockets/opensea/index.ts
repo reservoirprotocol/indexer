@@ -99,6 +99,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
 const saveEvent = async (event: BaseStreamMessage<unknown>) => {
   try {
+    logger.info("opensea-websocket", `saveEvent. event=${event}`);
+
     if (!config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName) {
       return;
     }
