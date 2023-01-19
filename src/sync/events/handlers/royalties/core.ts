@@ -2,6 +2,7 @@ import { formatEther } from "@ethersproject/units";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { logger } from "@/common/logger";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
@@ -9,6 +10,10 @@ import { platformFeeRecipientsRegistry } from "@/events-sync/handlers/royalties/
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { Royalty, getRoyalties } from "@/utils/royalties";
+
+function parseHrtimeToSeconds(hrtime: [number, number]) {
+  return (hrtime[0] + hrtime[1] / 1e9).toFixed(3);
+}
 
 export async function extractRoyalties(fillEvent: es.fills.Event) {
   const royaltyFeeBreakdown: Royalty[] = [];
@@ -23,7 +28,14 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
     return null;
   }
 
+  const startTime = process.hrtime();
+
   const fillEvents: es.fills.Event[] = await getFillEventsFromTx(txHash);
+
+  logger.info(
+    "debug",
+    `Time getFillEventsFromTx(${txHash}): ${parseHrtimeToSeconds(process.hrtime(startTime))}`
+  );
 
   const collectionFills = fillEvents?.filter((_) => _.contract === contract) || [];
   const protocolFillEvents = fillEvents?.filter((_) => _.orderKind === fillEvent.orderKind) || [];

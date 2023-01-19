@@ -1,4 +1,5 @@
 import { logger } from "@/common/logger";
+import { redis } from "@/common/redis";
 import { concat } from "@/common/utils";
 import { getEnhancedEventsFromTx, processEventsBatch } from "@/events-sync/handlers";
 import * as fallback from "@/events-sync/handlers/royalties/core";
@@ -34,6 +35,12 @@ export async function extractOnChainData(enhancedEvents: EnhancedEvent[]) {
 }
 
 export async function getFillEventsFromTx(txHash: string) {
+  const cacheKey = `get-fill-events-from-tx:${txHash}`;
+  const result = await redis.get(cacheKey);
+  if (result) {
+    return JSON.parse(result) as es.fills.Event[];
+  }
+
   const events = await getEnhancedEventsFromTx(txHash);
   const allOnChainData = await extractOnChainData(events);
 
@@ -47,6 +54,8 @@ export async function getFillEventsFromTx(txHash: string) {
     ).filter((e) => e.orderKind !== "mint");
     fillEvents = [...fillEvents, ...allEvents];
   }
+
+  await redis.set(cacheKey, JSON.stringify(fillEvents), "EX", 10 * 60);
 
   return fillEvents;
 }

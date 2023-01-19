@@ -1,4 +1,5 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import { randomUUID } from "crypto";
 
 import { idb, PgPromiseQuery, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -6,9 +7,8 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as es from "@/events-sync/storage";
-import { randomUUID } from "crypto";
 
-// import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
+import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import { assignWashTradingScoreToFillEvents } from "@/events-sync/handlers/utils/fills";
 
 const QUEUE_NAME = "fill-post-process";
@@ -37,24 +37,24 @@ if (config.doBackgroundWork) {
 
       try {
         await Promise.all([
+          assignRoyaltiesToFillEvents(allFillEvents),
           assignWashTradingScoreToFillEvents(allFillEvents),
-          // assignRoyaltiesToFillEvents(allFillEvents),
         ]);
+
         const queries: PgPromiseQuery[] = allFillEvents.map((event) => {
           return {
             query: `
-                UPDATE "fill_events_2" SET 
-                  wash_trading_score = $/wash_trading_score/,
-                  royalty_fee_bps = $/royalty_fee_bps/,
-                  marketplace_fee_bps = $/marketplace_fee_bps/,
-                  royalty_fee_breakdown = $/royalty_fee_breakdown:json/,
-                  marketplace_fee_breakdown = $/marketplace_fee_breakdown:json/,
-                  paid_full_royalty = $/paid_full_royalty/
-                WHERE 
-                      tx_hash = $/tx_hash/
-                  AND log_index = $/log_index/
-                  AND batch_index = $/batch_index/
-              `,
+              UPDATE fill_events_2 SET
+                wash_trading_score = $/wash_trading_score/,
+                royalty_fee_bps = $/royalty_fee_bps/,
+                marketplace_fee_bps = $/marketplace_fee_bps/,
+                royalty_fee_breakdown = $/royalty_fee_breakdown:json/,
+                marketplace_fee_breakdown = $/marketplace_fee_breakdown:json/,
+                paid_full_royalty = $/paid_full_royalty/
+              WHERE tx_hash = $/tx_hash/
+                AND log_index = $/log_index/
+                AND batch_index = $/batch_index/
+            `,
             values: {
               wash_trading_score: event.washTradingScore || 0,
               royalty_fee_bps: event.royaltyFeeBps || undefined,
@@ -62,7 +62,6 @@ if (config.doBackgroundWork) {
               royalty_fee_breakdown: event.royaltyFeeBreakdown || undefined,
               marketplace_fee_breakdown: event.marketplaceFeeBreakdown || undefined,
               paid_full_royalty: event.paidFullRoyalty || undefined,
-
               tx_hash: toBuffer(event.baseEventParams.txHash),
               log_index: event.baseEventParams.logIndex,
               batch_index: event.baseEventParams.batchIndex,
@@ -86,11 +85,10 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (fillEvents: es.fills.Event[][]) => {
-  await queue.addBulk(
+export const addToQueue = async (fillEvents: es.fills.Event[][]) =>
+  queue.addBulk(
     fillEvents.map((event) => ({
       name: randomUUID(),
       data: event,
     }))
   );
-};
