@@ -208,7 +208,7 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
     const { id, schemaHash, schema, items } = tokenSet;
     try {
       if (!items) {
-        // This should never happen.
+        // This should never happen
         continue;
       }
 

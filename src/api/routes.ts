@@ -1138,6 +1138,12 @@ export const setupRoutes = (server: Server) => {
     options: tokensEndpoints.postTokenSetsV1Options,
   });
 
+  server.route({
+    method: "POST",
+    path: "/token-sets/v2",
+    options: tokensEndpoints.postTokenSetsV2Options,
+  });
+
   // Transactions
 
   server.route({
