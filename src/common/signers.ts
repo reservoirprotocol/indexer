@@ -14,6 +14,6 @@ export const getOracleKmsSigner = () =>
         accessKeyId: config.awsAccessKeyId,
         secretAccessKey: config.awsSecretAccessKey,
       },
-      region: config.oracleAwsKmsKeyRegion!,
+      region: config.oracleAwsKmsKeyRegion,
     },
   });

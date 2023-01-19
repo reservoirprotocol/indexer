@@ -16,7 +16,8 @@ const version = "v1";
 
 export const getTokenStatusOracleV1Options: RouteOptions = {
   description: "Token status oracle",
-  notes: "Get a signed message of a token's details (flagged status and last transfer time)",
+  notes:
+    "Get a signed message of a token's details (flagged status and last transfer time). The oracle's address is 0x32dA57E736E05f75aa4FaE2E9Be60FD904492726.",
   tags: ["api", "Oracle"],
   plugins: {
     "hapi-swagger": {
