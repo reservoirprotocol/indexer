@@ -16,7 +16,7 @@ export const getTokensFloorV1Options: RouteOptions = {
   },
   description: "Token Prices",
   notes:
-    "This API will return the best price of every token in a collection that is currently on sale. Note: Prices are returned in the native currency of the network.",
+    "This API will return the best price of every token in a collection that is currently on sale. NNote: Prices are returned in the native currency of the network.",
   tags: ["api", "Tokens"],
   plugins: {
     "hapi-swagger": {
