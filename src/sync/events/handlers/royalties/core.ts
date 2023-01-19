@@ -2,7 +2,6 @@ import { formatEther } from "@ethersproject/units";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
-import { logger } from "@/common/logger";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
@@ -10,44 +9,83 @@ import { platformFeeRecipientsRegistry } from "@/events-sync/handlers/royalties/
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { Royalty, getRoyalties } from "@/utils/royalties";
+import { TransactionTrace } from "@/models/transaction-traces";
+import { redis } from "@/common/redis";
 
-function parseHrtimeToSeconds(hrtime: [number, number]) {
-  return (hrtime[0] + hrtime[1] / 1e9).toFixed(3);
-}
-
-export async function extractRoyalties(fillEvent: es.fills.Event) {
+export async function extractRoyalties(fillEvent: es.fills.Event, useCache?: boolean) {
   const royaltyFeeBreakdown: Royalty[] = [];
   const marketplaceFeeBreakdown: Royalty[] = [];
   const possibleMissingRoyalties: Royalty[] = [];
 
   const { txHash } = fillEvent.baseEventParams;
-
   const { tokenId, contract, price, currency } = fillEvent;
-  const txTrace = await utils.fetchTransactionTrace(txHash);
+
+  const cacheKeyEvents = `get-fill-events-from-tx:${txHash}`;
+  const cacheKeyTrace = `fetch-transaction-trace:${txHash}`;
+
+  let txTrace = null;
+  if (useCache) {
+    const result = await redis.get(cacheKeyTrace);
+    if (result) {
+      txTrace = JSON.parse(result) as TransactionTrace;
+    }
+  }
+
+  if (!txTrace) {
+    txTrace = await utils.fetchTransactionTrace(txHash);
+    if (useCache) {
+      await redis.set(cacheKeyTrace, JSON.stringify(txTrace), "EX", 10 * 60);
+    }
+  }
+
   if (!txTrace) {
     return null;
   }
 
-  const startTime = process.hrtime();
+  let fillEvents = null;
 
-  const fillEvents: es.fills.Event[] = await getFillEventsFromTx(txHash);
+  if (useCache) {
+    const result = await redis.get(cacheKeyEvents);
+    if (result) {
+      fillEvents = JSON.parse(result) as es.fills.Event[];
+    }
+  }
 
-  logger.info(
-    "debug",
-    `Time getFillEventsFromTx(${txHash}): ${parseHrtimeToSeconds(process.hrtime(startTime))}`
-  );
+  if (!fillEvents) {
+    const data = await getFillEventsFromTx(txHash);
+    fillEvents = data.fillEvents;
+    if (useCache) await redis.set(cacheKeyEvents, JSON.stringify(fillEvents), "EX", 10 * 60);
+  }
 
-  const collectionFills = fillEvents?.filter((_) => _.contract === contract) || [];
-  const protocolFillEvents = fillEvents?.filter((_) => _.orderKind === fillEvent.orderKind) || [];
+  const collectionFills =
+    fillEvents?.filter((_) => _.contract === contract && _.currency === fillEvent.currency) || [];
+  const protocolFillEvents =
+    fillEvents?.filter(
+      (_) => _.orderKind === fillEvent.orderKind && _.currency === fillEvent.currency
+    ) || [];
 
+  // For same token only count once
+  const idTrackers = new Set();
   const protocolRelatedAmount = protocolFillEvents
     ? protocolFillEvents.reduce((total, item) => {
-        return total.add(bn(item.price));
+        const id = `${item.contract}:${item.tokenId}`;
+        if (idTrackers.has(id)) {
+          return total;
+        } else {
+          return total.add(bn(item.price).mul(bn(item.amount)));
+        }
       }, bn(0))
     : bn(0);
 
+  // For same token only count once
+  const collectionIdTrackers = new Set();
   const collectionRelatedAmount = collectionFills.reduce((total, item) => {
-    return total.add(bn(item.price));
+    const id = `${item.contract}:${item.tokenId}`;
+    if (collectionIdTrackers.has(id)) {
+      return total;
+    } else {
+      return total.add(bn(item.price).mul(bn(item.amount)));
+    }
   }, bn(0));
 
   const state = parseCallTrace(txTrace.calls);
@@ -85,14 +123,13 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
 
     // TODO Move to the SDK
     const BETH = "0x0000000000a39bb272e79075ade125fd351887ac";
-    const Weth = Sdk.Common.Addresses.Weth[config.chainId];
     const native = Sdk.Common.Addresses.Eth[config.chainId];
     const isETH = currency === native;
 
+    const nativeChange = tokenBalanceState[`native:${native}`];
+
     const balanceChange = isETH
-      ? tokenBalanceState[`native:${native}`] ||
-        tokenBalanceState[`erc20:${BETH}`] ||
-        tokenBalanceState[`erc20:${Weth}`]
+      ? nativeChange || tokenBalanceState[`erc20:${BETH}`]
       : tokenBalanceState[`erc20:${currency}`];
 
     // Receive ETH
@@ -136,6 +173,8 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
       tokenId,
       contract,
       currency,
+      amount: fillEvent.amount,
+      orderKind: fillEvent.orderKind,
       price: formatEther(price),
     },
     totalTransfers,
@@ -144,6 +183,8 @@ export async function extractRoyalties(fillEvent: es.fills.Event) {
     royaltyFeeBreakdown,
     marketplaceFeeBreakdown,
     sameCollectionSales,
+    protocolFillEvents: protocolFillEvents.length,
+    totalFills: fillEvents.length,
     paidFullRoyalty,
   };
 

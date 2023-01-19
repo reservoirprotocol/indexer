@@ -101,7 +101,7 @@ export const getJoiPriceObject = async (
           prices.net.nativeAmount,
           prices.net.usdAmount
         )
-      : totalFeeBps
+      : totalFeeBps && totalFeeBps < 10000
       ? await getJoiAmountObject(
           currency,
           prices.gross.amount,
