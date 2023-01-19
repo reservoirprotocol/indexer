@@ -167,6 +167,10 @@ export const getNetworkSettings = (): NetworkSettings => {
               name: "FEWL",
               symbol: "FEWL",
               decimals: 18,
+              metadata: {
+                image:
+                  "https://assets.website-files.com/630596599d87c526f9ca6d98/639b38c2171a4bf1981961d5_metaflyer-logomark-large-yellow.png",
+              },
             },
           ],
         ]),

@@ -60,7 +60,9 @@ export const getCurrency = async (currencyAddress: string): Promise<Currency> =>
       } catch (error) {
         logger.error(
           "currencies",
-          `Failed to initially fetch ${currencyAddress} currency details: ${error}`
+          `Failed to initially fetch ${currencyAddress} currency details: ${error}, whiteListed:${getNetworkSettings().whitelistedCurrencies.has(
+            currencyAddress
+          )}`
         );
 
         if (getNetworkSettings().whitelistedCurrencies.has(currencyAddress)) {
