@@ -8,11 +8,12 @@ export const getOracleRawSigner = () => new Wallet(config.oraclePrivateKey!);
 
 export const getOracleKmsSigner = () =>
   new KmsEthersSigner({
-    keyId: config.oracleAwsKmsKeyId!,
+    keyId: config.oracleAwsKmsKeyId,
     kmsClientConfig: {
       credentials: {
         accessKeyId: config.awsAccessKeyId,
         secretAccessKey: config.awsSecretAccessKey,
       },
+      region: config.oracleAwsKmsKeyRegion!,
     },
   });

@@ -11,9 +11,8 @@ export const config = {
   oraclePrivateKey: process.env.ORACLE_PRIVATE_KEY
     ? String(process.env.ORACLE_PRIVATE_KEY)
     : undefined,
-  oracleAwsKmsKeyId: process.env.ORACLE_AWS_KMS_KEY_ID
-    ? String(process.env.ORACLE_AWS_KMS_KEY_ID)
-    : undefined,
+  oracleAwsKmsKeyId: String(process.env.ORACLE_AWS_KMS_KEY_ID),
+  oracleAwsKmsKeyRegion: String(process.env.ORACLE_AWS_KMS_KEY_REGION),
 
   baseNetworkHttpUrl: String(process.env.BASE_NETWORK_HTTP_URL),
   baseNetworkWsUrl: String(process.env.BASE_NETWORK_WS_URL),
