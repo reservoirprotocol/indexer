@@ -740,8 +740,20 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/oracle/collections/floor-ask/v5",
+    options: oracleEndpoints.getCollectionFloorAskOracleV5Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/oracle/collections/top-bid/v1",
     options: oracleEndpoints.getCollectionTopBidOracleV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/oracle/collections/top-bid/v2",
+    options: oracleEndpoints.getCollectionTopBidOracleV2Options,
   });
 
   server.route({
