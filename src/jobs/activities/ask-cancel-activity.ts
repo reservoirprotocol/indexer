@@ -17,11 +17,17 @@ export class AskCancelActivity {
       return;
     }
 
-    const activityHash = getActivityHash(
-      data.transactionHash,
-      data.logIndex.toString(),
-      data.batchIndex.toString()
-    );
+    let activityHash;
+
+    if (data.transactionHash) {
+      activityHash = getActivityHash(
+        data.transactionHash,
+        data.logIndex.toString(),
+        data.batchIndex.toString()
+      );
+    } else {
+      activityHash = getActivityHash(ActivityType.ask_cancel, data.orderId);
+    }
 
     const activity = {
       hash: activityHash,
