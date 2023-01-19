@@ -81,7 +81,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 1 }
+    { connection: redis.duplicate(), concurrency: 10 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
