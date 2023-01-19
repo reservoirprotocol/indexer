@@ -9,30 +9,10 @@ import { platformFeeRecipientsRegistry } from "@/events-sync/handlers/royalties/
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { Royalty, getRoyalties } from "@/utils/royalties";
-import { StateCache } from "./index";
-// import { EnhancedEvent } from "@/events-sync/handlers/utils";
-// import * as erc20 from "@/events-sync/data/erc20";
+import { TransactionTrace } from "@/models/transaction-traces";
+import { redis } from "@/common/redis";
 
-// function extractTransfers(events: EnhancedEvent[]) {
-//   const erc20Transfers = [];
-//   for (let index = 0; index < events.length; index++) {
-//     const event = events[index];
-//     if (event.kind === "erc20-transfer") {
-//       const parsed = erc20.transfer.abi.parseLog(event.log);
-//       if (parsed) {
-//         erc20Transfers.push({
-//           from: parsed.args.from.toLowerCase(),
-//           to: parsed.args.to.toLowerCase(),
-//           amount: parsed.args.amount.toString(),
-//         });
-//       }
-//     }
-//   }
-
-//   return erc20Transfers;
-// }
-
-export async function extractRoyalties(fillEvent: es.fills.Event, cache?: StateCache) {
+export async function extractRoyalties(fillEvent: es.fills.Event, useCache?: boolean) {
   const royaltyFeeBreakdown: Royalty[] = [];
   const marketplaceFeeBreakdown: Royalty[] = [];
   const possibleMissingRoyalties: Royalty[] = [];
@@ -40,14 +20,22 @@ export async function extractRoyalties(fillEvent: es.fills.Event, cache?: StateC
   const { txHash } = fillEvent.baseEventParams;
   const { tokenId, contract, price, currency } = fillEvent;
 
+  const cacheKeyEvents = `get-fill-events-from-tx:${txHash}`;
+  const cacheKeyTrace = `fetch-transaction-trace:${txHash}`;
+
   let txTrace = null;
-  if (cache) {
-    txTrace = cache.traces.get(txHash);
+  if (useCache) {
+    const result = await redis.get(cacheKeyTrace);
+    if (result) {
+      txTrace = JSON.parse(result) as TransactionTrace;
+    }
   }
 
   if (!txTrace) {
     txTrace = await utils.fetchTransactionTrace(txHash);
-    if (cache) cache.traces.set(txHash, txTrace);
+    if (useCache) {
+      await redis.set(cacheKeyTrace, JSON.stringify(txTrace), "EX", 10 * 60);
+    }
   }
 
   if (!txTrace) {
@@ -55,18 +43,18 @@ export async function extractRoyalties(fillEvent: es.fills.Event, cache?: StateC
   }
 
   let fillEvents = null;
-  // let rawEvents = null;
 
-  if (cache) {
-    fillEvents = cache.events.get(txHash)?.fillEvents;
-    // rawEvents = cache.events.get(txHash)?.events;
+  if (useCache) {
+    const result = await redis.get(cacheKeyEvents);
+    if (result) {
+      fillEvents = JSON.parse(result) as es.fills.Event[];
+    }
   }
 
   if (!fillEvents) {
     const data = await getFillEventsFromTx(txHash);
     fillEvents = data.fillEvents;
-    // rawEvents = data.events;
-    if (cache) cache.events.set(txHash, data);
+    if (useCache) await redis.set(cacheKeyEvents, JSON.stringify(fillEvents), "EX", 10 * 60);
   }
 
   const collectionFills =
@@ -75,8 +63,6 @@ export async function extractRoyalties(fillEvent: es.fills.Event, cache?: StateC
     fillEvents?.filter(
       (_) => _.orderKind === fillEvent.orderKind && _.currency === fillEvent.currency
     ) || [];
-  // const allEvents = rawEvents ?? [];
-  // const allErc20Transfers = extractTransfers(allEvents);
 
   // For same token only count once
   const idTrackers = new Set();
@@ -86,7 +72,6 @@ export async function extractRoyalties(fillEvent: es.fills.Event, cache?: StateC
         if (idTrackers.has(id)) {
           return total;
         } else {
-          // idTrackers.add(id);
           return total.add(bn(item.price).mul(bn(item.amount)));
         }
       }, bn(0))
@@ -99,7 +84,6 @@ export async function extractRoyalties(fillEvent: es.fills.Event, cache?: StateC
     if (collectionIdTrackers.has(id)) {
       return total;
     } else {
-      // collectionIdTrackers.add(id);
       return total.add(bn(item.price).mul(bn(item.amount)));
     }
   }, bn(0));

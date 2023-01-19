@@ -31,7 +31,7 @@ export type StateCache = {
 };
 
 export interface RoyaltyAdapter {
-  extractRoyalties(fillEvent: es.fills.Event, cache?: StateCache): Promise<RoyaltyResult | null>;
+  extractRoyalties(fillEvent: es.fills.Event, cache?: boolean): Promise<RoyaltyResult | null>;
 }
 
 export async function extractOnChainData(enhancedEvents: EnhancedEvent[]) {
@@ -71,27 +71,19 @@ export async function getFillEventsFromTx(txHash: string) {
   };
 }
 
-const checkFeeIsValid = (result: RoyaltyResult) =>
+export const checkFeeIsValid = (result: RoyaltyResult) =>
   result.marketplaceFeeBps + result.royaltyFeeBps < 10000;
 
 export const assignRoyaltiesToFillEvents = async (
   fillEvents: es.fills.Event[],
   enableCache = true
 ) => {
-  const cacheTable = enableCache
-    ? {
-        traces: new Map(),
-        royalties: new Map(),
-        events: new Map(),
-      }
-    : undefined;
-
   for (let i = 0; i < fillEvents.length; i++) {
     const fillEvent = fillEvents[i];
     const royaltyAdapter = registry.get(fillEvent.orderKind) ?? registry.get("fallback");
     try {
       if (royaltyAdapter) {
-        const result = await royaltyAdapter.extractRoyalties(fillEvent, cacheTable);
+        const result = await royaltyAdapter.extractRoyalties(fillEvent, enableCache);
         if (result) {
           const isValid = checkFeeIsValid(result);
           if (!isValid) {
