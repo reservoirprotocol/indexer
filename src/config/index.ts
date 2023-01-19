@@ -11,6 +11,9 @@ export const config = {
   oraclePrivateKey: process.env.ORACLE_PRIVATE_KEY
     ? String(process.env.ORACLE_PRIVATE_KEY)
     : undefined,
+  oracleAwsKmsKeyId: process.env.ORACLE_AWS_KMS_KEY_ID
+    ? String(process.env.ORACLE_AWS_KMS_KEY_ID)
+    : undefined,
 
   baseNetworkHttpUrl: String(process.env.BASE_NETWORK_HTTP_URL),
   baseNetworkWsUrl: String(process.env.BASE_NETWORK_WS_URL),
@@ -83,7 +86,8 @@ export const config = {
   cipherSecret: String(process.env.CIPHER_SECRET),
 
   slackApiKeyWebhookUrl: String(process.env.SLACK_API_KEY_WEBHOOK_URL),
-  redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 22), // Used to prevent redis from being overloaded in heavy process like backfilling
+  // Used to prevent redis from being overloaded in heavy process like backfilling
+  redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 22),
 
   websocketServerHost: String(process.env.WEBSOCKET_SERVER_HOST),
   websocketServerAppId: String(process.env.WEBSOCKET_SERVER_APP_ID),

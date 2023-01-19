@@ -750,6 +750,12 @@ export const setupRoutes = (server: Server) => {
     options: oracleEndpoints.getTokenStatusOracleV1Options,
   });
 
+  server.route({
+    method: "GET",
+    path: "/oracle/tokens/status/v2",
+    options: oracleEndpoints.getTokenStatusOracleV2Options,
+  });
+
   // Orders
 
   server.route({
