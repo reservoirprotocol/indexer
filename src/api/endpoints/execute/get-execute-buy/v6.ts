@@ -122,7 +122,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
           "If true, do not filter out inactive orders (only relevant for order id filtering)."
         ),
       x2y2ApiKey: Joi.string().description("Override the X2Y2 API key used for filling."),
-    }),
+    })
+      .or("tokens", "orderIds", "rawOrders")
+      .oxor("tokens", "orderIds", "rawOrders"),
   },
   response: {
     schema: Joi.object({
