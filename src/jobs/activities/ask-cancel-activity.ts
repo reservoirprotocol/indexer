@@ -26,6 +26,8 @@ export class AskCancelActivity {
         data.batchIndex.toString()
       );
     } else {
+      logger.warn("ask-cancel-activity", `No transactionHash for ${JSON.stringify(data)}`);
+
       activityHash = getActivityHash(ActivityType.ask_cancel, data.orderId);
     }
 
