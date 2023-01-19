@@ -1,3 +1,5 @@
+import { BigNumberish } from "@ethersproject/bignumber";
+
 import { logger } from "@/common/logger";
 import { concat, bn } from "@/common/utils";
 import { getEnhancedEventsFromTx, processEventsBatch } from "@/events-sync/handlers";
@@ -5,9 +7,8 @@ import * as fallback from "@/events-sync/handlers/royalties/core";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import { extractEventsBatches } from "@/events-sync/index";
 import * as es from "@/events-sync/storage";
-import { Royalty } from "@/utils/royalties";
-import { BigNumberish } from "@ethersproject/bignumber";
 import { TransactionTrace } from "@/models/transaction-traces";
+import { Royalty } from "@/utils/royalties";
 
 const registry = new Map<string, RoyaltyAdapter>();
 

@@ -2,15 +2,15 @@ import { formatEther } from "@ethersproject/units";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { redis } from "@/common/redis";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
 import { platformFeeRecipientsRegistry } from "@/events-sync/handlers/royalties/config";
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
-import { Royalty, getRoyalties } from "@/utils/royalties";
 import { TransactionTrace } from "@/models/transaction-traces";
-import { redis } from "@/common/redis";
+import { Royalty, getRoyalties } from "@/utils/royalties";
 
 export async function extractRoyalties(fillEvent: es.fills.Event, useCache?: boolean) {
   const royaltyFeeBreakdown: Royalty[] = [];
@@ -43,7 +43,6 @@ export async function extractRoyalties(fillEvent: es.fills.Event, useCache?: boo
   }
 
   let fillEvents = null;
-
   if (useCache) {
     const result = await redis.get(cacheKeyEvents);
     if (result) {
