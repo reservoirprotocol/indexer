@@ -3,12 +3,12 @@ import { arrayify } from "@ethersproject/bytes";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
-import { KmsEthersSigner } from "aws-kms-ethers-signer";
 import Joi from "joi";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
+import { getOracleKmsSigner } from "@/common/signers";
 import { regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -143,9 +143,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
           timestamp: await baseProvider.getBlock("latest").then((b) => b.timestamp),
         };
 
-        message.signature = await new KmsEthersSigner({
-          keyId: config.oracleAwsKmsKeyId!,
-        }).signMessage(
+        message.signature = await getOracleKmsSigner().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
 

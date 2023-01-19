@@ -1,7 +1,6 @@
 import { defaultAbiCoder } from "@ethersproject/abi";
 import { arrayify } from "@ethersproject/bytes";
 import { _TypedDataEncoder } from "@ethersproject/hash";
-import { Wallet } from "@ethersproject/wallet";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
@@ -9,6 +8,7 @@ import Joi from "joi";
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
+import { getOracleRawSigner } from "@/common/signers";
 import { regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -143,7 +143,7 @@ export const getTokenStatusOracleV1Options: RouteOptions = {
           timestamp: await baseProvider.getBlock("latest").then((b) => b.timestamp),
         };
 
-        message.signature = await new Wallet(config.oraclePrivateKey).signMessage(
+        message.signature = await getOracleRawSigner().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
 

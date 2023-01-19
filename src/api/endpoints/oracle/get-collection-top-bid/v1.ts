@@ -2,7 +2,6 @@ import { defaultAbiCoder } from "@ethersproject/abi";
 import { arrayify } from "@ethersproject/bytes";
 import { AddressZero } from "@ethersproject/constants";
 import { _TypedDataEncoder } from "@ethersproject/hash";
-import { Wallet } from "@ethersproject/wallet";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -11,6 +10,7 @@ import Joi from "joi";
 
 import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { getOracleRawSigner } from "@/common/signers";
 import { bn, formatPrice, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -277,7 +277,7 @@ export const getCollectionTopBidOracleV1Options: RouteOptions = {
       };
 
       if (config.oraclePrivateKey) {
-        message.signature = await new Wallet(config.oraclePrivateKey).signMessage(
+        message.signature = await getOracleRawSigner().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
       } else {
