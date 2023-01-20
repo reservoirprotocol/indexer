@@ -18,8 +18,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   };
 
   // Handle the events
-  for (const { subKind, baseEventParams, log } of events) {
-    const eventData = getEventData([subKind])[0];
+  for (const { subKind, kind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind ?? kind])[0];
     switch (subKind) {
       // Sudoswap is extremely poorly designed from the perspective of events
       // that get emitted on trades. As such, we use transaction tracing when
