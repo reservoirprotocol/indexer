@@ -61,7 +61,6 @@ export const getUserActivityV5Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .default(20)
         .description(
           "Amount of items returned in response. If `includeMetadata=true` max limit is 20, otherwise max limit is 1,000."
         )
@@ -72,13 +71,10 @@ export const getUserActivityV5Options: RouteOptions = {
         }),
       sortBy: Joi.string()
         .valid("eventTimestamp", "createdAt")
-        .default("eventTimestamp")
         .description(
           "Order the items are returned in the response, eventTimestamp = The blockchain event time, createdAt - The time in which event was recorded"
         ),
-      includeMetadata: Joi.boolean()
-        .default(true)
-        .description("If true, metadata is included in the response."),
+      includeMetadata: Joi.boolean().description("If true, metadata is included in the response."),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
@@ -192,6 +188,14 @@ export const getUserActivityV5Options: RouteOptions = {
         true,
         query.contracts
       );
+
+      if (!query.limit) {
+        query.limit = 20;
+      }
+
+      if (!query.sortBy) {
+        query.sortBy = "eventTimestamp";
+      }
 
       // If no activities found
       if (!activities.length) {

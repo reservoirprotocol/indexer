@@ -15,10 +15,11 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
-const version = "v3";
+const version = "v4";
 
-export const getTokensFloorAskV3Options: RouteOptions = {
+export const getTokensFloorAskV4Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 1000,
@@ -48,9 +49,6 @@ export const getTokensFloorAskV3Options: RouteOptions = {
         "Get events before a particular unix timestamp (inclusive)"
       ),
       sortDirection: Joi.string().valid("asc", "desc"),
-      normalizeRoyalties: Joi.boolean().description(
-        "If true, prices will include missing royalties to be added on-top."
-      ),
       continuation: Joi.string().pattern(regex.base64),
       limit: Joi.number().integer().min(1).max(1000),
     }).oxor("contract", "token"),
@@ -70,7 +68,7 @@ export const getTokensFloorAskV3Options: RouteOptions = {
             price: JoiPrice.allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.object().allow(null),
             isDynamic: Joi.boolean(),
           }),
           event: Joi.object({
@@ -114,38 +112,32 @@ export const getTokensFloorAskV3Options: RouteOptions = {
     try {
       let baseQuery = `
         SELECT
-          events.source_id_int,
-          date_part('epoch', lower(events.valid_between)) AS valid_from,
+          token_floor_sell_events.source_id_int,
+          date_part('epoch', lower(token_floor_sell_events.valid_between)) AS valid_from,
           coalesce(
-            nullif(date_part('epoch', upper(events.valid_between)), 'Infinity'),
+            nullif(date_part('epoch', upper(token_floor_sell_events.valid_between)), 'Infinity'),
             0
           ) AS valid_until,
-          events.nonce,
-          events.id,
-          events.kind,
-          events.contract,
-          events.token_id,
-          events.order_id,
-          events.maker,
-          events.price,
-          events.previous_price,
-          events.tx_hash,
-          events.tx_timestamp,
+          token_floor_sell_events.nonce,
+          token_floor_sell_events.id,
+          token_floor_sell_events.kind,
+          token_floor_sell_events.contract,
+          token_floor_sell_events.token_id,
+          token_floor_sell_events.order_id,
+          token_floor_sell_events.maker,
+          token_floor_sell_events.price,
+          token_floor_sell_events.previous_price,
+          token_floor_sell_events.tx_hash,
+          token_floor_sell_events.tx_timestamp,
           orders.currency,
           orders.dynamic,
           TRUNC(orders.currency_price, 0) AS currency_price,
-          extract(epoch from events.created_at) AS created_at
-        FROM ${
-          query.normalizeRoyalties
-            ? "token_normalized_floor_sell_events"
-            : "token_floor_sell_events"
-        } events
+          extract(epoch from token_floor_sell_events.created_at) AS created_at
+        FROM token_floor_sell_events
         LEFT JOIN LATERAL (
-           SELECT currency, ${
-             query.normalizeRoyalties ? "currency_normalized_value" : "currency_price"
-           } AS "currency_price", dynamic
+           SELECT currency, currency_price, dynamic
            FROM orders
-           WHERE orders.id = events.order_id
+           WHERE orders.id = token_floor_sell_events.order_id
         ) orders ON TRUE
       `;
 
@@ -159,23 +151,23 @@ export const getTokensFloorAskV3Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [
-        `events.created_at >= to_timestamp($/startTimestamp/)`,
-        `events.created_at <= to_timestamp($/endTimestamp/)`,
+        `token_floor_sell_events.created_at >= to_timestamp($/startTimestamp/)`,
+        `token_floor_sell_events.created_at <= to_timestamp($/endTimestamp/)`,
         // Fix for the issue with negative prices for dutch auction orders
         // (eg. due to orders not properly expired on time)
-        `coalesce(events.price, 0) >= 0`,
+        `coalesce(token_floor_sell_events.price, 0) >= 0`,
       ];
       if (query.contract) {
         (query as any).contract = toBuffer(query.contract);
-        conditions.push(`events.contract = $/contract/`);
+        conditions.push(`token_floor_sell_events.contract = $/contract/`);
       }
       if (query.token) {
         const [contract, tokenId] = query.token.split(":");
 
         (query as any).contract = toBuffer(contract);
         (query as any).tokenId = tokenId;
-        conditions.push(`events.contract = $/contract/`);
-        conditions.push(`events.token_id = $/tokenId/`);
+        conditions.push(`token_floor_sell_events.contract = $/contract/`);
+        conditions.push(`token_floor_sell_events.token_id = $/tokenId/`);
       }
       if (query.continuation) {
         const [createdAt, id] = splitContinuation(query.continuation, /^\d+(.\d+)?_\d+$/);
@@ -183,7 +175,7 @@ export const getTokensFloorAskV3Options: RouteOptions = {
         (query as any).id = id;
 
         conditions.push(
-          `(events.created_at, events.id) ${
+          `(token_floor_sell_events.created_at, token_floor_sell_events.id) ${
             query.sortDirection === "asc" ? ">" : "<"
           } (to_timestamp($/createdAt/), $/id/)`
         );
@@ -195,8 +187,8 @@ export const getTokensFloorAskV3Options: RouteOptions = {
       // Sorting
       baseQuery += `
         ORDER BY
-          events.created_at ${query.sortDirection},
-          events.id ${query.sortDirection}
+          token_floor_sell_events.created_at ${query.sortDirection},
+          token_floor_sell_events.id ${query.sortDirection}
       `;
 
       // Pagination
@@ -212,8 +204,14 @@ export const getTokensFloorAskV3Options: RouteOptions = {
       }
 
       const sources = await Sources.getInstance();
-      const result = await Promise.all(
-        rawResult.map(async (r) => ({
+      const result = rawResult.map(async (r) => {
+        const source: SourcesEntity | undefined = sources.get(
+          r.source_id_int,
+          fromBuffer(r.contract),
+          r.token_id
+        );
+
+        return {
           token: {
             contract: fromBuffer(r.contract),
             tokenId: r.token_id,
@@ -228,6 +226,7 @@ export const getTokensFloorAskV3Options: RouteOptions = {
                     gross: {
                       amount: r.currency_price ?? r.price,
                       nativeAmount: r.price,
+                      usdAmount: r.usd_price,
                     },
                   },
                   fromBuffer(r.currency)
@@ -235,7 +234,13 @@ export const getTokensFloorAskV3Options: RouteOptions = {
               : null,
             validFrom: r.price ? Number(r.valid_from) : null,
             validUntil: r.price ? Number(r.valid_until) : null,
-            source: sources.get(r.source_id_int)?.name,
+            source: {
+              id: source?.address,
+              domain: source?.domain,
+              name: source?.metadata.title || source?.name,
+              icon: source?.getIcon(),
+              url: source?.metadata.url,
+            },
             isDynamic: Boolean(r.dynamic),
           },
           event: {
@@ -246,11 +251,11 @@ export const getTokensFloorAskV3Options: RouteOptions = {
             txTimestamp: r.tx_timestamp ? Number(r.tx_timestamp) : null,
             createdAt: new Date(r.created_at * 1000).toISOString(),
           },
-        }))
-      );
+        };
+      });
 
       return {
-        events: result,
+        events: await Promise.all(result),
         continuation,
       };
     } catch (error) {

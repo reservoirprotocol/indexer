@@ -5,7 +5,8 @@ import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
 
 export const orderCancelled: EventData = {
-  kind: "seaport-order-cancelled",
+  kind: "seaport",
+  subKind: "seaport-order-cancelled",
   addresses: { [Seaport.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x6bacc01dbe442496068f7d234edd811f1a5f833243e0aec824f86ab861f3c90d",
   numTopics: 3,
@@ -19,7 +20,8 @@ export const orderCancelled: EventData = {
 };
 
 export const orderFulfilled: EventData = {
-  kind: "seaport-order-filled",
+  kind: "seaport",
+  subKind: "seaport-order-filled",
   addresses: { [Seaport.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31",
   numTopics: 3,
@@ -47,7 +49,8 @@ export const orderFulfilled: EventData = {
 };
 
 export const counterIncremented: EventData = {
-  kind: "seaport-counter-incremented",
+  kind: "seaport",
+  subKind: "seaport-counter-incremented",
   addresses: { [Seaport.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x721c20121297512b72821b97f5326877ea8ecf4bb9948fea5bfcb6453074d37f",
   numTopics: 2,
