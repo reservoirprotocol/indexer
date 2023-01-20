@@ -11,8 +11,8 @@ import { getUSDAndNativePrices } from "@/utils/prices";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
-  for (const { subKind, kind, baseEventParams, log } of events) {
-    const eventData = getEventData([subKind ?? kind])[0];
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
     switch (subKind) {
       case "element-erc721-order-cancelled":
       case "element-erc1155-order-cancelled": {

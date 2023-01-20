@@ -21,14 +21,14 @@ export const handleEvents = async (events: EnhancedEvent[], _onChainData: OnChai
   // TODO: Re-enable and use call tracing to properly parse sales
 
   // Handle the events
-  for (const { subKind, kind, baseEventParams, log } of events) {
+  for (const { subKind, baseEventParams, log } of events) {
     if (currentTx !== baseEventParams.txHash) {
       currentTx = baseEventParams.txHash;
       currentTxLogs = [];
     }
     currentTxLogs.push(log);
 
-    const eventData = getEventData([subKind ?? kind])[0];
+    const eventData = getEventData([subKind])[0];
     switch (subKind) {
       // Wyvern v2 / v2.3 are both decomissioned, but we still keep handling
       // fill events from them in order to get historical sales. Relevant to
