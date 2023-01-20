@@ -89,13 +89,13 @@ export const save = async (
     openSeaOrderParams?: PartialOrderComponents
   ) => {
     try {
-      const timeStart = performance.now();
-
-      logger.info("orders-seaport-save-debug-latency", `Start. orderParams=${orderParams}`);
-
       const order = new Sdk.Seaport.Order(config.chainId, orderParams);
       const info = order.getInfo();
       const id = order.hash();
+
+      const timeStart = performance.now();
+
+      logger.info("orders-seaport-save-debug-latency", `Start. orderId=${id}`);
 
       // Check: order has a valid format
       if (!info) {
@@ -128,7 +128,7 @@ export const save = async (
 
       logger.info(
         "orders-seaport-save-debug-latency",
-        `Order Exists. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+        `Order Exists. orderId=${id}, timeElapsed=${timeElapsed}`
       );
 
       if (orderExists) {
@@ -204,7 +204,7 @@ export const save = async (
 
       logger.info(
         "orders-seaport-save-debug-latency",
-        `checkValidity. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+        `checkValidity. orderId=${id}, timeElapsed=${timeElapsed}`
       );
 
       // Check: order has a valid signature
@@ -221,7 +221,7 @@ export const save = async (
 
       logger.info(
         "orders-seaport-save-debug-latency",
-        `checkSignature. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+        `checkSignature. orderId=${id}, timeElapsed=${timeElapsed}`
       );
 
       // Check: order fillability
@@ -251,7 +251,7 @@ export const save = async (
 
       logger.info(
         "orders-seaport-save-debug-latency",
-        `offChainCheck. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+        `offChainCheck. orderId=${id}, timeElapsed=${timeElapsed}`
       );
 
       let saveRawData = true;
@@ -442,7 +442,7 @@ export const save = async (
 
       logger.info(
         "orders-seaport-save-debug-latency",
-        `tokenSet. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+        `tokenSet. orderId=${id}, timeElapsed=${timeElapsed}`
       );
 
       if (!tokenSetId) {
@@ -572,7 +572,7 @@ export const save = async (
 
       logger.info(
         "orders-seaport-save-debug-latency",
-        `Royalties. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+        `Royalties. orderId=${id}, timeElapsed=${timeElapsed}`
       );
 
       // Handle: source
@@ -669,7 +669,7 @@ export const save = async (
 
       logger.info(
         "orders-seaport-save-debug-latency",
-        `Currencies. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+        `Currencies. orderId=${id}, timeElapsed=${timeElapsed}`
       );
 
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
@@ -705,7 +705,7 @@ export const save = async (
 
       logger.info(
         "orders-seaport-save-debug-latency",
-        `bidValueValidation. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+        `bidValueValidation. orderId=${id}, timeElapsed=${timeElapsed}`
       );
 
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
