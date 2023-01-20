@@ -89,6 +89,10 @@ export const save = async (
     openSeaOrderParams?: PartialOrderComponents
   ) => {
     try {
+      const timeStart = performance.now();
+
+      logger.info("orders-seaport-save-debug-latency", `Start. orderParams=${orderParams}`);
+
       const order = new Sdk.Seaport.Order(config.chainId, orderParams);
       const info = order.getInfo();
       const id = order.hash();
@@ -119,6 +123,14 @@ export const save = async (
           rawData: order.params,
         }
       );
+
+      let timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      logger.info(
+        "orders-seaport-save-debug-latency",
+        `Order Exists. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+      );
+
       if (orderExists) {
         return results.push({
           id,
@@ -188,6 +200,13 @@ export const save = async (
         });
       }
 
+      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      logger.info(
+        "orders-seaport-save-debug-latency",
+        `checkValidity. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+      );
+
       // Check: order has a valid signature
       try {
         await order.checkSignature(baseProvider);
@@ -197,6 +216,13 @@ export const save = async (
           status: "invalid-signature",
         });
       }
+
+      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      logger.info(
+        "orders-seaport-save-debug-latency",
+        `checkSignature. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+      );
 
       // Check: order fillability
       let fillabilityStatus = "fillable";
@@ -220,6 +246,13 @@ export const save = async (
           });
         }
       }
+
+      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      logger.info(
+        "orders-seaport-save-debug-latency",
+        `offChainCheck. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+      );
 
       let saveRawData = true;
 
@@ -405,6 +438,13 @@ export const save = async (
         }
       }
 
+      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      logger.info(
+        "orders-seaport-save-debug-latency",
+        `tokenSet. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+      );
+
       if (!tokenSetId) {
         return results.push({
           id,
@@ -528,6 +568,13 @@ export const save = async (
         }
       }
 
+      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      logger.info(
+        "orders-seaport-save-debug-latency",
+        `Royalties. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+      );
+
       // Handle: source
       const sources = await Sources.getInstance();
       let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
@@ -618,6 +665,13 @@ export const save = async (
       }
       const normalizedValue = bn(prices.nativePrice).toString();
 
+      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      logger.info(
+        "orders-seaport-save-debug-latency",
+        `Currencies. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+      );
+
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
@@ -646,6 +700,13 @@ export const save = async (
           );
         }
       }
+
+      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      logger.info(
+        "orders-seaport-save-debug-latency",
+        `bidValueValidation. orderParams=${orderParams}, timeElapsed=${timeElapsed}`
+      );
 
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
@@ -1483,7 +1544,16 @@ export const save = async (
         table: "orders",
       }
     );
+    const timeStart = performance.now();
+
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
+
+    const timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+    logger.info(
+      "orders-seaport-save-debug-latency",
+      `save. orderValues=${orderValues.length}, timeElapsed=${timeElapsed}`
+    );
 
     await ordersUpdateById.addToQueue(
       results
