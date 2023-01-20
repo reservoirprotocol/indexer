@@ -30,7 +30,7 @@ export const getSourcesV1Options: RouteOptions = {
         .description("Order the items are returned in the response."),
       domain: Joi.string()
         .lowercase()
-        .description("Filter to a particular domain. Example: `x2y2`"),
+        .description("Filter to a particular domain. Example: `x2y2.io`"),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -69,22 +69,15 @@ export const getSourcesV1Options: RouteOptions = {
       offset = Number(splitContinuation(query.continuation));
     }
     try {
-      let baseQuery = `
-        SELECT "name", "address", "domain", "metadata" 
-        from "sources_v2"
-        ${sourcesFilter ? "WHERE" : ""}
-        ${sourcesFilter}
-      `;
+      let baseQuery = `SELECT "name", "address", "domain", "metadata" from "sources_v2" ${
+        sourcesFilter ? "WHERE" + sourcesFilter : ""
+      }`;
 
-      if (query.sortBy) {
-        baseQuery += `
-        ORDER BY
-          sources_v2.${query.sortBy === "createdAt" ? "created_at" : query.sortBy} ${
-          query.sortDirection ? query.sortDirection : ""
-        }
-      `;
-      }
-      baseQuery += `OFFSET ${offset} LIMIT ${limit}`;
+      baseQuery += ` ORDER BY sources_v2.${
+        query.sortBy === "createdAt" ? "created_at" : query.sortBy
+      } ${query.sortDirection}`;
+
+      baseQuery += ` OFFSET ${offset} LIMIT ${query.limit}`;
 
       const rawResult = await redb.manyOrNone(baseQuery, query);
       const sources = await Sources.getInstance();

@@ -358,7 +358,7 @@ if (config.doBackgroundWork) {
                 logIndex: trigger.logIndex,
                 batchIndex: trigger.batchIndex,
                 blockHash: trigger.blockHash,
-                timestamp: trigger.txTimestamp,
+                timestamp: trigger.txTimestamp || Math.floor(Date.now() / 1000),
               };
 
               if (order.side === "sell") {
