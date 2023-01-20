@@ -3,7 +3,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { EventDataKind } from "@/events-sync/data";
+import { EventSubKind } from "@/events-sync/data";
 import * as eventsSyncBackfill from "@/jobs/events-sync/backfill-queue";
 
 const QUEUE_NAME = "process-resync-request";
@@ -55,7 +55,7 @@ export const addToQueue = async (
     syncDetails?:
       | {
           method: "events";
-          events: EventDataKind[];
+          events: EventSubKind[];
         }
       | {
           method: "address";

@@ -1,7 +1,6 @@
 import { defaultAbiCoder } from "@ethersproject/abi";
 import { arrayify } from "@ethersproject/bytes";
 import { _TypedDataEncoder } from "@ethersproject/hash";
-import { Wallet } from "@ethersproject/wallet";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
@@ -9,6 +8,7 @@ import Joi from "joi";
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
+import { Signers, addressToSigner } from "@/common/signers";
 import { regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -16,7 +16,8 @@ const version = "v1";
 
 export const getTokenStatusOracleV1Options: RouteOptions = {
   description: "Token status oracle",
-  notes: "Get a signed message of a token's details (flagged status and last transfer time)",
+  notes:
+    "Get a signed message of a token's details (flagged status and last transfer time). The oracle's address is 0x32dA57E736E05f75aa4FaE2E9Be60FD904492726.",
   tags: ["api", "Oracle"],
   plugins: {
     "hapi-swagger": {
@@ -143,7 +144,7 @@ export const getTokenStatusOracleV1Options: RouteOptions = {
           timestamp: await baseProvider.getBlock("latest").then((b) => b.timestamp),
         };
 
-        message.signature = await new Wallet(config.oraclePrivateKey).signMessage(
+        message.signature = await addressToSigner[Signers.V1]().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
 

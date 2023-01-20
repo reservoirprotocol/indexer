@@ -61,6 +61,7 @@ export async function getEventsFromTx(tx: TransactionReceipt) {
     if (eventData) {
       enhancedEvents.push({
         kind: eventData.kind,
+        subKind: eventData.subKind,
         baseEventParams: getEventParams(log, blockResult),
         log,
       });

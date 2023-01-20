@@ -51,6 +51,7 @@
     "@typescript-eslint/eslint-plugin": "^5.14.0",
     "@typescript-eslint/parser": "^5.14.0",
     "arweave": "^1.10.23",
+    "aws-kms-ethers-signer": "^0.1.3",
     "aws-sdk": "^2.1148.0",
     "bullmq": "1.76.1",
     "dd-trace": "^3.5.0",

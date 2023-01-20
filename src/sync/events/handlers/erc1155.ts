@@ -27,9 +27,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   const ns = getNetworkSettings();
 
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "erc1155-transfer-single": {
         const parsedLog = eventData.abi.parseLog(log);
         const from = parsedLog.args["from"].toLowerCase();

@@ -40,8 +40,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    if (config.chainId !== 1) {
-      throw Boom.notImplemented("Simulation not supported");
+    if (![1, 137].includes(config.chainId)) {
+      return { message: "Simulation not supported" };
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
