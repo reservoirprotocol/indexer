@@ -11,11 +11,9 @@ import { getUSDAndNativePrices } from "@/utils/prices";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
-      // Element
-
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "element-erc721-order-cancelled":
       case "element-erc1155-order-cancelled": {
         const parsedLog = eventData.abi.parseLog(log);
@@ -118,7 +116,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           },
         });
 
-        const orderSide = kind === "element-erc721-sell-order-filled-v2" ? "sell" : "buy";
+        const orderSide = subKind === "element-erc721-sell-order-filled-v2" ? "sell" : "buy";
         onChainData.fillEventsPartial.push({
           orderKind,
           orderId,
@@ -207,7 +205,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           },
         });
 
-        const orderSide = kind === "element-erc1155-sell-order-filled-v2" ? "sell" : "buy";
+        const orderSide = subKind === "element-erc1155-sell-order-filled-v2" ? "sell" : "buy";
         onChainData.fillEventsPartial.push({
           orderKind,
           orderId,

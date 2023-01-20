@@ -1,12 +1,12 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import _ from "lodash";
 
 import { logger } from "@/common/logger";
 import { BullMQBulkJob, getMemUsage, redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import { EventDataKind } from "@/events-sync/data";
+import { EventSubKind } from "@/events-sync/data";
 import { syncEvents } from "@/events-sync/index";
-import _ from "lodash";
 
 const QUEUE_NAME = "events-sync-backfill";
 
@@ -82,7 +82,7 @@ export const addToQueue = async (
     syncDetails?:
       | {
           method: "events";
-          events: EventDataKind[];
+          events: EventSubKind[];
         }
       | {
           method: "address";

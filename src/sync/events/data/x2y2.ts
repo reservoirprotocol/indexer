@@ -5,7 +5,8 @@ import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
 
 export const orderCancelled: EventData = {
-  kind: "x2y2-order-cancelled",
+  kind: "x2y2",
+  subKind: "x2y2-order-cancelled",
   addresses: { [X2Y2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x5b0b06d07e20243724d90e17a20034972f339eb28bd1c9437a71999bd15a1e7a",
   numTopics: 2,
@@ -17,7 +18,8 @@ export const orderCancelled: EventData = {
 };
 
 export const orderInventory: EventData = {
-  kind: "x2y2-order-inventory",
+  kind: "x2y2",
+  subKind: "x2y2-order-inventory",
   addresses: { [X2Y2.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x3cbb63f144840e5b1b0a38a7c19211d2e89de4d7c5faf8b2d3c1776c302d1d33",
   numTopics: 2,

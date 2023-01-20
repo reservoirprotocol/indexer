@@ -20,15 +20,15 @@ export const handleEvents = async (
   let currentTxLogs: Log[] = [];
 
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
+  for (const { subKind, baseEventParams, log } of events) {
     if (currentTx !== baseEventParams.txHash) {
       currentTx = baseEventParams.txHash;
       currentTxLogs = [];
     }
     currentTxLogs.push(log);
 
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "zeroex-v4-erc721-order-cancelled":
       case "zeroex-v4-erc1155-order-cancelled": {
         const parsedLog = eventData.abi.parseLog(log);

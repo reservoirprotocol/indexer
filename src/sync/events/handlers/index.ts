@@ -1,7 +1,13 @@
 import { Log } from "@ethersproject/abstract-provider";
 
-import { getEventData } from "@/events-sync/data";
-import { EnhancedEvent, initOnChainData, processOnChainData } from "@/events-sync/handlers/utils";
+import { logger } from "@/common/logger";
+import { EventKind, getEventData } from "@/events-sync/data";
+import {
+  EnhancedEvent,
+  OnChainData,
+  initOnChainData,
+  processOnChainData,
+} from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
 
 import * as erc20 from "@/events-sync/handlers/erc20";
@@ -35,35 +41,7 @@ import * as superrare from "@/events-sync/handlers/superrare";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
-  kind:
-    | "erc20"
-    | "erc721"
-    | "erc1155"
-    | "blur"
-    | "cryptopunks"
-    | "element"
-    | "forward"
-    | "foundation"
-    | "looks-rare"
-    | "nftx"
-    | "nouns"
-    | "quixotic"
-    | "seaport"
-    | "sudoswap"
-    | "wyvern"
-    | "x2y2"
-    | "zeroex-v4"
-    | "zora"
-    | "universe"
-    | "infinity"
-    | "rarible"
-    | "manifold"
-    | "tofu"
-    | "decentraland"
-    | "nft-trader"
-    | "okex"
-    | "bend-dao"
-    | "superrare";
+  kind: EventKind;
   data: EnhancedEvent[];
 };
 
@@ -74,152 +52,61 @@ export type EventsBatch = {
   backfill?: boolean;
 };
 
+// Map each high-level event kind to its corresponding handler
+export const eventKindToHandler = new Map<
+  EventKind,
+  (e: EnhancedEvent[], d: OnChainData, backfill?: boolean) => Promise<void>
+>([
+  ["erc20", (e, d) => erc20.handleEvents(e, d)],
+  ["erc721", (e, d) => erc721.handleEvents(e, d)],
+  ["erc1155", (e, d) => erc1155.handleEvents(e, d)],
+  ["blur", (e, d) => blur.handleEvents(e, d)],
+  ["cryptopunks", (e, d) => cryptopunks.handleEvents(e, d)],
+  ["decentraland", (e, d) => decentraland.handleEvents(e, d)],
+  ["element", (e, d) => element.handleEvents(e, d)],
+  ["forward", (e, d) => forward.handleEvents(e, d)],
+  ["foundation", (e, d) => foundation.handleEvents(e, d)],
+  ["looks-rare", (e, d) => looksrare.handleEvents(e, d)],
+  ["nftx", (e, d) => nftx.handleEvents(e, d)],
+  ["nouns", (e, d) => nouns.handleEvents(e, d)],
+  ["quixotic", (e, d) => quixotic.handleEvents(e, d)],
+  ["seaport", (e, d) => seaport.handleEvents(e, d)],
+  ["sudoswap", (e, d) => sudoswap.handleEvents(e, d)],
+  ["wyvern", (e, d) => wyvern.handleEvents(e, d)],
+  ["x2y2", (e, d) => x2y2.handleEvents(e, d)],
+  ["zeroex-v4", (e, d, b) => zeroExV4.handleEvents(e, d, b)],
+  ["zora", (e, d) => zora.handleEvents(e, d)],
+  ["universe", (e, d) => universe.handleEvents(e, d)],
+  ["infinity", (e, d) => infinity.handleEvents(e, d)],
+  ["rarible", (e, d) => rarible.handleEvents(e, d)],
+  ["manifold", (e, d) => manifold.handleEvents(e, d)],
+  ["tofu", (e, d) => tofu.handleEvents(e, d)],
+  ["nft-trader", (e, d) => nftTrader.handleEvents(e, d)],
+  ["okex", (e, d) => okex.handleEvents(e, d)],
+  ["bend-dao", (e, d) => bendDao.handleEvents(e, d)],
+  ["superrare", (e, d) => superrare.handleEvents(e, d)],
+]);
+
 export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {
   const onChainData = initOnChainData();
-
-  for (const events of batch.events) {
-    switch (events.kind) {
-      case "erc20": {
-        await erc20.handleEvents(events.data, onChainData);
-        break;
+  await Promise.all(
+    batch.events.map(async (events) => {
+      if (events.data.length) {
+        const handler = eventKindToHandler.get(events.kind);
+        if (handler) {
+          await handler(events.data, onChainData, batch.backfill);
+        } else {
+          logger.error(
+            "process-events-batch",
+            JSON.stringify({
+              error: "missing-handler-for-event-kind",
+              data: `Event kind ${events.kind} is missing a corresponding handler`,
+            })
+          );
+        }
       }
-
-      case "erc721": {
-        await erc721.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "erc1155": {
-        await erc1155.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "blur": {
-        await blur.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "cryptopunks": {
-        await cryptopunks.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "decentraland": {
-        await decentraland.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "element": {
-        await element.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "forward": {
-        await forward.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "foundation": {
-        await foundation.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "looks-rare": {
-        await looksrare.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "nftx": {
-        await nftx.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "nouns": {
-        await nouns.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "quixotic": {
-        await quixotic.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "seaport": {
-        await seaport.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "sudoswap": {
-        await sudoswap.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "wyvern": {
-        await wyvern.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "x2y2": {
-        await x2y2.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "zeroex-v4": {
-        await zeroExV4.handleEvents(events.data, onChainData, batch.backfill);
-        break;
-      }
-
-      case "zora": {
-        await zora.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "universe": {
-        await universe.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "infinity": {
-        await infinity.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "rarible": {
-        await rarible.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "manifold": {
-        await manifold.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "tofu": {
-        await tofu.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "nft-trader": {
-        await nftTrader.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "okex": {
-        await okex.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "bend-dao": {
-        await bendDao.handleEvents(events.data, onChainData);
-        break;
-      }
-
-      case "superrare": {
-        await superrare.handleEvents(events.data, onChainData);
-        break;
-      }
-    }
-  }
+    })
+  );
 
   if (!skipProcessing) {
     await processOnChainData(onChainData, batch.backfill);
@@ -266,6 +153,7 @@ export const getEnhancedEventsFromTx = async (txHash: string) => {
     if (eventData) {
       enhancedEvents.push({
         kind: eventData.kind,
+        subKind: eventData.subKind,
         baseEventParams: getEventParams(log, tx.blockTimestamp),
         log,
       });
