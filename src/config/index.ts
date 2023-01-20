@@ -8,9 +8,7 @@ export const config = {
   arweaveRelayerKey: process.env.ARWEAVE_RELAYER_KEY
     ? String(process.env.ARWEAVE_RELAYER_KEY)
     : undefined,
-  oraclePrivateKey: process.env.ORACLE_PRIVATE_KEY
-    ? String(process.env.ORACLE_PRIVATE_KEY)
-    : undefined,
+  oraclePrivateKey: String(process.env.ORACLE_PRIVATE_KEY),
   oracleAwsKmsKeyId: String(process.env.ORACLE_AWS_KMS_KEY_ID),
   oracleAwsKmsKeyRegion: String(process.env.ORACLE_AWS_KMS_KEY_REGION),
 

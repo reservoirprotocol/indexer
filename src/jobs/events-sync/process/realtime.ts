@@ -1,10 +1,10 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
+import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
-import { randomUUID } from "crypto";
 
 const QUEUE_NAME = "events-sync-process-realtime";
 
@@ -50,7 +50,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 3 : 20 }
+    { connection: redis.duplicate(), concurrency: 40 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

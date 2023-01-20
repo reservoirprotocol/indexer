@@ -1,11 +1,11 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import _ from "lodash";
 
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { idb } from "@/common/db";
 import { MqJobsDataManager } from "@/models/mq-jobs-data";
-import _ from "lodash";
 
 const QUEUE_NAME = "events-sync-nft-transfers-write";
 
@@ -30,8 +30,8 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const { id } = job.data;
-      let { query } = (await MqJobsDataManager.getJobData(id)) || {};
 
+      let { query } = (await MqJobsDataManager.getJobData(id)) || {};
       if (!query) {
         return;
       }
@@ -56,9 +56,6 @@ if (config.doBackgroundWork) {
     },
     {
       connection: redis.duplicate(),
-      // It's very important to have this queue be single-threaded
-      // in order to avoid database write deadlocks (and it can be
-      // even better to have it be single-process).
       concurrency: 5,
     }
   );

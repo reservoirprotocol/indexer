@@ -8,7 +8,7 @@ import Joi from "joi";
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { getOracleRawSigner } from "@/common/signers";
+import { Signers, addressToSigner } from "@/common/signers";
 import { regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -144,7 +144,7 @@ export const getTokenStatusOracleV1Options: RouteOptions = {
           timestamp: await baseProvider.getBlock("latest").then((b) => b.timestamp),
         };
 
-        message.signature = await getOracleRawSigner().signMessage(
+        message.signature = await addressToSigner[Signers.V1]().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
 

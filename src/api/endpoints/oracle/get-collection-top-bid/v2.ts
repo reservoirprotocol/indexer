@@ -10,7 +10,7 @@ import Joi from "joi";
 
 import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getOracleKmsSigner } from "@/common/signers";
+import { Signers, addressToSigner } from "@/common/signers";
 import { bn, formatPrice, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -35,6 +35,7 @@ export const getCollectionTopBidOracleV2Options: RouteOptions = {
         .default(24 * 3600),
       collection: Joi.string().lowercase(),
       token: Joi.string().pattern(regex.token).lowercase(),
+      signer: Joi.string().valid(Signers.V1, Signers.V2).default(Signers.V2),
     })
       .or("collection", "token")
       .oxor("collection", "token"),
@@ -277,7 +278,7 @@ export const getCollectionTopBidOracleV2Options: RouteOptions = {
       };
 
       if (config.oraclePrivateKey) {
-        message.signature = await getOracleKmsSigner().signMessage(
+        message.signature = await addressToSigner[query.signer]().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
       } else {

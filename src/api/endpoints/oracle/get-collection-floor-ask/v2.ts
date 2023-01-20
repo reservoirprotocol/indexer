@@ -12,7 +12,7 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getOracleRawSigner } from "@/common/signers";
+import { Signers, addressToSigner } from "@/common/signers";
 import { bn, formatPrice, now } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -242,7 +242,7 @@ export const getCollectionFloorAskOracleV2Options: RouteOptions = {
       };
 
       if (config.oraclePrivateKey) {
-        message.signature = await getOracleRawSigner().signMessage(
+        message.signature = await addressToSigner[Signers.V1]().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
       } else {

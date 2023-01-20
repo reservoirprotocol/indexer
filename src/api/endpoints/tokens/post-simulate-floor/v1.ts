@@ -41,7 +41,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    if (config.chainId !== 1) {
+    if (![1, 137].includes(config.chainId)) {
       return { message: "Simulation not supported" };
     }
 

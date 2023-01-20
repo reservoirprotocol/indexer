@@ -12,7 +12,7 @@ import Joi from "joi";
 
 import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getOracleRawSigner } from "@/common/signers";
+import { Signers, addressToSigner } from "@/common/signers";
 import { bn, formatPrice, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -41,6 +41,7 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
       useNonFlaggedFloorAsk: Joi.boolean()
         .default(false)
         .description("If true, will use the collection non flagged floor ask events."),
+      signer: Joi.string().valid(Signers.V1, Signers.V2).default(Signers.V2),
     })
       .or("collection", "token")
       .oxor("collection", "token"),
@@ -294,7 +295,7 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
       };
 
       if (config.oraclePrivateKey) {
-        message.signature = await getOracleRawSigner().signMessage(
+        message.signature = await addressToSigner[query.signer]().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
       } else {

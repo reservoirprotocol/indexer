@@ -8,7 +8,7 @@ import Joi from "joi";
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { getOracleKmsSigner } from "@/common/signers";
+import { Signers, addressToSigner } from "@/common/signers";
 import { regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -30,6 +30,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
         Joi.array().items(Joi.string().pattern(regex.token)),
         Joi.string().pattern(regex.token)
       ).required(),
+      signer: Joi.string().valid(Signers.V1, Signers.V2).default(Signers.V2),
     }),
   },
   response: {
@@ -144,7 +145,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
           timestamp: await baseProvider.getBlock("latest").then((b) => b.timestamp),
         };
 
-        message.signature = await getOracleKmsSigner().signMessage(
+        message.signature = await addressToSigner[query.signer]().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
 
