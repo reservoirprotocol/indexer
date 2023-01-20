@@ -38,7 +38,7 @@ export interface RoyaltyAdapter {
 export async function extractOnChainData(enhancedEvents: EnhancedEvent[]) {
   const allOnChainData: OnChainData[] = [];
 
-  const eventBatches = extractEventsBatches(enhancedEvents, true);
+  const eventBatches = await extractEventsBatches(enhancedEvents, true);
   for (const batch of eventBatches) {
     const onChainData = await processEventsBatch(batch, true);
     allOnChainData.push(onChainData);

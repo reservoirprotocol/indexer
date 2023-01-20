@@ -31,7 +31,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { id } = job.data;
 
-      let { query } = (await MqJobsDataManager.getJobData(id)) || {};
+      const { query } = (await MqJobsDataManager.getJobData(id)) || {};
       if (!query) {
         return;
       }
