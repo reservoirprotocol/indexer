@@ -213,7 +213,6 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       universe.cancel,
       nftx.minted,
       nftx.redeemed,
-      nftx.staked,
       nftx.swapped,
       nftx.swap,
       nftx.vaultInit,
@@ -391,8 +390,6 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return nftx.minted;
     case "nftx-redeemed":
       return nftx.redeemed;
-    case "nftx-user-staked":
-      return nftx.staked;
     case "nftx-swapped":
       return nftx.swapped;
     case "nftx-swap":
