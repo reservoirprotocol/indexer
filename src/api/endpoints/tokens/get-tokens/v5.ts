@@ -734,7 +734,7 @@ export const getTokensV5Options: RouteOptions = {
       // Sorting
 
       // Only allow sorting on floorSell when we filter by collection / attributes / tokenSetId / rarity
-      if (query.collection || query.attributes || query.tokenSetId || query.rarity) {
+      if (query.collection || query.attributes || query.tokenSetId || query.rarity || query.tokens) {
         switch (query.sortBy) {
           case "rarity": {
             baseQuery += ` ORDER BY t.rarity_rank ${
@@ -762,7 +762,7 @@ export const getTokensV5Options: RouteOptions = {
             break;
           }
         }
-      } else if (query.contract || query.tokens) {
+      } else if (query.contract) {
         baseQuery += ` ORDER BY t.token_id ${query.sortDirection || "ASC"}`;
       }
 
