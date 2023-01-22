@@ -278,11 +278,9 @@ export const getCollectionTopBidOracleV2Options: RouteOptions = {
       };
 
       if (config.oraclePrivateKey) {
-        message.signature = await addressToSigner[query.signer]()
-          .signMessage(
-            arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
-          )
-          .then((s) => (!s.startsWith("0x") ? "0x" + s : s));
+        message.signature = await addressToSigner[query.signer]().signMessage(
+          arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
+        );
       } else {
         throw Boom.badRequest("Instance cannot act as oracle");
       }
