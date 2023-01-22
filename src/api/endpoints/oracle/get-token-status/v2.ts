@@ -157,9 +157,11 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
             timestamp,
           };
 
-          message.signature = await addressToSigner[query.signer]().signMessage(
-            arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
-          );
+          message.signature = await addressToSigner[query.signer]()
+            .signMessage(
+              arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
+            )
+            .then((s) => (!s.startsWith("0x") ? "0x" + s : s));
 
           messages.push({
             token: `${fromBuffer(result.contract)}:${result.token_id}`,
