@@ -133,7 +133,8 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         const topBid = await redb.oneOrNone(
           `
             SELECT
-              orders.id
+              orders.id,
+              orders.currency
             FROM orders
             JOIN contracts
               ON orders.contract = contracts.address
@@ -162,8 +163,10 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         // similar reasoning goes for Seaport orders (partial ones which miss
         // the raw data) and Coinbase NFT orders (no signature).
         if (topBid?.id) {
-          await invalidateOrder(topBid.id);
-          return { message: "Top bid order is not fillable (got invalidated)" };
+          if (!getNetworkSettings().whitelistedCurrencies.has(fromBuffer(topBid.currency))) {
+            await invalidateOrder(topBid.id);
+            return { message: "Top bid order is not fillable (got invalidated)" };
+          }
         }
       }
 

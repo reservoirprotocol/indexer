@@ -95,7 +95,8 @@ export const postSimulateFloorV1Options: RouteOptions = {
         const floorAsk = await idb.oneOrNone(
           `
             SELECT
-              tokens.floor_sell_id
+              tokens.floor_sell_id,
+              orders.currency
             FROM tokens
             LEFT JOIN orders
               ON tokens.floor_sell_id = orders.id
@@ -116,8 +117,10 @@ export const postSimulateFloorV1Options: RouteOptions = {
         // similar reasoning goes for Seaport orders (partial ones which miss
         // the raw data) and Coinbase NFT orders (no signature).
         if (floorAsk?.floor_sell_id) {
-          await invalidateOrder(floorAsk.floor_sell_id);
-          return { message: "Floor order is not fillable (got invalidated)" };
+          if (!getNetworkSettings().whitelistedCurrencies.has(fromBuffer(floorAsk.currency))) {
+            await invalidateOrder(floorAsk.floor_sell_id);
+            return { message: "Floor order is not fillable (got invalidated)" };
+          }
         }
       }
 
