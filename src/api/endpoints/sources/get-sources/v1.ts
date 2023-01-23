@@ -23,32 +23,35 @@ export const getSourcesV1Options: RouteOptions = {
   validate: {
     query: Joi.object({
       sortBy: Joi.string()
-        .valid("name", "domain", "createdAt")
-        .description("Order of the items are returned in the response."),
+          .valid("name", "domain", "createdAt")
+          .default("createdAt")
+          .description("Order of the items are returned in the response."),
       sortDirection: Joi.string()
-        .valid("asc", "desc")
-        .description("Order the items are returned in the response."),
+          .valid("asc", "desc")
+          .default("desc")
+          .description("Order the items are returned in the response."),
       domain: Joi.string()
-        .lowercase()
-        .description("Filter to a particular domain. Example: `x2y2`"),
+          .lowercase()
+          .description("Filter to a particular domain. Example: `x2y2`"),
       limit: Joi.number()
-        .integer()
-        .min(1)
-        .max(100)
-        .description("Amount of items returned in response."),
+          .integer()
+          .min(1)
+          .max(100)
+          .default(20)
+          .description("Amount of items returned in response."),
       continuation: Joi.string().pattern(regex.base64),
     }),
   },
   response: {
     schema: Joi.object({
       sources: Joi.array().items(
-        Joi.object({
-          id: Joi.string(),
-          name: Joi.string().allow(null, ""),
-          icon: Joi.string().allow(null, ""),
-          tokenUrl: Joi.string().allow(null, ""),
-          domain: Joi.string().allow(null, ""),
-        })
+          Joi.object({
+            id: Joi.string(),
+            name: Joi.string().allow(null, ""),
+            icon: Joi.string().allow(null, ""),
+            tokenUrl: Joi.string().allow(null, ""),
+            domain: Joi.string().allow(null, ""),
+          })
       ),
       continuation: Joi.string().allow(null),
     }).label(`getSources${version.toUpperCase()}Response`),
@@ -61,7 +64,6 @@ export const getSourcesV1Options: RouteOptions = {
     const query = request.query as any;
     let sourcesFilter = "";
     let offset = 0;
-    const limit = query.limit ?? 20;
     if (query.domain) {
       sourcesFilter = `domain = $/domain/`;
     }
@@ -76,30 +78,29 @@ export const getSourcesV1Options: RouteOptions = {
         ${sourcesFilter}
       `;
 
-      if (query.sortBy) {
-        baseQuery += `
+      baseQuery += `
         ORDER BY
           sources_v2.${query.sortBy === "createdAt" ? "created_at" : query.sortBy} ${
-          query.sortDirection ? query.sortDirection : ""
-        }
-      `;
+          query.sortDirection
       }
-      baseQuery += `OFFSET ${offset} LIMIT ${limit}`;
+      `;
+
+      baseQuery += `OFFSET ${offset} LIMIT ${query.limit}`;
 
       const rawResult = await redb.manyOrNone(baseQuery, query);
       const sources = await Sources.getInstance();
 
       const result = await Promise.all(
-        rawResult.map(async (r) => {
-          const source = new SourcesEntity(r);
-          return {
-            id: source.address ?? undefined,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            domain: source.domain ?? undefined,
-            tokenUrl: sources.getTokenUrl(source),
-          };
-        })
+          rawResult.map(async (r) => {
+            const source = new SourcesEntity(r);
+            return {
+              id: source.address ?? undefined,
+              name: source?.getTitle(),
+              icon: source?.getIcon(),
+              domain: source.domain ?? undefined,
+              tokenUrl: sources.getTokenUrl(source),
+            };
+          })
       );
       let continuation: string | null = null;
       if (rawResult.length >= query.limit) {

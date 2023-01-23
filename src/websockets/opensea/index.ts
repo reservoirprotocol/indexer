@@ -74,6 +74,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               validateBidValue: true,
             };
           } else {
+            logger.info("opensea-websocket", `Partial order! event=${JSON.stringify(event)}`);
+
             orderInfo = {
               kind: "seaport",
               info: {

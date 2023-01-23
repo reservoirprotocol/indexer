@@ -205,6 +205,10 @@ export const getExecuteBidV3Options: RouteOptions = {
         const attributeKey = params.attributeKey;
         const attributeValue = params.attributeValue;
 
+        if (tokenSetId && tokenSetId.startsWith("list") && tokenSetId.split(":").length !== 3) {
+          throw Boom.badRequest(`Token set ${tokenSetId} is not biddable`);
+        }
+
         // TODO: Re-enable collection/attribute bids on external orderbooks
         if (!token && params.orderbook !== "reservoir") {
           throw Boom.badRequest("Only single-token bids are supported on external orderbooks");

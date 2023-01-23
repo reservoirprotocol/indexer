@@ -36,7 +36,39 @@ import * as superrare from "@/events-sync/data/superrare";
 // handled (eg. persisted to the database and relayed for further
 // processing to any job queues)
 
-export type EventDataKind =
+// Event kind by protocol/standard
+export type EventKind =
+  | "erc20"
+  | "erc721"
+  | "erc1155"
+  | "blur"
+  | "cryptopunks"
+  | "element"
+  | "forward"
+  | "foundation"
+  | "looks-rare"
+  | "nftx"
+  | "nouns"
+  | "quixotic"
+  | "seaport"
+  | "sudoswap"
+  | "wyvern"
+  | "x2y2"
+  | "zeroex-v4"
+  | "zora"
+  | "universe"
+  | "infinity"
+  | "rarible"
+  | "manifold"
+  | "tofu"
+  | "decentraland"
+  | "nft-trader"
+  | "okex"
+  | "bend-dao"
+  | "superrare";
+
+// Event sub-kind in each of the above protocol/standard
+export type EventSubKind =
   | "erc721-transfer"
   | "erc721-like-transfer"
   | "erc721-erc20-like-transfer"
@@ -136,15 +168,16 @@ export type EventDataKind =
   | "superrare-bid-filled";
 
 export type EventData = {
-  kind: EventDataKind;
+  kind: EventKind;
+  subKind: EventSubKind;
   addresses?: { [address: string]: boolean };
   topic: string;
   numTopics: number;
   abi: Interface;
 };
 
-export const getEventData = (eventDataKinds?: EventDataKind[]) => {
-  if (!eventDataKinds) {
+export const getEventData = (eventSubKinds?: EventSubKind[]) => {
+  if (!eventSubKinds) {
     return [
       erc20.approval,
       erc20.transfer,
@@ -213,7 +246,6 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       universe.cancel,
       nftx.minted,
       nftx.redeemed,
-      nftx.staked,
       nftx.swapped,
       nftx.swap,
       nftx.vaultInit,
@@ -246,7 +278,7 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
     ];
   } else {
     return (
-      eventDataKinds
+      eventSubKinds
         .map(internalGetEventData)
         .filter(Boolean)
         // Force TS to remove `undefined`
@@ -255,8 +287,8 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
   }
 };
 
-const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
-  switch (kind) {
+const internalGetEventData = (subKind: EventSubKind): EventData | undefined => {
+  switch (subKind) {
     case "erc20-approval":
       return erc20.approval;
     case "erc20-transfer":
@@ -391,8 +423,6 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return nftx.minted;
     case "nftx-redeemed":
       return nftx.redeemed;
-    case "nftx-user-staked":
-      return nftx.staked;
     case "nftx-swapped":
       return nftx.swapped;
     case "nftx-swap":

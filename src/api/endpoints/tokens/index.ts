@@ -18,6 +18,7 @@ export * from "@/api/endpoints/tokens/get-user-tokens/v6";
 export * from "@/api/endpoints/tokens/post-simulate-floor/v1";
 export * from "@/api/endpoints/tokens/post-simulate-top-bid/v1";
 export * from "@/api/endpoints/tokens/post-token-sets/v1";
+export * from "@/api/endpoints/tokens/post-token-sets/v2";
 export * from "@/api/endpoints/tokens/post-tokens-refresh/v1";
 export * from "@/api/endpoints/tokens/post-flag-token/v1";
 export * from "@/api/endpoints/tokens/get-tokens-ids/v1";

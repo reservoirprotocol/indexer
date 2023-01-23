@@ -740,14 +740,32 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/oracle/collections/floor-ask/v5",
+    options: oracleEndpoints.getCollectionFloorAskOracleV5Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/oracle/collections/top-bid/v1",
     options: oracleEndpoints.getCollectionTopBidOracleV1Options,
   });
 
   server.route({
     method: "GET",
+    path: "/oracle/collections/top-bid/v2",
+    options: oracleEndpoints.getCollectionTopBidOracleV2Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/oracle/tokens/status/v1",
     options: oracleEndpoints.getTokenStatusOracleV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/oracle/tokens/status/v2",
+    options: oracleEndpoints.getTokenStatusOracleV2Options,
   });
 
   // Orders
@@ -1136,6 +1154,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/token-sets/v1",
     options: tokensEndpoints.postTokenSetsV1Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/token-sets/v2",
+    options: tokensEndpoints.postTokenSetsV2Options,
   });
 
   // Transactions

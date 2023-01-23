@@ -1,10 +1,11 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { idb } from "@/common/db";
+
 const QUEUE_NAME = "events-sync-ft-transfers-write";
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -38,9 +39,6 @@ if (config.doBackgroundWork) {
     },
     {
       connection: redis.duplicate(),
-      // It's very important to have this queue be single-threaded
-      // in order to avoid database write deadlocks (and it can be
-      // even better to have it be single-process).
       concurrency: 1,
     }
   );

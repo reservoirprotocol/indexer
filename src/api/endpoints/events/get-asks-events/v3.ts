@@ -164,7 +164,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             orders.kind,
             (
               CASE
-                WHEN orders.kind IN ('nftx', 'sudoswap') THEN orders.raw_data
+                WHEN orders.kind IN ('nftx', 'sudoswap') OR order_events.kind IN ('new-order', 'reprice') THEN orders.raw_data
                 ELSE NULL
               END
             ) AS raw_data

@@ -55,6 +55,8 @@ export const getBuildInfo = async (
       for (let i = 0; i < 100; i++) {
         if (!(await isNonceCancelled("looks-rare", options.maker, nonce.toString()))) {
           break;
+        } else {
+          nonce = nonce.add(1);
         }
       }
 

@@ -135,6 +135,7 @@ export const isNonceCancelled = async (
       WHERE order_kind = $/orderKind/
         AND maker = $/maker/
         AND nonce = $/nonce/
+      LIMIT 1
     `,
     {
       orderKind,
@@ -151,6 +152,7 @@ export const isOrderCancelled = async (orderId: string): Promise<boolean> => {
     `
       SELECT order_id FROM cancel_events
       WHERE order_id = $/orderId/
+      LIMIT 1
     `,
     { orderId }
   );

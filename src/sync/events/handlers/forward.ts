@@ -14,15 +14,15 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   let currentTxLogs: Log[] = [];
 
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
+  for (const { subKind, baseEventParams, log } of events) {
     if (currentTx !== baseEventParams.txHash) {
       currentTx = baseEventParams.txHash;
       currentTxLogs = [];
     }
     currentTxLogs.push(log);
 
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "forward-order-filled": {
         const { args } = eventData.abi.parseLog(log);
         const orderId = args.orderHash.toLowerCase();

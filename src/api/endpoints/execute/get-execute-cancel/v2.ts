@@ -172,15 +172,15 @@ export const getExecuteCancelV2Options: RouteOptions = {
           break;
         }
 
-        // case "looks-rare": {
-        //   const order = new Sdk.LooksRare.Order(config.chainId, orderResult.raw_data);
-        //   const exchange = new Sdk.LooksRare.Exchange(config.chainId);
+        case "looks-rare": {
+          const order = new Sdk.LooksRare.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.LooksRare.Exchange(config.chainId);
 
-        //   cancelTx = exchange.cancelOrderTx(maker, order);
-        //   orderSide = order.params.isOrderAsk ? "sell" : "buy";
+          cancelTx = exchange.cancelOrderTx(maker, order);
+          orderSide = order.params.isOrderAsk ? "sell" : "buy";
 
-        //   break;
-        // }
+          break;
+        }
 
         case "zeroex-v4-erc721":
         case "zeroex-v4-erc1155": {
