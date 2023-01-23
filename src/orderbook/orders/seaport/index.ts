@@ -96,6 +96,7 @@ export const save = async (
       const debugLogs: string[] = [];
 
       const timeStart = performance.now();
+      let timeStartInterval = performance.now();
 
       // Check: order has a valid format
       if (!info) {
@@ -125,8 +126,10 @@ export const save = async (
       );
 
       debugLogs.push(
-        `orderExistsTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
+        `orderExistsTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
       );
+
+      timeStartInterval = performance.now();
 
       if (orderExists) {
         return results.push({
@@ -198,8 +201,10 @@ export const save = async (
       }
 
       debugLogs.push(
-        `checkValidityTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
+        `checkValidityTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
       );
+
+      timeStartInterval = performance.now();
 
       // Check: order has a valid signature
       try {
@@ -212,8 +217,10 @@ export const save = async (
       }
 
       debugLogs.push(
-        `checkSignatureTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
+        `checkSignatureTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
       );
+
+      timeStartInterval = performance.now();
 
       // Check: order fillability
       let fillabilityStatus = "fillable";
@@ -239,8 +246,10 @@ export const save = async (
       }
 
       debugLogs.push(
-        `offChainCheckTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
+        `offChainCheckTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
       );
+
+      timeStartInterval = performance.now();
 
       let saveRawData = true;
 
@@ -426,7 +435,11 @@ export const save = async (
         }
       }
 
-      debugLogs.push(`tokenSetTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`);
+      debugLogs.push(
+        `tokenSetTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
+      );
+
+      timeStartInterval = performance.now();
 
       if (!tokenSetId) {
         return results.push({
@@ -551,7 +564,11 @@ export const save = async (
         }
       }
 
-      debugLogs.push(`royaltiesTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`);
+      debugLogs.push(
+        `royaltiesTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
+      );
+
+      timeStartInterval = performance.now();
 
       // Handle: source
       const sources = await Sources.getInstance();
@@ -643,7 +660,11 @@ export const save = async (
       }
       const normalizedValue = bn(prices.nativePrice).toString();
 
-      debugLogs.push(`currenciesTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`);
+      debugLogs.push(
+        `currenciesTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
+      );
+
+      timeStartInterval = performance.now();
 
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
@@ -675,8 +696,12 @@ export const save = async (
       }
 
       debugLogs.push(
-        `bidValueValidationTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
+        `bidValueValidationTimeElapsed=${Math.floor(
+          (performance.now() - timeStartInterval) / 1000
+        )}`
       );
+
+      timeStartInterval = performance.now();
 
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
