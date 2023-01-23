@@ -7,7 +7,7 @@ export const getSupportedChainName = () => {
     case 5:
       return "goerli";
     case 137:
-      return "polygon";
+      return "matic";
     default:
       return "unknown";
   }
