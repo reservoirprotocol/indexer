@@ -1546,16 +1546,8 @@ export const save = async (
         table: "orders",
       }
     );
-    const timeStart = performance.now();
 
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
-
-    const timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-    logger.info(
-      "orders-seaport-save-debug-latency",
-      `saveOrders. orderValues=${orderValues.length}, timeElapsed=${timeElapsed}`
-    );
 
     await ordersUpdateById.addToQueue(
       results
