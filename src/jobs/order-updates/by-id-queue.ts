@@ -91,8 +91,7 @@ if (config.doBackgroundWork) {
         }
 
         if (side && tokenSetId) {
-          // If the order is a complex 'buy' order, then recompute the top bid cache on the token set
-          if (side === "buy" && !tokenSetId.startsWith("token")) {
+          if (side === "buy") {
             let buyOrderResult = await idb.manyOrNone(
               `
                 WITH x AS (
