@@ -35,10 +35,16 @@ export const getSearchCollectionsV1Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set"),
+      offset: Joi.number()
+        .integer()
+        .min(0)
+        .max(500000)
+        .default(0)
+        .description("Use offset to request the next batch of items."),
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(50)
+        .max(1000)
         .default(20)
         .description("Amount of items returned in response."),
     }),
@@ -95,7 +101,7 @@ export const getSearchCollectionsV1Options: RouteOptions = {
             FROM collections
             ${whereClause}
             ORDER BY all_time_volume DESC
-            OFFSET 0
+            OFFSET $/offset/
             LIMIT $/limit/`;
 
     const collections = await redb.manyOrNone(baseQuery, query);
