@@ -23,10 +23,11 @@ export const addressToSigner: { [address: string]: () => Signer } = {
       },
     });
 
+    const oldSignMessage = signer.signMessage.bind(signer);
+
     // Monkey-patch the `signMessage` method to return the signature with the `0x` prefix
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (signer as any).signMessage = async (message: string) =>
-      `0x${await signer.signMessage(message)}`;
+    (signer as any).signMessage = async (message: string) => `0x${await oldSignMessage(message)}`;
 
     return signer;
   },
