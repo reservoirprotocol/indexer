@@ -237,7 +237,7 @@ export const start = async (): Promise<void> => {
   });
 
   server.ext("onPreHandler", (request, h) => {
-    ApiKeyManager.logUsage(request);
+    ApiKeyManager.logRequest(request);
     return h.continue;
   });
 
@@ -254,6 +254,10 @@ export const start = async (): Promise<void> => {
         };
 
         return reply.response(timeoutResponse).type("application/json").code(504);
+      }
+
+      if (response["output"]["statusCode"] == 500 && response.isServer) {
+        ApiKeyManager.logErrorResponse(request, response);
       }
     }
 
