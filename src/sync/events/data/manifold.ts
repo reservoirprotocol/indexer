@@ -5,7 +5,8 @@ import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
 
 export const purchase: EventData = {
-  kind: "manifold-purchase",
+  kind: "manifold",
+  subKind: "manifold-purchase",
   addresses: { [Manifold.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x0e0d473f43a9d8727e62653cce4cd80d0c870ffb83dc4c93c9db4cb8ffe7053e",
   numTopics: 2,
@@ -15,7 +16,8 @@ export const purchase: EventData = {
 };
 
 export const modify: EventData = {
-  kind: "manifold-modify",
+  kind: "manifold",
+  subKind: "manifold-modify",
   addresses: { [Manifold.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xde38900f75163598713718d539a09596c3c1b9bacd1432ea1be04fa658d0cada",
   numTopics: 2,
@@ -25,7 +27,8 @@ export const modify: EventData = {
 };
 
 export const cancel: EventData = {
-  kind: "manifold-cancel",
+  kind: "manifold",
+  subKind: "manifold-cancel",
   addresses: { [Manifold.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x19ef8c897f0ad4be12bac96be8f4a3984059ae9566f02163b0e48cf00f9aa338",
   numTopics: 2,
@@ -35,7 +38,8 @@ export const cancel: EventData = {
 };
 
 export const finalize: EventData = {
-  kind: "manifold-finalize",
+  kind: "manifold",
+  subKind: "manifold-finalize",
   addresses: { [Manifold.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x7a64269d6d03ead41925c75675255493546f656ebb9cae4158fea2633d86c541",
   numTopics: 2,

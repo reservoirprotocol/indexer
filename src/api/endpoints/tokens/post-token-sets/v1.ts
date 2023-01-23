@@ -15,10 +15,10 @@ const version = "v1";
 
 export const postTokenSetsV1Options: RouteOptions = {
   description: "Create Token Set",
-  tags: ["api", "Tokens"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 13,
+      deprecated: true,
     },
   },
   timeout: {

@@ -93,6 +93,10 @@ export const save = async (
       const info = order.getInfo();
       const id = order.hash();
 
+      const debugLogs: string[] = [];
+
+      const timeStart = performance.now();
+
       // Check: order has a valid format
       if (!info) {
         return results.push({
@@ -119,6 +123,11 @@ export const save = async (
           rawData: order.params,
         }
       );
+
+      debugLogs.push(
+        `orderExistsTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
+      );
+
       if (orderExists) {
         return results.push({
           id,
@@ -188,6 +197,10 @@ export const save = async (
         });
       }
 
+      debugLogs.push(
+        `checkValidityTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
+      );
+
       // Check: order has a valid signature
       try {
         await order.checkSignature(baseProvider);
@@ -197,6 +210,10 @@ export const save = async (
           status: "invalid-signature",
         });
       }
+
+      debugLogs.push(
+        `checkSignatureTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
+      );
 
       // Check: order fillability
       let fillabilityStatus = "fillable";
@@ -220,6 +237,10 @@ export const save = async (
           });
         }
       }
+
+      debugLogs.push(
+        `offChainCheckTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
+      );
 
       let saveRawData = true;
 
@@ -405,6 +426,8 @@ export const save = async (
         }
       }
 
+      debugLogs.push(`tokenSetTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`);
+
       if (!tokenSetId) {
         return results.push({
           id,
@@ -528,6 +551,8 @@ export const save = async (
         }
       }
 
+      debugLogs.push(`royaltiesTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`);
+
       // Handle: source
       const sources = await Sources.getInstance();
       let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
@@ -618,6 +643,8 @@ export const save = async (
       }
       const normalizedValue = bn(prices.nativePrice).toString();
 
+      debugLogs.push(`currenciesTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`);
+
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
@@ -646,6 +673,10 @@ export const save = async (
           );
         }
       }
+
+      debugLogs.push(
+        `bidValueValidationTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
+      );
 
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
@@ -705,6 +736,20 @@ export const save = async (
 
       if (relayToArweave) {
         arweaveData.push({ order, schemaHash, source: source?.domain });
+      }
+
+      const totalTimeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      if (totalTimeElapsed > 1) {
+        logger.warn(
+          "orders-seaport-save-debug-latency",
+          `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, debugLogs=${debugLogs.toString()}`
+        );
+      } else {
+        logger.info(
+          "orders-seaport-save-debug-latency",
+          `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, debugLogs=${debugLogs.toString()}`
+        );
       }
     } catch (error) {
       logger.warn(
@@ -1483,7 +1528,16 @@ export const save = async (
         table: "orders",
       }
     );
+    const timeStart = performance.now();
+
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
+
+    const timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+    logger.info(
+      "orders-seaport-save-debug-latency",
+      `saveOrders. orderValues=${orderValues.length}, timeElapsed=${timeElapsed}`
+    );
 
     await ordersUpdateById.addToQueue(
       results

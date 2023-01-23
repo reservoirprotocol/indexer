@@ -223,7 +223,10 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "contract",
             "token_id",
             "minted_timestamp"
-          ) VALUES ${pgp.helpers.values(tokenValuesChunk, columns)}
+          ) VALUES ${pgp.helpers.values(
+            _.sortBy(tokenValuesChunk, ["collection_id", "token_id"]),
+            columns
+          )}
           ON CONFLICT (contract, token_id) DO UPDATE 
           SET minted_timestamp = EXCLUDED.minted_timestamp
           WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
@@ -242,7 +245,10 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "contract",
             "token_id",
             "minted_timestamp"
-          ) VALUES ${pgp.helpers.values(tokenValuesChunk, columns)}
+          ) VALUES ${pgp.helpers.values(
+            _.sortBy(tokenValuesChunk, ["collection_id", "token_id"]),
+            columns
+          )}
           ON CONFLICT (contract, token_id) DO UPDATE
           SET minted_timestamp = EXCLUDED.minted_timestamp
           WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp

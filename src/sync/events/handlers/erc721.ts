@@ -27,9 +27,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   const ns = getNetworkSettings();
 
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "erc721-transfer":
       case "erc721-like-transfer":
       case "erc721-erc20-like-transfer": {
@@ -39,7 +39,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const tokenId = parsedLog.args["tokenId"].toString();
 
         onChainData.nftTransferEvents.push({
-          kind: kind === "erc721-transfer" ? "erc721" : "erc721-like",
+          kind: subKind === "erc721-transfer" ? "erc721" : "erc721-like",
           from,
           to,
           tokenId,

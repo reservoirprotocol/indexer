@@ -1,4 +1,5 @@
 import * as Sdk from "@reservoir0x/sdk";
+
 import { config } from "@/config/index";
 
 export const platformFeeRecipientsRegistry: Map<string, string[]> = new Map();
