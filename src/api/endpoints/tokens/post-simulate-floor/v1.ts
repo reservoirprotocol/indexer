@@ -8,8 +8,9 @@ import Joi from "joi";
 import { inject } from "@/api/index";
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { regex, toBuffer } from "@/common/utils";
+import { fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import { genericTaker, ensureBuyTxSucceeds } from "@/utils/simulation";
 
 const version = "v1";
@@ -158,11 +159,26 @@ export const postSimulateFloorV1Options: RouteOptions = {
       if (success) {
         return { message: "Floor order is fillable" };
       } else {
-        if (!["sudoswap.xyz", "nftx.io"].includes(pathItem.source)) {
+        const orderCurrency = await redb
+          .oneOrNone(
+            `
+              SELECT
+                orders.currency
+              FROM orders
+              WHERE orders.id = $/id/
+            `,
+            { id: pathItem.orderId }
+          )
+          .then((r) => fromBuffer(r.currency));
+
+        if (
+          !["sudoswap.xyz", "nftx.io"].includes(pathItem.source) &&
+          !getNetworkSettings().whitelistedCurrencies.has(orderCurrency)
+        ) {
           await invalidateOrder(pathItem.orderId, callTrace, parsedPayload);
           return { message: "Floor order is not fillable (got invalidated)" };
         } else {
-          return { message: "Pool orders not supported" };
+          return { message: "Order not simulatable" };
         }
       }
     } catch (error) {
