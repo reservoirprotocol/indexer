@@ -256,8 +256,8 @@ export const start = async (): Promise<void> => {
         return reply.response(timeoutResponse).type("application/json").code(504);
       }
 
-      if (response["output"]["statusCode"] == 500 && response.isServer) {
-        ApiKeyManager.logErrorResponse(request, response);
+      if (response["output"]["statusCode"] == 500) {
+        ApiKeyManager.logUnexpectedErrorResponse(request, response);
       }
     }
 

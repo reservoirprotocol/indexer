@@ -163,8 +163,7 @@ if (config.doBackgroundWork) {
             }
 
             if (buyOrderResult.length) {
-              // Only trigger for collection offers right now.
-              if (trigger.kind === "new-order" && buyOrderResult[0].collectionId) {
+              if (trigger.kind === "new-order" && buyOrderResult[0].topBuyId) {
                 await websocketEventsTriggerQueue.addToQueue([
                   {
                     kind: websocketEventsTriggerQueue.EventKind.NewTopBid,
