@@ -10,6 +10,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import { ensureSellTxSucceeds } from "@/utils/simulation";
 
 const version = "v1";
@@ -132,7 +133,8 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         const topBid = await redb.oneOrNone(
           `
             SELECT
-              orders.id
+              orders.id,
+              orders.currency
             FROM orders
             JOIN contracts
               ON orders.contract = contracts.address
@@ -161,8 +163,10 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         // similar reasoning goes for Seaport orders (partial ones which miss
         // the raw data) and Coinbase NFT orders (no signature).
         if (topBid?.id) {
-          await invalidateOrder(topBid.id);
-          return { message: "Top bid order is not fillable (got invalidated)" };
+          if (!getNetworkSettings().whitelistedCurrencies.has(fromBuffer(topBid.currency))) {
+            await invalidateOrder(topBid.id);
+            return { message: "Top bid order is not fillable (got invalidated)" };
+          }
         }
       }
 
@@ -201,7 +205,22 @@ export const postSimulateTopBidV1Options: RouteOptions = {
       if (success) {
         return { message: "Top bid order is fillable" };
       } else {
-        if (!["sudoswap.xyz", "nftx.io"].includes(pathItem.source)) {
+        const orderCurrency = await redb
+          .oneOrNone(
+            `
+              SELECT
+                orders.currency
+              FROM orders
+              WHERE orders.id = $/id/
+            `,
+            { id: pathItem.orderId }
+          )
+          .then((r) => fromBuffer(r.currency));
+
+        if (
+          !["sudoswap.xyz", "nftx.io"].includes(pathItem.source) &&
+          !getNetworkSettings().whitelistedCurrencies.has(orderCurrency)
+        ) {
           await invalidateOrder(pathItem.orderId, callTrace, parsedPayload);
           return { message: "Top bid order is not fillable (got invalidated)" };
         } else {
