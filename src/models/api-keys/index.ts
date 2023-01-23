@@ -13,6 +13,7 @@ import axios from "axios";
 import { getNetworkName } from "@/config/network";
 import { config } from "@/config/index";
 import { Boom } from "@hapi/boom";
+import { ValidationError } from "joi";
 
 export type ApiKeyRecord = {
   app_name: string;
@@ -214,10 +215,13 @@ export class ApiKeyManager {
 
   public static async logErrorResponse(request: Request, error: Boom) {
     const log: any = await ApiKeyManager.getBaseLog(request);
-    log.error = {
-      message: error.message,
-      stack: error.stack,
-    };
+    log.error =
+      error instanceof ValidationError
+        ? {
+            message: error.message,
+            stack: error.stack,
+          }
+        : error;
     logger.error("metrics", JSON.stringify(log));
   }
 
