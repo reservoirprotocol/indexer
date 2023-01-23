@@ -214,7 +214,10 @@ export class ApiKeyManager {
 
   public static async logErrorResponse(request: Request, error: Boom) {
     const log: any = await ApiKeyManager.getBaseLog(request);
-    log.error = error;
+    log.error = {
+      message: error.message,
+      stack: error.stack,
+    };
     logger.error("metrics", JSON.stringify(log));
   }
 
