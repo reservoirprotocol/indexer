@@ -763,14 +763,9 @@ export const save = async (
         arweaveData.push({ order, schemaHash, source: source?.domain });
       }
 
-      const totalTimeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+      if (config.chainId === 1) {
+        const totalTimeElapsed = Math.floor((performance.now() - timeStart) / 1000);
 
-      if (totalTimeElapsed > 1) {
-        logger.warn(
-          "orders-seaport-save-debug-latency",
-          `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, debugLogs=${debugLogs.toString()}`
-        );
-      } else {
         logger.info(
           "orders-seaport-save-debug-latency",
           `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, debugLogs=${debugLogs.toString()}`
