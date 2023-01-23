@@ -93,9 +93,9 @@ export const save = async (
       const info = order.getInfo();
       const id = order.hash();
 
-      const timeStart = performance.now();
+      const debugLogs: string[] = [];
 
-      logger.info("orders-seaport-save-debug-latency", `Start. orderId=${id}`);
+      const timeStart = performance.now();
 
       // Check: order has a valid format
       if (!info) {
@@ -124,11 +124,8 @@ export const save = async (
         }
       );
 
-      let timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      logger.info(
-        "orders-seaport-save-debug-latency",
-        `Order Exists. orderId=${id}, timeElapsed=${timeElapsed}`
+      debugLogs.push(
+        `orderExistsTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
       );
 
       if (orderExists) {
@@ -200,11 +197,8 @@ export const save = async (
         });
       }
 
-      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      logger.info(
-        "orders-seaport-save-debug-latency",
-        `checkValidity. orderId=${id}, timeElapsed=${timeElapsed}`
+      debugLogs.push(
+        `checkValidityTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
       );
 
       // Check: order has a valid signature
@@ -217,11 +211,8 @@ export const save = async (
         });
       }
 
-      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      logger.info(
-        "orders-seaport-save-debug-latency",
-        `checkSignature. orderId=${id}, timeElapsed=${timeElapsed}`
+      debugLogs.push(
+        `checkSignatureTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
       );
 
       // Check: order fillability
@@ -247,11 +238,8 @@ export const save = async (
         }
       }
 
-      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      logger.info(
-        "orders-seaport-save-debug-latency",
-        `offChainCheck. orderId=${id}, timeElapsed=${timeElapsed}`
+      debugLogs.push(
+        `offChainCheckTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
       );
 
       let saveRawData = true;
@@ -438,12 +426,7 @@ export const save = async (
         }
       }
 
-      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      logger.info(
-        "orders-seaport-save-debug-latency",
-        `tokenSet. orderId=${id}, timeElapsed=${timeElapsed}`
-      );
+      debugLogs.push(`tokenSetTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`);
 
       if (!tokenSetId) {
         return results.push({
@@ -568,12 +551,7 @@ export const save = async (
         }
       }
 
-      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      logger.info(
-        "orders-seaport-save-debug-latency",
-        `Royalties. orderId=${id}, timeElapsed=${timeElapsed}`
-      );
+      debugLogs.push(`royaltiesTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`);
 
       // Handle: source
       const sources = await Sources.getInstance();
@@ -665,12 +643,7 @@ export const save = async (
       }
       const normalizedValue = bn(prices.nativePrice).toString();
 
-      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      logger.info(
-        "orders-seaport-save-debug-latency",
-        `Currencies. orderId=${id}, timeElapsed=${timeElapsed}`
-      );
+      debugLogs.push(`currenciesTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`);
 
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
@@ -701,11 +674,8 @@ export const save = async (
         }
       }
 
-      timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      logger.info(
-        "orders-seaport-save-debug-latency",
-        `bidValueValidation. orderId=${id}, timeElapsed=${timeElapsed}`
+      debugLogs.push(
+        `bidValueValidationTimeElapsed=${Math.floor((performance.now() - timeStart) / 1000)}`
       );
 
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
@@ -766,6 +736,20 @@ export const save = async (
 
       if (relayToArweave) {
         arweaveData.push({ order, schemaHash, source: source?.domain });
+      }
+
+      const totalTimeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      if (totalTimeElapsed > 1) {
+        logger.warn(
+          "orders-seaport-save-debug-latency",
+          `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, debugLogs=${debugLogs.toString()}`
+        );
+      } else {
+        logger.info(
+          "orders-seaport-save-debug-latency",
+          `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, debugLogs=${debugLogs.toString()}`
+        );
       }
     } catch (error) {
       logger.warn(
@@ -1552,7 +1536,7 @@ export const save = async (
 
     logger.info(
       "orders-seaport-save-debug-latency",
-      `save. orderValues=${orderValues.length}, timeElapsed=${timeElapsed}`
+      `saveOrders. orderValues=${orderValues.length}, timeElapsed=${timeElapsed}`
     );
 
     await ordersUpdateById.addToQueue(
