@@ -54,7 +54,7 @@ if (config.doBackgroundWork) {
         useMetadataApiBaseUrlAlt = true;
       }
 
-      let count = 20; // Default number of tokens to fetch
+      let count = 30; // Default number of tokens to fetch
       switch (method) {
         case "soundxyz":
           count = 10;

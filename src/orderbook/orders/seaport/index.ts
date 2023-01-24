@@ -701,6 +701,8 @@ export const save = async (
         )}`
       );
 
+      timeStartInterval = performance.now();
+
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
         ? `date_trunc('seconds', to_timestamp(${order.params.endTime}))`
