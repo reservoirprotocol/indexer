@@ -78,7 +78,7 @@ const getUpstreamUSDPrice = async (
           value,
         };
       }
-    } else if (getNetworkSettings().whitelistedCurrencies.has(currencyAddress)) {
+    } else if (getNetworkSettings().whitelistedCurrencies.has(currencyAddress.toLowerCase())) {
       // Whitelisted currencies are 1:1 with USD
       const value = "1";
 

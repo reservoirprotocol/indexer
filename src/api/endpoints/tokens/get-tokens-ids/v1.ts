@@ -45,7 +45,6 @@ export const getTokensIdsV4Options: RouteOptions = {
         .integer()
         .min(1)
         .max(10000)
-        .default(100)
         .description("Amount of items returned in response."),
       continuation: Joi.number().description(
         "Use continuation token to request next offset of items."
@@ -67,6 +66,10 @@ export const getTokensIdsV4Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 100;
+    }
 
     try {
       let baseQuery = `
