@@ -20,10 +20,10 @@ export const getCollectionTopBidOracleV1Options: RouteOptions = {
   description: "Collection top bid oracle",
   notes:
     "Get a signed message of any collection's top bid price (spot or twap). The oracle's address is 0x32dA57E736E05f75aa4FaE2E9Be60FD904492726.",
-  tags: ["api", "Oracle"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 12,
+      deprecated: true,
     },
   },
   validate: {
