@@ -528,15 +528,11 @@ export const getCollectionsV5Options: RouteOptions = {
             conditions.push(
               query.normalizeRoyalties
                 ? `(collections.normalized_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
-                : query.useNonFlaggedFloorAsk
-                ? `(collections.non_flagged_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
                 : `(collections.floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
             );
           }
           orderBy = query.normalizeRoyalties
             ? ` ORDER BY collections.normalized_floor_sell_value, collections.id`
-            : query.useNonFlaggedFloorAsk
-            ? ` ORDER BY collections.non_flagged_floor_sell_value, collections.id`
             : ` ORDER BY collections.floor_sell_value, collections.id`;
 
           break;
