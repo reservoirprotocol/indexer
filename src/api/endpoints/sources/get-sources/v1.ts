@@ -24,9 +24,11 @@ export const getSourcesV1Options: RouteOptions = {
     query: Joi.object({
       sortBy: Joi.string()
         .valid("domain", "createdAt")
+        .default("createdAt")
         .description("Order of the items are returned in the response."),
       sortDirection: Joi.string()
         .valid("asc", "desc")
+        .default("desc")
         .description("Order the items are returned in the response."),
       domain: Joi.string()
         .lowercase()
