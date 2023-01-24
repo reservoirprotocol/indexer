@@ -22,10 +22,10 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
   description: "Collection floor",
   notes:
     "Get a signed message of any collection's floor price (spot or twap). The oracle's address is 0x32dA57E736E05f75aa4FaE2E9Be60FD904492726.",
-  tags: ["api", "Oracle"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 12,
+      deprecated: true,
     },
   },
   validate: {

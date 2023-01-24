@@ -344,7 +344,7 @@ export const getExecuteSellV6Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
       });
-      const { txData } = await router.fillBidTx(bidDetails!, payload.taker, {
+      const { txData } = await router.fillBidsTx([bidDetails!], payload.taker, {
         source: payload.source,
       });
 

@@ -72,8 +72,13 @@ export const getOrdersAsksV4Options: RouteOptions = {
           then: Joi.valid("active", "inactive", "expired", "cancelled", "filled"),
           otherwise: Joi.valid("active"),
         })
+        .when("contracts", {
+          is: Joi.exist(),
+          then: Joi.valid("active", "any"),
+          otherwise: Joi.valid("active"),
+        })
         .description(
-          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
+          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\nany = any status\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
       source: Joi.string()
         .pattern(regex.domain)
@@ -101,7 +106,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           then: Joi.valid("price", "createdAt"),
           otherwise: Joi.valid("createdAt"),
         })
-        .valid("createdAt", "price")
+        .default("createdAt")
         .description(
           "Order the items are returned in the response, Sorting by price allowed only when filtering by token"
         ),
@@ -275,19 +280,12 @@ export const getOrdersAsksV4Options: RouteOptions = {
           query.contracts = [query.contracts];
         }
 
-        for (const contract of query.contracts) {
-          const contractsFilter = `'${_.replace(contract, "0x", "\\x")}'`;
+        (query as any).contractsFilter = query.contracts.map(toBuffer);
+        conditions.push(`orders.contract IN ($/contractsFilter:list/)`);
 
-          if (_.isUndefined((query as any).contractsFilter)) {
-            (query as any).contractsFilter = [];
-          }
-
-          (query as any).contractsFilter.push(contractsFilter);
+        if (query.status === "any") {
+          orderStatusFilter = "";
         }
-
-        (query as any).contractsFilter = _.join((query as any).contractsFilter, ",");
-
-        conditions.push(`orders.contract IN ($/contractsFilter:raw/)`);
       }
 
       if (query.maker) {
