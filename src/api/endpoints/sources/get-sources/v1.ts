@@ -23,7 +23,7 @@ export const getSourcesV1Options: RouteOptions = {
   validate: {
     query: Joi.object({
       sortBy: Joi.string()
-        .valid("name", "domain", "createdAt")
+        .valid("domain", "createdAt")
         .description("Order of the items are returned in the response."),
       sortDirection: Joi.string()
         .valid("asc", "desc")
