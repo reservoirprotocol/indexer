@@ -70,7 +70,7 @@ export const getSourcesV1Options: RouteOptions = {
     }
     try {
       let baseQuery = `SELECT "name", "address", "domain", "metadata" from "sources_v2" ${
-        sourcesFilter ? "WHERE" + sourcesFilter : ""
+        sourcesFilter ? "WHERE " + sourcesFilter : ""
       }`;
 
       baseQuery += ` ORDER BY sources_v2.${
