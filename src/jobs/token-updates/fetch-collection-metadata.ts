@@ -103,14 +103,11 @@ if (config.doBackgroundWork) {
         // we update all tokens that match its token definition
         queries.push({
           query: `
-              WITH "x" AS (
-                UPDATE "tokens" SET 
-                  "collection_id" = $/collection/,
-                  "updated_at" = now()
-                WHERE "contract" = $/contract/
-                ${tokenFilter}
-                RETURNING 1
-              )
+              UPDATE "tokens" SET
+                "collection_id" = $/collection/,
+                "updated_at" = now()
+              WHERE "contract" = $/contract/
+              ${tokenFilter}
             `,
           values: {
             contract: toBuffer(collection.contract),
