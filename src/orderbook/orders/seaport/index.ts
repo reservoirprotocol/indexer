@@ -749,16 +749,18 @@ export const save = async (
 
       const totalTimeElapsed = Math.floor((performance.now() - timeStart) / 1000);
 
-      logger.info(
-        "orders-seaport-save-debug-latency",
-        `orderId=${id}, orderSide=${
-          info.side
-        }, totalTimeElapsed=${totalTimeElapsed}, timeElapsedBreakdown=${JSON.stringify(
-          debugLogs,
-          null,
-          "\t"
-        )}`
-      );
+      if (totalTimeElapsed > 1) {
+        logger.info(
+          "orders-seaport-save-debug-latency",
+          `orderId=${id}, orderSide=${
+            info.side
+          }, totalTimeElapsed=${totalTimeElapsed}, timeElapsedBreakdown=${JSON.stringify(
+            debugLogs,
+            null,
+            "\t"
+          )}`
+        );
+      }
     } catch (error) {
       logger.warn(
         "orders-seaport-save",
