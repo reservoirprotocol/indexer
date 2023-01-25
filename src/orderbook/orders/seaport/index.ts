@@ -763,16 +763,14 @@ export const save = async (
 
       const totalTimeElapsed = Math.floor((performance.now() - timeStart) / 1000);
 
-      if (config.chainId === 1 && totalTimeElapsed > 0) {
-        logger.info(
-          "orders-seaport-save-debug-latency",
-          `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, debugLogs=${JSON.stringify(
-            debugLogs,
-            null,
-            "\t"
-          )}`
-        );
-      }
+      logger.info(
+        "orders-seaport-save-debug-latency",
+        `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, debugLogs=${JSON.stringify(
+          debugLogs,
+          null,
+          "\t"
+        )}`
+      );
     } catch (error) {
       logger.warn(
         "orders-seaport-save",
