@@ -751,7 +751,9 @@ export const save = async (
 
       logger.info(
         "orders-seaport-save-debug-latency",
-        `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, timeElapsedBreakdown=${JSON.stringify(
+        `orderId=${id}, orderSide=${
+          info.side
+        }, totalTimeElapsed=${totalTimeElapsed}, timeElapsedBreakdown=${JSON.stringify(
           debugLogs,
           null,
           "\t"

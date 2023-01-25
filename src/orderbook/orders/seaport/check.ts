@@ -37,7 +37,7 @@ export const offChainCheck = async (
   const kind = await commonHelpers.getContractKind(info.contract);
 
   options?.debugLogs?.push(
-    `getContractKindTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
+    `getContractKind=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
   );
 
   timeStartInterval = performance.now();
@@ -139,6 +139,13 @@ export const offChainCheck = async (
       info.tokenId!,
       order.params.offerer
     );
+
+    options?.debugLogs?.push(
+      `getNftBalance=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
+    );
+
+    timeStartInterval = performance.now();
+
     if (nftBalance.lt(info.amount)) {
       hasBalance = false;
     }
@@ -149,6 +156,13 @@ export const offChainCheck = async (
       order.params.offerer,
       conduit
     );
+
+    options?.debugLogs?.push(
+      `getNftApproval=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
+    );
+
+    timeStartInterval = performance.now();
+
     if (!nftApproval) {
       if (options?.onChainApprovalRecheck) {
         // Re-validate the approval on-chain to handle some edge-cases
@@ -159,6 +173,10 @@ export const offChainCheck = async (
         if (!(await contract.isApproved(order.params.offerer, conduit))) {
           hasApproval = false;
         }
+
+        options?.debugLogs?.push(
+          `isApproved=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
+        );
       } else {
         hasApproval = false;
       }
