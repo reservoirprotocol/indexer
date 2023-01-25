@@ -125,9 +125,7 @@ export const save = async (
         }
       );
 
-      debugLogs.push(
-        `orderExistsTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-      );
+      debugLogs.push(`orderExists=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
 
       timeStartInterval = performance.now();
 
@@ -200,9 +198,7 @@ export const save = async (
         });
       }
 
-      debugLogs.push(
-        `checkValidityTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-      );
+      debugLogs.push(`checkValidity=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
 
       timeStartInterval = performance.now();
 
@@ -217,7 +213,7 @@ export const save = async (
       }
 
       debugLogs.push(
-        `checkSignatureTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
+        `checkSignature=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
       );
 
       timeStartInterval = performance.now();
@@ -245,9 +241,7 @@ export const save = async (
         }
       }
 
-      debugLogs.push(
-        `offChainCheckTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-      );
+      debugLogs.push(`offChainCheck=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
 
       timeStartInterval = performance.now();
 
@@ -435,9 +429,7 @@ export const save = async (
         }
       }
 
-      debugLogs.push(
-        `tokenSetTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-      );
+      debugLogs.push(`tokenSet=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
 
       timeStartInterval = performance.now();
 
@@ -564,9 +556,7 @@ export const save = async (
         }
       }
 
-      debugLogs.push(
-        `royaltiesTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-      );
+      debugLogs.push(`royalties=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
 
       timeStartInterval = performance.now();
 
@@ -660,9 +650,7 @@ export const save = async (
       }
       const normalizedValue = bn(prices.nativePrice).toString();
 
-      debugLogs.push(
-        `currenciesTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-      );
+      debugLogs.push(`currencies=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
 
       timeStartInterval = performance.now();
 
@@ -696,9 +684,7 @@ export const save = async (
       }
 
       debugLogs.push(
-        `bidValueValidationTimeElapsed=${Math.floor(
-          (performance.now() - timeStartInterval) / 1000
-        )}`
+        `bidValueValidation=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
       );
 
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
@@ -765,7 +751,7 @@ export const save = async (
 
       logger.info(
         "orders-seaport-save-debug-latency",
-        `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, debugLogs=${JSON.stringify(
+        `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, timeElapsedBreakdown=${JSON.stringify(
           debugLogs,
           null,
           "\t"
