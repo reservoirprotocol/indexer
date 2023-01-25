@@ -81,11 +81,11 @@ export const getUserTokensV2Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),

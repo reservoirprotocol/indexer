@@ -66,7 +66,7 @@ export const getTokensFloorAskV2Options: RouteOptions = {
             price: Joi.number().unsafe().allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.string().allow("", null),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),

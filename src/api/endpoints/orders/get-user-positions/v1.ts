@@ -61,14 +61,14 @@ export const getUserPositionsV1Options: RouteOptions = {
                 data: Joi.object({
                   collectionName: Joi.string().allow("", null),
                   attributes: Joi.array().items(
-                    Joi.object({ key: Joi.string(), value: Joi.string() })
+                    Joi.object({ key: Joi.string(), value: Joi.string().allow("", null) })
                   ),
                   image: Joi.string().allow("", null),
                 }),
               })
             ).allow(null),
-            sampleImages: Joi.array().items(Joi.string().allow(null, "")),
-            image: Joi.string().allow(null, ""),
+            sampleImages: Joi.array().items(Joi.string().allow("", null)),
+            image: Joi.string().allow("", null),
             floorAskPrice: Joi.number().unsafe().allow(null),
             topBidValue: Joi.number().unsafe().allow(null),
           },

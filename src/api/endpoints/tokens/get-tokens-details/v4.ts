@@ -95,18 +95,18 @@ export const getTokensDetailsV4Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string().lowercase().pattern(regex.address).required(),
             tokenId: Joi.string().pattern(regex.number).required(),
-            name: Joi.string().allow(null, ""),
-            description: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
-            media: Joi.string().allow(null, ""),
-            kind: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            description: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
+            media: Joi.string().allow("", null),
+            kind: Joi.string().allow("", null),
             isFlagged: Joi.boolean().default(false),
-            lastFlagUpdate: Joi.string().allow(null, ""),
+            lastFlagUpdate: Joi.string().allow("", null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
-              image: Joi.string().allow(null, ""),
-              slug: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
+              image: Joi.string().allow("", null),
+              slug: Joi.string().allow("", null),
             }),
             lastBuy: {
               value: Joi.number().unsafe().allow(null),
@@ -120,7 +120,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
             attributes: Joi.array().items(
               Joi.object({
                 key: Joi.string(),
-                value: Joi.string(),
+                value: Joi.string().allow("", null),
                 tokenCount: Joi.number(),
                 onSaleCount: Joi.number(),
                 floorAskPrice: Joi.number().allow(null),

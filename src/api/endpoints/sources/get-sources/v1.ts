@@ -47,10 +47,10 @@ export const getSourcesV1Options: RouteOptions = {
       sources: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          name: Joi.string().allow(null, ""),
-          icon: Joi.string().allow(null, ""),
-          tokenUrl: Joi.string().allow(null, ""),
-          domain: Joi.string().allow(null, ""),
+          name: Joi.string().allow("", null),
+          icon: Joi.string().allow("", null),
+          tokenUrl: Joi.string().allow("", null),
+          domain: Joi.string().allow("", null),
         })
       ),
       continuation: Joi.string().allow(null),

@@ -75,7 +75,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             validUntil: Joi.number().unsafe().allow(null),
             rawData: Joi.object(),
             kind: Joi.string(),
-            source: Joi.object().allow(null),
+            source: Joi.string().allow("", null),
             isDynamic: Joi.boolean(),
             criteria: JoiOrderCriteria.allow(null),
           }),

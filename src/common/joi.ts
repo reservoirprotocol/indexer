@@ -138,7 +138,9 @@ export const JoiOrderMetadata = Joi.alternatives(
     data: Joi.object({
       collectionId: Joi.string().allow("", null),
       collectionName: Joi.string().allow("", null),
-      attributes: Joi.array().items(Joi.object({ key: Joi.string(), value: Joi.string() })),
+      attributes: Joi.array().items(
+        Joi.object({ key: Joi.string(), value: Joi.string().allow("", null) })
+      ),
       image: Joi.string().allow("", null),
     }),
   })
@@ -172,7 +174,7 @@ export const JoiOrderCriteria = Joi.alternatives(
     kind: "attribute",
     data: Joi.object({
       collection: JoiOrderCriteriaCollection,
-      attribute: Joi.object({ key: Joi.string(), value: Joi.string() }),
+      attribute: Joi.object({ key: Joi.string(), value: Joi.string().allow("", null) }),
     }),
   }),
   Joi.object({

@@ -38,7 +38,7 @@ export const getAttributesAllV2Options: RouteOptions = {
           maxRange: Joi.number().unsafe().allow(null),
           values: Joi.array().items(
             Joi.object({
-              value: Joi.string().required(),
+              value: Joi.string().allow("", null),
               count: Joi.number(),
               floorAskPrice: Joi.number().unsafe().allow(null),
             })

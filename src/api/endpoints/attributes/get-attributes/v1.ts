@@ -33,7 +33,7 @@ export const getAttributesV1Options: RouteOptions = {
           kind: Joi.string().valid("string", "number", "date", "range").required(),
           values: Joi.array().items(
             Joi.object({
-              value: Joi.string().required(),
+              value: Joi.string().allow("", null),
               count: Joi.number(),
             })
           ),

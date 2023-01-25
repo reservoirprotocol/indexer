@@ -130,7 +130,7 @@ export const getOrdersBidsV2Options: RouteOptions = {
               data: Joi.object({
                 collectionName: Joi.string().allow("", null),
                 attributes: Joi.array().items(
-                  Joi.object({ key: Joi.string(), value: Joi.string() })
+                  Joi.object({ key: Joi.string(), value: Joi.string().allow("", null) })
                 ),
                 image: Joi.string().allow("", null),
               }),

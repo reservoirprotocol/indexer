@@ -67,10 +67,10 @@ export const getAttributesExploreV2Options: RouteOptions = {
       attributes: Joi.array().items(
         Joi.object({
           key: Joi.string().required(),
-          value: Joi.string().required(),
+          value: Joi.string().allow("", null),
           tokenCount: Joi.number().required(),
           onSaleCount: Joi.number().required(),
-          sampleImages: Joi.array().items(Joi.string().allow(null, "")),
+          sampleImages: Joi.array().items(Joi.string().allow("", null)),
           floorAskPrices: Joi.array().items(Joi.number().unsafe()),
           lastSells: Joi.array().items(
             Joi.object({

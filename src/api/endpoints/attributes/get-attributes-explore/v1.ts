@@ -41,9 +41,9 @@ export const getAttributesExploreV1Options: RouteOptions = {
       attributes: Joi.array().items(
         Joi.object({
           key: Joi.string().required(),
-          value: Joi.string().required(),
+          value: Joi.string().allow("", null),
           tokenCount: Joi.number().required(),
-          sampleImages: Joi.array().items(Joi.string().allow(null, "")),
+          sampleImages: Joi.array().items(Joi.string().allow("", null)),
           lastBuys: Joi.array().items(
             Joi.object({
               value: Joi.number().unsafe().required(),

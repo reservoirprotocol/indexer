@@ -69,7 +69,7 @@ export const getOrdersAllV2Options: RouteOptions = {
           price: JoiPrice,
           validFrom: Joi.number().required(),
           validUntil: Joi.number().required(),
-          source: Joi.string().allow(null, ""),
+          source: Joi.string().allow("", null),
           feeBps: Joi.number().allow(null),
           feeBreakdown: Joi.array()
             .items(
