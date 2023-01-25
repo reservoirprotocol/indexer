@@ -226,7 +226,7 @@ export const save = async (
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
       try {
-        await offChainCheck(order, { onChainApprovalRecheck: true });
+        await offChainCheck(order, { onChainApprovalRecheck: true, debugLogs });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         // Keep any orders that can potentially get valid in the future
@@ -766,7 +766,11 @@ export const save = async (
       if (config.chainId === 1 && totalTimeElapsed > 0) {
         logger.info(
           "orders-seaport-save-debug-latency",
-          `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, debugLogs=${debugLogs.toString()}`
+          `orderId=${id}, totalTimeElapsed=${totalTimeElapsed}, debugLogs=${JSON.stringify(
+            debugLogs,
+            null,
+            "\t"
+          )}`
         );
       }
     } catch (error) {
