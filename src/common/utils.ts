@@ -71,11 +71,7 @@ export const splitContinuation = (c: string, regEx?: RegExp) => {
   c = decodeURIComponent(c);
   if (c.match(regex.base64)) {
     const decoded = Buffer.from(c, "base64").toString("ascii");
-    if (regEx && decoded.match(regEx)) {
-      return decoded.split("_");
-    } else {
-      return [decoded];
-    }
+    return decoded.split("_");
   } else {
     return [c];
   }

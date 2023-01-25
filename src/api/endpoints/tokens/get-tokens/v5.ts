@@ -665,25 +665,27 @@ export const getTokensV5Options: RouteOptions = {
           query.continuation,
           /^((([0-9]+\.?[0-9]*|\.[0-9]+)|null|0x[a-fA-F0-9]+)_\d+|\d+)$/
         );
-
-        if (query.collection || query.attributes || query.tokenSetId) {
-          if (contArr.length !== 2) {
-            throw new Error("Invalid continuation string used");
-          }
-
+        if (query.collection || query.attributes || query.tokenSetId || query.collectionsSetId) {
           switch (query.sortBy) {
             case "rarity": {
+              if (contArr.length !== 3) {
+                throw new Error("Invalid continuation string used");
+              }
               query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(
-                `(t.rarity_rank, t.token_id) ${sign} ($/contRarity/, $/contTokenId/)`
+                `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/), $/contTokenId/)`
               );
               (query as any).contRarity = contArr[0];
-              (query as any).contTokenId = contArr[1];
+              (query as any).contContract = toBuffer(contArr[1]);
+              (query as any).contTokenId = contArr[2];
               break;
             }
 
             case "tokenId": {
+              if (contArr.length !== 2) {
+                throw new Error("Invalid continuation string used");
+              }
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(`(t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/)`);
               (query as any).contContract = toBuffer(contArr[0]);
@@ -695,6 +697,9 @@ export const getTokensV5Options: RouteOptions = {
             case "floorAskPrice":
             default:
               {
+                if (contArr.length !== 3) {
+                  throw new Error("Invalid continuation string used");
+                }
                 const sign = query.sortDirection == "desc" ? "<" : ">";
                 const sortColumn = query.source
                   ? "s.floor_sell_value"
@@ -704,22 +709,30 @@ export const getTokensV5Options: RouteOptions = {
 
                 if (contArr[0] !== "null") {
                   conditions.push(`(
-                    (${sortColumn}, t.token_id) ${sign} ($/floorSellValue/, $/tokenId/)
+                    (${sortColumn}, t.contract, t.token_id) ${sign} ($/floorSellValue/, $/contContract/, $/contTokenId/)
                     OR (${sortColumn} IS null)
                   )`);
                   (query as any).floorSellValue = contArr[0];
-                  (query as any).tokenId = contArr[1];
+                  (query as any).contContract = toBuffer(contArr[1]);
+                  (query as any).contTokenId = contArr[2];
                 } else {
-                  conditions.push(`(${sortColumn} is null AND t.token_id ${sign} $/tokenId/)`);
-                  (query as any).tokenId = contArr[1];
+                  conditions.push(
+                    `(${sortColumn} is null AND (t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/))`
+                  );
+                  (query as any).contContract = toBuffer(contArr[1]);
+                  (query as any).contTokenId = contArr[2];
                 }
               }
               break;
           }
         } else {
+          if (contArr.length !== 2) {
+            throw new Error("Invalid continuation string used");
+          }
           const sign = query.sortDirection == "desc" ? "<" : ">";
-          conditions.push(`t.token_id ${sign} $/tokenId/`);
-          (query as any).tokenId = contArr[1] ? contArr[1] : contArr[0];
+          conditions.push(`(t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/)`);
+          (query as any).contContract = toBuffer(contArr[0]);
+          (query as any).contTokenId = contArr[1];
         }
       }
 
@@ -730,17 +743,27 @@ export const getTokensV5Options: RouteOptions = {
       // Sorting
 
       // Only allow sorting on floorSell when we filter by collection / attributes / tokenSetId / rarity
-      if (query.collection || query.attributes || query.tokenSetId || query.rarity) {
+      if (
+        query.collection ||
+        query.attributes ||
+        query.tokenSetId ||
+        query.rarity ||
+        query.collectionsSetId
+      ) {
         switch (query.sortBy) {
           case "rarity": {
             baseQuery += ` ORDER BY t.rarity_rank ${
               query.sortDirection || "ASC"
-            } NULLS LAST, t.token_id ${query.sortDirection || "ASC"}`;
+            } NULLS LAST, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
+              query.sortDirection || "ASC"
+            }`;
             break;
           }
 
           case "tokenId": {
-            baseQuery += ` ORDER BY t.contract, t.token_id ${query.sortDirection || "ASC"}`;
+            baseQuery += ` ORDER BY t.contract ${query.sortDirection || "ASC"}, t.token_id ${
+              query.sortDirection || "ASC"
+            }`;
             break;
           }
 
@@ -754,12 +777,16 @@ export const getTokensV5Options: RouteOptions = {
 
             baseQuery += ` ORDER BY ${sortColumn} ${
               query.sortDirection || "ASC"
-            } NULLS LAST, t.token_id`;
+            } NULLS LAST, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
+              query.sortDirection || "ASC"
+            }`;
             break;
           }
         }
       } else if (query.contract || query.tokens) {
-        baseQuery += ` ORDER BY t.token_id ${query.sortDirection || "ASC"}`;
+        baseQuery += ` ORDER BY t.contract ${query.sortDirection || "ASC"}, t.token_id ${
+          query.sortDirection || "ASC"
+        }`;
       }
 
       baseQuery += ` LIMIT $/limit/`;
@@ -780,14 +807,10 @@ export const getTokensV5Options: RouteOptions = {
         // Only build a "value_tokenid" continuation string when we filter on collection or attributes
         // Otherwise continuation string will just be based on the last tokenId. This is because only use sorting
         // when we have collection/attributes
-        if (query.collection || query.attributes || query.tokenSetId) {
+        if (query.collection || query.attributes || query.tokenSetId || query.collectionsSetId) {
           switch (query.sortBy) {
             case "rarity":
               continuation = rawResult[rawResult.length - 1].rarity_rank || "null";
-              break;
-
-            case "tokenId":
-              continuation = fromBuffer(rawResult[rawResult.length - 1].contract);
               break;
 
             case "floorAskPrice":
@@ -796,11 +819,11 @@ export const getTokensV5Options: RouteOptions = {
             default:
               break;
           }
-
-          continuation += "_" + rawResult[rawResult.length - 1].token_id;
-        } else {
-          continuation = rawResult[rawResult.length - 1].token_id;
         }
+
+        continuation +=
+          (continuation ? "_" : "") + fromBuffer(rawResult[rawResult.length - 1].contract);
+        continuation += "_" + rawResult[rawResult.length - 1].token_id;
 
         continuation = buildContinuation(continuation);
       }
