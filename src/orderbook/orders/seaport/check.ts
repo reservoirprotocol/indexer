@@ -115,7 +115,13 @@ export const offChainCheck = async (
       if (
         bn(
           await onChainData
-            .fetchAndUpdateFtApproval(info.paymentToken, order.params.offerer, conduit, true)
+            .fetchAndUpdateFtApproval(
+              info.paymentToken,
+              order.params.offerer,
+              conduit,
+              true,
+              options?.debugLogs
+            )
             .then((a) => a.value)
         ).lt(info.price)
       ) {
