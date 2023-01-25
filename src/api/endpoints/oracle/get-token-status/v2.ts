@@ -3,6 +3,7 @@ import { arrayify } from "@ethersproject/bytes";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
+import axios from "axios";
 import Joi from "joi";
 
 import { edb, pgp } from "@/common/db";
@@ -71,6 +72,46 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
       // Make sure each token is unique
       tokens = [...new Set(tokens).keys()];
 
+      // Try making a synchronous request to OpenSea to get the most up-to-date flagged status
+      const tokenToSuspicious = new Map<string, boolean>();
+      const callOpensea = (async () => {
+        if (tokens.length <= 30) {
+          const searchParams = new URLSearchParams();
+          tokens.forEach((t) => {
+            const [contract, tokenId] = t.split(":");
+            searchParams.append("asset_contract_addresses", contract);
+            searchParams.append("token_ids", tokenId);
+          });
+
+          await axios
+            .get(
+              `https://${
+                config.chainId === 5 ? "testnets-api" : "api"
+              }.opensea.io/api/v1/assets?${searchParams.toString()}`,
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Api-Key": config.openSeaApiKey,
+                },
+              }
+            )
+            .then((response) => {
+              for (const asset of response.data.assets) {
+                const contract = asset.asset_contract.address;
+                const tokenId = asset.token_id;
+
+                tokenToSuspicious.set(
+                  `${contract.toLowerCase()}:${tokenId}`,
+                  !asset.supports_wyvern
+                );
+              }
+            })
+            .catch(() => {
+              // Skip errors
+            });
+        }
+      })();
+
       // Fetch details for all tokens
       const results = await edb.manyOrNone(
         `
@@ -114,6 +155,9 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
         `
       );
 
+      // Give at most 5 seconds to the OpenSea call to complete
+      await Promise.race([callOpensea, new Promise((resolve) => setTimeout(resolve, 5000))]);
+
       // Use the timestamp of the latest available block as the message timestamp
       const timestamp = await baseProvider.getBlock("latest").then((b) => b.timestamp);
 
@@ -138,10 +182,16 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
       const messages: any[] = [];
       await Promise.all(
         results.map(async (result) => {
+          const token = `${fromBuffer(result.contract)}:${result.token_id}`;
+
           const id = _TypedDataEncoder.hashStruct("Token", EIP712_TYPES.Token, {
             contract: fromBuffer(result.contract),
             tokenId: result.token_id,
           });
+
+          const isFlagged = tokenToSuspicious.has(token)
+            ? tokenToSuspicious.get(token)
+            : result.is_flagged;
 
           const message: {
             id: string;
@@ -152,7 +202,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
             id,
             payload: defaultAbiCoder.encode(
               ["bool", "uint256"],
-              [result.is_flagged, result.last_transfer_time]
+              [isFlagged, result.last_transfer_time]
             ),
             timestamp,
           };
@@ -162,8 +212,8 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
           );
 
           messages.push({
-            token: `${fromBuffer(result.contract)}:${result.token_id}`,
-            isFlagged: result.is_flagged,
+            token,
+            isFlagged,
             lastTransferTime: result.last_transfer_time,
             message,
           });

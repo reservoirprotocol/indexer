@@ -27,6 +27,8 @@ export class NewTopBidWebsocketEvent {
                 orders.currency_value,
                 orders.currency_price,
                 orders.currency,
+                orders.normalized_value,
+                orders.currency_normalized_value,               
                 orders.created_at,
                 DATE_PART('epoch', LOWER(orders.valid_between)) AS "valid_from",
                 COALESCE(
@@ -78,6 +80,19 @@ export class NewTopBidWebsocketEvent {
               net: {
                 amount: order.currency_value ?? order.value,
                 nativeAmount: order.value,
+              },
+              gross: {
+                amount: order.currency_price ?? order.price,
+                nativeAmount: order.price,
+              },
+            },
+            fromBuffer(order.currency)
+          ),
+          priceNormalized: await getJoiPriceObject(
+            {
+              net: {
+                amount: order.currency_normalized_value ?? order.currency_value ?? order.value,
+                nativeAmount: order.normalized_value ?? order.value,
               },
               gross: {
                 amount: order.currency_price ?? order.price,
