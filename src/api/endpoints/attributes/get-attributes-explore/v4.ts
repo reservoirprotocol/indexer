@@ -33,15 +33,15 @@ export const getAttributesExploreV4Options: RouteOptions = {
         ),
     }),
     query: Joi.object({
-      includeTopBid: Joi.boolean()
-        .default(false)
-        .description("If true, top bid will be returned in the response."),
-      excludeRangeTraits: Joi.boolean()
-        .default(false)
-        .description("If true, range traits will be excluded from the response."),
-      excludeNumberTraits: Joi.boolean()
-        .default(false)
-        .description("If true, number traits will be excluded from the response."),
+      includeTopBid: Joi.boolean().description(
+        "If true, top bid will be returned in the response."
+      ),
+      excludeRangeTraits: Joi.boolean().description(
+        "If true, range traits will be excluded from the response."
+      ),
+      excludeNumberTraits: Joi.boolean().description(
+        "If true, number traits will be excluded from the response."
+      ),
       attributeKey: Joi.string().description(
         "Filter to a particular attribute key. Example: `Composition`"
       ),
@@ -49,13 +49,11 @@ export const getAttributesExploreV4Options: RouteOptions = {
         .integer()
         .min(1)
         .max(20)
-        .default(1)
         .description("Max number of items returned in the response."),
       maxLastSells: Joi.number()
         .integer()
         .min(0)
         .max(20)
-        .default(0)
         .description("Max number of items returned in the response."),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -64,7 +62,6 @@ export const getAttributesExploreV4Options: RouteOptions = {
         .integer()
         .min(1)
         .max(5000)
-        .default(20)
         .description("Amount of items returned in response."),
     }),
   },
@@ -131,6 +128,18 @@ export const getAttributesExploreV4Options: RouteOptions = {
 
     if (query.excludeNumberTraits) {
       conditions.push("attributes.kind != 'number'");
+    }
+
+    if (!query.maxLastSells) {
+      query.maxLastSells = 0;
+    }
+
+    if (!query.maxFloorAskPrices) {
+      query.maxFloorAskPrices = 1;
+    }
+
+    if (!query.limit) {
+      query.limit = 20;
     }
 
     // If the client asks for multiple floor prices
@@ -227,7 +236,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
       const attributesData = await redb.manyOrNone(attributesQuery, { ...query, ...params });
 
       let continuation = null;
-      if (attributesData.length === query.limit) {
+      if (attributesData.length === query.limit ? query.limit : 20) {
         continuation = buildContinuation(
           attributesData[attributesData.length - 1].floor_sell_value +
             "_" +

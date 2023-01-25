@@ -63,10 +63,10 @@ export class Activities {
 
   public static async getActivities(
     continuation: null | string = null,
-    limit = 20,
+    limit = 50,
     byEventTimestamp = false,
-    includeMetadata = true,
-    sortDirection = "asc",
+    includeMetadata = false,
+    sortDirection = "desc",
     includeCriteria = false
   ) {
     let eventTimestamp;

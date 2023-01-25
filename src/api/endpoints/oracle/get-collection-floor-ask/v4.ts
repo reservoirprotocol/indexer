@@ -38,9 +38,9 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
       eip3668Calldata: Joi.string(),
       collection: Joi.string().lowercase(),
       token: Joi.string().pattern(regex.token).lowercase(),
-      useNonFlaggedFloorAsk: Joi.boolean()
-        .default(false)
-        .description("If true, will use the collection non flagged floor ask events."),
+      useNonFlaggedFloorAsk: Joi.boolean().description(
+        "If true, will use the collection non flagged floor ask events."
+      ),
     })
       .or("collection", "token")
       .oxor("collection", "token"),
@@ -66,6 +66,18 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.kind) {
+      query.kind = "spot";
+    }
+
+    if (!query.currency) {
+      query.currency = AddressZero;
+    }
+
+    if (!query.twapSeconds) {
+      query.twapSeconds = 0;
+    }
 
     if (query.token) {
       const [contract, tokenId] = query.token.split(":");
