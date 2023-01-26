@@ -6,6 +6,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, toBuffer } from "@/common/utils";
+import { JoiAttributeKeyValueObject } from "@/common/joi";
 
 const version = "v1";
 
@@ -60,9 +61,7 @@ export const getUserPositionsV1Options: RouteOptions = {
                 kind: "attribute",
                 data: Joi.object({
                   collectionName: Joi.string().allow("", null),
-                  attributes: Joi.array().items(
-                    Joi.object({ key: Joi.string(), value: Joi.string().allow("", null) })
-                  ),
+                  attributes: Joi.array().items(JoiAttributeKeyValueObject),
                   image: Joi.string().allow("", null),
                 }),
               })

@@ -8,6 +8,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { buildContinuation, formatEth, fromBuffer, regex, splitContinuation } from "@/common/utils";
 import { Assets } from "@/utils/assets";
+import { JoiAttributeValue } from "@/common/joi";
 
 const version = "v4";
 
@@ -70,7 +71,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
       attributes: Joi.array().items(
         Joi.object({
           key: Joi.string().required(),
-          value: Joi.string().allow("", null),
+          value: JoiAttributeValue,
           tokenCount: Joi.number().required(),
           onSaleCount: Joi.number().required(),
           sampleImages: Joi.array().items(Joi.string().allow("", null)),

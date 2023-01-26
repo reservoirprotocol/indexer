@@ -16,6 +16,7 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
+import { JoiAttributeValue } from "@/common/joi";
 
 const version = "v4";
 
@@ -120,7 +121,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
             attributes: Joi.array().items(
               Joi.object({
                 key: Joi.string(),
-                value: Joi.string().allow("", null),
+                value: JoiAttributeValue,
                 tokenCount: Joi.number(),
                 onSaleCount: Joi.number(),
                 floorAskPrice: Joi.number().allow(null),

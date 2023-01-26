@@ -15,6 +15,7 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
+import { JoiAttributeKeyValueObject } from "@/common/joi";
 
 const version = "v2";
 
@@ -93,12 +94,7 @@ export const getTokensDetailsV2Options: RouteOptions = {
               timestamp: Joi.number().unsafe().allow(null),
             },
             owner: Joi.string().allow(null),
-            attributes: Joi.array().items(
-              Joi.object({
-                key: Joi.string(),
-                value: Joi.string().allow("", null),
-              })
-            ),
+            attributes: Joi.array().items(JoiAttributeKeyValueObject),
           }),
           market: Joi.object({
             floorAsk: {

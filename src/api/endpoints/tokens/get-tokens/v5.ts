@@ -7,7 +7,7 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { getJoiPriceObject, JoiAttributeValue, JoiPrice } from "@/common/joi";
 import {
   bn,
   buildContinuation,
@@ -203,7 +203,7 @@ export const getTokensV5Options: RouteOptions = {
                 Joi.object({
                   key: Joi.string(),
                   kind: Joi.string(),
-                  value: Joi.string().allow("", null),
+                  value: JoiAttributeValue,
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
                   floorAskPrice: Joi.number().unsafe().allow(null),
