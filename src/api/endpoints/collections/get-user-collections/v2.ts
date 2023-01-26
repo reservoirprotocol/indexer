@@ -44,23 +44,21 @@ export const getUserCollectionsV2Options: RouteOptions = {
         .description(
           "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
-      includeTopBid: Joi.boolean()
-        .default(false)
-        .description("If true, top bid will be returned in the response."),
-      includeLiquidCount: Joi.boolean()
-        .default(false)
-        .description("If true, number of tokens with bids will be returned in the response."),
+      includeTopBid: Joi.boolean().description(
+        "If true, top bid will be returned in the response."
+      ),
+      includeLiquidCount: Joi.boolean().description(
+        "If true, number of tokens with bids will be returned in the response."
+      ),
       offset: Joi.number()
         .integer()
         .min(0)
         .max(10000)
-        .default(0)
         .description("Use offset to request the next batch of items."),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(100)
-        .default(20)
         .description("Amount of items returned in response."),
     }),
   },
@@ -70,15 +68,15 @@ export const getUserCollectionsV2Options: RouteOptions = {
         Joi.object({
           collection: Joi.object({
             id: Joi.string(),
-            slug: Joi.string().allow(null, ""),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
-            banner: Joi.string().allow(null, ""),
-            discordUrl: Joi.string().allow(null, ""),
-            externalUrl: Joi.string().allow(null, ""),
-            twitterUsername: Joi.string().allow(null, ""),
-            description: Joi.string().allow(null, ""),
-            sampleImages: Joi.array().items(Joi.string().allow(null, "")),
+            slug: Joi.string().allow("", null),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
+            banner: Joi.string().allow("", null),
+            discordUrl: Joi.string().allow("", null),
+            externalUrl: Joi.string().allow("", null),
+            twitterUsername: Joi.string().allow("", null),
+            description: Joi.string().allow("", null),
+            sampleImages: Joi.array().items(Joi.string().allow("", null)),
             tokenCount: Joi.string(),
             tokenSetId: Joi.string().allow(null),
             primaryContract: Joi.string()
@@ -90,7 +88,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
               .lowercase()
               .pattern(/^0x[a-fA-F0-9]{40}$/)
               .allow(null),
-            topBidSourceDomain: Joi.string().allow(null, ""),
+            topBidSourceDomain: Joi.string().allow("", null),
             rank: Joi.object({
               "1day": Joi.number().unsafe().allow(null),
               "7day": Joi.number().unsafe().allow(null),
@@ -130,6 +128,14 @@ export const getUserCollectionsV2Options: RouteOptions = {
   handler: async (request: Request) => {
     const params = request.params as any;
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 20;
+    }
+
+    if (!query.offset) {
+      query.offset = 0;
+    }
 
     let liquidCount = "";
     let selectLiquidCount = "";

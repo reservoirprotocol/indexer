@@ -63,9 +63,9 @@ export const getCollectionsV5Options: RouteOptions = {
       name: Joi.string()
         .lowercase()
         .description("Search for collections that match a string. Example: `bored`"),
-      includeTopBid: Joi.boolean()
-        .default(false)
-        .description("If true, top bid will be returned in the response."),
+      includeTopBid: Joi.boolean().description(
+        "If true, top bid will be returned in the response."
+      ),
       includeAttributes: Joi.boolean()
         .when("id", {
           is: Joi.exist(),
@@ -105,15 +105,14 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. (supported only when filtering to a particular collection using `id` or `slug`)"
         ),
-      normalizeRoyalties: Joi.boolean()
-        .default(false)
-        .description("If true, prices will include missing royalties to be added on-top."),
+      normalizeRoyalties: Joi.boolean().description(
+        "If true, prices will include missing royalties to be added on-top."
+      ),
       useNonFlaggedFloorAsk: Joi.boolean()
         .when("normalizeRoyalties", {
           is: Joi.boolean().valid(true),
           then: Joi.valid(false),
         })
-        .default(false)
         .description(
           "If true, return the non flagged floor ask. (only supported when `normalizeRoyalties` is false)"
         ),
@@ -126,13 +125,11 @@ export const getCollectionsV5Options: RouteOptions = {
           "createdAt",
           "floorAskPrice"
         )
-        .default("allTimeVolume")
         .description("Order the items are returned in the response."),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(20)
-        .default(20)
         .description("Amount of items returned in response."),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
@@ -145,23 +142,23 @@ export const getCollectionsV5Options: RouteOptions = {
       collections: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          slug: Joi.string().allow(null, "").description("Open Sea slug"),
+          slug: Joi.string().allow("", null).description("Open Sea slug"),
           createdAt: Joi.string(),
-          name: Joi.string().allow(null, ""),
-          image: Joi.string().allow(null, ""),
-          banner: Joi.string().allow(null, ""),
-          discordUrl: Joi.string().allow(null, ""),
-          externalUrl: Joi.string().allow(null, ""),
-          twitterUsername: Joi.string().allow(null, ""),
-          openseaVerificationStatus: Joi.string().allow(null, ""),
-          description: Joi.string().allow(null, ""),
-          sampleImages: Joi.array().items(Joi.string().allow(null, "")),
+          name: Joi.string().allow("", null),
+          image: Joi.string().allow("", null),
+          banner: Joi.string().allow("", null),
+          discordUrl: Joi.string().allow("", null),
+          externalUrl: Joi.string().allow("", null),
+          twitterUsername: Joi.string().allow("", null),
+          openseaVerificationStatus: Joi.string().allow("", null),
+          description: Joi.string().allow("", null),
+          sampleImages: Joi.array().items(Joi.string().allow("", null)),
           tokenCount: Joi.string(),
           onSaleCount: Joi.string(),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           tokenSetId: Joi.string().allow(null),
           royalties: Joi.object({
-            recipient: Joi.string().allow(null, ""),
+            recipient: Joi.string().allow("", null),
             breakdown: Joi.array().items(
               Joi.object({
                 recipient: Joi.string().pattern(regex.address),
@@ -177,7 +174,7 @@ export const getCollectionsV5Options: RouteOptions = {
           },
           floorAsk: {
             id: Joi.string().allow(null),
-            sourceDomain: Joi.string().allow(null, ""),
+            sourceDomain: Joi.string().allow("", null),
             price: JoiPrice.allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
@@ -186,12 +183,12 @@ export const getCollectionsV5Options: RouteOptions = {
               contract: Joi.string().lowercase().pattern(regex.address).allow(null),
               tokenId: Joi.string().pattern(regex.number).allow(null),
               name: Joi.string().allow(null),
-              image: Joi.string().allow(null, ""),
+              image: Joi.string().allow("", null),
             }).allow(null),
           },
           topBid: Joi.object({
             id: Joi.string().allow(null),
-            sourceDomain: Joi.string().allow(null, ""),
+            sourceDomain: Joi.string().allow("", null),
             price: JoiPrice.allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
@@ -235,9 +232,9 @@ export const getCollectionsV5Options: RouteOptions = {
           attributes: Joi.array()
             .items(
               Joi.object({
-                key: Joi.string().allow(null, ""),
-                kind: Joi.string().allow(null, ""),
-                count: Joi.number().allow(null, ""),
+                key: Joi.string().allow("", null),
+                kind: Joi.string().allow("", null),
+                count: Joi.number().allow("", null),
               })
             )
             .optional(),
@@ -253,6 +250,10 @@ export const getCollectionsV5Options: RouteOptions = {
     const query = request.query as any;
 
     try {
+      if (!query.limit) {
+        query.limit = 20;
+      }
+
       // Include top bid
       let topBidSelectQuery = "";
       let topBidJoinQuery = "";
@@ -527,15 +528,11 @@ export const getCollectionsV5Options: RouteOptions = {
             conditions.push(
               query.normalizeRoyalties
                 ? `(collections.normalized_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
-                : query.useNonFlaggedFloorAsk
-                ? `(collections.non_flagged_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
                 : `(collections.floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
             );
           }
           orderBy = query.normalizeRoyalties
             ? ` ORDER BY collections.normalized_floor_sell_value, collections.id`
-            : query.useNonFlaggedFloorAsk
-            ? ` ORDER BY collections.non_flagged_floor_sell_value, collections.id`
             : ` ORDER BY collections.floor_sell_value, collections.id`;
 
           break;

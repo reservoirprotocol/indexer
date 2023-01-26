@@ -33,13 +33,11 @@ export const getUsersLiquidityV2Options: RouteOptions = {
         .integer()
         .min(0)
         .max(10000)
-        .default(0)
         .description("Use offset to request the next batch of items."),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(20)
-        .default(20)
         .description("Amount of items returned in response."),
     }),
   },
@@ -65,6 +63,14 @@ export const getUsersLiquidityV2Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
+    if (!query.limit) {
+      query.limit = 20;
+    }
+
+    if (!query.offset) {
+      query.offset = 0;
+    }
 
     try {
       let baseQuery = `

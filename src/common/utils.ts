@@ -74,7 +74,7 @@ export const splitContinuation = (c: string, regEx?: RegExp) => {
     if (regEx && decoded.match(regEx)) {
       return decoded.split("_");
     } else {
-      return [decoded];
+      return decoded.split("_");
     }
   } else {
     return [c];

@@ -36,10 +36,10 @@ export const getCollectionV1Options: RouteOptions = {
     schema: Joi.object({
       collection: Joi.object({
         id: Joi.string(),
-        slug: Joi.string().allow(null, ""),
-        name: Joi.string().allow(null, ""),
+        slug: Joi.string().allow("", null),
+        name: Joi.string().allow("", null),
         metadata: Joi.object().allow(null),
-        sampleImages: Joi.array().items(Joi.string().allow(null, "")),
+        sampleImages: Joi.array().items(Joi.string().allow("", null)),
         tokenCount: Joi.string(),
         onSaleCount: Joi.string(),
         primaryContract: Joi.string()
@@ -47,7 +47,7 @@ export const getCollectionV1Options: RouteOptions = {
           .pattern(/^0x[a-fA-F0-9]{40}$/),
         tokenSetId: Joi.string().allow(null),
         royalties: Joi.object({
-          recipient: Joi.string().allow(null, ""),
+          recipient: Joi.string().allow("", null),
           bps: Joi.number(),
         }),
         lastBuy: {
@@ -76,7 +76,7 @@ export const getCollectionV1Options: RouteOptions = {
               .pattern(/^[0-9]+$/)
               .allow(null),
             name: Joi.string().allow(null),
-            image: Joi.string().allow(null, ""),
+            image: Joi.string().allow("", null),
           }).allow(null),
         },
         topBid: Joi.object({

@@ -35,10 +35,16 @@ export const getSearchCollectionsV1Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set"),
+      offset: Joi.number()
+        .integer()
+        .min(0)
+        .max(500000)
+        .default(0)
+        .description("Use offset to request the next batch of items."),
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(50)
+        .max(1000)
         .default(20)
         .description("Amount of items returned in response."),
     }),
@@ -49,11 +55,11 @@ export const getSearchCollectionsV1Options: RouteOptions = {
         Joi.object({
           collectionId: Joi.string(),
           contract: Joi.string(),
-          image: Joi.string().allow(null, ""),
-          name: Joi.string().allow(null, ""),
+          image: Joi.string().allow("", null),
+          name: Joi.string().allow("", null),
           allTimeVolume: Joi.number().unsafe().allow(null),
           floorAskPrice: Joi.number().unsafe().allow(null),
-          openseaVerificationStatus: Joi.string().allow(null, ""),
+          openseaVerificationStatus: Joi.string().allow("", null),
         })
       ),
     }).label(`getSearchCollections${version.toUpperCase()}Response`),
@@ -64,6 +70,7 @@ export const getSearchCollectionsV1Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const query = request.query as any;
+
     let whereClause = "";
     const conditions: string[] = [`token_count > 0`];
 
@@ -95,7 +102,7 @@ export const getSearchCollectionsV1Options: RouteOptions = {
             FROM collections
             ${whereClause}
             ORDER BY all_time_volume DESC
-            OFFSET 0
+            OFFSET $/offset/
             LIMIT $/limit/`;
 
     const collections = await redb.manyOrNone(baseQuery, query);

@@ -47,14 +47,14 @@ export const getUserCollectionsV1Options: RouteOptions = {
         Joi.object({
           collection: Joi.object({
             id: Joi.string(),
-            name: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
             metadata: Joi.object({
-              imageUrl: Joi.string().allow(null, ""),
-              discordUrl: Joi.string().allow(null, ""),
-              description: Joi.string().allow(null, ""),
-              externalUrl: Joi.string().allow(null, ""),
-              bannerImageUrl: Joi.string().allow(null, ""),
-              twitterUsername: Joi.string().allow(null, ""),
+              imageUrl: Joi.string().allow("", null),
+              discordUrl: Joi.string().allow("", null),
+              description: Joi.string().allow("", null),
+              externalUrl: Joi.string().allow("", null),
+              bannerImageUrl: Joi.string().allow("", null),
+              twitterUsername: Joi.string().allow("", null),
             }).allow(null),
             floorAskPrice: Joi.number().unsafe().allow(null),
             topBidValue: Joi.number().unsafe().allow(null),

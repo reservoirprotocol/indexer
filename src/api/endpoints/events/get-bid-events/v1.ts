@@ -79,7 +79,7 @@ export const getBidEventsV1Options: RouteOptions = {
             nonce: Joi.string().pattern(regex.number).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.string().allow("", null),
             criteria: JoiOrderCriteria.allow(null),
           }),
           event: Joi.object({
