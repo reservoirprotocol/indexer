@@ -36,7 +36,7 @@ export class ActivityCreatedWebsocketEvent {
               SELECT *
               FROM activities
               ${metadataQuery}
-              WHERE id = $/orderId/
+              WHERE id = $/activityId/
             `,
       { activityId: data.activityId }
     );
