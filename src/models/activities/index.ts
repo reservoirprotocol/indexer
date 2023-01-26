@@ -7,6 +7,7 @@ import {
   ActivitiesEntityParams,
 } from "@/models/activities/activities-entity";
 import { Orders } from "@/utils/orders";
+import * as websocketEventsTriggerQueue from "@/jobs/websocket-events/trigger-queue";
 
 export class Activities {
   public static async addActivities(activities: ActivitiesEntityInsertParams[]) {
@@ -49,9 +50,18 @@ export class Activities {
       metadata: activity.metadata,
     }));
 
-    const query = pgp.helpers.insert(data, columns) + " ON CONFLICT DO NOTHING";
+    const query = pgp.helpers.insert(data, columns) + " ON CONFLICT DO NOTHING RETURNING id";
 
-    await idb.none(query);
+    const results = await idb.manyOrNone(query);
+
+    results?.forEach(({ id }) => {
+      websocketEventsTriggerQueue.addToQueue([
+        {
+          kind: websocketEventsTriggerQueue.EventKind.ActivityCreated,
+          data: { activityId: id },
+        },
+      ]);
+    });
   }
 
   public static async deleteByBlockHash(blockHash: string) {

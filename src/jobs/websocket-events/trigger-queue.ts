@@ -7,6 +7,11 @@ import {
   NewTopBidWebsocketEventInfo,
   NewTopBidWebsocketEvent,
 } from "@/jobs/websocket-events/events/new-top-bid-websocket-event";
+import {
+  ActivityCreatedWebsocketEvent,
+  ActivityCreatedWebsocketEventInfo,
+} from "@/jobs/websocket-events/events/activity-created-websocket-event";
+
 import { randomUUID } from "crypto";
 import _ from "lodash";
 
@@ -34,6 +39,9 @@ if (config.doBackgroundWork) {
         case EventKind.NewTopBid:
           await NewTopBidWebsocketEvent.triggerEvent(data);
           break;
+        case EventKind.ActivityCreated:
+          await ActivityCreatedWebsocketEvent.triggerEvent(data);
+          break;
       }
     },
     { connection: redis.duplicate(), concurrency: 5 }
@@ -45,12 +53,18 @@ if (config.doBackgroundWork) {
 
 export enum EventKind {
   NewTopBid = "new-top-bid",
+  ActivityCreated = "activity-created",
 }
 
-export type EventInfo = {
-  kind: EventKind.NewTopBid;
-  data: NewTopBidWebsocketEventInfo;
-};
+export type EventInfo =
+  | {
+      kind: EventKind.NewTopBid;
+      data: NewTopBidWebsocketEventInfo;
+    }
+  | {
+      kind: EventKind.ActivityCreated;
+      data: ActivityCreatedWebsocketEventInfo;
+    };
 
 export const addToQueue = async (events: EventInfo[]) => {
   await queue.addBulk(
