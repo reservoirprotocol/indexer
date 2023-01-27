@@ -15,6 +15,7 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { JoiAttributeKeyValueObject } from "@/common/joi";
 
 const version = "v1";
 
@@ -97,9 +98,7 @@ export const getOrdersBidsV1Options: RouteOptions = {
               kind: "attribute",
               data: Joi.object({
                 collectionName: Joi.string().allow("", null),
-                attributes: Joi.array().items(
-                  Joi.object({ key: Joi.string(), value: Joi.string() })
-                ),
+                attributes: Joi.array().items(JoiAttributeKeyValueObject),
                 image: Joi.string().allow("", null),
               }),
             })

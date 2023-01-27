@@ -70,15 +70,15 @@ export const getUserCollectionsV2Options: RouteOptions = {
         Joi.object({
           collection: Joi.object({
             id: Joi.string(),
-            slug: Joi.string().allow(null, ""),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
-            banner: Joi.string().allow(null, ""),
-            discordUrl: Joi.string().allow(null, ""),
-            externalUrl: Joi.string().allow(null, ""),
-            twitterUsername: Joi.string().allow(null, ""),
-            description: Joi.string().allow(null, ""),
-            sampleImages: Joi.array().items(Joi.string().allow(null, "")),
+            slug: Joi.string().allow("", null),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
+            banner: Joi.string().allow("", null),
+            discordUrl: Joi.string().allow("", null),
+            externalUrl: Joi.string().allow("", null),
+            twitterUsername: Joi.string().allow("", null),
+            description: Joi.string().allow("", null),
+            sampleImages: Joi.array().items(Joi.string().allow("", null)),
             tokenCount: Joi.string(),
             tokenSetId: Joi.string().allow(null),
             primaryContract: Joi.string()
@@ -90,7 +90,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
               .lowercase()
               .pattern(/^0x[a-fA-F0-9]{40}$/)
               .allow(null),
-            topBidSourceDomain: Joi.string().allow(null, ""),
+            topBidSourceDomain: Joi.string().allow("", null),
             rank: Joi.object({
               "1day": Joi.number().unsafe().allow(null),
               "7day": Joi.number().unsafe().allow(null),

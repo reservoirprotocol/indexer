@@ -5,6 +5,7 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { JoiAttributeValue } from "@/common/joi";
 
 const version = "v1";
 
@@ -33,7 +34,7 @@ export const getAttributesAllV1Options: RouteOptions = {
           kind: Joi.string().valid("string", "number", "date", "range").required(),
           values: Joi.array().items(
             Joi.object({
-              value: Joi.string().required(),
+              value: JoiAttributeValue,
               count: Joi.number(),
             })
           ),

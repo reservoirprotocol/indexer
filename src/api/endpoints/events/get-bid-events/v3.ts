@@ -12,13 +12,13 @@ import { Orders } from "@/utils/orders";
 
 const version = "v3";
 
-export const getAsksEventsV3Options: RouteOptions = {
+export const getBidEventsV3Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 5000,
   },
-  description: "Asks status changes",
-  notes: "Get updates any time an asks status changes",
+  description: "Bid status changes",
+  notes: "Get updates any time a bid status changes",
   tags: ["api", "Events"],
   plugins: {
     "hapi-swagger": {
@@ -64,7 +64,7 @@ export const getAsksEventsV3Options: RouteOptions = {
     schema: Joi.object({
       events: Joi.array().items(
         Joi.object({
-          order: Joi.object({
+          bid: Joi.object({
             id: Joi.string(),
             status: Joi.string(),
             contract: Joi.string().lowercase().pattern(regex.address),
@@ -77,7 +77,6 @@ export const getAsksEventsV3Options: RouteOptions = {
             rawData: Joi.object(),
             kind: Joi.string(),
             source: Joi.string().allow("", null),
-            isDynamic: Joi.boolean(),
             criteria: JoiOrderCriteria.allow(null),
           }),
           event: Joi.object({
@@ -100,9 +99,9 @@ export const getAsksEventsV3Options: RouteOptions = {
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
-    }).label(`getAsksEvents${version.toUpperCase()}Response`),
+    }).label(`getBidEvents${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`get-asks-events-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(`get-bid-events-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },
@@ -118,51 +117,51 @@ export const getAsksEventsV3Options: RouteOptions = {
 
       let baseQuery = `
         SELECT
-          order_events.id,
-          order_events.kind,
-          order_events.status,
-          order_events.contract,
-          order_events.token_id,
-          order_events.order_id,
-          order_events.order_quantity_remaining,
-          order_events.order_nonce,
-          order_events.maker,
-          order_events.price,
+          bid_events.id,
+          bid_events.kind,
+          bid_events.status,
+          bid_events.contract,
+          bid_events.order_id,
+          bid_events.order_quantity_remaining,
+          bid_events.order_nonce,
+          bid_events.maker,
+          bid_events.price,
+          orders.value,
           orders.currency,
-          orders.dynamic,
+          orders.currency_price,
           orders.currency_normalized_value,
           orders.normalized_value,
           orders.kind AS order_kind,
           orders.raw_data,
-          TRUNC(orders.currency_price, 0) AS currency_price,
-          order_events.order_source_id_int,
+          trunc(orders.currency_price, 0) AS currency_price,
+          bid_events.order_source_id_int,
           coalesce(
-            nullif(date_part('epoch', upper(order_events.order_valid_between)), 'Infinity'),
+            nullif(date_part('epoch', upper(bid_events.order_valid_between)), 'Infinity'),
             0
           ) AS valid_until,
-          date_part('epoch', lower(order_events.order_valid_between)) AS valid_from,
-          order_events.tx_hash,
-          order_events.tx_timestamp,
-          extract(epoch from order_events.created_at) AS created_at,
+          date_part('epoch', lower(bid_events.order_valid_between)) AS valid_from,
+          bid_events.tx_hash,
+          bid_events.tx_timestamp,
+          extract(epoch from bid_events.created_at) AS created_at,
           (${criteriaBuildQuery}) AS criteria
-        FROM order_events
+        FROM bid_events
         LEFT JOIN LATERAL (
           SELECT
+            orders.value,
             orders.currency,
             orders.currency_price,
             orders.normalized_value,
             orders.currency_normalized_value,
             orders.token_set_id,
-            orders.dynamic,
             orders.kind,
             (
               CASE
-                WHEN orders.kind IN ('nftx', 'sudoswap') OR order_events.kind IN ('new-order', 'reprice') THEN orders.raw_data
+                WHEN orders.kind IN ('nftx', 'sudoswap') OR bid_events.kind IN ('new-order', 'reprice') THEN orders.raw_data
                 ELSE NULL
               END
             ) AS raw_data
          FROM orders
-         WHERE orders.id = order_events.order_id
+         WHERE orders.id = bid_events.order_id
         ) orders ON TRUE
       `;
 
@@ -176,15 +175,12 @@ export const getAsksEventsV3Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [
-        `order_events.created_at >= to_timestamp($/startTimestamp/)`,
-        `order_events.created_at <= to_timestamp($/endTimestamp/)`,
-        // Fix for the issue with negative prices for dutch auction orders
-        // (eg. due to orders not properly expired on time)
-        `coalesce(order_events.price, 0) >= 0`,
+        `bid_events.created_at >= to_timestamp($/startTimestamp/)`,
+        `bid_events.created_at <= to_timestamp($/endTimestamp/)`,
       ];
       if (query.contract) {
         (query as any).contract = toBuffer(query.contract);
-        conditions.push(`order_events.contract = $/contract/`);
+        conditions.push(`bid_events.contract = $/contract/`);
       }
       if (query.continuation) {
         const [createdAt, id] = splitContinuation(query.continuation, /^\d+(.\d+)?_\d+$/);
@@ -192,7 +188,7 @@ export const getAsksEventsV3Options: RouteOptions = {
         (query as any).id = id;
 
         conditions.push(
-          `(order_events.created_at, order_events.id) ${
+          `(bid_events.created_at, bid_events.id) ${
             query.sortDirection === "asc" ? ">" : "<"
           } (to_timestamp($/createdAt/), $/id/)`
         );
@@ -204,8 +200,8 @@ export const getAsksEventsV3Options: RouteOptions = {
       // Sorting
       baseQuery += `
         ORDER BY
-          order_events.created_at ${query.sortDirection},
-          order_events.id ${query.sortDirection}
+          bid_events.created_at ${query.sortDirection},
+          bid_events.id ${query.sortDirection}
       `;
 
       // Pagination
@@ -223,7 +219,7 @@ export const getAsksEventsV3Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = await Promise.all(
         rawResult.map(async (r) => ({
-          order: {
+          bid: {
             id: r.order_id,
             status: r.status,
             contract: fromBuffer(r.contract),
@@ -232,12 +228,16 @@ export const getAsksEventsV3Options: RouteOptions = {
               ? await getJoiPriceObject(
                   {
                     gross: {
+                      amount: r.currency_price ?? r.price,
+                      nativeAmount: r.price,
+                    },
+                    net: {
                       amount: query.normalizeRoyalties
-                        ? r.currency_normalized_value ?? r.price
-                        : r.currency_price ?? r.price,
+                        ? r.currency_normalized_value ?? r.value
+                        : r.currency_value ?? r.value,
                       nativeAmount: query.normalizeRoyalties
-                        ? r.normalized_value ?? r.price
-                        : r.price,
+                        ? r.normalized_value ?? r.value
+                        : r.value,
                     },
                   },
                   fromBuffer(r.currency)
@@ -250,7 +250,6 @@ export const getAsksEventsV3Options: RouteOptions = {
             rawData: r.raw_data ? r.raw_data : undefined,
             kind: r.order_kind,
             source: sources.get(r.order_source_id_int)?.name,
-            isDynamic: Boolean(r.dynamic),
             criteria: r.criteria,
           },
           event: {
@@ -268,7 +267,7 @@ export const getAsksEventsV3Options: RouteOptions = {
         continuation,
       };
     } catch (error) {
-      logger.error(`get-asks-events-${version}-handler`, `Handler failure: ${error}`);
+      logger.error(`get-bid-events-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },

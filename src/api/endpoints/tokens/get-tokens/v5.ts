@@ -7,7 +7,7 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { getJoiPriceObject, JoiAttributeValue, JoiPrice } from "@/common/joi";
 import {
   bn,
   buildContinuation,
@@ -177,21 +177,21 @@ export const getTokensV5Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string().lowercase().pattern(regex.address).required(),
             tokenId: Joi.string().pattern(regex.number).required(),
-            name: Joi.string().allow(null, ""),
-            description: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
-            media: Joi.string().allow(null, ""),
-            kind: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            description: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
+            media: Joi.string().allow("", null),
+            kind: Joi.string().allow("", null),
             isFlagged: Joi.boolean().default(false),
-            lastFlagUpdate: Joi.string().allow(null, ""),
-            lastFlagChange: Joi.string().allow(null, ""),
+            lastFlagUpdate: Joi.string().allow("", null),
+            lastFlagChange: Joi.string().allow("", null),
             rarity: Joi.number().unsafe().allow(null),
             rarityRank: Joi.number().unsafe().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
-              image: Joi.string().allow(null, ""),
-              slug: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
+              image: Joi.string().allow("", null),
+              slug: Joi.string().allow("", null),
             }),
             lastBuy: {
               value: Joi.number().unsafe().allow(null),
@@ -207,7 +207,7 @@ export const getTokensV5Options: RouteOptions = {
                 Joi.object({
                   key: Joi.string(),
                   kind: Joi.string(),
-                  value: Joi.string(),
+                  value: JoiAttributeValue,
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
                   floorAskPrice: Joi.number().unsafe().allow(null),
