@@ -29,6 +29,7 @@ import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
+import tracer from "@/common/tracer";
 
 export type OrderInfo =
   | {
@@ -92,6 +93,8 @@ export const save = async (
       const order = new Sdk.Seaport.Order(config.chainId, orderParams);
       const info = order.getInfo();
       const id = order.hash();
+
+      const timeStart = performance.now();
 
       // Check: order has a valid format
       if (!info) {
@@ -706,6 +709,15 @@ export const save = async (
 
       if (relayToArweave) {
         arweaveData.push({ order, schemaHash, source: source?.domain });
+      }
+
+      const totalTimeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      if (totalTimeElapsed > 1) {
+        logger.info(
+          "orders-seaport-save-debug-latency",
+          `orderId=${id}, orderSide=${info.side}, totalTimeElapsed=${totalTimeElapsed}`
+        );
       }
     } catch (error) {
       logger.warn(
@@ -1433,11 +1445,13 @@ export const save = async (
       limit(async () =>
         orderInfo.kind == "partial"
           ? handlePartialOrder(orderInfo.orderParams as PartialOrderComponents)
-          : handleOrder(
-              orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
-              orderInfo.metadata,
-              orderInfo.isReservoir,
-              orderInfo.openSeaOrderParams
+          : tracer.trace("handleOrder", { resource: "seaportSave" }, () =>
+              handleOrder(
+                orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
+                orderInfo.metadata,
+                orderInfo.isReservoir,
+                orderInfo.openSeaOrderParams
+              )
             )
       )
     )
