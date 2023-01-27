@@ -3,7 +3,6 @@ import * as Pusher from "pusher";
 import { fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import _ from "lodash";
-import { BatchEvent } from "pusher";
 import { config } from "@/config/index";
 import { redis } from "@/common/redis";
 import { logger } from "@/common/logger";
@@ -117,17 +116,17 @@ export class NewTopBidWebsocketEvent {
     const payloadsBatches = _.chunk(payloads, Number(config.websocketServerEventMaxBatchSize));
 
     await Promise.all(
-      payloadsBatches.map((payloadsBatch) => {
-        const events: BatchEvent[] = payloadsBatch.map((payload) => {
-          return {
-            channel: "top-bids",
-            name: "new-top-bid",
-            data: JSON.stringify(payload),
-          };
-        });
-
-        return server.triggerBatch(events);
-      })
+      payloadsBatches.map((payloadsBatch) =>
+        server.triggerBatch(
+          payloadsBatch.map((payload) => {
+            return {
+              channel: "top-bids",
+              name: "new-top-bid",
+              data: JSON.stringify(payload),
+            };
+          })
+        )
+      )
     );
 
     logger.info(
