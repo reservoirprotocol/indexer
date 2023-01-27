@@ -49,11 +49,11 @@ export const getSearchCollectionsV1Options: RouteOptions = {
         Joi.object({
           collectionId: Joi.string(),
           contract: Joi.string(),
-          image: Joi.string().allow(null, ""),
-          name: Joi.string().allow(null, ""),
+          image: Joi.string().allow("", null),
+          name: Joi.string().allow("", null),
           allTimeVolume: Joi.number().unsafe().allow(null),
           floorAskPrice: Joi.number().unsafe().allow(null),
-          openseaVerificationStatus: Joi.string().allow(null, ""),
+          openseaVerificationStatus: Joi.string().allow("", null),
         })
       ),
     }).label(`getSearchCollections${version.toUpperCase()}Response`),

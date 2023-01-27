@@ -9,12 +9,13 @@ import { inject } from "@/api/index";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { bn, formatPrice, fromBuffer, regex, toBuffer } from "@/common/utils";
+import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { generateBidDetailsV6 } from "@/orderbook/orders";
 import { getNftApproval } from "@/orderbook/orders/common/helpers";
 import { getCurrency } from "@/utils/currencies";
+import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v6";
 
@@ -143,7 +144,8 @@ export const getExecuteSellV6Options: RouteOptions = {
       const tokenResult = await redb.oneOrNone(
         `
           SELECT
-            tokens.is_flagged
+            tokens.is_flagged,
+            coalesce(extract('epoch' from tokens.last_flag_update), 0) AS last_flag_update
           FROM tokens
           WHERE tokens.contract = $/contract/
             AND tokens.token_id = $/tokenId/
@@ -329,8 +331,14 @@ export const getExecuteSellV6Options: RouteOptions = {
         }
       );
 
-      if (["x2y2", "seaport-partial"].includes(bidDetails!.kind)) {
-        if (tokenResult.is_flagged) {
+      if (["x2y2", "seaport", "seaport-partial"].includes(bidDetails!.kind)) {
+        const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
+          tokenResult.last_flag_update < now() - 3600 ? [payload.token] : []
+        );
+        if (
+          (tokenToSuspicious.has(payload.token) && tokenToSuspicious.get(payload.token)) ||
+          tokenResult.is_flagged
+        ) {
           throw Boom.badData("Token is flagged");
         }
       }

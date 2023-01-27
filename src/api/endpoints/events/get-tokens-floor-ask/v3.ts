@@ -70,7 +70,7 @@ export const getTokensFloorAskV3Options: RouteOptions = {
             price: JoiPrice.allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.string().allow("", null),
             isDynamic: Joi.boolean(),
           }),
           event: Joi.object({

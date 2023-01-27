@@ -5,12 +5,13 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { edb, pgp } from "@/common/db";
+import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { Signers, addressToSigner } from "@/common/signers";
-import { fromBuffer, regex, toBuffer } from "@/common/utils";
+import { fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v2";
 
@@ -72,46 +73,43 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
       tokens = [...new Set(tokens).keys()];
 
       // Fetch details for all tokens
-      const results = await edb.manyOrNone(
+      const results = await idb.manyOrNone(
         `
           SELECT
-            t.contract::BYTEA,
-            t.token_id::NUMERIC(78, 0),
-            COALESCE(
-              (
-                SELECT
-                  CASE
-                    WHEN tokens.is_flagged = 1 THEN true
-                    ELSE false
-                  END
-                FROM tokens
-                WHERE tokens.contract = t.contract::BYTEA
-                  AND tokens.token_id = t.token_id::NUMERIC(78, 0)
-              ),
-              false
-            ) AS is_flagged,
-            COALESCE(
+            tokens.contract,
+            tokens.token_id,
+            (CASE
+              WHEN tokens.is_flagged = 1 THEN true
+              ELSE false
+            END) AS is_flagged,
+            coalesce(extract('epoch' from tokens.last_flag_update), 0) AS last_flag_update,
+            coalesce(
               (
                 SELECT
                   nft_transfer_events.timestamp
                 FROM nft_transfer_events
-                WHERE nft_transfer_events.address = t.contract::BYTEA
-                  AND nft_transfer_events.token_id = t.token_id::NUMERIC(78, 0)
+                WHERE nft_transfer_events.address = tokens.contract
+                  AND nft_transfer_events.token_id = tokens.token_id
                 ORDER BY nft_transfer_events.timestamp DESC
                 LIMIT 1
               ),
               0
             ) AS last_transfer_time
-          FROM (
-            VALUES ${pgp.helpers.values(
-              tokens.map((t) => ({
-                contract: toBuffer(t.split(":")[0]),
-                token_id: t.split(":")[1],
-              })),
-              ["contract", "token_id"]
-            )}
-          ) t(contract, token_id)
+          FROM tokens
+          WHERE (tokens.contract, tokens.token_id) IN (${pgp.helpers.values(
+            tokens.map((t) => ({
+              contract: toBuffer(t.split(":")[0]),
+              token_id: t.split(":")[1],
+            })),
+            ["contract", "token_id"]
+          )})
         `
+      );
+
+      const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
+        results
+          .filter(({ last_flag_update }) => last_flag_update < now() - 3600)
+          .map(({ contract, token_id }) => `${fromBuffer(contract)}:${token_id}`)
       );
 
       // Use the timestamp of the latest available block as the message timestamp
@@ -138,10 +136,16 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
       const messages: any[] = [];
       await Promise.all(
         results.map(async (result) => {
+          const token = `${fromBuffer(result.contract)}:${result.token_id}`;
+
           const id = _TypedDataEncoder.hashStruct("Token", EIP712_TYPES.Token, {
             contract: fromBuffer(result.contract),
             tokenId: result.token_id,
           });
+
+          const isFlagged = tokenToSuspicious.has(token)
+            ? tokenToSuspicious.get(token)
+            : result.is_flagged;
 
           const message: {
             id: string;
@@ -152,7 +156,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
             id,
             payload: defaultAbiCoder.encode(
               ["bool", "uint256"],
-              [result.is_flagged, result.last_transfer_time]
+              [isFlagged, result.last_transfer_time]
             ),
             timestamp,
           };
@@ -162,8 +166,8 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
           );
 
           messages.push({
-            token: `${fromBuffer(result.contract)}:${result.token_id}`,
-            isFlagged: result.is_flagged,
+            token,
+            isFlagged,
             lastTransferTime: result.last_transfer_time,
             message,
           });

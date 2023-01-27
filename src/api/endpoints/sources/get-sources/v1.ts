@@ -23,7 +23,7 @@ export const getSourcesV1Options: RouteOptions = {
   validate: {
     query: Joi.object({
       sortBy: Joi.string()
-        .valid("name", "domain", "createdAt")
+        .valid("domain", "createdAt")
         .default("createdAt")
         .description("Order of the items are returned in the response."),
       sortDirection: Joi.string()
@@ -32,7 +32,7 @@ export const getSourcesV1Options: RouteOptions = {
         .description("Order the items are returned in the response."),
       domain: Joi.string()
         .lowercase()
-        .description("Filter to a particular domain. Example: `x2y2`"),
+        .description("Filter to a particular domain. Example: `x2y2.io`"),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -47,10 +47,10 @@ export const getSourcesV1Options: RouteOptions = {
       sources: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          name: Joi.string().allow(null, ""),
-          icon: Joi.string().allow(null, ""),
-          tokenUrl: Joi.string().allow(null, ""),
-          domain: Joi.string().allow(null, ""),
+          name: Joi.string().allow("", null),
+          icon: Joi.string().allow("", null),
+          tokenUrl: Joi.string().allow("", null),
+          domain: Joi.string().allow("", null),
         })
       ),
       continuation: Joi.string().allow(null),
@@ -71,21 +71,15 @@ export const getSourcesV1Options: RouteOptions = {
       offset = Number(splitContinuation(query.continuation));
     }
     try {
-      let baseQuery = `
-        SELECT "name", "address", "domain", "metadata" 
-        from "sources_v2"
-        ${sourcesFilter ? "WHERE" : ""}
-        ${sourcesFilter}
-      `;
+      let baseQuery = `SELECT "name", "address", "domain", "metadata" from "sources_v2" ${
+        sourcesFilter ? "WHERE " + sourcesFilter : ""
+      }`;
 
-      baseQuery += `
-        ORDER BY
-          sources_v2.${query.sortBy === "createdAt" ? "created_at" : query.sortBy} ${
-        query.sortDirection
-      }
-      `;
+      baseQuery += ` ORDER BY sources_v2.${
+        query.sortBy === "createdAt" ? "created_at" : query.sortBy
+      } ${query.sortDirection}`;
 
-      baseQuery += `OFFSET ${offset} LIMIT ${query.limit}`;
+      baseQuery += ` OFFSET ${offset} LIMIT ${query.limit}`;
 
       const rawResult = await redb.manyOrNone(baseQuery, query);
       const sources = await Sources.getInstance();

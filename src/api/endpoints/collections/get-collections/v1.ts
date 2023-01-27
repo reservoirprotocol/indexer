@@ -50,14 +50,14 @@ export const getCollectionsV1Options: RouteOptions = {
       collections: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          slug: Joi.string().allow(null, ""),
-          name: Joi.string().allow(null, ""),
+          slug: Joi.string().allow("", null),
+          name: Joi.string().allow("", null),
           metadata: Joi.object().allow(null),
-          sampleImages: Joi.array().items(Joi.string().allow(null, "")),
+          sampleImages: Joi.array().items(Joi.string().allow("", null)),
           tokenCount: Joi.string(),
           tokenSetId: Joi.string().allow(null),
           royalties: Joi.object({
-            recipient: Joi.string().allow(null, ""),
+            recipient: Joi.string().allow("", null),
             bps: Joi.number(),
           }),
           floorAskPrice: Joi.number().unsafe().allow(null),

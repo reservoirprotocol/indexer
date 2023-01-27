@@ -6,6 +6,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer } from "@/common/utils";
+import { JoiAttributeValue } from "@/common/joi";
 
 const version = "v1";
 
@@ -37,9 +38,9 @@ export const getCollectionAttributesV1Options: RouteOptions = {
       attributes: Joi.array().items(
         Joi.object({
           key: Joi.string().required(),
-          value: Joi.string().required(),
+          value: JoiAttributeValue,
           tokenCount: Joi.number().required(),
-          sampleImages: Joi.array().items(Joi.string().allow(null, "")),
+          sampleImages: Joi.array().items(Joi.string().allow("", null)),
           lastBuys: Joi.array().items(
             Joi.object({
               value: Joi.number().unsafe().required(),

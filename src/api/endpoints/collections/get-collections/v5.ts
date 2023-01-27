@@ -145,23 +145,23 @@ export const getCollectionsV5Options: RouteOptions = {
       collections: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          slug: Joi.string().allow(null, "").description("Open Sea slug"),
+          slug: Joi.string().allow("", null).description("Open Sea slug"),
           createdAt: Joi.string(),
-          name: Joi.string().allow(null, ""),
-          image: Joi.string().allow(null, ""),
-          banner: Joi.string().allow(null, ""),
-          discordUrl: Joi.string().allow(null, ""),
-          externalUrl: Joi.string().allow(null, ""),
-          twitterUsername: Joi.string().allow(null, ""),
-          openseaVerificationStatus: Joi.string().allow(null, ""),
-          description: Joi.string().allow(null, ""),
-          sampleImages: Joi.array().items(Joi.string().allow(null, "")),
+          name: Joi.string().allow("", null),
+          image: Joi.string().allow("", null),
+          banner: Joi.string().allow("", null),
+          discordUrl: Joi.string().allow("", null),
+          externalUrl: Joi.string().allow("", null),
+          twitterUsername: Joi.string().allow("", null),
+          openseaVerificationStatus: Joi.string().allow("", null),
+          description: Joi.string().allow("", null),
+          sampleImages: Joi.array().items(Joi.string().allow("", null)),
           tokenCount: Joi.string(),
           onSaleCount: Joi.string(),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           tokenSetId: Joi.string().allow(null),
           royalties: Joi.object({
-            recipient: Joi.string().allow(null, ""),
+            recipient: Joi.string().allow("", null),
             breakdown: Joi.array().items(
               Joi.object({
                 recipient: Joi.string().pattern(regex.address),
@@ -177,7 +177,7 @@ export const getCollectionsV5Options: RouteOptions = {
           },
           floorAsk: {
             id: Joi.string().allow(null),
-            sourceDomain: Joi.string().allow(null, ""),
+            sourceDomain: Joi.string().allow("", null),
             price: JoiPrice.allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
@@ -186,12 +186,12 @@ export const getCollectionsV5Options: RouteOptions = {
               contract: Joi.string().lowercase().pattern(regex.address).allow(null),
               tokenId: Joi.string().pattern(regex.number).allow(null),
               name: Joi.string().allow(null),
-              image: Joi.string().allow(null, ""),
+              image: Joi.string().allow("", null),
             }).allow(null),
           },
           topBid: Joi.object({
             id: Joi.string().allow(null),
-            sourceDomain: Joi.string().allow(null, ""),
+            sourceDomain: Joi.string().allow("", null),
             price: JoiPrice.allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
@@ -235,9 +235,9 @@ export const getCollectionsV5Options: RouteOptions = {
           attributes: Joi.array()
             .items(
               Joi.object({
-                key: Joi.string().allow(null, ""),
-                kind: Joi.string().allow(null, ""),
-                count: Joi.number().allow(null, ""),
+                key: Joi.string().allow("", null),
+                kind: Joi.string().allow("", null),
+                count: Joi.number().allow("", null),
               })
             )
             .optional(),
@@ -527,15 +527,11 @@ export const getCollectionsV5Options: RouteOptions = {
             conditions.push(
               query.normalizeRoyalties
                 ? `(collections.normalized_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
-                : query.useNonFlaggedFloorAsk
-                ? `(collections.non_flagged_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
                 : `(collections.floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
             );
           }
           orderBy = query.normalizeRoyalties
             ? ` ORDER BY collections.normalized_floor_sell_value, collections.id`
-            : query.useNonFlaggedFloorAsk
-            ? ` ORDER BY collections.non_flagged_floor_sell_value, collections.id`
             : ` ORDER BY collections.floor_sell_value, collections.id`;
 
           break;

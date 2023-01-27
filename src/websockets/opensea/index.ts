@@ -74,8 +74,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               validateBidValue: true,
             };
           } else {
-            logger.info("opensea-websocket", `Partial order! event=${JSON.stringify(event)}`);
-
             orderInfo = {
               kind: "seaport",
               info: {
@@ -158,6 +156,15 @@ export const handleEvent = (type: EventType, payload: unknown): PartialOrderComp
 export const parseProtocolData = (payload: unknown): Sdk.Seaport.Order | undefined => {
   try {
     const protocolData = (payload as any).protocol_data;
+
+    if (!protocolData) {
+      logger.warn(
+        "opensea-websocket",
+        `parseProtocolData missing. payload=${JSON.stringify(payload)}`
+      );
+
+      return;
+    }
 
     return new Sdk.Seaport.Order(config.chainId, {
       endTime: protocolData.parameters.endTime,

@@ -110,11 +110,6 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
-        .when("token", {
-          is: Joi.exist(),
-          then: Joi.valid("price", "createdAt"),
-          otherwise: Joi.valid("createdAt"),
-        })
         .valid("createdAt", "price")
         .default("createdAt")
         .description(

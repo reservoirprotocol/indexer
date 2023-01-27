@@ -123,7 +123,10 @@ if (config.doBackgroundWork) {
                   collection_id = token_sets.collection_id
                 FROM x
                 WHERE token_sets.id = x.token_set_id
-                  AND token_sets.top_buy_id IS DISTINCT FROM x.order_id
+                  AND (
+                    token_sets.top_buy_id IS DISTINCT FROM x.order_id
+                    OR token_sets.top_buy_value IS DISTINCT FROM x.value
+                  )
                 RETURNING
                   collection_id AS "collectionId",
                   attribute_id AS "attributeId",

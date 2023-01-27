@@ -17,6 +17,7 @@ import {
 } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
+import { JoiAttributeKeyValueObject } from "@/common/joi";
 
 const version = "v3";
 
@@ -90,15 +91,15 @@ export const getTokensDetailsV3Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string().lowercase().pattern(regex.address).required(),
             tokenId: Joi.string().pattern(regex.number).required(),
-            name: Joi.string().allow(null, ""),
-            description: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
-            kind: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            description: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
+            kind: Joi.string().allow("", null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
-              image: Joi.string().allow(null, ""),
-              slug: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
+              image: Joi.string().allow("", null),
+              slug: Joi.string().allow("", null),
             }),
             lastBuy: {
               value: Joi.number().unsafe().allow(null),
@@ -109,12 +110,7 @@ export const getTokensDetailsV3Options: RouteOptions = {
               timestamp: Joi.number().unsafe().allow(null),
             },
             owner: Joi.string().allow(null),
-            attributes: Joi.array().items(
-              Joi.object({
-                key: Joi.string(),
-                value: Joi.string(),
-              })
-            ),
+            attributes: Joi.array().items(JoiAttributeKeyValueObject),
           }),
           market: Joi.object({
             floorAsk: {
