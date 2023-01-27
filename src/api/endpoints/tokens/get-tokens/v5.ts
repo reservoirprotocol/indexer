@@ -767,7 +767,8 @@ export const getTokensV5Options: RouteOptions = {
         query.attributes ||
         query.tokenSetId ||
         query.rarity ||
-        query.collectionsSetId
+        query.collectionsSetId ||
+        query.tokens
       ) {
         switch (query.sortBy) {
           case "rarity": {
@@ -802,7 +803,7 @@ export const getTokensV5Options: RouteOptions = {
             break;
           }
         }
-      } else if (query.contract || query.tokens) {
+      } else if (query.contract) {
         baseQuery += ` ORDER BY t.contract ${query.sortDirection || "ASC"}, t.token_id ${
           query.sortDirection || "ASC"
         }`;
