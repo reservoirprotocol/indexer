@@ -93,11 +93,6 @@ export const save = async (
       const info = order.getInfo();
       const id = order.hash();
 
-      const debugLogs: string[] = [];
-
-      const timeStart = performance.now();
-      let timeStartInterval = performance.now();
-
       // Check: order has a valid format
       if (!info) {
         return results.push({
@@ -124,10 +119,6 @@ export const save = async (
           rawData: order.params,
         }
       );
-
-      debugLogs.push(`orderExists=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
 
       if (orderExists) {
         return results.push({
@@ -198,10 +189,6 @@ export const save = async (
         });
       }
 
-      debugLogs.push(`checkValidity=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
-
       // Check: order has a valid signature
       try {
         await order.checkSignature(baseProvider);
@@ -212,17 +199,11 @@ export const save = async (
         });
       }
 
-      debugLogs.push(
-        `checkSignature=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-      );
-
-      timeStartInterval = performance.now();
-
       // Check: order fillability
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
       try {
-        await offChainCheck(order, { onChainApprovalRecheck: true, debugLogs });
+        await offChainCheck(order, { onChainApprovalRecheck: true });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         // Keep any orders that can potentially get valid in the future
@@ -240,10 +221,6 @@ export const save = async (
           });
         }
       }
-
-      debugLogs.push(`offChainCheck=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
 
       let saveRawData = true;
 
@@ -429,10 +406,6 @@ export const save = async (
         }
       }
 
-      debugLogs.push(`tokenSet=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
-
       if (!tokenSetId) {
         return results.push({
           id,
@@ -556,10 +529,6 @@ export const save = async (
         }
       }
 
-      debugLogs.push(`royalties=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
-
       // Handle: source
       const sources = await Sources.getInstance();
       let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
@@ -650,14 +619,10 @@ export const save = async (
       }
       const normalizedValue = bn(prices.nativePrice).toString();
 
-      debugLogs.push(`currencies=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
-
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
-        const seaportBidPercentageThreshold = 80;
+        const seaportBidPercentageThreshold = 90;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
@@ -682,10 +647,6 @@ export const save = async (
           );
         }
       }
-
-      debugLogs.push(
-        `bidValueValidation=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-      );
 
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
@@ -745,21 +706,6 @@ export const save = async (
 
       if (relayToArweave) {
         arweaveData.push({ order, schemaHash, source: source?.domain });
-      }
-
-      const totalTimeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      if (totalTimeElapsed > 1) {
-        logger.info(
-          "orders-seaport-save-debug-latency",
-          `orderId=${id}, orderSide=${
-            info.side
-          }, totalTimeElapsed=${totalTimeElapsed}, timeElapsedBreakdown=${JSON.stringify(
-            debugLogs,
-            null,
-            "\t"
-          )}`
-        );
       }
     } catch (error) {
       logger.warn(
@@ -1120,7 +1066,7 @@ export const save = async (
 
       if (orderParams.side === "buy" && orderParams.kind === "single-token" && validateBidValue) {
         const tokenId = orderParams.tokenId;
-        const seaportBidPercentageThreshold = 80;
+        const seaportBidPercentageThreshold = 90;
 
         try {
           const collectionFloorAskValue = await getCollectionFloorAskValue(
