@@ -2,7 +2,6 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import tracer from "@/common/tracer";
 import { config } from "@/config/index";
 import {
   NewTopBidWebsocketEventInfo,
@@ -33,11 +32,7 @@ if (config.doBackgroundWork) {
 
       switch (kind) {
         case EventKind.NewTopBid:
-          await tracer.trace(
-            "triggerEvent",
-            { resource: "NewTopBidWebsocketEvent", tags: { event: data } },
-            () => NewTopBidWebsocketEvent.triggerEvent(data)
-          );
+          await NewTopBidWebsocketEvent.triggerEvent(data);
           break;
       }
     },
