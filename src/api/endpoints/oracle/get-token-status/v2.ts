@@ -112,6 +112,22 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
           .map(({ contract, token_id }) => `${fromBuffer(contract)}:${token_id}`)
       );
 
+      // Set default values for any tokens which don't exist
+      const availableTokens = new Set<string>();
+      results.forEach(({ contract, token_id }) =>
+        availableTokens.add(`${fromBuffer(contract)}:${token_id}`)
+      );
+      for (const token of tokens) {
+        if (!availableTokens.has(token)) {
+          results.push({
+            contract: toBuffer(token.split(":")[0]),
+            token_id: token.split(":")[1],
+            is_flagged: false,
+            last_transfer_time: 0,
+          });
+        }
+      }
+
       // Use the timestamp of the latest available block as the message timestamp
       const timestamp = await baseProvider.getBlock("latest").then((b) => b.timestamp);
 
