@@ -67,7 +67,7 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             price: JoiPrice.allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.string().allow("", null),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),

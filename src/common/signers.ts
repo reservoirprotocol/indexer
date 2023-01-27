@@ -11,8 +11,8 @@ export const Signers = {
 
 export const addressToSigner: { [address: string]: () => Signer } = {
   [Signers.V1]: () => new Wallet(config.oraclePrivateKey),
-  [Signers.V2]: () =>
-    new KmsEthersSigner({
+  [Signers.V2]: () => {
+    const signer = new KmsEthersSigner({
       keyId: config.oracleAwsKmsKeyId,
       kmsClientConfig: {
         credentials: {
@@ -21,5 +21,14 @@ export const addressToSigner: { [address: string]: () => Signer } = {
         },
         region: config.oracleAwsKmsKeyRegion,
       },
-    }),
+    });
+
+    const oldSignMessage = signer.signMessage.bind(signer);
+
+    // Monkey-patch the `signMessage` method to return the signature with the `0x` prefix
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (signer as any).signMessage = async (message: string) => `0x${await oldSignMessage(message)}`;
+
+    return signer;
+  },
 };

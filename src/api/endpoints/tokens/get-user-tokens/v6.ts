@@ -111,8 +111,8 @@ export const getUserTokensV6Options: RouteOptions = {
             contract: Joi.string(),
             tokenId: Joi.string(),
             kind: Joi.string(),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
             lastBuy: {
               value: Joi.number().unsafe().allow(null),
               timestamp: Joi.number().unsafe().allow(null),
@@ -126,7 +126,7 @@ export const getUserTokensV6Options: RouteOptions = {
             media: Joi.string().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),

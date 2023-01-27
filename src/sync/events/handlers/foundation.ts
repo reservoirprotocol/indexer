@@ -64,7 +64,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         const currency = Sdk.Common.Addresses.Eth[config.chainId];
         // Deduce the price from the protocol fee (which is 5%)
-        const currencyPrice = bn(protocolFee).mul(10000).div(50).toString();
+        const currencyPrice = bn(protocolFee).mul(10000).div(500).toString();
         const priceData = await getUSDAndNativePrices(
           currency,
           currencyPrice,

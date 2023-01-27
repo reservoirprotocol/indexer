@@ -51,7 +51,7 @@ export const postWebsocketUserAuthOptions: RouteOptions = {
       const authResponse = server.authenticateUser(socketId, user);
 
       logger.info(
-        "post-user-auth-handler",
+        "post-websocket-user-auth-handler",
         `authenticateUser. payload=${JSON.stringify(payload)}, authResponse=${JSON.stringify(
           authResponse
         )}`

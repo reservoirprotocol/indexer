@@ -5,12 +5,13 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { edb } from "@/common/db";
+import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { Signers, addressToSigner } from "@/common/signers";
-import { regex, toBuffer } from "@/common/utils";
+import { fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v2";
 
@@ -27,7 +28,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
   validate: {
     query: Joi.object({
       tokens: Joi.alternatives(
-        Joi.array().items(Joi.string().pattern(regex.token)),
+        Joi.array().items(Joi.string().pattern(regex.token)).min(1),
         Joi.string().pattern(regex.token)
       ).required(),
       signer: Joi.string().valid(Signers.V1, Signers.V2).default(Signers.V2),
@@ -63,25 +64,26 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
     }
 
     try {
-      let tokens = query.tokens;
+      let tokens = query.tokens as string[];
       if (!Array.isArray(tokens)) {
         tokens = [tokens];
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const messages: any[] = [];
-      for (const token of tokens) {
-        const [contract, tokenId] = token.split(":");
+      // Make sure each token is unique
+      tokens = [...new Set(tokens).keys()];
 
-        let result = await edb.oneOrNone(
-          `
-            SELECT
-              (
-                CASE
-                  WHEN tokens.is_flagged = 1 THEN true
-                  ELSE false
-                END
-              ) AS is_flagged,
+      // Fetch details for all tokens
+      const results = await idb.manyOrNone(
+        `
+          SELECT
+            tokens.contract,
+            tokens.token_id,
+            (CASE
+              WHEN tokens.is_flagged = 1 THEN true
+              ELSE false
+            END) AS is_flagged,
+            coalesce(extract('epoch' from tokens.last_flag_update), 0) AS last_flag_update,
+            coalesce(
               (
                 SELECT
                   nft_transfer_events.timestamp
@@ -90,72 +92,87 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
                   AND nft_transfer_events.token_id = tokens.token_id
                 ORDER BY nft_transfer_events.timestamp DESC
                 LIMIT 1
-              ) AS last_transfer_time
-            FROM tokens
-            WHERE tokens.contract = $/contract/
-              AND tokens.token_id = $/tokenId/
-          `,
-          {
-            contract: toBuffer(contract),
-            tokenId,
-          }
-        );
+              ),
+              0
+            ) AS last_transfer_time
+          FROM tokens
+          WHERE (tokens.contract, tokens.token_id) IN (${pgp.helpers.values(
+            tokens.map((t) => ({
+              contract: toBuffer(t.split(":")[0]),
+              token_id: t.split(":")[1],
+            })),
+            ["contract", "token_id"]
+          )})
+        `
+      );
 
-        // Use a default response for unknown tokens
-        if (!result) {
-          result = {
-            is_flagged: false,
-            last_transfer_time: 0,
+      const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
+        results
+          .filter(({ last_flag_update }) => last_flag_update < now() - 3600)
+          .map(({ contract, token_id }) => `${fromBuffer(contract)}:${token_id}`)
+      );
+
+      // Use the timestamp of the latest available block as the message timestamp
+      const timestamp = await baseProvider.getBlock("latest").then((b) => b.timestamp);
+
+      // Use EIP-712 structured hashing (https://eips.ethereum.org/EIPS/eip-712)
+      const EIP712_TYPES = {
+        Message: {
+          Message: [
+            { name: "id", type: "bytes32" },
+            { name: "payload", type: "bytes" },
+            { name: "timestamp", type: "uint256" },
+          ],
+        },
+        Token: {
+          Token: [
+            { name: "contract", type: "address" },
+            { name: "tokenId", type: "uint256" },
+          ],
+        },
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const messages: any[] = [];
+      await Promise.all(
+        results.map(async (result) => {
+          const token = `${fromBuffer(result.contract)}:${result.token_id}`;
+
+          const id = _TypedDataEncoder.hashStruct("Token", EIP712_TYPES.Token, {
+            contract: fromBuffer(result.contract),
+            tokenId: result.token_id,
+          });
+
+          const isFlagged = tokenToSuspicious.has(token)
+            ? tokenToSuspicious.get(token)
+            : result.is_flagged;
+
+          const message: {
+            id: string;
+            payload: string;
+            timestamp: number;
+            signature?: string;
+          } = {
+            id,
+            payload: defaultAbiCoder.encode(
+              ["bool", "uint256"],
+              [isFlagged, result.last_transfer_time]
+            ),
+            timestamp,
           };
-        }
 
-        // Use EIP-712 structured hashing (https://eips.ethereum.org/EIPS/eip-712)
-        const EIP712_TYPES = {
-          Message: {
-            Message: [
-              { name: "id", type: "bytes32" },
-              { name: "payload", type: "bytes" },
-              { name: "timestamp", type: "uint256" },
-            ],
-          },
-          Token: {
-            Token: [
-              { name: "contract", type: "address" },
-              { name: "tokenId", type: "uint256" },
-            ],
-          },
-        };
+          message.signature = await addressToSigner[query.signer]().signMessage(
+            arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
+          );
 
-        const id = _TypedDataEncoder.hashStruct("Token", EIP712_TYPES.Token, {
-          contract,
-          tokenId,
-        });
-
-        const message: {
-          id: string;
-          payload: string;
-          timestamp: number;
-          signature?: string;
-        } = {
-          id,
-          payload: defaultAbiCoder.encode(
-            ["bool", "uint256"],
-            [result.is_flagged, result.last_transfer_time]
-          ),
-          timestamp: await baseProvider.getBlock("latest").then((b) => b.timestamp),
-        };
-
-        message.signature = await addressToSigner[query.signer]().signMessage(
-          arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
-        );
-
-        messages.push({
-          token,
-          isFlagged: result.is_flagged,
-          lastTransferTime: result.last_transfer_time,
-          message,
-        });
-      }
+          messages.push({
+            token,
+            isFlagged,
+            lastTransferTime: result.last_transfer_time,
+            message,
+          });
+        })
+      );
 
       return { messages };
     } catch (error) {

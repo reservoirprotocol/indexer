@@ -100,8 +100,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               offer2.length &&
               offer2[0].itemType === consideration[0].itemType &&
               offer2[0].token === consideration[0].token &&
-              offer2[0].identifier === consideration[0].identifier &&
-              offer2[0].amount === consideration[0].amount
+              offer2[0].identifier.toString() === consideration[0].identifier.toString() &&
+              offer2[0].amount.toString() === consideration[0].amount.toString()
             ) {
               taker = parsedLog2.args["offerer"].toLowerCase();
               orderIdsToSkip.add(parsedLog2.args["orderHash"]);

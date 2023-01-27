@@ -541,6 +541,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/events/bids/v3",
+    options: eventsEndpoints.getBidEventsV3Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/events/collections/top-bid/v1",
     options: eventsEndpoints.getCollectionsTopBidV1Options,
   });

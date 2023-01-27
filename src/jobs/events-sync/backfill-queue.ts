@@ -33,8 +33,8 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
       const { fromBlock, toBlock, syncDetails } = job.data;
       let { backfill } = job.data;
 
-      // Check if redis reaching max memory usage
-      const maxMemUsage = 1024 * 1000 * 1000 * config.redisMaxMemoryGB; // Max size in GB
+      // Check if redis is reaching max memory usage
+      const maxMemUsage = 1024 * 1000 * 1000 * config.redisMaxMemoryGB;
       const currentMemUsage = await getMemUsage();
       if (currentMemUsage > maxMemUsage) {
         const delay = _.random(1000 * 60 * 60, 1000 * 60 * 120);

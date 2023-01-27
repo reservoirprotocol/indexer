@@ -38,7 +38,7 @@ export const getSourcesListingsV1Options: RouteOptions = {
       sources: Joi.array().items(
         Joi.object({
           onSaleCount: Joi.number(),
-          sourceDomain: Joi.string().allow(null, ""),
+          sourceDomain: Joi.string().allow("", null),
           floorAskPrice: Joi.number().unsafe().allow(null),
         })
       ),
