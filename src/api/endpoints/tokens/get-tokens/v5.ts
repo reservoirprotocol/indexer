@@ -668,7 +668,13 @@ export const getTokensV5Options: RouteOptions = {
         if (contArr.length === 1 && contArr[0].includes("_")) {
           contArr = splitContinuation(contArr[0]);
         }
-        if (query.collection || query.attributes || query.tokenSetId || query.collectionsSetId) {
+        if (
+          query.collection ||
+          query.attributes ||
+          query.tokenSetId ||
+          query.collectionsSetId ||
+          query.tokens
+        ) {
           switch (query.sortBy) {
             case "rarity": {
               if (contArr.length !== 3) {
@@ -681,7 +687,7 @@ export const getTokensV5Options: RouteOptions = {
               query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(
-                `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/), $/contTokenId/)`
+                `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/, $/contTokenId/)`
               );
               (query as any).contRarity = contArr[0];
               (query as any).contContract = toBuffer(contArr[1]);
@@ -827,7 +833,13 @@ export const getTokensV5Options: RouteOptions = {
         // Only build a "value_tokenid" continuation string when we filter on collection or attributes
         // Otherwise continuation string will just be based on the last tokenId. This is because only use sorting
         // when we have collection/attributes
-        if (query.collection || query.attributes || query.tokenSetId || query.collectionsSetId) {
+        if (
+          query.collection ||
+          query.attributes ||
+          query.tokenSetId ||
+          query.collectionsSetId ||
+          query.tokens
+        ) {
           switch (query.sortBy) {
             case "rarity":
               continuation = rawResult[rawResult.length - 1].rarity_rank || "null";
