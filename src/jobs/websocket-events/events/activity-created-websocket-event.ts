@@ -66,7 +66,7 @@ export class ActivityCreatedWebsocketEvent {
               tokenImage: activity.token_image,
             }
           : undefined,
-        collection: activity.token_id
+        collection: activity.collection_id
           ? {
               collectionId: activity.collection_id,
               collectionName: activity.collection_name,
@@ -74,7 +74,7 @@ export class ActivityCreatedWebsocketEvent {
             }
           : undefined,
         fromAddress: fromBuffer(activity.from_address),
-        toAddress: fromBuffer(activity.to_address),
+        toAddress: activity.to_address ? fromBuffer(activity.to_address) : null,
         price: formatEth(activity.price),
         amount: activity.amount,
         timestamp: activity.eventTimestamp,
