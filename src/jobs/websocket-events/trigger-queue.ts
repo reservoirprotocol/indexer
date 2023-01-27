@@ -35,7 +35,7 @@ if (config.doBackgroundWork) {
         case EventKind.NewTopBid:
           await tracer.trace(
             "triggerEvent",
-            { resource: "NewTopBidWebsocketEvent", tags: data },
+            { resource: "NewTopBidWebsocketEvent", tags: { event: data } },
             () => NewTopBidWebsocketEvent.triggerEvent(data)
           );
           break;
