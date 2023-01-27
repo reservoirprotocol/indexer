@@ -1,6 +1,7 @@
 import axios from "axios";
 
 import { config } from "@/config/index";
+import * as flagStatusUpdate from "@/jobs/flag-status/update";
 
 export const tryGetTokensSuspiciousStatus = async (tokens: string[], timeout = 5000) => {
   const tokenToSuspicious = new Map<string, boolean>();
@@ -27,13 +28,22 @@ export const tryGetTokensSuspiciousStatus = async (tokens: string[], timeout = 5
               },
             }
           )
-          .then((response) => {
+          .then(async (response) => {
             for (const asset of response.data.assets) {
               const contract = asset.asset_contract.address;
               const tokenId = asset.token_id;
 
               tokenToSuspicious.set(`${contract.toLowerCase()}:${tokenId}`, !asset.supports_wyvern);
             }
+
+            // Asynchronously trigger a flag status refresh
+            await flagStatusUpdate.addToQueue(
+              Object.keys(tokenToSuspicious).map((token) => ({
+                contract: token.split(":")[0],
+                tokenId: token.split(":")[1],
+                isFlagged: tokenToSuspicious.get(token)!,
+              }))
+            );
           })
           .catch(() => {
             // Skip errors

@@ -27,7 +27,7 @@ export const getOrderEventsV1Options: RouteOptions = {
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 4,
+      deprecated: true,
     },
   },
   validate: {
@@ -74,7 +74,7 @@ export const getOrderEventsV1Options: RouteOptions = {
             nonce: Joi.string().pattern(regex.number).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.string().allow("", null),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),

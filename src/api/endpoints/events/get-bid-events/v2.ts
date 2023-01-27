@@ -27,10 +27,10 @@ export const getBidEventsV2Options: RouteOptions = {
   },
   description: "Bid status changes",
   notes: "Get updates any time a bid status changes",
-  tags: ["api", "Events"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 4,
+      deprecated: true,
     },
   },
   validate: {
@@ -82,7 +82,7 @@ export const getBidEventsV2Options: RouteOptions = {
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
             kind: Joi.string(),
-            source: Joi.string().allow(null, ""),
+            source: Joi.string().allow("", null),
             criteria: JoiOrderCriteria.allow(null),
           }),
           event: Joi.object({

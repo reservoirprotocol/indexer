@@ -7,7 +7,7 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiPrice, getJoiPriceObject } from "@/common/joi";
+import { JoiPrice, getJoiPriceObject, JoiAttributeKeyValueObject } from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
@@ -163,9 +163,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
               data: Joi.object({
                 collectionId: Joi.string().allow("", null),
                 collectionName: Joi.string().allow("", null),
-                attributes: Joi.array().items(
-                  Joi.object({ key: Joi.string(), value: Joi.string() })
-                ),
+                attributes: Joi.array().items(JoiAttributeKeyValueObject),
                 image: Joi.string().allow("", null),
               }),
             })

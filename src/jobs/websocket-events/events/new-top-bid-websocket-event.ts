@@ -119,8 +119,6 @@ export class NewTopBidWebsocketEvent {
     const payloadsBatches = _.chunk(payloads, Number(config.websocketServerEventMaxBatchSize));
 
     for (const payloadsBatch of payloadsBatches) {
-      const timeStart = performance.now();
-
       const events: BatchEvent[] = payloadsBatch.map((payload) => {
         return {
           channel: "top-bids",
@@ -130,13 +128,6 @@ export class NewTopBidWebsocketEvent {
       });
 
       await server.triggerBatch(events);
-
-      const timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      logger.info(
-        "new-top-bid-websocket-event",
-        `Debug triggerBatch. orderId=${data.orderId}, tokenSetId=${order.token_set_id}, owners=${owners.length}, payloads=${payloads.length}, payloadsBatches=${payloadsBatches.length},timeElapsed=${timeElapsed}`
-      );
     }
   }
 

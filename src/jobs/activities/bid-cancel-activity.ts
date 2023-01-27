@@ -4,7 +4,6 @@ import { Activities } from "@/models/activities";
 import { getActivityHash, getBidInfoByOrderId } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
-import { logger } from "@/common/logger";
 
 export class BidCancelActivity {
   public static async handleEvent(data: BuyOrderCancelledEventData) {
@@ -19,8 +18,6 @@ export class BidCancelActivity {
         data.batchIndex.toString()
       );
     } else {
-      logger.warn("bid-cancel-activity", `No transactionHash for ${JSON.stringify(data)}`);
-
       activityHash = getActivityHash(ActivityType.bid_cancel, data.orderId);
     }
 

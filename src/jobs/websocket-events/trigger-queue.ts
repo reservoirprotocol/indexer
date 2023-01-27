@@ -2,6 +2,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
+import tracer from "@/common/tracer";
 import { config } from "@/config/index";
 import {
   NewTopBidWebsocketEventInfo,
@@ -37,14 +38,18 @@ if (config.doBackgroundWork) {
 
       switch (kind) {
         case EventKind.NewTopBid:
-          await NewTopBidWebsocketEvent.triggerEvent(data);
+          await tracer.trace(
+            "triggerEvent",
+            { resource: "NewTopBidWebsocketEvent", tags: data },
+            () => NewTopBidWebsocketEvent.triggerEvent(data)
+          );
           break;
         case EventKind.ActivityCreated:
           await ActivityCreatedWebsocketEvent.triggerEvent(data);
           break;
       }
     },
-    { connection: redis.duplicate(), concurrency: 5 }
+    { connection: redis.duplicate(), concurrency: 20 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

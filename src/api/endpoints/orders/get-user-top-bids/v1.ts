@@ -15,6 +15,7 @@ import {
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
 import _ from "lodash";
+import { JoiAttributeKeyValueObject } from "@/common/joi";
 
 const version = "v1";
 
@@ -115,9 +116,7 @@ export const getUserTopBidsV1Options: RouteOptions = {
               kind: "attribute",
               data: Joi.object({
                 collectionName: Joi.string().allow("", null),
-                attributes: Joi.array().items(
-                  Joi.object({ key: Joi.string(), value: Joi.string() })
-                ),
+                attributes: Joi.array().items(JoiAttributeKeyValueObject),
                 image: Joi.string().allow("", null),
               }),
             })
@@ -125,13 +124,13 @@ export const getUserTopBidsV1Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
             floorAskPrice: Joi.number().unsafe().allow(null),
             lastSalePrice: Joi.number().unsafe().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
