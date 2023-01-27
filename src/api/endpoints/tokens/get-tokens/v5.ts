@@ -673,7 +673,7 @@ export const getTokensV5Options: RouteOptions = {
             case "rarity": {
               if (contArr.length !== 3) {
                 if (contArr.length === 2) {
-                  contArr = ["null", ...contArr]
+                  contArr = ["null", ...contArr];
                 } else {
                   throw new Error("Invalid continuation string used");
                 }
@@ -692,7 +692,7 @@ export const getTokensV5Options: RouteOptions = {
             case "tokenId": {
               if (contArr.length !== 2) {
                 if (contArr.length === 1) {
-                  contArr = ["null", ...contArr]
+                  contArr = ["null", ...contArr];
                 } else {
                   throw new Error("Invalid continuation string used");
                 }
@@ -710,7 +710,7 @@ export const getTokensV5Options: RouteOptions = {
               {
                 if (contArr.length !== 3) {
                   if (contArr.length === 2) {
-                    contArr = ["null", ...contArr]
+                    contArr = ["null", ...contArr];
                   } else {
                     throw new Error("Invalid continuation string used");
                   }
@@ -743,7 +743,7 @@ export const getTokensV5Options: RouteOptions = {
         } else {
           if (contArr.length !== 2) {
             if (contArr.length === 1) {
-              contArr = ["null", ...contArr]
+              contArr = ["null", ...contArr];
             } else {
               throw new Error("Invalid continuation string used");
             }
