@@ -1,6 +1,6 @@
 import { idb } from "@/common/db";
 import * as Pusher from "pusher";
-import { formatEth } from "@/common/utils";
+import { formatEth, fromBuffer } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
@@ -55,36 +55,51 @@ export class ActivityCreatedWebsocketEvent {
       : undefined;
 
     const payload = {
-      type: activity.type,
-      contract: activity.contract,
-      collectionId: activity.collectionId,
-      tokenId: activity.tokenId,
-      fromAddress: activity.fromAddress,
-      toAddress: activity.toAddress,
-      price: formatEth(activity.price),
-      amount: activity.amount,
-      timestamp: activity.eventTimestamp,
-      txHash: activity.metadata.transactionHash,
-      logIndex: activity.metadata.logIndex,
-      batchIndex: activity.metadata.batchIndex,
-      order: activity.order?.id
-        ? {
-            id: activity.order.id,
-            side: activity.order.side
-              ? activity.order.side === "sell"
-                ? "ask"
-                : "bid"
-              : undefined,
-            source: orderSource
-              ? {
-                  domain: orderSource?.domain,
-                  name: orderSource?.getTitle(),
-                  icon: orderSource?.getIcon(),
-                }
-              : undefined,
-            criteria: activity.order.criteria,
-          }
-        : undefined,
+      activity: {
+        type: activity.type,
+        createdAt: new Date(activity.created_at).toISOString(),
+        contract: fromBuffer(activity.contract),
+        token: activity.token_id
+          ? {
+              tokenId: activity.token_id,
+              tokenName: activity.token_name,
+              tokenImage: activity.token_image,
+            }
+          : undefined,
+        collection: activity.token_id
+          ? {
+              collectionId: activity.collection_id,
+              collectionName: activity.collection_name,
+              collectionImage: activity.collection_metadata?.imageUrl,
+            }
+          : undefined,
+        fromAddress: fromBuffer(activity.from_address),
+        toAddress: fromBuffer(activity.to_address),
+        price: formatEth(activity.price),
+        amount: activity.amount,
+        timestamp: activity.eventTimestamp,
+        txHash: activity.metadata.transactionHash,
+        logIndex: activity.metadata.logIndex,
+        batchIndex: activity.metadata.batchIndex,
+        order: activity.order?.id
+          ? {
+              id: activity.order.id,
+              side: activity.order.side
+                ? activity.order.side === "sell"
+                  ? "ask"
+                  : "bid"
+                : undefined,
+              source: orderSource
+                ? {
+                    domain: orderSource?.domain,
+                    name: orderSource?.getTitle(),
+                    icon: orderSource?.getIcon(),
+                  }
+                : undefined,
+              criteria: activity.order.criteria,
+            }
+          : undefined,
+      },
     };
 
     await server.trigger("activities", "new-activity", JSON.stringify(payload));

@@ -14,6 +14,8 @@ export class NewTopBidWebsocketEvent {
   public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
     const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
+    logger.info("new-top-bid-websocket-event", `Start. orderId=${data.orderId}`);
+
     const order = await idb.oneOrNone(
       `
               SELECT
