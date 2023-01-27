@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
@@ -9,16 +10,17 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import { ensureSellTxSucceeds } from "@/utils/simulation";
 
 const version = "v1";
 
 export const postSimulateTopBidV1Options: RouteOptions = {
   description: "Simulate the top bid of any token",
-  tags: ["api", "Management"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 13,
+      deprecated: true,
     },
   },
   timeout: {
@@ -39,21 +41,29 @@ export const postSimulateTopBidV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
+    if (![1, 137].includes(config.chainId)) {
+      return { message: "Simulation not supported" };
+    }
+
     const payload = request.payload as any;
 
-    const invalidateOrder = async (orderId: string) => {
-      logger.error(`post-simulate-top-bid-${version}-handler`, `StaleOrder: ${orderId}`);
+    const invalidateOrder = async (orderId: string, callTrace?: CallTrace, payload?: any) => {
+      logger.error(
+        `post-simulate-top-bid-${version}-handler`,
+        JSON.stringify({ error: "stale-order", callTrace, payload, orderId })
+      );
 
       // Invalidate the order if the simulation failed
       await inject({
         method: "POST",
-        url: `/admin/invalidate-order`,
+        url: `/admin/revalidate-order`,
         headers: {
           "Content-Type": "application/json",
           "X-Admin-Api-Key": config.adminApiKey,
         },
         payload: {
           id: orderId,
+          status: "inactive",
         },
       });
     };
@@ -123,7 +133,8 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         const topBid = await redb.oneOrNone(
           `
             SELECT
-              orders.id
+              orders.id,
+              orders.currency
             FROM orders
             JOIN contracts
               ON orders.contract = contracts.address
@@ -152,8 +163,10 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         // similar reasoning goes for Seaport orders (partial ones which miss
         // the raw data) and Coinbase NFT orders (no signature).
         if (topBid?.id) {
-          await invalidateOrder(topBid.id);
-          return { message: "Top bid order is not fillable (got invalidated)" };
+          if (!getNetworkSettings().whitelistedCurrencies.has(fromBuffer(topBid.currency))) {
+            await invalidateOrder(topBid.id);
+            return { message: "Top bid order is not fillable (got invalidated)" };
+          }
         }
       }
 
@@ -172,9 +185,13 @@ export const postSimulateTopBidV1Options: RouteOptions = {
       );
 
       const parsedPayload = JSON.parse(response.payload);
+      if (!parsedPayload?.path?.length) {
+        return { message: "Nothing to simulate" };
+      }
+
       const pathItem = parsedPayload.path[0];
 
-      const success = await ensureSellTxSucceeds(
+      const { result: success, callTrace } = await ensureSellTxSucceeds(
         owner,
         {
           kind: contractResult.kind as "erc721" | "erc1155",
@@ -188,8 +205,27 @@ export const postSimulateTopBidV1Options: RouteOptions = {
       if (success) {
         return { message: "Top bid order is fillable" };
       } else {
-        await invalidateOrder(pathItem.orderId);
-        return { message: "Top bid order is not fillable (got invalidated)" };
+        const orderCurrency = await redb
+          .oneOrNone(
+            `
+              SELECT
+                orders.currency
+              FROM orders
+              WHERE orders.id = $/id/
+            `,
+            { id: pathItem.orderId }
+          )
+          .then((r) => fromBuffer(r.currency));
+
+        if (
+          !["sudoswap.xyz", "nftx.io"].includes(pathItem.source) &&
+          !getNetworkSettings().whitelistedCurrencies.has(orderCurrency)
+        ) {
+          await invalidateOrder(pathItem.orderId, callTrace, parsedPayload);
+          return { message: "Top bid order is not fillable (got invalidated)" };
+        } else {
+          return { message: "Pool orders not supported" };
+        }
       }
     } catch (error) {
       logger.error(`post-simulate-top-bid-${version}-handler`, `Handler failure: ${error}`);

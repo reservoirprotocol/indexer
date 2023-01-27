@@ -3,7 +3,7 @@
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { redb } from "@/common/db";
+import { redbAlt } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
   buildContinuation,
@@ -107,13 +107,13 @@ export const getUserTopBidsV2Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
             floorAskPrice: Joi.number().unsafe().allow(null),
             lastSalePrice: Joi.number().unsafe().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
@@ -234,7 +234,7 @@ export const getUserTopBidsV2Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
 
-      const bids = await redb.manyOrNone(baseQuery, query);
+      const bids = await redbAlt.manyOrNone(baseQuery, query);
       let totalTokensWithBids = 0;
 
       const results = bids.map((r) => {

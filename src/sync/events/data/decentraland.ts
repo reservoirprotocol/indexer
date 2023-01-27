@@ -5,7 +5,8 @@ import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
 
 export const sale: EventData = {
-  kind: "decentraland-sale",
+  kind: "decentraland",
+  subKind: "decentraland-sale",
   addresses: { [Decentraland.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x695ec315e8a642a74d450a4505eeea53df699b47a7378c7d752e97d5b16eb9bb",
   numTopics: 4,

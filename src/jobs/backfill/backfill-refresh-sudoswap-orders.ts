@@ -49,7 +49,6 @@ if (config.doBackgroundWork) {
         results.map((r) =>
           limit(async () => {
             const pool = fromBuffer(r.address);
-            logger.info("debug", `Refreshing sudoswap order for pool ${pool}`);
             await save([
               {
                 orderParams: {

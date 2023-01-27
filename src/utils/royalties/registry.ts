@@ -11,7 +11,7 @@ import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
 const DEFAULT_PRICE = "1000000000000000000";
 
 // Assume there are no per-token royalties but everything is per-contract
-export const refreshRegistryRoyalties = async (collection: string): Promise<Royalty[]> => {
+export const refreshRegistryRoyalties = async (collection: string) => {
   // Fetch the collection's contract
   const collectionResult = await idb.oneOrNone(
     `
@@ -23,7 +23,7 @@ export const refreshRegistryRoyalties = async (collection: string): Promise<Roya
     { collection }
   );
   if (!collectionResult?.contract) {
-    return [];
+    return;
   }
 
   // Fetch a random token from the collection
@@ -38,7 +38,7 @@ export const refreshRegistryRoyalties = async (collection: string): Promise<Roya
     { collection }
   );
   if (!tokenResult?.token_id) {
-    return [];
+    return;
   }
 
   const token = fromBuffer(collectionResult.contract);
@@ -48,11 +48,6 @@ export const refreshRegistryRoyalties = async (collection: string): Promise<Roya
     const royaltyEngine = new Contract(
       Sdk.Common.Addresses.RoyaltyEngine[config.chainId],
       new Interface([
-        `
-          function getCachedRoyaltySpec(
-            address token
-          ) external view returns (int16)
-        `,
         `
           function getRoyaltyView(
             address token,
@@ -68,43 +63,12 @@ export const refreshRegistryRoyalties = async (collection: string): Promise<Roya
     );
 
     try {
-      // Fetch the royalty standard
-      const spec = await royaltyEngine.getCachedRoyaltySpec(token).then((value: number) => {
-        // Reference:
-        // https://github.com/manifoldxyz/royalty-registry-solidity/blob/fee5379264bc56e0ad93d0147bbd54086b37b864/contracts/RoyaltyEngineV1.sol#L34-L44
-        switch (value) {
-          case 1:
-            return "manifold";
-          case 2:
-            return "rarible_v1";
-          case 3:
-            return "rarible_v2";
-          case 4:
-            return "foundation";
-          case 5:
-            return "eip2981";
-          case 6:
-            return "superrare";
-          case 7:
-            return "zora";
-          case 8:
-            return "artblocks";
-          case 9:
-            return "knownorigin_v2";
-          default:
-            // By default, assume the token is EIP2981-compatible
-            return "eip2981";
-        }
-      });
-
       // The royalties are returned in full amounts, but we store them as a percentage
       // so here we just use a default price (which is a round number) and deduce then
       // deduce the percentage taken as royalties from that
-      const { recipients, amounts } = await royaltyEngine.getRoyaltyView(
-        token,
-        tokenId,
-        DEFAULT_PRICE
-      );
+      const { recipients, amounts } = await royaltyEngine
+        .getRoyaltyView(token, tokenId, DEFAULT_PRICE)
+        .catch(() => ({ recipients: [], amounts: [] }));
 
       const latestRoyalties: Royalty[] = [];
       for (let i = 0; i < amounts.length; i++) {
@@ -119,13 +83,13 @@ export const refreshRegistryRoyalties = async (collection: string): Promise<Roya
       }
 
       // Save the retrieved royalty spec
-      await updateRoyaltySpec(collection, spec, latestRoyalties);
-
-      return latestRoyalties;
+      await updateRoyaltySpec(
+        collection,
+        "onchain",
+        latestRoyalties.length ? latestRoyalties : undefined
+      );
     } catch {
-      // Skip any errors
+      // Skip errors
     }
   }
-
-  return [];
 };

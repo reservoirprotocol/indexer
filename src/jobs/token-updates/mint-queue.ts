@@ -9,6 +9,7 @@ import { getNetworkSettings } from "@/config/network";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
+import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 
 const QUEUE_NAME = "token-updates-mint-queue";
 
@@ -65,19 +66,12 @@ if (config.doBackgroundWork) {
           // all we needed to do is to associate it with the token
           queries.push({
             query: `
-              WITH "x" AS (
-                UPDATE "tokens" AS "t" SET
-                  "collection_id" = $/collection/,
+              UPDATE "tokens" AS "t"
+              SET "collection_id" = $/collection/,
                   "updated_at" = now()
-                WHERE "t"."contract" = $/contract/
-                  AND "t"."token_id" = $/tokenId/
-                  AND "t"."collection_id" IS NULL
-                RETURNING 1
-              )
-              UPDATE "collections" SET
-                "token_count" = "token_count" + (SELECT COUNT(*) FROM "x"),
-                "updated_at" = now()
-              WHERE "id" = $/collection/
+              WHERE "t"."contract" = $/contract/
+              AND "t"."token_id" = $/tokenId/
+              AND "t"."collection_id" IS NULL;
             `,
             values: {
               contract: toBuffer(contract),
@@ -85,6 +79,9 @@ if (config.doBackgroundWork) {
               collection: collection.id,
             },
           });
+
+          // Schedule a job to re-count tokens in the collection
+          await collectionRecalcTokenCount.addToQueue(collection.id);
 
           // We also need to include the new token to any collection-wide token set
           if (collection.token_set_id) {
@@ -169,7 +166,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 1 : 5 }
+    { connection: redis.duplicate(), concurrency: 5 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

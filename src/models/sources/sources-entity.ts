@@ -6,6 +6,7 @@ export type SourcesEntityParams = {
   address: string;
   metadata: SourcesMetadata;
   optimized: boolean;
+  createdAt: string;
 };
 
 export type SourcesMetadata = {
@@ -16,6 +17,8 @@ export type SourcesMetadata = {
   url?: string;
   tokenUrlMainnet?: string;
   tokenUrlRinkeby?: string;
+  tokenUrlPolygon?: string;
+  tokenUrlGoerli?: string;
 };
 
 export class SourcesEntity {
@@ -26,6 +29,7 @@ export class SourcesEntity {
   address: string;
   metadata: SourcesMetadata;
   optimized: boolean;
+  createdAt: string;
 
   constructor(params: SourcesEntityParams) {
     this.id = params.id;
@@ -35,6 +39,7 @@ export class SourcesEntity {
     this.address = params.address;
     this.metadata = params.metadata;
     this.optimized = params.optimized;
+    this.createdAt = params.createdAt;
   }
 
   getIcon() {

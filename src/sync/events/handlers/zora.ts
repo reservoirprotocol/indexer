@@ -2,14 +2,10 @@ import { Result } from "@ethersproject/abi";
 
 import { bn } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
-import * as es from "@/events-sync/storage";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
-import { OrderInfo, getOrderId } from "@/orderbook/orders/zora";
+import { getOrderId } from "@/orderbook/orders/zora";
 import { getUSDAndNativePrices } from "@/utils/prices";
-
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
 const getOrderParams = (args: Result) => {
   const tokenId = args["tokenId"].toString();
@@ -30,20 +26,11 @@ const getOrderParams = (args: Result) => {
   };
 };
 
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const cancelEventsOnChain: es.cancels.Event[] = [];
-  const fillEventsOnChain: es.fills.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-  const orderInfos: orderUpdatesById.OrderInfo[] = [];
-
-  // Keep track of any on-chain orders
-  const orders: OrderInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       // Zora
       case "zora-ask-filled": {
         const { args } = eventData.abi.parseLog(log);
@@ -55,10 +42,15 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const askCurrency = ask["askCurrency"].toLowerCase();
         const askPrice = ask["askPrice"].toString();
 
+        const orderParams = getOrderParams(args);
+        const orderId = getOrderId(orderParams);
+
         // Handle: attribution
 
         const orderKind = "zora-v3";
-        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind);
+        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind, {
+          orderId,
+        });
         if (data.taker) {
           taker = data.taker;
         }
@@ -75,10 +67,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        const orderParams = getOrderParams(args);
-        const orderId = getOrderId(orderParams);
-
-        fillEventsOnChain.push({
+        onChainData.fillEventsOnChain.push({
           orderKind,
           orderId,
           currency: askCurrency,
@@ -97,7 +86,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: `zora-${tokenContract}-${tokenId}-${baseEventParams.txHash}`,
           orderSide: "sell",
           contract: tokenContract,
@@ -105,6 +94,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: "1",
           price: prices.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker: seller,
+          taker,
         });
 
         break;
@@ -116,16 +107,19 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const maker = (await utils.fetchTransaction(baseEventParams.txHash)).from.toLowerCase();
         const seller = args["ask"]["seller"].toLowerCase();
 
-        orders.push({
-          orderParams: {
-            seller,
-            maker,
-            side: "sell",
-            ...orderParams,
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
+        onChainData.orders.push({
+          kind: "zora-v3",
+          info: {
+            orderParams: {
+              seller,
+              maker,
+              side: "sell",
+              ...orderParams,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            metadata: {},
           },
-          metadata: {},
         });
 
         break;
@@ -136,13 +130,13 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderParams = getOrderParams(args);
         const orderId = getOrderId(orderParams);
 
-        cancelEventsOnChain.push({
+        onChainData.cancelEventsOnChain.push({
           orderKind: "zora-v3",
           orderId,
           baseEventParams,
         });
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `cancelled-${orderId}-${baseEventParams.txHash}`,
           id: orderId,
           trigger: {
@@ -163,16 +157,19 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const orderParams = getOrderParams(args);
         const seller = args["ask"]["seller"].toLowerCase();
 
-        orders.push({
-          orderParams: {
-            seller,
-            maker: seller,
-            side: "sell",
-            ...orderParams,
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
+        onChainData.orders.push({
+          kind: "zora-v3",
+          info: {
+            orderParams: {
+              seller,
+              maker: seller,
+              side: "sell",
+              ...orderParams,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            metadata: {},
           },
-          metadata: {},
         });
 
         break;
@@ -210,7 +207,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEventsOnChain.push({
+        onChainData.fillEventsOnChain.push({
           orderKind,
           currency: auctionCurrency,
           orderSide: "sell",
@@ -228,7 +225,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: `zora-${tokenContract}-${tokenId}-${baseEventParams.txHash}`,
           orderSide: "sell",
           contract: tokenContract,
@@ -236,23 +233,12 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount: "1",
           price: prices.nativePrice,
           timestamp: baseEventParams.timestamp,
+          taker,
+          maker: tokenOwner,
         });
 
         break;
       }
     }
   }
-
-  return {
-    fillEventsOnChain,
-    cancelEventsOnChain,
-
-    fillInfos,
-    orderInfos,
-
-    orders: orders.map((info) => ({
-      kind: "zora-v3",
-      info,
-    })),
-  };
 };

@@ -9,15 +9,30 @@ import { EOL } from "os";
 import AWS from "aws-sdk";
 
 import { AskEventsDataSource } from "@/jobs/data-export/data-sources/ask-events";
+import { BidEventsDataSource } from "@/jobs/data-export/data-sources/bid-events";
 import { TokenFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/token-floor-ask-events";
 import { CollectionFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/collection-floor-ask-events";
-import { AsksDataSource } from "@/jobs/data-export/data-sources/asks";
-import { TokensDataSource } from "@/jobs/data-export/data-sources/tokens";
-import { CollectionsDataSource } from "@/jobs/data-export/data-sources/collections";
-import { SalesDataSourceV1, SalesDataSourceV2 } from "@/jobs/data-export/data-sources/sales";
-import { AttributeKeysDataSource } from "@/jobs/data-export/data-sources/attribute-keys";
-import { AttributesDataSource } from "@/jobs/data-export/data-sources/attributes";
-import { TokenAttributesDataSource } from "@/jobs/data-export/data-sources/token-attributes";
+import { CollectionTopBidEventsDataSource } from "@/jobs/data-export/data-sources/collection_top_bid_events";
+import { AsksDataSource, AsksDataSourceV2 } from "@/jobs/data-export/data-sources/asks";
+import { BidsDataSource } from "@/jobs/data-export/data-sources/bids";
+import { TokensDataSource, TokensDataSourceV2 } from "@/jobs/data-export/data-sources/tokens";
+import {
+  CollectionsDataSource,
+  CollectionsDataSourcev2,
+} from "@/jobs/data-export/data-sources/collections";
+import { SalesDataSourceV2 } from "@/jobs/data-export/data-sources/sales";
+import {
+  AttributeKeysDataSource,
+  AttributeKeysDataSourceV2,
+} from "@/jobs/data-export/data-sources/attribute-keys";
+import {
+  AttributesDataSource,
+  AttributesDataSourceV2,
+} from "@/jobs/data-export/data-sources/attributes";
+import {
+  TokenAttributesDataSource,
+  TokenAttributesDataSourceV2,
+} from "@/jobs/data-export/data-sources/token-attributes";
 
 const QUEUE_NAME = "export-data-queue";
 const QUERY_LIMIT = 1000;
@@ -110,16 +125,24 @@ if (config.doBackgroundWork) {
 
 export enum DataSource {
   askEvents = "ask-events",
+  bidEvents = "bid-events",
   tokenFloorAskEvents = "token-floor-ask-events",
   collectionFloorAskEvents = "collection-floor-ask-events",
+  collectionTopBidEvents = "collection-top-bid-events",
   asks = "asks",
+  asksV2 = "asks-v2",
+  bids = "bids",
   tokens = "tokens",
+  tokensV2 = "tokens-v2",
   collections = "collections",
-  sales = "sales",
+  collectionsV2 = "collections-v2",
   salesV2 = "sales-v2",
   attributeKeys = "attribute-keys",
+  attributeKeysV2 = "attribute-keys-v2",
   attributes = "attributes",
+  attributesV2 = "attributes-v2",
   tokenAttributes = "token-attributes",
+  tokenAttributesV2 = "token-attributes-v2",
 }
 
 export const getLockName = (taskId: number) => {
@@ -160,26 +183,42 @@ const getDataSourceImpl = (source: DataSource) => {
   switch (source) {
     case DataSource.askEvents:
       return new AskEventsDataSource();
+    case DataSource.bidEvents:
+      return new BidEventsDataSource();
     case DataSource.tokenFloorAskEvents:
       return new TokenFloorAskEventsDataSource();
     case DataSource.collectionFloorAskEvents:
       return new CollectionFloorAskEventsDataSource();
+    case DataSource.collectionTopBidEvents:
+      return new CollectionTopBidEventsDataSource();
     case DataSource.asks:
       return new AsksDataSource();
+    case DataSource.asksV2:
+      return new AsksDataSourceV2();
+    case DataSource.bids:
+      return new BidsDataSource();
     case DataSource.tokens:
       return new TokensDataSource();
+    case DataSource.tokensV2:
+      return new TokensDataSourceV2();
     case DataSource.collections:
       return new CollectionsDataSource();
-    case DataSource.sales:
-      return new SalesDataSourceV1();
+    case DataSource.collectionsV2:
+      return new CollectionsDataSourcev2();
     case DataSource.salesV2:
       return new SalesDataSourceV2();
     case DataSource.attributeKeys:
       return new AttributeKeysDataSource();
+    case DataSource.attributeKeysV2:
+      return new AttributeKeysDataSourceV2();
     case DataSource.attributes:
       return new AttributesDataSource();
+    case DataSource.attributesV2:
+      return new AttributesDataSourceV2();
     case DataSource.tokenAttributes:
       return new TokenAttributesDataSource();
+    case DataSource.tokenAttributesV2:
+      return new TokenAttributesDataSourceV2();
   }
 
   throw new Error(`Unsupported data source`);

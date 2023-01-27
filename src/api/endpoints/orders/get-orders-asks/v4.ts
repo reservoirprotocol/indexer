@@ -35,7 +35,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      ids: Joi.alternatives(Joi.string(), Joi.array().items(Joi.string())).description(
+      ids: Joi.alternatives(Joi.array().items(Joi.string()), Joi.string()).description(
         "Order id(s) to search for."
       ),
       token: Joi.string()
@@ -67,8 +67,13 @@ export const getOrdersAsksV4Options: RouteOptions = {
           then: Joi.valid("active", "inactive", "expired", "cancelled", "filled"),
           otherwise: Joi.valid("active"),
         })
+        .when("contracts", {
+          is: Joi.exist(),
+          then: Joi.valid("active", "any"),
+          otherwise: Joi.valid("active"),
+        })
         .description(
-          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
+          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\nany = any status\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
       source: Joi.string()
         .pattern(regex.domain)
@@ -93,11 +98,6 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
-        .when("token", {
-          is: Joi.exist(),
-          then: Joi.valid("price", "createdAt"),
-          otherwise: Joi.valid("createdAt"),
-        })
         .valid("createdAt", "price")
         .default("createdAt")
         .description(
@@ -263,19 +263,12 @@ export const getOrdersAsksV4Options: RouteOptions = {
           query.contracts = [query.contracts];
         }
 
-        for (const contract of query.contracts) {
-          const contractsFilter = `'${_.replace(contract, "0x", "\\x")}'`;
+        (query as any).contractsFilter = query.contracts.map(toBuffer);
+        conditions.push(`orders.contract IN ($/contractsFilter:list/)`);
 
-          if (_.isUndefined((query as any).contractsFilter)) {
-            (query as any).contractsFilter = [];
-          }
-
-          (query as any).contractsFilter.push(contractsFilter);
+        if (query.status === "any") {
+          orderStatusFilter = "";
         }
-
-        (query as any).contractsFilter = _.join((query as any).contractsFilter, ",");
-
-        conditions.push(`orders.contract IN ($/contractsFilter:raw/)`);
       }
 
       if (query.maker) {
@@ -344,7 +337,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
         (query as any).id = id;
 
         if (query.sortBy === "price") {
-          conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          if (query.normalizeRoyalties) {
+            conditions.push(`(orders.normalized_value, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          } else {
+            conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+          }
         } else {
           conditions.push(
             `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAt/), $/id/)`
@@ -360,7 +357,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
 
       // Sorting
       if (query.sortBy === "price") {
-        baseQuery += ` ORDER BY orders.price, orders.id`;
+        if (query.normalizeRoyalties) {
+          baseQuery += ` ORDER BY orders.normalized_value, orders.id`;
+        } else {
+          baseQuery += ` ORDER BY orders.price, orders.id`;
+        }
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
@@ -373,9 +374,16 @@ export const getOrdersAsksV4Options: RouteOptions = {
       let continuation = null;
       if (rawResult.length === query.limit) {
         if (query.sortBy === "price") {
-          continuation = buildContinuation(
-            rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
-          );
+          if (query.normalizeRoyalties) {
+            continuation = buildContinuation(
+              rawResult[rawResult.length - 1].normalized_value ??
+                rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
+            );
+          } else {
+            continuation = buildContinuation(
+              rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
+            );
+          }
         } else {
           continuation = buildContinuation(
             rawResult[rawResult.length - 1].created_at + "_" + rawResult[rawResult.length - 1].id

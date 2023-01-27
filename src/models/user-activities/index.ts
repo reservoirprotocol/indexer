@@ -68,7 +68,8 @@ export class UserActivities {
     limit = 20,
     sortBy = "eventTimestamp",
     includeMetadata = true,
-    includeCriteria = false
+    includeCriteria = false,
+    contracts: string[] = []
   ) {
     const sortByColumn = sortBy == "eventTimestamp" ? "event_timestamp" : "created_at";
     let continuation = "";
@@ -76,6 +77,7 @@ export class UserActivities {
     let metadataQuery = "";
     let collectionFilter = "";
     let communityFilter = "";
+    let contractsFilter = "";
 
     if (!_.isNull(createdBefore)) {
       continuation = `AND ${sortByColumn} < $/createdBefore/`;
@@ -87,10 +89,14 @@ export class UserActivities {
 
     if (!_.isEmpty(collections)) {
       if (Array.isArray(collections)) {
-        collectionFilter = `AND collections.id IN ($/collections:csv/)`;
+        collectionFilter = `AND collection_id IN ($/collections:csv/)`;
       } else {
-        collectionFilter = `AND collections.id = $/collections/`;
+        collectionFilter = `AND collection_id = $/collections/`;
       }
+    }
+
+    if (!_.isEmpty(contracts)) {
+      contractsFilter = `AND contract IN ($/contracts:csv/)`;
     }
 
     if (community) {
@@ -190,16 +196,18 @@ export class UserActivities {
 
       metadataQuery = `
              LEFT JOIN LATERAL (
-                SELECT name AS "token_name", image AS "token_image"
+                SELECT name AS "token_name", image AS "token_image", 
+                last_buy_value as "token_last_buy_value", last_sell_value as "token_last_sell_value",
+                last_buy_timestamp as "token_last_buy_timestamp", last_sell_timestamp as "token_last_sell_timestamp",
+                rarity_score as "token_rarity_score", rarity_rank as "token_rarity_rank", media as "token_media"
                 FROM tokens
                 WHERE user_activities.contract = tokens.contract
                 AND user_activities.token_id = tokens.token_id
              ) t ON TRUE
-             ${!_.isEmpty(collections) || community ? "" : "LEFT"} JOIN LATERAL (
+             ${community ? "" : "LEFT"} JOIN LATERAL (
                 SELECT name AS "collection_name", metadata AS "collection_metadata"
                 FROM collections
                 WHERE user_activities.collection_id = collections.id
-                ${collectionFilter}
                 ${communityFilter}
              ) c ON TRUE
              LEFT JOIN LATERAL (
@@ -221,6 +229,7 @@ export class UserActivities {
       types: _.join(types, "','"),
       collections,
       community,
+      contracts: contracts.map((contract: string) => toBuffer(contract)),
     };
 
     let usersFilter = "";
@@ -240,8 +249,10 @@ export class UserActivities {
              FROM user_activities
              ${metadataQuery}   
              WHERE ${usersFilter}
+             ${contractsFilter}
              ${continuation}
              ${typesFilter}
+             ${collectionFilter}
              ORDER BY ${sortByColumn} DESC NULLS LAST
              LIMIT $/limit/`,
       values

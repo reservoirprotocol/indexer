@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Exports
 
 export * as cryptopunks from "@/orderbook/orders/cryptopunks";
+export * as element from "@/orderbook/orders/element";
 export * as forward from "@/orderbook/orders/forward";
 export * as foundation from "@/orderbook/orders/foundation";
 export * as looksRare from "@/orderbook/orders/looks-rare";
@@ -10,12 +12,13 @@ export * as x2y2 from "@/orderbook/orders/x2y2";
 export * as zeroExV4 from "@/orderbook/orders/zeroex-v4";
 export * as zora from "@/orderbook/orders/zora";
 export * as universe from "@/orderbook/orders/universe";
+export * as infinity from "@/orderbook/orders/infinity";
 export * as blur from "@/orderbook/orders/blur";
 export * as rarible from "@/orderbook/orders/rarible";
+export * as nftx from "@/orderbook/orders/nftx";
 export * as manifold from "@/orderbook/orders/manifold";
 
 // Imports
-
 import * as Sdk from "@reservoir0x/sdk";
 import * as SdkTypesV5 from "@reservoir0x/sdk/dist/router/v5/types";
 import * as SdkTypesV6 from "@reservoir0x/sdk/dist/router/v6/types";
@@ -50,13 +53,15 @@ export type OrderKind =
   | "universe"
   | "nftx"
   | "blur"
+  | "infinity"
   | "forward"
   | "manifold"
   | "tofu-nft"
   | "decentraland"
   | "nft-trader"
   | "okex"
-  | "bend-dao";
+  | "bend-dao"
+  | "superrare";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -72,6 +77,31 @@ mintsSources.set("0xc9154424b823b10579895ccbe442d41b9abd96ed", "rarible.com");
 mintsSources.set("0xb66a603f4cfe17e3d27b87a8bfcad319856518b8", "rarible.com");
 mintsSources.set("0xc143bbfcdbdbed6d454803804752a064a622c1f3", "async.art");
 mintsSources.set("0xfbeef911dc5821886e1dda71586d90ed28174b7d", "knownorigin.io");
+
+export const getOrderSourceByOrderId = async (
+  orderId: string
+): Promise<SourcesEntity | undefined> => {
+  try {
+    const result = await redb.oneOrNone(
+      `
+        SELECT
+          orders.source_id_int
+        FROM orders
+        WHERE orders.id = $/orderId/
+        LIMIT 1
+      `,
+      { orderId }
+    );
+    if (result) {
+      const sources = await Sources.getInstance();
+      return sources.get(result.order_source_id_int);
+    }
+  } catch {
+    // Skip any errors
+  }
+
+  // In case nothing matched, return `undefined` by default
+};
 
 export const getOrderSourceByOrderKind = async (
   orderKind: OrderKind,
@@ -111,6 +141,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("nftx.io");
       case "blur":
         return sources.getOrInsert("blur.io");
+      case "infinity":
+        return sources.getOrInsert("infinity.xyz");
       case "manifold":
         return sources.getOrInsert("manifold.xyz");
       case "tofu-nft":
@@ -123,6 +155,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("okx.com");
       case "bend-dao":
         return sources.getOrInsert("benddao.xyz");
+      case "superrare":
+        return sources.getOrInsert("superrare.com");
 
       case "mint": {
         if (address && mintsSources.has(address)) {
@@ -131,7 +165,7 @@ export const getOrderSourceByOrderKind = async (
       }
     }
   } catch {
-    // Skip on any errors
+    // Skip any errors
   }
 
   // In case nothing matched, return `undefined` by default
@@ -435,6 +469,15 @@ export const generateListingDetailsV6 = (
       };
     }
 
+    case "element-erc721":
+    case "element-erc1155": {
+      return {
+        kind: "element",
+        ...common,
+        order: new Sdk.Element.Order(config.chainId, order.rawData),
+      };
+    }
+
     case "looks-rare": {
       return {
         kind: "looks-rare",
@@ -499,6 +542,15 @@ export const generateListingDetailsV6 = (
       };
     }
 
+    case "infinity": {
+      const sdkOrder = new Sdk.Infinity.Order(config.chainId, order.rawData);
+      return {
+        kind: "infinity",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
     case "rarible": {
       return {
         kind: "rarible",
@@ -512,6 +564,14 @@ export const generateListingDetailsV6 = (
         kind: "sudoswap",
         ...common,
         order: new Sdk.Sudoswap.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "nftx": {
+      return {
+        kind: "nftx",
+        ...common,
+        order: new Sdk.Nftx.Order(config.chainId, order.rawData),
       };
     }
 
@@ -614,6 +674,15 @@ export const generateBidDetailsV6 = async (
       };
     }
 
+    case "element-erc721":
+    case "element-erc1155": {
+      return {
+        kind: "element",
+        ...common,
+        order: new Sdk.Element.Order(config.chainId, order.rawData),
+      };
+    }
+
     case "zeroex-v4-erc721":
     case "zeroex-v4-erc1155": {
       const sdkOrder = new Sdk.ZeroExV4.Order(config.chainId, order.rawData);
@@ -642,10 +711,28 @@ export const generateBidDetailsV6 = async (
       };
     }
 
+    case "nftx": {
+      const sdkOrder = new Sdk.Nftx.Order(config.chainId, order.rawData);
+      return {
+        kind: "nftx",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
     case "universe": {
       const sdkOrder = new Sdk.Universe.Order(config.chainId, order.rawData);
       return {
         kind: "universe",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
+    case "infinity": {
+      const sdkOrder = new Sdk.Infinity.Order(config.chainId, order.rawData);
+      return {
+        kind: "infinity",
         ...common,
         order: sdkOrder,
       };
@@ -660,10 +747,35 @@ export const generateBidDetailsV6 = async (
     }
 
     case "forward": {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const extraArgs: any = {};
+
       const sdkOrder = new Sdk.Forward.Order(config.chainId, order.rawData);
+      if (sdkOrder.params.kind?.includes("token-list")) {
+        // When filling a "token-list" order, we also need to pass in the
+        // full list of tokens the order was made on (in order to be able
+        // to generate a valid merkle proof)
+        const tokens = await redb.manyOrNone(
+          `
+            SELECT
+              token_sets_tokens.token_id
+            FROM token_sets_tokens
+            WHERE token_sets_tokens.token_set_id = (
+              SELECT
+                orders.token_set_id
+              FROM orders
+              WHERE orders.id = $/id/
+            )
+          `,
+          { id: sdkOrder.hash() }
+        );
+        extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
+      }
+
       return {
         kind: "forward",
         ...common,
+        extraArgs,
         order: sdkOrder,
       };
     }

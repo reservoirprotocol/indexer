@@ -7,7 +7,7 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { getJoiPriceObject, JoiAttributeValue, JoiPrice } from "@/common/joi";
 import {
   bn,
   buildContinuation,
@@ -42,16 +42,34 @@ export const getTokensV5Options: RouteOptions = {
         ),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description("Filter to a particular collection set.")
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
       community: Joi.string()
         .lowercase()
-        .description("Filter to a particular community. Example: `artblocks`"),
+        .description("Filter to a particular community. Example: `artblocks`")
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
       contract: Joi.string()
         .lowercase()
         .pattern(regex.address)
         .description(
           "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        ),
+        )
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
+      tokenName: Joi.string().description(
+        "Filter to a particular token by name. Example: `token #1`"
+      ),
       tokens: Joi.alternatives().try(
         Joi.array()
           .max(50)
@@ -70,7 +88,12 @@ export const getTokensV5Options: RouteOptions = {
         .lowercase()
         .description(
           "Filter to a particular token set. `Example: token:0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270:129000685`"
-        ),
+        )
+        .when("flagStatus", {
+          is: Joi.exist(),
+          then: Joi.forbidden(),
+          otherwise: Joi.allow(),
+        }),
       attributes: Joi.object()
         .unknown()
         .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
@@ -85,14 +108,36 @@ export const getTokensV5Options: RouteOptions = {
         .integer()
         .min(1)
         .description("Get tokens with a max rarity rank (inclusive)"),
+      minFloorAskPrice: Joi.number().description(
+        "Get tokens with a min floor ask price (inclusive)"
+      ),
+      maxFloorAskPrice: Joi.number().description(
+        "Get tokens with a max floor ask price (inclusive)"
+      ),
       flagStatus: Joi.number()
         .allow(-1, 0, 1)
-        .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),
+        .description(
+          "Allowed only with collection and tokens filtering!\n-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"
+        ),
       sortBy: Joi.string()
         .valid("floorAskPrice", "tokenId", "rarity")
         .default("floorAskPrice")
         .description("Order the items are returned in the response."),
       sortDirection: Joi.string().lowercase().valid("asc", "desc"),
+      currencies: Joi.alternatives().try(
+        Joi.array()
+          .max(50)
+          .items(Joi.string().lowercase().pattern(regex.address))
+          .description(
+            "Filter to tokens with a listing in a particular currency. `Example: currencies[0]: 0x0000000000000000000000000000000000000000`"
+          ),
+        Joi.string()
+          .lowercase()
+          .pattern(regex.address)
+          .description(
+            "Filter to tokens with a listing in a particular currency. `Example: currencies[0]: 0x0000000000000000000000000000000000000000`"
+          )
+      ),
       limit: Joi.number()
         .integer()
         .min(1)
@@ -123,7 +168,7 @@ export const getTokensV5Options: RouteOptions = {
       .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .with("attributes", "collection")
-      .with("flagStatus", "collection"),
+      .with("tokenName", "collection"),
   },
   response: {
     schema: Joi.object({
@@ -132,21 +177,21 @@ export const getTokensV5Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string().lowercase().pattern(regex.address).required(),
             tokenId: Joi.string().pattern(regex.number).required(),
-            name: Joi.string().allow(null, ""),
-            description: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
-            media: Joi.string().allow(null, ""),
-            kind: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            description: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
+            media: Joi.string().allow("", null),
+            kind: Joi.string().allow("", null),
             isFlagged: Joi.boolean().default(false),
-            lastFlagUpdate: Joi.string().allow(null, ""),
-            lastFlagChange: Joi.string().allow(null, ""),
+            lastFlagUpdate: Joi.string().allow("", null),
+            lastFlagChange: Joi.string().allow("", null),
             rarity: Joi.number().unsafe().allow(null),
             rarityRank: Joi.number().unsafe().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
-              image: Joi.string().allow(null, ""),
-              slug: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
+              image: Joi.string().allow("", null),
+              slug: Joi.string().allow("", null),
             }),
             lastBuy: {
               value: Joi.number().unsafe().allow(null),
@@ -161,11 +206,13 @@ export const getTokensV5Options: RouteOptions = {
               .items(
                 Joi.object({
                   key: Joi.string(),
-                  value: Joi.string(),
+                  kind: Joi.string(),
+                  value: JoiAttributeValue,
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
                   floorAskPrice: Joi.number().unsafe().allow(null),
                   topBidValue: Joi.number().unsafe().allow(null),
+                  createdAt: Joi.string(),
                 })
               )
               .optional(),
@@ -270,7 +317,9 @@ export const getTokensV5Options: RouteOptions = {
             array_agg(
               json_build_object(
                 'key', ta.key,
+                'kind', attributes.kind,
                 'value', ta.value,
+                'createdAt', ta.created_at,
                 'tokenCount', attributes.token_count,
                 'onSaleCount', attributes.on_sale_count,
                 'floorAskPrice', attributes.floor_sell_value::TEXT,
@@ -369,6 +418,12 @@ export const getTokensV5Options: RouteOptions = {
       sourceConditions.push(`o.fillability_status = 'fillable'`);
       sourceConditions.push(`o.approval_status = 'approved'`);
       sourceConditions.push(`o.source_id_int = $/source/`);
+      sourceConditions.push(
+        `o.taker = '\\x0000000000000000000000000000000000000000' OR o.taker IS NULL`
+      );
+      if (query.currencies) {
+        sourceConditions.push(`o.currency IN ($/currenciesFilter:raw/)`);
+      }
 
       if (query.contract) {
         sourceConditions.push(`tst.contract = $/contract/`);
@@ -402,7 +457,9 @@ export const getTokensV5Options: RouteOptions = {
                     query.normalizeRoyalties ? "o.normalized_value" : "o.value"
                   } AS floor_sell_value,
                   o.currency AS floor_sell_currency,
-                  o.currency_normalized_value AS floor_sell_currency_value
+                  ${
+                    query.normalizeRoyalties ? "o.currency_normalized_value" : "o.currency_value"
+                  } AS floor_sell_currency_value
           FROM orders o
           JOIN token_sets_tokens tst ON o.token_set_id = tst.token_set_id
           ${
@@ -526,6 +583,24 @@ export const getTokensV5Options: RouteOptions = {
         conditions.push(`t.rarity_rank <= $/maxRarityRank/`);
       }
 
+      if (query.minFloorAskPrice !== undefined) {
+        (query as any).minFloorSellValue = query.minFloorAskPrice * 10 ** 18;
+        conditions.push(
+          `${query.source ? "s." : "t."}${
+            query.normalizeRoyalties ? "normalized_" : ""
+          }floor_sell_value >= $/minFloorSellValue/`
+        );
+      }
+
+      if (query.maxFloorAskPrice !== undefined) {
+        (query as any).maxFloorSellValue = query.maxFloorAskPrice * 10 ** 18;
+        conditions.push(
+          `${query.source ? "s." : "t."}${
+            query.normalizeRoyalties ? "normalized_" : ""
+          }floor_sell_value <= $/maxFloorSellValue/`
+        );
+      }
+
       if (query.tokens) {
         if (!_.isArray(query.tokens)) {
           query.tokens = [query.tokens];
@@ -547,6 +622,10 @@ export const getTokensV5Options: RouteOptions = {
         conditions.push(`(t.contract, t.token_id) IN ($/tokensFilter:raw/)`);
       }
 
+      if (query.tokenName) {
+        conditions.push(`t.name = $/tokenName/`);
+      }
+
       if (query.tokenSetId) {
         conditions.push(`tst.token_set_id = $/tokenSetId/`);
       }
@@ -555,31 +634,75 @@ export const getTokensV5Options: RouteOptions = {
         conditions.push(`csc.collections_set_id = $/collectionsSetId/`);
       }
 
+      if (query.currencies) {
+        if (!_.isArray(query.currencies)) {
+          query.currencies = [query.currencies];
+        }
+
+        for (const currency of query.currencies) {
+          const currencyFilter = `'${_.replace(currency, "0x", "\\x")}'`;
+
+          if (_.isUndefined((query as any).currenciesFilter)) {
+            (query as any).currenciesFilter = [];
+          }
+
+          (query as any).currenciesFilter.push(currencyFilter);
+        }
+
+        (query as any).currenciesFilter = _.join((query as any).currenciesFilter, ",");
+
+        if (query.source) {
+          // if source is passed in, then we have two floor_sell_currency columns
+          conditions.push(`s.floor_sell_currency IN ($/currenciesFilter:raw/)`);
+        } else {
+          conditions.push(`floor_sell_currency IN ($/currenciesFilter:raw/)`);
+        }
+      }
+
       // Continue with the next page, this depends on the sorting used
       if (query.continuation && !query.token) {
-        const contArr = splitContinuation(
+        let contArr = splitContinuation(
           query.continuation,
           /^((([0-9]+\.?[0-9]*|\.[0-9]+)|null|0x[a-fA-F0-9]+)_\d+|\d+)$/
         );
-
-        if (query.collection || query.attributes || query.tokenSetId) {
-          if (contArr.length !== 2) {
-            throw new Error("Invalid continuation string used");
-          }
-
+        if (contArr.length === 1 && contArr[0].includes("_")) {
+          contArr = splitContinuation(contArr[0]);
+        }
+        if (
+          query.collection ||
+          query.attributes ||
+          query.tokenSetId ||
+          query.collectionsSetId ||
+          query.tokens
+        ) {
           switch (query.sortBy) {
             case "rarity": {
+              if (contArr.length !== 3) {
+                if (contArr.length === 2) {
+                  contArr = ["null", ...contArr];
+                } else {
+                  throw new Error("Invalid continuation string used");
+                }
+              }
               query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(
-                `(t.rarity_rank, t.token_id) ${sign} ($/contRarity/, $/contTokenId/)`
+                `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/, $/contTokenId/)`
               );
               (query as any).contRarity = contArr[0];
-              (query as any).contTokenId = contArr[1];
+              (query as any).contContract = toBuffer(contArr[1]);
+              (query as any).contTokenId = contArr[2];
               break;
             }
 
             case "tokenId": {
+              if (contArr.length !== 2) {
+                if (contArr.length === 1) {
+                  contArr = ["null", ...contArr];
+                } else {
+                  throw new Error("Invalid continuation string used");
+                }
+              }
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(`(t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/)`);
               (query as any).contContract = toBuffer(contArr[0]);
@@ -591,6 +714,13 @@ export const getTokensV5Options: RouteOptions = {
             case "floorAskPrice":
             default:
               {
+                if (contArr.length !== 3) {
+                  if (contArr.length === 2) {
+                    contArr = ["null", ...contArr];
+                  } else {
+                    throw new Error("Invalid continuation string used");
+                  }
+                }
                 const sign = query.sortDirection == "desc" ? "<" : ">";
                 const sortColumn = query.source
                   ? "s.floor_sell_value"
@@ -600,22 +730,34 @@ export const getTokensV5Options: RouteOptions = {
 
                 if (contArr[0] !== "null") {
                   conditions.push(`(
-                    (${sortColumn}, t.token_id) ${sign} ($/floorSellValue/, $/tokenId/)
+                    (${sortColumn}, t.contract, t.token_id) ${sign} ($/floorSellValue/, $/contContract/, $/contTokenId/)
                     OR (${sortColumn} IS null)
                   )`);
                   (query as any).floorSellValue = contArr[0];
-                  (query as any).tokenId = contArr[1];
+                  (query as any).contContract = toBuffer(contArr[1]);
+                  (query as any).contTokenId = contArr[2];
                 } else {
-                  conditions.push(`(${sortColumn} is null AND t.token_id ${sign} $/tokenId/)`);
-                  (query as any).tokenId = contArr[1];
+                  conditions.push(
+                    `(${sortColumn} is null AND (t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/))`
+                  );
+                  (query as any).contContract = toBuffer(contArr[1]);
+                  (query as any).contTokenId = contArr[2];
                 }
               }
               break;
           }
         } else {
+          if (contArr.length !== 2) {
+            if (contArr.length === 1) {
+              contArr = ["null", ...contArr];
+            } else {
+              throw new Error("Invalid continuation string used");
+            }
+          }
           const sign = query.sortDirection == "desc" ? "<" : ">";
-          conditions.push(`t.token_id ${sign} $/tokenId/`);
-          (query as any).tokenId = contArr[1] ? contArr[1] : contArr[0];
+          conditions.push(`(t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/)`);
+          (query as any).contContract = toBuffer(contArr[0]);
+          (query as any).contTokenId = contArr[1];
         }
       }
 
@@ -626,17 +768,28 @@ export const getTokensV5Options: RouteOptions = {
       // Sorting
 
       // Only allow sorting on floorSell when we filter by collection / attributes / tokenSetId / rarity
-      if (query.collection || query.attributes || query.tokenSetId || query.rarity) {
+      if (
+        query.collection ||
+        query.attributes ||
+        query.tokenSetId ||
+        query.rarity ||
+        query.collectionsSetId ||
+        query.tokens
+      ) {
         switch (query.sortBy) {
           case "rarity": {
             baseQuery += ` ORDER BY t.rarity_rank ${
               query.sortDirection || "ASC"
-            } NULLS LAST, t.token_id ${query.sortDirection || "ASC"}`;
+            } NULLS LAST, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
+              query.sortDirection || "ASC"
+            }`;
             break;
           }
 
           case "tokenId": {
-            baseQuery += ` ORDER BY t.contract, t.token_id ${query.sortDirection || "ASC"}`;
+            baseQuery += ` ORDER BY t.contract ${query.sortDirection || "ASC"}, t.token_id ${
+              query.sortDirection || "ASC"
+            }`;
             break;
           }
 
@@ -650,12 +803,16 @@ export const getTokensV5Options: RouteOptions = {
 
             baseQuery += ` ORDER BY ${sortColumn} ${
               query.sortDirection || "ASC"
-            } NULLS LAST, t.token_id`;
+            } NULLS LAST, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
+              query.sortDirection || "ASC"
+            }`;
             break;
           }
         }
       } else if (query.contract) {
-        baseQuery += ` ORDER BY t.token_id ${query.sortDirection || "ASC"}`;
+        baseQuery += ` ORDER BY t.contract ${query.sortDirection || "ASC"}, t.token_id ${
+          query.sortDirection || "ASC"
+        }`;
       }
 
       baseQuery += ` LIMIT $/limit/`;
@@ -676,14 +833,16 @@ export const getTokensV5Options: RouteOptions = {
         // Only build a "value_tokenid" continuation string when we filter on collection or attributes
         // Otherwise continuation string will just be based on the last tokenId. This is because only use sorting
         // when we have collection/attributes
-        if (query.collection || query.attributes || query.tokenSetId) {
+        if (
+          query.collection ||
+          query.attributes ||
+          query.tokenSetId ||
+          query.collectionsSetId ||
+          query.tokens
+        ) {
           switch (query.sortBy) {
             case "rarity":
               continuation = rawResult[rawResult.length - 1].rarity_rank || "null";
-              break;
-
-            case "tokenId":
-              continuation = fromBuffer(rawResult[rawResult.length - 1].contract);
               break;
 
             case "floorAskPrice":
@@ -692,11 +851,11 @@ export const getTokensV5Options: RouteOptions = {
             default:
               break;
           }
-
-          continuation += "_" + rawResult[rawResult.length - 1].token_id;
-        } else {
-          continuation = rawResult[rawResult.length - 1].token_id;
         }
+
+        continuation +=
+          (continuation ? "_" : "") + fromBuffer(rawResult[rawResult.length - 1].contract);
+        continuation += "_" + rawResult[rawResult.length - 1].token_id;
 
         continuation = buildContinuation(continuation);
       }
@@ -811,6 +970,26 @@ export const getTokensV5Options: RouteOptions = {
                   ),
                 },
               };
+            } else if (r.floor_sell_order_kind === "nftx") {
+              // Pool orders
+              dynamicPricing = {
+                kind: "pool",
+                data: {
+                  pool: r.floor_sell_raw_data.pool,
+                  prices: await Promise.all(
+                    (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
+                      getJoiPriceObject(
+                        {
+                          gross: {
+                            amount: bn(price).add(missingRoyalties).toString(),
+                          },
+                        },
+                        floorAskCurrency
+                      )
+                    )
+                  ),
+                },
+              };
             }
           }
         }
@@ -848,6 +1027,7 @@ export const getTokensV5Options: RouteOptions = {
               ? r.attributes
                 ? _.map(r.attributes, (attribute) => ({
                     key: attribute.key,
+                    kind: attribute.kind,
                     value: attribute.value,
                     tokenCount: attribute.tokenCount,
                     onSaleCount: attribute.onSaleCount,
@@ -857,6 +1037,7 @@ export const getTokensV5Options: RouteOptions = {
                     topBidValue: attribute.topBidValue
                       ? formatEth(attribute.topBidValue)
                       : attribute.topBidValue,
+                    createdAt: new Date(attribute.createdAt).toISOString(),
                   }))
                 : []
               : undefined,

@@ -4,8 +4,7 @@ import { randomUUID } from "crypto";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { EventsInfo, processEvents } from "@/events-sync/handlers";
-import _ from "lodash";
+import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 
 const QUEUE_NAME = "events-sync-process-realtime";
 
@@ -22,38 +21,46 @@ export const queue = new Queue(QUEUE_NAME, {
     timeout: 120000,
   },
 });
-new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
+new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate(), maxStalledCount: 10 });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
-      const info = job.data as EventsInfo;
+      const { batch } = job.data as { batch: EventsBatch };
 
       try {
-        await processEvents(info);
+        if (batch) {
+          await processEventsBatch(batch);
+        } else {
+          await processEventsBatch({
+            id: randomUUID(),
+            events: [
+              {
+                kind: job.data.kind,
+                data: job.data.events,
+              },
+            ],
+            backfill: job.data.backfill,
+          });
+        }
       } catch (error) {
         logger.error(QUEUE_NAME, `Events processing failed: ${error}`);
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 3 : 20 }
+    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 3 : 40 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 }
 
-export const addToQueue = async (infos: EventsInfo[]) => {
-  const jobs: { name: string; data: EventsInfo }[] = [];
-  infos.map((info) => {
-    if (!_.isEmpty(info.events)) {
-      jobs.push({ name: randomUUID(), data: info });
-    }
-  });
-
-  if (!_.isEmpty(jobs)) {
-    await queue.addBulk(jobs);
-  }
-};
+export const addToQueue = async (batches: EventsBatch[]) =>
+  queue.addBulk(
+    batches.map((batch) => ({
+      name: batch.id,
+      data: { batch },
+    }))
+  );

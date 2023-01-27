@@ -40,7 +40,7 @@ export const getUserTokensV6Options: RouteOptions = {
     params: Joi.object({
       user: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .pattern(regex.address)
         .required()
         .description(
           "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
@@ -60,7 +60,7 @@ export const getUserTokensV6Options: RouteOptions = {
         ),
       contract: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .pattern(regex.address)
         .description(
           "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
@@ -92,7 +92,7 @@ export const getUserTokensV6Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(100)
+        .max(200)
         .default(20)
         .description("Amount of items returned in response."),
       includeTopBid: Joi.boolean()
@@ -110,11 +110,23 @@ export const getUserTokensV6Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
+            kind: Joi.string(),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
+            lastBuy: {
+              value: Joi.number().unsafe().allow(null),
+              timestamp: Joi.number().unsafe().allow(null),
+            },
+            lastSell: {
+              value: Joi.number().unsafe().allow(null),
+              timestamp: Joi.number().unsafe().allow(null),
+            },
+            rarityScore: Joi.number().allow(null),
+            rarityRank: Joi.number().allow(null),
+            media: Joi.string().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
@@ -152,24 +164,36 @@ export const getUserTokensV6Options: RouteOptions = {
     // Filters
     (params as any).user = toBuffer(params.user);
 
-    const collectionFilters: string[] = [];
+    const tokensCollectionFilters: string[] = [];
+    const nftBalanceCollectionFilters: string[] = [];
 
     const addCollectionToFilter = (id: string) => {
-      const i = collectionFilters.length;
+      const i = nftBalanceCollectionFilters.length;
+
       if (id.match(/^0x[a-f0-9]{40}:\d+:\d+$/g)) {
+        // Range based collection
         const [contract, startTokenId, endTokenId] = id.split(":");
 
         (query as any)[`contract${i}`] = toBuffer(contract);
         (query as any)[`startTokenId${i}`] = startTokenId;
         (query as any)[`endTokenId${i}`] = endTokenId;
-        collectionFilters.push(`
+
+        nftBalanceCollectionFilters.push(`
           (nft_balances.contract = $/contract${i}/
           AND nft_balances.token_id >= $/startTokenId${i}/
           AND nft_balances.token_id <= $/endTokenId${i}/)
         `);
+      } else if (id.match(/^0x[a-f0-9]{40}:[a-zA-Z]+-.+$/g)) {
+        (query as any)[`collection${i}`] = id;
+
+        // List based collections
+        tokensCollectionFilters.push(`
+          collection_id = $/collection${i}/
+        `);
       } else {
+        // Contract side collection
         (query as any)[`contract${i}`] = toBuffer(id);
-        collectionFilters.push(`(nft_balances.contract = $/contract${i}/)`);
+        nftBalanceCollectionFilters.push(`(nft_balances.contract = $/contract${i}/)`);
       }
     };
 
@@ -177,14 +201,17 @@ export const getUserTokensV6Options: RouteOptions = {
       await redb
         .manyOrNone(
           `
-          SELECT collections.id FROM collections
+          SELECT collections.contract
+          FROM collections
           WHERE collections.community = $/community/
         `,
           { community: query.community }
         )
-        .then((result) => result.forEach(({ id }) => addCollectionToFilter(id)));
+        .then((result) =>
+          result.forEach(({ contract }) => addCollectionToFilter(fromBuffer(contract)))
+        );
 
-      if (!collectionFilters.length) {
+      if (!nftBalanceCollectionFilters.length) {
         return { tokens: [] };
       }
     }
@@ -194,13 +221,18 @@ export const getUserTokensV6Options: RouteOptions = {
         result.forEach(addCollectionToFilter)
       );
 
-      if (!collectionFilters.length) {
+      if (!nftBalanceCollectionFilters.length) {
         return { tokens: [] };
       }
     }
 
     if (query.collection) {
       addCollectionToFilter(query.collection);
+    }
+
+    if (query.contract) {
+      (query as any)[`contract`] = toBuffer(query.contract);
+      nftBalanceCollectionFilters.push(`(nft_balances.contract = $/contract/)`);
     }
 
     const tokensFilter: string[] = [];
@@ -252,7 +284,14 @@ export const getUserTokensV6Options: RouteOptions = {
           t.token_id,
           t.name,
           t.image,
+          t.media,
+          t.rarity_rank,
           t.collection_id,
+          t.rarity_score,
+          t.last_buy_value,
+          t.last_buy_timestamp,
+          t.last_sell_value,
+          t.last_sell_timestamp,
           null AS top_bid_id,
           null AS top_bid_price,
           null AS top_bid_value,
@@ -263,6 +302,9 @@ export const getUserTokensV6Options: RouteOptions = {
         FROM tokens t
         WHERE b.token_id = t.token_id
         AND b.contract = t.contract
+        AND ${
+          tokensCollectionFilters.length ? "(" + tokensCollectionFilters.join(" OR ") + ")" : "TRUE"
+        }
       ) t ON TRUE
     `;
 
@@ -273,11 +315,23 @@ export const getUserTokensV6Options: RouteOptions = {
             t.token_id,
             t.name,
             t.image,
+            t.media,
+            t.rarity_rank,
             t.collection_id,
+            t.rarity_score,
+            t.last_sell_value,
+            t.last_buy_value,
+            t.last_sell_timestamp,
+            t.last_buy_timestamp,
             ${selectFloorData}
           FROM tokens t
           WHERE b.token_id = t.token_id
           AND b.contract = t.contract
+          AND ${
+            tokensCollectionFilters.length
+              ? "(" + tokensCollectionFilters.join(" OR ") + ")"
+              : "TRUE"
+          }
         ) t ON TRUE
         LEFT JOIN LATERAL (
           SELECT 
@@ -310,10 +364,11 @@ export const getUserTokensV6Options: RouteOptions = {
     try {
       let baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at,
-               t.name, t.image, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
+               t.name, t.image, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
+               t.rarity_score, t.last_sell_value, t.last_buy_value, t.last_sell_timestamp, t.last_buy_timestamp,
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
-               c.name as collection_name, c.metadata, ${
+               c.name as collection_name, con.kind, c.metadata, ${
                  query.useNonFlaggedFloorAsk
                    ? "c.floor_sell_value"
                    : "c.non_flagged_floor_sell_value"
@@ -328,7 +383,11 @@ export const getUserTokensV6Options: RouteOptions = {
             SELECT amount AS token_count, token_id, contract, acquired_at
             FROM nft_balances
             WHERE owner = $/user/
-              AND ${collectionFilters.length ? "(" + collectionFilters.join(" OR ") + ")" : "TRUE"}
+              AND ${
+                nftBalanceCollectionFilters.length
+                  ? "(" + nftBalanceCollectionFilters.join(" OR ") + ")"
+                  : "TRUE"
+              }
               AND ${
                 tokensFilter.length
                   ? "(nft_balances.contract, nft_balances.token_id) IN ($/tokensFilter:raw/)"
@@ -338,6 +397,7 @@ export const getUserTokensV6Options: RouteOptions = {
           ) AS b
           ${tokensJoin}
           JOIN collections c ON c.id = t.collection_id
+          JOIN contracts con ON b.contract = con.address
       `;
 
       const conditions: string[] = [];
@@ -345,16 +405,16 @@ export const getUserTokensV6Options: RouteOptions = {
       if (query.continuation) {
         const [acquiredAt, collectionId, tokenId] = splitContinuation(
           query.continuation,
-          /^[0-9]+_[A-Za-z0-9]+_[0-9]+$/
+          /^[0-9]+_[A-Za-z0-9:-]+_[0-9]+$/
         );
 
         (query as any).acquiredAt = acquiredAt;
         (query as any).collectionId = collectionId;
         (query as any).tokenId = tokenId;
         query.sortDirection = query.sortDirection || "desc";
-        const sign = query.sortDirection == "desc" ? "<=" : ">=";
+        const sign = query.sortDirection == "desc" ? "<" : ">";
         conditions.push(
-          `acquired_at ${sign} to_timestamp($/acquiredAt/) AND ((collection_id = $/collectionId/ AND b.token_id > $/tokenId/) OR (collection_id != $/collectionId/))`
+          `(acquired_at, b.token_id) ${sign} (to_timestamp($/acquiredAt/), $/tokenId/)`
         );
       }
 
@@ -363,9 +423,9 @@ export const getUserTokensV6Options: RouteOptions = {
       }
 
       baseQuery += `
-      ORDER BY
-        acquired_at ${query.sortDirection}, t.token_id ASC
-      LIMIT $/limit/
+        ORDER BY
+          acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
+        LIMIT $/limit/
       `;
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
@@ -402,8 +462,20 @@ export const getUserTokensV6Options: RouteOptions = {
           token: {
             contract: contract,
             tokenId: tokenId,
+            kind: r.kind,
             name: r.name,
             image: r.image,
+            lastBuy: {
+              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
+              timestamp: r.last_buy_timestamp,
+            },
+            lastSell: {
+              value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
+              timestamp: r.last_sell_timestamp,
+            },
+            rarityScore: r.rarity_score,
+            rarityRank: r.rarity_rank,
+            media: r.media,
             collection: {
               id: r.collection_id,
               name: r.collection_name,

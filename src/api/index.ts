@@ -149,6 +149,11 @@ export const start = async (): Promise<void> => {
   ]);
 
   server.ext("onPreAuth", async (request, reply) => {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    if ((request as any).isInjected || request.route.path === "/livez") {
+      return reply.continue;
+    }
+
     const key = request.headers["x-api-key"];
     const apiKey = await ApiKeyManager.getApiKey(key);
     const tier = apiKey?.tier || 0;
@@ -223,7 +228,7 @@ export const start = async (): Promise<void> => {
             .code(429)
             .takeover();
         } else {
-          logger.error("rate-limiter", `Rate limit error ${error}`);
+          logger.warn("rate-limiter", `Rate limit error ${error}`);
         }
       }
     }
@@ -232,7 +237,7 @@ export const start = async (): Promise<void> => {
   });
 
   server.ext("onPreHandler", (request, h) => {
-    ApiKeyManager.logUsage(request);
+    ApiKeyManager.logRequest(request);
     return h.continue;
   });
 
@@ -249,6 +254,10 @@ export const start = async (): Promise<void> => {
         };
 
         return reply.response(timeoutResponse).type("application/json").code(504);
+      }
+
+      if (response["output"]["statusCode"] == 500) {
+        ApiKeyManager.logUnexpectedErrorResponse(request, response);
       }
     }
 

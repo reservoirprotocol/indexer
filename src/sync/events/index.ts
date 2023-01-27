@@ -5,7 +5,8 @@ import pLimit from "p-limit";
 import { logger } from "@/common/logger";
 import { getNetworkSettings } from "@/config/network";
 import { baseProvider } from "@/common/provider";
-import { EventDataKind, getEventData } from "@/events-sync/data";
+import { EventKind, EventSubKind, getEventData } from "@/events-sync/data";
+import { EventsBatch, EventsByKind } from "@/events-sync/handlers";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
 import { parseEvent } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
@@ -17,6 +18,214 @@ import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 
+export const extractEventsBatches = async (
+  enhancedEvents: EnhancedEvent[],
+  backfill: boolean
+): Promise<EventsBatch[]> => {
+  const limit = pLimit(50);
+
+  // First, associate each event to its corresponding tx
+  const txHashToEvents = new Map<string, EnhancedEvent[]>();
+  await Promise.all(
+    enhancedEvents.map((event) =>
+      limit(() => {
+        const txHash = event.baseEventParams.txHash;
+        if (!txHashToEvents.has(txHash)) {
+          txHashToEvents.set(txHash, []);
+        }
+        txHashToEvents.get(txHash)!.push(event);
+      })
+    )
+  );
+
+  // Then, for each tx split the events by their kind
+  const txHashToEventsBatch = new Map<string, EventsBatch>();
+  await Promise.all(
+    [...txHashToEvents.entries()].map(([txHash, events]) =>
+      limit(() => {
+        const kindToEvents = new Map<EventKind, EnhancedEvent[]>();
+        for (const event of events) {
+          if (!kindToEvents.has(event.kind)) {
+            kindToEvents.set(event.kind, []);
+          }
+          kindToEvents.get(event.kind)!.push(event);
+        }
+
+        const eventsByKind: EventsByKind[] = [
+          {
+            kind: "erc20",
+            data: kindToEvents.get("erc20") ?? [],
+          },
+          {
+            kind: "erc721",
+            data: kindToEvents.get("erc721") ?? [],
+          },
+          {
+            kind: "erc1155",
+            data: kindToEvents.get("erc1155") ?? [],
+          },
+          {
+            kind: "blur",
+            data: kindToEvents.get("blur") ?? [],
+          },
+          {
+            kind: "cryptopunks",
+            data: kindToEvents.get("cryptopunks") ?? [],
+          },
+          {
+            kind: "decentraland",
+            data: kindToEvents.get("decentraland") ?? [],
+          },
+          {
+            kind: "element",
+            data: kindToEvents.get("element") ?? [],
+          },
+          {
+            kind: "forward",
+            data: kindToEvents.has("forward")
+              ? [
+                  ...kindToEvents.get("forward")!,
+                  // To properly validate bids, we need some additional events
+                  ...events.filter((e) => e.subKind === "erc20-transfer"),
+                ]
+              : [],
+          },
+          {
+            kind: "foundation",
+            data: kindToEvents.get("foundation") ?? [],
+          },
+          {
+            kind: "looks-rare",
+            data: kindToEvents.has("looks-rare")
+              ? [
+                  ...kindToEvents.get("looks-rare")!,
+                  // To properly validate bids, we need some additional events
+                  ...events.filter((e) => e.subKind === "erc20-transfer"),
+                ]
+              : [],
+          },
+          {
+            kind: "nftx",
+            data: kindToEvents.get("nftx") ?? [],
+          },
+          {
+            kind: "nouns",
+            data: kindToEvents.get("nouns") ?? [],
+          },
+          {
+            kind: "quixotic",
+            data: kindToEvents.get("quixotic") ?? [],
+          },
+          {
+            kind: "seaport",
+            data: kindToEvents.has("seaport")
+              ? [
+                  ...kindToEvents.get("seaport")!,
+                  // To properly validate bids, we need some additional events
+                  ...events.filter((e) => e.subKind === "erc20-transfer"),
+                ]
+              : [],
+          },
+          {
+            kind: "sudoswap",
+            data: kindToEvents.get("sudoswap") ?? [],
+          },
+          {
+            kind: "wyvern",
+            data: kindToEvents.has("wyvern")
+              ? [
+                  ...kindToEvents.get("wyvern")!,
+                  // To properly validate bids, we need some additional events
+                  ...events.filter((e) => e.subKind === "erc20-transfer"),
+                ]
+              : [],
+          },
+          {
+            kind: "x2y2",
+            data: kindToEvents.has("x2y2")
+              ? [
+                  ...kindToEvents.get("x2y2")!,
+                  // To properly validate bids, we need some additional events
+                  ...events.filter((e) => e.subKind === "erc20-transfer"),
+                ]
+              : [],
+          },
+          {
+            kind: "zeroex-v4",
+            data: kindToEvents.has("zeroex-v4")
+              ? [
+                  ...kindToEvents.get("zeroex-v4")!,
+                  // To properly validate bids, we need some additional events
+                  ...events.filter((e) => e.subKind === "erc20-transfer"),
+                ]
+              : [],
+          },
+          {
+            kind: "zora",
+            data: kindToEvents.get("zora") ?? [],
+          },
+          {
+            kind: "universe",
+            data: kindToEvents.get("universe") ?? [],
+          },
+          {
+            kind: "infinity",
+            data: kindToEvents.has("infinity")
+              ? [
+                  ...kindToEvents.get("infinity")!,
+                  // To properly validate bids, we need some additional events
+                  ...events.filter((e) => e.subKind === "erc20-transfer"),
+                ]
+              : [],
+          },
+          {
+            kind: "rarible",
+            data: kindToEvents.has("rarible")
+              ? [
+                  ...kindToEvents.get("rarible")!,
+                  // To properly validate bids, we need some additional events
+                  ...events.filter((e) => e.subKind === "erc20-transfer"),
+                ]
+              : [],
+          },
+          {
+            kind: "manifold",
+            data: kindToEvents.get("manifold") ?? [],
+          },
+          {
+            kind: "tofu",
+            data: kindToEvents.get("tofu") ?? [],
+          },
+          {
+            kind: "bend-dao",
+            data: kindToEvents.get("bend-dao") ?? [],
+          },
+          {
+            kind: "nft-trader",
+            data: kindToEvents.get("nft-trader") ?? [],
+          },
+          {
+            kind: "okex",
+            data: kindToEvents.get("okex") ?? [],
+          },
+          {
+            kind: "superrare",
+            data: kindToEvents.get("superrare") ?? [],
+          },
+        ];
+
+        txHashToEventsBatch.set(txHash, {
+          id: txHash,
+          events: eventsByKind,
+          backfill,
+        });
+      })
+    )
+  );
+
+  return [...txHashToEventsBatch.values()];
+};
+
 export const syncEvents = async (
   fromBlock: number,
   toBlock: number,
@@ -26,7 +235,7 @@ export const syncEvents = async (
     syncDetails:
       | {
           method: "events";
-          events: EventDataKind[];
+          events: EventSubKind[];
         }
       | {
           method: "address";
@@ -39,12 +248,12 @@ export const syncEvents = async (
         };
   }
 ) => {
-  const backfill = Boolean(options?.backfill);
-
   // Cache the blocks for efficiency
   const blocksCache = new Map<number, blocksModel.Block>();
   // Keep track of all handled `${block}-${blockHash}` pairs
   const blocksSet = new Set<string>();
+
+  const backfill = Boolean(options?.backfill);
 
   // If the block range we're trying to sync is small enough, then fetch everything
   // related to every of those blocks a priori for efficiency. Otherwise, it can be
@@ -93,10 +302,6 @@ export const syncEvents = async (
       try {
         const baseEventParams = await parseEvent(log, blocksCache);
 
-        if (!backfill) {
-          logger.info("events-sync", `Processing event: ${JSON.stringify(baseEventParams)}`);
-        }
-
         // Cache the block data
         if (!blocksCache.has(baseEventParams.block)) {
           // It's very important from a performance perspective to have
@@ -128,6 +333,7 @@ export const syncEvents = async (
         if (eventData) {
           enhancedEvents.push({
             kind: eventData.kind,
+            subKind: eventData.subKind,
             baseEventParams,
             log,
           });
@@ -139,174 +345,9 @@ export const syncEvents = async (
     }
 
     // Process the retrieved events asynchronously
+    const eventsBatches = await extractEventsBatches(enhancedEvents, backfill);
     const eventsSyncProcess = backfill ? eventsSyncBackfillProcess : eventsSyncRealtimeProcess;
-    await eventsSyncProcess.addToQueue([
-      {
-        kind: "erc20",
-        events: enhancedEvents.filter(
-          ({ kind }) => kind.startsWith("erc20") || kind.startsWith("weth")
-        ),
-        backfill,
-      },
-      {
-        kind: "erc721",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("erc721")),
-        backfill,
-      },
-      {
-        kind: "erc1155",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("erc1155")),
-        backfill,
-      },
-      {
-        kind: "blur",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("blur")),
-        backfill,
-      },
-      {
-        kind: "cryptopunks",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("cryptopunks")),
-        backfill,
-      },
-      {
-        kind: "decentraland",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("decentraland")),
-        backfill,
-      },
-      {
-        kind: "element",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("element")),
-        backfill,
-      },
-      {
-        kind: "forward",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("forward") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-      },
-      {
-        kind: "foundation",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("foundation")),
-        backfill,
-      },
-      {
-        kind: "looks-rare",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("looks-rare") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-        backfill,
-      },
-      {
-        kind: "nftx",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("nftx")),
-        backfill,
-      },
-      {
-        kind: "nouns",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("nouns")),
-        backfill,
-      },
-      {
-        kind: "quixotic",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("quixotic")),
-        backfill,
-      },
-      {
-        kind: "seaport",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("seaport") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-        backfill,
-      },
-      {
-        kind: "sudoswap",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("sudoswap")),
-        backfill,
-      },
-      {
-        kind: "wyvern",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("wyvern") ||
-            // To properly handle Wyvern sales, we need some additional events
-            kind === "erc721-transfer" ||
-            kind === "erc1155-transfer-single" ||
-            kind === "erc20-transfer"
-        ),
-        backfill,
-      },
-      {
-        kind: "x2y2",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("x2y2") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-        backfill,
-      },
-      {
-        kind: "zeroex-v4",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("zeroex-v4") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-        backfill,
-      },
-      {
-        kind: "zora",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("zora")),
-        backfill,
-      },
-      {
-        kind: "universe",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("universe")),
-        backfill,
-      },
-      {
-        kind: "rarible",
-        events: enhancedEvents.filter(
-          ({ kind }) =>
-            kind.startsWith("rarible") ||
-            // To properly validate bids, we need some additional events
-            kind === "erc20-transfer"
-        ),
-      },
-      {
-        kind: "manifold",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("manifold")),
-        backfill,
-      },
-      {
-        kind: "tofu",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("tofu")),
-      },
-      {
-        kind: "bend-dao",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("bend-dao")),
-      },
-      {
-        kind: "nft-trader",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("nft-trader")),
-        backfill,
-      },
-      {
-        kind: "okex",
-        events: enhancedEvents.filter(({ kind }) => kind.startsWith("okex")),
-        backfill,
-      },
-    ]);
+    await eventsSyncProcess.addToQueue(eventsBatches);
 
     // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
     const ns = getNetworkSettings();

@@ -13,6 +13,7 @@ import { redis, redlock } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as utils from "@/events-sync/utils";
+import { getRouters } from "@/utils/routers";
 
 const QUEUE_NAME = "backfill-blur-sales";
 
@@ -109,7 +110,7 @@ if (config.doBackgroundWork) {
         const executeCallTrace = executeCallTraceCall || executeCallTraceDelegate;
 
         realOrderSide = "sell";
-        const routers = Sdk.Common.Addresses.Routers[config.chainId];
+        const routers = await getRouters();
 
         if (executeCallTrace) {
           // TODO: Update the SDK Blur contract ABI
@@ -382,7 +383,7 @@ if (config.doBackgroundWork) {
           realMaker = isSellOrder ? traderOfSell : traderOfBuy;
           realTaker = isSellOrder ? traderOfBuy : traderOfSell;
 
-          if (realMaker in routers) {
+          if (routers.get(realMaker)) {
             realMaker = traderOfSell;
           }
         }

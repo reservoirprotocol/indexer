@@ -33,6 +33,11 @@ export const addEventsPartial = async (events: Event[]) => {
       currency_price: event.currencyPrice || null,
       usd_price: event.usdPrice || null,
       is_primary: event.isPrimary || null,
+      royalty_fee_bps: event.royaltyFeeBps || undefined,
+      marketplace_fee_bps: event.marketplaceFeeBps || undefined,
+      royalty_fee_breakdown: event.royaltyFeeBreakdown || undefined,
+      marketplace_fee_breakdown: event.marketplaceFeeBreakdown || undefined,
+      paid_full_royalty: event.paidFullRoyalty || undefined,
     });
   }
 
@@ -64,6 +69,11 @@ export const addEventsPartial = async (events: Event[]) => {
         "currency_price",
         "usd_price",
         "is_primary",
+        "royalty_fee_bps",
+        "marketplace_fee_bps",
+        "paid_full_royalty",
+        { name: "royalty_fee_breakdown", mod: ":json" },
+        { name: "marketplace_fee_breakdown", mod: ":json" },
       ],
       { table: "fill_events_2" }
     );
@@ -96,7 +106,12 @@ export const addEventsPartial = async (events: Event[]) => {
           currency,
           currency_price,
           usd_price,
-          is_primary
+          is_primary,
+          royalty_fee_bps,
+          marketplace_fee_bps,
+          paid_full_royalty,
+          royalty_fee_breakdown,
+          marketplace_fee_breakdown
         ) VALUES ${pgp.helpers.values(fillValues, columns)}
         ON CONFLICT DO NOTHING
         RETURNING

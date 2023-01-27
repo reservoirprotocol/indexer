@@ -152,10 +152,10 @@ if (config.doBackgroundWork) {
         // Refresh all royalty specs and the default royalties
         await royalties.refreshAllRoyaltySpecs(
           collection.id,
-          (collection.royalties ?? []) as royalties.Royalty[],
-          (collection.openseaRoyalties ?? []) as royalties.Royalty[]
+          collection.royalties as royalties.Royalty[] | undefined,
+          collection.openseaRoyalties as royalties.Royalty[] | undefined
         );
-        await royalties.refreshDefaulRoyalties(collection.id);
+        await royalties.refreshDefaultRoyalties(collection.id);
       } catch (error) {
         logger.error(
           QUEUE_NAME,
@@ -193,7 +193,7 @@ export const addToQueue = async (infos: FetchCollectionMetadataInfo[], jobId = "
         data: info,
         opts: {
           // Deterministic job id so that we don't perform duplicated work
-          jobId: jobId,
+          jobId,
         },
       };
     })

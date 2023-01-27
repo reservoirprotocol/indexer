@@ -8,9 +8,9 @@ export const config = {
   arweaveRelayerKey: process.env.ARWEAVE_RELAYER_KEY
     ? String(process.env.ARWEAVE_RELAYER_KEY)
     : undefined,
-  oraclePrivateKey: process.env.ORACLE_PRIVATE_KEY
-    ? String(process.env.ORACLE_PRIVATE_KEY)
-    : undefined,
+  oraclePrivateKey: String(process.env.ORACLE_PRIVATE_KEY),
+  oracleAwsKmsKeyId: String(process.env.ORACLE_AWS_KMS_KEY_ID),
+  oracleAwsKmsKeyRegion: String(process.env.ORACLE_AWS_KMS_KEY_REGION),
 
   baseNetworkHttpUrl: String(process.env.BASE_NETWORK_HTTP_URL),
   baseNetworkWsUrl: String(process.env.BASE_NETWORK_WS_URL),
@@ -41,6 +41,7 @@ export const config = {
   ),
   redisUrl: String(process.env.REDIS_URL),
   rateLimitRedisUrl: String(process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL),
+  redshiftUrl: String(process.env.REDSHIFT_URL),
 
   master: Boolean(Number(process.env.MASTER)),
   catchup: Boolean(Number(process.env.CATCHUP)),
@@ -75,11 +76,20 @@ export const config = {
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
+  infinityApiKey: String(process.env.INFINITY_API_KEY),
 
   railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 
   cipherSecret: String(process.env.CIPHER_SECRET),
 
   slackApiKeyWebhookUrl: String(process.env.SLACK_API_KEY_WEBHOOK_URL),
-  redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 22), // Used to prevent redis from being overloaded in heavy process like backfilling
+  // Used to prevent redis from being overloaded in heavy process like backfilling
+  redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 22),
+
+  websocketServerHost: String(process.env.WEBSOCKET_SERVER_HOST),
+  websocketServerAppId: String(process.env.WEBSOCKET_SERVER_APP_ID),
+  websocketServerAppKey: String(process.env.WEBSOCKET_SERVER_APP_KEY),
+  websocketServerAppSecret: String(process.env.WEBSOCKET_SERVER_APP_SECRET),
+  websocketServerEventMaxSizeInKb: String(process.env.WEBSOCKET_SERVER_EVENT_MAX_SIZE_IN_KB || 100),
+  websocketServerEventMaxBatchSize: String(process.env.WEBSOCKET_SERVER_EVENT_MAX_BATCH_SIZE || 10),
 };

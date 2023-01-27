@@ -17,6 +17,19 @@ const parseMethod = (object: { [key: string]: any }) => {
   }
 };
 
+// eslint-disable-next-line
+const getMethod = (object: { [key: string]: any }) => {
+  if (object["get"]) {
+    return "get";
+  } else if (object["post"]) {
+    return "post";
+  } else if (object["put"]) {
+    return "put";
+  } else if (object["delete"]) {
+    return "delete";
+  }
+};
+
 export const getOpenApiOptions: RouteOptions = {
   description: "Get swagger json in OpenApi V3",
   tags: ["api", "x-admin"],
@@ -67,6 +80,32 @@ export const getOpenApiOptions: RouteOptions = {
           }
 
           return 0;
+        })
+      );
+
+      data.openapi["paths"] = Object.fromEntries(
+        // eslint-disable-next-line
+        Object.entries(data.openapi["paths"]).map((path: any) => {
+          const pathMethod = parseMethod(path[1]);
+
+          if (pathMethod.parameters?.length) {
+            for (const parameter of pathMethod.parameters) {
+              const parameterDefault = parameter.schema?.default;
+
+              if (parameterDefault !== undefined) {
+                delete parameter.schema.default;
+                const defaultDescription = `defaults to **${parameterDefault}**`;
+
+                parameter.description = parameter.description
+                  ? `${parameter.description} ${defaultDescription}`
+                  : defaultDescription;
+              }
+            }
+
+            path[1][getMethod(path[1])!] = pathMethod;
+          }
+
+          return path;
         })
       );
 

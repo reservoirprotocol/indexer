@@ -9,7 +9,7 @@ import {
   RateLimitRuleOptions,
   RateLimitRuleUpdateParams,
 } from "@/models/rate-limit-rules/rate-limit-rule-entity";
-import { channels } from "@/pubsub/channels";
+import { Channel } from "@/pubsub/channels";
 import { logger } from "@/common/logger";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimiterRedis } from "rate-limiter-flexible";
@@ -132,7 +132,7 @@ export class RateLimitRules {
 
     await RateLimitRules.forceDataReload(); // reload the cache
     await redis.publish(
-      channels.rateLimitRuleUpdated,
+      Channel.RateLimitRuleUpdated,
       `New rate limit rule ${JSON.stringify(rateLimitRuleEntity)}`
     );
 
@@ -179,7 +179,7 @@ export class RateLimitRules {
                    WHERE id = $/id/`;
 
     await idb.none(query, replacementValues);
-    await redis.publish(channels.rateLimitRuleUpdated, `Updated rule id ${id}`);
+    await redis.publish(Channel.RateLimitRuleUpdated, `Updated rule id ${id}`);
   }
 
   public static async delete(id: number) {
@@ -192,7 +192,7 @@ export class RateLimitRules {
 
     await idb.none(query, values);
     await RateLimitRules.forceDataReload(); // reload the cache
-    await redis.publish(channels.rateLimitRuleUpdated, `Deleted rule id ${id}`);
+    await redis.publish(Channel.RateLimitRuleUpdated, `Deleted rule id ${id}`);
   }
 
   public static async getApiKeyRateLimits(key: string) {

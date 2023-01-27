@@ -8,10 +8,11 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { ApiKeyEntity, ApiKeyUpdateParams } from "@/models/api-keys/api-key-entity";
 import getUuidByString from "uuid-by-string";
-import { channels } from "@/pubsub/channels";
+import { Channel } from "@/pubsub/channels";
 import axios from "axios";
 import { getNetworkName } from "@/config/network";
 import { config } from "@/config/index";
+import { Boom } from "@hapi/boom";
 
 export type ApiKeyRecord = {
   app_name: string;
@@ -138,7 +139,7 @@ export class ApiKeyManager {
    *
    * @param request
    */
-  public static async logUsage(request: Request) {
+  static async getBaseLog(request: Request) {
     const key = request.headers["x-api-key"];
 
     const log: any = {
@@ -193,7 +194,7 @@ export class ApiKeyManager {
         } else {
           // There is a key, but it's null
           log.apiKey = {};
-          log.apiKey.app_name = key;
+          log.apiKey.appName = key;
         }
       } catch (e: any) {
         logger.info("api-key", e.message);
@@ -201,10 +202,20 @@ export class ApiKeyManager {
     } else {
       // No key, just log No Key as the app name
       log.apiKey = {};
-      log.apiKey.app_name = "No Key";
+      log.apiKey.appName = "No Key";
     }
 
+    return log;
+  }
+  public static async logRequest(request: Request) {
+    const log: any = await ApiKeyManager.getBaseLog(request);
     logger.info("metrics", JSON.stringify(log));
+  }
+
+  public static async logUnexpectedErrorResponse(request: Request, error: Boom) {
+    const log: any = await ApiKeyManager.getBaseLog(request);
+    log.error = error;
+    logger.error("metrics", JSON.stringify(log));
   }
 
   public static async update(key: string, fields: ApiKeyUpdateParams) {
@@ -229,7 +240,7 @@ export class ApiKeyManager {
     await idb.none(query, replacementValues);
 
     await ApiKeyManager.deleteCachedApiKey(key); // reload the cache
-    await redis.publish(channels.apiKeyUpdated, JSON.stringify({ key }));
+    await redis.publish(Channel.ApiKeyUpdated, JSON.stringify({ key }));
   }
 
   static async notifyApiKeyCreated(values: ApiKeyRecord) {

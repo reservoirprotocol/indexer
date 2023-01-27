@@ -6,48 +6,36 @@ import { bn, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
-
 export const handleEvents = async (
   events: EnhancedEvent[],
+  onChainData: OnChainData,
   backfill?: boolean
-): Promise<OnChainData> => {
-  const nonceCancelEvents: es.nonceCancels.Event[] = [];
-  const fillEvents: es.fills.Event[] = [];
-  const fillEventsPartial: es.fills.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-  const orderInfos: orderUpdatesById.OrderInfo[] = [];
-  const makerInfos: orderUpdatesByMaker.MakerInfo[] = [];
-
+) => {
   // Keep track of all events within the currently processing transaction
   let currentTx: string | undefined;
   let currentTxLogs: Log[] = [];
 
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
+  for (const { subKind, baseEventParams, log } of events) {
     if (currentTx !== baseEventParams.txHash) {
       currentTx = baseEventParams.txHash;
       currentTxLogs = [];
     }
     currentTxLogs.push(log);
 
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "zeroex-v4-erc721-order-cancelled":
       case "zeroex-v4-erc1155-order-cancelled": {
         const parsedLog = eventData.abi.parseLog(log);
         const maker = parsedLog.args["maker"].toLowerCase();
         const nonce = parsedLog.args["nonce"].toString();
 
-        nonceCancelEvents.push({
+        onChainData.nonceCancelEvents.push({
           orderKind: eventData!.kind.startsWith("zeroex-v4-erc721")
             ? "zeroex-v4-erc721"
             : "zeroex-v4-erc1155",
@@ -70,16 +58,7 @@ export const handleEvents = async (
         const erc721Token = parsedLog.args["erc721Token"].toLowerCase();
         const erc721TokenId = parsedLog.args["erc721TokenId"].toString();
 
-        // Handle: attribution
-
         const orderKind = "zeroex-v4-erc721";
-        const attributionData = await utils.extractAttributionData(
-          baseEventParams.txHash,
-          orderKind
-        );
-        if (attributionData.taker) {
-          taker = attributionData.taker;
-        }
 
         // Handle: prices
 
@@ -124,6 +103,16 @@ export const handleEvents = async (
             });
         }
 
+        // Handle: attribution
+        const attributionData = await utils.extractAttributionData(
+          baseEventParams.txHash,
+          orderKind,
+          { orderId }
+        );
+        if (attributionData.taker) {
+          taker = attributionData.taker;
+        }
+
         let currency = erc20Token;
         if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
@@ -141,7 +130,7 @@ export const handleEvents = async (
         }
 
         const orderSide = direction === 0 ? "sell" : "buy";
-        fillEvents.push({
+        onChainData.fillEvents.push({
           orderKind,
           orderId,
           orderSide,
@@ -161,7 +150,7 @@ export const handleEvents = async (
         });
 
         // Cancel all the other orders of the maker having the same nonce
-        nonceCancelEvents.push({
+        onChainData.nonceCancelEvents.push({
           orderKind,
           maker,
           nonce,
@@ -169,7 +158,7 @@ export const handleEvents = async (
         });
 
         if (orderId) {
-          orderInfos.push({
+          onChainData.orderInfos.push({
             context: `filled-${orderId}`,
             id: orderId,
             trigger: {
@@ -180,7 +169,7 @@ export const handleEvents = async (
           });
         }
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId || `${maker}-${nonce}`,
           orderId: orderId,
           orderSide,
@@ -189,13 +178,15 @@ export const handleEvents = async (
           amount: "1",
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         // If an ERC20 transfer occured in the same transaction as a sale
         // then we need resync the maker's ERC20 approval to the exchange
         const erc20 = getERC20Transfer(currentTxLogs);
         if (erc20) {
-          makerInfos.push({
+          onChainData.makerInfos.push({
             context: `${baseEventParams.txHash}-buy-approval`,
             maker,
             trigger: {
@@ -226,16 +217,7 @@ export const handleEvents = async (
         const erc1155TokenId = parsedLog.args["erc1155TokenId"].toString();
         const erc1155FillAmount = parsedLog.args["erc1155FillAmount"].toString();
 
-        // Handle: attribution
-
         const orderKind = "zeroex-v4-erc1155";
-        const attributionData = await utils.extractAttributionData(
-          baseEventParams.txHash,
-          orderKind
-        );
-        if (attributionData.taker) {
-          taker = attributionData.taker;
-        }
 
         // Handle: prices
 
@@ -279,6 +261,16 @@ export const handleEvents = async (
             });
         }
 
+        // Handle: attribution
+        const attributionData = await utils.extractAttributionData(
+          baseEventParams.txHash,
+          orderKind,
+          { orderId }
+        );
+        if (attributionData.taker) {
+          taker = attributionData.taker;
+        }
+
         let currency = erc20Token;
         if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
@@ -296,7 +288,7 @@ export const handleEvents = async (
         }
 
         const orderSide = direction === 0 ? "sell" : "buy";
-        fillEventsPartial.push({
+        onChainData.fillEventsPartial.push({
           orderKind,
           orderId,
           orderSide,
@@ -316,7 +308,7 @@ export const handleEvents = async (
         });
 
         if (orderId) {
-          orderInfos.push({
+          onChainData.orderInfos.push({
             context: `filled-${orderId}-${baseEventParams.txHash}`,
             id: orderId,
             trigger: {
@@ -327,7 +319,7 @@ export const handleEvents = async (
           });
         }
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId || `${maker}-${nonce}`,
           orderId: orderId,
           orderSide,
@@ -336,13 +328,15 @@ export const handleEvents = async (
           amount: erc1155FillAmount,
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
         // If an ERC20 transfer occured in the same transaction as a sale
         // then we need resync the maker's ERC20 approval to the exchange
         const erc20 = getERC20Transfer(currentTxLogs);
         if (erc20) {
-          makerInfos.push({
+          onChainData.makerInfos.push({
             context: `${baseEventParams.txHash}-buy-approval`,
             maker,
             trigger: {
@@ -362,14 +356,4 @@ export const handleEvents = async (
       }
     }
   }
-
-  return {
-    nonceCancelEvents,
-    fillEvents,
-    fillEventsPartial,
-
-    fillInfos,
-    orderInfos,
-    makerInfos,
-  };
 };

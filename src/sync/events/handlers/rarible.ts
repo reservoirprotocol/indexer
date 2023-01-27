@@ -1,31 +1,18 @@
-import { defaultAbiCoder } from "@ethersproject/abi";
+import { Interface, defaultAbiCoder } from "@ethersproject/abi";
 import { Log } from "@ethersproject/abstract-provider";
+import { AddressZero } from "@ethersproject/constants";
+import { searchForCall } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
+import { bn } from "@/common/utils";
+import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
+import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
 import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
-import { config } from "@/config/index";
-import { bn } from "@/common/utils";
-import { Interface } from "ethers/lib/utils";
-import { constants } from "ethers";
-import { getERC20Transfer } from "./utils/erc20";
-import { searchForCall } from "@georgeroman/evm-tx-simulator";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const cancelEvents: es.cancels.Event[] = [];
-  const fillEventsPartial: es.fills.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-  const orderInfos: orderUpdatesById.OrderInfo[] = [];
-  const makerInfos: orderUpdatesByMaker.MakerInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Keep track of all events within the currently processing transaction
   let currentTx: string | undefined;
   let currentTxLogs: Log[] = [];
@@ -36,26 +23,26 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   };
 
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
+  for (const { subKind, baseEventParams, log } of events) {
     if (currentTx !== baseEventParams.txHash) {
       currentTx = baseEventParams.txHash;
       currentTxLogs = [];
     }
     currentTxLogs.push(log);
 
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "rarible-cancel": {
         const { args } = eventData.abi.parseLog(log);
         const orderId = args["hash"].toLowerCase();
 
-        cancelEvents.push({
+        onChainData.cancelEvents.push({
           orderKind: "rarible",
           orderId,
           baseEventParams,
         });
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `cancelled-${orderId}`,
           id: orderId,
           trigger: {
@@ -92,7 +79,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         const orderKind = "rarible";
         let side: "sell" | "buy" = "sell";
-        let taker = constants.AddressZero;
+        let taker = AddressZero;
         let currencyAssetType = "";
         let nftAssetType = "";
         let nftData = "";
@@ -273,7 +260,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         }
 
         // Handle: attribution
-        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind);
+        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind, {
+          orderId,
+        });
         if (data.taker) {
           taker = data.taker;
         }
@@ -304,7 +293,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEventsPartial.push({
+        onChainData.fillEventsPartial.push({
           orderKind,
           orderId,
           orderSide: side,
@@ -323,7 +312,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: `${orderId}-${baseEventParams.txHash}`,
           orderId,
           orderSide: side,
@@ -332,9 +321,11 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           amount,
           price: prices.nativePrice,
           timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
         });
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}-${baseEventParams.txHash}`,
           id: orderId,
           trigger: {
@@ -348,7 +339,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // then we need resync the maker's ERC20 approval to the exchange
         const erc20 = getERC20Transfer(currentTxLogs);
         if (erc20) {
-          makerInfos.push({
+          onChainData.makerInfos.push({
             context: `${baseEventParams.txHash}-buy-approval`,
             maker,
             trigger: {
@@ -368,13 +359,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    cancelEvents,
-    fillEventsPartial,
-
-    fillInfos,
-    orderInfos,
-    makerInfos,
-  };
 };

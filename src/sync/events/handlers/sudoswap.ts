@@ -3,23 +3,14 @@ import { parseCallTrace, searchForCall } from "@georgeroman/evm-tx-simulator";
 
 import { logger } from "@/common/logger";
 import { bn } from "@/common/utils";
+import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as sudoswapUtils from "@/utils/sudoswap";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const fillEventsPartial: es.fills.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-
-  // Keep track of any orders
-  const orders: sudoswap.OrderInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For keeping track of all individual trades per transaction
   const trades = {
     buy: new Map<string, number>(),
@@ -27,8 +18,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   };
 
   // Handle the events
-  for (const { kind, baseEventParams } of events) {
-    switch (kind) {
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       // Sudoswap is extremely poorly designed from the perspective of events
       // that get emitted on trades. As such, we use transaction tracing when
       // we detect sales in order to get more detailed information.
@@ -40,13 +32,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const txHash = baseEventParams.txHash;
         const address = baseEventParams.address;
 
-        orders.push({
-          orderParams: {
-            pool: baseEventParams.address,
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
+        onChainData.orders.push({
+          kind: "sudoswap",
+          info: {
+            orderParams: {
+              pool: baseEventParams.address,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            metadata: {},
           },
-          metadata: {},
         });
 
         const txTrace = await utils.fetchTransactionTrace(txHash);
@@ -113,7 +108,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               break;
             }
 
-            let taker = decodedInput.nftRecipient;
+            let taker = decodedInput.nftRecipient.toLowerCase();
             const price = bn(estimatedInputAmount).div(decodedInput.numNFTs).toString();
 
             // Handle: attribution
@@ -146,9 +141,12 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             for (const token of Object.keys(state[address].tokenBalanceState)) {
               if (token.startsWith("erc721")) {
                 const tokenId = token.split(":")[2];
-                fillEventsPartial.push({
+                const orderId = sudoswap.getOrderId(baseEventParams.address, "sell", tokenId);
+
+                onChainData.fillEventsOnChain.push({
                   orderKind,
                   orderSide: "sell",
+                  orderId,
                   maker: baseEventParams.address,
                   taker,
                   price: priceData.nativePrice,
@@ -167,7 +165,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                   },
                 });
 
-                fillInfos.push({
+                onChainData.fillInfos.push({
                   context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
                   orderSide: "sell",
                   contract: pool.nft,
@@ -175,6 +173,18 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                   amount: "1",
                   price: priceData.nativePrice,
                   timestamp: baseEventParams.timestamp,
+                  maker: baseEventParams.address,
+                  taker,
+                });
+
+                onChainData.orderInfos.push({
+                  context: `filled-${orderId}-${baseEventParams.txHash}`,
+                  id: orderId,
+                  trigger: {
+                    kind: "sale",
+                    txHash: baseEventParams.txHash,
+                    txTimestamp: baseEventParams.timestamp,
+                  },
                 });
 
                 // Make sure to increment the batch counter
@@ -215,7 +225,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               break;
             }
 
-            let taker = decodedInput.nftRecipient;
+            let taker = decodedInput.nftRecipient.toLowerCase();
             const price = bn(estimatedInputAmount).div(decodedInput.nftIds.length).toString();
 
             // Handle: attribution
@@ -243,11 +253,12 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
             for (let i = 0; i < decodedInput.nftIds.length; i++) {
               const tokenId = decodedInput.nftIds[i].toString();
+              const orderId = sudoswap.getOrderId(baseEventParams.address, "sell", tokenId);
 
-              fillEventsPartial.push({
+              onChainData.fillEventsOnChain.push({
                 orderKind,
                 orderSide: "sell",
-                orderId: sudoswap.getOrderId(baseEventParams.address, "sell", tokenId),
+                orderId,
                 maker: baseEventParams.address,
                 taker,
                 price: priceData.nativePrice,
@@ -266,7 +277,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 },
               });
 
-              fillInfos.push({
+              onChainData.fillInfos.push({
                 context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
                 orderSide: "sell",
                 contract: pool.nft,
@@ -274,6 +285,18 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 amount: "1",
                 price: priceData.nativePrice,
                 timestamp: baseEventParams.timestamp,
+                maker: baseEventParams.address,
+                taker,
+              });
+
+              onChainData.orderInfos.push({
+                context: `filled-${orderId}-${baseEventParams.txHash}`,
+                id: orderId,
+                trigger: {
+                  kind: "sale",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
               });
             }
           }
@@ -291,13 +314,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const txHash = baseEventParams.txHash;
         const address = baseEventParams.address;
 
-        orders.push({
-          orderParams: {
-            pool: baseEventParams.address,
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
+        onChainData.orders.push({
+          kind: "sudoswap",
+          info: {
+            orderParams: {
+              pool: baseEventParams.address,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            metadata: {},
           },
-          metadata: {},
         });
 
         const txTrace = await utils.fetchTransactionTrace(txHash);
@@ -360,7 +386,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               break;
             }
 
-            let taker = decodedInput.tokenRecipient;
+            let taker = decodedInput.tokenRecipient.toLowerCase();
             const price = bn(estimatedOutputAmount).div(decodedInput.nftIds.length).toString();
 
             // Handle: attribution
@@ -388,11 +414,12 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
             for (let i = 0; i < decodedInput.nftIds.length; i++) {
               const tokenId = decodedInput.nftIds[i].toString();
+              const orderId = sudoswap.getOrderId(baseEventParams.address, "buy");
 
-              fillEventsPartial.push({
+              onChainData.fillEventsPartial.push({
                 orderKind,
                 orderSide: "buy",
-                orderId: sudoswap.getOrderId(baseEventParams.address, "buy"),
+                orderId,
                 maker: baseEventParams.address,
                 taker,
                 price: priceData.nativePrice,
@@ -411,7 +438,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 },
               });
 
-              fillInfos.push({
+              onChainData.fillInfos.push({
                 context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
                 orderSide: "buy",
                 contract: pool.nft,
@@ -419,6 +446,18 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 amount: "1",
                 price: priceData.nativePrice,
                 timestamp: baseEventParams.timestamp,
+                maker: baseEventParams.address,
+                taker,
+              });
+
+              onChainData.orderInfos.push({
+                context: `filled-${orderId}-${baseEventParams.txHash}`,
+                id: orderId,
+                trigger: {
+                  kind: "sale",
+                  txHash: baseEventParams.txHash,
+                  txTimestamp: baseEventParams.timestamp,
+                },
               });
             }
           }
@@ -430,32 +469,43 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         break;
       }
 
+      case "sudoswap-new-pair": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const pool = parsedLog.args["pool"].toLowerCase();
+
+        onChainData.orders.push({
+          kind: "sudoswap",
+          info: {
+            orderParams: {
+              pool,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            metadata: {},
+          },
+        });
+
+        break;
+      }
+
       case "sudoswap-token-deposit":
       case "sudoswap-token-withdrawal":
       case "sudoswap-spot-price-update":
       case "sudoswap-delta-update": {
-        orders.push({
-          orderParams: {
-            pool: baseEventParams.address,
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
+        onChainData.orders.push({
+          kind: "sudoswap",
+          info: {
+            orderParams: {
+              pool: baseEventParams.address,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            metadata: {},
           },
-          metadata: {},
         });
 
         break;
       }
     }
   }
-
-  return {
-    fillEventsPartial,
-
-    fillInfos,
-
-    orders: orders.map((info) => ({
-      kind: "sudoswap",
-      info,
-    })),
-  };
 };

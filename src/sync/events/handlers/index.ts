@@ -1,4 +1,14 @@
-import { EnhancedEvent, OnChainData, processOnChainData } from "@/events-sync/handlers/utils";
+import { Log } from "@ethersproject/abstract-provider";
+
+import { logger } from "@/common/logger";
+import { EventKind, getEventData } from "@/events-sync/data";
+import {
+  EnhancedEvent,
+  OnChainData,
+  initOnChainData,
+  processOnChainData,
+} from "@/events-sync/handlers/utils";
+import * as utils from "@/events-sync/utils";
 
 import * as erc20 from "@/events-sync/handlers/erc20";
 import * as erc721 from "@/events-sync/handlers/erc721";
@@ -20,180 +30,135 @@ import * as x2y2 from "@/events-sync/handlers/x2y2";
 import * as zeroExV4 from "@/events-sync/handlers/zeroex-v4";
 import * as zora from "@/events-sync/handlers/zora";
 import * as universe from "@/events-sync/handlers/universe";
+import * as infinity from "@/events-sync/handlers/infinity";
 import * as rarible from "@/events-sync/handlers/rarible";
 import * as manifold from "@/events-sync/handlers/manifold";
 import * as tofu from "@/events-sync/handlers/tofu";
 import * as nftTrader from "@/events-sync/handlers/nft-trader";
 import * as okex from "@/events-sync/handlers/okex";
 import * as bendDao from "@/events-sync/handlers/bend-dao";
+import * as superrare from "@/events-sync/handlers/superrare";
 
-export type EventsInfo = {
-  kind:
-    | "erc20"
-    | "erc721"
-    | "erc1155"
-    | "blur"
-    | "cryptopunks"
-    | "element"
-    | "forward"
-    | "foundation"
-    | "looks-rare"
-    | "nftx"
-    | "nouns"
-    | "quixotic"
-    | "seaport"
-    | "sudoswap"
-    | "wyvern"
-    | "x2y2"
-    | "zeroex-v4"
-    | "zora"
-    | "universe"
-    | "rarible"
-    | "manifold"
-    | "tofu"
-    | "decentraland"
-    | "nft-trader"
-    | "okex"
-    | "bend-dao";
-  events: EnhancedEvent[];
+// A list of events having the same high-level kind
+export type EventsByKind = {
+  kind: EventKind;
+  data: EnhancedEvent[];
+};
+
+// A batch of events to get processed together
+export type EventsBatch = {
+  id: string;
+  events: EventsByKind[];
   backfill?: boolean;
 };
 
-export const processEvents = async (info: EventsInfo) => {
-  let data: OnChainData | undefined;
-  switch (info.kind) {
-    case "erc20": {
-      data = await erc20.handleEvents(info.events);
-      break;
-    }
+// Map each high-level event kind to its corresponding handler
+export const eventKindToHandler = new Map<
+  EventKind,
+  (e: EnhancedEvent[], d: OnChainData, backfill?: boolean) => Promise<void>
+>([
+  ["erc20", (e, d) => erc20.handleEvents(e, d)],
+  ["erc721", (e, d) => erc721.handleEvents(e, d)],
+  ["erc1155", (e, d) => erc1155.handleEvents(e, d)],
+  ["blur", (e, d) => blur.handleEvents(e, d)],
+  ["cryptopunks", (e, d) => cryptopunks.handleEvents(e, d)],
+  ["decentraland", (e, d) => decentraland.handleEvents(e, d)],
+  ["element", (e, d) => element.handleEvents(e, d)],
+  ["forward", (e, d) => forward.handleEvents(e, d)],
+  ["foundation", (e, d) => foundation.handleEvents(e, d)],
+  ["looks-rare", (e, d) => looksrare.handleEvents(e, d)],
+  ["nftx", (e, d) => nftx.handleEvents(e, d)],
+  ["nouns", (e, d) => nouns.handleEvents(e, d)],
+  ["quixotic", (e, d) => quixotic.handleEvents(e, d)],
+  ["seaport", (e, d) => seaport.handleEvents(e, d)],
+  ["sudoswap", (e, d) => sudoswap.handleEvents(e, d)],
+  ["wyvern", (e, d) => wyvern.handleEvents(e, d)],
+  ["x2y2", (e, d) => x2y2.handleEvents(e, d)],
+  ["zeroex-v4", (e, d, b) => zeroExV4.handleEvents(e, d, b)],
+  ["zora", (e, d) => zora.handleEvents(e, d)],
+  ["universe", (e, d) => universe.handleEvents(e, d)],
+  ["infinity", (e, d) => infinity.handleEvents(e, d)],
+  ["rarible", (e, d) => rarible.handleEvents(e, d)],
+  ["manifold", (e, d) => manifold.handleEvents(e, d)],
+  ["tofu", (e, d) => tofu.handleEvents(e, d)],
+  ["nft-trader", (e, d) => nftTrader.handleEvents(e, d)],
+  ["okex", (e, d) => okex.handleEvents(e, d)],
+  ["bend-dao", (e, d) => bendDao.handleEvents(e, d)],
+  ["superrare", (e, d) => superrare.handleEvents(e, d)],
+]);
 
-    case "erc721": {
-      data = await erc721.handleEvents(info.events);
-      break;
-    }
+export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {
+  const onChainData = initOnChainData();
+  await Promise.all(
+    batch.events.map(async (events) => {
+      if (events.data.length) {
+        const handler = eventKindToHandler.get(events.kind);
+        if (handler) {
+          await handler(events.data, onChainData, batch.backfill);
+        } else {
+          logger.error(
+            "process-events-batch",
+            JSON.stringify({
+              error: "missing-handler-for-event-kind",
+              data: `Event kind ${events.kind} is missing a corresponding handler`,
+            })
+          );
+        }
+      }
+    })
+  );
 
-    case "erc1155": {
-      data = await erc1155.handleEvents(info.events);
-      break;
-    }
+  if (!skipProcessing) {
+    await processOnChainData(onChainData, batch.backfill);
+  }
 
-    case "blur": {
-      data = await blur.handleEvents(info.events);
-      break;
-    }
+  return onChainData;
+};
 
-    case "cryptopunks": {
-      data = await cryptopunks.handleEvents(info.events);
-      break;
-    }
+export const getEventParams = (log: Log, timestamp: number) => {
+  const address = log.address.toLowerCase() as string;
+  const block = log.blockNumber as number;
+  const blockHash = log.blockHash.toLowerCase() as string;
+  const txHash = log.transactionHash.toLowerCase() as string;
+  const txIndex = log.transactionIndex as number;
+  const logIndex = log.logIndex as number;
 
-    case "decentraland": {
-      data = await decentraland.handleEvents(info.events);
-      break;
-    }
+  return {
+    address,
+    txHash,
+    txIndex,
+    block,
+    blockHash,
+    logIndex,
+    timestamp,
+    batchIndex: 1,
+  };
+};
 
-    case "element": {
-      data = await element.handleEvents(info.events);
-      break;
-    }
+export const getEnhancedEventsFromTx = async (txHash: string) => {
+  const enhancedEvents: EnhancedEvent[] = [];
 
-    case "forward": {
-      data = await forward.handleEvents(info.events);
-      break;
-    }
+  const availableEventData = getEventData();
+  const tx = await utils.fetchTransaction(txHash);
+  const { logs } = await utils.fetchTransactionLogs(txHash);
 
-    case "foundation": {
-      data = await foundation.handleEvents(info.events);
-      break;
-    }
-
-    case "looks-rare": {
-      data = await looksrare.handleEvents(info.events);
-      break;
-    }
-
-    case "nftx": {
-      data = await nftx.handleEvents(info.events);
-      break;
-    }
-
-    case "nouns": {
-      data = await nouns.handleEvents(info.events);
-      break;
-    }
-
-    case "quixotic": {
-      data = await quixotic.handleEvents(info.events);
-      break;
-    }
-
-    case "seaport": {
-      data = await seaport.handleEvents(info.events);
-      break;
-    }
-
-    case "sudoswap": {
-      data = await sudoswap.handleEvents(info.events);
-      break;
-    }
-
-    case "wyvern": {
-      data = await wyvern.handleEvents(info.events);
-      break;
-    }
-
-    case "x2y2": {
-      data = await x2y2.handleEvents(info.events);
-      break;
-    }
-
-    case "zeroex-v4": {
-      data = await zeroExV4.handleEvents(info.events, info.backfill);
-      break;
-    }
-
-    case "zora": {
-      data = await zora.handleEvents(info.events);
-      break;
-    }
-
-    case "universe": {
-      data = await universe.handleEvents(info.events);
-      break;
-    }
-
-    case "rarible": {
-      data = await rarible.handleEvents(info.events);
-      break;
-    }
-
-    case "manifold": {
-      data = await manifold.handleEvents(info.events);
-      break;
-    }
-
-    case "tofu": {
-      data = await tofu.handleEvents(info.events);
-      break;
-    }
-
-    case "nft-trader": {
-      data = await nftTrader.handleEvents(info.events);
-      break;
-    }
-
-    case "okex": {
-      data = await okex.handleEvents(info.events);
-      break;
-    }
-
-    case "bend-dao": {
-      data = await bendDao.handleEvents(info.events);
-      break;
+  for (let i = 0; i < logs.length; i++) {
+    const log = logs[i];
+    const eventData = availableEventData.find(
+      ({ addresses, topic, numTopics }) =>
+        log.topics[0] === topic &&
+        log.topics.length === numTopics &&
+        (addresses ? addresses[log.address.toLowerCase()] : true)
+    );
+    if (eventData) {
+      enhancedEvents.push({
+        kind: eventData.kind,
+        subKind: eventData.subKind,
+        baseEventParams: getEventParams(log, tx.blockTimestamp),
+        log,
+      });
     }
   }
 
-  if (data) {
-    await processOnChainData(data, info.backfill);
-  }
+  return enhancedEvents;
 };

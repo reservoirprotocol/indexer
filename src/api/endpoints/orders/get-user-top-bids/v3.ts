@@ -3,7 +3,7 @@
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { redb } from "@/common/db";
+import { redbAlt } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
   buildContinuation,
@@ -17,6 +17,10 @@ import { Assets } from "@/utils/assets";
 import _ from "lodash";
 import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
 import { Orders } from "@/utils/orders";
+import { ContractSets } from "@/models/contract-sets";
+import * as Boom from "@hapi/boom";
+import { CollectionSets } from "@/models/collection-sets";
+import { BigNumber } from "@ethersproject/bignumber";
 
 const version = "v3";
 
@@ -45,9 +49,13 @@ export const getUserTopBidsV3Options: RouteOptions = {
       ).description(
         "Filter to one or more collections. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
       ),
+      contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
       optimizeCheckoutURL: Joi.boolean()
         .default(false)
         .description(
@@ -76,11 +84,18 @@ export const getUserTopBidsV3Options: RouteOptions = {
         .max(100)
         .default(20)
         .description("Amount of items returned in response."),
-    }),
+      sampleSize: Joi.number()
+        .integer()
+        .min(1000)
+        .max(100000)
+        .default(10000)
+        .description("Amount of tokens considered."),
+    }).oxor("collection", "collectionsSetId"),
   },
   response: {
     schema: Joi.object({
       totalTokensWithBids: Joi.number(),
+      totalAmount: Joi.number(),
       topBids: Joi.array().items(
         Joi.object({
           id: Joi.string(),
@@ -106,13 +121,13 @@ export const getUserTopBidsV3Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
             floorAskPrice: Joi.number().unsafe().allow(null),
             lastSalePrice: Joi.number().unsafe().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
@@ -129,6 +144,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
   handler: async (request: Request) => {
     const params = request.params as any;
     const query = request.query as any;
+    let contractFilter = "";
     let collectionFilter = "";
     let communityFilter = "";
     let sortField = "top_bid_value";
@@ -159,8 +175,15 @@ export const getUserTopBidsV3Options: RouteOptions = {
       offset = Number(splitContinuation(query.continuation));
     }
 
-    if (query.collection) {
-      if (Array.isArray(query.collection)) {
+    if (query.collection || query.collectionsSetId) {
+      if (query.collectionsSetId) {
+        query.collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+        if (_.isEmpty(query.collectionsIds)) {
+          throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+        }
+
+        collectionFilter = `AND id IN ($/collectionsIds:csv/)`;
+      } else if (Array.isArray(query.collection)) {
         collectionFilter = `AND id IN ($/collection:csv/)`;
       } else {
         collectionFilter = `AND id = $/collection/`;
@@ -169,6 +192,16 @@ export const getUserTopBidsV3Options: RouteOptions = {
 
     if (query.community) {
       communityFilter = `AND community = $/community/`;
+    }
+
+    if (query.contractsSetId) {
+      const contracts = await ContractSets.getContracts(query.contractsSetId);
+      if (_.isEmpty(contracts)) {
+        throw Boom.badRequest(`No contracts for contracts set ${query.collectionsSetId}`);
+      }
+
+      query.contracts = contracts.map((contract: string) => toBuffer(contract));
+      contractFilter = `AND contract IN ($/contracts:csv/)`;
     }
 
     try {
@@ -183,10 +216,22 @@ export const getUserTopBidsV3Options: RouteOptions = {
         : "floor_sell_value";
 
       const baseQuery = `
-        SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids",
+        WITH nb AS (
+         SELECT contract, token_id, "owner", amount
+         FROM nft_balances
+         WHERE "owner" = $/user/
+         AND amount > 0
+         ${contractFilter}
+         ORDER BY last_token_appraisal_value DESC NULLS LAST
+         LIMIT ${query.sampleSize}
+        )
+        SELECT nb.contract, y.*, t.*, c.*, count(*) OVER() AS "total_tokens_with_bids", SUM(y.top_bid_price) OVER() as total_amount,
                (${criteriaBuildQuery}) AS bid_criteria,
-              COALESCE(((top_bid_value / net_listing) - 1) * 100, 0) AS floor_difference_percentage
-        FROM nft_balances nb
+               (CASE net_listing
+                 WHEN 0 THEN NULL
+                 ELSE COALESCE(((top_bid_value / net_listing) - 1) * 100, 0)
+               END) AS floor_difference_percentage
+        FROM nb
         JOIN LATERAL (
             SELECT o.token_set_id, o.id AS "top_bid_id", o.price AS "top_bid_price", o.value AS "top_bid_value",
                    o.currency AS "top_bid_currency", o.currency_value AS "top_bid_currency_value", o.missing_royalties,
@@ -215,7 +260,9 @@ export const getUserTopBidsV3Options: RouteOptions = {
             WHERE t.contract = nb.contract
             AND t.token_id = nb.token_id
         ) t ON TRUE
-        ${query.collection || query.community ? "" : "LEFT"} JOIN LATERAL (
+        ${
+          query.collection || query.community || query.collectionsSetId ? "" : "LEFT"
+        } JOIN LATERAL (
             SELECT
                 id AS "collection_id",
                 name AS "collection_name",
@@ -227,22 +274,22 @@ export const getUserTopBidsV3Options: RouteOptions = {
             ${communityFilter}
             ${collectionFilter}
         ) c ON TRUE
-        WHERE owner = $/user/
-        AND amount > 0
         ORDER BY ${sortField} ${query.sortDirection}, token_id ${query.sortDirection}
         OFFSET ${offset} LIMIT $/limit/
       `;
 
       const sources = await Sources.getInstance();
 
-      const bids = await redb.manyOrNone(baseQuery, query);
+      const bids = await redbAlt.manyOrNone(baseQuery, query);
       let totalTokensWithBids = 0;
+      let totalAmount = BigNumber.from(0);
 
       const results = await Promise.all(
         bids.map(async (r) => {
           const contract = fromBuffer(r.contract);
           const tokenId = r.token_id;
           totalTokensWithBids = Number(r.total_tokens_with_bids);
+          totalAmount = BigNumber.from(r.total_amount);
 
           const source = sources.get(
             Number(r.source_id_int),
@@ -330,6 +377,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
       }
 
       return {
+        totalAmount: formatEth(totalAmount),
         totalTokensWithBids,
         topBids: results,
         continuation: continuation ? buildContinuation(continuation.toString()) : undefined,

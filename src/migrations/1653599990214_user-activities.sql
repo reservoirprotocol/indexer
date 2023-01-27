@@ -28,6 +28,9 @@ CREATE INDEX user_activities_address_created_at_type_index
 CREATE UNIQUE INDEX user_activities_hash_address_unique_index
     ON user_activities (hash, address);
 
+CREATE INDEX user_activities_collection_id_index
+    ON user_activities (collection_id);
+
 CREATE INDEX user_activities_contract_token_id_missing_collection_id_index
     ON user_activities (contract, token_id)
     WHERE ("collection_id" IS NULL);

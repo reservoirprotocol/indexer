@@ -94,17 +94,19 @@ export class Tokens {
     return await idb.none(query, replacementValues);
   }
 
-  public static async getTokenAttributes(contract: string, tokenId: string) {
+  public static async getTokenAttributes(contract: string, tokenId: string, maxTokenCount = 0) {
     const query = `SELECT attribute_id AS "attributeId", token_attributes.key, token_attributes.value, attribute_key_id AS "attributeKeyId",
                           token_attributes.collection_id AS "collectionId", floor_sell_value AS "floorSellValue", token_count AS "tokenCount"
                    FROM token_attributes
                    JOIN attributes ON token_attributes.attribute_id = attributes.id
                    WHERE contract = $/contract/
-                   AND token_id = $/tokenId/`;
+                   AND token_id = $/tokenId/
+                   ${maxTokenCount ? "AND token_count <= $/maxTokenCount/" : ""}`;
 
     return (await redb.manyOrNone(query, {
       contract: toBuffer(contract),
       tokenId,
+      maxTokenCount,
     })) as TokenAttributes[];
   }
 
@@ -182,7 +184,7 @@ export class Tokens {
     let contractFilter = "";
 
     if (nonFlaggedOnly) {
-      flagFilter = "AND is_flagged = 0";
+      flagFilter = "AND (is_flagged = 0 OR is_flagged IS NULL)";
     }
 
     if (contract) {
@@ -268,7 +270,6 @@ export class Tokens {
 
   public static async recalculateTokenTopBid(contract: string, tokenId: string) {
     const tokenSetId = `token:${contract}:${tokenId}`;
-
     await orderUpdatesById.addToQueue([
       {
         context: `revalidate-buy-${tokenSetId}-${now()}`,

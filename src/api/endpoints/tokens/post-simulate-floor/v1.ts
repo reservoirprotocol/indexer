@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
@@ -7,18 +8,19 @@ import Joi from "joi";
 import { inject } from "@/api/index";
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { regex, toBuffer } from "@/common/utils";
+import { fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import { genericTaker, ensureBuyTxSucceeds } from "@/utils/simulation";
 
 const version = "v1";
 
 export const postSimulateFloorV1Options: RouteOptions = {
   description: "Simulate the floor ask of any token",
-  tags: ["api", "Management"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 13,
+      deprecated: true,
     },
   },
   timeout: {
@@ -40,21 +42,29 @@ export const postSimulateFloorV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
+    if (![1, 137].includes(config.chainId)) {
+      return { message: "Simulation not supported" };
+    }
+
     const payload = request.payload as any;
 
-    const invalidateOrder = async (orderId: string) => {
-      logger.error(`post-simulate-floor-${version}-handler`, `StaleOrder: ${orderId}`);
+    const invalidateOrder = async (orderId: string, callTrace?: CallTrace, payload?: any) => {
+      logger.error(
+        `post-simulate-floor-${version}-handler`,
+        JSON.stringify({ error: "stale-order", callTrace, payload, orderId })
+      );
 
       // Invalidate the order if the simulation failed
       await inject({
         method: "POST",
-        url: `/admin/invalidate-order`,
+        url: `/admin/revalidate-order`,
         headers: {
           "Content-Type": "application/json",
           "X-Admin-Api-Key": config.adminApiKey,
         },
         payload: {
           id: orderId,
+          status: "inactive",
         },
       });
     };
@@ -62,6 +72,8 @@ export const postSimulateFloorV1Options: RouteOptions = {
     try {
       const token = payload.token;
       const router = payload.router;
+
+      const [contract, tokenId] = token.split(":");
 
       const response = await inject({
         method: "POST",
@@ -83,7 +95,8 @@ export const postSimulateFloorV1Options: RouteOptions = {
         const floorAsk = await idb.oneOrNone(
           `
             SELECT
-              tokens.floor_sell_id
+              tokens.floor_sell_id,
+              orders.currency
             FROM tokens
             LEFT JOIN orders
               ON tokens.floor_sell_id = orders.id
@@ -92,8 +105,8 @@ export const postSimulateFloorV1Options: RouteOptions = {
               AND orders.kind IN ('seaport', 'x2y2', 'zeroex-v4-erc721', 'zeroex-v4-erc1155')
           `,
           {
-            contract: toBuffer(token.split(":")[0]),
-            tokenId: token.split(":")[1],
+            contract: toBuffer(contract),
+            tokenId,
           }
         );
 
@@ -104,8 +117,10 @@ export const postSimulateFloorV1Options: RouteOptions = {
         // similar reasoning goes for Seaport orders (partial ones which miss
         // the raw data) and Coinbase NFT orders (no signature).
         if (floorAsk?.floor_sell_id) {
-          await invalidateOrder(floorAsk.floor_sell_id);
-          return { message: "Floor order is not fillable (got invalidated)" };
+          if (!getNetworkSettings().whitelistedCurrencies.has(fromBuffer(floorAsk.currency))) {
+            await invalidateOrder(floorAsk.floor_sell_id);
+            return { message: "Floor order is not fillable (got invalidated)" };
+          }
         }
       }
 
@@ -120,13 +135,20 @@ export const postSimulateFloorV1Options: RouteOptions = {
           FROM contracts
           WHERE contracts.address = $/contract/
         `,
-        { contract: toBuffer(token.split(":")[0]) }
+        { contract: toBuffer(contract) }
       );
+      if (!["erc721", "erc1155"].includes(contractResult.kind)) {
+        return { message: "Non-standard contracts not supported" };
+      }
 
       const parsedPayload = JSON.parse(response.payload);
+      if (!parsedPayload?.path?.length) {
+        return { message: "Nothing to simulate" };
+      }
+
       const pathItem = parsedPayload.path[0];
 
-      const success = await ensureBuyTxSucceeds(
+      const { result: success, callTrace } = await ensureBuyTxSucceeds(
         genericTaker,
         {
           kind: contractResult.kind as "erc721" | "erc1155",
@@ -140,8 +162,27 @@ export const postSimulateFloorV1Options: RouteOptions = {
       if (success) {
         return { message: "Floor order is fillable" };
       } else {
-        await invalidateOrder(pathItem.orderId);
-        return { message: "Floor order is not fillable (got invalidated)" };
+        const orderCurrency = await redb
+          .oneOrNone(
+            `
+              SELECT
+                orders.currency
+              FROM orders
+              WHERE orders.id = $/id/
+            `,
+            { id: pathItem.orderId }
+          )
+          .then((r) => fromBuffer(r.currency));
+
+        if (
+          !["sudoswap.xyz", "nftx.io"].includes(pathItem.source) &&
+          !getNetworkSettings().whitelistedCurrencies.has(orderCurrency)
+        ) {
+          await invalidateOrder(pathItem.orderId, callTrace, parsedPayload);
+          return { message: "Floor order is not fillable (got invalidated)" };
+        } else {
+          return { message: "Order not simulatable" };
+        }
       }
     } catch (error) {
       logger.error(`post-simulate-floor-${version}-handler`, `Handler failure: ${error}`);

@@ -14,7 +14,7 @@ import {
   SourcesEntityParams,
   SourcesMetadata,
 } from "@/models/sources/sources-entity";
-import { channels } from "@/pubsub/channels";
+import { Channel } from "@/pubsub/channels";
 
 import { default as sourcesFromJson } from "./sources.json";
 
@@ -102,6 +102,7 @@ export class Sources {
         tokenUrlRinkeby: "https://dev.reservoir.market/${contract}/${tokenId}",
       },
       optimized: true,
+      createdAt: "2022-02-05 04:50:47.191 +0200",
     });
   }
 
@@ -191,7 +192,7 @@ export class Sources {
     // Fetch domain info
     await fetchSourceInfo.addToQueue(domain);
 
-    await redis.publish(channels.sourcesUpdated, `New source ${domain}`);
+    await redis.publish(Channel.SourcesUpdated, `New source ${domain}`);
     logger.info("sources", `New source '${domain}' was added`);
 
     return new SourcesEntity(source);
@@ -242,7 +243,7 @@ export class Sources {
 
     // Reload the cache
     await Sources.instance.loadData(true);
-    await redis.publish(channels.sourcesUpdated, `Updated source ${domain}`);
+    await redis.publish(Channel.SourcesUpdated, `Updated source ${domain}`);
   }
 
   public get(
@@ -357,8 +358,7 @@ export class Sources {
     return sourceEntity;
   }
 
-  // TODO: Are we using this anymore? What about support for other chains?
-  public getTokenUrl(sourceEntity: SourcesEntity, contract: string, tokenId: string) {
+  public getTokenUrl(sourceEntity: SourcesEntity, contract?: string, tokenId?: string) {
     if (config.chainId == 1) {
       if (sourceEntity.metadata.tokenUrlMainnet && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
@@ -369,10 +369,20 @@ export class Sources {
 
         return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
       }
-    } else {
-      if (sourceEntity.metadata.tokenUrlRinkeby && contract && tokenId) {
+    } else if (config.chainId == 137) {
+      if (sourceEntity.metadata.tokenUrlPolygon && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(
-          sourceEntity.metadata.tokenUrlRinkeby,
+          sourceEntity.metadata.tokenUrlPolygon,
+          "${contract}",
+          contract
+        );
+
+        return _.replace(sourceEntity.metadata.url, "${tokenId}", tokenId);
+      }
+    } else {
+      if (sourceEntity.metadata.tokenUrlGoerli && contract && tokenId) {
+        sourceEntity.metadata.url = _.replace(
+          sourceEntity.metadata.tokenUrlGoerli,
           "${contract}",
           contract
         );

@@ -87,7 +87,8 @@ if (config.doBackgroundWork) {
       // Add the tokens to the list
       const pendingRefreshTokens = new PendingRefreshTokens(data.method);
       const pendingCount = await pendingRefreshTokens.add(refreshTokens, prioritized);
-      logger.info(
+
+      logger.debug(
         QUEUE_NAME,
         `There are ${pendingCount} tokens pending to refresh for ${data.method}`
       );
@@ -132,7 +133,7 @@ async function getTokensForCollection(
 export function getIndexingMethod(community: string | null) {
   switch (community) {
     case "sound.xyz":
-      return config.metadataIndexingMethod; // "soundxyz";
+      return "soundxyz";
   }
 
   return config.metadataIndexingMethod;

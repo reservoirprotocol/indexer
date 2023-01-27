@@ -13,6 +13,7 @@ import * as foundation from "@/events-sync/data/foundation";
 import * as looksRare from "@/events-sync/data/looks-rare";
 import * as nftx from "@/events-sync/data/nftx";
 import * as nouns from "@/events-sync/data/nouns";
+import * as infinity from "@/events-sync/data/infinity";
 import * as quixotic from "@/events-sync/data/quixotic";
 import * as rarible from "@/events-sync/data/rarible";
 import * as seaport from "@/events-sync/data/seaport";
@@ -28,13 +29,46 @@ import * as tofu from "@/events-sync/data/tofu";
 import * as nftTrader from "@/events-sync/data/nft-trader";
 import * as okex from "@/events-sync/data/okex";
 import * as bendDao from "@/events-sync/data/bend-dao";
+import * as superrare from "@/events-sync/data/superrare";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
 // handled (eg. persisted to the database and relayed for further
 // processing to any job queues)
 
-export type EventDataKind =
+// Event kind by protocol/standard
+export type EventKind =
+  | "erc20"
+  | "erc721"
+  | "erc1155"
+  | "blur"
+  | "cryptopunks"
+  | "element"
+  | "forward"
+  | "foundation"
+  | "looks-rare"
+  | "nftx"
+  | "nouns"
+  | "quixotic"
+  | "seaport"
+  | "sudoswap"
+  | "wyvern"
+  | "x2y2"
+  | "zeroex-v4"
+  | "zora"
+  | "universe"
+  | "infinity"
+  | "rarible"
+  | "manifold"
+  | "tofu"
+  | "decentraland"
+  | "nft-trader"
+  | "okex"
+  | "bend-dao"
+  | "superrare";
+
+// Event sub-kind in each of the above protocol/standard
+export type EventSubKind =
   | "erc721-transfer"
   | "erc721-like-transfer"
   | "erc721-erc20-like-transfer"
@@ -97,11 +131,24 @@ export type EventDataKind =
   | "sudoswap-token-withdrawal"
   | "sudoswap-spot-price-update"
   | "sudoswap-delta-update"
+  | "sudoswap-new-pair"
   | "universe-match"
   | "universe-cancel"
   | "nftx-redeemed"
   | "nftx-minted"
+  | "nftx-user-staked"
+  | "nftx-swapped"
+  | "nftx-swap"
+  | "nftx-vault-init"
+  | "nftx-vault-shutdown"
+  | "nftx-eligibility-deployed"
+  | "nftx-enable-mint-updated"
+  | "nftx-enable-target-redeem-updated"
   | "blur-orders-matched"
+  | "infinity-match-order-fulfilled"
+  | "infinity-take-order-fulfilled"
+  | "infinity-cancel-all-orders"
+  | "infinity-cancel-multiple-orders"
   | "blur-order-cancelled"
   | "blur-nonce-incremented"
   | "forward-order-filled"
@@ -116,18 +163,21 @@ export type EventDataKind =
   | "nft-trader-swap"
   | "okex-order-filled"
   | "bend-dao-taker-ask"
-  | "bend-dao-taker-bid";
+  | "bend-dao-taker-bid"
+  | "superrare-listing-filled"
+  | "superrare-bid-filled";
 
 export type EventData = {
-  kind: EventDataKind;
+  kind: EventKind;
+  subKind: EventSubKind;
   addresses?: { [address: string]: boolean };
   topic: string;
   numTopics: number;
   abi: Interface;
 };
 
-export const getEventData = (eventDataKinds?: EventDataKind[]) => {
-  if (!eventDataKinds) {
+export const getEventData = (eventSubKinds?: EventSubKind[]) => {
+  if (!eventSubKinds) {
     return [
       erc20.approval,
       erc20.transfer,
@@ -191,11 +241,23 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       sudoswap.tokenWithdrawal,
       sudoswap.spotPriceUpdate,
       sudoswap.deltaUpdate,
+      sudoswap.newPair,
       universe.match,
       universe.cancel,
       nftx.minted,
       nftx.redeemed,
+      nftx.swapped,
+      nftx.swap,
+      nftx.vaultInit,
+      nftx.vaultShutdown,
+      nftx.eligibilityDeployed,
+      nftx.enableMintUpdated,
+      nftx.enableTargetRedeemUpdated,
       blur.ordersMatched,
+      infinity.matchOrderFulfilled,
+      infinity.takeOrderFulfilled,
+      infinity.cancelAllOrders,
+      infinity.cancelMultipleOrders,
       blur.orderCancelled,
       blur.nonceIncremented,
       forward.orderFilled,
@@ -211,10 +273,12 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
       okex.orderFulfilled,
       bendDao.takerAsk,
       bendDao.takerBid,
+      superrare.listingFilled,
+      superrare.bidFilled,
     ];
   } else {
     return (
-      eventDataKinds
+      eventSubKinds
         .map(internalGetEventData)
         .filter(Boolean)
         // Force TS to remove `undefined`
@@ -223,8 +287,8 @@ export const getEventData = (eventDataKinds?: EventDataKind[]) => {
   }
 };
 
-const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
-  switch (kind) {
+const internalGetEventData = (subKind: EventSubKind): EventData | undefined => {
+  switch (subKind) {
     case "erc20-approval":
       return erc20.approval;
     case "erc20-transfer":
@@ -349,6 +413,8 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return sudoswap.spotPriceUpdate;
     case "sudoswap-delta-update":
       return sudoswap.deltaUpdate;
+    case "sudoswap-new-pair":
+      return sudoswap.newPair;
     case "universe-match":
       return universe.match;
     case "universe-cancel":
@@ -357,8 +423,30 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return nftx.minted;
     case "nftx-redeemed":
       return nftx.redeemed;
+    case "nftx-swapped":
+      return nftx.swapped;
+    case "nftx-swap":
+      return nftx.swap;
+    case "nftx-vault-init":
+      return nftx.vaultInit;
+    case "nftx-vault-shutdown":
+      return nftx.vaultShutdown;
+    case "nftx-eligibility-deployed":
+      return nftx.eligibilityDeployed;
+    case "nftx-enable-mint-updated":
+      return nftx.enableMintUpdated;
+    case "nftx-enable-target-redeem-updated":
+      return nftx.enableTargetRedeemUpdated;
     case "blur-orders-matched":
       return blur.ordersMatched;
+    case "infinity-match-order-fulfilled":
+      return infinity.matchOrderFulfilled;
+    case "infinity-take-order-fulfilled":
+      return infinity.takeOrderFulfilled;
+    case "infinity-cancel-all-orders":
+      return infinity.cancelAllOrders;
+    case "infinity-cancel-multiple-orders":
+      return infinity.cancelMultipleOrders;
     case "blur-order-cancelled":
       return blur.orderCancelled;
     case "blur-nonce-incremented":
@@ -389,6 +477,10 @@ const internalGetEventData = (kind: EventDataKind): EventData | undefined => {
       return bendDao.takerAsk;
     case "bend-dao-taker-bid":
       return bendDao.takerBid;
+    case "superrare-listing-filled":
+      return superrare.listingFilled;
+    case "superrare-bid-filled":
+      return superrare.bidFilled;
 
     default:
       return undefined;

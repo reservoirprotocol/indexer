@@ -26,8 +26,7 @@ export const getNetworkName = () => {
 };
 
 export const getServiceName = () => {
-  const isRailway = config.railwayStaticUrl !== "";
-  return `indexer-${isRailway ? "" : "fc-"}${config.version}-${getNetworkName()}`;
+  return `indexer-${config.version}-${getNetworkName()}`;
 };
 
 type NetworkSettings = {
@@ -144,12 +143,34 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
-            "0x726516B20c4692a6beA3900971a37e0cCf7A6BFf",
+            "0x726516b20c4692a6bea3900971a37e0ccf7a6bff",
             {
-              contract: "0x726516B20c4692a6beA3900971a37e0cCf7A6BFf",
+              contract: "0x726516b20c4692a6bea3900971a37e0ccf7a6bff",
               name: "Frog Coin",
               symbol: "FRG",
               decimals: 18,
+            },
+          ],
+          [
+            "0x46898f15f99b8887d87669ab19d633f579939ad9",
+            {
+              contract: "0x46898f15f99b8887d87669ab19d633f579939ad9",
+              name: "Ribbit",
+              symbol: "RIBBIT",
+              decimals: 18,
+            },
+          ],
+          [
+            "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
+            {
+              contract: "0x4c7c1ec97279a6f3323eab9ab317202dee7ad922",
+              name: "FEWL",
+              symbol: "FEWL",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://assets.website-files.com/630596599d87c526f9ca6d98/639b38c2171a4bf1981961d5_metaflyer-logomark-large-yellow.png",
+              },
             },
           ],
         ]),
@@ -265,14 +286,20 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 137: {
       return {
         ...defaultNetworkSettings,
+        metadataMintDelay: 180,
         enableWebSocket: false,
         enableReorgCheck: true,
         realtimeSyncFrequencySeconds: 10,
         realtimeSyncMaxBlockLag: 128,
-        backfillBlockBatchSize: 20,
+        backfillBlockBatchSize: 25,
         reorgCheckFrequency: [30],
         coingecko: {
           networkId: "polygon-pos",
+        },
+        supportedBidCurrencies: {
+          ...defaultNetworkSettings.supportedBidCurrencies,
+          // WETH
+          "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": true,
         },
         onStartup: async () => {
           // Insert the native currency

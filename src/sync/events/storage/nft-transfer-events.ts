@@ -1,10 +1,10 @@
+import _ from "lodash";
+
 import { idb, pgp } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as nftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
-import _ from "lodash";
-import { logger } from "@/common/logger";
 
 export type Event = {
   kind: ContractKind;
@@ -177,6 +177,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
               unnest("amount_deltas") AS "amount_delta",
               unnest("timestamps") AS "timestamp"
             FROM "x"
+            ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
           ) "y"
           GROUP BY "y"."address", "y"."token_id", "y"."owner"
         )
@@ -222,8 +223,13 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "contract",
             "token_id",
             "minted_timestamp"
-          ) VALUES ${pgp.helpers.values(tokenValuesChunk, columns)}
-          ON CONFLICT (contract, token_id) DO UPDATE SET minted_timestamp = EXCLUDED.minted_timestamp WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
+          ) VALUES ${pgp.helpers.values(
+            _.sortBy(tokenValuesChunk, ["collection_id", "token_id"]),
+            columns
+          )}
+          ON CONFLICT (contract, token_id) DO UPDATE 
+          SET minted_timestamp = EXCLUDED.minted_timestamp
+          WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
         `);
       } else {
         const columns = new pgp.helpers.ColumnSet(
@@ -239,8 +245,13 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "contract",
             "token_id",
             "minted_timestamp"
-          ) VALUES ${pgp.helpers.values(tokenValuesChunk, columns)}
-          ON CONFLICT (contract, token_id) DO UPDATE SET minted_timestamp = EXCLUDED.minted_timestamp WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
+          ) VALUES ${pgp.helpers.values(
+            _.sortBy(tokenValuesChunk, ["collection_id", "token_id"]),
+            columns
+          )}
+          ON CONFLICT (contract, token_id) DO UPDATE
+          SET minted_timestamp = EXCLUDED.minted_timestamp
+          WHERE EXCLUDED.minted_timestamp < tokens.minted_timestamp
         `);
       }
 
@@ -260,12 +271,7 @@ async function insertQueries(queries: string[], backfill: boolean) {
     // on the events to have been written to the database at the time
     // they get to run and we have no way to easily enforce this when
     // using the write buffer.
-    try {
-      await idb.none(pgp.helpers.concat(queries));
-    } catch (error) {
-      await nftTransfersWriteBuffer.addToQueue(pgp.helpers.concat(queries));
-      logger.error("nft-transfer-event", pgp.helpers.concat(queries));
-    }
+    await idb.none(pgp.helpers.concat(queries));
   }
 }
 
@@ -300,6 +306,7 @@ export const removeEvents = async (block: number, blockHash: string) => {
             unnest("owners") AS "owner",
             unnest("amount_deltas") AS "amount_delta"
           FROM "x"
+          ORDER BY "address" ASC, "token_id" ASC, "owner" ASC
         ) "y"
         GROUP BY "y"."address", "y"."token_id", "y"."owner"
       )

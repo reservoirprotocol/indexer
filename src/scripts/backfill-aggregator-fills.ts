@@ -26,6 +26,7 @@ const main = async () => {
         fill_events_2.log_index,
         fill_events_2.batch_index,
         fill_events_2.order_kind,
+        fill_events_2.order_id,
         fill_events_2.taker
       FROM fill_events_2
       JOIN transactions
@@ -53,7 +54,9 @@ const main = async () => {
         let taker = fromBuffer(result.taker);
 
         const txHash = fromBuffer(result.tx_hash);
-        const attributionData = await utils.extractAttributionData(txHash, result.order_kind);
+        const attributionData = await utils.extractAttributionData(txHash, result.order_kind, {
+          orderId: result.order_id,
+        });
         if (attributionData.taker) {
           taker = attributionData.taker;
         }

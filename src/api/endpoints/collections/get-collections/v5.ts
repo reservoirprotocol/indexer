@@ -109,6 +109,10 @@ export const getCollectionsV5Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       useNonFlaggedFloorAsk: Joi.boolean()
+        .when("normalizeRoyalties", {
+          is: Joi.boolean().valid(true),
+          then: Joi.valid(false),
+        })
         .default(false)
         .description(
           "If true, return the non flagged floor ask. (only supported when `normalizeRoyalties` is false)"
@@ -141,32 +145,39 @@ export const getCollectionsV5Options: RouteOptions = {
       collections: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          slug: Joi.string().allow(null, "").description("Open Sea slug"),
+          slug: Joi.string().allow("", null).description("Open Sea slug"),
           createdAt: Joi.string(),
-          name: Joi.string().allow(null, ""),
-          image: Joi.string().allow(null, ""),
-          banner: Joi.string().allow(null, ""),
-          discordUrl: Joi.string().allow(null, ""),
-          externalUrl: Joi.string().allow(null, ""),
-          twitterUsername: Joi.string().allow(null, ""),
-          openseaVerificationStatus: Joi.string().allow(null, ""),
-          description: Joi.string().allow(null, ""),
-          sampleImages: Joi.array().items(Joi.string().allow(null, "")),
+          name: Joi.string().allow("", null),
+          image: Joi.string().allow("", null),
+          banner: Joi.string().allow("", null),
+          discordUrl: Joi.string().allow("", null),
+          externalUrl: Joi.string().allow("", null),
+          twitterUsername: Joi.string().allow("", null),
+          openseaVerificationStatus: Joi.string().allow("", null),
+          description: Joi.string().allow("", null),
+          sampleImages: Joi.array().items(Joi.string().allow("", null)),
           tokenCount: Joi.string(),
           onSaleCount: Joi.string(),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           tokenSetId: Joi.string().allow(null),
           royalties: Joi.object({
-            recipient: Joi.string().allow(null, ""),
+            recipient: Joi.string().allow("", null),
+            breakdown: Joi.array().items(
+              Joi.object({
+                recipient: Joi.string().pattern(regex.address),
+                bps: Joi.number(),
+              })
+            ),
             bps: Joi.number(),
           }).allow(null),
+          allRoyalties: Joi.object().allow(null),
           lastBuy: {
             value: Joi.number().unsafe().allow(null),
             timestamp: Joi.number().allow(null),
           },
           floorAsk: {
             id: Joi.string().allow(null),
-            sourceDomain: Joi.string().allow(null, ""),
+            sourceDomain: Joi.string().allow("", null),
             price: JoiPrice.allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
@@ -175,12 +186,12 @@ export const getCollectionsV5Options: RouteOptions = {
               contract: Joi.string().lowercase().pattern(regex.address).allow(null),
               tokenId: Joi.string().pattern(regex.number).allow(null),
               name: Joi.string().allow(null),
-              image: Joi.string().allow(null, ""),
+              image: Joi.string().allow("", null),
             }).allow(null),
           },
           topBid: Joi.object({
             id: Joi.string().allow(null),
-            sourceDomain: Joi.string().allow(null, ""),
+            sourceDomain: Joi.string().allow("", null),
             price: JoiPrice.allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
@@ -224,9 +235,9 @@ export const getCollectionsV5Options: RouteOptions = {
           attributes: Joi.array()
             .items(
               Joi.object({
-                key: Joi.string().allow(null, ""),
-                kind: Joi.string().allow(null, ""),
-                count: Joi.number().allow(null, ""),
+                key: Joi.string().allow("", null),
+                kind: Joi.string().allow("", null),
+                count: Joi.number().allow("", null),
               })
             )
             .optional(),
@@ -323,17 +334,17 @@ export const getCollectionsV5Options: RouteOptions = {
         LEFT JOIN LATERAL (
           SELECT
             SUM(CASE
-                  WHEN fe.created_at > NOW() - INTERVAL '24 HOURS'
+                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '24 HOURS'
                   THEN 1
                   ELSE 0
                 END) AS day_sale_count,
             SUM(CASE
-                  WHEN fe.created_at > NOW() - INTERVAL '7 DAYS'
+                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '7 DAYS'
                   THEN 1
                   ELSE 0
                 END) AS week_sale_count,
             SUM(CASE
-                  WHEN fe.created_at > NOW() - INTERVAL '30 DAYS'
+                  WHEN to_timestamp(fe.timestamp) > NOW() - INTERVAL '30 DAYS'
                   THEN 1
                   ELSE 0
                 END) AS month_sale_count,
@@ -388,6 +399,7 @@ export const getCollectionsV5Options: RouteOptions = {
           (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
           (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
           collections.royalties,
+          collections.new_royalties,
           collections.contract,
           collections.token_id_range,
           collections.token_set_id,
@@ -420,7 +432,6 @@ export const getCollectionsV5Options: RouteOptions = {
               tokens.image
             FROM tokens
             WHERE tokens.collection_id = collections.id
-              AND tokens.image IS NOT NULL
             LIMIT 4
           ) AS sample_images
         FROM collections
@@ -516,15 +527,11 @@ export const getCollectionsV5Options: RouteOptions = {
             conditions.push(
               query.normalizeRoyalties
                 ? `(collections.normalized_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
-                : query.useNonFlaggedFloorAsk
-                ? `(collections.non_flagged_floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
                 : `(collections.floor_sell_value, collections.id) > ($/contParam/, $/contId/)`
             );
           }
           orderBy = query.normalizeRoyalties
             ? ` ORDER BY collections.normalized_floor_sell_value, collections.id`
-            : query.useNonFlaggedFloorAsk
-            ? ` ORDER BY collections.non_flagged_floor_sell_value, collections.id`
             : ` ORDER BY collections.floor_sell_value, collections.id`;
 
           break;
@@ -602,26 +609,40 @@ export const getCollectionsV5Options: RouteOptions = {
             ? fromBuffer(r.top_buy_currency)
             : Sdk.Common.Addresses.Weth[config.chainId];
 
+          const sampleImages = _.filter(
+            r.sample_images,
+            (image) => !_.isNull(image) && _.startsWith(image, "http")
+          );
+
           return {
             id: r.id,
             slug: r.slug,
             createdAt: new Date(r.created_at).toISOString(),
             name: r.name,
             image:
-              r.image ??
-              (r.sample_images?.length ? Assets.getLocalAssetsLink(r.sample_images[0]) : null),
+              r.image ?? (sampleImages.length ? Assets.getLocalAssetsLink(sampleImages[0]) : null),
             banner: r.banner,
             discordUrl: r.discord_url,
             externalUrl: r.external_url,
             twitterUsername: r.twitter_username,
             openseaVerificationStatus: r.opensea_verification_status,
             description: r.description,
-            sampleImages: Assets.getLocalAssetsLink(r.sample_images) ?? [],
+            sampleImages: Assets.getLocalAssetsLink(sampleImages) ?? [],
             tokenCount: String(r.token_count),
             onSaleCount: String(r.on_sale_count),
             primaryContract: fromBuffer(r.contract),
             tokenSetId: r.token_set_id,
-            royalties: r.royalties ? r.royalties[0] : null,
+            royalties: r.royalties
+              ? {
+                  // Main recipient, kept for backwards-compatibility only
+                  recipient: r.royalties.length ? r.royalties[0].recipient : null,
+                  breakdown: r.royalties.filter((r: any) => r.bps && r.recipient),
+                  bps: r.royalties
+                    .map((r: any) => r.bps)
+                    .reduce((a: number, b: number) => a + b, 0),
+                }
+              : null,
+            allRoyalties: r.new_royalties ?? null,
             lastBuy: {
               value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
               timestamp: r.last_buy_timestamp,

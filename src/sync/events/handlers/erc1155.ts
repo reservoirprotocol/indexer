@@ -6,21 +6,11 @@ import { getNetworkSettings } from "@/config/network";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import { BaseEventParams } from "@/events-sync/parser";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { getOrderSourceByOrderKind } from "@/orderbook/orders";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
-import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const fillEvents: es.fills.Event[] = [];
-  const nftTransferEvents: es.nftTransfers.Event[] = [];
-
-  const makerInfos: orderUpdatesByMaker.MakerInfo[] = [];
-  const mintInfos: tokenUpdatesMint.MintInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For handling mints as sales
   const mintedTokens = new Map<
     string,
@@ -37,9 +27,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   const ns = getNetworkSettings();
 
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "erc1155-transfer-single": {
         const parsedLog = eventData.abi.parseLog(log);
         const from = parsedLog.args["from"].toLowerCase();
@@ -47,7 +37,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const tokenId = parsedLog.args["tokenId"].toString();
         const amount = parsedLog.args["amount"].toString();
 
-        nftTransferEvents.push({
+        onChainData.nftTransferEvents.push({
           kind: "erc1155",
           from,
           to,
@@ -59,7 +49,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Make sure to only handle the same data once per transaction
         const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${tokenId}`;
 
-        makerInfos.push({
+        onChainData.makerInfos.push({
           context: `${contextPrefix}-${from}-sell-balance`,
           maker: from,
           trigger: {
@@ -74,7 +64,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        makerInfos.push({
+        onChainData.makerInfos.push({
           context: `${contextPrefix}-${to}-sell-balance`,
           maker: to,
           trigger: {
@@ -90,7 +80,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         });
 
         if (ns.mintAddresses.includes(from)) {
-          mintInfos.push({
+          onChainData.mintInfos.push({
             contract: baseEventParams.address,
             tokenId,
             mintedTimestamp: baseEventParams.timestamp,
@@ -122,7 +112,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         const count = Math.min(tokenIds.length, amounts.length);
         for (let i = 0; i < count; i++) {
-          nftTransferEvents.push({
+          onChainData.nftTransferEvents.push({
             kind: "erc1155",
             from,
             to,
@@ -137,7 +127,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           // Make sure to only handle the same data once per transaction
           const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}-${tokenIds[i]}`;
 
-          makerInfos.push({
+          onChainData.makerInfos.push({
             context: `${contextPrefix}-${from}-sell-balance`,
             maker: from,
             trigger: {
@@ -152,7 +142,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             },
           });
 
-          makerInfos.push({
+          onChainData.makerInfos.push({
             context: `${contextPrefix}-${to}-sell-balance`,
             maker: to,
             trigger: {
@@ -168,7 +158,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           });
 
           if (ns.mintAddresses.includes(from)) {
-            mintInfos.push({
+            onChainData.mintInfos.push({
               contract: baseEventParams.address,
               tokenId: tokenIds[i],
               mintedTimestamp: baseEventParams.timestamp,
@@ -235,7 +225,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           continue;
         }
 
-        fillEvents.push({
+        onChainData.fillEvents.push({
           orderKind,
           orderSide: "sell",
           taker: tx.from,
@@ -256,12 +246,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    fillEvents,
-    nftTransferEvents,
-
-    makerInfos,
-    mintInfos,
-  };
 };

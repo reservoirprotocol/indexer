@@ -29,7 +29,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      ids: Joi.alternatives(Joi.string(), Joi.array().items(Joi.string())).description(
+      ids: Joi.alternatives(Joi.array().items(Joi.string()), Joi.string()).description(
         "Order id(s) to search for (only fillable and approved orders will be returned)"
       ),
       token: Joi.string()
@@ -82,8 +82,13 @@ export const getOrdersBidsV5Options: RouteOptions = {
           then: Joi.valid("active", "inactive", "expired", "cancelled", "filled"),
           otherwise: Joi.valid("active"),
         })
+        .when("contracts", {
+          is: Joi.exist(),
+          then: Joi.valid("active", "any"),
+          otherwise: Joi.valid("active"),
+        })
         .description(
-          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
+          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\nany = any status\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
       source: Joi.string()
         .pattern(regex.domain)
@@ -95,15 +100,16 @@ export const getOrdersBidsV5Options: RouteOptions = {
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
+      startTimestamp: Joi.number().description(
+        "Get events after a particular unix timestamp (inclusive)"
+      ),
+      endTimestamp: Joi.number().description(
+        "Get events before a particular unix timestamp (inclusive)"
+      ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
-        .when("token", {
-          is: Joi.exist(),
-          then: Joi.valid("price", "createdAt"),
-          otherwise: Joi.valid("createdAt"),
-        })
         .valid("createdAt", "price")
         .default("createdAt")
         .description(
@@ -227,11 +233,29 @@ export const getOrdersBidsV5Options: RouteOptions = {
         FROM orders
       `;
 
+      // We default in the code so that these values don't appear in the docs
+      if (query.startTimestamp || query.endTimestamp) {
+        if (!query.startTimestamp) {
+          query.startTimestamp = 0;
+        }
+        if (!query.endTimestamp) {
+          query.endTimestamp = 9999999999;
+        }
+      }
+
       // Filters
-      const conditions: string[] = [
-        "EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)",
-        "orders.side = 'buy'",
-      ];
+      const conditions: string[] =
+        query.startTimestamp || query.endTimestamp
+          ? [
+              `orders.created_at >= to_timestamp($/startTimestamp/)`,
+              `orders.created_at <= to_timestamp($/endTimestamp/)`,
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ]
+          : [
+              `EXISTS (SELECT FROM token_sets WHERE id = orders.token_set_id)`,
+              `orders.side = 'buy'`,
+            ];
 
       let communityFilter = "";
       let orderStatusFilter;
@@ -296,19 +320,12 @@ export const getOrdersBidsV5Options: RouteOptions = {
           query.contracts = [query.contracts];
         }
 
-        for (const contract of query.contracts) {
-          const contractsFilter = `'${_.replace(contract, "0x", "\\x")}'`;
+        (query as any).contractsFilter = query.contracts.map(toBuffer);
+        conditions.push(`orders.contract IN ($/contractsFilter:list/)`);
 
-          if (_.isUndefined((query as any).contractsFilter)) {
-            (query as any).contractsFilter = [];
-          }
-
-          (query as any).contractsFilter.push(contractsFilter);
+        if (query.status === "any") {
+          orderStatusFilter = "";
         }
-
-        (query as any).contractsFilter = _.join((query as any).contractsFilter, ",");
-
-        conditions.push(`orders.contract IN ($/contractsFilter:raw/)`);
       }
 
       if (query.maker) {

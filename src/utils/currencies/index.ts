@@ -63,9 +63,10 @@ export const getCurrency = async (currencyAddress: string): Promise<Currency> =>
           `Failed to initially fetch ${currencyAddress} currency details: ${error}`
         );
 
-        if (getNetworkSettings().whitelistedCurrencies.has(currencyAddress)) {
-          ({ name, symbol, decimals, metadata } =
-            getNetworkSettings().whitelistedCurrencies.get(currencyAddress)!);
+        if (getNetworkSettings().whitelistedCurrencies.has(currencyAddress.toLowerCase())) {
+          ({ name, symbol, decimals, metadata } = getNetworkSettings().whitelistedCurrencies.get(
+            currencyAddress.toLowerCase()
+          )!);
         } else {
           // TODO: Although an edge case, we should ensure that when the job
           // finally succeeds fetching the details of a currency, we also do
@@ -103,6 +104,7 @@ export const getCurrency = async (currencyAddress: string): Promise<Currency> =>
         }
       );
 
+      // Update the in-memory cache
       CURRENCY_MEMORY_CACHE.set(currencyAddress, {
         contract: currencyAddress,
         name,
@@ -145,6 +147,15 @@ export const tryGetCurrencyDetails = async (currencyAddress: string) => {
       metadata.image = result.image.large;
     }
   }
+
+  // Make sure to update the in-memory cache
+  CURRENCY_MEMORY_CACHE.set(currencyAddress, {
+    contract: currencyAddress,
+    name,
+    symbol,
+    decimals,
+    metadata,
+  });
 
   return {
     name,

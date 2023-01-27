@@ -15,6 +15,7 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as tokenSet from "@/orderbook/token-sets";
 import * as royalties from "@/utils/royalties";
 import { Royalty } from "@/utils/royalties";
+import _ from "lodash";
 
 export type OrderInfo = {
   orderParams: Sdk.LooksRare.Types.MakerOrderParams;
@@ -185,28 +186,44 @@ export const save = async (
       ];
 
       // Handle: royalties
-      let eip2981Royalties: Royalty[];
+      let onChainRoyalties: Royalty[];
 
       if (order.params.kind === "single-token") {
-        eip2981Royalties = await royalties.getRoyalties(
+        onChainRoyalties = await royalties.getRoyalties(
           order.params.collection,
           order.params.tokenId,
-          "eip2981"
+          "onchain"
         );
       } else {
-        eip2981Royalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "eip2981");
+        onChainRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain");
       }
 
-      if (eip2981Royalties.length) {
+      // TODO: Remove (for backwards-compatibility only)
+      if (!onChainRoyalties.length) {
+        if (order.params.kind === "single-token") {
+          onChainRoyalties = await royalties.getRoyalties(
+            order.params.collection,
+            order.params.tokenId,
+            "eip2981"
+          );
+        } else {
+          onChainRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "eip2981");
+        }
+      }
+
+      if (onChainRoyalties.length) {
         feeBreakdown = [
           ...feeBreakdown,
           {
             kind: "royalty",
-            recipient: eip2981Royalties[0].recipient,
+            recipient: onChainRoyalties[0].recipient,
             // LooksRare has fixed 0.5% royalties
             bps: 50,
           },
         ];
+      } else {
+        // If there is no royalty, the marketplace fee will be 2%
+        feeBreakdown[0].bps = 200;
       }
 
       const price = order.params.price;
@@ -219,14 +236,15 @@ export const save = async (
 
       const missingRoyalties = [];
       let missingRoyaltyAmount = bn(0);
+      let royaltyDeducted = false;
       for (const { bps, recipient } of defaultRoyalties) {
         // Get any built-in royalty payment to the current recipient
-        const existingRoyalty = feeBreakdown.find(
-          (r) => r.kind === "royalty" && r.recipient === recipient
-        );
+        const existingRoyalty = feeBreakdown.find((r) => r.kind === "royalty");
 
         // Deduce the 0.5% royalty LooksRare will pay if needed
-        const actualBps = existingRoyalty ? bps - 50 : bps;
+        const actualBps = existingRoyalty && !royaltyDeducted ? bps - 50 : bps;
+        royaltyDeducted = !_.isUndefined(existingRoyalty) || royaltyDeducted;
+
         const amount = bn(price).mul(actualBps).div(10000).toString();
         missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 

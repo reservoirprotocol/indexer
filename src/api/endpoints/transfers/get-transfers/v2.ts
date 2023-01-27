@@ -62,11 +62,11 @@ export const getTransfersV2Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string().lowercase().pattern(regex.address),
             tokenId: Joi.string().pattern(regex.number),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
             }),
           }),
           from: Joi.string().lowercase().pattern(regex.address),

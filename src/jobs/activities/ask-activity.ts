@@ -5,17 +5,10 @@ import { getActivityHash } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { Tokens } from "@/models/tokens";
-import { logger } from "@/common/logger";
 
 export class AskActivity {
   public static async handleEvent(data: NewSellOrderEventData) {
     const collectionId = await Tokens.getCollectionId(data.contract, data.tokenId);
-
-    // If no collection found
-    if (_.isNull(collectionId)) {
-      logger.warn("ask-activity", `No collection found for ${JSON.stringify(data)}`);
-      return;
-    }
 
     const activityHash = getActivityHash(ActivityType.ask, data.orderId);
 

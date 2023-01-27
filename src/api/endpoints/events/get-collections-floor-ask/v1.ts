@@ -39,6 +39,10 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       excludeFlaggedTokens: Joi.boolean()
+        .when("normalizeRoyalties", {
+          is: Joi.boolean().valid(true),
+          then: Joi.valid(false),
+        })
         .default(false)
         .description(
           "If true, will exclude floor asks on flagged tokens. (only supported when `normalizeRoyalties` is false)"
@@ -72,7 +76,7 @@ export const getCollectionsFloorAskV1Options: RouteOptions = {
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             price: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-            source: Joi.string().allow(null, ""),
+            source: Joi.string().allow("", null),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),

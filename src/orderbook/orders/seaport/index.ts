@@ -1,5 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
+import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport/types";
 import _ from "lodash";
 import pLimit from "p-limit";
@@ -11,9 +12,6 @@ import { acquireLock, redis } from "@/common/redis";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import * as arweaveRelay from "@/jobs/arweave-relay";
-import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
-import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Collections } from "@/models/collections";
 import { PendingFlagStatusSyncJobs } from "@/models/pending-flag-status-sync-jobs";
 import { Sources } from "@/models/sources";
@@ -22,12 +20,15 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck, offChainCheckPartial } from "@/orderbook/orders/seaport/check";
 import * as tokenSet from "@/orderbook/token-sets";
+import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 import { Royalty } from "@/utils/royalties";
-import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
-import { TokenSet } from "@/orderbook/token-sets/token-list";
+
+import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
+import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
+import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 
 export type OrderInfo =
   | {
@@ -92,6 +93,11 @@ export const save = async (
       const info = order.getInfo();
       const id = order.hash();
 
+      const debugLogs: string[] = [];
+
+      const timeStart = performance.now();
+      let timeStartInterval = performance.now();
+
       // Check: order has a valid format
       if (!info) {
         return results.push({
@@ -118,6 +124,11 @@ export const save = async (
           rawData: order.params,
         }
       );
+
+      debugLogs.push(`orderExists=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
+
+      timeStartInterval = performance.now();
+
       if (orderExists) {
         return results.push({
           id,
@@ -187,6 +198,10 @@ export const save = async (
         });
       }
 
+      debugLogs.push(`checkValidity=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
+
+      timeStartInterval = performance.now();
+
       // Check: order has a valid signature
       try {
         await order.checkSignature(baseProvider);
@@ -197,11 +212,17 @@ export const save = async (
         });
       }
 
+      debugLogs.push(
+        `checkSignature=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
+      );
+
+      timeStartInterval = performance.now();
+
       // Check: order fillability
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
       try {
-        await offChainCheck(order, { onChainApprovalRecheck: true });
+        await offChainCheck(order, { onChainApprovalRecheck: true, debugLogs });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         // Keep any orders that can potentially get valid in the future
@@ -219,6 +240,10 @@ export const save = async (
           });
         }
       }
+
+      debugLogs.push(`offChainCheck=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
+
+      timeStartInterval = performance.now();
 
       let saveRawData = true;
 
@@ -404,6 +429,10 @@ export const save = async (
         }
       }
 
+      debugLogs.push(`tokenSet=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
+
+      timeStartInterval = performance.now();
+
       if (!tokenSetId) {
         return results.push({
           id,
@@ -431,14 +460,6 @@ export const save = async (
         feeAmount = feeAmount.div(info.amount);
       }
 
-      const feeBps = price.eq(0) ? bn(0) : feeAmount.mul(10000).div(price);
-      if (feeBps.gt(10000)) {
-        return results.push({
-          id,
-          status: "fees-too-high",
-        });
-      }
-
       // Handle: royalties
       const openSeaFeeRecipients = [
         "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
@@ -462,6 +483,8 @@ export const save = async (
         );
       }
 
+      let feeBps = 0;
+      let marketplaceFeeFound = false;
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
         const bps = price.eq(0)
           ? 0
@@ -471,19 +494,32 @@ export const save = async (
               .div(price)
               .toNumber();
 
+        feeBps += bps;
+
+        // First check for opensea hardcoded recipients
+        const kind: "marketplace" | "royalty" = openSeaFeeRecipients.includes(recipient)
+          ? "marketplace"
+          : openSeaRoyalties.map(({ recipient }) => recipient).includes(recipient.toLowerCase()) // Check for locally stored royalties
+          ? "royalty"
+          : marketplaceFeeFound || bps > 250 // If bps is higher than 250 or we already found marketplace fee assume it is royalty otherwise marketplace fee
+          ? "royalty"
+          : "marketplace";
+
+        marketplaceFeeFound = kind === "marketplace" || marketplaceFeeFound;
+
         return {
-          // First check for opensea hardcoded recipients
-          kind: openSeaFeeRecipients.includes(recipient)
-            ? "marketplace"
-            : openSeaRoyalties.map(({ recipient }) => recipient).includes(recipient.toLowerCase()) // Check for locally stored royalties
-            ? "royalty"
-            : bps > 250 // If bps is higher than 250 assume it is royalty otherwise marketplace fee
-            ? "royalty"
-            : "marketplace",
+          kind,
           recipient,
           bps,
         };
       });
+
+      if (feeBps > 10000) {
+        return results.push({
+          id,
+          status: "fees-too-high",
+        });
+      }
 
       // Handle: royalties on top
       const defaultRoyalties =
@@ -504,21 +540,38 @@ export const save = async (
         );
         if (validRecipients.length) {
           const bpsDiff = totalDefaultBps - totalBuiltInBps;
-          const amount = bn(price).mul(bpsDiff).div(10000).toString();
+          const amount = bn(price).mul(bpsDiff).div(10000);
           missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
-          missingRoyalties.push({
-            bps: bpsDiff,
-            amount,
-            // TODO: We should probably split pro-rata across all royalty recipients
-            recipient: validRecipients[0].recipient,
-          });
+          // Split the missing royalties pro-rata across all royalty recipients
+          const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+          for (const { bps, recipient } of validRecipients) {
+            // TODO: Handle lost precision (by paying it to the last or first recipient)
+            missingRoyalties.push({
+              bps: Math.floor((bpsDiff * bps) / totalBps),
+              amount: amount.mul(bps).div(totalBps).toString(),
+              recipient,
+            });
+          }
         }
       }
+
+      debugLogs.push(`royalties=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
+
+      timeStartInterval = performance.now();
 
       // Handle: source
       const sources = await Sources.getInstance();
       let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
+
+      // If cross posting, source should always be opensea.
+      if (metadata?.target !== "opensea") {
+        const sourceHash = bn(order.params.salt)._hex.slice(0, 10);
+        const matchedSource = sources.getByDomainHash(sourceHash);
+        if (matchedSource) {
+          source = matchedSource;
+        }
+      }
 
       // If the order is native, override any default source
       if (isReservoir) {
@@ -597,6 +650,10 @@ export const save = async (
       }
       const normalizedValue = bn(prices.nativePrice).toString();
 
+      debugLogs.push(`currencies=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
+
+      timeStartInterval = performance.now();
+
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
@@ -625,6 +682,10 @@ export const save = async (
           );
         }
       }
+
+      debugLogs.push(
+        `bidValueValidation=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
+      );
 
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
@@ -658,7 +719,7 @@ export const save = async (
         conduit: toBuffer(
           new Sdk.Seaport.Exchange(config.chainId).deriveConduit(order.params.conduitKey)
         ),
-        fee_bps: feeBps.toNumber(),
+        fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
         dynamic: info.isDynamic ?? null,
         raw_data: saveRawData ? order.params : null,
@@ -669,7 +730,12 @@ export const save = async (
       });
 
       const unfillable =
-        fillabilityStatus !== "fillable" || approvalStatus !== "approved" ? true : undefined;
+        fillabilityStatus !== "fillable" ||
+        approvalStatus !== "approved" ||
+        // Skip private orders
+        info.taker !== AddressZero
+          ? true
+          : undefined;
 
       results.push({
         id,
@@ -679,6 +745,21 @@ export const save = async (
 
       if (relayToArweave) {
         arweaveData.push({ order, schemaHash, source: source?.domain });
+      }
+
+      const totalTimeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+
+      if (totalTimeElapsed > 1) {
+        logger.info(
+          "orders-seaport-save-debug-latency",
+          `orderId=${id}, orderSide=${
+            info.side
+          }, totalTimeElapsed=${totalTimeElapsed}, timeElapsedBreakdown=${JSON.stringify(
+            debugLogs,
+            null,
+            "\t"
+          )}`
+        );
       }
     } catch (error) {
       logger.warn(
@@ -954,15 +1035,19 @@ export const save = async (
         );
         if (validRecipients.length) {
           const bpsDiff = totalDefaultBps - totalBuiltInBps;
-          const amount = bn(price).mul(bpsDiff).div(10000).toString();
+          const amount = bn(price).mul(bpsDiff).div(10000);
           missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
 
-          missingRoyalties.push({
-            bps: bpsDiff,
-            amount,
-            // TODO: We should probably split pro-rata across all royalty recipients
-            recipient: validRecipients[0].recipient,
-          });
+          // Split the missing royalties pro-rata across all royalty recipients
+          const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+          for (const { bps, recipient } of validRecipients) {
+            // TODO: Handle lost precision (by paying it to the last or first recipient)
+            missingRoyalties.push({
+              bps: Math.floor((bpsDiff * bps) / totalBps),
+              amount: amount.mul(bps).div(totalBps).toString(),
+              recipient,
+            });
+          }
         }
       }
 
@@ -1103,7 +1188,12 @@ export const save = async (
       });
 
       const unfillable =
-        fillabilityStatus !== "fillable" || approvalStatus !== "approved" ? true : undefined;
+        fillabilityStatus !== "fillable" ||
+        approvalStatus !== "approved" ||
+        // Skip private orders
+        (orderParams.taker ?? AddressZero) !== AddressZero
+          ? true
+          : undefined;
 
       results.push({
         id,
@@ -1448,6 +1538,7 @@ export const save = async (
         table: "orders",
       }
     );
+
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
 
     await ordersUpdateById.addToQueue(

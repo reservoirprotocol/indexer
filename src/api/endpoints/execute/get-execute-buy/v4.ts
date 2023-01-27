@@ -23,6 +23,9 @@ const version = "v4";
 export const getExecuteBuyV4Options: RouteOptions = {
   description: "Buy tokens",
   tags: ["api", "x-deprecated"],
+  timeout: {
+    server: 20 * 1000,
+  },
   plugins: {
     "hapi-swagger": {
       order: 10,
@@ -235,14 +238,9 @@ export const getExecuteBuyV4Options: RouteOptions = {
           const response = await inject({
             method: "POST",
             url: `/order/v2`,
-            headers: request.headers["x-api-key"]
-              ? {
-                  "Content-Type": "application/json",
-                  "X-Api-Key": request.headers["x-api-key"],
-                }
-              : {
-                  "Content-Type": "application/json",
-                },
+            headers: {
+              "Content-Type": "application/json",
+            },
             payload: { order },
           }).then((response) => JSON.parse(response.payload));
           if (response.orderId) {
