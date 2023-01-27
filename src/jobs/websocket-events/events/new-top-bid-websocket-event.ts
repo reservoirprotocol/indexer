@@ -9,22 +9,13 @@ import { redis } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Sources } from "@/models/sources";
 import { getJoiPriceObject } from "@/common/joi";
-import tracer from "@/common/tracer";
 
 export class NewTopBidWebsocketEvent {
   public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
-    await tracer.trace(
-      "triggerEvent",
-      { resource: "NewTopBidWebsocketEvent", tags: { orderId: data.orderId } },
-      async () => {
-        const order = await tracer.trace(
-          "triggerEvent",
-          { resource: "NewTopBidWebsocketEvent", tags: { orderId: data.orderId } },
-          async () => {
-            const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+    const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
-            return idb.oneOrNone(
-              `
+    const order = await idb.oneOrNone(
+      `
               SELECT
                 orders.id,
                 orders.token_set_id,
@@ -49,102 +40,93 @@ export class NewTopBidWebsocketEvent {
               WHERE orders.id = $/orderId/
               LIMIT 1
             `,
-              { orderId: data.orderId }
-            );
-          }
-        );
-
-        if (await NewTopBidWebsocketEvent.isRateLimited(order.token_set_id)) {
-          logger.info(
-            "new-top-bid-websocket-event",
-            `Rate limited. orderId=${data.orderId}, tokenSetId=${order.token_set_id}`
-          );
-
-          return;
-        }
-
-        const payloads = [];
-        const owners = await tracer.trace(
-          "getOwners",
-          { resource: "NewTopBidWebsocketEvent", tags: { orderId: data.orderId } },
-          async () => NewTopBidWebsocketEvent.getOwners(order.token_set_id)
-        );
-        const ownersChunks = _.chunk(owners, Number(config.websocketServerEventMaxSizeInKb) * 20);
-        const source = (await Sources.getInstance()).get(Number(order.source_id_int));
-
-        for (const ownersChunk of ownersChunks) {
-          payloads.push({
-            order: {
-              id: order.id,
-              maker: fromBuffer(order.maker),
-              createdAt: new Date(order.created_at).toISOString(),
-              validFrom: order.valid_from,
-              validUntil: order.valid_until,
-              source: {
-                id: source?.address,
-                domain: source?.domain,
-                name: source?.getTitle(),
-                icon: source?.getIcon(),
-                url: source?.metadata.url,
-              },
-              price: await getJoiPriceObject(
-                {
-                  net: {
-                    amount: order.currency_value ?? order.value,
-                    nativeAmount: order.value,
-                  },
-                  gross: {
-                    amount: order.currency_price ?? order.price,
-                    nativeAmount: order.price,
-                  },
-                },
-                fromBuffer(order.currency)
-              ),
-              priceNormalized: await getJoiPriceObject(
-                {
-                  net: {
-                    amount: order.currency_normalized_value ?? order.currency_value ?? order.value,
-                    nativeAmount: order.normalized_value ?? order.value,
-                  },
-                  gross: {
-                    amount: order.currency_price ?? order.price,
-                    nativeAmount: order.price,
-                  },
-                },
-                fromBuffer(order.currency)
-              ),
-              criteria: order.criteria,
-            },
-            owners: ownersChunk,
-          });
-        }
-
-        const server = new Pusher.default({
-          appId: config.websocketServerAppId,
-          key: config.websocketServerAppKey,
-          secret: config.websocketServerAppSecret,
-          host: config.websocketServerHost,
-        });
-
-        const payloadsBatches = _.chunk(payloads, Number(config.websocketServerEventMaxBatchSize));
-
-        for (const payloadsBatch of payloadsBatches) {
-          const events: BatchEvent[] = payloadsBatch.map((payload) => {
-            return {
-              channel: "top-bids",
-              name: "new-top-bid",
-              data: JSON.stringify(payload),
-            };
-          });
-
-          await tracer.trace(
-            "triggerBatch",
-            { resource: "NewTopBidWebsocketEvent", tags: { orderId: data.orderId } },
-            async () => server.triggerBatch(events)
-          );
-        }
-      }
+      { orderId: data.orderId }
     );
+
+    if (await NewTopBidWebsocketEvent.isRateLimited(order.token_set_id)) {
+      logger.info(
+        "new-top-bid-websocket-event",
+        `Rate limited. orderId=${data.orderId}, tokenSetId=${order.token_set_id}`
+      );
+
+      return;
+    }
+
+    const payloads = [];
+
+    const owners = await NewTopBidWebsocketEvent.getOwners(order.token_set_id);
+
+    const ownersChunks = _.chunk(owners, Number(config.websocketServerEventMaxSizeInKb) * 20);
+
+    const source = (await Sources.getInstance()).get(Number(order.source_id_int));
+
+    for (const ownersChunk of ownersChunks) {
+      payloads.push({
+        order: {
+          id: order.id,
+          maker: fromBuffer(order.maker),
+          createdAt: new Date(order.created_at).toISOString(),
+          validFrom: order.valid_from,
+          validUntil: order.valid_until,
+          source: {
+            id: source?.address,
+            domain: source?.domain,
+            name: source?.getTitle(),
+            icon: source?.getIcon(),
+            url: source?.metadata.url,
+          },
+          price: await getJoiPriceObject(
+            {
+              net: {
+                amount: order.currency_value ?? order.value,
+                nativeAmount: order.value,
+              },
+              gross: {
+                amount: order.currency_price ?? order.price,
+                nativeAmount: order.price,
+              },
+            },
+            fromBuffer(order.currency)
+          ),
+          priceNormalized: await getJoiPriceObject(
+            {
+              net: {
+                amount: order.currency_normalized_value ?? order.currency_value ?? order.value,
+                nativeAmount: order.normalized_value ?? order.value,
+              },
+              gross: {
+                amount: order.currency_price ?? order.price,
+                nativeAmount: order.price,
+              },
+            },
+            fromBuffer(order.currency)
+          ),
+          criteria: order.criteria,
+        },
+        owners: ownersChunk,
+      });
+    }
+
+    const server = new Pusher.default({
+      appId: config.websocketServerAppId,
+      key: config.websocketServerAppKey,
+      secret: config.websocketServerAppSecret,
+      host: config.websocketServerHost,
+    });
+
+    const payloadsBatches = _.chunk(payloads, Number(config.websocketServerEventMaxBatchSize));
+
+    for (const payloadsBatch of payloadsBatches) {
+      const events: BatchEvent[] = payloadsBatch.map((payload) => {
+        return {
+          channel: "top-bids",
+          name: "new-top-bid",
+          data: JSON.stringify(payload),
+        };
+      });
+
+      await server.triggerBatch(events);
+    }
   }
 
   static async getOwners(tokenSetId: string): Promise<string[]> {

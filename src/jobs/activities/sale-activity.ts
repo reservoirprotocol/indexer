@@ -1,7 +1,6 @@
 import { ActivitiesEntityInsertParams, ActivityType } from "@/models/activities/activities-entity";
 import { Tokens } from "@/models/tokens";
 import _ from "lodash";
-import { logger } from "@/common/logger";
 import { Activities } from "@/models/activities";
 import { getActivityHash } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
@@ -16,17 +15,6 @@ export class SaleActivity {
     }
 
     const collectionId = await Tokens.getCollectionId(data.contract, data.tokenId);
-
-    // If no token found
-    if (_.isNull(collectionId)) {
-      logger.warn("sale-activity", `No collection found for ${JSON.stringify(data)}`);
-      return;
-    }
-
-    // If no collection found
-    if (!collectionId) {
-      logger.warn("sale-activity", `No collection found for ${JSON.stringify(data)}`);
-    }
 
     const activityHash = getActivityHash(
       data.transactionHash,
