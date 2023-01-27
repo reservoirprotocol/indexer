@@ -31,7 +31,7 @@ export const postWebsocketUserAuthOptions: RouteOptions = {
       }
 
       if (!apiKeyEntity) {
-        throw Boom.forbidden("Wrong or missing admin API key");
+        throw Boom.forbidden(`Wrong or missing API key. socketId=${socketId}, apiKey=${apiKey}`);
       }
 
       const user = {
