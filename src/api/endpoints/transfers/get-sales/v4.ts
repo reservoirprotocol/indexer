@@ -82,14 +82,14 @@ export const getSalesV4Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string().lowercase().pattern(regex.address),
             tokenId: Joi.string().pattern(regex.number),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
             }),
           }),
-          orderSource: Joi.string().allow(null, ""),
+          orderSource: Joi.string().allow("", null),
           orderSide: Joi.string().valid("ask", "bid"),
           orderKind: Joi.string(),
           orderId: Joi.string().allow(null),
@@ -104,6 +104,16 @@ export const getSalesV4Options: RouteOptions = {
           timestamp: Joi.number(),
           price: JoiPrice,
           washTradingScore: Joi.number(),
+          royaltyFeeBps: Joi.number(),
+          marketplaceFeeBps: Joi.number(),
+          paidFullRoyalty: Joi.boolean(),
+          feeBreakdown: Joi.array().items(
+            Joi.object({
+              kind: Joi.string(),
+              bps: Joi.number(),
+              recipient: Joi.string(),
+            })
+          ),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
@@ -254,7 +264,12 @@ export const getSalesV4Options: RouteOptions = {
             fill_events_2.block,
             fill_events_2.log_index,
             fill_events_2.batch_index,
-            fill_events_2.wash_trading_score
+            fill_events_2.wash_trading_score,
+            fill_events_2.royalty_fee_bps,
+            fill_events_2.marketplace_fee_bps,
+            fill_events_2.royalty_fee_breakdown,
+            fill_events_2.marketplace_fee_breakdown,
+            fill_events_2.paid_full_royalty
           FROM fill_events_2
           LEFT JOIN currencies
             ON fill_events_2.currency = currencies.contract
@@ -310,6 +325,8 @@ export const getSalesV4Options: RouteOptions = {
         const fillSource =
           r.fill_source_id !== null ? sources.get(Number(r.fill_source_id)) : undefined;
 
+        const feeInfoIsValid = (r.royalty_fee_bps ?? 0) + (r.marketplace_fee_bps ?? 0) < 10000;
+
         return {
           id: crypto
             .createHash("sha256")
@@ -352,9 +369,34 @@ export const getSalesV4Options: RouteOptions = {
                 usdAmount: r.usd_price,
               },
             },
-            fromBuffer(r.currency)
+            fromBuffer(r.currency),
+            (r.royalty_fee_bps ?? 0) + (r.marketplace_fee_bps ?? 0)
           ),
           washTradingScore: r.wash_trading_score,
+          royaltyFeeBps:
+            r.royalty_fee_bps !== null && feeInfoIsValid ? r.royalty_fee_bps : undefined,
+          marketplaceFeeBps:
+            r.marketplace_fee_bps !== null && feeInfoIsValid ? r.marketplace_fee_bps : undefined,
+          paidFullRoyalty:
+            r.paid_full_royalty !== null && feeInfoIsValid ? r.paid_full_royalty : undefined,
+          feeBreakdown:
+            (r.royalty_fee_breakdown !== null || r.marketplace_fee_breakdown !== null) &&
+            feeInfoIsValid
+              ? [].concat(
+                  (r.royalty_fee_breakdown ?? []).map((detail: any) => {
+                    return {
+                      kind: "royalty",
+                      ...detail,
+                    };
+                  }),
+                  (r.marketplace_fee_breakdown ?? []).map((detail: any) => {
+                    return {
+                      kind: "marketplace",
+                      ...detail,
+                    };
+                  })
+                )
+              : undefined,
         };
       });
 

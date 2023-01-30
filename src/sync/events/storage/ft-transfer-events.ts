@@ -95,6 +95,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             unnest("owners") AS "owner",
             unnest("amount_deltas") AS "amount_delta"
           FROM "x"
+          ORDER BY "address" ASC, "owner" ASC
         ) "y"
         GROUP BY "y"."address", "y"."owner"
       )

@@ -17,6 +17,7 @@ import { Sources } from "@/models/sources";
 import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
+import * as nftx from "@/orderbook/orders/nftx";
 import { getCurrency } from "@/utils/currencies";
 
 const version = "v6";
@@ -48,7 +49,8 @@ export const getExecuteBuyV6Options: RouteOptions = {
               "universe",
               "rarible",
               "infinity",
-              "sudoswap"
+              "sudoswap",
+              "nftx"
             )
             .required(),
           data: Joi.object().required(),
@@ -114,6 +116,11 @@ export const getExecuteBuyV6Options: RouteOptions = {
       skipBalanceCheck: Joi.boolean()
         .default(false)
         .description("If true, balance check will be skipped."),
+      allowInactiveOrderIds: Joi.boolean()
+        .default(false)
+        .description(
+          "If true, do not filter out inactive orders (only relevant for order id filtering)."
+        ),
       x2y2ApiKey: Joi.string().description("Override the X2Y2 API key used for filling."),
     }),
   },
@@ -205,17 +212,28 @@ export const getExecuteBuyV6Options: RouteOptions = {
         const fees = payload.normalizeRoyalties ? order.fees ?? [] : [];
         const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
 
-        if (order.kind === "sudoswap") {
-          const rawData = order.rawData as Sdk.Sudoswap.OrderParams;
+        if (["sudoswap", "nftx"].includes(order.kind)) {
+          let poolId: string;
+          let priceList: string[];
 
-          if (!poolPrices[rawData.pair]) {
-            poolPrices[rawData.pair] = [];
+          if (order.kind === "sudoswap") {
+            const rawData = order.rawData as Sdk.Sudoswap.OrderParams;
+            poolId = rawData.pair;
+            priceList = rawData.extra.prices;
+          } else {
+            const rawData = order.rawData as Sdk.Nftx.Types.OrderParams;
+            poolId = rawData.pool;
+            priceList = rawData.extra.prices;
+          }
+
+          if (!poolPrices[poolId]) {
+            poolPrices[poolId] = [];
           }
 
           // Fetch the price corresponding to the order's index per pool
-          const price = rawData.extra.prices[poolPrices[rawData.pair].length];
+          const price = priceList[poolPrices[poolId].length];
           // Save the latest price per pool
-          poolPrices[rawData.pair].push(price);
+          poolPrices[poolId].push(price);
           // Override the order's price
           order.price = price;
         }
@@ -272,6 +290,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
           if (order.kind === "sudoswap") {
             // Sudoswap orders cannot be "posted"
             payload.orderIds.push(sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId));
+          } else if (order.kind === "nftx") {
+            payload.orderIds.push(
+              nftx.getOrderId(order.data.pool, "sell", order.data.specificIds[0])
+            );
           } else {
             const response = await inject({
               method: "POST",
@@ -313,10 +335,13 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 ON orders.token_set_id = token_sets_tokens.token_set_id
               WHERE orders.id = $/id/
                 AND orders.side = 'sell'
-                AND orders.fillability_status = 'fillable'
-                AND orders.approval_status = 'approved'
-                AND orders.quantity_remaining >= $/quantity/
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                AND orders.quantity_remaining >= $/quantity/
+                ${
+                  payload.allowInactiveOrderIds
+                    ? ""
+                    : " AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'"
+                }
                 ${
                   // TODO: Add support for buying in ERC20 tokens
                   payload.currency && payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]

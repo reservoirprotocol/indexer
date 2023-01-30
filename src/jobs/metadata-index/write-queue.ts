@@ -15,6 +15,9 @@ import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-
 import { getUnixTime } from "date-fns";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
+import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
+import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
+import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -108,6 +111,25 @@ if (config.doBackgroundWork) {
             `New collection ${collection} for contract=${contract}, tokenId=${tokenId}, old collection=${result.collection_id}`
           );
 
+          // Update the activities to the new collection
+          await updateCollectionActivity.addToQueue(
+            collection,
+            result.collection_id,
+            contract,
+            tokenId
+          );
+
+          await updateCollectionUserActivity.addToQueue(
+            collection,
+            result.collection_id,
+            contract,
+            tokenId
+          );
+
+          // Trigger a delayed job to recalc the daily volumes
+          await updateCollectionDailyVolume.addToQueue(collection, contract);
+
+          // Set the new collection and update the token association
           await fetchCollectionMetadata.addToQueue(
             [
               {
@@ -117,7 +139,7 @@ if (config.doBackgroundWork) {
                 newCollection: true,
               },
             ],
-            `${contract}-${tokenId}`
+            `${contract}:${tokenId}`
           );
 
           return;
@@ -226,7 +248,7 @@ if (config.doBackgroundWork) {
           // Fetch the attribute from the database (will succeed in the common case)
           let attributeResult = await redb.oneOrNone(
             `
-              SELECT id
+              SELECT id, COALESCE(array_length(sample_images, 1), 0) AS "sample_images_length"
               FROM attributes
               WHERE attribute_key_id = $/attributeKeyId/
               AND value = $/value/
@@ -286,16 +308,13 @@ if (config.doBackgroundWork) {
           attributeIds.push(attributeResult.id);
 
           let sampleImageUpdate = "";
-          if (imageUrl) {
+          if (imageUrl && attributeResult.sample_images_length < 4) {
             sampleImageUpdate = `
               UPDATE attributes
-              SET sample_images = CASE WHEN (sample_images IS NULL OR array_length(sample_images, 1) < 4) AND array_position(sample_images, $/image/) IS NULL
-                      THEN array_prepend($/image/, sample_images)
-                   WHEN (array_length(sample_images, 1) >= 4) AND array_position(sample_images, $/image/) IS NULL
-                      THEN array_prepend($/image/, array_remove(sample_images, sample_images[4]))
-                   ELSE sample_images
-              END
-              WHERE id = $/attributeId/;`;
+              SET sample_images = array_prepend($/image/, sample_images)
+              WHERE id = $/attributeId/
+              AND (sample_images IS NULL OR array_length(sample_images, 1) < 4)
+              AND array_position(sample_images, $/image/) IS NULL;`;
           }
 
           // Associate the attribute with the token

@@ -189,13 +189,13 @@ if (config.doBackgroundWork) {
                     UPDATE orders SET
                       approval_status = (
                         CASE
-                          WHEN orders.currency_price > y.value THEN 'no-approval'
+                          WHEN (orders.currency_price * orders.quantity_remaining) > y.value THEN 'no-approval'
                           ELSE 'approved'
                         END
                       )::order_approval_status_t,
                       expiration = (
                         CASE
-                          WHEN orders.currency_price > y.value THEN to_timestamp($/timestamp/)
+                          WHEN (orders.currency_price * orders.quantity_remaining) > y.value THEN to_timestamp($/timestamp/)
                           ELSE nullif(upper(orders.valid_between), 'infinity')
                         END
                       )::timestamptz,
@@ -205,7 +205,7 @@ if (config.doBackgroundWork) {
                     WHERE orders.id = x.id
                       AND orders.approval_status != (
                         CASE
-                          WHEN orders.currency_price > y.value THEN 'no-approval'
+                          WHEN (orders.currency_price * orders.quantity_remaining) > y.value THEN 'no-approval'
                           ELSE 'approved'
                         END
                       )::order_approval_status_t

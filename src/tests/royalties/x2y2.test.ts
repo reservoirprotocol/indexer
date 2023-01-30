@@ -1,15 +1,14 @@
 import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
-import { baseProvider } from "@/common/provider";
-import { getEventsFromTx } from "../utils/test";
-import * as platform from "@/events-sync/handlers/looks-rare";
-import { extractRoyalties } from "@/events-sync/handlers/royalties/core";
+import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import { getRoyalties } from "@/utils/royalties";
+import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
 
 jest.setTimeout(1000 * 1000);
 
 jest.mock("@/utils/royalties");
+
 const mockGetRoyalties = getRoyalties as jest.MockedFunction<typeof getRoyalties>;
 
 type TestCase = {
@@ -22,7 +21,6 @@ type TestCase = {
 describe("Royalties - X2Y2", () => {
   const TEST_COLLECTION = "0x33c6eec1723b12c46732f7ab41398de45641fa42";
   const TEST_KIND = "x2y2";
-
   const testFeeExtract = async (
     txHash: string,
     { royaltyFeeBps, marketplaceFeeBps }: { royaltyFeeBps: number; marketplaceFeeBps: number }
@@ -37,23 +35,21 @@ describe("Royalties - X2Y2", () => {
           ]
         : [];
     });
+    const { fillEvents } = await getFillEventsFromTx(txHash);
+    await assignRoyaltiesToFillEvents(fillEvents);
 
-    const tx = await baseProvider.getTransactionReceipt(txHash);
-    const events = await getEventsFromTx(tx);
-    const result = await platform.handleEvents(events);
-
-    const fillEvents = result.fillEvents ?? [];
     for (let index = 0; index < fillEvents.length; index++) {
       const fillEvent = fillEvents[index];
-      if (fillEvent.orderKind != TEST_KIND) continue;
-      const fees = await extractRoyalties(fillEvent);
-      if (fees?.sale.contract === TEST_COLLECTION) {
-        expect(fees?.royaltyFeeBps).toEqual(royaltyFeeBps);
+      if (fillEvent.orderKind != TEST_KIND) {
+        continue;
       }
-      expect(fees?.marketplaceFeeBps).toEqual(marketplaceFeeBps);
+      if (fillEvent.contract === TEST_COLLECTION) {
+        expect(fillEvent.royaltyFeeBps).toEqual(royaltyFeeBps);
+      }
+
+      expect(fillEvent.marketplaceFeeBps).toEqual(marketplaceFeeBps);
     }
   };
-
   const txIds: TestCase[] = [
     {
       name: "single-sale",
@@ -64,7 +60,7 @@ describe("Royalties - X2Y2", () => {
     {
       name: "multiple-sale",
       tx: "0xe99d984cec8b8b5c57c4648a827203aa9a76efc6d2a7fab7d37c68a3d707b910",
-      royaltyFeeBps: 750,
+      royaltyFeeBps: 0,
       marketplaceFeeBps: 50,
     },
     {
@@ -74,7 +70,6 @@ describe("Royalties - X2Y2", () => {
       marketplaceFeeBps: 50,
     },
   ];
-
   for (const { name, tx, royaltyFeeBps, marketplaceFeeBps } of txIds) {
     it(`${name}`, async () => testFeeExtract(tx, { royaltyFeeBps, marketplaceFeeBps }));
   }

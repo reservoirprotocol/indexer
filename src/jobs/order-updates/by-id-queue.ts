@@ -18,6 +18,8 @@ import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queu
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
 
+import * as websocketEventsTriggerQueue from "@/jobs/websocket-events/trigger-queue";
+
 const QUEUE_NAME = "order-updates-by-id";
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -89,7 +91,6 @@ if (config.doBackgroundWork) {
         }
 
         if (side && tokenSetId) {
-          // If the order is a complex 'buy' order, then recompute the top bid cache on the token set
           if (side === "buy" && !tokenSetId.startsWith("token")) {
             let buyOrderResult = await idb.manyOrNone(
               `
@@ -122,11 +123,15 @@ if (config.doBackgroundWork) {
                   collection_id = token_sets.collection_id
                 FROM x
                 WHERE token_sets.id = x.token_set_id
-                  AND token_sets.top_buy_id IS DISTINCT FROM x.order_id
+                  AND (
+                    token_sets.top_buy_id IS DISTINCT FROM x.order_id
+                    OR token_sets.top_buy_value IS DISTINCT FROM x.value
+                  )
                 RETURNING
                   collection_id AS "collectionId",
                   attribute_id AS "attributeId",
-                  top_buy_value AS "topBuyValue"
+                  top_buy_value AS "topBuyValue",
+                  top_buy_id AS "topBuyId"
               `,
               { tokenSetId }
             );
@@ -159,20 +164,31 @@ if (config.doBackgroundWork) {
               }
             }
 
-            for (const result of buyOrderResult) {
-              if (!_.isNull(result.attributeId)) {
-                await handleNewBuyOrder.addToQueue(result);
+            if (buyOrderResult.length) {
+              if (trigger.kind === "new-order" && buyOrderResult[0].topBuyId) {
+                await websocketEventsTriggerQueue.addToQueue([
+                  {
+                    kind: websocketEventsTriggerQueue.EventKind.NewTopBid,
+                    data: { orderId: buyOrderResult[0].topBuyId },
+                  },
+                ]);
               }
 
-              if (!_.isNull(result.collectionId)) {
-                await collectionUpdatesTopBid.addToQueue([
-                  {
-                    collectionId: result.collectionId,
-                    kind: trigger.kind,
-                    txHash: trigger.txHash || null,
-                    txTimestamp: trigger.txTimestamp || null,
-                  } as collectionUpdatesTopBid.TopBidInfo,
-                ]);
+              for (const result of buyOrderResult) {
+                if (!_.isNull(result.attributeId)) {
+                  await handleNewBuyOrder.addToQueue(result);
+                }
+
+                if (!_.isNull(result.collectionId)) {
+                  await collectionUpdatesTopBid.addToQueue([
+                    {
+                      collectionId: result.collectionId,
+                      kind: trigger.kind,
+                      txHash: trigger.txHash || null,
+                      txTimestamp: trigger.txTimestamp || null,
+                    } as collectionUpdatesTopBid.TopBidInfo,
+                  ]);
+                }
               }
             }
           }
@@ -343,7 +359,7 @@ if (config.doBackgroundWork) {
                 logIndex: trigger.logIndex,
                 batchIndex: trigger.batchIndex,
                 blockHash: trigger.blockHash,
-                timestamp: trigger.txTimestamp,
+                timestamp: trigger.txTimestamp || Math.floor(Date.now() / 1000),
               };
 
               if (order.side === "sell") {

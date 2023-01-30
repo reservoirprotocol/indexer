@@ -157,6 +157,15 @@ export const parseProtocolData = (payload: unknown): Sdk.Seaport.Order | undefin
   try {
     const protocolData = (payload as any).protocol_data;
 
+    if (!protocolData) {
+      logger.warn(
+        "opensea-websocket",
+        `parseProtocolData missing. payload=${JSON.stringify(payload)}`
+      );
+
+      return;
+    }
+
     return new Sdk.Seaport.Order(config.chainId, {
       endTime: protocolData.parameters.endTime,
       startTime: protocolData.parameters.startTime,

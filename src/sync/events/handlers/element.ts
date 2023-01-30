@@ -1,38 +1,26 @@
+import { defaultAbiCoder } from "@ethersproject/abi";
+import { keccak256 } from "@ethersproject/keccak256";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import { defaultAbiCoder, keccak256 } from "ethers/lib/utils";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const bulkCancelEvents: es.bulkCancels.Event[] = [];
-  const nonceCancelEvents: es.nonceCancels.Event[] = [];
-  const fillEventsPartial: es.fills.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-  const orderInfos: orderUpdatesById.OrderInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
-      // Element
-
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "element-erc721-order-cancelled":
       case "element-erc1155-order-cancelled": {
         const parsedLog = eventData.abi.parseLog(log);
         const maker = parsedLog.args["maker"].toLowerCase();
         const nonce = parsedLog.args["nonce"].toString();
 
-        nonceCancelEvents.push({
+        onChainData.nonceCancelEvents.push({
           orderKind: eventData!.kind.startsWith("element-erc721")
             ? "element-erc721"
             : "element-erc1155",
@@ -50,7 +38,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const nonce = parsedLog.args["nonce"].toString();
 
         // Cancel all related orders across maker
-        bulkCancelEvents.push({
+        onChainData.bulkCancelEvents.push({
           orderKind: "element-erc721",
           maker,
           minNonce: nonce,
@@ -58,7 +46,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        bulkCancelEvents.push({
+        onChainData.bulkCancelEvents.push({
           orderKind: "element-erc1155",
           maker,
           minNonce: nonce,
@@ -118,7 +106,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}`,
           id: orderId,
           trigger: {
@@ -128,8 +116,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        const orderSide = kind === "element-erc721-sell-order-filled-v2" ? "sell" : "buy";
-        fillEventsPartial.push({
+        const orderSide = subKind === "element-erc721-sell-order-filled-v2" ? "sell" : "buy";
+        onChainData.fillEventsPartial.push({
           orderKind,
           orderId,
           orderSide,
@@ -148,7 +136,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId,
           orderId,
           orderSide,
@@ -158,6 +146,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,
         });
+
         break;
       }
 
@@ -206,7 +195,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}-${baseEventParams.txHash}`,
           id: orderId,
           trigger: {
@@ -216,8 +205,8 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        const orderSide = kind === "element-erc1155-sell-order-filled-v2" ? "sell" : "buy";
-        fillEventsPartial.push({
+        const orderSide = subKind === "element-erc1155-sell-order-filled-v2" ? "sell" : "buy";
+        onChainData.fillEventsPartial.push({
           orderKind,
           orderId,
           orderSide,
@@ -236,7 +225,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId,
           orderId,
           orderSide,
@@ -289,7 +278,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}`,
           id: orderId,
           trigger: {
@@ -300,7 +289,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         });
 
         const orderSide = "sell";
-        fillEventsPartial.push({
+        onChainData.fillEventsPartial.push({
           orderKind,
           orderId,
           orderSide,
@@ -319,10 +308,10 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId,
           orderId: orderId,
-          orderSide: "sell",
+          orderSide,
           contract: erc721Token,
           tokenId: erc721TokenId,
           amount: "1",
@@ -375,7 +364,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}`,
           id: orderId,
           trigger: {
@@ -385,7 +374,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId,
           orderId: orderId,
           orderSide: "buy",
@@ -398,7 +387,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           taker,
         });
 
-        fillEventsPartial.push({
+        onChainData.fillEventsPartial.push({
           orderKind,
           orderId: orderId,
           orderSide: "sell",
@@ -460,7 +449,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}-${baseEventParams.txHash}`,
           id: orderId,
           trigger: {
@@ -470,7 +459,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        fillEventsPartial.push({
+        onChainData.fillEventsPartial.push({
           orderKind,
           orderId: orderId,
           orderSide: "sell",
@@ -489,7 +478,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId,
           orderId: orderId,
           orderSide: "sell",
@@ -547,7 +536,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}-${baseEventParams.txHash}`,
           id: orderId,
           trigger: {
@@ -557,7 +546,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        fillEventsPartial.push({
+        onChainData.fillEventsPartial.push({
           orderKind,
           orderId,
           orderSide: "buy",
@@ -576,7 +565,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: orderId,
           orderId,
           orderSide: "buy",
@@ -593,13 +582,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    bulkCancelEvents,
-    nonceCancelEvents,
-    fillEventsPartial,
-
-    fillInfos,
-    orderInfos,
-  };
 };

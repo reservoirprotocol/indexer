@@ -14,7 +14,7 @@ import {
   SourcesEntityParams,
   SourcesMetadata,
 } from "@/models/sources/sources-entity";
-import { channels } from "@/pubsub/channels";
+import { Channel } from "@/pubsub/channels";
 
 import { default as sourcesFromJson } from "./sources.json";
 
@@ -102,6 +102,7 @@ export class Sources {
         tokenUrlRinkeby: "https://dev.reservoir.market/${contract}/${tokenId}",
       },
       optimized: true,
+      createdAt: "2022-02-05 04:50:47.191 +0200",
     });
   }
 
@@ -191,7 +192,7 @@ export class Sources {
     // Fetch domain info
     await fetchSourceInfo.addToQueue(domain);
 
-    await redis.publish(channels.sourcesUpdated, `New source ${domain}`);
+    await redis.publish(Channel.SourcesUpdated, `New source ${domain}`);
     logger.info("sources", `New source '${domain}' was added`);
 
     return new SourcesEntity(source);
@@ -242,7 +243,7 @@ export class Sources {
 
     // Reload the cache
     await Sources.instance.loadData(true);
-    await redis.publish(channels.sourcesUpdated, `Updated source ${domain}`);
+    await redis.publish(Channel.SourcesUpdated, `Updated source ${domain}`);
   }
 
   public get(
@@ -357,7 +358,7 @@ export class Sources {
     return sourceEntity;
   }
 
-  public getTokenUrl(sourceEntity: SourcesEntity, contract: string, tokenId: string) {
+  public getTokenUrl(sourceEntity: SourcesEntity, contract?: string, tokenId?: string) {
     if (config.chainId == 1) {
       if (sourceEntity.metadata.tokenUrlMainnet && contract && tokenId) {
         sourceEntity.metadata.url = _.replace(

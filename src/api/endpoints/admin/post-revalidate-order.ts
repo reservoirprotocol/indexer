@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
@@ -9,8 +7,8 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
-export const postInvalidateOrderOptions: RouteOptions = {
-  description: "Invalidate an existing order.",
+export const postRevalidateOrderOptions: RouteOptions = {
+  description: "Revalidate an existing order",
   tags: ["api", "x-admin"],
   validate: {
     headers: Joi.object({
@@ -18,6 +16,7 @@ export const postInvalidateOrderOptions: RouteOptions = {
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       id: Joi.string().required(),
+      status: Joi.string().valid("active", "inactive").required(),
     }),
   },
   handler: async (request: Request) => {
@@ -25,14 +24,15 @@ export const postInvalidateOrderOptions: RouteOptions = {
       throw Boom.unauthorized("Wrong or missing admin API key");
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
 
     try {
       await idb.none(
         `
           UPDATE orders SET
-            fillability_status = 'cancelled',
-            approval_status = 'disabled',
+            fillability_status = '${payload.status === "active" ? "fillable" : "cancelled"}',
+            approval_status = '${payload.status === "active" ? "approved" : "disabled"}',
             updated_at = now()
           WHERE orders.id = $/id/
         `,
@@ -52,7 +52,7 @@ export const postInvalidateOrderOptions: RouteOptions = {
 
       return { message: "Success" };
     } catch (error) {
-      logger.error("post-fix-orders-handler", `Handler failure: ${error}`);
+      logger.error("post-revalidate-order-handler", `Handler failure: ${error}`);
       throw error;
     }
   },

@@ -30,7 +30,7 @@ if (config.doBackgroundWork) {
         if (attribute) {
           await Attributes.delete(attribute.id);
 
-          logger.info(
+          logger.debug(
             QUEUE_NAME,
             `Deleted from collection=${collection}, key=${key}, value=${value} attributeId=${attribute.id}`
           );
@@ -40,7 +40,7 @@ if (config.doBackgroundWork) {
           tokenCount: attributeValueCount.count,
         });
 
-        logger.info(
+        logger.debug(
           QUEUE_NAME,
           `Updated collection=${collection}, key=${key}, value=${value} attributeId=${attributeValueCount.attributeId}, count=${attributeValueCount.count}`
         );

@@ -11,9 +11,7 @@ import { Royalty, updateRoyaltySpec } from "@/utils/royalties";
 const DEFAULT_PRICE = "1000000000000000000";
 
 // Assume there are no per-token royalties but everything is per-contract
-export const refreshRegistryRoyalties = async (
-  collection: string
-): Promise<Royalty[] | undefined> => {
+export const refreshRegistryRoyalties = async (collection: string) => {
   // Fetch the collection's contract
   const collectionResult = await idb.oneOrNone(
     `
@@ -25,7 +23,7 @@ export const refreshRegistryRoyalties = async (
     { collection }
   );
   if (!collectionResult?.contract) {
-    return undefined;
+    return;
   }
 
   // Fetch a random token from the collection
@@ -40,7 +38,7 @@ export const refreshRegistryRoyalties = async (
     { collection }
   );
   if (!tokenResult?.token_id) {
-    return undefined;
+    return;
   }
 
   const token = fromBuffer(collectionResult.contract);
@@ -68,11 +66,9 @@ export const refreshRegistryRoyalties = async (
       // The royalties are returned in full amounts, but we store them as a percentage
       // so here we just use a default price (which is a round number) and deduce then
       // deduce the percentage taken as royalties from that
-      const { recipients, amounts } = await royaltyEngine.getRoyaltyView(
-        token,
-        tokenId,
-        DEFAULT_PRICE
-      );
+      const { recipients, amounts } = await royaltyEngine
+        .getRoyaltyView(token, tokenId, DEFAULT_PRICE)
+        .catch(() => ({ recipients: [], amounts: [] }));
 
       const latestRoyalties: Royalty[] = [];
       for (let i = 0; i < amounts.length; i++) {
@@ -87,11 +83,13 @@ export const refreshRegistryRoyalties = async (
       }
 
       // Save the retrieved royalty spec
-      await updateRoyaltySpec(collection, "onchain", latestRoyalties);
-
-      return latestRoyalties;
+      await updateRoyaltySpec(
+        collection,
+        "onchain",
+        latestRoyalties.length ? latestRoyalties : undefined
+      );
     } catch {
-      return undefined;
+      // Skip errors
     }
   }
 };

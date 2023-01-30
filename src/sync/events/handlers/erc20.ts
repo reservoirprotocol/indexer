@@ -2,26 +2,19 @@ import { AddressZero } from "@ethersproject/constants";
 
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const ftTransferEvents: es.ftTransfers.Event[] = [];
-
-  const makerInfos: orderUpdatesByMaker.MakerInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "erc20-transfer": {
         const parsedLog = eventData.abi.parseLog(log);
         const from = parsedLog.args["from"].toLowerCase();
         const to = parsedLog.args["to"].toLowerCase();
         const amount = parsedLog.args["amount"].toString();
 
-        ftTransferEvents.push({
+        onChainData.ftTransferEvents.push({
           from,
           to,
           amount,
@@ -31,7 +24,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Make sure to only handle the same data once per transaction
         const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
 
-        makerInfos.push({
+        onChainData.makerInfos.push({
           context: `${contextPrefix}-${from}-buy-balance`,
           maker: from,
           trigger: {
@@ -45,7 +38,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        makerInfos.push({
+        onChainData.makerInfos.push({
           context: `${contextPrefix}-${to}-buy-balance`,
           maker: to,
           trigger: {
@@ -70,7 +63,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Make sure to only handle the same data once per transaction
         const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
 
-        makerInfos.push({
+        onChainData.makerInfos.push({
           context: `${contextPrefix}-${owner}-${spender}-buy-approval`,
           maker: owner,
           trigger: {
@@ -93,7 +86,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const to = parsedLog.args["to"].toLowerCase();
         const amount = parsedLog.args["amount"].toString();
 
-        ftTransferEvents.push({
+        onChainData.ftTransferEvents.push({
           from: AddressZero,
           to,
           amount,
@@ -103,7 +96,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Make sure to only handle the same data once per transaction
         const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
 
-        makerInfos.push({
+        onChainData.makerInfos.push({
           context: `${contextPrefix}-${to}-buy-balance`,
           maker: to,
           trigger: {
@@ -125,7 +118,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const from = parsedLog.args["from"].toLowerCase();
         const amount = parsedLog.args["amount"].toString();
 
-        ftTransferEvents.push({
+        onChainData.ftTransferEvents.push({
           from,
           to: AddressZero,
           amount,
@@ -135,7 +128,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Make sure to only handle the same data once per transaction
         const contextPrefix = `${baseEventParams.txHash}-${baseEventParams.address}`;
 
-        makerInfos.push({
+        onChainData.makerInfos.push({
           context: `${contextPrefix}-${from}-buy-balance`,
           maker: from,
           trigger: {
@@ -153,10 +146,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    ftTransferEvents,
-
-    makerInfos,
-  };
 };

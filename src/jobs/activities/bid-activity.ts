@@ -1,6 +1,5 @@
 import { ActivitiesEntityInsertParams, ActivityType } from "@/models/activities/activities-entity";
 import _ from "lodash";
-import { logger } from "@/common/logger";
 import { Activities } from "@/models/activities";
 import { getActivityHash, getBidInfoByOrderId } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
@@ -9,11 +8,6 @@ import { UserActivities } from "@/models/user-activities";
 export class BidActivity {
   public static async handleEvent(data: NewBuyOrderEventData) {
     const [collectionId, tokenId] = await getBidInfoByOrderId(data.orderId);
-
-    // If no collection found
-    if (!collectionId) {
-      logger.warn("bid-activity", `No collection found for ${JSON.stringify(data)}`);
-    }
 
     const activityHash = getActivityHash(ActivityType.bid, data.orderId);
 

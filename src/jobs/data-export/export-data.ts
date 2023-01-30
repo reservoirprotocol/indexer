@@ -9,9 +9,12 @@ import { EOL } from "os";
 import AWS from "aws-sdk";
 
 import { AskEventsDataSource } from "@/jobs/data-export/data-sources/ask-events";
+import { BidEventsDataSource } from "@/jobs/data-export/data-sources/bid-events";
 import { TokenFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/token-floor-ask-events";
 import { CollectionFloorAskEventsDataSource } from "@/jobs/data-export/data-sources/collection-floor-ask-events";
+import { CollectionTopBidEventsDataSource } from "@/jobs/data-export/data-sources/collection_top_bid_events";
 import { AsksDataSource, AsksDataSourceV2 } from "@/jobs/data-export/data-sources/asks";
+import { BidsDataSource } from "@/jobs/data-export/data-sources/bids";
 import { TokensDataSource, TokensDataSourceV2 } from "@/jobs/data-export/data-sources/tokens";
 import {
   CollectionsDataSource,
@@ -122,10 +125,13 @@ if (config.doBackgroundWork) {
 
 export enum DataSource {
   askEvents = "ask-events",
+  bidEvents = "bid-events",
   tokenFloorAskEvents = "token-floor-ask-events",
   collectionFloorAskEvents = "collection-floor-ask-events",
+  collectionTopBidEvents = "collection-top-bid-events",
   asks = "asks",
   asksV2 = "asks-v2",
+  bids = "bids",
   tokens = "tokens",
   tokensV2 = "tokens-v2",
   collections = "collections",
@@ -177,14 +183,20 @@ const getDataSourceImpl = (source: DataSource) => {
   switch (source) {
     case DataSource.askEvents:
       return new AskEventsDataSource();
+    case DataSource.bidEvents:
+      return new BidEventsDataSource();
     case DataSource.tokenFloorAskEvents:
       return new TokenFloorAskEventsDataSource();
     case DataSource.collectionFloorAskEvents:
       return new CollectionFloorAskEventsDataSource();
+    case DataSource.collectionTopBidEvents:
+      return new CollectionTopBidEventsDataSource();
     case DataSource.asks:
       return new AsksDataSource();
     case DataSource.asksV2:
       return new AsksDataSourceV2();
+    case DataSource.bids:
+      return new BidsDataSource();
     case DataSource.tokens:
       return new TokensDataSource();
     case DataSource.tokensV2:

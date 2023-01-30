@@ -221,6 +221,9 @@ export const save = async (
             bps: 50,
           },
         ];
+      } else {
+        // If there is no royalty, the marketplace fee will be 2%
+        feeBreakdown[0].bps = 200;
       }
 
       const price = order.params.price;

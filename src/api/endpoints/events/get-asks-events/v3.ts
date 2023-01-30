@@ -5,9 +5,9 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { JoiOrderCriteria, JoiPrice, getJoiPriceObject } from "@/common/joi";
 import { buildContinuation, fromBuffer, splitContinuation, regex, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
 import { Orders } from "@/utils/orders";
 
 const version = "v3";
@@ -74,8 +74,9 @@ export const getAsksEventsV3Options: RouteOptions = {
             nonce: Joi.string().pattern(regex.number).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
+            rawData: Joi.object(),
             kind: Joi.string(),
-            source: Joi.string().allow(null, ""),
+            source: Joi.string().allow("", null),
             isDynamic: Joi.boolean(),
             criteria: JoiOrderCriteria.allow(null),
           }),
@@ -132,6 +133,7 @@ export const getAsksEventsV3Options: RouteOptions = {
           orders.currency_normalized_value,
           orders.normalized_value,
           orders.kind AS order_kind,
+          orders.raw_data,
           TRUNC(orders.currency_price, 0) AS currency_price,
           order_events.order_source_id_int,
           coalesce(
@@ -145,9 +147,22 @@ export const getAsksEventsV3Options: RouteOptions = {
           (${criteriaBuildQuery}) AS criteria
         FROM order_events
         LEFT JOIN LATERAL (
-           SELECT currency, currency_price, dynamic, currency_normalized_value, normalized_value, token_set_id, kind
-           FROM orders
-           WHERE orders.id = order_events.order_id
+          SELECT
+            orders.currency,
+            orders.currency_price,
+            orders.normalized_value,
+            orders.currency_normalized_value,
+            orders.token_set_id,
+            orders.dynamic,
+            orders.kind,
+            (
+              CASE
+                WHEN orders.kind IN ('nftx', 'sudoswap') OR order_events.kind IN ('new-order', 'reprice') THEN orders.raw_data
+                ELSE NULL
+              END
+            ) AS raw_data
+         FROM orders
+         WHERE orders.id = order_events.order_id
         ) orders ON TRUE
       `;
 
@@ -223,7 +238,6 @@ export const getAsksEventsV3Options: RouteOptions = {
                       nativeAmount: query.normalizeRoyalties
                         ? r.normalized_value ?? r.price
                         : r.price,
-                      usdAmount: r.usd_price,
                     },
                   },
                   fromBuffer(r.currency)
@@ -233,6 +247,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             nonce: r.order_nonce ?? null,
             validFrom: r.valid_from ? Number(r.valid_from) : null,
             validUntil: r.valid_until ? Number(r.valid_until) : null,
+            rawData: r.raw_data ? r.raw_data : undefined,
             kind: r.order_kind,
             source: sources.get(r.order_source_id_int)?.name,
             isDynamic: Boolean(r.dynamic),

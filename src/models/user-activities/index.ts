@@ -89,9 +89,9 @@ export class UserActivities {
 
     if (!_.isEmpty(collections)) {
       if (Array.isArray(collections)) {
-        collectionFilter = `AND collections.id IN ($/collections:csv/)`;
+        collectionFilter = `AND collection_id IN ($/collections:csv/)`;
       } else {
-        collectionFilter = `AND collections.id = $/collections/`;
+        collectionFilter = `AND collection_id = $/collections/`;
       }
     }
 
@@ -196,16 +196,18 @@ export class UserActivities {
 
       metadataQuery = `
              LEFT JOIN LATERAL (
-                SELECT name AS "token_name", image AS "token_image"
+                SELECT name AS "token_name", image AS "token_image", 
+                last_buy_value as "token_last_buy_value", last_sell_value as "token_last_sell_value",
+                last_buy_timestamp as "token_last_buy_timestamp", last_sell_timestamp as "token_last_sell_timestamp",
+                rarity_score as "token_rarity_score", rarity_rank as "token_rarity_rank", media as "token_media"
                 FROM tokens
                 WHERE user_activities.contract = tokens.contract
                 AND user_activities.token_id = tokens.token_id
              ) t ON TRUE
-             ${!_.isEmpty(collections) || community ? "" : "LEFT"} JOIN LATERAL (
+             ${community ? "" : "LEFT"} JOIN LATERAL (
                 SELECT name AS "collection_name", metadata AS "collection_metadata"
                 FROM collections
                 WHERE user_activities.collection_id = collections.id
-                ${collectionFilter}
                 ${communityFilter}
              ) c ON TRUE
              LEFT JOIN LATERAL (
@@ -250,6 +252,7 @@ export class UserActivities {
              ${contractsFilter}
              ${continuation}
              ${typesFilter}
+             ${collectionFilter}
              ORDER BY ${sortByColumn} DESC NULLS LAST
              LIMIT $/limit/`,
       values

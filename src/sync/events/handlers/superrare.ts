@@ -1,22 +1,17 @@
+import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
+import { Common } from "@reservoir0x/sdk";
+
+import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import { getUSDAndNativePrices } from "@/utils/prices";
-import { Common } from "@reservoir0x/sdk";
-import { config } from "@/config/index";
-
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
+import { getUSDAndNativePrices } from "@/utils/prices";
 
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const fillEvents: es.fills.Event[] = [];
-  const fillInfos: fillUpdates.FillInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "superrare-listing-filled": {
         const { args } = eventData.abi.parseLog(log);
         const contract = args["_originContract"].toLowerCase();
@@ -60,7 +55,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           orderKind
         );
 
-        fillEvents.push({
+        onChainData.fillEvents.push({
           orderKind,
           currency,
           orderSide,
@@ -78,7 +73,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: `superrare-${contract}-${tokenId}-${baseEventParams.txHash}`,
           orderSide,
           contract,
@@ -123,7 +118,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           orderKind
         );
 
-        fillEvents.push({
+        onChainData.fillEvents.push({
           orderKind,
           currency,
           orderSide,
@@ -141,7 +136,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: `superrare-${contract}-${tokenId}-${baseEventParams.txHash}`,
           orderSide,
           contract,
@@ -157,9 +152,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    fillEvents,
-    fillInfos,
-  };
 };

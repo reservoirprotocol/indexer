@@ -38,10 +38,10 @@ export const getCollectionV2Options: RouteOptions = {
     schema: Joi.object({
       collection: Joi.object({
         id: Joi.string(),
-        slug: Joi.string().allow(null, "").description("Open Sea slug"),
-        name: Joi.string().allow(null, ""),
+        slug: Joi.string().allow("", null).description("Open Sea slug"),
+        name: Joi.string().allow("", null),
         metadata: Joi.object().allow(null),
-        sampleImages: Joi.array().items(Joi.string().allow(null, "")),
+        sampleImages: Joi.array().items(Joi.string().allow("", null)),
         tokenCount: Joi.string(),
         onSaleCount: Joi.string(),
         primaryContract: Joi.string()
@@ -49,7 +49,7 @@ export const getCollectionV2Options: RouteOptions = {
           .pattern(/^0x[a-fA-F0-9]{40}$/),
         tokenSetId: Joi.string().allow(null),
         royalties: Joi.object({
-          recipient: Joi.string().allow(null, ""),
+          recipient: Joi.string().allow("", null),
           bps: Joi.number(),
         }).allow(null),
         lastBuy: {
@@ -74,7 +74,7 @@ export const getCollectionV2Options: RouteOptions = {
               .pattern(/^[0-9]+$/)
               .allow(null),
             name: Joi.string().allow(null),
-            image: Joi.string().allow(null, ""),
+            image: Joi.string().allow("", null),
           }).allow(null),
         },
         topBid: Joi.object({
@@ -118,9 +118,9 @@ export const getCollectionV2Options: RouteOptions = {
         ownerCount: Joi.number(),
         attributes: Joi.array().items(
           Joi.object({
-            key: Joi.string().allow(null, ""),
-            kind: Joi.string().allow(null, ""),
-            count: Joi.number().allow(null, ""),
+            key: Joi.string().allow("", null),
+            kind: Joi.string().allow("", null),
+            count: Joi.number().allow("", null),
           })
         ),
       }).allow(null),

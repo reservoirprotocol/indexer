@@ -32,6 +32,7 @@ export const offChainCheck = async (
 
   // Check: order is on a known and valid contract
   const kind = await commonHelpers.getContractKind(info.contract);
+
   if (!kind || kind !== info.tokenKind) {
     throw new Error("invalid-target");
   }
@@ -39,12 +40,14 @@ export const offChainCheck = async (
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
     const cancelled = await commonHelpers.isOrderCancelled(id);
+
     if (cancelled) {
       throw new Error("cancelled");
     }
 
     // Check: order is not filled
     const quantityFilled = await commonHelpers.getQuantityFilled(id);
+
     if (quantityFilled.gte(info.amount)) {
       throw new Error("filled");
     }
@@ -52,6 +55,7 @@ export const offChainCheck = async (
 
   // Check: order has a valid nonce
   const minNonce = await commonHelpers.getMinNonce("seaport", order.params.offerer);
+
   if (!minNonce.eq(order.params.counter)) {
     throw new Error("cancelled");
   }
@@ -63,6 +67,7 @@ export const offChainCheck = async (
   if (info.side === "buy") {
     // Check: maker has enough balance
     const ftBalance = await commonHelpers.getFtBalance(info.paymentToken, order.params.offerer);
+
     if (ftBalance.lt(info.price)) {
       hasBalance = false;
     }
@@ -85,6 +90,7 @@ export const offChainCheck = async (
       info.tokenId!,
       order.params.offerer
     );
+
     if (nftBalance.lt(info.amount)) {
       hasBalance = false;
     }
@@ -95,6 +101,7 @@ export const offChainCheck = async (
       order.params.offerer,
       conduit
     );
+
     if (!nftApproval) {
       if (options?.onChainApprovalRecheck) {
         // Re-validate the approval on-chain to handle some edge-cases

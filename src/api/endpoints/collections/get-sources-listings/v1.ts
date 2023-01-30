@@ -17,7 +17,7 @@ export const getSourcesListingsV1Options: RouteOptions = {
   },
   description: "Collection Source Stats",
   notes: "This API returns aggregated listings info for the given collection per source",
-  tags: ["api", "Collections"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 9,
@@ -38,7 +38,7 @@ export const getSourcesListingsV1Options: RouteOptions = {
       sources: Joi.array().items(
         Joi.object({
           onSaleCount: Joi.number(),
-          sourceDomain: Joi.string().allow(null, ""),
+          sourceDomain: Joi.string().allow("", null),
           floorAskPrice: Joi.number().unsafe().allow(null),
         })
       ),

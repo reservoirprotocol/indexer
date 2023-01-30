@@ -13,82 +13,6 @@ import {
   saveNftxNftPool,
 } from "@/models/nftx-pools";
 
-export const getNftPoolDetails = async (address: string) =>
-  getNftxNftPool(address).catch(async () => {
-    if (Sdk.Nftx.Addresses.VaultFactory[config.chainId]) {
-      const iface = new Interface([
-        "function assetAddress() view returns (address)",
-        "function vaultId() view returns (uint256)",
-        "function vault(uint256) view returns (address)",
-      ]);
-
-      try {
-        const pool = new Contract(address, iface, baseProvider);
-
-        const nft = await pool.assetAddress();
-        const vaultId = await pool.vaultId();
-
-        const factory = new Contract(
-          Sdk.Nftx.Addresses.VaultFactory[config.chainId],
-          iface,
-          baseProvider
-        );
-        if ((await factory.vault(vaultId)).toLowerCase() === address) {
-          return saveNftxNftPool({
-            address,
-            nft,
-            vaultId: vaultId.toString(),
-          });
-        }
-      } catch {
-        // Skip any errors
-      }
-    }
-  });
-
-export const getFtPoolDetails = async (address: string) =>
-  getNftxFtPool(address).catch(async () => {
-    if (Sdk.Nftx.Addresses.VaultFactory[config.chainId]) {
-      const iface = new Interface([
-        "function token0() view returns (address)",
-        "function token1() view returns (address)",
-      ]);
-
-      try {
-        const pool = new Contract(address, iface, baseProvider);
-
-        const token0 = await pool.token0();
-        const token1 = await pool.token1();
-
-        return saveNftxFtPool({
-          address,
-          token0,
-          token1,
-        });
-      } catch {
-        // Skip any errors
-      }
-    }
-  });
-
-export const isMint = (log: Log, address: string) => {
-  if (
-    log.topics[0] === nftx.minted.abi.getEventTopic("Minted") &&
-    log.address.toLowerCase() === address
-  ) {
-    return true;
-  }
-};
-
-export const isRedeem = (log: Log, address: string) => {
-  if (
-    log.topics[0] === nftx.redeemed.abi.getEventTopic("Redeemed") &&
-    log.address.toLowerCase() === address
-  ) {
-    return true;
-  }
-};
-
 const ifaceUniV2 = new Interface([
   `event Swap(
     address indexed sender,
@@ -110,6 +34,84 @@ const ifaceUniV3 = new Interface([
     int24 tick
   )`,
 ]);
+
+export const getNftPoolDetails = async (address: string, skipOnChainCheck = false) =>
+  getNftxNftPool(address).catch(async () => {
+    if (!skipOnChainCheck && Sdk.Nftx.Addresses.VaultFactory[config.chainId]) {
+      const iface = new Interface([
+        "function assetAddress() view returns (address)",
+        "function vaultId() view returns (uint256)",
+        "function vault(uint256) view returns (address)",
+      ]);
+
+      try {
+        const pool = new Contract(address, iface, baseProvider);
+
+        const nft = (await pool.assetAddress()).toLowerCase();
+        const vaultId = await pool.vaultId();
+
+        const factory = new Contract(
+          Sdk.Nftx.Addresses.VaultFactory[config.chainId],
+          iface,
+          baseProvider
+        );
+        if ((await factory.vault(vaultId)).toLowerCase() === address) {
+          return saveNftxNftPool({
+            address,
+            nft,
+            vaultId: vaultId.toString(),
+          });
+        }
+      } catch {
+        // Skip any errors
+      }
+    }
+  });
+
+export const getFtPoolDetails = async (address: string, skipOnChainCheck = false) =>
+  getNftxFtPool(address).catch(async () => {
+    if (!skipOnChainCheck && Sdk.Nftx.Addresses.VaultFactory[config.chainId]) {
+      const iface = new Interface([
+        "function token0() view returns (address)",
+        "function token1() view returns (address)",
+      ]);
+
+      try {
+        const pool = new Contract(address, iface, baseProvider);
+
+        const token0 = (await pool.token0()).toLowerCase();
+        const token1 = (await pool.token1()).toLowerCase();
+
+        return saveNftxFtPool({
+          address,
+          token0,
+          token1,
+        });
+      } catch {
+        // Skip any errors
+      }
+    }
+  });
+
+export const isMint = (log: Log, address: string) => {
+  if (
+    log.topics[0] === nftx.minted.abi.getEventTopic("Minted") &&
+    log.address.toLowerCase() === address
+  ) {
+    return true;
+  }
+  return false;
+};
+
+export const isRedeem = (log: Log, address: string) => {
+  if (
+    log.topics[0] === nftx.redeemed.abi.getEventTopic("Redeemed") &&
+    log.address.toLowerCase() === address
+  ) {
+    return true;
+  }
+  return false;
+};
 
 export const isSwap = (log: Log) => {
   if (

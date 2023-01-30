@@ -8,9 +8,9 @@ export const config = {
   arweaveRelayerKey: process.env.ARWEAVE_RELAYER_KEY
     ? String(process.env.ARWEAVE_RELAYER_KEY)
     : undefined,
-  oraclePrivateKey: process.env.ORACLE_PRIVATE_KEY
-    ? String(process.env.ORACLE_PRIVATE_KEY)
-    : undefined,
+  oraclePrivateKey: String(process.env.ORACLE_PRIVATE_KEY),
+  oracleAwsKmsKeyId: String(process.env.ORACLE_AWS_KMS_KEY_ID),
+  oracleAwsKmsKeyRegion: String(process.env.ORACLE_AWS_KMS_KEY_REGION),
 
   baseNetworkHttpUrl: String(process.env.BASE_NETWORK_HTTP_URL),
   baseNetworkWsUrl: String(process.env.BASE_NETWORK_WS_URL),
@@ -83,5 +83,13 @@ export const config = {
   cipherSecret: String(process.env.CIPHER_SECRET),
 
   slackApiKeyWebhookUrl: String(process.env.SLACK_API_KEY_WEBHOOK_URL),
-  redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 22), // Used to prevent redis from being overloaded in heavy process like backfilling
+  // Used to prevent redis from being overloaded in heavy process like backfilling
+  redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 22),
+
+  websocketServerHost: String(process.env.WEBSOCKET_SERVER_HOST),
+  websocketServerAppId: String(process.env.WEBSOCKET_SERVER_APP_ID),
+  websocketServerAppKey: String(process.env.WEBSOCKET_SERVER_APP_KEY),
+  websocketServerAppSecret: String(process.env.WEBSOCKET_SERVER_APP_SECRET),
+  websocketServerEventMaxSizeInKb: String(process.env.WEBSOCKET_SERVER_EVENT_MAX_SIZE_IN_KB || 100),
+  websocketServerEventMaxBatchSize: String(process.env.WEBSOCKET_SERVER_EVENT_MAX_BATCH_SIZE || 10),
 };

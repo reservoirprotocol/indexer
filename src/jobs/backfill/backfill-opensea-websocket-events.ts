@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 
 import { redshift } from "@/common/redshift";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orders from "@/orderbook/orders";
@@ -132,16 +132,18 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  if (config.chainId === 1) {
-    redlock
-      .acquire([`${QUEUE_NAME}-lock-v3`], 60 * 60 * 24 * 30 * 1000)
-      .then(async () => {
-        await addToQueue("2022-12-20T03:00:00.000Z", "2022-12-20T04:30:00.000Z");
-      })
-      .catch(() => {
-        // Skip on any errors
-      });
-  }
+  // !!! DISABLED
+  //
+  // if (config.chainId === 1) {
+  //   redlock
+  //     .acquire([`${QUEUE_NAME}-lock-v3`], 60 * 60 * 24 * 30 * 1000)
+  //     .then(async () => {
+  //       await addToQueue("2022-12-20T03:00:00.000Z", "2022-12-20T04:30:00.000Z");
+  //     })
+  //     .catch(() => {
+  //       // Skip on any errors
+  //     });
+  // }
 }
 
 export const addToQueue = async (

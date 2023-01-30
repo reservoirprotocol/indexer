@@ -108,16 +108,18 @@ if (config.doBackgroundWork) {
             result = await orders.manifold.save([info]);
             break;
           }
+
+          case "nftx": {
+            result = await orders.nftx.save([info]);
+            break;
+          }
         }
       } catch (error) {
         logger.error(QUEUE_NAME, `Failed to process order ${JSON.stringify(job.data)}: ${error}`);
         throw error;
       }
 
-      // Don't log already-exists
-      if (!["already-exists", "success"].includes(result[0]?.status)) {
-        logger.info(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
-      }
+      logger.debug(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
     },
     { connection: redis.duplicate(), concurrency: 50 }
   );
@@ -135,7 +137,7 @@ if (config.doBackgroundWork) {
         .acquire(["orders-queue-size-check-lock"], (60 - 5) * 1000)
         .then(async () => {
           const size = await queue.count();
-          if (size >= 20000) {
+          if (size >= 40000) {
             logger.error("orders-queue-size-check", `Orders queue buffering up: size=${size}`);
           }
         })
@@ -233,6 +235,12 @@ export type GenericOrderInfo =
   | {
       kind: "element";
       info: orders.element.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "nftx";
+      info: orders.nftx.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     };

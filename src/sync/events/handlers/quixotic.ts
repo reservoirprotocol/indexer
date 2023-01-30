@@ -4,21 +4,14 @@ import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const fillEventsPartial: es.fills.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "quixotic-order-filled": {
         const parsedLog = eventData.abi.parseLog(log);
         const orderId = parsedLog.args["orderHash"].toLowerCase();
@@ -64,7 +57,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           }
 
           const orderSide = saleInfo.side as "sell" | "buy";
-          fillEventsPartial.push({
+          onChainData.fillEventsPartial.push({
             orderKind,
             orderId,
             orderSide,
@@ -83,7 +76,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             baseEventParams,
           });
 
-          fillInfos.push({
+          onChainData.fillInfos.push({
             context: `${orderId}-${baseEventParams.txHash}`,
             orderId: orderId,
             orderSide,
@@ -101,10 +94,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    fillEventsPartial,
-
-    fillInfos,
-  };
 };

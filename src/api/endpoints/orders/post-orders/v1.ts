@@ -35,7 +35,8 @@ export const postOrdersV1Options: RouteOptions = {
               "element",
               "blur",
               "rarible",
-              "manifold"
+              "manifold",
+              "infinity"
             )
             .required(),
           data: Joi.object().required(),

@@ -26,11 +26,13 @@ export const fetchAndUpdateFtApproval = async (
       // Otherwise, fetch it from on-chain and update the cache
       const ftApproval = await fetchAndUpdateFtApproval(token, owner, spender);
       await redis.set(cacheKey, ftApproval.value, "EX", 5 * 60);
+
       return ftApproval;
     }
   } else {
     const erc20 = new Common.Helpers.Erc20(baseProvider, token);
     const allowance = await erc20.getAllowance(owner, spender).then((b) => b.toString());
+
     return ftApprovalsModel.saveFtApproval({
       token,
       owner,

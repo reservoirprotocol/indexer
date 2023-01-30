@@ -58,7 +58,7 @@ export const getTokensIdsV4Options: RouteOptions = {
   response: {
     schema: Joi.object({
       tokens: Joi.array().items(Joi.string().pattern(regex.number)),
-      continuation: Joi.number().allow(null),
+      continuation: Joi.string().pattern(regex.number).allow(null),
     }).label(`getTokensIds${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`get-tokens-ids-${version}-handler`, `Wrong response schema: ${error}`);
