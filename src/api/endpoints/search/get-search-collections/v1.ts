@@ -38,7 +38,6 @@ export const getSearchCollectionsV1Options: RouteOptions = {
       offset: Joi.number()
         .integer()
         .min(0)
-        .max(500000)
         .default(0)
         .description("Use offset to request the next batch of items."),
       limit: Joi.number()
