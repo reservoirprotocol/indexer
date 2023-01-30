@@ -53,17 +53,26 @@ export const getUserTokensV6Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set."),
-      collection: Joi.string()
-        .lowercase()
-        .description(
-          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        ),
+      collections: Joi.alternatives().try(
+        Joi.array()
+          .max(50)
+          .items(Joi.string().lowercase().pattern(regex.address))
+          .description(
+            "Filter to a particular array of collections with collection-id. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63 collections[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          ),
+        Joi.string()
+          .lowercase()
+          .pattern(regex.address)
+          .description(
+            "Filter to a particular array of collections with collection-id. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63 collections[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          )
+      ),
       contract: Joi.string()
         .lowercase()
         .pattern(regex.address)
         .description(
           "Filter to a particular contract, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        ),
+      ),
       tokens: Joi.alternatives().try(
         Joi.array()
           .max(50)
@@ -226,8 +235,12 @@ export const getUserTokensV6Options: RouteOptions = {
       }
     }
 
-    if (query.collection) {
-      addCollectionToFilter(query.collection);
+    if (query.collections) {
+      if (!_.isArray(query.collections)) {
+        addCollectionToFilter(query.collection);
+      } else {
+        query.collections.forEach(addCollectionToFilter);
+      }
     }
 
     if (query.contract) {
