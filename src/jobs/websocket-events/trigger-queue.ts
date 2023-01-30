@@ -8,9 +8,9 @@ import {
   NewTopBidWebsocketEvent,
 } from "@/jobs/websocket-events/events/new-top-bid-websocket-event";
 import {
-  ActivityCreatedWebsocketEvent,
-  ActivityCreatedWebsocketEventInfo,
-} from "@/jobs/websocket-events/events/activity-created-websocket-event";
+  NewActivityWebsocketEvent,
+  NewActivityWebsocketEventInfo,
+} from "@/jobs/websocket-events/events/new-activity-websocket-event";
 
 import { randomUUID } from "crypto";
 import _ from "lodash";
@@ -44,11 +44,11 @@ if (config.doBackgroundWork) {
             () => NewTopBidWebsocketEvent.triggerEvent(data)
           );
           break;
-        case EventKind.ActivityCreated:
+        case EventKind.NewActivity:
           await tracer.trace(
             "triggerEvent",
-            { resource: "ActivityCreatedWebsocketEvent", tags: { event: data } },
-            () => ActivityCreatedWebsocketEvent.triggerEvent(data)
+            { resource: "NewActivityWebsocketEvent", tags: { event: data } },
+            () => NewActivityWebsocketEvent.triggerEvent(data)
           );
           break;
       }
@@ -62,7 +62,7 @@ if (config.doBackgroundWork) {
 
 export enum EventKind {
   NewTopBid = "new-top-bid",
-  ActivityCreated = "activity-created",
+  NewActivity = "new-activity",
 }
 
 export type EventInfo =
@@ -71,8 +71,8 @@ export type EventInfo =
       data: NewTopBidWebsocketEventInfo;
     }
   | {
-      kind: EventKind.ActivityCreated;
-      data: ActivityCreatedWebsocketEventInfo;
+      kind: EventKind.NewActivity;
+      data: NewActivityWebsocketEventInfo;
     };
 
 export const addToQueue = async (events: EventInfo[]) => {

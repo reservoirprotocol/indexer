@@ -57,7 +57,7 @@ export class Activities {
     results?.forEach(({ id }) => {
       websocketEventsTriggerQueue.addToQueue([
         {
-          kind: websocketEventsTriggerQueue.EventKind.ActivityCreated,
+          kind: websocketEventsTriggerQueue.EventKind.NewActivity,
           data: { activityId: id },
         },
       ]);

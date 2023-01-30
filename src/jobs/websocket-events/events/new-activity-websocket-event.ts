@@ -5,8 +5,8 @@ import { Orders } from "@/utils/orders";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 
-export class ActivityCreatedWebsocketEvent {
-  public static async triggerEvent(data: ActivityCreatedWebsocketEventInfo) {
+export class NewActivityWebsocketEvent {
+  public static async triggerEvent(data: NewActivityWebsocketEventInfo) {
     const orderCriteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
     const metadataQuery = `
@@ -106,6 +106,6 @@ export class ActivityCreatedWebsocketEvent {
   }
 }
 
-export type ActivityCreatedWebsocketEventInfo = {
+export type NewActivityWebsocketEventInfo = {
   activityId: number;
 };
