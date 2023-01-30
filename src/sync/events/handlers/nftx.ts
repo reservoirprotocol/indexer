@@ -402,9 +402,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       }
 
       case "nftx-swap": {
-        const ftPool = await nftxUtils.getFtPoolDetails(baseEventParams.address);
+        const ftPool = await nftxUtils.getFtPoolDetails(baseEventParams.address, true);
         if (ftPool) {
-          const token0NftPool = await nftxUtils.getNftPoolDetails(ftPool.token0);
+          const token0NftPool = await nftxUtils.getNftPoolDetails(ftPool.token0, true);
           if (token0NftPool) {
             // Update pool
             onChainData.orders.push({
@@ -420,7 +420,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             });
           }
 
-          const token1NftPool = await nftxUtils.getNftPoolDetails(ftPool.token1);
+          const token1NftPool = await nftxUtils.getNftPoolDetails(ftPool.token1, true);
           if (token1NftPool) {
             // Update pool
             onChainData.orders.push({

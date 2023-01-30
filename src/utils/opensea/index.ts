@@ -38,10 +38,10 @@ export const tryGetTokensSuspiciousStatus = async (tokens: string[], timeout = 5
 
             // Asynchronously trigger a flag status refresh
             await flagStatusUpdate.addToQueue(
-              Object.keys(tokenToSuspicious).map((token) => ({
+              [...tokenToSuspicious.entries()].map(([token, isFlagged]) => ({
                 contract: token.split(":")[0],
                 tokenId: token.split(":")[1],
-                isFlagged: tokenToSuspicious.get(token)!,
+                isFlagged,
               }))
             );
           })
