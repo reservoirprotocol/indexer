@@ -7,7 +7,7 @@ import { redis } from "@/common/redis";
 export const getPermitId = (requestPayload: object, tokens: Token[]) =>
   `nft-permit:${keccak256(["string"], [stringify({ requestPayload, tokens })])}`;
 
-export const savePermit = async (id: string, permit: NFTPermit, expiresIn) =>
+export const savePermit = async (id: string, permit: NFTPermit, expiresIn: number) =>
   expiresIn === 0
     ? redis.set(id, JSON.stringify(permit), "KEEPTTL")
     : redis.set(id, JSON.stringify(permit), "EX", expiresIn);
