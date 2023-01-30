@@ -65,11 +65,11 @@ export const getTokensV1Options: RouteOptions = {
           tokenId: Joi.string()
             .pattern(/^[0-9]+$/)
             .required(),
-          name: Joi.string().allow(null, ""),
-          image: Joi.string().allow(null, ""),
+          name: Joi.string().allow("", null),
+          image: Joi.string().allow("", null),
           collection: Joi.object({
             id: Joi.string().allow(null),
-            name: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
           }),
           topBidValue: Joi.number().unsafe().allow(null),
           floorAskPrice: Joi.number().unsafe().allow(null),

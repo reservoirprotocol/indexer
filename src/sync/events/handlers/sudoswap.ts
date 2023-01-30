@@ -5,25 +5,12 @@ import { logger } from "@/common/logger";
 import { bn } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as sudoswapUtils from "@/utils/sudoswap";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const fillEventsPartial: es.fills.Event[] = [];
-  const fillEventsOnChain: es.fills.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-  const orderInfos: orderUpdatesById.OrderInfo[] = [];
-
-  // Keep track of any orders
-  const orders: sudoswap.OrderInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For keeping track of all individual trades per transaction
   const trades = {
     buy: new Map<string, number>(),
@@ -31,9 +18,9 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   };
 
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       // Sudoswap is extremely poorly designed from the perspective of events
       // that get emitted on trades. As such, we use transaction tracing when
       // we detect sales in order to get more detailed information.
@@ -45,13 +32,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const txHash = baseEventParams.txHash;
         const address = baseEventParams.address;
 
-        orders.push({
-          orderParams: {
-            pool: baseEventParams.address,
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
+        onChainData.orders.push({
+          kind: "sudoswap",
+          info: {
+            orderParams: {
+              pool: baseEventParams.address,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            metadata: {},
           },
-          metadata: {},
         });
 
         const txTrace = await utils.fetchTransactionTrace(txHash);
@@ -153,7 +143,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 const tokenId = token.split(":")[2];
                 const orderId = sudoswap.getOrderId(baseEventParams.address, "sell", tokenId);
 
-                fillEventsOnChain.push({
+                onChainData.fillEventsOnChain.push({
                   orderKind,
                   orderSide: "sell",
                   orderId,
@@ -175,7 +165,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                   },
                 });
 
-                fillInfos.push({
+                onChainData.fillInfos.push({
                   context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
                   orderSide: "sell",
                   contract: pool.nft,
@@ -187,7 +177,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                   taker,
                 });
 
-                orderInfos.push({
+                onChainData.orderInfos.push({
                   context: `filled-${orderId}-${baseEventParams.txHash}`,
                   id: orderId,
                   trigger: {
@@ -265,7 +255,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               const tokenId = decodedInput.nftIds[i].toString();
               const orderId = sudoswap.getOrderId(baseEventParams.address, "sell", tokenId);
 
-              fillEventsOnChain.push({
+              onChainData.fillEventsOnChain.push({
                 orderKind,
                 orderSide: "sell",
                 orderId,
@@ -287,7 +277,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 },
               });
 
-              fillInfos.push({
+              onChainData.fillInfos.push({
                 context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
                 orderSide: "sell",
                 contract: pool.nft,
@@ -299,7 +289,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 taker,
               });
 
-              orderInfos.push({
+              onChainData.orderInfos.push({
                 context: `filled-${orderId}-${baseEventParams.txHash}`,
                 id: orderId,
                 trigger: {
@@ -324,13 +314,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const txHash = baseEventParams.txHash;
         const address = baseEventParams.address;
 
-        orders.push({
-          orderParams: {
-            pool: baseEventParams.address,
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
+        onChainData.orders.push({
+          kind: "sudoswap",
+          info: {
+            orderParams: {
+              pool: baseEventParams.address,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            metadata: {},
           },
-          metadata: {},
         });
 
         const txTrace = await utils.fetchTransactionTrace(txHash);
@@ -423,7 +416,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               const tokenId = decodedInput.nftIds[i].toString();
               const orderId = sudoswap.getOrderId(baseEventParams.address, "buy");
 
-              fillEventsPartial.push({
+              onChainData.fillEventsPartial.push({
                 orderKind,
                 orderSide: "buy",
                 orderId,
@@ -445,7 +438,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 },
               });
 
-              fillInfos.push({
+              onChainData.fillInfos.push({
                 context: `sudoswap-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
                 orderSide: "buy",
                 contract: pool.nft,
@@ -457,7 +450,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 taker,
               });
 
-              orderInfos.push({
+              onChainData.orderInfos.push({
                 context: `filled-${orderId}-${baseEventParams.txHash}`,
                 id: orderId,
                 trigger: {
@@ -480,13 +473,16 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const parsedLog = eventData.abi.parseLog(log);
         const pool = parsedLog.args["pool"].toLowerCase();
 
-        orders.push({
-          orderParams: {
-            pool,
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
+        onChainData.orders.push({
+          kind: "sudoswap",
+          info: {
+            orderParams: {
+              pool,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            metadata: {},
           },
-          metadata: {},
         });
 
         break;
@@ -496,30 +492,20 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       case "sudoswap-token-withdrawal":
       case "sudoswap-spot-price-update":
       case "sudoswap-delta-update": {
-        orders.push({
-          orderParams: {
-            pool: baseEventParams.address,
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
+        onChainData.orders.push({
+          kind: "sudoswap",
+          info: {
+            orderParams: {
+              pool: baseEventParams.address,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+            },
+            metadata: {},
           },
-          metadata: {},
         });
 
         break;
       }
     }
   }
-
-  return {
-    fillEventsPartial,
-    fillEventsOnChain,
-
-    fillInfos,
-    orderInfos,
-
-    orders: orders.map((info) => ({
-      kind: "sudoswap",
-      info,
-    })),
-  };
 };

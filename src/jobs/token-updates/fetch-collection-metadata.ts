@@ -13,6 +13,7 @@ import * as collectionRecalcFloorAsk from "@/jobs/collection-updates/recalc-floo
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
+import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 
 const QUEUE_NAME = "token-updates-fetch-collection-metadata-queue";
 
@@ -102,18 +103,11 @@ if (config.doBackgroundWork) {
         // we update all tokens that match its token definition
         queries.push({
           query: `
-              WITH "x" AS (
-                UPDATE "tokens" SET 
-                  "collection_id" = $/collection/,
-                  "updated_at" = now()
+                UPDATE "tokens"
+                SET "collection_id" = $/collection/,
+                    "updated_at" = now()
                 WHERE "contract" = $/contract/
                 ${tokenFilter}
-                RETURNING 1
-              )
-              UPDATE "collections" SET
-                "token_count" = (SELECT COUNT(*) FROM "x"),
-                "updated_at" = now()
-              WHERE "id" = $/collection/
             `,
           values: {
             contract: toBuffer(collection.contract),
@@ -125,6 +119,9 @@ if (config.doBackgroundWork) {
 
         // Write the collection to the database
         await idb.none(pgp.helpers.concat(queries));
+
+        // Schedule a job to re-count tokens in the collection
+        await collectionRecalcTokenCount.addToQueue(collection.id);
 
         // If this is a new collection, recalculate the its floor price
         if (collection?.id && newCollection) {

@@ -1,59 +1,44 @@
 import { Log } from "@ethersproject/abstract-provider";
+import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
-import { config } from "@/config/index";
 
-import { getEventData } from "@/events-sync/data";
+import { idb } from "@/common/db";
 import { bn } from "@/common/utils";
+import { config } from "@/config/index";
+import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
-
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
-import { getOrderId, OrderInfo } from "@/orderbook/orders/manifold";
+import { getOrderId } from "@/orderbook/orders/manifold";
 import { manifold } from "@/orderbook/orders";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { redb } from "@/common/db";
-import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const cancelEventsOnChain: es.cancels.Event[] = [];
-  const fillEventsPartial: es.fills.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-  const orderInfos: orderUpdatesById.OrderInfo[] = [];
-  const makerInfos: orderUpdatesByMaker.MakerInfo[] = [];
-
-  // Keep track of any on-chain orders
-  const orders: OrderInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Keep track of all events within the currently processing transaction
   let currentTx: string | undefined;
   let currentTxLogs: Log[] = [];
 
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
+  for (const { subKind, baseEventParams, log } of events) {
     if (currentTx !== baseEventParams.txHash) {
       currentTx = baseEventParams.txHash;
       currentTxLogs = [];
     }
     currentTxLogs.push(log);
 
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "manifold-cancel": {
         const { args } = eventData.abi.parseLog(log);
         const listingId = args["listingId"];
         const orderId = getOrderId(listingId);
 
-        cancelEventsOnChain.push({
+        onChainData.cancelEventsOnChain.push({
           orderKind: "manifold",
           orderId,
           baseEventParams,
         });
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `cancelled-${orderId}-${baseEventParams.txHash}-${Math.random()}`,
           id: orderId,
           trigger: {
@@ -148,7 +133,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEventsPartial.push({
+        onChainData.fillEventsPartial.push({
           orderKind,
           orderId,
           orderSide: "sell",
@@ -167,7 +152,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        const orderResult = await redb.oneOrNone(
+        const orderResult = await idb.oneOrNone(
           ` 
             SELECT 
               raw_data,
@@ -181,23 +166,26 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // Some manifold order have end time that is set after the first purchase
         if (orderResult && orderResult.valid_from === 0) {
           const endTime = baseEventParams.timestamp + orderResult.raw_data.details.endTime;
-          orders.push({
-            orderParams: {
-              id: listingId,
-              details: {
-                startTime: baseEventParams.timestamp,
-                endTime,
+          onChainData.orders.push({
+            kind: "manifold",
+            info: {
+              orderParams: {
+                id: listingId,
+                details: {
+                  startTime: baseEventParams.timestamp,
+                  endTime,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } as any,
+                txHash: baseEventParams.txHash,
+                txTimestamp: baseEventParams.timestamp,
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
               } as any,
-              txHash: baseEventParams.txHash,
-              txTimestamp: baseEventParams.timestamp,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any,
-            metadata: {},
+              metadata: {},
+            },
           });
         }
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderId}-${baseEventParams.txHash}`,
           id: orderId,
           trigger: {
@@ -207,7 +195,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: `${orderId}-${baseEventParams.txHash}`,
           orderId: orderId,
           orderSide: "sell",
@@ -232,20 +220,23 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Manifold doesn't provide full order info. `any` helps us overcome the type differences.
         // If we don' want to use `any` we'd have to specify some default values for the whole struct
-        orders.push({
-          orderParams: {
-            id: listingId,
-            details: {
-              startTime,
-              endTime,
-              initialAmount,
+        onChainData.orders.push({
+          kind: "manifold",
+          info: {
+            orderParams: {
+              id: listingId,
+              details: {
+                startTime,
+                endTime,
+                initialAmount,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any,
-            txHash: baseEventParams.txHash,
-            txTimestamp: baseEventParams.timestamp,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
-          metadata: {},
+            metadata: {},
+          },
         });
 
         break;
@@ -341,7 +332,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           break;
         }
 
-        fillEventsPartial.push({
+        onChainData.fillEventsPartial.push({
           orderKind,
           orderId,
           currency,
@@ -360,7 +351,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           baseEventParams,
         });
 
-        fillInfos.push({
+        onChainData.fillInfos.push({
           context: `manifold-${tokenContract}-${tokenId}-${baseEventParams.txHash}`,
           orderSide: "sell",
           contract: tokenContract,
@@ -375,17 +366,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    cancelEventsOnChain,
-    fillEventsPartial,
-
-    fillInfos,
-    orderInfos,
-    makerInfos,
-    orders: orders.map((info) => ({
-      kind: "manifold",
-      info,
-    })),
-  };
 };

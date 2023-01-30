@@ -31,6 +31,7 @@ export type Event = {
   royaltyFeeBreakdown?: Royalty[];
   marketplaceFeeBreakdown?: Royalty[];
   paidFullRoyalty?: boolean;
+  netAmount?: string;
 };
 
 export type DbEvent = {

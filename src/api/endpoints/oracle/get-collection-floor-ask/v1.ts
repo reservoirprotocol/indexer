@@ -4,7 +4,6 @@ import { defaultAbiCoder } from "@ethersproject/abi";
 import { arrayify } from "@ethersproject/bytes";
 import { AddressZero } from "@ethersproject/constants";
 import { _TypedDataEncoder } from "@ethersproject/hash";
-import { Wallet } from "@ethersproject/wallet";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -13,19 +12,20 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { Signers, addressToSigner } from "@/common/signers";
 import { bn, formatPrice, now } from "@/common/utils";
 import { config } from "@/config/index";
 
-const version = "v3";
+const version = "v1";
 
-export const getCollectionFloorAskOracleV3Options: RouteOptions = {
+export const getCollectionFloorAskOracleV1Options: RouteOptions = {
   description: "Collection floor",
   notes:
-    "Get a signed message of any collection's floor price (spot or twap). The oracle signer address is 0x32da57e736e05f75aa4fae2e9be60fd904492726.",
+    "Get a signed message of any collection's floor price (spot or twap). The oracle's address is 0x32dA57E736E05f75aa4FaE2E9Be60FD904492726.",
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 12,
+      deprecated: true,
     },
   },
   validate: {
@@ -35,7 +35,7 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
     query: Joi.object({
       kind: Joi.string().valid("spot", "twap", "lower", "upper").default("spot"),
       currency: Joi.string().lowercase().default(AddressZero),
-      twapSeconds: Joi.number().default(24 * 60 * 60),
+      twapHours: Joi.number().default(24),
       eip3668Calldata: Joi.string(),
     }),
   },
@@ -85,7 +85,7 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
               *
             FROM collection_floor_sell_events
             WHERE collection_floor_sell_events.collection_id = $/collection/
-              AND collection_floor_sell_events.created_at >= now() - interval '${query.twapSeconds} seconds'
+              AND collection_floor_sell_events.created_at >= now() - interval '${query.twapHours} hours'
             ORDER BY collection_floor_sell_events.created_at
           ),
           y AS (
@@ -105,7 +105,7 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
           w AS (
             SELECT
               price,
-              floor(extract('epoch' FROM greatest(z.created_at, now() - interval '${query.twapSeconds} seconds'))) AS start_time,
+              floor(extract('epoch' FROM greatest(z.created_at, now() - interval '${query.twapHours} hours'))) AS start_time,
               floor(extract('epoch' FROM coalesce(lead(z.created_at, 1) OVER (ORDER BY created_at), now()))) AS end_time
             FROM z
           )
@@ -170,14 +170,12 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
         ContractWideCollectionPrice: {
           ContractWideCollectionPrice: [
             { name: "kind", type: "uint8" },
-            { name: "twapSeconds", type: "uint256" },
             { name: "contract", type: "address" },
           ],
         },
         TokenRangeCollectionPrice: {
           TokenRangeCollectionPrice: [
             { name: "kind", type: "uint8" },
-            { name: "twapSeconds", type: "uint256" },
             { name: "startTokenId", type: "uint256" },
             { name: "endTokenId", type: "uint256" },
           ],
@@ -192,7 +190,6 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
           EIP712_TYPES.TokenRangeCollectionPrice,
           {
             kind,
-            twapSeconds: query.twapSeconds,
             contract,
             startTokenId,
             endTokenId,
@@ -204,7 +201,6 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
           EIP712_TYPES.ContractWideCollectionPrice,
           {
             kind,
-            twapSeconds: query.twapSeconds,
             contract: params.collection,
           }
         );
@@ -214,13 +210,7 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
         // ETH: do nothing
       } else if (Object.values(Sdk.Common.Addresses.Weth).includes(query.currency)) {
         // WETH: do nothing
-      } else if (
-        [
-          ...Object.values(Sdk.Common.Addresses.Usdc),
-          // Custom Backed USDC
-          "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
-        ].includes(query.currency)
-      ) {
+      } else if (Object.values(Sdk.Common.Addresses.Usdc).includes(query.currency)) {
         // USDC: convert price to USDC
         const usdPrice = await axios
           .get("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd")
@@ -248,7 +238,7 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
       };
 
       if (config.oraclePrivateKey) {
-        message.signature = await new Wallet(config.oraclePrivateKey).signMessage(
+        message.signature = await addressToSigner[Signers.V1]().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
       } else {

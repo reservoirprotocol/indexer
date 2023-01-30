@@ -9,7 +9,8 @@ import { config } from "@/config/index";
 // support for them. We should have custom rules for these.
 
 export const transfer: EventData = {
-  kind: "erc721-transfer",
+  kind: "erc721",
+  subKind: "erc721-transfer",
   topic: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
   numTopics: 4,
   abi: new Interface([
@@ -22,7 +23,8 @@ export const transfer: EventData = {
 };
 
 export const likeTransfer: EventData = {
-  kind: "erc721-like-transfer",
+  kind: "erc721",
+  subKind: "erc721-like-transfer",
   topic: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
   addresses: {
     [CryptoKitties.Addresses.Core[config.chainId]?.toLowerCase()]: true,
@@ -38,7 +40,8 @@ export const likeTransfer: EventData = {
 };
 
 export const erc20LikeTransfer: EventData = {
-  kind: "erc721-erc20-like-transfer",
+  kind: "erc721",
+  subKind: "erc721-erc20-like-transfer",
   addresses: {
     [Beeple.Addresses.Contract[config.chainId]?.toLowerCase()]: true,
     [CryptoArte.Addresses.Contract[config.chainId]?.toLowerCase()]: true,
@@ -57,7 +60,8 @@ export const erc20LikeTransfer: EventData = {
 
 // The `ApprovalForAll` event is the same for erc721 and erc1155
 export const approvalForAll: EventData = {
-  kind: "erc721/1155-approval-for-all",
+  kind: "erc721",
+  subKind: "erc721/1155-approval-for-all",
   topic: "0x17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31",
   numTopics: 3,
   abi: new Interface([
@@ -70,7 +74,8 @@ export const approvalForAll: EventData = {
 };
 
 export const consecutiveTransfer: EventData = {
-  kind: "erc721-consecutive-transfer",
+  kind: "erc721",
+  subKind: "erc721-consecutive-transfer",
   topic: "0xdeaa91b6123d068f5821d0fb0678463d1a8a6079fe8af5de3ce5e896dcf9133d",
   numTopics: 4,
   abi: new Interface([

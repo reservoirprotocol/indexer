@@ -58,16 +58,8 @@ export const postFlagTokenV1Options: RouteOptions = {
     }
 
     try {
-      const currentUtcTime = new Date().toISOString();
-      const fields: TokensEntityUpdateParams = {
-        isFlagged: payload.flag,
-        lastFlagUpdate: currentUtcTime,
-      };
-
       // If current flag status is different trigger a job to verify the new status
       if (token.isFlagged != payload.flag) {
-        fields.lastFlagChange = currentUtcTime;
-
         const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
         await metadataIndexFetch.addToQueue(
@@ -84,25 +76,28 @@ export const postFlagTokenV1Options: RouteOptions = {
           ],
           true
         );
+
+        const key = request.headers["x-api-key"];
+        const apiKey = await ApiKeyManager.getApiKey(key);
+
+        const remoteAddress = request.headers["x-forwarded-for"]
+          ? _.split(request.headers["x-forwarded-for"], ",")[0]
+          : request.info.remoteAddress;
+
+        const callingUser =
+          _.isUndefined(key) || _.isEmpty(key) || _.isNull(apiKey) ? remoteAddress : apiKey.appName; // If no api key or the api key is invalid use IP
+
+        logger.info(
+          `post-flag-token-${version}-handler`,
+          `${callingUser} Requested flag status change. token=${payload.token} toFlagStatus=${payload.flag}, fromFlagStatus=${token.isFlagged}`
+        );
+      } else {
+        // Update the token status
+        await Tokens.update(contract, tokenId, {
+          lastFlagUpdate: new Date().toISOString(),
+        } as TokensEntityUpdateParams);
       }
 
-      // Update the token status
-      await Tokens.update(contract, tokenId, fields);
-
-      const key = request.headers["x-api-key"];
-      const apiKey = await ApiKeyManager.getApiKey(key);
-
-      const remoteAddress = request.headers["x-forwarded-for"]
-        ? _.split(request.headers["x-forwarded-for"], ",")[0]
-        : request.info.remoteAddress;
-
-      const callingUser =
-        _.isUndefined(key) || _.isEmpty(key) || _.isNull(apiKey) ? remoteAddress : apiKey.appName; // If no api key or the api key is invalid use IP
-
-      logger.info(
-        `post-flag-token-${version}-handler`,
-        `${callingUser} updated ${payload.token} to ${payload.flag} from ${token.isFlagged}`
-      );
       return { message: "Request accepted" };
     } catch (error) {
       logger.error(`post-flag-token-${version}-handler`, `Handler failure: ${error}`);

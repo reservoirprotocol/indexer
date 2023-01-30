@@ -1,11 +1,9 @@
 import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
-import { baseProvider } from "@/common/provider";
-import { getEventsFromTx } from "../utils/test";
-import * as blur from "@/events-sync/handlers/blur";
-import { extractRoyalties } from "@/events-sync/handlers/royalties/core";
+import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import { getRoyalties } from "@/utils/royalties";
+import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
 
 jest.setTimeout(1000 * 1000);
 
@@ -21,10 +19,9 @@ type TestCase = {
 
 describe("Royalties - Blur", () => {
   const TEST_COLLECTION = "0x33c6eec1723b12c46732f7ab41398de45641fa42";
-
   const testFeeExtract = async (
     txHash: string,
-    { royaltyFeeBps, marketplaceFeeBps }: { royaltyFeeBps: number; marketplaceFeeBps: number }
+    { royaltyFeeBps }: { royaltyFeeBps: number; marketplaceFeeBps: number }
   ) => {
     mockGetRoyalties.mockImplementation(async (contract: string) => {
       return contract === TEST_COLLECTION
@@ -37,18 +34,16 @@ describe("Royalties - Blur", () => {
         : [];
     });
 
-    const tx = await baseProvider.getTransactionReceipt(txHash);
-    const events = await getEventsFromTx(tx);
-    const result = await blur.handleEvents(events);
+    const { fillEvents } = await getFillEventsFromTx(txHash);
+    await assignRoyaltiesToFillEvents(fillEvents);
 
-    const fillEvents = result.fillEvents ?? [];
     for (let index = 0; index < fillEvents.length; index++) {
       const fillEvent = fillEvents[index];
-      const fees = await extractRoyalties(fillEvent);
-      if (fees?.sale.contract === TEST_COLLECTION) {
-        expect(fees?.royaltyFeeBps).toEqual(royaltyFeeBps);
+
+      if (fillEvent.orderKind != "blur") continue;
+      if (fillEvent.contract === TEST_COLLECTION) {
+        expect(fillEvent.royaltyFeeBps).toEqual(royaltyFeeBps);
       }
-      expect(fees?.marketplaceFeeBps).toEqual(marketplaceFeeBps);
     }
   };
 

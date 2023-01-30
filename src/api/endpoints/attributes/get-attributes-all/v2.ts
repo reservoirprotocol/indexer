@@ -7,6 +7,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth } from "@/common/utils";
+import { JoiAttributeValue } from "@/common/joi";
 
 const version = "v2";
 
@@ -38,7 +39,7 @@ export const getAttributesAllV2Options: RouteOptions = {
           maxRange: Joi.number().unsafe().allow(null),
           values: Joi.array().items(
             Joi.object({
-              value: Joi.string().required(),
+              value: JoiAttributeValue,
               count: Joi.number(),
               floorAskPrice: Joi.number().unsafe().allow(null),
             })

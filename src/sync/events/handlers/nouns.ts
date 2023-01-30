@@ -3,21 +3,14 @@ import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const fillEvents: es.fills.Event[] = [];
-
-  const fillInfos: fillUpdates.FillInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "nouns-auction-settled": {
         const { args } = eventData.abi.parseLog(log);
         const tokenId = args["nounId"].toString();
@@ -44,7 +37,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         const maker = Sdk.Nouns.Addresses.AuctionHouse[config.chainId]?.toLowerCase();
         const contract = Sdk.Nouns.Addresses.TokenContract[config.chainId]?.toLowerCase();
         if (maker && contract) {
-          fillEvents.push({
+          onChainData.fillEvents.push({
             orderKind,
             orderSide: "sell",
             maker,
@@ -63,7 +56,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             baseEventParams,
           });
 
-          fillInfos.push({
+          onChainData.fillInfos.push({
             context: `nouns-${tokenId}-${baseEventParams.txHash}`,
             orderSide: "sell",
             contract: Sdk.Nouns.Addresses.TokenContract[config.chainId]?.toLowerCase(),
@@ -80,10 +73,4 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    fillEvents,
-
-    fillInfos,
-  };
 };

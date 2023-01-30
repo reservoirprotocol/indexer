@@ -1,11 +1,9 @@
 import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
-import { baseProvider } from "@/common/provider";
-import { getEventsFromTx } from "../utils/test";
-import * as seaport from "@/events-sync/handlers/seaport";
-import { extractRoyalties } from "@/events-sync/handlers/royalties/core";
+import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import { getRoyalties } from "@/utils/royalties";
+import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
 
 jest.setTimeout(1000 * 1000);
 
@@ -14,7 +12,6 @@ const mockGetRoyalties = getRoyalties as jest.MockedFunction<typeof getRoyalties
 
 describe("Royalties - Seaport", () => {
   const TEST_COLLECTION = "0x33c6eec1723b12c46732f7ab41398de45641fa42";
-
   const testFeeExtract = async (txHash: string) => {
     mockGetRoyalties.mockImplementation(async (contract: string) => {
       return contract === TEST_COLLECTION
@@ -26,21 +23,20 @@ describe("Royalties - Seaport", () => {
           ]
         : [];
     });
+    const { fillEvents } = await getFillEventsFromTx(txHash);
+    await assignRoyaltiesToFillEvents(fillEvents);
 
-    const tx = await baseProvider.getTransactionReceipt(txHash);
-    const events = await getEventsFromTx(tx);
-    const result = await seaport.handleEvents(events);
-    const fillEvents = result.fillEventsPartial ?? [];
     for (let index = 0; index < fillEvents.length; index++) {
       const fillEvent = fillEvents[index];
-      const fees = await extractRoyalties(fillEvent);
-      if (fees?.sale.contract === TEST_COLLECTION) {
-        expect(fees?.royaltyFeeBps).toEqual(750);
+
+      if (fillEvent.orderKind != "seaport") continue;
+      if (fillEvent.contract === TEST_COLLECTION) {
+        expect(fillEvent.royaltyFeeBps).toEqual(750);
       }
-      expect(fees?.marketplaceFeeBps).toEqual(250);
+
+      expect(fillEvent.marketplaceFeeBps).toEqual(250);
     }
   };
-
   const txIds = [
     ["single sale", "0x93de26bea65832e10c253f6cd0bf963619d7aef63695b485d9df118dd6bd4ae4"],
     [
@@ -55,9 +51,9 @@ describe("Royalties - Seaport", () => {
       "multiple sales with same collection",
       "0x28cb9371d6d986a00e19797270c542ad6901abec7b67bbef7b2ae947b3c37c0b",
     ],
-    ["test", "0x60355582e37bab762807c3066ada4e79cc6432a745551f06ae8c534650aecca7"],
+    ["wrong", "0x60355582e37bab762807c3066ada4e79cc6432a745551f06ae8c534650aecca7"],
+    ["erc1155", "0x88575fc2c9fab4b7b2d47ae2946e5b21e754399f486cc843251b35d9c0324c1d"],
   ];
-
   for (const [name, txHash] of txIds) {
     it(`${name}`, async () => testFeeExtract(txHash));
   }

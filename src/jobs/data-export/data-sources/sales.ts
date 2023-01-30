@@ -101,7 +101,7 @@ export class SalesDataSourceV2 extends BaseDataSource {
           currency_symbol: currency.symbol,
           currency_price: currencyPrice ? currencyPrice.toString() : null,
           amount: Number(r.amount),
-          fill_source: fillSource?.domain ?? orderSource?.domain,
+          fill_source: fillSource?.domain ?? aggregatorSource?.domain ?? orderSource?.domain,
           aggregator_source: aggregatorSource?.domain,
           wash_trading_score: Number(r.wash_trading_score),
           is_primary: Boolean(r.is_primary),

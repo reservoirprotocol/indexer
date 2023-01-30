@@ -17,19 +17,7 @@ import { TransactionTrace } from "@/models/transaction-traces";
 import { OrderKind } from "@/orderbook/orders";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
-import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
-
-export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData> => {
-  const bulkCancelEvents: es.bulkCancels.Event[] = [];
-  const nonceCancelEvents: es.nonceCancels.Event[] = [];
-
-  const fillEvents: es.fills.Event[] = [];
-  const fillInfos: fillUpdates.FillInfo[] = [];
-  const orderInfos: orderUpdatesById.OrderInfo[] = [];
-  const makerInfos: orderUpdatesByMaker.MakerInfo[] = [];
-
+export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Keep track of all events within the currently processing transaction
   let currentTx: string | undefined;
   let currentTxLogs: Log[] = [];
@@ -37,21 +25,22 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
   // Store the txTrace for the current txn so it doesn't have to be re-fetched
   let txTrace: TransactionTrace | undefined;
 
-  for (const { kind, baseEventParams, log } of events) {
+  for (const { subKind, baseEventParams, log } of events) {
     if (currentTx !== baseEventParams.txHash) {
       currentTx = baseEventParams.txHash;
       currentTxLogs = [];
     }
     currentTxLogs.push(log);
-    const eventData = getEventData([kind])[0];
+
+    const eventData = getEventData([subKind])[0];
     const parsedLog = eventData.abi.parseLog(log);
 
-    switch (kind) {
+    switch (subKind) {
       case "infinity-cancel-all-orders": {
         const newMinNonce = parsedLog.args.newMinNonce as BigNumberish;
         const user = parsedLog.args.user.toLowerCase();
 
-        bulkCancelEvents.push({
+        onChainData.bulkCancelEvents.push({
           orderKind: "infinity",
           maker: user,
           minNonce: newMinNonce.toString(),
@@ -78,7 +67,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           };
         });
 
-        nonceCancelEvents.push(...cancelEvents);
+        onChainData.nonceCancelEvents.push(...cancelEvents);
 
         break;
       }
@@ -121,7 +110,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         }
 
         if (sellOrderNonce) {
-          nonceCancelEvents.push({
+          onChainData.nonceCancelEvents.push({
             orderKind,
             maker: seller,
             nonce: sellOrderNonce,
@@ -129,7 +118,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           });
         }
         if (buyOrderNonce) {
-          nonceCancelEvents.push({
+          onChainData.nonceCancelEvents.push({
             orderKind,
             maker: buyer,
             nonce: buyOrderNonce,
@@ -173,7 +162,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
             const tokenId = bn(token.tokenId).toString();
             const numTokens = bn(token.numTokens).toString();
 
-            fillEvents.push({
+            onChainData.fillEvents.push({
               orderKind,
               orderId: sellOrderHash,
               orderSide: "sell",
@@ -192,7 +181,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               baseEventParams,
             });
 
-            fillEvents.push({
+            onChainData.fillEvents.push({
               orderKind,
               orderId: buyOrderHash,
               orderSide: "buy",
@@ -211,7 +200,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               baseEventParams,
             });
 
-            fillInfos.push({
+            onChainData.fillInfos.push({
               context: `${buyOrderHash}-${baseEventParams.txHash}-${nft.collection}-${token.tokenId}`,
               orderId: buyOrderHash,
               orderSide: "buy",
@@ -224,7 +213,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               taker: seller,
             });
 
-            fillInfos.push({
+            onChainData.fillInfos.push({
               context: `${sellOrderHash}-${baseEventParams.txHash}-${nft.collection}-${token.tokenId}`,
               orderId: sellOrderHash,
               orderSide: "sell",
@@ -239,7 +228,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           }
         }
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${sellOrderHash}`,
           id: sellOrderHash,
           trigger: {
@@ -249,7 +238,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           },
         });
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${buyOrderHash}`,
           id: buyOrderHash,
           trigger: {
@@ -263,7 +252,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // then we need resync the maker's ERC20 approval to the exchange
         const erc20 = getERC20Transfer(currentTxLogs);
         if (erc20) {
-          makerInfos.push({
+          onChainData.makerInfos.push({
             context: `${baseEventParams.txHash}-buy-approval`,
             maker: buyer,
             trigger: {
@@ -304,7 +293,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
 
         // Handle: cancel orders
         if (orderSideResult.nonce) {
-          nonceCancelEvents.push({
+          onChainData.nonceCancelEvents.push({
             orderKind,
             maker: orderSideResult.maker,
             nonce: orderSideResult.nonce,
@@ -351,7 +340,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
               const tokenId = bn(token.tokenId).toString();
               const numTokens = bn(token.numTokens).toString();
 
-              fillEvents.push({
+              onChainData.fillEvents.push({
                 orderKind,
                 orderId: orderHash,
                 orderSide,
@@ -370,7 +359,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
                 baseEventParams,
               });
 
-              fillInfos.push({
+              onChainData.fillInfos.push({
                 context: `${orderHash}-${baseEventParams.txHash}-${nft.collection}-${token.tokenId}`,
                 orderId: orderHash,
                 orderSide,
@@ -386,7 +375,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
           }
         }
 
-        orderInfos.push({
+        onChainData.orderInfos.push({
           context: `filled-${orderHash}`,
           id: orderHash,
           trigger: {
@@ -400,7 +389,7 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
         // then we need resync the maker's ERC20 approval to the exchange
         const erc20 = getERC20Transfer(currentTxLogs);
         if (erc20) {
-          makerInfos.push({
+          onChainData.makerInfos.push({
             context: `${baseEventParams.txHash}-buy-approval`,
             maker: buyer,
             trigger: {
@@ -420,16 +409,6 @@ export const handleEvents = async (events: EnhancedEvent[]): Promise<OnChainData
       }
     }
   }
-
-  return {
-    nonceCancelEvents,
-    bulkCancelEvents,
-    fillEvents,
-
-    fillInfos,
-    orderInfos,
-    makerInfos,
-  };
 };
 
 async function getOrderNonce(

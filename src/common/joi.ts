@@ -1,6 +1,7 @@
+import { BigNumberish } from "@ethersproject/bignumber";
 import Joi from "joi";
 
-import { formatEth, formatPrice, formatUsd, now, regex } from "@/common/utils";
+import { bn, formatEth, formatPrice, formatUsd, now, regex } from "@/common/utils";
 import { Currency, getCurrency } from "@/utils/currencies";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
@@ -26,11 +27,16 @@ export const JoiPrice = Joi.object({
   netAmount: JoiPriceAmount.optional(),
 });
 
+const subFeeWithBps = (amount: BigNumberish, totalFeeBps: number) => {
+  return bn(amount).sub(bn(amount).mul(totalFeeBps).div(10000)).toString();
+};
+
 export const getJoiAmountObject = async (
   currency: Currency,
   amount: string,
   nativeAmount?: string,
-  usdAmount?: string
+  usdAmount?: string,
+  totalFeeBps?: number
 ) => {
   let usdPrice = usdAmount;
   if (amount && !usdPrice) {
@@ -40,6 +46,14 @@ export const getJoiAmountObject = async (
         acceptStalePrice: true,
       })
     ).usdPrice;
+  }
+
+  if (totalFeeBps) {
+    amount = subFeeWithBps(amount, totalFeeBps);
+    if (usdPrice) {
+      usdPrice = subFeeWithBps(usdPrice, totalFeeBps);
+    }
+    if (nativeAmount) nativeAmount = subFeeWithBps(nativeAmount, totalFeeBps);
   }
 
   return {
@@ -63,7 +77,8 @@ export const getJoiPriceObject = async (
       usdAmount?: string;
     };
   },
-  currencyAddress: string
+  currencyAddress: string,
+  totalFeeBps?: number
 ) => {
   const currency = await getCurrency(currencyAddress);
   return {
@@ -79,18 +94,32 @@ export const getJoiPriceObject = async (
       prices.gross.nativeAmount,
       prices.gross.usdAmount
     ),
-    netAmount:
-      prices.net &&
-      (await getJoiAmountObject(
-        currency,
-        prices.net.amount,
-        prices.net.nativeAmount,
-        prices.net.usdAmount
-      )),
+    netAmount: prices.net
+      ? await getJoiAmountObject(
+          currency,
+          prices.net.amount,
+          prices.net.nativeAmount,
+          prices.net.usdAmount
+        )
+      : totalFeeBps && totalFeeBps < 10000
+      ? await getJoiAmountObject(
+          currency,
+          prices.gross.amount,
+          prices.gross.nativeAmount,
+          prices.gross.usdAmount,
+          totalFeeBps
+        )
+      : undefined,
   };
 };
 
-// --- Order ---
+// --- Orders ---
+
+export const JoiAttributeValue = Joi.string().required().allow("");
+export const JoiAttributeKeyValueObject = Joi.object({
+  key: Joi.string(),
+  value: JoiAttributeValue,
+});
 
 export const JoiOrderMetadata = Joi.alternatives(
   Joi.object({
@@ -115,7 +144,7 @@ export const JoiOrderMetadata = Joi.alternatives(
     data: Joi.object({
       collectionId: Joi.string().allow("", null),
       collectionName: Joi.string().allow("", null),
-      attributes: Joi.array().items(Joi.object({ key: Joi.string(), value: Joi.string() })),
+      attributes: Joi.array().items(JoiAttributeKeyValueObject),
       image: Joi.string().allow("", null),
     }),
   })
@@ -149,7 +178,7 @@ export const JoiOrderCriteria = Joi.alternatives(
     kind: "attribute",
     data: Joi.object({
       collection: JoiOrderCriteriaCollection,
-      attribute: Joi.object({ key: Joi.string(), value: Joi.string() }),
+      attribute: JoiAttributeKeyValueObject,
     }),
   }),
   Joi.object({

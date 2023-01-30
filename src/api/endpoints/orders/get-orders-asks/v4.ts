@@ -72,8 +72,13 @@ export const getOrdersAsksV4Options: RouteOptions = {
           then: Joi.valid("active", "inactive", "expired", "cancelled", "filled"),
           otherwise: Joi.valid("active"),
         })
+        .when("contracts", {
+          is: Joi.exist(),
+          then: Joi.valid("active", "any"),
+          otherwise: Joi.valid("active"),
+        })
         .description(
-          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\n\nAvailable when filtering by maker, otherwise only valid orders will be returned"
+          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\nany = any status\nAvailable when filtering by maker, otherwise only valid orders will be returned"
         ),
       source: Joi.string()
         .pattern(regex.domain)
@@ -98,11 +103,6 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
-        .when("token", {
-          is: Joi.exist(),
-          then: Joi.valid("price", "createdAt"),
-          otherwise: Joi.valid("createdAt"),
-        })
         .valid("createdAt", "price")
         .default("createdAt")
         .description(
@@ -203,7 +203,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           orders.source_id_int,
           orders.quantity_filled,
           orders.quantity_remaining,
-          orders.fee_bps,
+          coalesce(orders.fee_bps, 0) AS fee_bps,
           orders.fee_breakdown,
           COALESCE(
             NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'),
@@ -271,19 +271,12 @@ export const getOrdersAsksV4Options: RouteOptions = {
           query.contracts = [query.contracts];
         }
 
-        for (const contract of query.contracts) {
-          const contractsFilter = `'${_.replace(contract, "0x", "\\x")}'`;
+        (query as any).contractsFilter = query.contracts.map(toBuffer);
+        conditions.push(`orders.contract IN ($/contractsFilter:list/)`);
 
-          if (_.isUndefined((query as any).contractsFilter)) {
-            (query as any).contractsFilter = [];
-          }
-
-          (query as any).contractsFilter.push(contractsFilter);
+        if (query.status === "any") {
+          orderStatusFilter = "";
         }
-
-        (query as any).contractsFilter = _.join((query as any).contractsFilter, ",");
-
-        conditions.push(`orders.contract IN ($/contractsFilter:raw/)`);
       }
 
       if (query.maker) {
@@ -316,6 +309,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
             "JOIN (SELECT DISTINCT contract FROM collections WHERE community = $/community/) c ON orders.contract = c.contract";
         }
 
+        // collectionsIds filter is valid only when maker filter is passed
         if (query.collectionsSetId) {
           query.collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
           if (_.isEmpty(query.collectionsIds)) {
@@ -325,7 +319,8 @@ export const getOrdersAsksV4Options: RouteOptions = {
           collectionSetFilter = `
           JOIN LATERAL (
             SELECT
-              *
+              contract,
+              token_id
             FROM
               token_sets_tokens
             WHERE
@@ -414,9 +409,8 @@ export const getOrdersAsksV4Options: RouteOptions = {
         if (query.sortBy === "price") {
           if (query.normalizeRoyalties) {
             continuation = buildContinuation(
-              rawResult[rawResult.length - 1].normalized_value +
-                "_" +
-                rawResult[rawResult.length - 1].id
+              rawResult[rawResult.length - 1].normalized_value ??
+                rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
             );
           } else {
             continuation = buildContinuation(
@@ -483,8 +477,8 @@ export const getOrdersAsksV4Options: RouteOptions = {
                 nativeAmount: query.normalizeRoyalties ? r.normalized_value ?? r.price : r.price,
               },
               net: {
-                amount: getNetAmount(r.currency_price ?? r.price, r.fee_bps),
-                nativeAmount: getNetAmount(r.price, r.fee_bps),
+                amount: getNetAmount(r.currency_price ?? r.price, _.min([r.fee_bps, 10000])),
+                nativeAmount: getNetAmount(r.price, _.min([r.fee_bps, 10000])),
               },
             },
             r.currency
