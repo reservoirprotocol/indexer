@@ -46,6 +46,7 @@ export class NewActivityWebsocketEvent {
       key: config.websocketServerAppKey,
       secret: config.websocketServerAppSecret,
       host: config.websocketServerHost,
+      useTLS: true,
     });
 
     const sources = await Sources.getInstance();

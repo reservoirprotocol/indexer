@@ -125,7 +125,7 @@ if (config.doBackgroundWork) {
         // Schedule a job to re-count tokens in the collection
         await collectionRecalcTokenCount.addToQueue(collection.id);
 
-        // If this is a new collection, recalculate the its floor price
+        // If this is a new collection, recalculate floor price
         if (collection?.id && newCollection) {
           const floorAskInfo = {
             kind: "revalidation",
