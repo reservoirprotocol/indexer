@@ -102,7 +102,7 @@ export class NewActivityWebsocketEvent {
       },
     };
 
-    await server.trigger("activities", "activity-created", JSON.stringify(payload));
+    await server.trigger("activities", "new-activity", JSON.stringify(payload));
   }
 }
 
