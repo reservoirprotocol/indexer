@@ -9,6 +9,7 @@ import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import { genericTaker, ensureBuyTxSucceeds, ensureSellTxSucceeds } from "@/utils/simulation";
 
 const version = "v1";
@@ -40,8 +41,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    if (config.chainId !== 1) {
-      throw Boom.notImplemented("Simulation not supported");
+    if (![1, 137].includes(config.chainId)) {
+      return { message: "Simulation not supported" };
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,6 +92,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           SELECT
             orders.kind,
             orders.side,
+            orders.currency,
             orders.contract,
             orders.token_set_id,
             orders.fillability_status,
@@ -104,7 +106,10 @@ export const postSimulateOrderV1Options: RouteOptions = {
         throw Boom.badRequest("Could not find order");
       }
       if (["nftx", "sudoswap"].includes(orderResult.kind)) {
-        return { message: "Pool orders not supported" };
+        return { message: "Order not simulatable" };
+      }
+      if (getNetworkSettings().whitelistedCurrencies.has(fromBuffer(orderResult.currency))) {
+        return { message: "Order not simulatable" };
       }
 
       const contractResult = await redb.one(

@@ -60,13 +60,13 @@ export const getTokensBootstrapV1Options: RouteOptions = {
         Joi.object({
           contract: Joi.string().lowercase().pattern(regex.address),
           tokenId: Joi.string().pattern(regex.number),
-          image: Joi.string().allow(null, ""),
+          image: Joi.string().allow("", null),
           orderId: Joi.string(),
           maker: Joi.string().lowercase().pattern(regex.address),
           validFrom: Joi.number().unsafe(),
           validUntil: Joi.number().unsafe(),
           price: Joi.number().unsafe(),
-          source: Joi.string().allow(null, ""),
+          source: Joi.string().allow("", null),
         })
       ),
       continuation: Joi.string().pattern(regex.base64),

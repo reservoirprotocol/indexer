@@ -35,9 +35,9 @@ const ifaceUniV3 = new Interface([
   )`,
 ]);
 
-export const getNftPoolDetails = async (address: string) =>
+export const getNftPoolDetails = async (address: string, skipOnChainCheck = false) =>
   getNftxNftPool(address).catch(async () => {
-    if (Sdk.Nftx.Addresses.VaultFactory[config.chainId]) {
+    if (!skipOnChainCheck && Sdk.Nftx.Addresses.VaultFactory[config.chainId]) {
       const iface = new Interface([
         "function assetAddress() view returns (address)",
         "function vaultId() view returns (uint256)",
@@ -68,9 +68,9 @@ export const getNftPoolDetails = async (address: string) =>
     }
   });
 
-export const getFtPoolDetails = async (address: string) =>
+export const getFtPoolDetails = async (address: string, skipOnChainCheck = false) =>
   getNftxFtPool(address).catch(async () => {
-    if (Sdk.Nftx.Addresses.VaultFactory[config.chainId]) {
+    if (!skipOnChainCheck && Sdk.Nftx.Addresses.VaultFactory[config.chainId]) {
       const iface = new Interface([
         "function token0() view returns (address)",
         "function token1() view returns (address)",

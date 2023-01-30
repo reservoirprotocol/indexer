@@ -6,5 +6,6 @@ export * from "@/api/endpoints/events/get-tokens-floor-ask/v2";
 export * from "@/api/endpoints/events/get-tokens-floor-ask/v3";
 export * from "@/api/endpoints/events/get-bid-events/v1";
 export * from "@/api/endpoints/events/get-bid-events/v2";
+export * from "@/api/endpoints/events/get-bid-events/v3";
 export * from "@/api/endpoints/events/get-collections-top-bid/v1";
 export * from "@/api/endpoints/events/get-collections-top-bid/v2";

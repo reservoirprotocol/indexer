@@ -25,16 +25,17 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   // Store the txTrace for the current txn so it doesn't have to be re-fetched
   let txTrace: TransactionTrace | undefined;
 
-  for (const { kind, baseEventParams, log } of events) {
+  for (const { subKind, baseEventParams, log } of events) {
     if (currentTx !== baseEventParams.txHash) {
       currentTx = baseEventParams.txHash;
       currentTxLogs = [];
     }
     currentTxLogs.push(log);
-    const eventData = getEventData([kind])[0];
+
+    const eventData = getEventData([subKind])[0];
     const parsedLog = eventData.abi.parseLog(log);
 
-    switch (kind) {
+    switch (subKind) {
       case "infinity-cancel-all-orders": {
         const newMinNonce = parsedLog.args.newMinNonce as BigNumberish;
         const user = parsedLog.args.user.toLowerCase();

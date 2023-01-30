@@ -12,6 +12,7 @@ import { Channel } from "@/pubsub/channels";
 import axios from "axios";
 import { getNetworkName } from "@/config/network";
 import { config } from "@/config/index";
+import { Boom } from "@hapi/boom";
 
 export type ApiKeyRecord = {
   app_name: string;
@@ -138,7 +139,7 @@ export class ApiKeyManager {
    *
    * @param request
    */
-  public static async logUsage(request: Request) {
+  static async getBaseLog(request: Request) {
     const key = request.headers["x-api-key"];
 
     const log: any = {
@@ -193,7 +194,7 @@ export class ApiKeyManager {
         } else {
           // There is a key, but it's null
           log.apiKey = {};
-          log.apiKey.app_name = key;
+          log.apiKey.appName = key;
         }
       } catch (e: any) {
         logger.info("api-key", e.message);
@@ -201,10 +202,20 @@ export class ApiKeyManager {
     } else {
       // No key, just log No Key as the app name
       log.apiKey = {};
-      log.apiKey.app_name = "No Key";
+      log.apiKey.appName = "No Key";
     }
 
+    return log;
+  }
+  public static async logRequest(request: Request) {
+    const log: any = await ApiKeyManager.getBaseLog(request);
     logger.info("metrics", JSON.stringify(log));
+  }
+
+  public static async logUnexpectedErrorResponse(request: Request, error: Boom) {
+    const log: any = await ApiKeyManager.getBaseLog(request);
+    log.error = error;
+    logger.error("metrics", JSON.stringify(log));
   }
 
   public static async update(key: string, fields: ApiKeyUpdateParams) {

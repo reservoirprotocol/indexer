@@ -76,13 +76,13 @@ export const getTokensV3Options: RouteOptions = {
         Joi.object({
           contract: Joi.string().lowercase().pattern(regex.address).required(),
           tokenId: Joi.string().pattern(regex.number).required(),
-          name: Joi.string().allow(null, ""),
-          image: Joi.string().allow(null, ""),
+          name: Joi.string().allow("", null),
+          image: Joi.string().allow("", null),
           collection: Joi.object({
             id: Joi.string().allow(null),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
-            slug: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
+            slug: Joi.string().allow("", null),
           }),
           topBidValue: Joi.number().unsafe().allow(null),
           floorAskPrice: Joi.number().unsafe().allow(null),

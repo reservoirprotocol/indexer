@@ -5,9 +5,9 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { JoiOrderCriteria, JoiPrice, getJoiPriceObject } from "@/common/joi";
 import { buildContinuation, fromBuffer, splitContinuation, regex, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
 import { Orders } from "@/utils/orders";
 
 const version = "v3";
@@ -76,7 +76,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             validUntil: Joi.number().unsafe().allow(null),
             rawData: Joi.object(),
             kind: Joi.string(),
-            source: Joi.string().allow(null, ""),
+            source: Joi.string().allow("", null),
             isDynamic: Joi.boolean(),
             criteria: JoiOrderCriteria.allow(null),
           }),
@@ -157,7 +157,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             orders.kind,
             (
               CASE
-                WHEN orders.kind IN ('nftx', 'sudoswap') THEN orders.raw_data
+                WHEN orders.kind IN ('nftx', 'sudoswap') OR order_events.kind IN ('new-order', 'reprice') THEN orders.raw_data
                 ELSE NULL
               END
             ) AS raw_data
@@ -238,7 +238,6 @@ export const getAsksEventsV3Options: RouteOptions = {
                       nativeAmount: query.normalizeRoyalties
                         ? r.normalized_value ?? r.price
                         : r.price,
-                      usdAmount: r.usd_price,
                     },
                   },
                   fromBuffer(r.currency)

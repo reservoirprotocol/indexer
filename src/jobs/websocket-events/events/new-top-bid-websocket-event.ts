@@ -1,19 +1,17 @@
 import { idb } from "@/common/db";
 import * as Pusher from "pusher";
-import { formatEth, fromBuffer, now } from "@/common/utils";
+import { fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import _ from "lodash";
-import { BatchEvent } from "pusher";
 import { config } from "@/config/index";
 import { redis } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Sources } from "@/models/sources";
+import { getJoiPriceObject } from "@/common/joi";
 
 export class NewTopBidWebsocketEvent {
   public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
     const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
-
-    const timeStart = performance.now();
 
     const order = await idb.oneOrNone(
       `
@@ -25,7 +23,17 @@ export class NewTopBidWebsocketEvent {
                 orders.maker,
                 orders.price,
                 orders.value,
+                orders.currency_value,
+                orders.currency_price,
+                orders.currency,
+                orders.normalized_value,
+                orders.currency_normalized_value,               
                 orders.created_at,
+                DATE_PART('epoch', LOWER(orders.valid_between)) AS "valid_from",
+                COALESCE(
+                     NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'),
+                     0
+                   ) AS "valid_until",
                 (${criteriaBuildQuery}) AS criteria
               FROM orders
               WHERE orders.id = $/orderId/
@@ -57,6 +65,8 @@ export class NewTopBidWebsocketEvent {
           id: order.id,
           maker: fromBuffer(order.maker),
           createdAt: new Date(order.created_at).toISOString(),
+          validFrom: order.valid_from,
+          validUntil: order.valid_until,
           source: {
             id: source?.address,
             domain: source?.domain,
@@ -64,8 +74,32 @@ export class NewTopBidWebsocketEvent {
             icon: source?.getIcon(),
             url: source?.metadata.url,
           },
-          price: formatEth(order.price),
-          value: formatEth(order.value),
+          price: await getJoiPriceObject(
+            {
+              net: {
+                amount: order.currency_value ?? order.value,
+                nativeAmount: order.value,
+              },
+              gross: {
+                amount: order.currency_price ?? order.price,
+                nativeAmount: order.price,
+              },
+            },
+            fromBuffer(order.currency)
+          ),
+          priceNormalized: await getJoiPriceObject(
+            {
+              net: {
+                amount: order.currency_normalized_value ?? order.currency_value ?? order.value,
+                nativeAmount: order.normalized_value ?? order.value,
+              },
+              gross: {
+                amount: order.currency_price ?? order.price,
+                nativeAmount: order.price,
+              },
+            },
+            fromBuffer(order.currency)
+          ),
           criteria: order.criteria,
         },
         owners: ownersChunk,
@@ -81,38 +115,24 @@ export class NewTopBidWebsocketEvent {
 
     const payloadsBatches = _.chunk(payloads, Number(config.websocketServerEventMaxBatchSize));
 
-    let timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
+    await Promise.all(
+      payloadsBatches.map((payloadsBatch) =>
+        server.triggerBatch(
+          payloadsBatch.map((payload) => {
+            return {
+              channel: "top-bids",
+              name: "new-top-bid",
+              data: JSON.stringify(payload),
+            };
+          })
+        )
+      )
+    );
 
     logger.info(
       "new-top-bid-websocket-event",
-      `Debug triggerBatch Before. orderId=${data.orderId}, tokenSetId=${order.token_set_id}, owners=${owners.length}, payloads=${payloads.length}, payloadsBatches=${payloadsBatches.length},timeElapsed=${timeElapsed}`
+      `End. orderId=${data.orderId}, tokenSetId=${order.token_set_id}, owners=${owners.length}, payloadsBatches=${payloadsBatches.length}`
     );
-
-    for (const payloadsBatch of payloadsBatches) {
-      const events: BatchEvent[] = payloadsBatch.map((payload) => {
-        return {
-          channel: "top-bids",
-          name: "new-top-bid",
-          data: JSON.stringify(payload),
-        };
-      });
-
-      await server.triggerBatch(events);
-    }
-
-    timeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-    if (timeElapsed > 0) {
-      logger.warn(
-        "new-top-bid-websocket-event",
-        `Debug triggerBatch After. orderId=${data.orderId}, tokenSetId=${order.token_set_id}, owners=${owners.length},  payloads=${payloads.length}, payloadsBatches=${payloadsBatches.length},timeElapsed=${timeElapsed}`
-      );
-    } else {
-      logger.info(
-        "new-top-bid-websocket-event",
-        `Debug triggerBatch After. orderId=${data.orderId}, tokenSetId=${order.token_set_id}, owners=${owners.length}, payloads=${payloads.length}, payloadsBatches=${payloadsBatches.length},timeElapsed=${timeElapsed}`
-      );
-    }
   }
 
   static async getOwners(tokenSetId: string): Promise<string[]> {

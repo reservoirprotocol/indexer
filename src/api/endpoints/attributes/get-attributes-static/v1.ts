@@ -7,6 +7,7 @@ import * as Boom from "@hapi/boom";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { Collections } from "@/models/collections";
+import { JoiAttributeValue } from "@/common/joi";
 
 const version = "v1";
 
@@ -39,7 +40,7 @@ export const getAttributesStaticV1Options: RouteOptions = {
           kind: Joi.string().valid("string", "number", "date", "range").required(),
           values: Joi.array().items(
             Joi.object({
-              value: Joi.string().required(),
+              value: JoiAttributeValue,
               count: Joi.number(),
               tokens: Joi.array().items(Joi.string().required()),
             })

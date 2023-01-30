@@ -5,9 +5,9 @@ import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Handle the events
-  for (const { kind, baseEventParams, log } of events) {
-    const eventData = getEventData([kind])[0];
-    switch (kind) {
+  for (const { subKind, baseEventParams, log } of events) {
+    const eventData = getEventData([subKind])[0];
+    switch (subKind) {
       case "erc20-transfer": {
         const parsedLog = eventData.abi.parseLog(log);
         const from = parsedLog.args["from"].toLowerCase();

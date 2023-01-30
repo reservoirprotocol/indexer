@@ -53,11 +53,11 @@ export const getSalesV2Options: RouteOptions = {
               .lowercase()
               .pattern(/^0x[a-fA-F0-9]{40}$/),
             tokenId: Joi.string().pattern(/^[0-9]+$/),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
             }),
           }),
           orderSide: Joi.string().valid("ask", "bid"),

@@ -353,41 +353,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           const price = prices[1].toString();
           const value = prices[1].toString();
 
-          // Handle: royalties on top
-          const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(
-            `contract:${pool.nft}`.toLowerCase(),
-            "default"
-          );
-
-          const totalBuiltInBps = 0;
-          const totalDefaultBps = defaultRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
-
-          const missingRoyalties: { bps: number; amount: string; recipient: string }[] = [];
-          let missingRoyaltyAmount = bn(0);
-          if (totalBuiltInBps < totalDefaultBps) {
-            const validRecipients = defaultRoyalties.filter(
-              ({ bps, recipient }) => bps && recipient !== AddressZero
-            );
-            if (validRecipients.length) {
-              const bpsDiff = totalDefaultBps - totalBuiltInBps;
-              const amount = bn(price).mul(bpsDiff).div(10000);
-              missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
-
-              // Split the missing royalties pro-rata across all royalty recipients
-              const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
-              for (const { bps, recipient } of validRecipients) {
-                // TODO: Handle lost precision (by paying it to the last or first recipient)
-                missingRoyalties.push({
-                  bps: Math.floor((bpsDiff * bps) / totalBps),
-                  amount: amount.mul(bps).div(totalBps).toString(),
-                  recipient,
-                });
-              }
-            }
-          }
-
-          const normalizedValue = bn(value).add(missingRoyaltyAmount);
-
           // Fetch all token ids owned by the pool
           const poolOwnedTokenIds = await commonHelpers.getNfts(pool.nft, pool.address);
 
@@ -397,6 +362,43 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               limit(async () => {
                 try {
                   const id = getOrderId(orderParams.pool, "sell", tokenId);
+
+                  // Handle: royalties on top
+                  const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(
+                    `token:${pool.nft}:${tokenId}`.toLowerCase(),
+                    "default"
+                  );
+
+                  const totalBuiltInBps = 0;
+                  const totalDefaultBps = defaultRoyalties
+                    .map(({ bps }) => bps)
+                    .reduce((a, b) => a + b, 0);
+
+                  const missingRoyalties: { bps: number; amount: string; recipient: string }[] = [];
+                  let missingRoyaltyAmount = bn(0);
+                  if (totalBuiltInBps < totalDefaultBps) {
+                    const validRecipients = defaultRoyalties.filter(
+                      ({ bps, recipient }) => bps && recipient !== AddressZero
+                    );
+                    if (validRecipients.length) {
+                      const bpsDiff = totalDefaultBps - totalBuiltInBps;
+                      const amount = bn(price).mul(bpsDiff).div(10000);
+                      missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+
+                      // Split the missing royalties pro-rata across all royalty recipients
+                      const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+                      for (const { bps, recipient } of validRecipients) {
+                        // TODO: Handle lost precision (by paying it to the last or first recipient)
+                        missingRoyalties.push({
+                          bps: Math.floor((bpsDiff * bps) / totalBps),
+                          amount: amount.mul(bps).div(totalBps).toString(),
+                          recipient,
+                        });
+                      }
+                    }
+                  }
+
+                  const normalizedValue = bn(value).add(missingRoyaltyAmount);
 
                   // Handle: core sdk order
                   const sdkOrder: Sdk.Sudoswap.Order = new Sdk.Sudoswap.Order(config.chainId, {

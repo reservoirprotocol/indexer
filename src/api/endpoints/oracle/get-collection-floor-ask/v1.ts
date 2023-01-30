@@ -4,7 +4,6 @@ import { defaultAbiCoder } from "@ethersproject/abi";
 import { arrayify } from "@ethersproject/bytes";
 import { AddressZero } from "@ethersproject/constants";
 import { _TypedDataEncoder } from "@ethersproject/hash";
-import { Wallet } from "@ethersproject/wallet";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -13,6 +12,7 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { Signers, addressToSigner } from "@/common/signers";
 import { bn, formatPrice, now } from "@/common/utils";
 import { config } from "@/config/index";
 
@@ -21,7 +21,7 @@ const version = "v1";
 export const getCollectionFloorAskOracleV1Options: RouteOptions = {
   description: "Collection floor",
   notes:
-    "Get a signed message of any collection's floor price (spot or twap). The oracle signer address is 0x32da57e736e05f75aa4fae2e9be60fd904492726.",
+    "Get a signed message of any collection's floor price (spot or twap). The oracle's address is 0x32dA57E736E05f75aa4FaE2E9Be60FD904492726.",
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
@@ -238,7 +238,7 @@ export const getCollectionFloorAskOracleV1Options: RouteOptions = {
       };
 
       if (config.oraclePrivateKey) {
-        message.signature = await new Wallet(config.oraclePrivateKey).signMessage(
+        message.signature = await addressToSigner[Signers.V1]().signMessage(
           arrayify(_TypedDataEncoder.hashStruct("Message", EIP712_TYPES.Message, message))
         );
       } else {

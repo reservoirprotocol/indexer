@@ -1,7 +1,7 @@
 import { Log } from "@ethersproject/abstract-provider";
 
 import { concat } from "@/common/utils";
-import { EventDataKind } from "@/events-sync/data";
+import { EventKind, EventSubKind } from "@/events-sync/data";
 import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
@@ -16,7 +16,8 @@ import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
-  kind: EventDataKind;
+  kind: EventKind;
+  subKind: EventSubKind;
   baseEventParams: BaseEventParams;
   log: Log;
 };

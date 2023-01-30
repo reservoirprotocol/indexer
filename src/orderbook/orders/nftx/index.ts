@@ -70,19 +70,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         return;
       }
 
-      // For now, only support a single collection for testing
-      if (
-        ![
-          "0x569a0ff212efe6b2fac806765ef59ce6685f2dd2",
-          "0xca7ffb829835f3946998cb8d02a0c0b02012c3c5",
-          "0x227c7df69d3ed1ae7574a1a7685fded90292eb48",
-          "0x87931e7ad81914e7898d07c68f145fc0a553d8fb",
-          "0x0e050b2b7adb2cae5e8593e280ed5582953f9ad2",
-        ].includes(orderParams.pool)
-      ) {
-        return;
-      }
-
       // Handle: fees
       let feeBps = 0;
       const feeBreakdown: {
@@ -407,40 +394,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           bps: feeBps,
         });
 
-        // Handle: royalties on top
-        const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(
-          `contract:${pool.nft}`,
-          "default"
-        );
-        const totalBuiltInBps = 0;
-        const totalDefaultBps = defaultRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
-
-        const missingRoyalties: { bps: number; amount: string; recipient: string }[] = [];
-        let missingRoyaltyAmount = bn(0);
-        if (totalBuiltInBps < totalDefaultBps) {
-          const validRecipients = defaultRoyalties.filter(
-            ({ bps, recipient }) => bps && recipient !== AddressZero
-          );
-          if (validRecipients.length) {
-            const bpsDiff = totalDefaultBps - totalBuiltInBps;
-            const amount = bn(price).mul(bpsDiff).div(10000);
-            missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
-
-            // Split the missing royalties pro-rata across all royalty recipients
-            const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
-            for (const { bps, recipient } of validRecipients) {
-              // TODO: Handle lost precision (by paying it to the last or first recipient)
-              missingRoyalties.push({
-                bps: Math.floor((bpsDiff * bps) / totalBps),
-                amount: amount.mul(bps).div(totalBps).toString(),
-                recipient,
-              });
-            }
-          }
-        }
-
-        const normalizedValue = bn(value).add(missingRoyaltyAmount);
-
         // Fetch all token ids owned by the pool
         const poolOwnedTokenIds = await commonHelpers.getNfts(pool.nft, pool.address);
 
@@ -450,6 +403,42 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             limit(async () => {
               try {
                 const id = getOrderId(orderParams.pool, "sell", tokenId);
+
+                // Handle: royalties on top
+                const defaultRoyalties = await royalties.getRoyaltiesByTokenSet(
+                  `token:${pool.nft}:${tokenId}`,
+                  "default"
+                );
+                const totalBuiltInBps = 0;
+                const totalDefaultBps = defaultRoyalties
+                  .map(({ bps }) => bps)
+                  .reduce((a, b) => a + b, 0);
+
+                const missingRoyalties: { bps: number; amount: string; recipient: string }[] = [];
+                let missingRoyaltyAmount = bn(0);
+                if (totalBuiltInBps < totalDefaultBps) {
+                  const validRecipients = defaultRoyalties.filter(
+                    ({ bps, recipient }) => bps && recipient !== AddressZero
+                  );
+                  if (validRecipients.length) {
+                    const bpsDiff = totalDefaultBps - totalBuiltInBps;
+                    const amount = bn(price).mul(bpsDiff).div(10000);
+                    missingRoyaltyAmount = missingRoyaltyAmount.add(amount);
+
+                    // Split the missing royalties pro-rata across all royalty recipients
+                    const totalBps = _.sumBy(validRecipients, ({ bps }) => bps);
+                    for (const { bps, recipient } of validRecipients) {
+                      // TODO: Handle lost precision (by paying it to the last or first recipient)
+                      missingRoyalties.push({
+                        bps: Math.floor((bpsDiff * bps) / totalBps),
+                        amount: amount.mul(bps).div(totalBps).toString(),
+                        recipient,
+                      });
+                    }
+                  }
+                }
+
+                const normalizedValue = bn(value).add(missingRoyaltyAmount);
 
                 // Requirements for sell orders:
                 // - pool has target redeem enabled
