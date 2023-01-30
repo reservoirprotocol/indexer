@@ -12,6 +12,7 @@ import { getNetworkSettings } from "@/config/network";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
+import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
@@ -112,10 +113,6 @@ if (config.doBackgroundWork) {
                 ${tokenFilter}
                 RETURNING 1
               )
-              UPDATE "collections" SET
-                "token_count" = (SELECT COUNT(*) FROM "x"),
-                "updated_at" = now()
-              WHERE "id" = $/collection/
             `,
           values: {
             contract: toBuffer(collection.contract),
@@ -128,7 +125,10 @@ if (config.doBackgroundWork) {
         // Write the collection to the database
         await idb.none(pgp.helpers.concat(queries));
 
-        // If this is a new collection, recalculate floor price
+        // Schedule a job to re-count tokens in the collection
+        await collectionRecalcTokenCount.addToQueue(collection.id);
+
+        // If this is a new collection, recalculate the its floor price
         if (collection?.id && newCollection) {
           const floorAskInfo = {
             kind: "revalidation",

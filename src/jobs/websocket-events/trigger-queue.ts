@@ -45,7 +45,11 @@ if (config.doBackgroundWork) {
           );
           break;
         case EventKind.ActivityCreated:
-          await ActivityCreatedWebsocketEvent.triggerEvent(data);
+          await tracer.trace(
+            "triggerEvent",
+            { resource: "ActivityCreatedWebsocketEvent", tags: { event: data } },
+            () => ActivityCreatedWebsocketEvent.triggerEvent(data)
+          );
           break;
       }
     },
