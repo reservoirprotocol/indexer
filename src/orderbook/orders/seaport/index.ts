@@ -1445,13 +1445,16 @@ export const save = async (
       limit(async () =>
         orderInfo.kind == "partial"
           ? handlePartialOrder(orderInfo.orderParams as PartialOrderComponents)
-          : tracer.trace("handleOrder", { resource: "seaportSave" }, () =>
-              handleOrder(
-                orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
-                orderInfo.metadata,
-                orderInfo.isReservoir,
-                orderInfo.openSeaOrderParams
-              )
+          : tracer.trace(
+              "handleOrder",
+              { resource: "seaportSave", tags: { orderInfo: orderInfo } },
+              () =>
+                handleOrder(
+                  orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
+                  orderInfo.metadata,
+                  orderInfo.isReservoir,
+                  orderInfo.openSeaOrderParams
+                )
             )
       )
     )
