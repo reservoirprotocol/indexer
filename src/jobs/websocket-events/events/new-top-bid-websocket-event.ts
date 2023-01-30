@@ -108,6 +108,7 @@ export class NewTopBidWebsocketEvent {
       key: config.websocketServerAppKey,
       secret: config.websocketServerAppSecret,
       host: config.websocketServerHost,
+      useTLS: true,
     });
 
     if (payloads.length > 1) {
