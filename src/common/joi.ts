@@ -113,7 +113,13 @@ export const getJoiPriceObject = async (
   };
 };
 
-// --- Order ---
+// --- Orders ---
+
+export const JoiAttributeValue = Joi.string().required().allow("");
+export const JoiAttributeKeyValueObject = Joi.object({
+  key: Joi.string(),
+  value: JoiAttributeValue,
+});
 
 export const JoiOrderMetadata = Joi.alternatives(
   Joi.object({
@@ -138,7 +144,7 @@ export const JoiOrderMetadata = Joi.alternatives(
     data: Joi.object({
       collectionId: Joi.string().allow("", null),
       collectionName: Joi.string().allow("", null),
-      attributes: Joi.array().items(Joi.object({ key: Joi.string(), value: Joi.string() })),
+      attributes: Joi.array().items(JoiAttributeKeyValueObject),
       image: Joi.string().allow("", null),
     }),
   })
@@ -172,7 +178,7 @@ export const JoiOrderCriteria = Joi.alternatives(
     kind: "attribute",
     data: Joi.object({
       collection: JoiOrderCriteriaCollection,
-      attribute: Joi.object({ key: Joi.string(), value: Joi.string() }),
+      attribute: JoiAttributeKeyValueObject,
     }),
   }),
   Joi.object({

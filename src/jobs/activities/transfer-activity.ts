@@ -1,7 +1,6 @@
 import { ActivitiesEntityInsertParams, ActivityType } from "@/models/activities/activities-entity";
 import { Tokens } from "@/models/tokens";
 import _ from "lodash";
-import { logger } from "@/common/logger";
 import { Activities } from "@/models/activities";
 import { AddressZero } from "@ethersproject/constants";
 import { getActivityHash } from "@/jobs/activities/utils";
@@ -12,12 +11,6 @@ import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activitie
 export class TransferActivity {
   public static async handleEvent(data: NftTransferEventData) {
     const collectionId = await Tokens.getCollectionId(data.contract, data.tokenId);
-
-    // If no collection found
-    if (_.isNull(collectionId)) {
-      logger.warn("transfer-activity", `Collection not found for ${JSON.stringify(data)}`);
-      return;
-    }
 
     const activityHash = getActivityHash(
       data.transactionHash,

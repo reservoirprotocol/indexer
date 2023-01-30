@@ -20,7 +20,6 @@ export const offChainCheck = async (
     // of buy orders as well.
     onChainApprovalRecheck?: boolean;
     checkFilledOrCancelled?: boolean;
-    debugLogs?: string[];
   }
 ) => {
   const id = order.hash();
@@ -31,16 +30,8 @@ export const offChainCheck = async (
     throw new Error("unknown-format");
   }
 
-  let timeStartInterval = performance.now();
-
   // Check: order is on a known and valid contract
   const kind = await commonHelpers.getContractKind(info.contract);
-
-  options?.debugLogs?.push(
-    `getContractKind=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-  );
-
-  timeStartInterval = performance.now();
 
   if (!kind || kind !== info.tokenKind) {
     throw new Error("invalid-target");
@@ -50,24 +41,12 @@ export const offChainCheck = async (
     // Check: order is not cancelled
     const cancelled = await commonHelpers.isOrderCancelled(id);
 
-    options?.debugLogs?.push(
-      `isOrderCancelledTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-    );
-
-    timeStartInterval = performance.now();
-
     if (cancelled) {
       throw new Error("cancelled");
     }
 
     // Check: order is not filled
     const quantityFilled = await commonHelpers.getQuantityFilled(id);
-
-    options?.debugLogs?.push(
-      `getQuantityFilledTimeElapsed=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-    );
-
-    timeStartInterval = performance.now();
 
     if (quantityFilled.gte(info.amount)) {
       throw new Error("filled");
@@ -77,35 +56,17 @@ export const offChainCheck = async (
   // Check: order has a valid nonce
   const minNonce = await commonHelpers.getMinNonce("seaport", order.params.offerer);
 
-  options?.debugLogs?.push(
-    `getMinNonce=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-  );
-
-  timeStartInterval = performance.now();
-
   if (!minNonce.eq(order.params.counter)) {
     throw new Error("cancelled");
   }
 
   const conduit = new Sdk.Seaport.Exchange(config.chainId).deriveConduit(order.params.conduitKey);
 
-  options?.debugLogs?.push(
-    `deriveConduit=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-  );
-
-  timeStartInterval = performance.now();
-
   let hasBalance = true;
   let hasApproval = true;
   if (info.side === "buy") {
     // Check: maker has enough balance
     const ftBalance = await commonHelpers.getFtBalance(info.paymentToken, order.params.offerer);
-
-    options?.debugLogs?.push(
-      `getFtBalance=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-    );
-
-    timeStartInterval = performance.now();
 
     if (ftBalance.lt(info.price)) {
       hasBalance = false;
@@ -115,22 +76,12 @@ export const offChainCheck = async (
       if (
         bn(
           await onChainData
-            .fetchAndUpdateFtApproval(
-              info.paymentToken,
-              order.params.offerer,
-              conduit,
-              true,
-              options?.debugLogs
-            )
+            .fetchAndUpdateFtApproval(info.paymentToken, order.params.offerer, conduit, true)
             .then((a) => a.value)
         ).lt(info.price)
       ) {
         hasApproval = false;
       }
-
-      options?.debugLogs?.push(
-        `fetchAndUpdateFtApproval=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-      );
     }
   } else {
     // Check: maker has enough balance
@@ -139,12 +90,6 @@ export const offChainCheck = async (
       info.tokenId!,
       order.params.offerer
     );
-
-    options?.debugLogs?.push(
-      `getNftBalance=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-    );
-
-    timeStartInterval = performance.now();
 
     if (nftBalance.lt(info.amount)) {
       hasBalance = false;
@@ -157,12 +102,6 @@ export const offChainCheck = async (
       conduit
     );
 
-    options?.debugLogs?.push(
-      `getNftApproval=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-    );
-
-    timeStartInterval = performance.now();
-
     if (!nftApproval) {
       if (options?.onChainApprovalRecheck) {
         // Re-validate the approval on-chain to handle some edge-cases
@@ -173,10 +112,6 @@ export const offChainCheck = async (
         if (!(await contract.isApproved(order.params.offerer, conduit))) {
           hasApproval = false;
         }
-
-        options?.debugLogs?.push(
-          `isApproved=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-        );
       } else {
         hasApproval = false;
       }

@@ -196,7 +196,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           orders.source_id_int,
           orders.quantity_filled,
           orders.quantity_remaining,
-          orders.fee_bps,
+          coalesce(orders.fee_bps, 0) AS fee_bps,
           orders.fee_breakdown,
           COALESCE(
             NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'),
@@ -444,8 +444,8 @@ export const getOrdersAsksV4Options: RouteOptions = {
                 nativeAmount: query.normalizeRoyalties ? r.normalized_value ?? r.price : r.price,
               },
               net: {
-                amount: getNetAmount(r.currency_price ?? r.price, r.fee_bps),
-                nativeAmount: getNetAmount(r.price, r.fee_bps),
+                amount: getNetAmount(r.currency_price ?? r.price, _.min([r.fee_bps, 10000])),
+                nativeAmount: getNetAmount(r.price, _.min([r.fee_bps, 10000])),
               },
             },
             r.currency

@@ -9,6 +9,7 @@ import {
 } from "@/jobs/websocket-events/events/new-top-bid-websocket-event";
 import { randomUUID } from "crypto";
 import _ from "lodash";
+import tracer from "@/common/tracer";
 
 const QUEUE_NAME = "websocket-events-trigger-queue";
 
@@ -32,11 +33,15 @@ if (config.doBackgroundWork) {
 
       switch (kind) {
         case EventKind.NewTopBid:
-          await NewTopBidWebsocketEvent.triggerEvent(data);
+          await tracer.trace(
+            "triggerEvent",
+            { resource: "NewTopBidWebsocketEvent", tags: { event: data } },
+            () => NewTopBidWebsocketEvent.triggerEvent(data)
+          );
           break;
       }
     },
-    { connection: redis.duplicate(), concurrency: 5 }
+    { connection: redis.duplicate(), concurrency: 20 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

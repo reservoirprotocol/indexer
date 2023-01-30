@@ -7,7 +7,7 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import { getJoiPriceObject, JoiAttributeValue, JoiPrice } from "@/common/joi";
 import {
   bn,
   buildContinuation,
@@ -177,21 +177,21 @@ export const getTokensV5Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string().lowercase().pattern(regex.address).required(),
             tokenId: Joi.string().pattern(regex.number).required(),
-            name: Joi.string().allow(null, ""),
-            description: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
-            media: Joi.string().allow(null, ""),
-            kind: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            description: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
+            media: Joi.string().allow("", null),
+            kind: Joi.string().allow("", null),
             isFlagged: Joi.boolean().default(false),
-            lastFlagUpdate: Joi.string().allow(null, ""),
-            lastFlagChange: Joi.string().allow(null, ""),
+            lastFlagUpdate: Joi.string().allow("", null),
+            lastFlagChange: Joi.string().allow("", null),
             rarity: Joi.number().unsafe().allow(null),
             rarityRank: Joi.number().unsafe().allow(null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
-              image: Joi.string().allow(null, ""),
-              slug: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
+              image: Joi.string().allow("", null),
+              slug: Joi.string().allow("", null),
             }),
             lastBuy: {
               value: Joi.number().unsafe().allow(null),
@@ -207,7 +207,7 @@ export const getTokensV5Options: RouteOptions = {
                 Joi.object({
                   key: Joi.string(),
                   kind: Joi.string(),
-                  value: Joi.string(),
+                  value: JoiAttributeValue,
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
                   floorAskPrice: Joi.number().unsafe().allow(null),
@@ -668,7 +668,13 @@ export const getTokensV5Options: RouteOptions = {
         if (contArr.length === 1 && contArr[0].includes("_")) {
           contArr = splitContinuation(contArr[0]);
         }
-        if (query.collection || query.attributes || query.tokenSetId || query.collectionsSetId) {
+        if (
+          query.collection ||
+          query.attributes ||
+          query.tokenSetId ||
+          query.collectionsSetId ||
+          query.tokens
+        ) {
           switch (query.sortBy) {
             case "rarity": {
               if (contArr.length !== 3) {
@@ -681,7 +687,7 @@ export const getTokensV5Options: RouteOptions = {
               query.sortDirection = query.sortDirection || "asc"; // Default sorting for rarity is ASC
               const sign = query.sortDirection == "desc" ? "<" : ">";
               conditions.push(
-                `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/), $/contTokenId/)`
+                `(t.rarity_rank, t.contract, t.token_id) ${sign} ($/contRarity/, $/contContract/, $/contTokenId/)`
               );
               (query as any).contRarity = contArr[0];
               (query as any).contContract = toBuffer(contArr[1]);
@@ -767,7 +773,8 @@ export const getTokensV5Options: RouteOptions = {
         query.attributes ||
         query.tokenSetId ||
         query.rarity ||
-        query.collectionsSetId
+        query.collectionsSetId ||
+        query.tokens
       ) {
         switch (query.sortBy) {
           case "rarity": {
@@ -802,7 +809,7 @@ export const getTokensV5Options: RouteOptions = {
             break;
           }
         }
-      } else if (query.contract || query.tokens) {
+      } else if (query.contract) {
         baseQuery += ` ORDER BY t.contract ${query.sortDirection || "ASC"}, t.token_id ${
           query.sortDirection || "ASC"
         }`;
@@ -826,7 +833,13 @@ export const getTokensV5Options: RouteOptions = {
         // Only build a "value_tokenid" continuation string when we filter on collection or attributes
         // Otherwise continuation string will just be based on the last tokenId. This is because only use sorting
         // when we have collection/attributes
-        if (query.collection || query.attributes || query.tokenSetId || query.collectionsSetId) {
+        if (
+          query.collection ||
+          query.attributes ||
+          query.tokenSetId ||
+          query.collectionsSetId ||
+          query.tokens
+        ) {
           switch (query.sortBy) {
             case "rarity":
               continuation = rawResult[rawResult.length - 1].rarity_rank || "null";

@@ -50,11 +50,13 @@ import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
 import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
-
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
+import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
+import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
+import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 
 import * as currencies from "@/jobs/currencies/index";
 
@@ -78,6 +80,7 @@ import * as flagStatusProcessJob from "@/jobs/flag-status/process-queue";
 import * as flagStatusSyncJob from "@/jobs/flag-status/sync-queue";
 import * as flagStatusGenerateAttributeTokenSet from "@/jobs/flag-status/generate-attribute-token-set";
 import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
+import * as flagStatusUpdate from "@/jobs/flag-status/update";
 
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
@@ -158,6 +161,9 @@ export const allJobQueues = [
   rarity.queue,
   collectionUpdatesTopBid.queue,
   refreshContractCollectionsMetadata.queue,
+  updateCollectionActivity.queue,
+  updateCollectionUserActivity.queue,
+  updateCollectionDailyVolume.queue,
 
   dailyVolumes.queue,
 
@@ -179,6 +185,7 @@ export const allJobQueues = [
   flagStatusSyncJob.queue,
   flagStatusGenerateAttributeTokenSet.queue,
   flagStatusGenerateCollectionTokenSet.queue,
+  flagStatusUpdate.queue,
 
   metadataIndexFetch.queue,
   metadataIndexProcess.queue,

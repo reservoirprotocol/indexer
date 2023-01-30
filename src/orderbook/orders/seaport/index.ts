@@ -29,6 +29,7 @@ import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
+import tracer from "@/common/tracer";
 
 export type OrderInfo =
   | {
@@ -93,10 +94,7 @@ export const save = async (
       const info = order.getInfo();
       const id = order.hash();
 
-      const debugLogs: string[] = [];
-
       const timeStart = performance.now();
-      let timeStartInterval = performance.now();
 
       // Check: order has a valid format
       if (!info) {
@@ -124,10 +122,6 @@ export const save = async (
           rawData: order.params,
         }
       );
-
-      debugLogs.push(`orderExists=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
 
       if (orderExists) {
         return results.push({
@@ -198,10 +192,6 @@ export const save = async (
         });
       }
 
-      debugLogs.push(`checkValidity=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
-
       // Check: order has a valid signature
       try {
         await order.checkSignature(baseProvider);
@@ -212,17 +202,11 @@ export const save = async (
         });
       }
 
-      debugLogs.push(
-        `checkSignature=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-      );
-
-      timeStartInterval = performance.now();
-
       // Check: order fillability
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
       try {
-        await offChainCheck(order, { onChainApprovalRecheck: true, debugLogs });
+        await offChainCheck(order, { onChainApprovalRecheck: true });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         // Keep any orders that can potentially get valid in the future
@@ -240,10 +224,6 @@ export const save = async (
           });
         }
       }
-
-      debugLogs.push(`offChainCheck=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
 
       let saveRawData = true;
 
@@ -429,10 +409,6 @@ export const save = async (
         }
       }
 
-      debugLogs.push(`tokenSet=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
-
       if (!tokenSetId) {
         return results.push({
           id,
@@ -556,10 +532,6 @@ export const save = async (
         }
       }
 
-      debugLogs.push(`royalties=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
-
       // Handle: source
       const sources = await Sources.getInstance();
       let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
@@ -650,10 +622,6 @@ export const save = async (
       }
       const normalizedValue = bn(prices.nativePrice).toString();
 
-      debugLogs.push(`currencies=${Math.floor((performance.now() - timeStartInterval) / 1000)}`);
-
-      timeStartInterval = performance.now();
-
       if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
         const typedInfo = info as typeof info & { tokenId: string };
         const tokenId = typedInfo.tokenId;
@@ -682,10 +650,6 @@ export const save = async (
           );
         }
       }
-
-      debugLogs.push(
-        `bidValueValidation=${Math.floor((performance.now() - timeStartInterval) / 1000)}`
-      );
 
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
@@ -752,13 +716,7 @@ export const save = async (
       if (totalTimeElapsed > 1) {
         logger.info(
           "orders-seaport-save-debug-latency",
-          `orderId=${id}, orderSide=${
-            info.side
-          }, totalTimeElapsed=${totalTimeElapsed}, timeElapsedBreakdown=${JSON.stringify(
-            debugLogs,
-            null,
-            "\t"
-          )}`
+          `orderId=${id}, orderSide=${info.side}, totalTimeElapsed=${totalTimeElapsed}`
         );
       }
     } catch (error) {
@@ -1487,11 +1445,13 @@ export const save = async (
       limit(async () =>
         orderInfo.kind == "partial"
           ? handlePartialOrder(orderInfo.orderParams as PartialOrderComponents)
-          : handleOrder(
-              orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
-              orderInfo.metadata,
-              orderInfo.isReservoir,
-              orderInfo.openSeaOrderParams
+          : tracer.trace("handleOrder", { resource: "seaportSave" }, () =>
+              handleOrder(
+                orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
+                orderInfo.metadata,
+                orderInfo.isReservoir,
+                orderInfo.openSeaOrderParams
+              )
             )
       )
     )

@@ -5,17 +5,10 @@ import { getActivityHash } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { Tokens } from "@/models/tokens";
-import { logger } from "@/common/logger";
 
 export class AskCancelActivity {
   public static async handleEvent(data: SellOrderCancelledEventData) {
     const collectionId = await Tokens.getCollectionId(data.contract, data.tokenId);
-
-    // If no collection found
-    if (_.isNull(collectionId)) {
-      logger.warn("ask-cancel-activity", `No collection found for ${JSON.stringify(data)}`);
-      return;
-    }
 
     let activityHash;
 
@@ -26,8 +19,6 @@ export class AskCancelActivity {
         data.batchIndex.toString()
       );
     } else {
-      logger.warn("ask-cancel-activity", `No transactionHash for ${JSON.stringify(data)}`);
-
       activityHash = getActivityHash(ActivityType.ask_cancel, data.orderId);
     }
 

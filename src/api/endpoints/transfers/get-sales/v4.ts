@@ -82,14 +82,14 @@ export const getSalesV4Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string().lowercase().pattern(regex.address),
             tokenId: Joi.string().pattern(regex.number),
-            name: Joi.string().allow(null, ""),
-            image: Joi.string().allow(null, ""),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
             collection: Joi.object({
               id: Joi.string().allow(null),
-              name: Joi.string().allow(null, ""),
+              name: Joi.string().allow("", null),
             }),
           }),
-          orderSource: Joi.string().allow(null, ""),
+          orderSource: Joi.string().allow("", null),
           orderSide: Joi.string().valid("ask", "bid"),
           orderKind: Joi.string(),
           orderId: Joi.string().allow(null),
