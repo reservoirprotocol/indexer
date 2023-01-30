@@ -196,7 +196,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           orders.source_id_int,
           orders.quantity_filled,
           orders.quantity_remaining,
-          orders.fee_bps,
+          coalesce(orders.fee_bps, 0) AS fee_bps,
           orders.fee_breakdown,
           COALESCE(
             NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'),
