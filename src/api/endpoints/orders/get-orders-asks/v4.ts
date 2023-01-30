@@ -309,6 +309,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
             "JOIN (SELECT DISTINCT contract FROM collections WHERE community = $/community/) c ON orders.contract = c.contract";
         }
 
+        // collectionsIds filter is valid only when maker filter is passed
         if (query.collectionsSetId) {
           query.collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
           if (_.isEmpty(query.collectionsIds)) {
@@ -318,7 +319,8 @@ export const getOrdersAsksV4Options: RouteOptions = {
           collectionSetFilter = `
           JOIN LATERAL (
             SELECT
-              *
+              contract,
+              token_id
             FROM
               token_sets_tokens
             WHERE
