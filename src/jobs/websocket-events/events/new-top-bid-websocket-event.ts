@@ -54,11 +54,8 @@ export class NewTopBidWebsocketEvent {
     }
 
     const payloads = [];
-
     const owners = await NewTopBidWebsocketEvent.getOwners(order.token_set_id);
-
     const ownersChunks = _.chunk(owners, Number(config.websocketServerEventMaxSizeInKb) * 20);
-
     const source = (await Sources.getInstance()).get(Number(order.source_id_int));
 
     for (const ownersChunk of ownersChunks) {
