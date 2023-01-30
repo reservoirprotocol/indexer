@@ -72,7 +72,7 @@ if (config.doBackgroundWork) {
 
         if (updated) {
           logger.info(
-            "daily-volumes",
+            QUEUE_NAME,
             `Finished recalculating daily volumes for collection ${newCollectionId}`
           );
         }
@@ -89,7 +89,7 @@ if (config.doBackgroundWork) {
 export const addToQueue = async (
   newCollectionId: string,
   contract: string,
-  delay = 60 * 10 * 1000
+  delay = 60 * 30 * 1000
 ) => {
   await queue.add(
     newCollectionId,
