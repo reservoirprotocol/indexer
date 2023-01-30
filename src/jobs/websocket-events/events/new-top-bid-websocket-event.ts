@@ -13,8 +13,6 @@ export class NewTopBidWebsocketEvent {
   public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
     const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
-    logger.info("new-top-bid-websocket-event", `Start. orderId=${data.orderId}`);
-
     const order = await idb.oneOrNone(
       `
               SELECT
@@ -131,11 +129,6 @@ export class NewTopBidWebsocketEvent {
     } else {
       await server.trigger("top-bids", "new-top-bid", JSON.stringify(payloads[0]));
     }
-
-    logger.info(
-      "new-top-bid-websocket-event",
-      `End. orderId=${data.orderId}, tokenSetId=${order.token_set_id}, owners=${owners.length}, payloads=${payloads.length}`
-    );
   }
 
   static async getOwners(tokenSetId: string): Promise<string[]> {
