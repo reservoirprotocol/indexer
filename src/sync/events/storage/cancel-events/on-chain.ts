@@ -64,7 +64,7 @@ export const addEventsOnChain = async (events: Event[]) => {
         "updated_at" = now()
       FROM "x"
       WHERE "orders"."id" = "x"."order_id"
-        AND lower("orders"."valid_between") < to_timestamp("x"."timestamp")
+        AND lower("orders"."valid_between") <= to_timestamp("x"."timestamp")
     `);
   }
 

@@ -2,7 +2,6 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import tracer from "@/common/tracer";
 import { config } from "@/config/index";
 import {
   NewTopBidWebsocketEventInfo,
@@ -15,6 +14,7 @@ import {
 
 import { randomUUID } from "crypto";
 import _ from "lodash";
+import tracer from "@/common/tracer";
 
 const QUEUE_NAME = "websocket-events-trigger-queue";
 
