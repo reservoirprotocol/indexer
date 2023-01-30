@@ -95,7 +95,7 @@ if (config.doBackgroundWork) {
         });
 
         let tokenFilter = `AND "token_id" <@ ${tokenIdRangeParam}`;
-        if (_.isNull(tokenIdRange)) {
+        if (newCollection || _.isNull(tokenIdRange)) {
           tokenFilter = `AND "token_id" = $/tokenId/`;
         }
 
@@ -103,14 +103,11 @@ if (config.doBackgroundWork) {
         // we update all tokens that match its token definition
         queries.push({
           query: `
-              WITH "x" AS (
-                UPDATE "tokens" SET 
-                  "collection_id" = $/collection/,
-                  "updated_at" = now()
+                UPDATE "tokens"
+                SET "collection_id" = $/collection/,
+                    "updated_at" = now()
                 WHERE "contract" = $/contract/
                 ${tokenFilter}
-                RETURNING 1
-              )
             `,
           values: {
             contract: toBuffer(collection.contract),
