@@ -9,11 +9,13 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import * as collectionRecalcFloorAsk from "@/jobs/collection-updates/recalc-floor-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
 import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
+import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
+import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
+import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
 
 const QUEUE_NAME = "token-updates-fetch-collection-metadata-queue";
 
@@ -123,9 +125,21 @@ if (config.doBackgroundWork) {
         // Schedule a job to re-count tokens in the collection
         await collectionRecalcTokenCount.addToQueue(collection.id);
 
-        // If this is a new collection, recalculate the its floor price
+        // If this is a new collection, recalculate floor price
         if (collection?.id && newCollection) {
-          await collectionRecalcFloorAsk.addToQueue(collection.id);
+          const floorAskInfo = {
+            kind: "revalidation",
+            contract,
+            tokenId,
+            txHash: null,
+            txTimestamp: null,
+          };
+
+          await Promise.all([
+            collectionUpdatesFloorAsk.addToQueue([floorAskInfo]),
+            collectionUpdatesNonFlaggedFloorAsk.addToQueue([floorAskInfo]),
+            collectionUpdatesNormalizedFloorAsk.addToQueue([floorAskInfo]),
+          ]);
         }
 
         if (collection?.id && !config.disableRealtimeMetadataRefresh) {
