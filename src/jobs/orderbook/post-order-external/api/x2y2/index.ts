@@ -13,7 +13,7 @@ export const postOrder = async (order: Sdk.X2Y2.Types.LocalOrder, apiKey: string
   const exchange = new Sdk.X2Y2.Exchange(config.chainId, apiKey);
 
   // Skip posting orders that already expired
-  if (order.deadline >= now()) {
+  if (order.deadline <= now()) {
     return;
   }
 

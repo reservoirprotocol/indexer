@@ -28,7 +28,7 @@ export const postOrder = async (order: Sdk.LooksRare.Order, apiKey: string) => {
   };
 
   // Skip posting orders that already expired
-  if (lrOrder.endTime >= now()) {
+  if (lrOrder.endTime <= now()) {
     return;
   }
 

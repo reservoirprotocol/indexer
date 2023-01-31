@@ -19,7 +19,7 @@ export const postOrder = async (order: Sdk.Seaport.Order, apiKey: string) => {
   }/seaport/${order.getInfo()?.side === "sell" ? "listings" : "offers"}`;
 
   // Skip posting orders that already expired
-  if (order.params.endTime >= now()) {
+  if (order.params.endTime <= now()) {
     return;
   }
 
