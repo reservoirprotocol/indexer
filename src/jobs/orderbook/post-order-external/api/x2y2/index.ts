@@ -1,10 +1,9 @@
 import * as Sdk from "@reservoir0x/sdk";
 
-import { logger } from "@/common/logger";
-import { config } from "@/config/index";
-
 import { redb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
+import { logger } from "@/common/logger";
+import { now, toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 
 // X2Y2 default rate limit - 120 requests per minute
 export const RATE_LIMIT_REQUEST_COUNT = 120;
@@ -12,6 +11,11 @@ export const RATE_LIMIT_INTERVAL = 1000 * 60;
 
 export const postOrder = async (order: Sdk.X2Y2.Types.LocalOrder, apiKey: string) => {
   const exchange = new Sdk.X2Y2.Exchange(config.chainId, apiKey);
+
+  // Skip posting orders that already expired
+  if (order.deadline >= now()) {
+    return;
+  }
 
   // When lowering the price of an existing listing, X2Y2 requires
   // passing the order id of the previous listing, so here we have
