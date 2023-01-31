@@ -74,7 +74,7 @@ export const addToQueue = async (
     randomUUID(),
     { contract, tokenId, skipTopBidSimulation },
     {
-      // No more than one job per token per hour
-      jobId: `${contract}:${tokenId}:${Math.floor(now() / 3600)}`,
+      // No more than one job per token per second
+      jobId: `${contract}:${tokenId}:${now()}`,
     }
   );
