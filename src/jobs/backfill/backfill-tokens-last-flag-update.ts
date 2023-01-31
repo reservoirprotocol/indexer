@@ -29,11 +29,8 @@ if (config.doBackgroundWork) {
       try {
         const query = `
           UPDATE tokens
-          SET last_flag_update = now()
-          WHERE (contract, token_id) IN (SELECT t.contract, t.token_id FROM tokens t where t.last_flag_update is null LIMIT ${limit});
-          UPDATE tokens
           SET last_flag_change = last_flag_update
-          WHERE (contract, token_id) IN (SELECT t.contract, t.token_id FROM tokens t where t.last_flag_change IS null and t.last_flag_update is not null LIMIT ${limit});
+          WHERE (contract, token_id) IN (SELECT t.contract, t.token_id FROM tokens t WHERE t.last_flag_change IS NULL AND t.last_flag_update IS NOT NULL ${limit});
           `;
         const { rowCount } = await idb.result(query);
         if (rowCount >= limit) {
