@@ -2,6 +2,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 
 import { logger } from "@/common/logger";
+import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import {
   RequestWasThrottledError,
@@ -16,6 +17,11 @@ export const postOrder = async (order: Sdk.Seaport.Order, apiKey: string) => {
   const url = `https://${config.chainId === 5 ? "testnets-api." : "api."}opensea.io/v2/orders/${
     config.chainId === 5 ? "goerli" : "ethereum"
   }/seaport/${order.getInfo()?.side === "sell" ? "listings" : "offers"}`;
+
+  // Skip posting orders that already expired
+  if (order.params.endTime >= now()) {
+    return;
+  }
 
   await axios
     .post(
