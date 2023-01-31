@@ -12,7 +12,7 @@ import {
 
 // Looks Rare default rate limit - 120 requests per minute
 export const RATE_LIMIT_REQUEST_COUNT = 120;
-export const RATE_LIMIT_INTERVAL = 1000 * 60;
+export const RATE_LIMIT_INTERVAL = 60;
 
 export const postOrder = async (order: Sdk.LooksRare.Order, apiKey: string) => {
   const lrOrder = {

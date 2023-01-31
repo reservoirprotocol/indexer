@@ -11,7 +11,7 @@ import {
 
 // Flow default rate limit - 60 requests per minute
 export const RATE_LIMIT_REQUEST_COUNT = 60;
-export const RATE_LIMIT_INTERVAL = 60_000;
+export const RATE_LIMIT_INTERVAL = 60;
 
 export async function postOrders(orders: Sdk.Flow.Order[], apiKey: string): Promise<void>;
 export async function postOrders(order: Sdk.Flow.Order, apiKey: string): Promise<void>;
