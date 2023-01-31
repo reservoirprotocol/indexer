@@ -54,8 +54,11 @@ if (config.doBackgroundWork) {
       let isRateLimited = false;
       let rateLimitExpiration = 0;
 
+      const rateLimiter = getRateLimiter(orderbook);
+      const rateLimiterKey = `${orderbook}:${orderbookApiKey}`;
+
       try {
-        await getRateLimiter(orderbook).consume(`${orderbook}:${orderbookApiKey}`, 1);
+        await rateLimiter.consume(rateLimiterKey, 1);
       } catch (error) {
         if (error instanceof RateLimiterRes) {
           isRateLimited = true;
@@ -96,6 +99,17 @@ if (config.doBackgroundWork) {
           if (error instanceof RequestWasThrottledError) {
             // If we got throttled by the api, reschedule job based on the provided delay.
             const delay = error.delay;
+
+            try {
+              await rateLimiter.block(rateLimiterKey, Math.floor(delay / 1000));
+            } catch (error) {
+              logger.error(
+                QUEUE_NAME,
+                `Unable to set expiration. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+                  orderData
+                )}, retry: ${retry}, delay=${delay}, error: ${error}`
+              );
+            }
 
             await addToQueue(orderId, orderData, orderbook, orderbookApiKey, retry, delay, true);
 
