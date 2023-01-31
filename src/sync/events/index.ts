@@ -212,6 +212,16 @@ export const extractEventsBatches = async (
             kind: "superrare",
             data: kindToEvents.get("superrare") ?? [],
           },
+          {
+            kind: "flow",
+            data: kindToEvents.has("flow")
+              ? [
+                  ...kindToEvents.get("flow")!,
+                  // To properly validate bids, we need some additional events
+                  ...events.filter((e) => e.subKind === "erc20-transfer"),
+                ]
+              : [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {

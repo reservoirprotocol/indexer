@@ -44,14 +44,15 @@ export const postOrderV3Options: RouteOptions = {
             "x2y2",
             "universe",
             "forward",
-            "infinity"
+            "infinity",
+            "flow"
           )
           .required(),
         data: Joi.object().required(),
       }),
       orderbook: Joi.string()
         .lowercase()
-        .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity")
+        .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow")
         .default("reservoir"),
       orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
       source: Joi.string().pattern(regex.domain).description("The source domain"),
@@ -467,6 +468,39 @@ export const postOrderV3Options: RouteOptions = {
           }
 
           if (orderbook === "infinity") {
+            await postOrderExternal.addToQueue(result.id, order.data, orderbook, orderbookApiKey);
+
+            logger.info(
+              `post-order-${version}-handler`,
+              `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}, orderId: ${
+                result.id
+              }`
+            );
+          }
+
+          return { message: "Success", orderId: result.id };
+        }
+
+        case "flow": {
+          if (!["flow"].includes(orderbook)) {
+            throw new Error("Unknown orderbook");
+          }
+
+          const orderInfo: orders.flow.OrderInfo = {
+            orderParams: order.data,
+            metadata: {
+              schema,
+              source: orderbook === "flow" ? source : undefined,
+            },
+          };
+
+          const [result] = await orders.flow.save([orderInfo]);
+
+          if (result.status !== "success") {
+            throw Boom.badRequest(result.status);
+          }
+
+          if (orderbook === "flow") {
             await postOrderExternal.addToQueue(result.id, order.data, orderbook, orderbookApiKey);
 
             logger.info(

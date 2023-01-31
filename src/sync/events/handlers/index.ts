@@ -31,6 +31,7 @@ import * as zeroExV4 from "@/events-sync/handlers/zeroex-v4";
 import * as zora from "@/events-sync/handlers/zora";
 import * as universe from "@/events-sync/handlers/universe";
 import * as infinity from "@/events-sync/handlers/infinity";
+import * as flow from "@/events-sync/handlers/flow";
 import * as rarible from "@/events-sync/handlers/rarible";
 import * as manifold from "@/events-sync/handlers/manifold";
 import * as tofu from "@/events-sync/handlers/tofu";
@@ -85,6 +86,7 @@ export const eventKindToHandler = new Map<
   ["okex", (e, d) => okex.handleEvents(e, d)],
   ["bend-dao", (e, d) => bendDao.handleEvents(e, d)],
   ["superrare", (e, d) => superrare.handleEvents(e, d)],
+  ["flow", (e, d) => flow.handleEvents(e, d)],
 ]);
 
 export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {

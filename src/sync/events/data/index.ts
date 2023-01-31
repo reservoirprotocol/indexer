@@ -14,6 +14,7 @@ import * as looksRare from "@/events-sync/data/looks-rare";
 import * as nftx from "@/events-sync/data/nftx";
 import * as nouns from "@/events-sync/data/nouns";
 import * as infinity from "@/events-sync/data/infinity";
+import * as flow from "@/events-sync/data/flow";
 import * as quixotic from "@/events-sync/data/quixotic";
 import * as rarible from "@/events-sync/data/rarible";
 import * as seaport from "@/events-sync/data/seaport";
@@ -65,7 +66,8 @@ export type EventKind =
   | "nft-trader"
   | "okex"
   | "bend-dao"
-  | "superrare";
+  | "superrare"
+  | "flow";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -149,6 +151,10 @@ export type EventSubKind =
   | "infinity-take-order-fulfilled"
   | "infinity-cancel-all-orders"
   | "infinity-cancel-multiple-orders"
+  | "flow-match-order-fulfilled"
+  | "flow-take-order-fulfilled"
+  | "flow-cancel-all-orders"
+  | "flow-cancel-multiple-orders"
   | "blur-order-cancelled"
   | "blur-nonce-incremented"
   | "forward-order-filled"
@@ -258,6 +264,10 @@ export const getEventData = (eventSubKinds?: EventSubKind[]) => {
       infinity.takeOrderFulfilled,
       infinity.cancelAllOrders,
       infinity.cancelMultipleOrders,
+      flow.matchOrderFulfilled,
+      flow.takeOrderFulfilled,
+      flow.cancelAllOrders,
+      flow.cancelMultipleOrders,
       blur.orderCancelled,
       blur.nonceIncremented,
       forward.orderFilled,
@@ -447,6 +457,14 @@ const internalGetEventData = (subKind: EventSubKind): EventData | undefined => {
       return infinity.cancelAllOrders;
     case "infinity-cancel-multiple-orders":
       return infinity.cancelMultipleOrders;
+    case "flow-match-order-fulfilled":
+      return flow.matchOrderFulfilled;
+    case "flow-take-order-fulfilled":
+      return flow.takeOrderFulfilled;
+    case "flow-cancel-all-orders":
+      return flow.cancelAllOrders;
+    case "flow-cancel-multiple-orders":
+      return flow.cancelMultipleOrders;
     case "blur-order-cancelled":
       return blur.orderCancelled;
     case "blur-nonce-incremented":

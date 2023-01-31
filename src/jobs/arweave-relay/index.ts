@@ -148,6 +148,25 @@ export const addPendingOrdersInfinity = async (
   }
 };
 
+export const addPendingOrdersFlow = async (
+  data: { order: Sdk.Flow.Order; schemaHash?: string; source?: string }[]
+) => {
+  if (config.arweaveRelayerKey && data.length) {
+    await redis.rpush(
+      PENDING_DATA_KEY,
+      ...data.map(({ order, schemaHash }) =>
+        JSON.stringify({
+          kind: "flow",
+          data: {
+            ...order.params,
+            schemaHash,
+          },
+        })
+      )
+    );
+  }
+};
+
 export const addPendingOrdersRarible = async (
   data: { order: Sdk.Rarible.Order; schemaHash?: string; source?: string }[]
 ) => {

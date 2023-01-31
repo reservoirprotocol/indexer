@@ -47,6 +47,7 @@ export const config = {
   catchup: Boolean(Number(process.env.CATCHUP)),
   doBackgroundWork: Boolean(Number(process.env.DO_BACKGROUND_WORK)),
   doWebsocketWork: Boolean(Number(process.env.DO_WEBSOCKET_WORK)),
+  doWebsocketServerWork: Boolean(Number(process.env.DO_WEBSOCKET_SERVER_WORK)),
   doEventsSyncBackfill: Boolean(Number(process.env.DO_EVENTS_SYNC_BACKFILL)),
   disableOrders: Boolean(Number(process.env.DISABLE_ORDERS)),
 
@@ -77,6 +78,7 @@ export const config = {
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
   infinityApiKey: String(process.env.INFINITY_API_KEY),
+  flowApiKey: String(process.env.FLOW_API_KEY),
 
   railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 

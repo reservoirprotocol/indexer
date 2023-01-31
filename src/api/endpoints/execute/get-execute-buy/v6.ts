@@ -50,6 +50,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               "rarible",
               "infinity",
               "sudoswap",
+              "flow",
               "nftx"
             )
             .required(),
