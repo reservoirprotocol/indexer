@@ -2,8 +2,21 @@ import { now, toTime } from "@/common/utils";
 
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
 import { CollectionOfferEventPayload } from "@opensea/stream-js";
+import { getNetworkSettings } from "@/config/network";
+import { logger } from "@/common/logger";
 
-export const handleEvent = (payload: CollectionOfferEventPayload): PartialOrderComponents => {
+export const handleEvent = (
+  payload: CollectionOfferEventPayload
+): PartialOrderComponents | null => {
+  if (!getNetworkSettings().supportedBidCurrencies[payload.payment_token.address]) {
+    logger.info(
+      "opensea-websocket",
+      `handleCollectionOfferEvent unsupported currency. payload=${JSON.stringify(payload)}`
+    );
+
+    // return null;
+  }
+
   return {
     kind: "contract-wide",
     side: "buy",
