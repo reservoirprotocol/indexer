@@ -1,4 +1,4 @@
-import { idb } from "@/common/db";
+import { redb } from "@/common/db";
 import * as Pusher from "pusher";
 import { fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
@@ -13,7 +13,7 @@ export class NewTopBidWebsocketEvent {
   public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
     const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
-    const order = await idb.oneOrNone(
+    const order = await redb.oneOrNone(
       `
               SELECT
                 orders.id,
@@ -143,7 +143,7 @@ export class NewTopBidWebsocketEvent {
 
     if (!owners) {
       owners = (
-        await idb.manyOrNone(
+        await redb.manyOrNone(
           `
                 SELECT
                   DISTINCT nb.owner
