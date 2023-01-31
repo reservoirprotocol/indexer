@@ -31,6 +31,10 @@ export const postOrder = async (order: Sdk.LooksRare.Order, apiKey: string) => {
   if (lrOrder.endTime <= now()) {
     return;
   }
+  // Skip posting orders with the listing time far in the past
+  if (lrOrder.startTime <= now() - 5 * 60) {
+    return;
+  }
 
   await axios
     .post(
