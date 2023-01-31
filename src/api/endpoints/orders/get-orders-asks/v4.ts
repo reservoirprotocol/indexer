@@ -276,6 +276,10 @@ export const getOrdersAsksV4Options: RouteOptions = {
 
         if (query.status === "any") {
           orderStatusFilter = "";
+
+          // Fix for the issue with negative prices for dutch auction orders
+          // (eg. due to orders not properly expired on time)
+          conditions.push(`coalesce(orders.price, 0) >= 0`);
         }
       }
 
