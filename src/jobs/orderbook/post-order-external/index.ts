@@ -3,7 +3,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import * as crypto from "crypto";
 
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { rateLimitRedis, redis } from "@/common/redis";
 import { config } from "@/config/index";
 
 import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
@@ -13,12 +13,12 @@ import * as UniverseApi from "@/jobs/orderbook/post-order-external/api/universe"
 import * as InfinityApi from "@/jobs/orderbook/post-order-external/api/infinity";
 import * as FlowApi from "@/jobs/orderbook/post-order-external/api/flow";
 
-import { OrderbookApiRateLimiter } from "@/jobs/orderbook/post-order-external/api-rate-limiter";
 import {
   RequestWasThrottledError,
   InvalidRequestError,
 } from "@/jobs/orderbook/post-order-external/api/errors";
 import { redb } from "@/common/db";
+import { RateLimiterRedis, RateLimiterRes } from "rate-limiter-flexible";
 
 const QUEUE_NAME = "orderbook-post-order-external-queue";
 const MAX_RETRIES = 5;
@@ -51,20 +51,37 @@ if (config.doBackgroundWork) {
 
       orderbookApiKey = orderbookApiKey || getOrderbookDefaultApiKey(orderbook);
 
-      const rateLimiter = getRateLimiter(orderbook, orderbookApiKey);
+      let isRateLimited = false;
+      let rateLimitExpiration = 0;
 
-      if (await rateLimiter.reachedLimit()) {
+      try {
+        await getRateLimiter(orderbook).consume(`${orderbook}:${orderbookApiKey}`, 1);
+      } catch (error) {
+        if (error instanceof RateLimiterRes) {
+          isRateLimited = true;
+          rateLimitExpiration = error.msBeforeNext;
+        }
+      }
+
+      if (isRateLimited) {
         // If limit reached, reschedule job based on the limit expiration.
-        const delay = await rateLimiter.getExpiration();
 
         logger.info(
           QUEUE_NAME,
           `Post Order Rate Limited. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
-          )}, delay: ${delay}, retry: ${retry}`
+          )}, rateLimitExpiration: ${rateLimitExpiration}, retry: ${retry}`
         );
 
-        await addToQueue(orderId, orderData, orderbook, orderbookApiKey, retry, delay, true);
+        await addToQueue(
+          orderId,
+          orderData,
+          orderbook,
+          orderbookApiKey,
+          retry,
+          rateLimitExpiration,
+          true
+        );
       } else {
         try {
           await postOrder(orderbook, orderId, orderData, orderbookApiKey);
@@ -80,7 +97,6 @@ if (config.doBackgroundWork) {
             // If we got throttled by the api, reschedule job based on the provided delay.
             const delay = error.delay;
 
-            await rateLimiter.setExpiration(delay);
             await addToQueue(orderId, orderData, orderbook, orderbookApiKey, retry, delay, true);
 
             logger.info(
@@ -160,50 +176,44 @@ const getOrderbookDefaultApiKey = (orderbook: string) => {
   throw new Error(`Unsupported orderbook ${orderbook}`);
 };
 
-const getRateLimiter = (orderbook: string, orderbookApiKey: string) => {
+const getRateLimiter = (orderbook: string) => {
   switch (orderbook) {
     case "looks-rare":
-      return new OrderbookApiRateLimiter(
-        orderbook,
-        orderbookApiKey,
-        LooksrareApi.RATE_LIMIT_REQUEST_COUNT,
-        LooksrareApi.RATE_LIMIT_INTERVAL
-      );
+      return new RateLimiterRedis({
+        storeClient: rateLimitRedis,
+        points: LooksrareApi.RATE_LIMIT_REQUEST_COUNT,
+        duration: LooksrareApi.RATE_LIMIT_INTERVAL,
+      });
     case "opensea":
-      return new OrderbookApiRateLimiter(
-        orderbook,
-        orderbookApiKey,
-        OpenSeaApi.RATE_LIMIT_REQUEST_COUNT,
-        OpenSeaApi.RATE_LIMIT_INTERVAL
-      );
+      return new RateLimiterRedis({
+        storeClient: rateLimitRedis,
+        points: OpenSeaApi.RATE_LIMIT_REQUEST_COUNT,
+        duration: OpenSeaApi.RATE_LIMIT_INTERVAL,
+      });
     case "x2y2":
-      return new OrderbookApiRateLimiter(
-        orderbook,
-        orderbookApiKey,
-        X2Y2Api.RATE_LIMIT_REQUEST_COUNT,
-        X2Y2Api.RATE_LIMIT_INTERVAL
-      );
+      return new RateLimiterRedis({
+        storeClient: rateLimitRedis,
+        points: X2Y2Api.RATE_LIMIT_REQUEST_COUNT,
+        duration: X2Y2Api.RATE_LIMIT_INTERVAL,
+      });
     case "universe":
-      return new OrderbookApiRateLimiter(
-        orderbook,
-        orderbookApiKey,
-        UniverseApi.RATE_LIMIT_REQUEST_COUNT,
-        UniverseApi.RATE_LIMIT_INTERVAL
-      );
+      return new RateLimiterRedis({
+        storeClient: rateLimitRedis,
+        points: UniverseApi.RATE_LIMIT_REQUEST_COUNT,
+        duration: UniverseApi.RATE_LIMIT_INTERVAL,
+      });
     case "infinity":
-      return new OrderbookApiRateLimiter(
-        orderbook,
-        orderbookApiKey,
-        InfinityApi.RATE_LIMIT_REQUEST_COUNT,
-        InfinityApi.RATE_LIMIT_INTERVAL
-      );
+      return new RateLimiterRedis({
+        storeClient: rateLimitRedis,
+        points: InfinityApi.RATE_LIMIT_REQUEST_COUNT,
+        duration: InfinityApi.RATE_LIMIT_INTERVAL,
+      });
     case "flow":
-      return new OrderbookApiRateLimiter(
-        orderbook,
-        orderbookApiKey,
-        FlowApi.RATE_LIMIT_REQUEST_COUNT,
-        FlowApi.RATE_LIMIT_INTERVAL
-      );
+      return new RateLimiterRedis({
+        storeClient: rateLimitRedis,
+        points: FlowApi.RATE_LIMIT_REQUEST_COUNT,
+        duration: FlowApi.RATE_LIMIT_INTERVAL,
+      });
   }
 
   throw new Error(`Unsupported orderbook ${orderbook}`);

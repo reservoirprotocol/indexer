@@ -202,6 +202,8 @@ const handleErrorResponse = (response: any) => {
       throw new RequestWasThrottledError("Request was throttled by OpenSea", delay);
     }
     case 400:
-      throw new InvalidRequestError("Request was rejected by OpenSea");
+      throw new InvalidRequestError(
+        `Request was rejected by OpenSea. errors=${response.data.errors?.toString()}`
+      );
   }
 };
