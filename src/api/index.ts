@@ -19,6 +19,7 @@ import { getNetworkName } from "@/config/network";
 import { allJobQueues, gracefulShutdownJobWorkers } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
+import tracer from "@/common/tracer";
 
 let server: Hapi.Server;
 
@@ -28,7 +29,15 @@ export const start = async (): Promise<void> => {
   server = Hapi.server({
     port: config.port,
     query: {
-      parser: (query) => qs.parse(query),
+      parser: (query) => {
+        const parsedQuery = qs.parse(query);
+        try {
+          tracer.scope().active()?.setTag("query", parsedQuery);
+        } catch (error) {
+          logger.warn("dd", "Could not add query payload to Datadog trace: " + error);
+        }
+        return parsedQuery;
+      },
     },
     router: {
       stripTrailingSlash: true,
