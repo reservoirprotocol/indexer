@@ -30,7 +30,7 @@ if (config.doBackgroundWork) {
         const query = `
           UPDATE tokens
           SET last_flag_change = last_flag_update
-          WHERE (contract, token_id) IN (SELECT t.contract, t.token_id FROM tokens t WHERE t.last_flag_change IS NULL AND t.last_flag_update IS NOT NULL ${limit});
+          WHERE (contract, token_id) IN (SELECT t.contract, t.token_id FROM tokens t WHERE t.last_flag_change IS NULL AND t.last_flag_update IS NOT NULL LIMIT ${limit});
           `;
         const { rowCount } = await idb.result(query);
         if (rowCount >= limit) {
