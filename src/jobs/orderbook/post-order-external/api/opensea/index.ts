@@ -11,7 +11,7 @@ import {
 
 // Open Sea default rate limit - 2 requests per second for post apis
 export const RATE_LIMIT_REQUEST_COUNT = 2;
-export const RATE_LIMIT_INTERVAL = 1000;
+export const RATE_LIMIT_INTERVAL = 1;
 
 export const postOrder = async (order: Sdk.Seaport.Order, apiKey: string) => {
   const url = `https://${config.chainId === 5 ? "testnets-api." : "api."}opensea.io/v2/orders/${
