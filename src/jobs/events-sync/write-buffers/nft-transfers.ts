@@ -48,7 +48,7 @@ if (config.doBackgroundWork) {
     },
     {
       connection: redis.duplicate(),
-      concurrency: 6,
+      concurrency: 10,
     }
   );
 

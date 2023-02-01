@@ -35,7 +35,7 @@ import {
 } from "@/jobs/data-export/data-sources/token-attributes";
 
 const QUEUE_NAME = "export-data-queue";
-const QUERY_LIMIT = 1000;
+const QUERY_LIMIT = 5000;
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),

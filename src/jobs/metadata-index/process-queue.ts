@@ -58,6 +58,11 @@ if (config.doBackgroundWork) {
         return;
       }
 
+      logger.info(
+        QUEUE_NAME,
+        `Debug. method=${method}, count=${count}, countTotal=${countTotal}, refreshTokens=${refreshTokens.length}`
+      );
+
       const tokensChunks = _.chunk(
         refreshTokens.map((refreshToken) => ({
           contract: refreshToken.contract,
@@ -79,12 +84,17 @@ if (config.doBackgroundWork) {
           const error = result.reason as any;
 
           if (error.response?.status === 429) {
-            logger.info(
+            logger.warn(
               QUEUE_NAME,
               `Too Many Requests. method=${method}, error=${JSON.stringify(error.response.data)}`
             );
 
             await pendingRefreshTokens.add(refreshTokens, true);
+          } else {
+            logger.error(
+              QUEUE_NAME,
+              `Error. method=${method}, error=${JSON.stringify(error.response.data)}`
+            );
           }
         }
       }
@@ -96,15 +106,15 @@ if (config.doBackgroundWork) {
       );
 
       // If there are potentially more tokens to process trigger another job
-      if (_.size(refreshTokens) == count) {
-        if (await extendLock(getLockName(method), 60 * 5)) {
+      if (_.size(refreshTokens) == countTotal) {
+        if (await extendLock(getLockName(method), 60 * 30)) {
           await addToQueue(method);
         }
       } else {
         await releaseLock(getLockName(method));
       }
     },
-    { connection: redis.duplicate(), concurrency: 2 }
+    { connection: redis.duplicate(), concurrency: 1 }
   );
 
   worker.on("error", (error) => {
