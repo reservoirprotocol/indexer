@@ -5,7 +5,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
-import { redis, extendLock, releaseLock, acquireLock, getLockExpiration } from "@/common/redis";
+import { redis, extendLock, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
@@ -35,26 +35,8 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { method } = job.data;
 
-      let useMetadataApiBaseUrlAlt = false;
-
-      const rateLimitExpiresIn = await getLockExpiration(getRateLimitLockName(method));
-
-      if (rateLimitExpiresIn > 0) {
-        logger.info(
-          QUEUE_NAME,
-          `Rate Limited. rateLimitExpiresIn=${rateLimitExpiresIn}, method=${method}`
-        );
-
-        useMetadataApiBaseUrlAlt = true;
-      }
-
-      if (config.chainId === 1 && method === "simplehash") {
-        logger.info(QUEUE_NAME, `Forced alt. method=${method}`);
-
-        useMetadataApiBaseUrlAlt = true;
-      }
-
       let count = 30; // Default number of tokens to fetch
+
       switch (method) {
         case "soundxyz":
           count = 10;
@@ -65,53 +47,46 @@ if (config.doBackgroundWork) {
           break;
       }
 
+      const countTotal = method === "opensea" ? config.maxParallelTokenRefreshJobs * count : count;
+
       // Get the tokens from the list
       const pendingRefreshTokens = new PendingRefreshTokens(method);
-      const refreshTokens = await pendingRefreshTokens.get(count);
-      const tokens = [];
+      const refreshTokens = await pendingRefreshTokens.get(countTotal);
 
       // If no more tokens
       if (_.isEmpty(refreshTokens)) {
         return;
       }
 
-      // Build the query string for each token
-      for (const refreshToken of refreshTokens) {
-        tokens.push({
+      const tokensChunks = _.chunk(
+        refreshTokens.map((refreshToken) => ({
           contract: refreshToken.contract,
           tokenId: refreshToken.tokenId,
-        });
-      }
+        })),
+        count
+      );
 
-      let metadata;
+      const metadata = [];
 
-      try {
-        metadata = await MetadataApi.getTokensMetadata(tokens, useMetadataApiBaseUrlAlt, method);
-      } catch (error) {
-        if ((error as any).response?.status === 429) {
-          logger.info(
-            QUEUE_NAME,
-            `Too Many Requests. useMetadataApiBaseUrlAlt=${useMetadataApiBaseUrlAlt}, method=${method}, error: ${JSON.stringify(
-              (error as any).response.data
-            )}`
-          );
+      const results = await Promise.allSettled(
+        tokensChunks.map((tokensChunk) => MetadataApi.getTokensMetadata(tokensChunk, method))
+      );
 
-          await pendingRefreshTokens.add(refreshTokens, true);
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          metadata.push(result.value as any);
+        } else {
+          const error = result.reason as any;
 
-          if (!useMetadataApiBaseUrlAlt) {
-            await acquireLock(getRateLimitLockName(method), 5);
+          if (error.response?.status === 429) {
+            logger.info(
+              QUEUE_NAME,
+              `Too Many Requests. method=${method}, error=${JSON.stringify(error.response.data)}`
+            );
 
-            if (await extendLock(getLockName(method), 60 * 5)) {
-              await addToQueue(method);
-            }
-          } else {
-            await releaseLock(getLockName(method));
+            await pendingRefreshTokens.add(refreshTokens, true);
           }
-
-          return;
         }
-
-        throw error;
       }
 
       await metadataIndexWrite.addToQueue(
@@ -139,10 +114,6 @@ if (config.doBackgroundWork) {
 
 export const getLockName = (method: string) => {
   return `${QUEUE_NAME}:${method}`;
-};
-
-export const getRateLimitLockName = (method: string) => {
-  return `${QUEUE_NAME}:rate-limit:${method}`;
 };
 
 export const addToQueue = async (method: string, delay = 0) => {
