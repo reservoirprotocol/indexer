@@ -5,7 +5,7 @@ import pLimit from "p-limit";
 
 import { idb, redb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { toBuffer } from "@/common/utils";
+import { compare, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
@@ -14,22 +14,23 @@ import { offChainCheck } from "@/orderbook/orders/zora/check";
 import * as tokenSet from "@/orderbook/token-sets";
 
 export type OrderIdParams = {
-  tokenContract: string; // address
-  tokenId: string; // uint256
+  tokenContract: string;
+  tokenId: string;
 };
 
 export type OrderInfo = {
   orderParams: {
+    // SDK parameters
     seller: string;
     maker: string;
-    tokenContract: string; // address
-    tokenId: string; // uint256
-    askPrice: string; // uint256
-    askCurrency: string; // address
-    sellerFundsRecipient: string; // address
-    findersFeeBps: number; // uint16
+    tokenContract: string;
+    tokenId: string;
+    askPrice: string;
+    askCurrency: string;
+    sellerFundsRecipient: string;
+    findersFeeBps: number;
     side: "sell" | "buy";
-    // Additional types for validation (eg. ensuring only the latest event is relevant)
+    // Validation parameters (for ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
     txBlock: number;
@@ -67,7 +68,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         ` 
           SELECT 
             extract('epoch' from lower(orders.valid_between)) AS valid_from,
-            fillability_status
+            orders.block_number,
+            orders.log_index,
+            orders.fillability_status
           FROM orders 
           WHERE orders.id = $/id/ 
         `,
@@ -149,27 +152,39 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       if (orderResult) {
-        if (Number(orderResult.valid_from) < orderParams.txTimestamp) {
+        // Decide whether the current trigger is the latest one
+        let isLatestTrigger: boolean;
+        if (orderResult.block_number && orderResult.log_index) {
+          isLatestTrigger =
+            compare(
+              [orderResult.block_number, orderResult.log_index],
+              [orderParams.txBlock, orderParams.logIndex]
+            ) < 0;
+        } else {
+          isLatestTrigger = Number(orderResult.valid_from) < orderParams.txTimestamp;
+        }
+
+        if (isLatestTrigger) {
           // If an older order already exists then we just update some fields on it
           await idb.none(
             `
-            UPDATE orders SET
-              fillability_status = $/fillability_status/,
-              approval_status = $/approval_status/,
-              maker = $/maker/,
-              price = $/price/,
-              currency_price = $/price/,
-              value = $/price/,
-              currency_value = $/price/,
-              valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
-              expiration = 'Infinity',
-              updated_at = now(),
-              taker = $/taker/,
-              raw_data = $/orderParams:json/,
-              block_number = $/blockNumber/,
-              log_index = $/logIndex/
-            WHERE orders.id = $/id/
-          `,
+              UPDATE orders SET
+                fillability_status = $/fillability_status/,
+                approval_status = $/approval_status/,
+                maker = $/maker/,
+                price = $/price/,
+                currency_price = $/price/,
+                value = $/price/,
+                currency_value = $/price/,
+                valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
+                expiration = 'Infinity',
+                updated_at = now(),
+                taker = $/taker/,
+                raw_data = $/orderParams:json/,
+                block_number = $/blockNumber/,
+                log_index = $/logIndex/
+              WHERE orders.id = $/id/
+            `,
             {
               fillability_status: fillabilityStatus,
               approval_status: approvalStatus,

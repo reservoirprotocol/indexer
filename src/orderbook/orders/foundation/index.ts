@@ -5,21 +5,21 @@ import pLimit from "p-limit";
 
 import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { toBuffer } from "@/common/utils";
+import { compare, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
+import { Sources } from "@/models/sources";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
-import { Sources } from "@/models/sources";
 
 export type OrderInfo = {
   orderParams: {
-    // SDK types
+    // SDK parameters
     maker: string;
     contract: string;
     tokenId: string;
     price: string;
-    // Additional types for validation (eg. ensuring only the latest event is relevant)
+    // Validation parameters (for ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
     txBlock: number;
@@ -48,15 +48,19 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // On Foundation, we can only have a single currently active order per NFT
       const id = getOrderId(orderParams.contract, orderParams.tokenId);
 
-      // Ensure that the order is not cancelled
+      // Ensure the order is not cancelled
       const cancelResult = await redb.oneOrNone(
         `
           SELECT 1 FROM cancel_events
-          WHERE order_id = $/id/
-            AND timestamp >= $/timestamp/
+          WHERE cancel_events.order_id = $/id/
+            AND (cancel_events.block, cancel_events.log_index) > ($/block/, $/logIndex/)
           LIMIT 1
         `,
-        { id, timestamp: orderParams.txTimestamp }
+        {
+          id,
+          block: orderParams.txBlock,
+          logIndex: orderParams.logIndex,
+        }
       );
       if (cancelResult) {
         return results.push({
@@ -66,15 +70,19 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Ensure that the order is not filled
+      // Ensure the order is not filled
       const fillResult = await redb.oneOrNone(
         `
           SELECT 1 FROM fill_events_2
-          WHERE order_id = $/id/
-            AND timestamp >= $/timestamp/
+          WHERE fill_events_2.order_id = $/id/
+            AND (fill_events_2.block, fill_events_2.log_index) > ($/block/, $/logIndex/)
           LIMIT 1
         `,
-        { id, timestamp: orderParams.txTimestamp }
+        {
+          id,
+          block: orderParams.txBlock,
+          logIndex: orderParams.logIndex,
+        }
       );
       if (fillResult) {
         return results.push({
@@ -87,14 +95,28 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const orderResult = await redb.oneOrNone(
         `
           SELECT
-            extract('epoch' from lower(orders.valid_between)) AS valid_from
+            extract('epoch' from lower(orders.valid_between)) AS valid_from,
+            orders.block_number,
+            orders.log_index
           FROM orders
           WHERE orders.id = $/id/
         `,
         { id }
       );
       if (orderResult) {
-        if (Number(orderResult.valid_from) < orderParams.txTimestamp) {
+        // Decide whether the current trigger is the latest one
+        let isLatestTrigger: boolean;
+        if (orderResult.block_number && orderResult.log_index) {
+          isLatestTrigger =
+            compare(
+              [orderResult.block_number, orderResult.log_index],
+              [orderParams.txBlock, orderParams.logIndex]
+            ) < 0;
+        } else {
+          isLatestTrigger = Number(orderResult.valid_from) < orderParams.txTimestamp;
+        }
+
+        if (isLatestTrigger) {
           // If an older order already exists then we just update some fields on it
           await idb.none(
             `

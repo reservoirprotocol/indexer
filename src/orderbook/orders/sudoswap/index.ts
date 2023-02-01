@@ -23,6 +23,7 @@ import * as sudoswap from "@/utils/sudoswap";
 export type OrderInfo = {
   orderParams: {
     pool: string;
+    // Validation parameters (for ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
     txBlock: number;
