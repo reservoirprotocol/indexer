@@ -3,7 +3,7 @@ import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
-import { idb, pgp, redb } from "@/common/db";
+import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { compare, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -24,15 +24,19 @@ export type OrderInfo = {
     txTimestamp: number;
     txBlock: number;
     logIndex: number;
+    batchIndex: number;
   };
   metadata: OrderMetadata;
 };
 
 type SaveResult = {
   id: string;
-  txHash?: string;
   status: string;
   triggerKind?: "new-order" | "reprice";
+  txHash?: string;
+  txTimestamp?: number;
+  logIndex?: number;
+  batchIndex?: number;
 };
 
 export const getOrderId = (contract: string, tokenId: string) =>
@@ -49,7 +53,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const id = getOrderId(orderParams.contract, orderParams.tokenId);
 
       // Ensure the order is not cancelled
-      const cancelResult = await redb.oneOrNone(
+      const cancelResult = await idb.oneOrNone(
         `
           SELECT 1 FROM cancel_events
           WHERE cancel_events.order_id = $/id/
@@ -65,13 +69,12 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (cancelResult) {
         return results.push({
           id,
-          txHash: orderParams.txHash,
           status: "redundant",
         });
       }
 
       // Ensure the order is not filled
-      const fillResult = await redb.oneOrNone(
+      const fillResult = await idb.oneOrNone(
         `
           SELECT 1 FROM fill_events_2
           WHERE fill_events_2.order_id = $/id/
@@ -87,12 +90,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (fillResult) {
         return results.push({
           id,
-          txHash: orderParams.txHash,
           status: "redundant",
         });
       }
 
-      const orderResult = await redb.oneOrNone(
+      const orderResult = await idb.oneOrNone(
         `
           SELECT
             extract('epoch' from lower(orders.valid_between)) AS valid_from,
@@ -140,22 +142,24 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               price: orderParams.price,
               orderParams,
               id,
-              block_number: orderParams.txBlock ?? null,
-              log_index: orderParams.logIndex ?? null,
+              blockNumber: orderParams.txBlock,
+              logIndex: orderParams.logIndex,
             }
           );
 
           return results.push({
             id,
-            txHash: orderParams.txHash,
             status: "success",
             triggerKind: "reprice",
+            txHash: orderParams.txHash,
+            txTimestamp: orderParams.txTimestamp,
+            logIndex: orderParams.logIndex,
+            batchIndex: orderParams.batchIndex,
           });
         } else {
           // If a newer order already exists, then we just skip processing
           return results.push({
             id,
-            txHash: orderParams.txHash,
             status: "redundant",
           });
         }
@@ -191,7 +195,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       ];
 
       // Handle: royalties
-      const royaltiesResult = await redb.oneOrNone(
+      const royaltiesResult = await idb.oneOrNone(
         `
           SELECT collections.royalties FROM collections
           WHERE collections.contract = $/contract/
@@ -240,15 +244,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         missing_royalties: null,
         normalized_value: null,
         currency_normalized_value: null,
-        block_number: orderParams.txBlock ?? null,
-        log_index: orderParams.logIndex ?? null,
+        block_number: orderParams.txBlock,
+        log_index: orderParams.logIndex,
       });
 
       return results.push({
         id,
-        txHash: orderParams.txHash,
         status: "success",
         triggerKind: "new-order",
+        txHash: orderParams.txHash,
+        txTimestamp: orderParams.txTimestamp,
+        logIndex: orderParams.logIndex,
+        batchIndex: orderParams.batchIndex,
       });
     } catch (error) {
       logger.error(
@@ -305,12 +312,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     results
       .filter(({ status }) => status === "success")
       .map(
-        ({ id, txHash, triggerKind }) =>
+        ({ id, triggerKind, txHash, txTimestamp, logIndex, batchIndex }) =>
           ({
             context: `${triggerKind}-${id}-${txHash}`,
             id,
             trigger: {
               kind: triggerKind,
+              txHash,
+              txTimestamp,
+              logIndex,
+              batchIndex,
             },
           } as ordersUpdateById.OrderInfo)
       )

@@ -9,7 +9,17 @@ export class BidActivity {
   public static async handleEvent(data: NewBuyOrderEventData) {
     const [collectionId, tokenId] = await getBidInfoByOrderId(data.orderId);
 
-    const activityHash = getActivityHash(ActivityType.bid, data.orderId);
+    let activityHash;
+    if (data.transactionHash && data.logIndex && data.batchIndex) {
+      activityHash = getActivityHash(
+        ActivityType.bid,
+        data.transactionHash,
+        data.logIndex.toString(),
+        data.batchIndex.toString()
+      );
+    } else {
+      activityHash = getActivityHash(ActivityType.bid, data.orderId);
+    }
 
     const activity = {
       type: ActivityType.bid,
@@ -50,4 +60,7 @@ export type NewBuyOrderEventData = {
   amount: number;
   timestamp: number;
   orderSourceIdInt: number;
+  transactionHash?: string;
+  logIndex?: number;
+  batchIndex?: number;
 };

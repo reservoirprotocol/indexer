@@ -295,8 +295,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   currencyNormalizedValue: normalizedValue.toString(),
                   feeBps,
                   feeBreakdown,
-                  block_number: orderParams.txBlock ?? null,
-                  log_index: orderParams.logIndex ?? null,
+                  blockNumber: orderParams.txBlock,
+                  logIndex: orderParams.logIndex,
                 }
               );
 
@@ -523,8 +523,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                         currencyNormalizedValue: normalizedValue.toString(),
                         feeBps,
                         feeBreakdown,
-                        block_number: orderParams.txBlock ?? null,
-                        log_index: orderParams.logIndex ?? null,
+                        blockNumber: orderParams.txBlock,
+                        logIndex: orderParams.logIndex,
                       }
                     );
 

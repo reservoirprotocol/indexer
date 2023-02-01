@@ -11,7 +11,6 @@ export class AskCancelActivity {
     const collectionId = await Tokens.getCollectionId(data.contract, data.tokenId);
 
     let activityHash;
-
     if (data.transactionHash) {
       activityHash = getActivityHash(
         data.transactionHash,

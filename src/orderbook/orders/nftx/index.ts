@@ -324,8 +324,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   feeBps,
                   feeBreakdown,
                   currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
-                  block_number: orderParams.txBlock ?? null,
-                  log_index: orderParams.logIndex ?? null,
+                  blockNumber: orderParams.txBlock,
+                  logIndex: orderParams.logIndex,
                 }
               );
               results.push({
@@ -598,8 +598,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                         feeBps,
                         feeBreakdown,
                         currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
-                        block_number: orderParams.txBlock ?? null,
-                        log_index: orderParams.logIndex ?? null,
+                        blockNumber: orderParams.txBlock,
+                        logIndex: orderParams.logIndex,
                       }
                     );
 

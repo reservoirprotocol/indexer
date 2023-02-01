@@ -3,7 +3,7 @@ import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
-import { idb, redb, pgp } from "@/common/db";
+import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { compare, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -20,6 +20,7 @@ export type OrderInfo = {
     txTimestamp: number;
     txBlock: number;
     logIndex: number;
+    batchIndex: number;
   };
   metadata: OrderMetadata;
 };
@@ -27,8 +28,11 @@ export type OrderInfo = {
 type SaveResult = {
   id: string;
   status: string;
-  txHash: string;
   triggerKind?: "new-order" | "reprice";
+  txHash?: string;
+  txTimestamp?: number;
+  logIndex?: number;
+  batchIndex?: number;
 };
 
 export const getOrderId = (listingId: number | string) =>
@@ -52,7 +56,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (orderParams.details.totalPerSale !== 1) {
         return results.push({
           id,
-          txHash: orderParams.txHash,
           status: "unsupported-order-fill-amount",
         });
       }
@@ -60,7 +63,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (orderParams.details.type_ !== 2) {
         return results.push({
           id,
-          txHash: orderParams.txHash,
           status: "unsupported-order-type",
         });
       }
@@ -68,7 +70,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (orderParams.details.erc20 !== Sdk.Common.Addresses.Eth[config.chainId]) {
         return results.push({
           id,
-          txHash: orderParams.txHash,
           status: "unsupported-payment-token",
         });
       }
@@ -89,7 +90,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           : "'infinity'";
       }
 
-      const orderResult = await redb.oneOrNone(
+      const orderResult = await idb.oneOrNone(
         ` 
           SELECT 
             orders.raw_data,
@@ -120,7 +121,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         if (!isLatestTrigger) {
           return results.push({
             id,
-            txHash: orderParams.txHash,
             status: "redundant",
           });
         }
@@ -155,21 +155,24 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               orderParams.details.initialAmount || orderResult.raw_data.details.initialAmount,
             orderParams: orderResult.raw_data,
             id,
-            block_number: orderParams.txBlock ?? null,
-            log_index: orderParams.logIndex ?? null,
+            blockNumber: orderParams.txBlock,
+            logIndex: orderParams.logIndex,
           }
         );
 
         return results.push({
           id,
-          txHash: orderParams.txHash,
           status: "success",
           triggerKind: "reprice",
+          txHash: orderParams.txHash,
+          txTimestamp: orderParams.txTimestamp,
+          logIndex: orderParams.logIndex,
+          batchIndex: orderParams.batchIndex,
         });
       }
 
       // Ensure the order is not cancelled
-      const cancelResult = await redb.oneOrNone(
+      const cancelResult = await idb.oneOrNone(
         `
           SELECT 1 FROM cancel_events
           WHERE cancel_events.order_id = $/id/
@@ -185,13 +188,12 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (cancelResult) {
         return results.push({
           id,
-          txHash: orderParams.txHash,
           status: "redundant",
         });
       }
 
       // Ensure the order is not filled
-      const fillResult = await redb.oneOrNone(
+      const fillResult = await idb.oneOrNone(
         `
           SELECT 1 FROM fill_events_2
           WHERE fill_events_2.order_id = $/id/
@@ -207,7 +209,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (fillResult) {
         return results.push({
           id,
-          txHash: orderParams.txHash,
           status: "redundant",
         });
       }
@@ -221,7 +222,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         return results.push({
           id,
           status: "not-fillable",
-          txHash: orderParams.txHash,
         });
       }
 
@@ -276,15 +276,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         missing_royalties: null,
         normalized_value: null,
         currency_normalized_value: null,
-        block_number: orderParams.txBlock ?? null,
-        log_index: orderParams.logIndex ?? null,
+        block_number: orderParams.txBlock,
+        log_index: orderParams.logIndex,
       });
 
       return results.push({
         id,
         status: "success",
-        txHash: orderParams.txHash,
         triggerKind: "new-order",
+        txHash: orderParams.txHash,
+        txTimestamp: orderParams.txTimestamp,
+        logIndex: orderParams.logIndex,
+        batchIndex: orderParams.batchIndex,
       });
     } catch (error) {
       logger.error(
@@ -342,12 +345,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     results
       .filter(({ status }) => status === "success")
       .map(
-        ({ id, txHash, triggerKind }) =>
+        ({ id, triggerKind, txHash, txTimestamp, logIndex, batchIndex }) =>
           ({
             context: `${triggerKind}-${id}-${txHash}`,
             id,
             trigger: {
               kind: triggerKind,
+              txHash,
+              txTimestamp,
+              logIndex,
+              batchIndex,
             },
           } as ordersUpdateById.OrderInfo)
       )

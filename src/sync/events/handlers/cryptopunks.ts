@@ -39,6 +39,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               txTimestamp: baseEventParams.timestamp,
               txBlock: baseEventParams.block,
               logIndex: baseEventParams.logIndex,
+              batchIndex: baseEventParams.batchIndex,
             },
             metadata: {},
           },
