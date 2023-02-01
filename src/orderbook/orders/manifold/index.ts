@@ -18,6 +18,8 @@ export type OrderInfo = {
     // Additional types for validation (eg. ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
+    txBlock: number;
+    logIndex: number;
   };
   metadata: OrderMetadata;
 };
@@ -129,7 +131,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               currency_value = $/initialAmount/,
               expiration = 'Infinity',
               updated_at = now(),
-              raw_data = $/orderParams:json/
+              raw_data = $/orderParams:json/,
+              block_number = $/blockNumber/,
+              log_index = $/logIndex/
             WHERE orders.id = $/id/
           `,
           {
@@ -137,6 +141,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               orderParams.details.initialAmount || orderResult.raw_data.details.initialAmount,
             orderParams: orderResult.raw_data,
             id,
+            block_number: orderParams.txBlock ?? null,
+            log_index: orderParams.logIndex ?? null,
           }
         );
 
@@ -254,6 +260,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         missing_royalties: null,
         normalized_value: null,
         currency_normalized_value: null,
+        block_number: orderParams.txBlock ?? null,
+        log_index: orderParams.logIndex ?? null,
       });
 
       return results.push({
@@ -304,6 +312,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        "block_number",
+        "log_index",
       ],
       {
         table: "orders",

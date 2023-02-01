@@ -22,6 +22,8 @@ export type OrderInfo = {
     pool: string;
     txHash: string;
     txTimestamp: number;
+    txBlock: number;
+    logIndex: number;
   };
   metadata: OrderMetadata;
 };
@@ -272,6 +274,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 missing_royalties: missingRoyalties,
                 normalized_value: normalizedValue.toString(),
                 currency_normalized_value: normalizedValue.toString(),
+                block_number: orderParams.txBlock ?? null,
+                log_index: orderParams.logIndex ?? null,
               });
 
               results.push({
@@ -301,7 +305,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     currency_normalized_value = $/currencyNormalizedValue/,
                     fee_bps = $/feeBps/,
                     fee_breakdown = $/feeBreakdown:json/,
-                    currency = $/currency/
+                    currency = $/currency/,
+                    block_number = $/blockNumber/,
+                    log_index = $/logIndex/
                   WHERE orders.id = $/id/
                     AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
                 `,
@@ -317,6 +323,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   feeBps,
                   feeBreakdown,
                   currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                  block_number: orderParams.txBlock ?? null,
+                  log_index: orderParams.logIndex ?? null,
                 }
               );
               results.push({
@@ -541,6 +549,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                       missing_royalties: missingRoyalties,
                       normalized_value: normalizedValue.toString(),
                       currency_normalized_value: normalizedValue.toString(),
+                      block_number: orderParams.txBlock ?? null,
+                      log_index: orderParams.logIndex ?? null,
                     });
 
                     results.push({
@@ -570,7 +580,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                           currency_normalized_value = $/currencyNormalizedValue/,
                           fee_bps = $/feeBps/,
                           fee_breakdown = $/feeBreakdown:json/,
-                          currency = $/currency/
+                          currency = $/currency/,
+                          block_number = $/blockNumber/,
+                          log_index = $/logIndex/
                         WHERE orders.id = $/id/
                           AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
                       `,
@@ -585,6 +597,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                         feeBps,
                         feeBreakdown,
                         currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
+                        block_number: orderParams.txBlock ?? null,
+                        log_index: orderParams.logIndex ?? null,
                       }
                     );
 
@@ -653,6 +667,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         { name: "missing_royalties", mod: ":json" },
         "normalized_value",
         "currency_normalized_value",
+        "block_number",
+        "log_index",
       ],
       {
         table: "orders",

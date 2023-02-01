@@ -65,6 +65,8 @@ export type DbOrder = {
   normalized_value: string | null;
   currency_normalized_value: string | null;
   originated_at?: string | null;
+  block_number?: number | null;
+  log_index?: number | null;
 };
 
 const defaultSchemaHash = HashZero;
