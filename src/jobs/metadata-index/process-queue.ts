@@ -58,11 +58,6 @@ if (config.doBackgroundWork) {
         return;
       }
 
-      logger.info(
-        QUEUE_NAME,
-        `Debug. method=${method}, count=${count}, countTotal=${countTotal}, refreshTokens=${refreshTokens.length}`
-      );
-
       const tokensChunks = _.chunk(
         refreshTokens.map((refreshToken) => ({
           contract: refreshToken.contract,
@@ -98,6 +93,11 @@ if (config.doBackgroundWork) {
           }
         }
       }
+
+      logger.info(
+        QUEUE_NAME,
+        `Debug. method=${method}, count=${count}, countTotal=${countTotal}, refreshTokens=${refreshTokens.length}, metadata=${metadata.length}`
+      );
 
       await metadataIndexWrite.addToQueue(
         metadata.map((m) => ({
