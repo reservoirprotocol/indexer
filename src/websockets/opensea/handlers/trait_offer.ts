@@ -6,7 +6,7 @@ import { getNetworkSettings } from "@/config/network";
 
 export const handleEvent = (payload: TraitOfferEventPayload): PartialOrderComponents | null => {
   if (!getNetworkSettings().supportedBidCurrencies[payload.payment_token.address]) {
-    // return null;
+    return null;
   }
 
   const traitCriteria = payload.trait_criteria as { trait_type: string; trait_name: string };
