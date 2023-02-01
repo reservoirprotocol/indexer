@@ -61,6 +61,22 @@ export const concat = <T>(...items: (T[] | undefined)[]) => {
   return result;
 };
 
+export const compare = <T>(a: T[], b: T[]) => {
+  const length = Math.min(a.length, b.length);
+  for (let i = 0; i < length; i++) {
+    if (a[i] > b[i]) {
+      return 1;
+    }
+    if (a[i] < b[i]) {
+      return -1;
+    }
+  }
+  if (a.length === b.length) {
+    return 0;
+  }
+  return b.length > a.length ? 1 : -1;
+};
+
 // --- Continuations ---
 
 export const splitContinuation = (c: string, regEx?: RegExp) => {

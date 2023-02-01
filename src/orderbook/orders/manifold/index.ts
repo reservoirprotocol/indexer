@@ -5,7 +5,7 @@ import pLimit from "p-limit";
 
 import { idb, redb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { toBuffer } from "@/common/utils";
+import { compare, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
@@ -15,9 +15,11 @@ import * as tokenSet from "@/orderbook/token-sets";
 
 export type OrderInfo = {
   orderParams: Sdk.Manifold.Types.Order & {
-    // Additional types for validation (eg. ensuring only the latest event is relevant)
+    // Validation types (for ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
+    txBlock: number;
+    logIndex: number;
   };
   metadata: OrderMetadata;
 };
@@ -90,9 +92,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const orderResult = await redb.oneOrNone(
         ` 
           SELECT 
-            raw_data,
+            orders.raw_data,
             extract('epoch' from lower(orders.valid_between)) AS valid_from,
-            fillability_status
+            orders.block_number,
+            orders.log_index,
+            orders.fillability_status
           FROM orders 
           WHERE orders.id = $/id/ 
         `,
@@ -100,8 +104,20 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       );
 
       if (orderResult) {
+        // Decide whether the current trigger is the latest one
+        let isLatestTrigger: boolean;
+        if (orderResult.block_number && orderResult.log_index) {
+          isLatestTrigger =
+            compare(
+              [orderResult.block_number, orderResult.log_index],
+              [orderParams.txBlock, orderParams.logIndex]
+            ) < 0;
+        } else {
+          isLatestTrigger = Number(orderResult.valid_from) < orderParams.txTimestamp;
+        }
+
         // Only process new events
-        if (Number(orderResult.valid_from) > orderParams.txTimestamp) {
+        if (!isLatestTrigger) {
           return results.push({
             id,
             txHash: orderParams.txHash,
@@ -129,7 +145,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               currency_value = $/initialAmount/,
               expiration = 'Infinity',
               updated_at = now(),
-              raw_data = $/orderParams:json/
+              raw_data = $/orderParams:json/,
+              block_number = $/blockNumber/,
+              log_index = $/logIndex/
             WHERE orders.id = $/id/
           `,
           {
@@ -137,6 +155,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               orderParams.details.initialAmount || orderResult.raw_data.details.initialAmount,
             orderParams: orderResult.raw_data,
             id,
+            block_number: orderParams.txBlock ?? null,
+            log_index: orderParams.logIndex ?? null,
           }
         );
 
@@ -148,17 +168,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Ensure that the order is not cancelled
+      // Ensure the order is not cancelled
       const cancelResult = await redb.oneOrNone(
         `
           SELECT 1 FROM cancel_events
-          WHERE order_id = $/id/
-            AND timestamp >= $/timestamp/
+          WHERE cancel_events.order_id = $/id/
+            AND (cancel_events.block, cancel_events.log_index) > ($/block/, $/logIndex/)
           LIMIT 1
         `,
         {
           id,
-          timestamp: orderParams.txTimestamp,
+          block: orderParams.txBlock,
+          logIndex: orderParams.logIndex,
         }
       );
       if (cancelResult) {
@@ -169,17 +190,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
-      // Ensure that the order is not filled
+      // Ensure the order is not filled
       const fillResult = await redb.oneOrNone(
         `
           SELECT 1 FROM fill_events_2
-          WHERE order_id = $/id/
-            AND timestamp >= $/timestamp/
+          WHERE fill_events_2.order_id = $/id/
+            AND (fill_events_2.block, fill_events_2.log_index) > ($/block/, $/logIndex/)
           LIMIT 1
         `,
         {
           id,
-          timestamp: orderParams.txTimestamp,
+          block: orderParams.txBlock,
+          logIndex: orderParams.logIndex,
         }
       );
       if (fillResult) {
@@ -254,6 +276,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         missing_royalties: null,
         normalized_value: null,
         currency_normalized_value: null,
+        block_number: orderParams.txBlock ?? null,
+        log_index: orderParams.logIndex ?? null,
       });
 
       return results.push({
@@ -304,6 +328,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        "block_number",
+        "log_index",
       ],
       {
         table: "orders",
