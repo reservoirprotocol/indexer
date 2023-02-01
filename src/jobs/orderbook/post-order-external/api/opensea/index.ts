@@ -203,7 +203,7 @@ const handleErrorResponse = (response: any) => {
     }
     case 400:
       throw new InvalidRequestError(
-        `Request was rejected by OpenSea. errors=${response.data.errors?.toString()}`
+        `Request was rejected by OpenSea. errors=${JSON.stringify(response.data.errors)}`
       );
   }
 };
