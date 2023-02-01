@@ -182,325 +182,113 @@ export type EventData = {
   abi: Interface;
 };
 
-export const getEventData = (eventSubKinds?: EventSubKind[]) => {
-  if (!eventSubKinds) {
-    return [
-      erc20.approval,
-      erc20.transfer,
-      erc20.deposit,
-      erc20.withdrawal,
-      erc721.transfer,
-      erc721.likeTransfer,
-      erc721.erc20LikeTransfer,
-      erc721.approvalForAll,
-      erc721.consecutiveTransfer,
-      erc1155.transferSingle,
-      erc1155.transferBatch,
-      foundation.buyPriceAccepted,
-      foundation.buyPriceCancelled,
-      foundation.buyPriceInvalidated,
-      foundation.buyPriceSet,
-      looksRare.cancelAllOrders,
-      looksRare.cancelMultipleOrders,
-      looksRare.takerAsk,
-      looksRare.takerBid,
-      seaport.counterIncremented,
-      seaport.orderCancelled,
-      seaport.orderFulfilled,
-      wyvernV2.ordersMatched,
-      wyvernV23.ordersMatched,
-      zeroExV4.erc721OrderCancelled,
-      zeroExV4.erc1155OrderCancelled,
-      zeroExV4.erc721OrderFilled,
-      zeroExV4.erc1155OrderFilled,
-      x2y2.orderCancelled,
-      x2y2.orderInventory,
-      rarible.match,
-      rarible.cancel,
-      element.erc721BuyOrderFilled,
-      element.erc721BuyOrderFilledV2,
-      element.erc721SellOrderFilled,
-      element.erc721SellOrderFilledV2,
-      element.erc1155BuyOrderFilled,
-      element.erc1155BuyOrderFilledV2,
-      element.erc1155SellOrderFilled,
-      element.erc1155SellOrderFilledV2,
-      element.erc721OrderCancelled,
-      element.erc1155OrderCancelled,
-      element.hashNonceIncremented,
-      quixotic.orderFulfilled,
-      zora.askFilled,
-      zora.askCreated,
-      zora.askCancelled,
-      zora.askPriceUpdated,
-      zora.auctionEnded,
-      nouns.auctionSettled,
-      cryptoPunks.punkOffered,
-      cryptoPunks.punkNoLongerForSale,
-      cryptoPunks.punkBought,
-      cryptoPunks.punkTransfer,
-      cryptoPunks.assign,
-      cryptoPunks.transfer,
-      sudoswap.buy,
-      sudoswap.sell,
-      sudoswap.tokenDeposit,
-      sudoswap.tokenWithdrawal,
-      sudoswap.spotPriceUpdate,
-      sudoswap.deltaUpdate,
-      sudoswap.newPair,
-      universe.match,
-      universe.cancel,
-      nftx.minted,
-      nftx.redeemed,
-      nftx.swapped,
-      nftx.swap,
-      nftx.vaultInit,
-      nftx.vaultShutdown,
-      nftx.eligibilityDeployed,
-      nftx.enableMintUpdated,
-      nftx.enableTargetRedeemUpdated,
-      blur.ordersMatched,
-      infinity.matchOrderFulfilled,
-      infinity.takeOrderFulfilled,
-      infinity.cancelAllOrders,
-      infinity.cancelMultipleOrders,
-      flow.matchOrderFulfilled,
-      flow.takeOrderFulfilled,
-      flow.cancelAllOrders,
-      flow.cancelMultipleOrders,
-      blur.orderCancelled,
-      blur.nonceIncremented,
-      forward.orderFilled,
-      forward.orderCancelled,
-      forward.counterIncremented,
-      manifold.modify,
-      manifold.finalize,
-      manifold.purchase,
-      manifold.cancel,
-      tofu.inventoryUpdate,
-      decentraland.sale,
-      nftTrader.swap,
-      okex.orderFulfilled,
-      bendDao.takerAsk,
-      bendDao.takerBid,
-      superrare.listingFilled,
-      superrare.bidFilled,
-    ];
+const allEventData = [
+  erc20.approval,
+  erc20.transfer,
+  erc20.deposit,
+  erc20.withdrawal,
+  erc721.transfer,
+  erc721.likeTransfer,
+  erc721.erc20LikeTransfer,
+  erc721.approvalForAll,
+  erc721.consecutiveTransfer,
+  erc1155.transferSingle,
+  erc1155.transferBatch,
+  foundation.buyPriceAccepted,
+  foundation.buyPriceCancelled,
+  foundation.buyPriceInvalidated,
+  foundation.buyPriceSet,
+  looksRare.cancelAllOrders,
+  looksRare.cancelMultipleOrders,
+  looksRare.takerAsk,
+  looksRare.takerBid,
+  seaport.counterIncremented,
+  seaport.orderCancelled,
+  seaport.orderFulfilled,
+  wyvernV2.ordersMatched,
+  wyvernV23.ordersMatched,
+  zeroExV4.erc721OrderCancelled,
+  zeroExV4.erc1155OrderCancelled,
+  zeroExV4.erc721OrderFilled,
+  zeroExV4.erc1155OrderFilled,
+  x2y2.orderCancelled,
+  x2y2.orderInventory,
+  rarible.match,
+  rarible.cancel,
+  element.erc721BuyOrderFilled,
+  element.erc721BuyOrderFilledV2,
+  element.erc721SellOrderFilled,
+  element.erc721SellOrderFilledV2,
+  element.erc1155BuyOrderFilled,
+  element.erc1155BuyOrderFilledV2,
+  element.erc1155SellOrderFilled,
+  element.erc1155SellOrderFilledV2,
+  element.erc721OrderCancelled,
+  element.erc1155OrderCancelled,
+  element.hashNonceIncremented,
+  quixotic.orderFulfilled,
+  zora.askFilled,
+  zora.askCreated,
+  zora.askCancelled,
+  zora.askPriceUpdated,
+  zora.auctionEnded,
+  nouns.auctionSettled,
+  cryptoPunks.punkOffered,
+  cryptoPunks.punkNoLongerForSale,
+  cryptoPunks.punkBought,
+  cryptoPunks.punkTransfer,
+  cryptoPunks.assign,
+  cryptoPunks.transfer,
+  sudoswap.buy,
+  sudoswap.sell,
+  sudoswap.tokenDeposit,
+  sudoswap.tokenWithdrawal,
+  sudoswap.spotPriceUpdate,
+  sudoswap.deltaUpdate,
+  sudoswap.newPair,
+  universe.match,
+  universe.cancel,
+  nftx.minted,
+  nftx.redeemed,
+  nftx.swapped,
+  nftx.swap,
+  nftx.vaultInit,
+  nftx.vaultShutdown,
+  nftx.eligibilityDeployed,
+  nftx.enableMintUpdated,
+  nftx.enableTargetRedeemUpdated,
+  blur.ordersMatched,
+  infinity.matchOrderFulfilled,
+  infinity.takeOrderFulfilled,
+  infinity.cancelAllOrders,
+  infinity.cancelMultipleOrders,
+  flow.matchOrderFulfilled,
+  flow.takeOrderFulfilled,
+  flow.cancelAllOrders,
+  flow.cancelMultipleOrders,
+  blur.orderCancelled,
+  blur.nonceIncremented,
+  forward.orderFilled,
+  forward.orderCancelled,
+  forward.counterIncremented,
+  manifold.modify,
+  manifold.finalize,
+  manifold.purchase,
+  manifold.cancel,
+  tofu.inventoryUpdate,
+  decentraland.sale,
+  nftTrader.swap,
+  okex.orderFulfilled,
+  bendDao.takerAsk,
+  bendDao.takerBid,
+  superrare.listingFilled,
+  superrare.bidFilled,
+];
+
+export const getEventData = (events?: string[]) => {
+  if (!events) {
+    return allEventData;
   } else {
-    return (
-      eventSubKinds
-        .map(internalGetEventData)
-        .filter(Boolean)
-        // Force TS to remove `undefined`
-        .map((x) => x!)
-    );
-  }
-};
-
-const internalGetEventData = (subKind: EventSubKind): EventData | undefined => {
-  switch (subKind) {
-    case "erc20-approval":
-      return erc20.approval;
-    case "erc20-transfer":
-      return erc20.transfer;
-    case "weth-deposit":
-      return erc20.deposit;
-    case "weth-withdrawal":
-      return erc20.withdrawal;
-    case "erc721-transfer":
-      return erc721.transfer;
-    case "erc721-like-transfer":
-      return erc721.likeTransfer;
-    case "erc721-erc20-like-transfer":
-      return erc721.erc20LikeTransfer;
-    case "erc721/1155-approval-for-all":
-      return erc721.approvalForAll;
-    case "erc721-consecutive-transfer":
-      return erc721.consecutiveTransfer;
-    case "erc1155-transfer-batch":
-      return erc1155.transferBatch;
-    case "erc1155-transfer-single":
-      return erc1155.transferSingle;
-    case "foundation-buy-price-accepted":
-      return foundation.buyPriceAccepted;
-    case "foundation-buy-price-cancelled":
-      return foundation.buyPriceCancelled;
-    case "foundation-buy-price-invalidated":
-      return foundation.buyPriceInvalidated;
-    case "foundation-buy-price-set":
-      return foundation.buyPriceSet;
-    case "wyvern-v2-orders-matched":
-      return wyvernV2.ordersMatched;
-    case "wyvern-v2.3-orders-matched":
-      return wyvernV23.ordersMatched;
-    case "looks-rare-cancel-all-orders":
-      return looksRare.cancelAllOrders;
-    case "looks-rare-cancel-multiple-orders":
-      return looksRare.cancelMultipleOrders;
-    case "looks-rare-taker-ask":
-      return looksRare.takerAsk;
-    case "looks-rare-taker-bid":
-      return looksRare.takerBid;
-    case "zeroex-v4-erc721-order-cancelled":
-      return zeroExV4.erc721OrderCancelled;
-    case "zeroex-v4-erc1155-order-cancelled":
-      return zeroExV4.erc1155OrderCancelled;
-    case "zeroex-v4-erc721-order-filled":
-      return zeroExV4.erc721OrderFilled;
-    case "zeroex-v4-erc1155-order-filled":
-      return zeroExV4.erc1155OrderFilled;
-    case "x2y2-order-cancelled":
-      return x2y2.orderCancelled;
-    case "x2y2-order-inventory":
-      return x2y2.orderInventory;
-    case "seaport-counter-incremented":
-      return seaport.counterIncremented;
-    case "seaport-order-cancelled":
-      return seaport.orderCancelled;
-    case "seaport-order-filled":
-      return seaport.orderFulfilled;
-    case "rarible-match":
-      return rarible.match;
-    case "rarible-cancel":
-      return rarible.cancel;
-    case "element-erc721-sell-order-filled":
-      return element.erc721SellOrderFilled;
-    case "element-erc721-sell-order-filled-v2":
-      return element.erc721SellOrderFilledV2;
-    case "element-erc721-buy-order-filled":
-      return element.erc721BuyOrderFilled;
-    case "element-erc721-buy-order-filled-v2":
-      return element.erc721BuyOrderFilledV2;
-    case "element-erc1155-sell-order-filled":
-      return element.erc1155SellOrderFilled;
-    case "element-erc1155-sell-order-filled-v2":
-      return element.erc1155SellOrderFilledV2;
-    case "element-erc1155-buy-order-filled":
-      return element.erc1155BuyOrderFilled;
-    case "element-erc1155-buy-order-filled-v2":
-      return element.erc1155BuyOrderFilledV2;
-    case "element-erc721-order-cancelled":
-      return element.erc721OrderCancelled;
-    case "element-erc1155-order-cancelled":
-      return element.erc1155OrderCancelled;
-    case "element-hash-nonce-incremented":
-      return element.hashNonceIncremented;
-    case "quixotic-order-filled":
-      return quixotic.orderFulfilled;
-    case "zora-ask-filled":
-      return zora.askFilled;
-    case "zora-ask-created":
-      return zora.askCreated;
-    case "zora-ask-cancelled":
-      return zora.askCancelled;
-    case "zora-ask-price-updated":
-      return zora.askPriceUpdated;
-    case "zora-auction-ended":
-      return zora.auctionEnded;
-    case "nouns-auction-settled":
-      return nouns.auctionSettled;
-    case "cryptopunks-punk-offered":
-      return cryptoPunks.punkOffered;
-    case "cryptopunks-punk-no-longer-for-sale":
-      return cryptoPunks.punkNoLongerForSale;
-    case "cryptopunks-punk-bought":
-      return cryptoPunks.punkBought;
-    case "cryptopunks-punk-transfer":
-      return cryptoPunks.punkTransfer;
-    case "cryptopunks-assign":
-      return cryptoPunks.assign;
-    case "cryptopunks-transfer":
-      return cryptoPunks.transfer;
-    case "sudoswap-buy":
-      return sudoswap.buy;
-    case "sudoswap-sell":
-      return sudoswap.sell;
-    case "sudoswap-token-deposit":
-      return sudoswap.tokenDeposit;
-    case "sudoswap-token-withdrawal":
-      return sudoswap.tokenWithdrawal;
-    case "sudoswap-spot-price-update":
-      return sudoswap.spotPriceUpdate;
-    case "sudoswap-delta-update":
-      return sudoswap.deltaUpdate;
-    case "sudoswap-new-pair":
-      return sudoswap.newPair;
-    case "universe-match":
-      return universe.match;
-    case "universe-cancel":
-      return universe.cancel;
-    case "nftx-minted":
-      return nftx.minted;
-    case "nftx-redeemed":
-      return nftx.redeemed;
-    case "nftx-swapped":
-      return nftx.swapped;
-    case "nftx-swap":
-      return nftx.swap;
-    case "nftx-vault-init":
-      return nftx.vaultInit;
-    case "nftx-vault-shutdown":
-      return nftx.vaultShutdown;
-    case "nftx-eligibility-deployed":
-      return nftx.eligibilityDeployed;
-    case "nftx-enable-mint-updated":
-      return nftx.enableMintUpdated;
-    case "nftx-enable-target-redeem-updated":
-      return nftx.enableTargetRedeemUpdated;
-    case "blur-orders-matched":
-      return blur.ordersMatched;
-    case "infinity-match-order-fulfilled":
-      return infinity.matchOrderFulfilled;
-    case "infinity-take-order-fulfilled":
-      return infinity.takeOrderFulfilled;
-    case "infinity-cancel-all-orders":
-      return infinity.cancelAllOrders;
-    case "infinity-cancel-multiple-orders":
-      return infinity.cancelMultipleOrders;
-    case "flow-match-order-fulfilled":
-      return flow.matchOrderFulfilled;
-    case "flow-take-order-fulfilled":
-      return flow.takeOrderFulfilled;
-    case "flow-cancel-all-orders":
-      return flow.cancelAllOrders;
-    case "flow-cancel-multiple-orders":
-      return flow.cancelMultipleOrders;
-    case "blur-order-cancelled":
-      return blur.orderCancelled;
-    case "blur-nonce-incremented":
-      return blur.nonceIncremented;
-    case "forward-order-filled":
-      return forward.orderFilled;
-    case "forward-order-cancelled":
-      return forward.orderCancelled;
-    case "forward-counter-incremented":
-      return forward.counterIncremented;
-    case "manifold-cancel":
-      return manifold.cancel;
-    case "manifold-finalize":
-      return manifold.finalize;
-    case "manifold-purchase":
-      return manifold.purchase;
-    case "manifold-modify":
-      return manifold.modify;
-    case "tofu-inventory-update":
-      return tofu.inventoryUpdate;
-    case "decentraland-sale":
-      return decentraland.sale;
-    case "nft-trader-swap":
-      return nftTrader.swap;
-    case "okex-order-filled":
-      return okex.orderFulfilled;
-    case "bend-dao-taker-ask":
-      return bendDao.takerAsk;
-    case "bend-dao-taker-bid":
-      return bendDao.takerBid;
-    case "superrare-listing-filled":
-      return superrare.listingFilled;
-    case "superrare-bid-filled":
-      return superrare.bidFilled;
-
-    default:
-      return undefined;
+    return allEventData.filter(({ subKind }) => events.some((e) => subKind.startsWith(e)));
   }
 };

@@ -5,7 +5,7 @@ import pLimit from "p-limit";
 import { logger } from "@/common/logger";
 import { getNetworkSettings } from "@/config/network";
 import { baseProvider } from "@/common/provider";
-import { EventKind, EventSubKind, getEventData } from "@/events-sync/data";
+import { EventKind, getEventData } from "@/events-sync/data";
 import { EventsBatch, EventsByKind } from "@/events-sync/handlers";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
 import { parseEvent } from "@/events-sync/parser";
@@ -245,7 +245,7 @@ export const syncEvents = async (
     syncDetails:
       | {
           method: "events";
-          events: EventSubKind[];
+          events: string[];
         }
       | {
           method: "address";
