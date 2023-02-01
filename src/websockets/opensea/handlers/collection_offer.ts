@@ -8,7 +8,7 @@ export const handleEvent = (
   payload: CollectionOfferEventPayload
 ): PartialOrderComponents | null => {
   if (!getNetworkSettings().supportedBidCurrencies[payload.payment_token.address]) {
-    // return null;
+    return null;
   }
 
   return {
