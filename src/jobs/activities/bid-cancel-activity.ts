@@ -10,7 +10,6 @@ export class BidCancelActivity {
     const [collectionId, tokenId] = await getBidInfoByOrderId(data.orderId);
 
     let activityHash;
-
     if (data.transactionHash) {
       activityHash = getActivityHash(
         data.transactionHash,

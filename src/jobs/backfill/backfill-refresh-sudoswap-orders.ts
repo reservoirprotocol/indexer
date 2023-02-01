@@ -7,6 +7,7 @@ import pLimit from "p-limit";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { redis, redlock } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -44,6 +45,8 @@ if (config.doBackgroundWork) {
         { address: toBuffer(address) }
       );
 
+      const block = await baseProvider.getBlock("latest").then((b) => b.number);
+
       const limit = pLimit(50);
       await Promise.all(
         results.map((r) =>
@@ -55,6 +58,8 @@ if (config.doBackgroundWork) {
                   pool,
                   txTimestamp: Math.floor(Date.now() / 1000),
                   txHash: Math.random().toString(),
+                  txBlock: block,
+                  logIndex: 0,
                 },
                 metadata: {},
               },

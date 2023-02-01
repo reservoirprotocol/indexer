@@ -67,7 +67,9 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               info: {
                 kind: "full",
                 orderParams: seaportOrder.params,
-                metadata: {},
+                metadata: {
+                  originatedAt: event.sent_at,
+                },
                 openSeaOrderParams,
               } as orders.seaport.OrderInfo,
               relayToArweave: eventType === EventType.ITEM_LISTED,
@@ -79,6 +81,9 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               info: {
                 kind: "partial",
                 orderParams: openSeaOrderParams,
+                metadata: {
+                  originatedAt: event.sent_at,
+                },
               } as orders.seaport.OrderInfo,
               relayToArweave: false,
               validateBidValue: true,

@@ -10,7 +10,17 @@ export class AskActivity {
   public static async handleEvent(data: NewSellOrderEventData) {
     const collectionId = await Tokens.getCollectionId(data.contract, data.tokenId);
 
-    const activityHash = getActivityHash(ActivityType.ask, data.orderId);
+    let activityHash;
+    if (data.transactionHash && data.logIndex && data.batchIndex) {
+      activityHash = getActivityHash(
+        ActivityType.ask,
+        data.transactionHash,
+        data.logIndex.toString(),
+        data.batchIndex.toString()
+      );
+    } else {
+      activityHash = getActivityHash(ActivityType.ask, data.orderId);
+    }
 
     const activity = {
       hash: activityHash,
@@ -52,4 +62,7 @@ export type NewSellOrderEventData = {
   amount: number;
   timestamp: number;
   orderSourceIdInt: number;
+  transactionHash?: string;
+  logIndex?: number;
+  batchIndex?: number;
 };

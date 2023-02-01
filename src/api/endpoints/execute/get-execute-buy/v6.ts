@@ -704,17 +704,21 @@ export const getExecuteBuyV6Options: RouteOptions = {
         },
       ];
 
+      const taker = payload.taker;
+      const relayer = payload.relayer;
+      const txSender = relayer ?? taker;
+
       // Check that the taker has enough funds to fill all requested tokens
       const totalPrice = path.map(({ rawQuote }) => bn(rawQuote)).reduce((a, b) => a.add(b));
       if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
-        const balance = await baseProvider.getBalance(payload.taker);
+        const balance = await baseProvider.getBalance(txSender);
         if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
           throw Boom.badData("Balance too low to proceed with transaction");
         }
       } else {
         const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, buyInCurrency);
 
-        const balance = await erc20.getBalance(payload.taker);
+        const balance = await erc20.getBalance(txSender);
         if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
           throw Boom.badData("Balance too low to proceed with transaction");
         }
@@ -735,14 +739,14 @@ export const getExecuteBuyV6Options: RouteOptions = {
           throw new Error("Only Seaport, Universe and Rarible ERC20 listings are supported");
         }
 
-        const allowance = await erc20.getAllowance(payload.taker, conduit);
+        const allowance = await erc20.getAllowance(txSender, conduit);
         if (bn(allowance).lt(totalPrice)) {
-          const tx = erc20.approveTransaction(payload.taker, conduit);
+          const tx = erc20.approveTransaction(txSender, conduit);
           steps[0].items.push({
             status: "incomplete",
             data: {
               ...tx,
-              from: payload.relayer ? payload.relayer : tx.from,
+              from: txSender,
               maxFeePerGas: payload.maxFeePerGas
                 ? bn(payload.maxFeePerGas).toHexString()
                 : undefined,
