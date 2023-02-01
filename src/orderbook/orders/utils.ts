@@ -26,6 +26,7 @@ export type OrderMetadata = {
   schemaHash?: string;
   source?: string;
   target?: string;
+  originatedAt?: string;
 };
 
 // Underlying database model for an order
@@ -63,6 +64,7 @@ export type DbOrder = {
   missing_royalties: object | null;
   normalized_value: string | null;
   currency_normalized_value: string | null;
+  originated_at?: string | null;
 };
 
 const defaultSchemaHash = HashZero;

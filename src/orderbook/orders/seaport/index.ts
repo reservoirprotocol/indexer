@@ -9,6 +9,7 @@ import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { acquireLock, redis } from "@/common/redis";
+import tracer from "@/common/tracer";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
@@ -23,13 +24,11 @@ import * as tokenSet from "@/orderbook/token-sets";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
-import { Royalty } from "@/utils/royalties";
 
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as flagStatusProcessQueue from "@/jobs/flag-status/process-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
-import tracer from "@/common/tracer";
 
 export type OrderInfo =
   | {
@@ -42,6 +41,7 @@ export type OrderInfo =
   | {
       kind: "partial";
       orderParams: PartialOrderComponents;
+      metadata: OrderMetadata;
     };
 
 export declare type PartialOrderComponents = {
@@ -443,7 +443,7 @@ export const save = async (
         "0x0000a26b00c1f0df003000390027140000faa719",
       ];
 
-      let openSeaRoyalties: Royalty[];
+      let openSeaRoyalties: royalties.Royalty[];
       const openSeaRoyaltiesSchema = metadata?.target === "opensea" ? "opensea" : "default";
 
       if (order.params.kind === "single-token") {
@@ -691,6 +691,7 @@ export const save = async (
         missing_royalties: missingRoyalties,
         normalized_value: normalizedValue,
         currency_normalized_value: currencyNormalizedValue,
+        originated_at: metadata.originatedAt ?? null,
       });
 
       const unfillable =
@@ -736,7 +737,10 @@ export const save = async (
     }
   };
 
-  const handlePartialOrder = async (orderParams: PartialOrderComponents) => {
+  const handlePartialOrder = async (
+    orderParams: PartialOrderComponents,
+    metadata: OrderMetadata
+  ) => {
     try {
       const conduitKey = "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000";
       const id = orderParams.hash;
@@ -1143,6 +1147,7 @@ export const save = async (
         missing_royalties: missingRoyalties,
         normalized_value: normalizedValue,
         currency_normalized_value: currencyNormalizedValue,
+        originated_at: metadata.originatedAt ?? null,
       });
 
       const unfillable =
@@ -1444,7 +1449,7 @@ export const save = async (
     orderInfos.map((orderInfo) =>
       limit(async () =>
         orderInfo.kind == "partial"
-          ? handlePartialOrder(orderInfo.orderParams as PartialOrderComponents)
+          ? handlePartialOrder(orderInfo.orderParams as PartialOrderComponents, orderInfo.metadata)
           : tracer.trace(
               "handleOrder",
               {
@@ -1505,6 +1510,7 @@ export const save = async (
         { name: "missing_royalties", mod: ":json" },
         "normalized_value",
         "currency_normalized_value",
+        "originated_at",
       ],
       {
         table: "orders",
