@@ -1,4 +1,4 @@
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import * as Pusher from "pusher";
 import { fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
@@ -52,11 +52,8 @@ export class NewTopBidWebsocketEvent {
     }
 
     const payloads = [];
-
     const owners = await NewTopBidWebsocketEvent.getOwners(order.token_set_id);
-
     const ownersChunks = _.chunk(owners, Number(config.websocketServerEventMaxSizeInKb) * 20);
-
     const source = (await Sources.getInstance()).get(Number(order.source_id_int));
 
     for (const ownersChunk of ownersChunks) {
@@ -111,28 +108,28 @@ export class NewTopBidWebsocketEvent {
       key: config.websocketServerAppKey,
       secret: config.websocketServerAppSecret,
       host: config.websocketServerHost,
+      useTLS: true,
     });
 
-    const payloadsBatches = _.chunk(payloads, Number(config.websocketServerEventMaxBatchSize));
+    if (payloads.length > 1) {
+      const payloadsBatches = _.chunk(payloads, Number(config.websocketServerEventMaxBatchSize));
 
-    await Promise.all(
-      payloadsBatches.map((payloadsBatch) =>
-        server.triggerBatch(
-          payloadsBatch.map((payload) => {
-            return {
-              channel: "top-bids",
-              name: "new-top-bid",
-              data: JSON.stringify(payload),
-            };
-          })
+      await Promise.all(
+        payloadsBatches.map((payloadsBatch) =>
+          server.triggerBatch(
+            payloadsBatch.map((payload) => {
+              return {
+                channel: "top-bids",
+                name: "new-top-bid",
+                data: JSON.stringify(payload),
+              };
+            })
+          )
         )
-      )
-    );
-
-    logger.info(
-      "new-top-bid-websocket-event",
-      `End. orderId=${data.orderId}, tokenSetId=${order.token_set_id}, owners=${owners.length}, payloadsBatches=${payloadsBatches.length}`
-    );
+      );
+    } else {
+      await server.trigger("top-bids", "new-top-bid", JSON.stringify(payloads[0]));
+    }
   }
 
   static async getOwners(tokenSetId: string): Promise<string[]> {
@@ -146,7 +143,7 @@ export class NewTopBidWebsocketEvent {
 
     if (!owners) {
       owners = (
-        await idb.manyOrNone(
+        await redb.manyOrNone(
           `
                 SELECT
                   DISTINCT nb.owner

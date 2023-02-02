@@ -2,6 +2,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 
 import { logger } from "@/common/logger";
+import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import {
   RequestWasThrottledError,
@@ -10,12 +11,21 @@ import {
 
 // Open Sea default rate limit - 2 requests per second for post apis
 export const RATE_LIMIT_REQUEST_COUNT = 2;
-export const RATE_LIMIT_INTERVAL = 1000;
+export const RATE_LIMIT_INTERVAL = 1;
 
 export const postOrder = async (order: Sdk.Seaport.Order, apiKey: string) => {
   const url = `https://${config.chainId === 5 ? "testnets-api." : "api."}opensea.io/v2/orders/${
     config.chainId === 5 ? "goerli" : "ethereum"
   }/seaport/${order.getInfo()?.side === "sell" ? "listings" : "offers"}`;
+
+  // Skip posting orders that already expired
+  if (order.params.endTime <= now()) {
+    return;
+  }
+  // Skip posting orders with the listing time far in the past
+  if (order.params.startTime <= now() - 10 * 60) {
+    return;
+  }
 
   await axios
     .post(
@@ -192,6 +202,8 @@ const handleErrorResponse = (response: any) => {
       throw new RequestWasThrottledError("Request was throttled by OpenSea", delay);
     }
     case 400:
-      throw new InvalidRequestError("Request was rejected by OpenSea");
+      throw new InvalidRequestError(
+        `Request was rejected by OpenSea. errors=${JSON.stringify(response.data.errors)}`
+      );
   }
 };

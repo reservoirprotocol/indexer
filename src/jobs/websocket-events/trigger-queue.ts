@@ -7,8 +7,14 @@ import {
   NewTopBidWebsocketEventInfo,
   NewTopBidWebsocketEvent,
 } from "@/jobs/websocket-events/events/new-top-bid-websocket-event";
+import {
+  NewActivityWebsocketEvent,
+  NewActivityWebsocketEventInfo,
+} from "@/jobs/websocket-events/events/new-activity-websocket-event";
+
 import { randomUUID } from "crypto";
 import _ from "lodash";
+import tracer from "@/common/tracer";
 
 const QUEUE_NAME = "websocket-events-trigger-queue";
 
@@ -24,7 +30,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+if (config.doBackgroundWork && config.doWebsocketServerWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
@@ -33,6 +39,13 @@ if (config.doBackgroundWork) {
       switch (kind) {
         case EventKind.NewTopBid:
           await NewTopBidWebsocketEvent.triggerEvent(data);
+          break;
+        case EventKind.NewActivity:
+          await tracer.trace(
+            "triggerEvent",
+            { resource: "NewActivityWebsocketEvent", tags: { event: data } },
+            () => NewActivityWebsocketEvent.triggerEvent(data)
+          );
           break;
       }
     },
@@ -45,14 +58,24 @@ if (config.doBackgroundWork) {
 
 export enum EventKind {
   NewTopBid = "new-top-bid",
+  NewActivity = "new-activity",
 }
 
-export type EventInfo = {
-  kind: EventKind.NewTopBid;
-  data: NewTopBidWebsocketEventInfo;
-};
+export type EventInfo =
+  | {
+      kind: EventKind.NewTopBid;
+      data: NewTopBidWebsocketEventInfo;
+    }
+  | {
+      kind: EventKind.NewActivity;
+      data: NewActivityWebsocketEventInfo;
+    };
 
 export const addToQueue = async (events: EventInfo[]) => {
+  if (!config.doWebsocketServerWork) {
+    return;
+  }
+
   await queue.addBulk(
     _.map(events, (event) => ({
       name: randomUUID(),

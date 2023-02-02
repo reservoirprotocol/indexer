@@ -2,6 +2,7 @@
 
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import * as Boom from "@hapi/boom";
 import Joi from "joi";
 import _ from "lodash";
 
@@ -14,6 +15,7 @@ import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { Orders } from "@/utils/orders";
 import { Attributes } from "@/models/attributes";
+import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v5";
 
@@ -52,6 +54,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -112,9 +117,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("createdAt", "price")
         .default("createdAt")
-        .description(
-          "Order the items are returned in the response, Sorting by price allowed only when filtering by token"
-        ),
+        .description("Order the items are returned in the response."),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
@@ -125,8 +128,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .default(50)
         .description("Amount of items returned in response."),
     })
-      .oxor("token", "tokenSetId", "contracts", "ids", "collection")
+      .oxor("token", "tokenSetId", "contracts", "ids", "collection", "collectionsSetId")
       .with("community", "maker")
+      .with("collectionsSetId", "maker")
       .with("attribute", "collection"),
   },
   response: {
@@ -219,7 +223,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           orders.source_id_int,
           orders.quantity_filled,
           orders.quantity_remaining,
-          orders.fee_bps,
+          coalesce(orders.fee_bps, 0) AS fee_bps,
           orders.fee_breakdown,
           COALESCE(
             NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'),
@@ -258,6 +262,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
             ];
 
       let communityFilter = "";
+      let collectionSetFilter = "";
       let orderStatusFilter;
 
       if (query.ids) {
@@ -357,6 +362,30 @@ export const getOrdersBidsV5Options: RouteOptions = {
           communityFilter =
             "JOIN (SELECT DISTINCT contract FROM collections WHERE community = $/community/) c ON orders.contract = c.contract";
         }
+
+        // collectionsSetId filter is valid only when maker filter is passed
+        if (query.collectionsSetId) {
+          query.collectionsIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+          if (_.isEmpty(query.collectionsIds)) {
+            throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+          }
+
+          collectionSetFilter = `
+          JOIN LATERAL (
+            SELECT
+              contract,
+              token_id
+            FROM
+              token_sets_tokens
+            WHERE
+              token_sets_tokens.token_set_id = orders.token_set_id
+            LIMIT 1) tst ON TRUE
+          JOIN tokens ON tokens.contract = tst.contract
+            AND tokens.token_id = tst.token_id
+          `;
+
+          conditions.push(`tokens.collection_id IN ($/collectionsIds:csv/)`);
+        }
       }
 
       if (query.source) {
@@ -388,7 +417,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
         (query as any).id = id;
 
         if (query.sortBy === "price") {
-          conditions.push(`(orders.price, orders.id) < ($/priceOrCreatedAt/, $/id/)`);
+          conditions.push(`(orders.value, orders.id) < ($/priceOrCreatedAt/, $/id/)`);
         } else {
           conditions.push(
             `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAt/), $/id/)`
@@ -397,6 +426,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       }
 
       baseQuery += communityFilter;
+      baseQuery += collectionSetFilter;
 
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
@@ -404,7 +434,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
 
       // Sorting
       if (query.sortBy === "price") {
-        baseQuery += ` ORDER BY orders.price DESC, orders.id DESC`;
+        baseQuery += ` ORDER BY orders.value DESC, orders.id DESC`;
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }

@@ -119,7 +119,7 @@ export const addEventsOnChain = async (events: Event[]) => {
         ) VALUES ${pgp.helpers.values(fillValues, columns)}
         ON CONFLICT ("tx_hash", "log_index", "batch_index") DO UPDATE
           SET "order_id" = EXCLUDED.order_id
-        RETURNING "order_kind", "order_id", "timestamp"
+        RETURNING "order_kind", "order_id", "timestamp", "block", "log_index"
       )
       UPDATE "orders" SET
         "fillability_status" = 'filled',
@@ -127,7 +127,15 @@ export const addEventsOnChain = async (events: Event[]) => {
         "updated_at" = now()
       FROM "x"
       WHERE "orders"."id" = "x"."order_id"
-        AND lower("orders"."valid_between") < to_timestamp("x"."timestamp")
+        AND (
+          lower("orders"."valid_between"),
+          coalesce("orders"."block_number", 0),
+          coalesce("orders"."log_index", 0)
+        ) < (
+          to_timestamp("x"."timestamp"),
+          "x"."block",
+          "x"."log_index"
+        )
     `);
   }
 

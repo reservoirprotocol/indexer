@@ -224,6 +224,16 @@ export const getExecuteCancelV2Options: RouteOptions = {
           break;
         }
 
+        case "flow": {
+          const order = new Sdk.Flow.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.Flow.Exchange(config.chainId);
+          const nonce = order.nonce;
+          cancelTx = exchange.cancelMultipleOrdersTx(order.signer, [nonce]);
+          orderSide = order.isSellOrder ? "sell" : "buy";
+
+          break;
+        }
+
         // TODO: Add support for X2Y2 (it's tricky because of the signature requirement)
 
         default: {

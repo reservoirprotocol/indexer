@@ -49,9 +49,18 @@ export class Activities {
       metadata: activity.metadata,
     }));
 
-    const query = pgp.helpers.insert(data, columns) + " ON CONFLICT DO NOTHING";
+    const query = pgp.helpers.insert(data, columns) + " ON CONFLICT DO NOTHING RETURNING id";
 
-    await idb.none(query);
+    await idb.manyOrNone(query);
+
+    // results?.forEach(({ id }) => {
+    //   websocketEventsTriggerQueue.addToQueue([
+    //     {
+    //       kind: websocketEventsTriggerQueue.EventKind.NewActivity,
+    //       data: { activityId: id },
+    //     },
+    //   ]);
+    // });
   }
 
   public static async deleteByBlockHash(blockHash: string) {

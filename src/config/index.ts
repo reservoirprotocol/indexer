@@ -47,6 +47,7 @@ export const config = {
   catchup: Boolean(Number(process.env.CATCHUP)),
   doBackgroundWork: Boolean(Number(process.env.DO_BACKGROUND_WORK)),
   doWebsocketWork: Boolean(Number(process.env.DO_WEBSOCKET_WORK)),
+  doWebsocketServerWork: Boolean(Number(process.env.DO_WEBSOCKET_SERVER_WORK)),
   doEventsSyncBackfill: Boolean(Number(process.env.DO_EVENTS_SYNC_BACKFILL)),
   disableOrders: Boolean(Number(process.env.DISABLE_ORDERS)),
 
@@ -77,6 +78,7 @@ export const config = {
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
   infinityApiKey: String(process.env.INFINITY_API_KEY),
+  flowApiKey: String(process.env.FLOW_API_KEY),
 
   railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 
@@ -84,7 +86,7 @@ export const config = {
 
   slackApiKeyWebhookUrl: String(process.env.SLACK_API_KEY_WEBHOOK_URL),
   // Used to prevent redis from being overloaded in heavy process like backfilling
-  redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 22),
+  redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 25),
 
   websocketServerHost: String(process.env.WEBSOCKET_SERVER_HOST),
   websocketServerAppId: String(process.env.WEBSOCKET_SERVER_APP_ID),
@@ -92,4 +94,6 @@ export const config = {
   websocketServerAppSecret: String(process.env.WEBSOCKET_SERVER_APP_SECRET),
   websocketServerEventMaxSizeInKb: String(process.env.WEBSOCKET_SERVER_EVENT_MAX_SIZE_IN_KB || 100),
   websocketServerEventMaxBatchSize: String(process.env.WEBSOCKET_SERVER_EVENT_MAX_BATCH_SIZE || 10),
+
+  maxParallelTokenRefreshJobs: Number(process.env.MAX_PARALLEL_TOKEN_REFRESH_JOBS || 1),
 };

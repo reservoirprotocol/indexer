@@ -178,6 +178,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 } as any,
                 txHash: baseEventParams.txHash,
                 txTimestamp: baseEventParams.timestamp,
+                txBlock: baseEventParams.block,
+                logIndex: baseEventParams.logIndex,
+                batchIndex: baseEventParams.batchIndex,
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
               } as any,
               metadata: {},
@@ -233,6 +236,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               } as any,
               txHash: baseEventParams.txHash,
               txTimestamp: baseEventParams.timestamp,
+              txBlock: baseEventParams.block,
+              logIndex: baseEventParams.logIndex,
+              batchIndex: baseEventParams.batchIndex,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any,
             metadata: {},

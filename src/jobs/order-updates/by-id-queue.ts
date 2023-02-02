@@ -47,13 +47,6 @@ if (config.doBackgroundWork) {
       const { id, trigger } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
-      // if (
-      //   config.chainId === 1 &&
-      //   (trigger.kind === "new-order" || trigger.kind === "expiry" || trigger.kind === "reprice")
-      // ) {
-      //   logger.info(QUEUE_NAME, `OrderUpdatesById: ${JSON.stringify(job.data)}`);
-      // }
-
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let order: any;
@@ -345,7 +338,6 @@ if (config.doBackgroundWork) {
             }
 
             let eventInfo;
-
             if (trigger.kind == "cancel") {
               const eventData = {
                 orderId: order.id,
@@ -374,7 +366,7 @@ if (config.doBackgroundWork) {
                 };
               }
             } else if (
-              trigger.kind == "new-order" &&
+              ["new-order", "reprice"].includes(trigger.kind) &&
               order.fillabilityStatus == "fillable" &&
               order.approvalStatus == "approved"
             ) {
@@ -386,7 +378,10 @@ if (config.doBackgroundWork) {
                 maker: fromBuffer(order.maker),
                 price: order.price,
                 amount: order.quantityRemaining,
-                timestamp: Date.now() / 1000,
+                transactionHash: trigger.txHash,
+                logIndex: trigger.logIndex,
+                batchIndex: trigger.batchIndex,
+                timestamp: trigger.txTimestamp || Math.floor(Date.now() / 1000),
               };
 
               if (order.side === "sell") {

@@ -222,6 +222,7 @@ export const postOrderV2Options: RouteOptions = {
           const orderInfo: orders.seaport.OrderInfo = {
             kind: "partial",
             orderParams,
+            metadata: {},
           };
 
           const [result] = await orders.seaport.save([orderInfo]);

@@ -15,6 +15,9 @@ import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-
 import { getUnixTime } from "date-fns";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
+import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
+import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
+import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -104,10 +107,29 @@ if (config.doBackgroundWork) {
         // If the new collection ID is different from the collection ID currently stored
         if (result.collection_id != collection) {
           logger.info(
-            "new-collection",
+            QUEUE_NAME,
             `New collection ${collection} for contract=${contract}, tokenId=${tokenId}, old collection=${result.collection_id}`
           );
 
+          // Update the activities to the new collection
+          await updateCollectionActivity.addToQueue(
+            collection,
+            result.collection_id,
+            contract,
+            tokenId
+          );
+
+          await updateCollectionUserActivity.addToQueue(
+            collection,
+            result.collection_id,
+            contract,
+            tokenId
+          );
+
+          // Trigger a delayed job to recalc the daily volumes
+          await updateCollectionDailyVolume.addToQueue(collection, contract);
+
+          // Set the new collection and update the token association
           await fetchCollectionMetadata.addToQueue(
             [
               {
@@ -117,7 +139,7 @@ if (config.doBackgroundWork) {
                 newCollection: true,
               },
             ],
-            `${contract}-${tokenId}`
+            `${contract}:${tokenId}`
           );
 
           return;
