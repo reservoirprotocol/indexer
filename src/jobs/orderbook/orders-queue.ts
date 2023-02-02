@@ -31,7 +31,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { kind, info, relayToArweave, validateBidValue } = job.data as GenericOrderInfo;
 
-      let result: { status: string }[] = [];
+      let result: { status: string; delay?: number }[] = [];
       try {
         switch (kind) {
           case "x2y2": {
@@ -124,7 +124,11 @@ if (config.doBackgroundWork) {
         throw error;
       }
 
-      logger.debug(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+      if (result.length && result[0].status === "delayed") {
+        await addToQueue([job.data], false, result[0].delay);
+      } else {
+        logger.debug(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+      }
     },
     { connection: redis.duplicate(), concurrency: 50 }
   );
@@ -256,13 +260,18 @@ export type GenericOrderInfo =
       validateBidValue?: boolean;
     };
 
-export const addToQueue = async (orderInfos: GenericOrderInfo[], prioritized = false) => {
+export const addToQueue = async (
+  orderInfos: GenericOrderInfo[],
+  prioritized = false,
+  delay = 0
+) => {
   await queue.addBulk(
     orderInfos.map((orderInfo) => ({
       name: randomUUID(),
       data: orderInfo,
       opts: {
         priority: prioritized ? 1 : undefined,
+        delay: delay ? delay * 1000 : undefined,
       },
     }))
   );
