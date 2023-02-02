@@ -93,7 +93,7 @@ if (config.doBackgroundWork) {
         `There are ${pendingCount} tokens pending to refresh for ${data.method}`
       );
 
-      if (await acquireLock(metadataIndexProcess.getLockName(data.method), 60 * 30)) {
+      if (await acquireLock(metadataIndexProcess.getLockName(data.method), 60 * 5)) {
         // Trigger a job to process the queue
         await metadataIndexProcess.addToQueue(data.method);
       }
