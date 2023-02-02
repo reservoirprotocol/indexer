@@ -38,7 +38,11 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
       switch (kind) {
         case EventKind.NewTopBid:
-          await NewTopBidWebsocketEvent.triggerEvent(data);
+          await tracer.trace(
+            "triggerEvent",
+            { resource: "NewTopBidWebsocketEvent", tags: { event: data } },
+            () => NewTopBidWebsocketEvent.triggerEvent(data)
+          );
           break;
         case EventKind.NewActivity:
           await tracer.trace(
