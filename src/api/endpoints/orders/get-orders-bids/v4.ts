@@ -78,7 +78,7 @@ export const getOrdersBidsV4Options: RouteOptions = {
       status: Joi.string()
         .when("maker", {
           is: Joi.exist(),
-          then: Joi.valid("active", "inactive", "expired", "cancelled", "filled"),
+          then: Joi.valid("active", "inactive"),
           otherwise: Joi.valid("active"),
         })
         .description(
