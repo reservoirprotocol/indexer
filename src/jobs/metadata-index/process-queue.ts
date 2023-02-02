@@ -55,6 +55,8 @@ if (config.doBackgroundWork) {
 
       // If no more tokens
       if (_.isEmpty(refreshTokens)) {
+        await releaseLock(getLockName(method));
+
         return;
       }
 
@@ -68,13 +70,15 @@ if (config.doBackgroundWork) {
 
       const metadata = [];
 
+      let rateLimitExpiredIn = 0;
+
       const results = await Promise.allSettled(
         tokensChunks.map((tokensChunk) => MetadataApi.getTokensMetadata(tokensChunk, method))
       );
 
       for (const result of results) {
         if (result.status === "fulfilled") {
-          metadata.push(result.value as any);
+          metadata.push(...(result.value as any));
         } else {
           const error = result.reason as any;
 
@@ -83,6 +87,8 @@ if (config.doBackgroundWork) {
               QUEUE_NAME,
               `Too Many Requests. method=${method}, error=${JSON.stringify(error.response.data)}`
             );
+
+            rateLimitExpiredIn = Math.max(5, error.response.data.expires_in);
 
             await pendingRefreshTokens.add(refreshTokens, true);
           } else {
@@ -94,11 +100,6 @@ if (config.doBackgroundWork) {
         }
       }
 
-      logger.info(
-        QUEUE_NAME,
-        `Debug. method=${method}, count=${count}, countTotal=${countTotal}, refreshTokens=${refreshTokens.length}, metadata=${metadata.length}`
-      );
-
       await metadataIndexWrite.addToQueue(
         metadata.map((m) => ({
           ...m,
@@ -106,9 +107,9 @@ if (config.doBackgroundWork) {
       );
 
       // If there are potentially more tokens to process trigger another job
-      if (_.size(refreshTokens) == countTotal) {
-        if (await extendLock(getLockName(method), 60 * 30)) {
-          await addToQueue(method);
+      if (rateLimitExpiredIn || _.size(refreshTokens) == countTotal) {
+        if (await extendLock(getLockName(method), 60 * 5 + rateLimitExpiredIn)) {
+          await addToQueue(method, rateLimitExpiredIn * 1000);
         }
       } else {
         await releaseLock(getLockName(method));
