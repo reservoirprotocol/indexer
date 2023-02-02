@@ -90,7 +90,7 @@ if (config.doBackgroundWork) {
 
             rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.response.data.expires_in, 5);
 
-            await pendingRefreshTokens.add(refreshTokens, true);
+            // await pendingRefreshTokens.add(refreshTokens, true);
           } else {
             logger.error(
               QUEUE_NAME,
