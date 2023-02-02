@@ -88,7 +88,7 @@ if (config.doBackgroundWork) {
               `Too Many Requests. method=${method}, error=${JSON.stringify(error.response.data)}`
             );
 
-            rateLimitExpiredIn = Math.max(5, error.response.data.expires_in);
+            rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.response.data.expires_in, 5);
 
             await pendingRefreshTokens.add(refreshTokens, true);
           } else {
@@ -99,6 +99,11 @@ if (config.doBackgroundWork) {
           }
         }
       }
+
+      logger.info(
+        QUEUE_NAME,
+        `Debug. method=${method}, count=${count}, countTotal=${countTotal}, refreshTokens=${refreshTokens.length}, tokensChunks=${tokensChunks.length}, metadata=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`
+      );
 
       await metadataIndexWrite.addToQueue(
         metadata.map((m) => ({
