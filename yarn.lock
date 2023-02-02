@@ -1946,10 +1946,10 @@
   resolved "https://registry.npmjs.org/@exodus/schemasafe/-/schemasafe-1.0.0-rc.9.tgz"
   integrity sha512-dGGHpb61hLwifAu7sotuHFDBw6GTdpG8aKC0fsK17EuTzMRvUrH7lEAr6LTJ+sx3AZYed9yZ77rltVDHyg2hRg==
 
-"@georgeroman/evm-tx-simulator@^0.0.12":
-  version "0.0.12"
-  resolved "https://registry.yarnpkg.com/@georgeroman/evm-tx-simulator/-/evm-tx-simulator-0.0.12.tgz#7b9e9c82304270f47912128409f26852746d64b2"
-  integrity sha512-QYwYXgkVrAsbArOqsnlMTUi1xdpd/nLtv/t/ZUpJPSjYV5OOubA9EGqImBzV9Ww13nV7T+cQdB2A5+/EKn543Q==
+"@georgeroman/evm-tx-simulator@^0.0.13":
+  version "0.0.13"
+  resolved "https://registry.yarnpkg.com/@georgeroman/evm-tx-simulator/-/evm-tx-simulator-0.0.13.tgz#27dacb52daf8469692adfd4517f81e9e24d0325f"
+  integrity sha512-wp8ktnnQZk9gIsLbM3dTgctPC6OwFjfIOUH46a6cbg9bxbyZoWyJyn7vY6XHa4sfm/cIu2+9rCdcL23vpgQfHA==
   dependencies:
     ethers "^5.6.9"
 
