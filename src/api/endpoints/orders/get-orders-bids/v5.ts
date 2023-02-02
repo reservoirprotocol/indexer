@@ -117,9 +117,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("createdAt", "price")
         .default("createdAt")
-        .description(
-          "Order the items are returned in the response, Sorting by price allowed only when filtering by token"
-        ),
+        .description("Order the items are returned in the response."),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
@@ -419,7 +417,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
         (query as any).id = id;
 
         if (query.sortBy === "price") {
-          conditions.push(`(orders.price, orders.id) < ($/priceOrCreatedAt/, $/id/)`);
+          conditions.push(`(orders.value, orders.id) < ($/priceOrCreatedAt/, $/id/)`);
         } else {
           conditions.push(
             `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAt/), $/id/)`
@@ -436,7 +434,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
 
       // Sorting
       if (query.sortBy === "price") {
-        baseQuery += ` ORDER BY orders.price DESC, orders.id DESC`;
+        baseQuery += ` ORDER BY orders.value DESC, orders.id DESC`;
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
