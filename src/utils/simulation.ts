@@ -6,7 +6,7 @@ import { parseEther } from "@ethersproject/units";
 import { getCallTrace, parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 
-import { bn } from "@/common/utils";
+import { bn, now } from "@/common/utils";
 import { config } from "@/config/index";
 
 export const genericTaker = "0x0000000000000000000000000000000000000001";
@@ -33,6 +33,9 @@ export const ensureBuyTxSucceeds = async (
       gasPrice: 0,
       balanceOverrides: {
         [taker]: tx.value ?? 0,
+      },
+      blockOverrides: {
+        timestamp: now(),
       },
     },
     provider,
@@ -87,6 +90,9 @@ export const ensureSellTxSucceeds = async (
       balanceOverrides: {
         // For gas cost
         [taker]: parseEther("0.1"),
+      },
+      blockOverrides: {
+        timestamp: now(),
       },
     },
     provider,
