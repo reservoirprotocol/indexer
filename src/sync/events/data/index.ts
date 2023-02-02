@@ -4,33 +4,34 @@ import * as erc20 from "@/events-sync/data/erc20";
 import * as erc721 from "@/events-sync/data/erc721";
 import * as erc1155 from "@/events-sync/data/erc1155";
 
+import * as bendDao from "@/events-sync/data/bend-dao";
 import * as blur from "@/events-sync/data/blur";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
 import * as decentraland from "@/events-sync/data/decentraland";
 import * as element from "@/events-sync/data/element";
+import * as flow from "@/events-sync/data/flow";
 import * as forward from "@/events-sync/data/forward";
 import * as foundation from "@/events-sync/data/foundation";
+import * as infinity from "@/events-sync/data/infinity";
 import * as looksRare from "@/events-sync/data/looks-rare";
+import * as manifold from "@/events-sync/data/manifold";
+import * as nftTrader from "@/events-sync/data/nft-trader";
 import * as nftx from "@/events-sync/data/nftx";
 import * as nouns from "@/events-sync/data/nouns";
-import * as infinity from "@/events-sync/data/infinity";
-import * as flow from "@/events-sync/data/flow";
+import * as okex from "@/events-sync/data/okex";
 import * as quixotic from "@/events-sync/data/quixotic";
 import * as rarible from "@/events-sync/data/rarible";
 import * as seaport from "@/events-sync/data/seaport";
+import * as seaportV12 from "@/events-sync/data/seaport-v1.2";
 import * as sudoswap from "@/events-sync/data/sudoswap";
+import * as superrare from "@/events-sync/data/superrare";
+import * as tofu from "@/events-sync/data/tofu";
 import * as universe from "@/events-sync/data/universe";
 import * as wyvernV2 from "@/events-sync/data/wyvern-v2";
 import * as wyvernV23 from "@/events-sync/data/wyvern-v2.3";
 import * as x2y2 from "@/events-sync/data/x2y2";
 import * as zeroExV4 from "@/events-sync/data/zeroex-v4";
 import * as zora from "@/events-sync/data/zora";
-import * as manifold from "@/events-sync/data/manifold";
-import * as tofu from "@/events-sync/data/tofu";
-import * as nftTrader from "@/events-sync/data/nft-trader";
-import * as okex from "@/events-sync/data/okex";
-import * as bendDao from "@/events-sync/data/bend-dao";
-import * as superrare from "@/events-sync/data/superrare";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -42,32 +43,32 @@ export type EventKind =
   | "erc20"
   | "erc721"
   | "erc1155"
+  | "bend-dao"
   | "blur"
   | "cryptopunks"
+  | "decentraland"
   | "element"
+  | "flow"
   | "forward"
   | "foundation"
+  | "infinity"
   | "looks-rare"
+  | "manifold"
+  | "nft-trader"
   | "nftx"
   | "nouns"
+  | "okex"
   | "quixotic"
+  | "rarible"
   | "seaport"
   | "sudoswap"
+  | "superrare"
+  | "tofu"
+  | "universe"
   | "wyvern"
   | "x2y2"
   | "zeroex-v4"
-  | "zora"
-  | "universe"
-  | "infinity"
-  | "rarible"
-  | "manifold"
-  | "tofu"
-  | "decentraland"
-  | "nft-trader"
-  | "okex"
-  | "bend-dao"
-  | "superrare"
-  | "flow";
+  | "zora";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -101,6 +102,9 @@ export type EventSubKind =
   | "seaport-order-cancelled"
   | "seaport-order-filled"
   | "seaport-counter-incremented"
+  | "seaport-v1.2-order-cancelled"
+  | "seaport-v1.2-order-filled"
+  | "seaport-v1.2-counter-incremented"
   | "rarible-match"
   | "rarible-cancel"
   | "element-erc721-sell-order-filled"
@@ -205,6 +209,9 @@ const allEventData = [
   seaport.counterIncremented,
   seaport.orderCancelled,
   seaport.orderFulfilled,
+  seaportV12.counterIncremented,
+  seaportV12.orderCancelled,
+  seaportV12.orderFulfilled,
   wyvernV2.ordersMatched,
   wyvernV23.ordersMatched,
   zeroExV4.erc721OrderCancelled,

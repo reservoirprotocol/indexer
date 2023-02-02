@@ -13,7 +13,7 @@ const PENDING_DATA_KEY = "pending-arweave-data";
 
 export const addPendingOrdersSeaport = async (
   data: {
-    order: Sdk.Seaport.Order | Sdk.Seaport.BundleOrder;
+    order: Sdk.Seaport.Order;
     schemaHash?: string;
     source?: string;
   }[]

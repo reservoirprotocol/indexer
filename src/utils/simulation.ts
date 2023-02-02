@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { BigNumberish } from "@ethersproject/bignumber";
 import { JsonRpcProvider } from "@ethersproject/providers";
 import { parseEther } from "@ethersproject/units";
