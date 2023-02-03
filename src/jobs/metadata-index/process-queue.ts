@@ -94,7 +94,9 @@ if (config.doBackgroundWork) {
           } else {
             logger.error(
               QUEUE_NAME,
-              `Error. method=${method}, error=${JSON.stringify(error.response.data)}`
+              `Error. method=${method}, status=${error.response?.status}, error=${JSON.stringify(
+                error.response.data
+              )}`
             );
           }
         }
