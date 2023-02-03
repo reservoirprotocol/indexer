@@ -7,6 +7,7 @@ export * as forward from "@/orderbook/orders/forward";
 export * as foundation from "@/orderbook/orders/foundation";
 export * as looksRare from "@/orderbook/orders/looks-rare";
 export * as seaport from "@/orderbook/orders/seaport";
+export * as seaportV12 from "@/orderbook/orders/seaport-v1.2";
 export * as sudoswap from "@/orderbook/orders/sudoswap";
 export * as x2y2 from "@/orderbook/orders/x2y2";
 export * as zeroExV4 from "@/orderbook/orders/zeroex-v4";
