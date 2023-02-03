@@ -394,6 +394,7 @@ export const syncEvents = async (
         );
       });
 
+      logger.info("block-check-debug", `Adding ${blocksToCheck.length} jobs to check`);
       await blockCheck.addBulk(blocksToCheck);
     }
   });
