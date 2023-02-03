@@ -217,14 +217,11 @@ export class ApiKeyManager {
       tracer
         .scope()
         .active()
-        ?.setTag(
-          "query",
-          log.payload
-            ? { ...log.payload, ...log.params }
-            : log.query
-            ? { ...log.query, ...log.params }
-            : null
-        );
+        ?.setTag("requestParams", {
+          "query": request.query,
+          "params": request.params,
+          "payload": request.payload,
+        });
     } catch (error) {
       logger.warn("metrics", "Could not add payload to Datadog trace: " + error);
     }
