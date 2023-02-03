@@ -2675,14 +2675,14 @@
   resolved "https://registry.npmjs.org/@protobufjs/utf8/-/utf8-1.1.0.tgz"
   integrity sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==
 
-"@reservoir0x/sdk@0.0.307":
-  version "0.0.307"
-  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.307.tgz#642cfbca00b8c175f78ae1c1bfa19c82fe9c5476"
-  integrity sha512-rT+CHgbe7MgrqXtHrLKOE3tV6/vjwNjHTVcYpXxZyEUDJrKcOXU5ScmHvP54L/oVoauSIUqSKssNNWqUGMuLpQ==
+"@reservoir0x/sdk@0.0.308":
+  version "0.0.308"
+  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.308.tgz#144d815642b30b744c869dd662f0076d46f08699"
+  integrity sha512-TP+lEs6AWkzFNldclxU/EWOGO0aIDHXFzr04CAKcN343knm3BF2G1AmzPignJRz4xQDONHHDR4ucYJVYYddIDg==
   dependencies:
     "@uniswap/smart-order-router" "^3.0.4"
     ethers "^5.7.2"
-    merkletreejs "0.2.31"
+    merkletreejs "^0.3.9"
 
 "@sideway/address@^4.1.3":
   version "4.1.4"
@@ -6526,10 +6526,10 @@ merge2@^1.3.0, merge2@^1.4.1:
   resolved "https://registry.npmjs.org/merge2/-/merge2-1.4.1.tgz"
   integrity sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==
 
-merkletreejs@0.2.31:
-  version "0.2.31"
-  resolved "https://registry.yarnpkg.com/merkletreejs/-/merkletreejs-0.2.31.tgz#c8ae7bebf1678c0f92d6d8266aeddd3d97cc0c37"
-  integrity sha512-dnK2sE43OebmMe5Qnq1wXvvMIjZjm1u6CcB2KeW6cghlN4p21OpCUr2p56KTVf20KJItNChVsGnimcscp9f+yw==
+merkletreejs@^0.3.9:
+  version "0.3.9"
+  resolved "https://registry.yarnpkg.com/merkletreejs/-/merkletreejs-0.3.9.tgz#cdb364a3b974a44f4eff3446522d7066e0cf95de"
+  integrity sha512-NjlATjJr4NEn9s8v/VEHhgwRWaE1eA/Une07d9SEqKzULJi1Wsh0Y3svwJdP2bYLMmgSBHzOrNydMWM1NN9VeQ==
   dependencies:
     bignumber.js "^9.0.1"
     buffer-reverse "^1.0.1"

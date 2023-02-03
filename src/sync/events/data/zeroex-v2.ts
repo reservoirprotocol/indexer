@@ -23,6 +23,6 @@ export const fill: EventData = {
       bytes32 indexed orderHash, 
       bytes makerAssetData, 
       bytes takerAssetData
-  )`,
+    )`,
   ]),
 };
