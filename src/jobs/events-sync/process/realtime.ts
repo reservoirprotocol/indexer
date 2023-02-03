@@ -50,7 +50,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 10 : 40 }
+    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 20 : 40 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

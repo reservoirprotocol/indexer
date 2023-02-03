@@ -35,7 +35,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { method } = job.data;
 
-      let count = 30; // Default number of tokens to fetch
+      let count = 20; // Default number of tokens to fetch
 
       switch (method) {
         case "soundxyz":
@@ -60,49 +60,49 @@ if (config.doBackgroundWork) {
         return;
       }
 
-      const tokensChunks = _.chunk(
-        refreshTokens.map((refreshToken) => ({
-          contract: refreshToken.contract,
-          tokenId: refreshToken.tokenId,
-        })),
-        count
-      );
-
-      const metadata = [];
+      const refreshTokensChunks = _.chunk(refreshTokens, count);
 
       let rateLimitExpiredIn = 0;
 
-      const results = await Promise.allSettled(
-        tokensChunks.map((tokensChunk) => MetadataApi.getTokensMetadata(tokensChunk, method))
+      const results = await Promise.all(
+        refreshTokensChunks.map((refreshTokensChunk) =>
+          MetadataApi.getTokensMetadata(
+            refreshTokensChunk.map((refreshToken) => ({
+              contract: refreshToken.contract,
+              tokenId: refreshToken.tokenId,
+            })),
+            method
+          ).catch(async (error) => {
+            if (error.response?.status === 429) {
+              logger.warn(
+                QUEUE_NAME,
+                `Too Many Requests. method=${method}, error=${JSON.stringify(error.response.data)}`
+              );
+
+              rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.response.data.expires_in, 5);
+
+              await pendingRefreshTokens.add(refreshTokensChunk, true);
+            } else {
+              logger.error(
+                QUEUE_NAME,
+                `Error. method=${method}, error=${JSON.stringify(error.response.data)}`
+              );
+
+              if (error.response?.data.error === "Request failed with status code 403") {
+                await pendingRefreshTokens.add(refreshTokensChunk, true);
+              }
+            }
+
+            return [];
+          })
+        )
       );
 
-      for (const result of results) {
-        if (result.status === "fulfilled") {
-          metadata.push(...(result.value as any));
-        } else {
-          const error = result.reason as any;
-
-          if (error.response?.status === 429) {
-            logger.warn(
-              QUEUE_NAME,
-              `Too Many Requests. method=${method}, error=${JSON.stringify(error.response.data)}`
-            );
-
-            rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.response.data.expires_in, 5);
-
-            // await pendingRefreshTokens.add(refreshTokens, true);
-          } else {
-            logger.error(
-              QUEUE_NAME,
-              `Error. method=${method}, error=${JSON.stringify(error.response.data)}`
-            );
-          }
-        }
-      }
+      const metadata = results.flat(1);
 
       logger.info(
         QUEUE_NAME,
-        `Debug. method=${method}, count=${count}, countTotal=${countTotal}, refreshTokens=${refreshTokens.length}, tokensChunks=${tokensChunks.length}, metadata=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`
+        `Debug. method=${method}, count=${count}, countTotal=${countTotal}, refreshTokens=${refreshTokens.length}, refreshTokensChunks=${refreshTokensChunks.length}, metadata=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`
       );
 
       await metadataIndexWrite.addToQueue(
