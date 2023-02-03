@@ -381,22 +381,20 @@ export const syncEvents = async (
       const blocksToCheck: BlocksToCheck[] = [];
 
       // Put all fetched blocks on a delayed queue
-      await Promise.all(
-        [...blocksSet.values()].map(async (blockData) => {
-          const block = Number(blockData.split("-")[0]);
-          const blockHash = blockData.split("-")[1];
+      [...blocksSet.values()].map(async (blockData) => {
+        const block = Number(blockData.split("-")[0]);
+        const blockHash = blockData.split("-")[1];
 
-          ns.reorgCheckFrequency.map((frequency) =>
-            blocksToCheck.push({
-              block,
-              blockHash,
-              delay: frequency * 60,
-            })
-          );
+        ns.reorgCheckFrequency.map((frequency) =>
+          blocksToCheck.push({
+            block,
+            blockHash,
+            delay: frequency * 60,
+          })
+        );
+      });
 
-          return blockCheck.addBulk(blocksToCheck);
-        })
-      );
+      await blockCheck.addBulk(blocksToCheck);
     }
   });
 };
