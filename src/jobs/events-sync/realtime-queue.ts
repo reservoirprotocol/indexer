@@ -89,6 +89,5 @@ if (config.doBackgroundWork) {
 }
 
 export const addToQueue = async () => {
-  await queue.clean(0, 100, "failed"); // Due to bug with bullmq make sure failed messages are cleaned
-  await queue.add(randomUUID(), {}, { jobId: QUEUE_NAME });
+  await queue.add(randomUUID(), {});
 };

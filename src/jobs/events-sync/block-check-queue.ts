@@ -1,6 +1,7 @@
 import { HashZero } from "@ethersproject/constants";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
+import _ from "lodash";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
@@ -126,6 +127,8 @@ if (config.doBackgroundWork) {
   });
 }
 
+export type BlocksToCheck = { block: number; blockHash?: string; delay: number };
+
 export const addToQueue = async (block: number, blockHash?: string, delayInSeconds = 0) => {
   return queue.add(
     `${block}-${blockHash ?? HashZero}-${delayInSeconds}`,
@@ -137,5 +140,21 @@ export const addToQueue = async (block: number, blockHash?: string, delayInSecon
       jobId: `${block}-${blockHash ?? HashZero}-${delayInSeconds}`,
       delay: delayInSeconds * 1000,
     }
+  );
+};
+
+export const addBulk = async (blocksToCheck: BlocksToCheck[]) => {
+  return queue.addBulk(
+    _.map(blocksToCheck, (block) => ({
+      name: `${block.block}-${block.blockHash ?? HashZero}-${block.delay}`,
+      data: {
+        block: block.block,
+        blockHash: block.blockHash,
+      },
+      opts: {
+        jobId: `${block.block}-${block.blockHash ?? HashZero}-${block.delay}`,
+        delay: block.delay * 1000,
+      },
+    }))
   );
 };
