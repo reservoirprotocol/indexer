@@ -39,6 +39,7 @@ import * as nftTrader from "@/events-sync/handlers/nft-trader";
 import * as okex from "@/events-sync/handlers/okex";
 import * as bendDao from "@/events-sync/handlers/bend-dao";
 import * as superrare from "@/events-sync/handlers/superrare";
+import * as zeroExV2 from "@/events-sync/handlers/zeroex-v2";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -87,6 +88,7 @@ export const eventKindToHandler = new Map<
   ["bend-dao", (e, d) => bendDao.handleEvents(e, d)],
   ["superrare", (e, d) => superrare.handleEvents(e, d)],
   ["flow", (e, d) => flow.handleEvents(e, d)],
+  ["zeroex-v2", (e, d) => zeroExV2.handleEvents(e, d)],
 ]);
 
 export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {

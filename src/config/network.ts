@@ -289,8 +289,8 @@ export const getNetworkSettings = (): NetworkSettings => {
         metadataMintDelay: 180,
         enableWebSocket: false,
         enableReorgCheck: true,
-        realtimeSyncFrequencySeconds: 60,
-        realtimeSyncMaxBlockLag: 128,
+        realtimeSyncFrequencySeconds: 10,
+        realtimeSyncMaxBlockLag: 32,
         backfillBlockBatchSize: 25,
         reorgCheckFrequency: [30],
         coingecko: {

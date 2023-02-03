@@ -65,7 +65,8 @@ export type OrderKind =
   | "nft-trader"
   | "okex"
   | "bend-dao"
-  | "superrare";
+  | "superrare"
+  | "zeroex-v2";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
