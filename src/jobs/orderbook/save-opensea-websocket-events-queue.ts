@@ -73,14 +73,19 @@ if (config.doBackgroundWork) {
           region: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamRegion,
         });
 
-        await firehouse.putRecordBatch(params).promise();
+        try {
+          await firehouse.putRecordBatch(params).promise();
+        } catch (error) {
+          logger.error(QUEUE_NAME, `Failed to save events. error=${error}`);
+
+          await openseaWebsocketEventsQueue.add(openseaWebsocketEvents);
+        }
 
         if (openseaWebsocketEvents.length >= BATCH_LIMIT) {
           await queue.add(randomUUID(), {});
         }
       } catch (error) {
-        logger.error(QUEUE_NAME, `Failed to save events. error=${error}`);
-        throw error;
+        logger.error(QUEUE_NAME, `Failed to process job. error=${error}`);
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
