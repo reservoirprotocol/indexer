@@ -22,10 +22,6 @@ export const postOrder = async (order: Sdk.Seaport.Order, apiKey: string) => {
   if (order.params.endTime <= now()) {
     return;
   }
-  // Skip posting orders with the listing time far in the past
-  if (order.params.startTime <= now() - 10 * 60) {
-    return;
-  }
 
   await axios
     .post(

@@ -217,6 +217,23 @@ export const postOrderV3Options: RouteOptions = {
                 result.id
               }`
             );
+          } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
+            await postOrderExternal.addToQueue(
+              result.id,
+              order.data,
+              "opensea",
+              config.forwardOpenseaApiKey
+            );
+
+            logger.info(
+              `post-order-${version}-handler`,
+              JSON.stringify({
+                forward: true,
+                orderbook: "opensea",
+                data: order.data,
+                orderId: result.id,
+              })
+            );
           }
 
           return { message: "Success", orderId: result.id };

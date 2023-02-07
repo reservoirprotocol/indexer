@@ -204,6 +204,7 @@ export const getUSDAndNativePrices = async (
   options?: {
     onlyUSD?: boolean;
     acceptStalePrice?: boolean;
+    toCurrency?: string;
   }
 ): Promise<USDAndNativePrices> => {
   let usdPrice: string | undefined;
@@ -226,7 +227,7 @@ export const getUSDAndNativePrices = async (
     let nativeUSDPrice: Price | undefined;
     if (!options?.onlyUSD) {
       nativeUSDPrice = await getAvailableUSDPrice(
-        AddressZero,
+        options?.toCurrency || AddressZero,
         timestamp,
         options?.acceptStalePrice
       );
@@ -249,6 +250,7 @@ export const getUSDAndNativePrices = async (
 
   // Make sure to handle the case where the currency is the native one (or the wrapped equivalent)
   if (
+    !options?.toCurrency &&
     [Sdk.Common.Addresses.Eth[config.chainId], Sdk.Common.Addresses.Weth[config.chainId]].includes(
       currencyAddress
     )
