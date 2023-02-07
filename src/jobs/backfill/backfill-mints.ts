@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
@@ -85,6 +86,10 @@ if (config.doBackgroundWork) {
             const from = fromBuffer(result.from);
             const tokenId = result.token_id;
             const amount = result.amount;
+
+            if (from !== AddressZero) {
+              return;
+            }
 
             if (!ns.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
               if (!mintedTokens.has(baseEventParams.txHash)) {

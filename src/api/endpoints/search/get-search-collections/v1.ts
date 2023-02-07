@@ -9,7 +9,7 @@ import { redb } from "@/common/db";
 import { formatEth, fromBuffer, now, regex } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import { Assets } from "@/utils/assets";
-import { getUSDAndNativePrices } from "@/utils/prices";
+import { getUSDAndCurrencyPrices } from "@/utils/prices";
 import { AddressZero } from "@ethersproject/constants";
 
 const version = "v1";
@@ -122,17 +122,23 @@ export const getSearchCollectionsV1Options: RouteOptions = {
             const currentTime = now();
             allTimeVolume = allTimeVolume
               ? (
-                  await getUSDAndNativePrices(AddressZero, allTimeVolume, currentTime, {
-                    toCurrency: query.displayCurrency,
-                  })
+                  await getUSDAndCurrencyPrices(
+                    AddressZero,
+                    query.displayCurrency,
+                    allTimeVolume,
+                    currentTime
+                  )
                 ).nativePrice
               : null;
 
             floorAskPrice = floorAskPrice
               ? (
-                  await getUSDAndNativePrices(AddressZero, floorAskPrice, currentTime, {
-                    toCurrency: query.displayCurrency,
-                  })
+                  await getUSDAndCurrencyPrices(
+                    AddressZero,
+                    query.displayCurrency,
+                    floorAskPrice,
+                    currentTime
+                  )
                 ).nativePrice
               : null;
           }
