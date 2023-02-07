@@ -192,7 +192,7 @@ const getAvailableUSDPrice = async (
   return USD_PRICE_MEMORY_CACHE.get(key);
 };
 
-type USDAndNativePrices = {
+export type USDAndNativePrices = {
   usdPrice?: string;
   nativePrice?: string;
 };
