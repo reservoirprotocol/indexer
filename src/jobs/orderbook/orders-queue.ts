@@ -22,116 +22,16 @@ export const queue = new Queue(QUEUE_NAME, {
     timeout: 30000,
   },
 });
+
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
-  const worker = new Worker(
-    QUEUE_NAME,
-    async (job: Job) => {
-      const { kind, info, relayToArweave, validateBidValue } = job.data as GenericOrderInfo;
+  const worker = new Worker(QUEUE_NAME, async (job: Job) => jobProcessor(job), {
+    connection: redis.duplicate(),
+    concurrency: 50,
+  });
 
-      let result: { status: string; delay?: number }[] = [];
-      try {
-        switch (kind) {
-          case "x2y2": {
-            result = await orders.x2y2.save([info]);
-            break;
-          }
-
-          case "element": {
-            result = await orders.element.save([info]);
-            break;
-          }
-
-          case "foundation": {
-            result = await orders.foundation.save([info]);
-            break;
-          }
-
-          case "forward": {
-            result = await orders.forward.save([info]);
-            break;
-          }
-
-          case "cryptopunks": {
-            result = await orders.cryptopunks.save([info]);
-            break;
-          }
-
-          case "zora-v3": {
-            result = await orders.zora.save([info]);
-            break;
-          }
-
-          case "looks-rare": {
-            result = await orders.looksRare.save([info], relayToArweave);
-            break;
-          }
-
-          case "seaport": {
-            result = await orders.seaport.save([info], relayToArweave, validateBidValue);
-            break;
-          }
-
-          case "sudoswap": {
-            result = await orders.sudoswap.save([info]);
-            break;
-          }
-
-          case "zeroex-v4": {
-            result = await orders.zeroExV4.save([info], relayToArweave);
-            break;
-          }
-
-          case "universe": {
-            result = await orders.universe.save([info]);
-            break;
-          }
-
-          case "rarible": {
-            result = await orders.rarible.save([info], relayToArweave);
-            break;
-          }
-
-          case "infinity": {
-            result = await orders.infinity.save([info], relayToArweave);
-            break;
-          }
-
-          case "flow": {
-            result = await orders.flow.save([info as orders.flow.OrderInfo], relayToArweave);
-            break;
-          }
-
-          case "blur": {
-            result = await orders.blur.save([info], relayToArweave);
-            break;
-          }
-
-          case "manifold": {
-            result = await orders.manifold.save([info]);
-            break;
-          }
-
-          case "nftx": {
-            result = await orders.nftx.save([info]);
-            break;
-          }
-        }
-      } catch (error) {
-        logger.error(QUEUE_NAME, `Failed to process order ${JSON.stringify(job.data)}: ${error}`);
-        throw error;
-      }
-
-      if (result.length && result[0].status === "delayed") {
-        await addToQueue([job.data], false, result[0].delay);
-      } else {
-        logger.debug(QUEUE_NAME, `[${kind}] Order save result: ${JSON.stringify(result)}`);
-      }
-    },
-    { connection: redis.duplicate(), concurrency: 50 }
-  );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
@@ -259,6 +159,109 @@ export type GenericOrderInfo =
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     };
+
+export const jobProcessor = async (job: Job) => {
+  const { kind, info, relayToArweave, validateBidValue } = job.data as GenericOrderInfo;
+
+  let result: { status: string; delay?: number }[] = [];
+  try {
+    switch (kind) {
+      case "x2y2": {
+        result = await orders.x2y2.save([info]);
+        break;
+      }
+
+      case "element": {
+        result = await orders.element.save([info]);
+        break;
+      }
+
+      case "foundation": {
+        result = await orders.foundation.save([info]);
+        break;
+      }
+
+      case "forward": {
+        result = await orders.forward.save([info]);
+        break;
+      }
+
+      case "cryptopunks": {
+        result = await orders.cryptopunks.save([info]);
+        break;
+      }
+
+      case "zora-v3": {
+        result = await orders.zora.save([info]);
+        break;
+      }
+
+      case "looks-rare": {
+        result = await orders.looksRare.save([info], relayToArweave);
+        break;
+      }
+
+      case "seaport": {
+        result = await orders.seaport.save([info], relayToArweave, validateBidValue);
+        break;
+      }
+
+      case "sudoswap": {
+        result = await orders.sudoswap.save([info]);
+        break;
+      }
+
+      case "zeroex-v4": {
+        result = await orders.zeroExV4.save([info], relayToArweave);
+        break;
+      }
+
+      case "universe": {
+        result = await orders.universe.save([info]);
+        break;
+      }
+
+      case "rarible": {
+        result = await orders.rarible.save([info], relayToArweave);
+        break;
+      }
+
+      case "infinity": {
+        result = await orders.infinity.save([info], relayToArweave);
+        break;
+      }
+
+      case "flow": {
+        result = await orders.flow.save([info as orders.flow.OrderInfo], relayToArweave);
+        break;
+      }
+
+      case "blur": {
+        result = await orders.blur.save([info], relayToArweave);
+        break;
+      }
+
+      case "manifold": {
+        result = await orders.manifold.save([info]);
+        break;
+      }
+
+      case "nftx": {
+        result = await orders.nftx.save([info]);
+        break;
+      }
+    }
+  } catch (error) {
+    logger.error(job.queueName, `Failed to process order ${JSON.stringify(job.data)}: ${error}`);
+    throw error;
+  }
+
+  if (result.length && result[0].status === "delayed") {
+    await addToQueue([job.data], false, result[0].delay);
+  } else {
+    logger.debug(job.queueName, `[${kind}] Order save result: ${JSON.stringify(result)}`);
+  }
+};
 
 export const addToQueue = async (
   orderInfos: GenericOrderInfo[],
