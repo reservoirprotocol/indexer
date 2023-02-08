@@ -144,6 +144,8 @@ export const build = async (options: BuildOrderOptions) => {
       builder = new Sdk.ZeroExV4.Builders.TokenList.PackedList(config.chainId);
     } else if (buildInfo.kind === "erc1155") {
       builder = new Sdk.ZeroExV4.Builders.TokenList.PackedList(config.chainId);
+    } else {
+      throw new Error("Could not build order");
     }
   } else {
     if (bitVectorCost > costThreshold) {
@@ -154,11 +156,13 @@ export const build = async (options: BuildOrderOptions) => {
       builder = new Sdk.ZeroExV4.Builders.TokenList.BitVector(config.chainId);
     } else if (buildInfo.kind === "erc1155") {
       builder = new Sdk.ZeroExV4.Builders.TokenList.BitVector(config.chainId);
+    } else {
+      throw new Error("Could not build order");
     }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (buildInfo.params as any).tokenIds = tokenIds;
 
-  return builder?.build(buildInfo.params);
+  return builder.build(buildInfo.params);
 };

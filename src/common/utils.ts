@@ -106,6 +106,7 @@ export const regex = {
   domain: /^[a-zA-Z0-9.-]+\.[a-zA-Z0-9]{2,}$|localhost/,
   address: /^0x[a-fA-F0-9]{40}$/,
   bytes32: /^0x[a-fA-F0-9]{64}$/,
+  bytes: /^0x[a-fA-F0-9]+$/,
   token: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
   fee: /^0x[a-fA-F0-9]{40}:[0-9]+$/,
   number: /^[0-9]+$/,

@@ -10,7 +10,7 @@ import { config } from "@/config/index";
 
 export interface BaseOrderBuildOptions {
   maker: string;
-  contract: string;
+  contract?: string;
   weiPrice: string;
   orderbook: "opensea" | "reservoir";
   orderType?: Sdk.Seaport.Types.OrderType;
@@ -67,7 +67,8 @@ export const getBuildInfo = async (
     offerer: options.maker,
     side,
     tokenKind: collectionResult.kind,
-    contract: options.contract,
+    // TODO: Fix types
+    contract: options.contract!,
     price: options.weiPrice,
     amount: options.quantity,
     paymentToken: options.currency

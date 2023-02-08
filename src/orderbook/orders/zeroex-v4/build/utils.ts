@@ -7,7 +7,7 @@ import { config } from "@/config/index";
 
 export interface BaseOrderBuildOptions {
   maker: string;
-  contract: string;
+  contract?: string;
   weiPrice: string;
   orderbook: "reservoir";
   quantity?: number;
@@ -48,7 +48,7 @@ export const getBuildInfo = async (
 
   const buildParams: BaseBuildParams = {
     direction: side,
-    contract: options.contract,
+    contract: options.contract!,
     maker: options.maker,
     paymentToken:
       side === "sell"
