@@ -2675,10 +2675,10 @@
   resolved "https://registry.npmjs.org/@protobufjs/utf8/-/utf8-1.1.0.tgz"
   integrity sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==
 
-"@reservoir0x/sdk@0.0.310":
-  version "0.0.310"
-  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.310.tgz#bbb239f5efeff2d14c2315de91691129c748f5de"
-  integrity sha512-gA2IhFju5rol9FlKy9tzcqoyWBA5WlCZkw7nE6bfBEJCJrtK3B/S0Qxyi6FEWoJTckMgDHxr0jMC+2/V0Z3K0w==
+"@reservoir0x/sdk@0.0.311":
+  version "0.0.311"
+  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.311.tgz#8e09b5aa43a538abc872a97a05eb400990c9914f"
+  integrity sha512-f7xTDY/rw/gV8ORXVOnll7OSHA81ar+DDjYAgTahZqYMrPDt5a9GwfMuZw6SK5yabsRfJzrQwgqXa+MwmdIIyw==
   dependencies:
     "@uniswap/permit2-sdk" "^1.2.0"
     "@uniswap/smart-order-router" "^3.0.4"
