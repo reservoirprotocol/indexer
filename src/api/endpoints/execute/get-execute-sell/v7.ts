@@ -15,8 +15,8 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { OrderKind, generateBidDetailsV6 } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as nftx from "@/orderbook/orders/nftx";
+import * as sudoswap from "@/orderbook/orders/sudoswap";
 import { getCurrency } from "@/utils/currencies";
 import { getPermitId, getPermit, savePermit } from "@/utils/permits/nft";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
@@ -67,10 +67,8 @@ export const getExecuteSellV7Options: RouteOptions = {
                 )
                 .required(),
               data: Joi.object().required(),
-            })
-              .oxor("orderId", "rawOrder")
-              .description("Optional raw order to sell into."),
-          })
+            }).description("Optional raw order to sell into."),
+          }).oxor("orderId", "rawOrder")
         )
         .min(1)
         .required()
@@ -87,7 +85,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the filling path will be returned."),
-      normalizeRoyalties: Joi.boolean().default(false),
+      normalizeRoyalties: Joi.boolean().default(false).description("Charge any missing royalties."),
       allowInactiveOrderIds: Joi.boolean()
         .default(false)
         .description(
@@ -163,7 +161,8 @@ export const getExecuteSellV7Options: RouteOptions = {
       // Keep track of the remaining quantities as orders are filled
       const quantityFilled: { [orderId: string]: number } = {};
       // Keep track of the maker balances as orders are filled
-      const makerBalances: { [maker: string]: BigNumber } = {};
+      const getMakerBalancesKey = (maker: string, currency: string) => `${maker}-${currency}`;
+      const makerBalances: { [makerAndCurrency: string]: BigNumber } = {};
       // TODO: Also keep track of the maker's allowance per exchange
 
       const sources = await Sources.getInstance();
@@ -225,23 +224,20 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
         quantityFilled[order.id] += quantity;
 
-        // Decrement the maker's available balance
+        // Decrement the maker's available FT balance
         const price = bn(order.price).mul(quantity);
-        if (!makerBalances[order.maker]) {
-          makerBalances[order.maker] = await commonHelpers.getNftBalance(
-            token.contract,
-            token.tokenId,
-            order.maker
-          );
+        const key = getMakerBalancesKey(order.maker, order.currency);
+        if (!makerBalances[key]) {
+          makerBalances[key] = await commonHelpers.getFtBalance(order.currency, order.maker);
         }
-        makerBalances[order.maker] = makerBalances[order.maker].sub(price);
+        makerBalances[key] = makerBalances[key].sub(price);
 
         const netPrice = price.sub(price.mul(order.builtInFeeBps).div(10000)).sub(totalFeeOnTop);
         path.push({
           orderId: order.id,
           contract: token.contract,
           tokenId: token.tokenId,
-          quantity: token.quantity ?? 1,
+          quantity: quantity,
           source: order.sourceId !== null ? sources.get(order.sourceId)?.domain ?? null : null,
           currency: order.currency,
           quote: formatPrice(netPrice, (await getCurrency(order.currency)).decimals, true),
@@ -267,10 +263,19 @@ export const getExecuteSellV7Options: RouteOptions = {
         );
       };
 
-      const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
-        payload.items.map((i: { token: string }) => i.token)
-      );
-      for (const item of payload.items) {
+      const items: {
+        token: string;
+        quantity: number;
+        orderId?: string;
+        rawOrder?: {
+          kind: string;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: any;
+        };
+      }[] = payload.items;
+
+      const tokenToSuspicious = await tryGetTokensSuspiciousStatus(items.map((i) => i.token));
+      for (const item of items) {
         const [contract, tokenId] = item.token.split(":");
         const quantity = Number(item.quantity ?? 1);
 
@@ -482,8 +487,10 @@ export const getExecuteSellV7Options: RouteOptions = {
 
             // Account for the already filled maker's balance
             const maker = fromBuffer(result.maker);
-            if (makerBalances[maker]) {
-              const makerAvailableQuantity = makerBalances[maker].div(result.price).toNumber();
+            const currency = fromBuffer(result.currency);
+            const key = getMakerBalancesKey(maker, currency);
+            if (makerBalances[key]) {
+              const makerAvailableQuantity = makerBalances[key].div(result.price).toNumber();
               if (makerAvailableQuantity < availableQuantity) {
                 availableQuantity = makerAvailableQuantity;
               }
@@ -504,7 +511,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 maker,
                 price: result.price,
                 sourceId: result.source_id_int,
-                currency: fromBuffer(result.currency),
+                currency,
                 rawData: result.raw_data,
                 builtInFeeBps: result.fee_bps,
                 feesOnTop: result.missing_royalties,
