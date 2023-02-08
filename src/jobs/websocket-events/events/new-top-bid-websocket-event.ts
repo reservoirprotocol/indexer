@@ -1,4 +1,4 @@
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import * as Pusher from "pusher";
 import { fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
@@ -143,7 +143,7 @@ export class NewTopBidWebsocketEvent {
 
     if (!owners) {
       owners = (
-        await idb.manyOrNone(
+        await redb.manyOrNone(
           `
                 SELECT
                   DISTINCT nb.owner

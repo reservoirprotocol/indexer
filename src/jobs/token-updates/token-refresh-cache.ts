@@ -58,7 +58,7 @@ if (config.doBackgroundWork) {
         }
       }
     },
-    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 10 : 1 }
+    { connection: redis.duplicate(), concurrency: 10 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
@@ -74,7 +74,7 @@ export const addToQueue = async (
     randomUUID(),
     { contract, tokenId, skipTopBidSimulation },
     {
-      // No more than one job per token per hour
-      jobId: `${contract}:${tokenId}:${Math.floor(now() / 3600)}`,
+      // No more than one job per token per second
+      jobId: `${contract}:${tokenId}:${now()}`,
     }
   );

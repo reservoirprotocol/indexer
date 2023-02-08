@@ -28,12 +28,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
-      case "seaport-order-cancelled": {
+      case "seaport-order-cancelled":
+      case "seaport-v1.2-order-cancelled": {
         const parsedLog = eventData.abi.parseLog(log);
         const orderId = parsedLog.args["orderHash"].toLowerCase();
 
+        const orderKind = subKind.startsWith("seaport-v1.2") ? "seaport-v1.2" : "seaport";
         onChainData.cancelEvents.push({
-          orderKind: "seaport",
+          orderKind,
           orderId,
           baseEventParams,
         });
@@ -54,13 +56,15 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      case "seaport-counter-incremented": {
+      case "seaport-counter-incremented":
+      case "seaport-v1.2-counter-incremented": {
         const parsedLog = eventData.abi.parseLog(log);
         const maker = parsedLog.args["offerer"].toLowerCase();
         const newCounter = parsedLog.args["newCounter"].toString();
 
+        const orderKind = subKind.startsWith("seaport-v1.2") ? "seaport-v1.2" : "seaport";
         onChainData.bulkCancelEvents.push({
-          orderKind: "seaport",
+          orderKind,
           maker,
           minNonce: newCounter,
           baseEventParams,
@@ -69,7 +73,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      case "seaport-order-filled": {
+      case "seaport-order-filled":
+      case "seaport-v1.2-order-filled": {
         const parsedLog = eventData.abi.parseLog(log);
         const orderId = parsedLog.args["orderHash"].toLowerCase();
         const maker = parsedLog.args["offerer"].toLowerCase();
@@ -81,10 +86,13 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        const saleInfo = new Sdk.Seaport.Exchange(config.chainId).deriveBasicSale(
-          offer,
-          consideration
-        );
+        const orderKind = subKind.startsWith("seaport-v1.2") ? "seaport-v1.2" : "seaport";
+        const exchange =
+          orderKind === "seaport-v1.2"
+            ? new Sdk.SeaportV12.Exchange(config.chainId)
+            : new Sdk.Seaport.Exchange(config.chainId);
+
+        const saleInfo = exchange.deriveBasicSale(offer, consideration);
         if (saleInfo) {
           // Handle: filling via `matchOrders`
           if (
@@ -92,7 +100,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             i + 1 < events.length &&
             events[i + 1].baseEventParams.txHash === baseEventParams.txHash &&
             events[i + 1].baseEventParams.logIndex === baseEventParams.logIndex + 1 &&
-            events[i + 1].subKind === "seaport-order-filled"
+            events[i + 1].subKind === subKind
           ) {
             const parsedLog2 = eventData.abi.parseLog(events[i + 1].log);
             const offer2 = parsedLog2.args["offer"];
@@ -109,7 +117,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           }
 
           // Handle: attribution
-          const orderKind = "seaport";
           const attributionData = await utils.extractAttributionData(
             baseEventParams.txHash,
             orderKind,
@@ -195,7 +202,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             data: {
               kind: "buy-approval",
               contract: erc20,
-              orderKind: "seaport",
+              orderKind,
             },
           });
         }

@@ -6,9 +6,9 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { fromBuffer, regex, toBuffer } from "@/common/utils";
+import { fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { ensureSellTxSucceeds } from "@/utils/simulation";
@@ -74,10 +74,11 @@ export const postSimulateTopBidV1Options: RouteOptions = {
       const [contract, tokenId] = token.split(":");
 
       // Fetch the token's owner
-      const ownerResult = await redb.oneOrNone(
+      const ownerResult = await idb.oneOrNone(
         `
           SELECT
-            nft_balances.owner
+            nft_balances.owner,
+            extract('epoch' from nft_balances.acquired_at) AS acquired_at
           FROM nft_balances
           WHERE nft_balances.contract = $/contract/
             AND nft_balances.token_id = $/tokenId/
@@ -90,7 +91,10 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         }
       );
       if (!ownerResult) {
-        throw Boom.internal("Could not simulate order");
+        throw Boom.internal("Could not get token owner");
+      }
+      if (ownerResult && ownerResult.acquired_at >= now() - 3 * 3600) {
+        throw Boom.internal("Taker acquired token too recently");
       }
 
       const owner = fromBuffer(ownerResult.owner);
@@ -113,7 +117,7 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         // on the token chosen to simulate on. Multi-token bids (eg. collection-wide or
         // token-list bids) could potentially get filled with other tokens. So here the
         // best thing to do is ensure the token simulated on is not flagged.
-        const isFlaggedResult = await redb.oneOrNone(
+        const isFlaggedResult = await idb.oneOrNone(
           `
             SELECT
               tokens.is_flagged
@@ -130,7 +134,7 @@ export const postSimulateTopBidV1Options: RouteOptions = {
           throw Boom.badData("Cannot run simulation on flagged token");
         }
 
-        const topBid = await redb.oneOrNone(
+        const topBid = await idb.oneOrNone(
           `
             SELECT
               orders.id,
@@ -174,7 +178,7 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         return { message: "No orders to simulate" };
       }
 
-      const contractResult = await redb.one(
+      const contractResult = await idb.one(
         `
           SELECT
             contracts.kind
@@ -205,7 +209,7 @@ export const postSimulateTopBidV1Options: RouteOptions = {
       if (success) {
         return { message: "Top bid order is fillable" };
       } else {
-        const orderCurrency = await redb
+        const orderCurrency = await idb
           .oneOrNone(
             `
               SELECT

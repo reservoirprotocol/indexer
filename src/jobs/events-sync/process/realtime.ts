@@ -24,7 +24,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate(), maxStalledCount: 10 });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+if (config.doBackgroundWork && (config.chainId === 137 ? config.doProcessRealtime : true)) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
@@ -50,7 +50,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 3 : 40 }
+    { connection: redis.duplicate(), concurrency: 40 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

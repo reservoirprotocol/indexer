@@ -74,7 +74,6 @@ export class MetadataApi {
 
   public static async getTokensMetadata(
     tokens: { contract: string; tokenId: string }[],
-    useAltUrl = false,
     method = ""
   ) {
     const queryParams = new URLSearchParams();
@@ -86,7 +85,7 @@ export class MetadataApi {
     method = method === "" ? config.metadataIndexingMethod : method;
 
     const url = `${
-      useAltUrl ? config.metadataApiBaseUrlAlt : config.metadataApiBaseUrl
+      config.metadataApiBaseUrl
     }/v4/${getNetworkName()}/metadata/token?method=${method}&${queryParams.toString()}`;
 
     const { data } = await axios.get(url);

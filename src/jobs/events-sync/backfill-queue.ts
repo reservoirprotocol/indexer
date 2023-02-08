@@ -20,7 +20,7 @@ export const queue = new Queue(QUEUE_NAME, {
     },
     removeOnComplete: true,
     removeOnFail: 10000,
-    timeout: 240000,
+    timeout: 120000,
   },
 });
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
@@ -31,7 +31,7 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
     QUEUE_NAME,
     async (job: Job) => {
       const { fromBlock, toBlock, syncDetails } = job.data;
-      let { backfill } = job.data;
+      const { backfill } = job.data;
 
       // Check if redis is reaching max memory usage
       const maxMemUsage = 1024 * 1000 * 1000 * config.redisMaxMemoryGB;
@@ -50,8 +50,6 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
         return;
       }
 
-      backfill = config.chainId === 137 ? true : backfill;
-
       try {
         await syncEvents(fromBlock, toBlock, { backfill, syncDetails });
         logger.info(QUEUE_NAME, `Events backfill syncing block range [${fromBlock}, ${toBlock}]`);
@@ -63,7 +61,7 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 15 }
+    { connection: redis.duplicate(), concurrency: 5 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

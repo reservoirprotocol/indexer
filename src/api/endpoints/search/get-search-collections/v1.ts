@@ -6,9 +6,11 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { redb } from "@/common/db";
-import { formatEth, fromBuffer } from "@/common/utils";
+import { formatEth, fromBuffer, now, regex } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
 import { Assets } from "@/utils/assets";
+import { getUSDAndCurrencyPrices } from "@/utils/prices";
+import { AddressZero } from "@ethersproject/constants";
 
 const version = "v1";
 
@@ -32,6 +34,10 @@ export const getSearchCollectionsV1Options: RouteOptions = {
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),
+      displayCurrency: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description("Return result in given currency"),
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set"),
@@ -106,15 +112,48 @@ export const getSearchCollectionsV1Options: RouteOptions = {
     const collections = await redb.manyOrNone(baseQuery, query);
 
     return {
-      collections: _.map(collections, (collection) => ({
-        collectionId: collection.id,
-        name: collection.name,
-        contract: fromBuffer(collection.contract),
-        image: Assets.getLocalAssetsLink(collection.image),
-        allTimeVolume: collection.all_time_volume ? formatEth(collection.all_time_volume) : null,
-        floorAskPrice: collection.floor_sell_value ? formatEth(collection.floor_sell_value) : null,
-        openseaVerificationStatus: collection.opensea_verification_status,
-      })),
+      collections: await Promise.all(
+        _.map(collections, async (collection) => {
+          let allTimeVolume = collection.all_time_volume ? collection.all_time_volume : null;
+
+          let floorAskPrice = collection.floor_sell_value ? collection.floor_sell_value : null;
+
+          if (query.displayCurrency) {
+            const currentTime = now();
+            allTimeVolume = allTimeVolume
+              ? (
+                  await getUSDAndCurrencyPrices(
+                    AddressZero,
+                    query.displayCurrency,
+                    allTimeVolume,
+                    currentTime
+                  )
+                ).nativePrice
+              : null;
+
+            floorAskPrice = floorAskPrice
+              ? (
+                  await getUSDAndCurrencyPrices(
+                    AddressZero,
+                    query.displayCurrency,
+                    floorAskPrice,
+                    currentTime
+                  )
+                ).nativePrice
+              : null;
+          }
+
+          return {
+            collectionId: collection.id,
+            name: collection.name,
+            contract: fromBuffer(collection.contract),
+            image: Assets.getLocalAssetsLink(collection.image),
+            allTimeVolume: allTimeVolume ? formatEth(allTimeVolume) : null,
+            floorAskPrice: floorAskPrice ? formatEth(floorAskPrice) : null,
+            openseaVerificationStatus: collection.opensea_verification_status,
+          };
+        })
+      ),
     };
   },
 };

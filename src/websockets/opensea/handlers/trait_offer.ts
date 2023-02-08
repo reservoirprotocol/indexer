@@ -2,8 +2,13 @@ import { now, toTime } from "@/common/utils";
 
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
 import { TraitOfferEventPayload } from "@opensea/stream-js";
+import { getNetworkSettings } from "@/config/network";
 
-export const handleEvent = (payload: TraitOfferEventPayload): PartialOrderComponents => {
+export const handleEvent = (payload: TraitOfferEventPayload): PartialOrderComponents | null => {
+  if (!getNetworkSettings().supportedBidCurrencies[payload.payment_token.address]) {
+    return null;
+  }
+
   const traitCriteria = payload.trait_criteria as { trait_type: string; trait_name: string };
 
   return {

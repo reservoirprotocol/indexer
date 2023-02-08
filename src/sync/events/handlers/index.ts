@@ -31,6 +31,7 @@ import * as zeroExV4 from "@/events-sync/handlers/zeroex-v4";
 import * as zora from "@/events-sync/handlers/zora";
 import * as universe from "@/events-sync/handlers/universe";
 import * as infinity from "@/events-sync/handlers/infinity";
+import * as flow from "@/events-sync/handlers/flow";
 import * as rarible from "@/events-sync/handlers/rarible";
 import * as manifold from "@/events-sync/handlers/manifold";
 import * as tofu from "@/events-sync/handlers/tofu";
@@ -38,6 +39,7 @@ import * as nftTrader from "@/events-sync/handlers/nft-trader";
 import * as okex from "@/events-sync/handlers/okex";
 import * as bendDao from "@/events-sync/handlers/bend-dao";
 import * as superrare from "@/events-sync/handlers/superrare";
+import * as zeroExV2 from "@/events-sync/handlers/zeroex-v2";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -85,6 +87,8 @@ export const eventKindToHandler = new Map<
   ["okex", (e, d) => okex.handleEvents(e, d)],
   ["bend-dao", (e, d) => bendDao.handleEvents(e, d)],
   ["superrare", (e, d) => superrare.handleEvents(e, d)],
+  ["flow", (e, d) => flow.handleEvents(e, d)],
+  ["zeroex-v2", (e, d) => zeroExV2.handleEvents(e, d)],
 ]);
 
 export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {

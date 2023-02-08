@@ -5,6 +5,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import * as websocketEventsTriggerQueue from "@/jobs/websocket-events/trigger-queue";
 
 const QUEUE_NAME = "collection-updates-top-bid-queue";
 
@@ -31,7 +32,7 @@ if (config.doBackgroundWork) {
       const { kind, collectionId, txHash, txTimestamp } = job.data as TopBidInfo;
 
       try {
-        await idb.none(
+        const collectionTopBid = await idb.oneOrNone(
           `
             WITH y AS (
               UPDATE collections SET
@@ -116,6 +117,7 @@ if (config.doBackgroundWork) {
               WHERE orders.id = y.top_buy_id
               LIMIT 1
             ) z ON TRUE
+            RETURNING order_id
           `,
           {
             kind,
@@ -124,6 +126,15 @@ if (config.doBackgroundWork) {
             txTimestamp,
           }
         );
+
+        if (kind === "new-order" && collectionTopBid?.order_id) {
+          await websocketEventsTriggerQueue.addToQueue([
+            {
+              kind: websocketEventsTriggerQueue.EventKind.NewTopBid,
+              data: { orderId: collectionTopBid?.order_id },
+            },
+          ]);
+        }
       } catch (error) {
         logger.error(
           QUEUE_NAME,

@@ -8,12 +8,13 @@ import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orders from "@/orderbook/orders";
 
 import * as postOrderExternal from "@/jobs/orderbook/post-order-external";
-import { regex } from "@/common/utils";
 
 const version = "v3";
 
@@ -44,14 +45,15 @@ export const postOrderV3Options: RouteOptions = {
             "x2y2",
             "universe",
             "forward",
-            "infinity"
+            "infinity",
+            "flow"
           )
           .required(),
         data: Joi.object().required(),
       }),
       orderbook: Joi.string()
         .lowercase()
-        .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity")
+        .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow")
         .default("reservoir"),
       orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
       source: Joi.string().pattern(regex.domain).description("The source domain"),
@@ -216,6 +218,34 @@ export const postOrderV3Options: RouteOptions = {
                 result.id
               }`
             );
+          } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
+            const orderResult = await idb.oneOrNone(
+              `
+                SELECT
+                  orders.token_set_id
+                FROM orders
+                WHERE orders.id = $/id/
+              `,
+              { id: result.id }
+            );
+            if (orderResult?.token_set_id?.startsWith("token")) {
+              await postOrderExternal.addToQueue(
+                result.id,
+                order.data,
+                "opensea",
+                config.forwardOpenseaApiKey
+              );
+
+              logger.info(
+                `post-order-${version}-handler`,
+                JSON.stringify({
+                  forward: true,
+                  orderbook: "opensea",
+                  data: order.data,
+                  orderId: result.id,
+                })
+              );
+            }
           }
 
           return { message: "Success", orderId: result.id };
@@ -467,6 +497,39 @@ export const postOrderV3Options: RouteOptions = {
           }
 
           if (orderbook === "infinity") {
+            await postOrderExternal.addToQueue(result.id, order.data, orderbook, orderbookApiKey);
+
+            logger.info(
+              `post-order-${version}-handler`,
+              `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}, orderId: ${
+                result.id
+              }`
+            );
+          }
+
+          return { message: "Success", orderId: result.id };
+        }
+
+        case "flow": {
+          if (!["flow"].includes(orderbook)) {
+            throw new Error("Unknown orderbook");
+          }
+
+          const orderInfo: orders.flow.OrderInfo = {
+            orderParams: order.data,
+            metadata: {
+              schema,
+              source: orderbook === "flow" ? source : undefined,
+            },
+          };
+
+          const [result] = await orders.flow.save([orderInfo]);
+
+          if (result.status !== "success") {
+            throw Boom.badRequest(result.status);
+          }
+
+          if (orderbook === "flow") {
             await postOrderExternal.addToQueue(result.id, order.data, orderbook, orderbookApiKey);
 
             logger.info(

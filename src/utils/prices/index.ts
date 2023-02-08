@@ -192,11 +192,19 @@ const getAvailableUSDPrice = async (
   return USD_PRICE_MEMORY_CACHE.get(key);
 };
 
-type USDAndNativePrices = {
+export type USDAndNativePrices = {
   usdPrice?: string;
   nativePrice?: string;
 };
 
+/**
+ * Will return USD and price in the native currency of the current chain
+ *
+ * @param currencyAddress
+ * @param price
+ * @param timestamp
+ * @param options
+ */
 export const getUSDAndNativePrices = async (
   currencyAddress: string,
   price: string,
@@ -254,6 +262,65 @@ export const getUSDAndNativePrices = async (
     )
   ) {
     nativePrice = price;
+  }
+
+  return { usdPrice, nativePrice };
+};
+
+/**
+ * Convert between currencies
+ *
+ * @param fromCurrencyAddress
+ * @param toCurrency
+ * @param price
+ * @param timestamp
+ * @param options
+ */
+export const getUSDAndCurrencyPrices = async (
+  fromCurrencyAddress: string,
+  toCurrency: string,
+  price: string,
+  timestamp: number,
+  options?: {
+    onlyUSD?: boolean;
+    acceptStalePrice?: boolean;
+  }
+): Promise<USDAndNativePrices> => {
+  let usdPrice: string | undefined;
+  let nativePrice: string | undefined;
+
+  // Only try to get pricing data if the network supports it
+  if (getNetworkSettings().coingecko?.networkId) {
+    // Get the FROM currency price
+    const fromCurrencyUSDPrice = await getAvailableUSDPrice(
+      fromCurrencyAddress,
+      timestamp,
+      options?.acceptStalePrice
+    );
+
+    let toCurrencyUSDPrice: Price | undefined;
+    if (!options?.onlyUSD) {
+      toCurrencyUSDPrice = await getAvailableUSDPrice(
+        toCurrency,
+        timestamp,
+        options?.acceptStalePrice
+      );
+    }
+
+    const currency = await getCurrency(fromCurrencyAddress);
+
+    if (currency.decimals && fromCurrencyUSDPrice) {
+      const currencyUnit = bn(10).pow(currency.decimals);
+      usdPrice = bn(price).mul(fromCurrencyUSDPrice.value).div(currencyUnit).toString();
+      if (toCurrencyUSDPrice) {
+        nativePrice = bn(price)
+          .mul(fromCurrencyUSDPrice.value)
+          .mul(NATIVE_UNIT)
+          .div(toCurrencyUSDPrice.value)
+          .div(currencyUnit)
+          .toString();
+      }
+    }
   }
 
   return { usdPrice, nativePrice };

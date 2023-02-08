@@ -30,7 +30,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+if (config.doBackgroundWork && config.doWebsocketServerWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
@@ -76,6 +76,10 @@ export type EventInfo =
     };
 
 export const addToQueue = async (events: EventInfo[]) => {
+  if (!config.doWebsocketServerWork) {
+    return;
+  }
+
   await queue.addBulk(
     _.map(events, (event) => ({
       name: randomUUID(),

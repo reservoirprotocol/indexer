@@ -46,6 +46,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .description(
           "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
+      tokenSetId: Joi.string()
+        .lowercase()
+        .description(
+          "Filter to a particular set, e.g. `contract:0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       maker: Joi.string()
         .lowercase()
         .pattern(regex.address)
@@ -118,6 +123,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .default(50)
         .description("Amount of items returned in response."),
     })
+      .oxor("token", "tokenSetId")
       .with("community", "maker")
       .with("collectionsSetId", "maker"),
   },
@@ -266,6 +272,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
         conditions.push(`orders.token_set_id = $/tokenSetId/`);
       }
 
+      if (query.tokenSetId) {
+        (query as any).tokenSetId = `${query.tokenSetId}`;
+        conditions.push(`orders.token_set_id = $/tokenSetId/`);
+      }
+
       if (query.contracts) {
         if (!_.isArray(query.contracts)) {
           query.contracts = [query.contracts];
@@ -276,6 +287,10 @@ export const getOrdersAsksV4Options: RouteOptions = {
 
         if (query.status === "any") {
           orderStatusFilter = "";
+
+          // Fix for the issue with negative prices for dutch auction orders
+          // (eg. due to orders not properly expired on time)
+          conditions.push(`coalesce(orders.price, 0) >= 0`);
         }
       }
 

@@ -1,4 +1,4 @@
-import { idb } from "@/common/db";
+import { redb } from "@/common/db";
 import * as Pusher from "pusher";
 import { formatEth, fromBuffer } from "@/common/utils";
 import { Orders } from "@/utils/orders";
@@ -31,7 +31,7 @@ export class NewActivityWebsocketEvent {
                 WHERE activities.order_id = orders.id
              ) o ON TRUE`;
 
-    const activity = await idb.oneOrNone(
+    const activity = await redb.oneOrNone(
       `
               SELECT *
               FROM activities

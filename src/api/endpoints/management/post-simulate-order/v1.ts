@@ -222,6 +222,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
             WHERE token_sets_tokens.token_set_id = $/tokenSetId/
               AND (tokens.is_flagged IS NULL OR tokens.is_flagged = 0)
               AND nft_balances.amount > 0
+              AND nft_balances.acquired_at < now() - interval '3 hours'
             LIMIT 1
           `,
           {

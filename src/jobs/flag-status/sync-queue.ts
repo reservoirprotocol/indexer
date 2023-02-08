@@ -61,8 +61,7 @@ if (config.doBackgroundWork) {
         pendingSyncFlagStatusTokensChunks.map(async (pendingSyncFlagStatusTokensChunk) => {
           try {
             const tokensMetadata = await MetadataApi.getTokensMetadata(
-              pendingSyncFlagStatusTokensChunk,
-              true
+              pendingSyncFlagStatusTokensChunk
             );
 
             for (const pendingSyncFlagStatusToken of pendingSyncFlagStatusTokensChunk) {
