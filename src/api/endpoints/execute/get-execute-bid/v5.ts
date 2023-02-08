@@ -336,7 +336,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                     bn(params.weiPrice).sub(currencyBalance)
                   );
 
-                  steps[1].items.push({
+                  steps[0].items.push({
                     status: "incomplete",
                     data: wrapTx,
                     orderIndexes: [i],
@@ -423,12 +423,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                   approvalTx = currency.approveTransaction(maker, conduit);
                 }
 
-                steps[2].items.push({
+                steps[1].items.push({
                   status: !approvalTx ? "complete" : "incomplete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[3].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -519,7 +519,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   approvalTx = currency.approveTransaction(maker, conduit);
                 }
 
-                steps[2].items.push({
+                steps[1].items.push({
                   status: !approvalTx ? "complete" : "incomplete",
                   data: approvalTx,
                   orderIndexes: [i],
@@ -607,12 +607,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                   );
                 }
 
-                steps[2].items.push({
+                steps[1].items.push({
                   status: !approvalTx ? "complete" : "incomplete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[3].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -697,12 +697,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                   );
                 }
 
-                steps[2].items.push({
+                steps[1].items.push({
                   status: !approvalTx ? "complete" : "incomplete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[3].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -791,12 +791,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                   );
                 }
 
-                steps[2].items.push({
+                steps[1].items.push({
                   status: !approvalTx ? "complete" : "incomplete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[3].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -884,12 +884,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                   );
                 }
 
-                steps[2].items.push({
+                steps[1].items.push({
                   status: !approvalTx ? "complete" : "incomplete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[3].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -970,12 +970,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                   );
                 }
 
-                steps[2].items.push({
+                steps[1].items.push({
                   status: !approvalTx ? "complete" : "incomplete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[3].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: new Sdk.X2Y2.Exchange(
@@ -1043,12 +1043,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                   );
                 }
 
-                steps[2].items.push({
+                steps[1].items.push({
                   status: !approvalTx ? "complete" : "incomplete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[3].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -1090,7 +1090,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             orders.map((o) => new Sdk.SeaportV12.Order(config.chainId, o.order.data))
           );
 
-          steps[1].items.push({
+          steps[2].items.push({
             status: "incomplete",
             data: {
               sign: signatureData,
@@ -1124,7 +1124,7 @@ export const getExecuteBidV5Options: RouteOptions = {
       }
 
       // We should only have a single wrapping transaction
-      if (steps[1].items.length > 1) {
+      if (steps[0].items.length > 1) {
         let amount = bn(0);
         for (let i = 0; i < steps[0].items.length; i++) {
           const itemAmount = bn(steps[0].items[i].data?.value || 0);
@@ -1137,14 +1137,14 @@ export const getExecuteBidV5Options: RouteOptions = {
           const weth = new Sdk.Common.Helpers.Weth(baseProvider, config.chainId);
           const wrapTx = weth.depositTransaction(maker, amount);
 
-          steps[1].items = [
+          steps[0].items = [
             {
               status: "incomplete",
               data: wrapTx,
             },
           ];
         } else {
-          steps[1].items = [];
+          steps[0].items = [];
         }
       }
 
