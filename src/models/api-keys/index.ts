@@ -225,16 +225,6 @@ export class ApiKeyManager {
             ? { ...log.query, ...log.params }
             : null
         );
-
-      // Verify nested tags are supported by Datadog
-      tracer
-        .scope()
-        .active()
-        ?.setTag("nestedTag", {
-          nestedKey: {
-            nestedKey_2: "nestedValue",
-          },
-        });
     } catch (error) {
       logger.warn("metrics", "Could not add payload to Datadog trace: " + error);
     }
