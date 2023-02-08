@@ -56,7 +56,6 @@ if (config.doBackgroundWork) {
       // If no more tokens
       if (_.isEmpty(refreshTokens)) {
         await releaseLock(getLockName(method));
-
         return;
       }
 

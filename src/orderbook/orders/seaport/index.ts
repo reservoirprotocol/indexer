@@ -4,6 +4,7 @@ import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle"
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport/types";
 import _ from "lodash";
 import pLimit from "p-limit";
+import tags from "dd-trace/ext/tags";
 
 import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -1204,16 +1205,7 @@ export const save = async (
           ? handlePartialOrder(orderInfo.orderParams as PartialOrderComponents, orderInfo.metadata)
           : tracer.trace(
               "handleOrder",
-              {
-                resource: "seaportSave",
-                tags: {
-                  orderInfo: {
-                    hash: orderInfo.openSeaOrderParams?.hash,
-                    side: orderInfo.openSeaOrderParams?.side,
-                    kind: orderInfo.openSeaOrderParams?.kind,
-                  },
-                },
-              },
+              { resource: "seaportSave", tags: { [tags.MANUAL_KEEP]: true, orderInfo } },
               () =>
                 handleOrder(
                   orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,

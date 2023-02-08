@@ -31,7 +31,7 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
     QUEUE_NAME,
     async (job: Job) => {
       const { fromBlock, toBlock, syncDetails } = job.data;
-      let { backfill } = job.data;
+      const { backfill } = job.data;
 
       // Check if redis is reaching max memory usage
       const maxMemUsage = 1024 * 1000 * 1000 * config.redisMaxMemoryGB;
@@ -49,8 +49,6 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
         await addToQueue(fromBlock, toBlock, _.merge(job.opts, job.data, { delay }));
         return;
       }
-
-      backfill = config.chainId === 137 ? true : backfill;
 
       try {
         await syncEvents(fromBlock, toBlock, { backfill, syncDetails });

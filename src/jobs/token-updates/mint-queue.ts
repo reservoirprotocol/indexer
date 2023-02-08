@@ -10,6 +10,7 @@ import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
+import _ from "lodash";
 
 const QUEUE_NAME = "token-updates-mint-queue";
 
@@ -166,7 +167,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 5 }
+    { connection: redis.duplicate(), concurrency: 30 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
@@ -180,6 +181,17 @@ export type MintInfo = {
 };
 
 export const addToQueue = async (mintInfos: MintInfo[]) => {
+  if (config.chainId === 137) {
+    mintInfos = _.filter(
+      mintInfos,
+      (data) => data.contract !== "0xaa1ec1efef105599f849b8f5df9b937e25a16e6b"
+    );
+
+    if (_.isEmpty(mintInfos)) {
+      return;
+    }
+  }
+
   await queue.addBulk(
     mintInfos.map((mintInfo) => ({
       name: `${mintInfo.contract}-${mintInfo.tokenId}`,
