@@ -614,6 +614,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "POST",
+    path: "/execute/buy/v7",
+    options: executeEndpoints.getExecuteBuyV7Options,
+  });
+
+  server.route({
     method: "GET",
     path: "/execute/cancel/v1",
     options: executeEndpoints.getExecuteCancelV1Options,
