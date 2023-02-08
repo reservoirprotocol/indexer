@@ -55,11 +55,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     async (event) => {
       try {
         if (await isDuplicateEvent(event)) {
-          logger.error(
-            "opensea-websocket",
-            `Duplicate event. network=${network}, event=${JSON.stringify(event)}`
-          );
-
           return;
         }
 
