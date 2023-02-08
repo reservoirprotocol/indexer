@@ -163,6 +163,13 @@ export const addToQueue = async (
   prioritized = false,
   delayInSeconds = 0
 ) => {
+  if (config.chainId === 137) {
+    metadataIndexInfos = _.filter(
+      metadataIndexInfos,
+      (data) => data.data.collection !== "0xaa1ec1efef105599f849b8f5df9b937e25a16e6b"
+    );
+  }
+
   await queue.addBulk(
     metadataIndexInfos.map((metadataIndexInfo) => ({
       name: randomUUID(),
