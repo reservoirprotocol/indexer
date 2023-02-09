@@ -2,8 +2,8 @@ import { BigNumber } from "@ethersproject/bignumber";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import { BidDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import * as SeaportPermit from "@reservoir0x/sdk/dist/router/v6/permits/seaport";
+import { BidDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -237,7 +237,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           orderId: order.id,
           contract: token.contract,
           tokenId: token.tokenId,
-          quantity: quantity,
+          quantity,
           source: order.sourceId !== null ? sources.get(order.sourceId)?.domain ?? null : null,
           currency: order.currency,
           quote: formatPrice(netPrice, (await getCurrency(order.currency)).decimals, true),
@@ -277,7 +277,6 @@ export const getExecuteSellV7Options: RouteOptions = {
       const tokenToSuspicious = await tryGetTokensSuspiciousStatus(items.map((i) => i.token));
       for (const item of items) {
         const [contract, tokenId] = item.token.split(":");
-        const quantity = Number(item.quantity ?? 1);
 
         const tokenResult = await idb.oneOrNone(
           `
@@ -344,7 +343,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 orders.id,
                 orders.kind,
                 contracts.kind AS token_kind,
-                orders.price,
+                coalesce(orders.currency_price, orders.price) AS price,
                 orders.raw_data,
                 orders.source_id_int,
                 orders.currency,
@@ -373,7 +372,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               id: item.orderId,
               contract: toBuffer(contract),
               tokenId,
-              quantity,
+              quantity: item.quantity,
             }
           );
           if (!result) {
@@ -416,7 +415,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               kind: result.token_kind,
               contract,
               tokenId,
-              quantity,
+              quantity: item.quantity,
             }
           );
         }
@@ -430,7 +429,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 orders.id,
                 orders.kind,
                 contracts.kind AS token_kind,
-                orders.price,
+                coalesce(orders.currency_price, orders.price) AS price,
                 orders.raw_data,
                 orders.source_id_int,
                 orders.currency,
@@ -456,11 +455,11 @@ export const getExecuteSellV7Options: RouteOptions = {
               id: item.orderId,
               contract: toBuffer(contract),
               tokenId,
-              quantity,
+              quantity: item.quantity,
             }
           );
 
-          let quantityToFill = quantity;
+          let quantityToFill = item.quantity;
           for (const result of orderResults) {
             // Do not fill X2Y2 and Seaport orders with flagged tokens
             if (["x2y2", "seaport"].includes(result.kind)) {
@@ -530,7 +529,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               continue;
             } else {
               throw Boom.badData(
-                `No available orders for token ${item.token} with quantity ${quantity}`
+                `No available orders for token ${item.token} with quantity ${item.quantity}`
               );
             }
           }
@@ -690,12 +689,14 @@ export const getExecuteSellV7Options: RouteOptions = {
         path,
       };
     } catch (error) {
-      logger.error(
-        `get-execute-sell-${version}-handler`,
-        `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
-          payload
-        )})`
-      );
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(
+          `get-execute-sell-${version}-handler`,
+          `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
+            payload
+          )})`
+        );
+      }
       throw error;
     }
   },

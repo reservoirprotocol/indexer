@@ -1,33 +1,30 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { BigNumber } from "@ethersproject/bignumber";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import { ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import * as Permit2 from "@reservoir0x/sdk/dist/router/v6/permits/permit2";
-import { getPermitId, getPermit, savePermit } from "@/utils/permits/ft";
-
+import { ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import Joi from "joi";
-import * as onChainData from "@/utils/on-chain-data";
 
 import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { bn, formatPrice, fromBuffer, regex, toBuffer, now } from "@/common/utils";
+import { bn, formatPrice, fromBuffer, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as nftx from "@/orderbook/orders/nftx";
+import * as sudoswap from "@/orderbook/orders/sudoswap";
 import { getCurrency } from "@/utils/currencies";
+import * as onChainData from "@/utils/on-chain-data";
+import { getPermitId, getPermit, savePermit } from "@/utils/permits/ft";
 
 const version = "v7";
 
 export const getExecuteBuyV7Options: RouteOptions = {
-  description: "Buy tokens",
+  description: "Buy tokens (fill listings)",
   tags: ["api", "Router", "x-experimental"],
   timeout: {
     server: 20 * 1000,
@@ -39,50 +36,60 @@ export const getExecuteBuyV7Options: RouteOptions = {
   },
   validate: {
     payload: Joi.object({
-      orderIds: Joi.array().items(Joi.string().lowercase()),
-      rawOrders: Joi.array().items(
-        Joi.object({
-          kind: Joi.string()
-            .lowercase()
-            .valid(
-              "opensea",
-              "looks-rare",
-              "zeroex-v4",
-              "seaport",
-              "x2y2",
-              "universe",
-              "rarible",
-              "infinity",
-              "sudoswap",
-              "flow",
-              "nftx"
-            )
-            .required(),
-          data: Joi.object().required(),
-        })
-      ),
-      tokens: Joi.array()
-        .items(Joi.string().lowercase().pattern(regex.token))
-        .description(
-          "Array of tokens user is buying. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
-        ),
-      quantity: Joi.number()
-        .integer()
-        .positive()
-        .description(
-          "Quantity of tokens user is buying. Only compatible when buying a single ERC1155 token. Example: `5`"
-        ),
+      items: Joi.array()
+        .items(
+          Joi.object({
+            token: Joi.string()
+              .lowercase()
+              .pattern(regex.token)
+              .required()
+              .description("Token to buy."),
+            quantity: Joi.number()
+              .integer()
+              .positive()
+              .default(1)
+              .description("Quantity of tokens to buy."),
+            orderId: Joi.string().lowercase().description("Optional order id to fill."),
+            rawOrder: Joi.object({
+              kind: Joi.string()
+                .lowercase()
+                .valid(
+                  "opensea",
+                  "looks-rare",
+                  "zeroex-v4",
+                  "seaport",
+                  "x2y2",
+                  "universe",
+                  "rarible",
+                  "infinity",
+                  "sudoswap",
+                  "flow",
+                  "nftx"
+                )
+                .required(),
+              data: Joi.object().required(),
+            }).description("Optional raw order to fill."),
+            preferredOrderSource: Joi.string()
+              .lowercase()
+              .pattern(regex.domain)
+              .when("tokens", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
+              .description(
+                "If there are multiple listings with equal best price, prefer this source over others.\nNOTE: if you want to fill a listing that is not the best priced, you need to pass a specific order id."
+              ),
+          }).oxor("token", "orderId", "rawOrder")
+        )
+        .min(1)
+        .required()
+        .description("List of items to buy."),
       taker: Joi.string()
         .lowercase()
         .pattern(regex.address)
         .required()
-        .description(
-          "Address of wallet filling the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
-        ),
+        .description("Address of wallet filling."),
       relayer: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Address of wallet relaying the filling transaction"),
+        .description("Address of wallet relaying the fill transaction."),
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the path will be returned."),
@@ -91,14 +98,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
       ),
       currency: Joi.string()
         .valid(Sdk.Common.Addresses.Eth[config.chainId])
-        .description("Currency to buy all listings in."),
-      normalizeRoyalties: Joi.boolean().default(false),
-      preferredOrderSource: Joi.string()
-        .lowercase()
-        .pattern(regex.domain)
-        .when("tokens", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
+        .description("Currency to be used for purchases."),
+      normalizeRoyalties: Joi.boolean().default(false).description("Charge any missing royalties."),
+      allowInactiveOrderIds: Joi.boolean()
+        .default(false)
         .description(
-          "If there are multiple listings with equal best price, prefer this source over others.\nNOTE: if you want to fill a listing that is not the best priced, you need to pass a specific order ID."
+          "If true, inactive orders will not be skipped over (only relevant when filling via a specific order id)."
         ),
       source: Joi.string()
         .lowercase()
@@ -112,21 +117,15 @@ export const getExecuteBuyV7Options: RouteOptions = {
       partial: Joi.boolean()
         .default(false)
         .description("If true, any off-chain or on-chain errors will be skipped."),
-      maxFeePerGas: Joi.string()
-        .pattern(regex.number)
-        .description("Optional. Set custom gas price."),
-      maxPriorityFeePerGas: Joi.string()
-        .pattern(regex.number)
-        .description("Optional. Set custom gas price."),
       skipBalanceCheck: Joi.boolean()
         .default(false)
         .description("If true, balance check will be skipped."),
-      allowInactiveOrderIds: Joi.boolean()
-        .default(false)
-        .description(
-          "If true, do not filter out inactive orders (only relevant for order id filtering)."
-        ),
-      x2y2ApiKey: Joi.string().description("Override the X2Y2 API key used for filling."),
+      maxFeePerGas: Joi.string().pattern(regex.number).description("Optional custom gas settings."),
+      maxPriorityFeePerGas: Joi.string()
+        .pattern(regex.number)
+        .description("Optional custom gas settings."),
+      // TODO: Allow passing other API keys as well (eg. Coinbase)
+      x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
     }),
   },
   response: {
@@ -136,7 +135,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           id: Joi.string().required(),
           action: Joi.string().required(),
           description: Joi.string().required(),
-          kind: Joi.string().valid("transaction").required(),
+          kind: Joi.string().valid("signature", "transaction").required(),
           items: Joi.array()
             .items(
               Joi.object({
@@ -166,6 +165,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
 
     try {
@@ -179,12 +179,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
         feesOnTop.push({ recipient, amount });
       }
 
-      // We need each filled order's source for the path
-      const sources = await Sources.getInstance();
-
       // Keep track of the listings and path to fill
       const listingDetails: ListingDetails[] = [];
-      const path: {
+      let path: {
         orderId: string;
         contract: string;
         tokenId: string;
@@ -194,18 +191,28 @@ export const getExecuteBuyV7Options: RouteOptions = {
         quote: number;
         rawQuote: string;
       }[] = [];
-      // For handling dynamically-priced listings (eg. from pools like Sudoswap and NFTX)
-      const poolPrices: { [pool: string]: string[] } = {};
 
+      // Keep track of dynamically-priced orders (eg. from pools like Sudoswap and NFTX)
+      const poolPrices: { [pool: string]: string[] } = {};
+      // Keep track of the remaining quantities as orders are filled
+      const quantityFilled: { [orderId: string]: number } = {};
+      // Keep track of the maker balances as orders are filled
+      const getMakerBalancesKey = (maker: string, contract: string, tokenId: string) =>
+        `${maker}-${contract}-${tokenId}`;
+      const makerBalances: { [makerAndToken: string]: BigNumber } = {};
+      // TODO: Also keep track of the maker's allowance per exchange
+
+      const sources = await Sources.getInstance();
       const addToPath = async (
         order: {
           id: string;
           kind: OrderKind;
+          maker: string;
           price: string;
           sourceId: number | null;
           currency: string;
-          rawData: any;
-          fees?: Sdk.RouterV6.Types.Fee[];
+          rawData: object;
+          feesOnTop?: Sdk.RouterV6.Types.Fee[];
         },
         token: {
           kind: "erc721" | "erc1155";
@@ -214,9 +221,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
           quantity?: number;
         }
       ) => {
-        const fees = payload.normalizeRoyalties ? order.fees ?? [] : [];
-        const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+        const feesOnTop = payload.normalizeRoyalties ? order.feesOnTop ?? [] : [];
+        const totalFeeOnTop = feesOnTop
+          .map(({ amount }) => bn(amount))
+          .reduce((a, b) => a.add(b), bn(0));
 
+        // Handle dynamically-priced orders
         if (["sudoswap", "nftx"].includes(order.kind)) {
           let poolId: string;
           let priceList: string[];
@@ -243,14 +253,30 @@ export const getExecuteBuyV7Options: RouteOptions = {
           order.price = price;
         }
 
-        const totalPrice = bn(order.price)
-          .add(totalFee)
-          .mul(token.quantity ?? 1);
+        // Increment the order's quantity filled
+        const quantity = token.quantity ?? 1;
+        if (!quantityFilled[order.id]) {
+          quantityFilled[order.id] = 0;
+        }
+        quantityFilled[order.id] += quantity;
+
+        // Decrement the maker's available NFT balance
+        const key = getMakerBalancesKey(order.maker, token.contract, token.tokenId);
+        if (!makerBalances[key]) {
+          makerBalances[key] = await commonHelpers.getNftBalance(
+            token.contract,
+            token.tokenId,
+            order.maker
+          );
+        }
+        makerBalances[key] = makerBalances[key].sub(quantity);
+
+        const totalPrice = bn(order.price).add(totalFeeOnTop).mul(quantity);
         path.push({
           orderId: order.id,
           contract: token.contract,
           tokenId: token.tokenId,
-          quantity: token.quantity ?? 1,
+          quantity,
           source: order.sourceId !== null ? sources.get(order.sourceId)?.domain ?? null : null,
           currency: order.currency,
           quote: formatPrice(totalPrice, (await getCurrency(order.currency)).decimals, true),
@@ -264,10 +290,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               kind: order.kind,
               currency: order.currency,
               rawData: order.rawData,
-              // TODO: We don't support ERC20 fees because of potential direct filling which
-              // does not work with fees on top. We'll need to integrate permits in order to
-              // support ERC20 fees.
-              fees: order.currency === Sdk.Common.Addresses.Eth[config.chainId] ? fees : [],
+              fees: feesOnTop,
             },
             {
               kind: token.kind,
@@ -279,26 +302,32 @@ export const getExecuteBuyV7Options: RouteOptions = {
         );
       };
 
-      // Use a default quantity
-      if (!payload.quantity) {
-        payload.quantity = 1;
-      }
+      const items: {
+        token: string;
+        quantity: number;
+        orderId?: string;
+        rawOrder?: {
+          kind: string;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: any;
+        };
+        preferredOrderSource?: string;
+      }[] = payload.items;
 
-      // Scenario 3: pass raw orders that don't yet exist
-      if (payload.rawOrders) {
-        // Hack: As raw orders are processed, push them to the `orderIds`
-        // field so that they will get handled by the next pipeline step
-        // of this same API rather than doing anything custom for it.
-        payload.orderIds = payload.orderIds || [];
+      for (const item of items) {
+        // Scenario 1: fill via `rawOrder`
+        if (item.rawOrder) {
+          const order = item.rawOrder;
 
-        for (const order of payload.rawOrders) {
+          // Hack: As the raw order is processed, set it to the `orderId`
+          // field so that it will get handled by the next pipeline step
+          // of this same API rather than doing anything custom for it.
+
+          // TODO: Handle any other on-chain orderbooks that cannot be "posted"
           if (order.kind === "sudoswap") {
-            // Sudoswap orders cannot be "posted"
-            payload.orderIds.push(sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId));
+            item.orderId = sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId);
           } else if (order.kind === "nftx") {
-            payload.orderIds.push(
-              nftx.getOrderId(order.data.pool, "sell", order.data.specificIds[0])
-            );
+            item.orderId = nftx.getOrderId(order.data.pool, "sell", order.data.specificIds[0]);
           } else {
             const response = await inject({
               method: "POST",
@@ -310,18 +339,20 @@ export const getExecuteBuyV7Options: RouteOptions = {
               payload: { order },
             }).then((response) => JSON.parse(response.payload));
             if (response.orderId) {
-              payload.orderIds.push(response.orderId);
+              item.orderId = response.orderId;
             } else {
-              throw Boom.badData("Raw order failed to get processed");
+              if (payload.partial) {
+                continue;
+              } else {
+                throw Boom.badData("Raw order failed to get processed");
+              }
             }
           }
         }
-      }
 
-      // Scenario 2: explicitly passing existing orders to fill
-      if (payload.orderIds) {
-        for (const orderId of payload.orderIds) {
-          const orderResult = await idb.oneOrNone(
+        // Scenario 2: fill via `orderId`
+        if (item.orderId) {
+          const result = await idb.oneOrNone(
             `
               SELECT
                 orders.kind,
@@ -331,6 +362,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 orders.source_id_int,
                 orders.currency,
                 orders.missing_royalties,
+                orders.maker,
                 token_sets_tokens.contract,
                 token_sets_tokens.token_id
               FROM orders
@@ -347,299 +379,154 @@ export const getExecuteBuyV7Options: RouteOptions = {
                     ? ""
                     : " AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'"
                 }
-                ${
-                  // TODO: Add support for buying in ERC20 tokens
-                  payload.currency && payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
-                    ? " AND orders.currency = $/currency/"
-                    : ""
-                }
             `,
             {
-              id: orderId,
-              quantity: payload.quantity ?? 1,
-              currency: payload.currency ? toBuffer(payload.currency) : undefined,
+              id: item.orderId,
+              quantity: item.quantity,
             }
           );
-          if (!orderResult) {
-            if (!payload.partial) {
-              // Return an error if the client does not accept partial fills
-              throw Boom.badData(`Order ${orderId} not found or not fillable`);
-            } else {
+          if (!result) {
+            if (payload.partial) {
               continue;
-            }
-          }
-
-          if (payload.quantity > 1) {
-            if (orderResult.token_kind !== "erc1155") {
-              throw Boom.badRequest("Only ERC1155 orders support a quantity");
-            }
-            if (payload.orderIds.length > 1) {
-              throw Boom.badRequest(
-                "When specifying a quantity only a single ERC1155 order can get filled"
-              );
+            } else {
+              throw Boom.badData(`Order ${item.orderId} not found or not fillable`);
             }
           }
 
           await addToPath(
             {
-              id: orderId,
-              kind: orderResult.kind,
-              price: orderResult.price,
-              sourceId: orderResult.source_id_int,
-              currency: fromBuffer(orderResult.currency),
-              rawData: orderResult.raw_data,
-              fees: orderResult.missing_royalties,
+              id: result.id,
+              kind: result.kind,
+              maker: fromBuffer(result.maker),
+              price: result.price,
+              sourceId: result.source_id_int,
+              currency: fromBuffer(result.currency),
+              rawData: result.raw_data,
+              feesOnTop: result.missing_royalties,
             },
             {
-              kind: orderResult.token_kind,
-              contract: fromBuffer(orderResult.contract),
-              tokenId: orderResult.token_id,
-              quantity: payload.quantity ?? 1,
+              kind: result.token_kind,
+              contract: fromBuffer(result.contract),
+              tokenId: result.token_id,
+              quantity: item.quantity,
             }
           );
         }
-      }
 
-      // Scenario 3: passing the tokens and quantity to fill
-      if (payload.tokens) {
-        const preferredOrderSource = sources.getByDomain(payload.preferredOrderSource)?.id;
-        for (const token of payload.tokens) {
-          const [contract, tokenId] = token.split(":");
+        // Scenario 3: fill via `token`
+        if (item.token) {
+          const [contract, tokenId] = item.token.split(":");
 
-          if (payload.quantity === 1) {
-            // Filling a quantity of 1 implies getting the best listing for that token
-            const bestOrderResult = await idb.oneOrNone(
-              `
-                SELECT
-                  orders.id,
-                  orders.kind,
-                  contracts.kind AS token_kind,
-                  coalesce(orders.currency_price, orders.price) AS price,
-                  orders.raw_data,
-                  orders.source_id_int,
-                  orders.currency,
-                  orders.missing_royalties
-                FROM orders
-                JOIN contracts
-                  ON orders.contract = contracts.address
-                WHERE orders.token_set_id = $/tokenSetId/
-                  AND orders.side = 'sell'
-                  AND orders.fillability_status = 'fillable'
-                  AND orders.approval_status = 'approved'
-                  AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                  ${
-                    // TODO: Add support for buying in ERC20 tokens
-                    payload.currency &&
-                    payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
-                      ? " AND orders.currency = $/currency/"
-                      : ""
-                  }
-                ORDER BY
-                  ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
-                  ${
-                    preferredOrderSource
-                      ? `(
-                          CASE
-                            WHEN orders.source_id_int = $/sourceId/ THEN 0
-                            ELSE 1
-                          END
-                        )`
-                      : "orders.fee_bps"
-                  }
-                LIMIT 1
-              `,
-              {
-                tokenSetId: `token:${token}`,
-                sourceId: preferredOrderSource,
-                currency: payload.currency ? toBuffer(payload.currency) : undefined,
-              }
-            );
-
-            if (bestOrderResult) {
-              const {
-                id,
-                kind,
-                token_kind,
-                price,
-                source_id_int,
-                currency,
-                missing_royalties,
-                raw_data,
-              } = bestOrderResult;
-
-              await addToPath(
-                {
-                  id,
-                  kind,
-                  price,
-                  sourceId: source_id_int,
-                  currency: fromBuffer(currency),
-                  rawData: raw_data,
-                  fees: missing_royalties,
-                },
-                {
-                  kind: token_kind,
-                  contract,
-                  tokenId,
+          // Fetch all matching orders sorted by price
+          const orderResults = await idb.manyOrNone(
+            `
+              SELECT
+                orders.id,
+                orders.kind,
+                contracts.kind AS token_kind,
+                coalesce(orders.currency_price, orders.price) AS price,
+                orders.quantity_remaining,
+                orders.source_id_int,
+                orders.currency,
+                orders.missing_royalties,
+                orders.maker,
+                orders.raw_data,
+                contracts.kind AS token_kind,
+                orders.quantity_remaining AS quantity
+              FROM orders
+              JOIN contracts
+                ON orders.contract = contracts.address
+              WHERE orders.token_set_id = $/tokenSetId/
+                AND orders.side = 'sell'
+                AND orders.fillability_status = 'fillable'
+                AND orders.approval_status = 'approved'
+                AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+              ORDER BY
+                ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
+                ${
+                  item.preferredOrderSource
+                    ? `(
+                        CASE
+                          WHEN orders.source_id_int = $/sourceId/ THEN 0
+                          ELSE 1
+                        END
+                      )`
+                    : "orders.fee_bps"
                 }
-              );
-            } else if (!payload.partial) {
-              throw Boom.badRequest("No available orders");
+              LIMIT 1000
+            `,
+            {
+              tokenSetId: `token:${item.token}`,
+              quantity: item.quantity,
+              sourceId: item.preferredOrderSource,
             }
-          } else {
-            // Fetch all matching orders (limit to 1000 results just for safety)
-            const bestOrdersResult = await idb.manyOrNone(
-              `
-                SELECT
-                  orders.id,
-                  orders.kind,
-                  contracts.kind AS token_kind,
-                  coalesce(orders.currency_price, orders.price) AS price,
-                  orders.quantity_remaining,
-                  orders.source_id_int,
-                  orders.currency,
-                  orders.missing_royalties,
-                  orders.maker,
-                  orders.raw_data,
-                  contracts.kind AS token_kind,
-                  orders.quantity_remaining AS quantity
-                FROM orders
-                JOIN contracts
-                  ON orders.contract = contracts.address
-                WHERE orders.token_set_id = $/tokenSetId/
-                  AND orders.side = 'sell'
-                  AND orders.fillability_status = 'fillable'
-                  AND orders.approval_status = 'approved'
-                  AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                  ${
-                    // TODO: Add support for buying in ERC20 tokens
-                    payload.currency &&
-                    payload.currency !== Sdk.Common.Addresses.Eth[config.chainId]
-                      ? " AND orders.currency = $/currency/"
-                      : ""
-                  }
-                ORDER BY
-                  ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
-                  ${
-                    preferredOrderSource
-                      ? `(
-                          CASE
-                            WHEN orders.source_id_int = $/sourceId/ THEN 0
-                            ELSE 1
-                          END
-                        )`
-                      : "orders.fee_bps"
-                  }
-                LIMIT 1000
-              `,
+          );
+
+          let quantityToFill = item.quantity;
+          for (const result of orderResults) {
+            // Stop if we filled the total quantity
+            if (quantityToFill <= 0) {
+              break;
+            }
+
+            // Account for the already filled order's quantity
+            let availableQuantity = Number(result.quantity_remaining);
+            if (quantityFilled[result.id]) {
+              availableQuantity -= quantityFilled[result.id];
+            }
+
+            // Account for the already filled maker's balance
+            const maker = fromBuffer(result.maker);
+            const key = getMakerBalancesKey(maker, contract, tokenId);
+            if (makerBalances[key]) {
+              const makerAvailableQuantity = makerBalances[key].toNumber();
+              if (makerAvailableQuantity < availableQuantity) {
+                availableQuantity = makerAvailableQuantity;
+              }
+            }
+
+            // Skip the current order if it has no quantity available
+            if (availableQuantity <= 0) {
+              continue;
+            }
+
+            // Update the quantity to fill with the current order's available quantity
+            quantityToFill -= availableQuantity;
+
+            await addToPath(
               {
-                tokenSetId: `token:${token}`,
-                quantity: payload.quantity,
-                sourceId: preferredOrderSource,
-                currency: payload.currency ? toBuffer(payload.currency) : undefined,
+                id: result.id,
+                kind: result.kind,
+                maker,
+                price: result.price,
+                sourceId: result.source_id_int,
+                currency: fromBuffer(result.currency),
+                rawData: result.raw_data,
+                feesOnTop: result.missing_royalties,
+              },
+              {
+                kind: result.token_kind,
+                contract,
+                tokenId,
+                quantity: availableQuantity,
               }
             );
+          }
 
-            if (bestOrdersResult?.length) {
-              if (
-                bestOrdersResult.length &&
-                bestOrdersResult[0].token_kind === "erc1155" &&
-                payload.tokens.length > 1
-              ) {
-                throw Boom.badData(
-                  "When specifying a quantity greater than one, only a single ERC1155 token can get filled"
-                );
-              }
-
-              // Keep track of the balances of each maker as orders are being added to the path.
-              // This is needed for covering cases where a maker has multiple orders but filling
-              // one of them changes the quantity fillable of the other ones.
-              const makerBalances: { [maker: string]: BigNumber } = {};
-
-              let totalQuantityToFill = Number(payload.quantity);
-              for (const {
-                id,
-                kind,
-                token_kind,
-                quantity_remaining,
-                price,
-                source_id_int,
-                currency,
-                missing_royalties,
-                maker,
-                raw_data,
-              } of bestOrdersResult) {
-                // As long as the total quantity to fill is not met
-                if (totalQuantityToFill <= 0) {
-                  break;
-                }
-
-                const convertedMaker = fromBuffer(maker);
-                if (!makerBalances[convertedMaker]) {
-                  makerBalances[convertedMaker] = await commonHelpers.getNftBalance(
-                    contract,
-                    tokenId,
-                    convertedMaker
-                  );
-                }
-
-                // Minimum between:
-                // - the order's fillable quantity
-                // - the maker's fillable quantity
-                // - the quantity remaining to fill
-                const quantityFilled = Math.min(
-                  Number(quantity_remaining),
-                  makerBalances[convertedMaker].toNumber(),
-                  totalQuantityToFill
-                );
-                totalQuantityToFill -= quantityFilled;
-
-                // Reduce the maker's fillable quantity
-                makerBalances[convertedMaker] = makerBalances[convertedMaker].sub(quantityFilled);
-
-                await addToPath(
-                  {
-                    id,
-                    kind,
-                    price,
-                    sourceId: source_id_int,
-                    currency: fromBuffer(currency),
-                    rawData: raw_data,
-                    fees: missing_royalties,
-                  },
-                  {
-                    kind: token_kind,
-                    contract,
-                    tokenId,
-                    quantity: quantityFilled,
-                  }
-                );
-              }
-
-              // No available orders to fill the requested quantity
-              if (!payload.partial && totalQuantityToFill > 0) {
-                throw Boom.badRequest("No available orders");
-              }
-            } else if (!payload.partial) {
-              throw Boom.badRequest("No available orders");
+          if (quantityToFill > 0) {
+            if (payload.partial) {
+              continue;
+            } else {
+              throw Boom.badData(
+                `No available orders for token ${item.token} with quantity ${item.quantity}`
+              );
             }
           }
         }
       }
 
       if (!path.length) {
-        throw Boom.badRequest("No fillable orders");
-      }
-
-      if (payload.quantity > 1) {
-        if (!listingDetails.every((d) => d.contractKind === "erc1155")) {
-          throw Boom.badData("Only ERC1155 tokens support a quantity greater than one");
-        }
-      }
-
-      if (payload.onlyPath) {
-        // Only return the path if that's what was requested
-        return { path };
+        throw Boom.badRequest("No available orders");
       }
 
       let buyInCurrency = payload.currency;
@@ -667,19 +554,27 @@ export const getExecuteBuyV7Options: RouteOptions = {
         buyInCurrency,
         {
           source: payload.source,
-          // TODO: Add support for buying any listing via any ERC20 token
-          globalFees: buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId] ? feesOnTop : [],
           partial: payload.partial,
           forceRouter: payload.forceRouter,
-          directFillingData: {
-            conduitKey:
-              config.chainId === 1
-                ? "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000"
-                : undefined,
-          },
           relayer: payload.relayer,
+          globalFees: feesOnTop,
+          // TODO: Move this defaulting to the core SDK
+          directFillingData: {
+            conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId],
+          },
         }
       );
+
+      // Filter out any non-fillable orders from the path
+      path = path.filter((_, i) => success[i]);
+
+      if (!path.length) {
+        throw Boom.badRequest("No available orders");
+      }
+
+      if (payload.onlyPath) {
+        return { path };
+      }
 
       // Set up generic filling steps
       const steps: {
@@ -689,7 +584,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         kind: string;
         items: {
           status: string;
-          data?: any;
+          data?: object;
         }[];
       }[] = [
         {
@@ -715,10 +610,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
         },
       ];
 
-      const taker = payload.taker;
-      const relayer = payload.relayer;
-      const txSender = relayer ?? taker;
-
       // Custom gas settings
       const maxFeePerGas = payload.maxFeePerGas
         ? bn(payload.maxFeePerGas).toHexString()
@@ -728,25 +619,23 @@ export const getExecuteBuyV7Options: RouteOptions = {
         : undefined;
 
       for (const approval of approvals) {
-        const approvedValue = await onChainData
+        const approvedAmount = await onChainData
           .fetchAndUpdateFtApproval(approval.currency, approval.owner, approval.operator, true)
           .then((a) => a.value);
 
-        // Make sure have been approved
         const amountToApprove = permits.length
           ? permits
-              .map((p) => {
-                return p.details.data.transferDetails.filter((_) => _.token === approval.currency);
-              })
+              .map((p) =>
+                p.details.data.transferDetails.filter(({ token }) => token === approval.currency)
+              )
               .flat()
-              .reduce((total, item) => total.add(item.amount), bn(0))
+              .reduce((total, { amount }) => total.add(amount), bn(0))
           : path
-              .filter((_) => _.currency === approval.currency)
+              .filter((p) => p.currency === approval.currency)
               .map(({ rawQuote }) => bn(rawQuote))
-              .reduce((a, b) => a.add(b));
+              .reduce((total, amount) => total.add(amount), bn(0));
 
-        const isApproved = bn(approvedValue).gte(amountToApprove);
-
+        const isApproved = bn(approvedAmount).gte(amountToApprove);
         if (!isApproved) {
           steps[0].items.push({
             status: "incomplete",
@@ -760,7 +649,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       const permitHandler = new Permit2.Handler(config.chainId, baseProvider);
-
       if (permits.length) {
         for (const permit of permits) {
           const id = getPermitId(request.payload as object, permit.currencies);
@@ -803,34 +691,39 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
       }
 
-      // Check that the taker has enough funds to fill all requested tokens
-      const totalPrice = path.map(({ rawQuote }) => bn(rawQuote)).reduce((a, b) => a.add(b));
+      // Get the total price to be paid in the buy-in currency:
+      // - orders already denominated in the buy-in currency
+      // - permit amounts (which will be denominated in the buy-in currency)
+      const totalBuyInCurrencyPrice = path
+        .filter(({ currency }) => currency === buyInCurrency)
+        .map(({ rawQuote }) => bn(rawQuote))
+        .reduce((a, b) => a.add(b), bn(0))
+        .add(
+          permits
+            .map((p) => p.details.data.transferDetails.map((d) => bn(d.amount)))
+            .flat()
+            .reduce((a, b) => a.add(b), bn(0))
+        );
 
+      // Check that the transaction sender has enough funds to fill all requested tokens
+      const txSender = payload.relayer ?? payload.taker;
       if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
         const balance = await baseProvider.getBalance(txSender);
-        if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
+        if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
           throw Boom.badData("Balance too low to proceed with transaction");
         }
       } else {
         const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, buyInCurrency);
-
         const balance = await erc20.getBalance(txSender);
-        if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
+        if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
           throw Boom.badData("Balance too low to proceed with transaction");
-        }
-
-        const supportedKinds = ["seaport", "universe", "rarible"];
-        const matchKind = supportedKinds.find((kind) => {
-          return listingDetails.every((d) => d.kind === kind);
-        });
-        if (!matchKind) {
-          throw new Error("Only Seaport, Universe and Rarible ERC20 listings are supported");
         }
       }
 
       steps[2].items.push({
         status: "incomplete",
         data:
+          // Do not return the final step unless all permits have a signature attached
           steps[1].items.length === 0
             ? {
                 ...permitHandler.attachToRouterExecution(
@@ -845,11 +738,17 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
       return {
         steps,
-        // Remove any unsuccessfully handled listings from the path
-        path: path.filter((_, i) => success[i]),
+        path,
       };
     } catch (error) {
-      logger.error(`get-execute-buy-${version}-handler`, `Handler failure: ${error}`);
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(
+          `get-execute-buy-${version}-handler`,
+          `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
+            payload
+          )})`
+        );
+      }
       throw error;
     }
   },

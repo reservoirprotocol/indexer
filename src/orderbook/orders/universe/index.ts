@@ -13,6 +13,7 @@ import { Sources } from "@/models/sources";
 import { offChainCheck } from "@/orderbook/orders/universe/check";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
+import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 
 export type OrderInfo = {
@@ -43,8 +44,10 @@ export const save = async (
     try {
       const order = new Sdk.Universe.Order(config.chainId, orderParams);
       const exchange = new Sdk.Universe.Exchange(config.chainId);
+
       const id = order.hashOrderKey();
       const { side } = order.getInfo()!;
+
       // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(`SELECT 1 FROM "orders" "o" WHERE "o"."id" = $/id/`, {
         id,
@@ -89,43 +92,31 @@ export const save = async (
           : order.params.make.assetType.tokenId!;
 
       // Handle: currency
-      let currency = "";
+      let currency: string;
       if (side === "sell") {
         switch (order.params.take.assetType.assetClass) {
           case "ETH":
             currency = Sdk.Common.Addresses.Eth[config.chainId];
             break;
-          case "ERC20":
-            currency = order.params.take.assetType.contract!;
-            break;
-          default:
-            break;
-        }
-      } else {
-        // This will always be WETH for now
-        currency = order.params.make.assetType.contract!;
-      }
 
-      // Check: order has Weth or Eth as payment token
-      switch (side) {
-        // Buy Order
-        case "buy":
-          if (currency !== Sdk.Common.Addresses.Weth[config.chainId]) {
+          case "ERC20":
+            currency = order.params.take.assetType.contract!.toLowerCase();
+            break;
+
+          default:
             return results.push({
               id,
-              status: "unsupported-payment-token",
+              status: "undetectable-currency",
             });
-          }
-          break;
-        // Sell order
-        case "sell":
-          // We allow ETH and ERC20 orders so no need to validate here
-          break;
-        default:
+        }
+      } else {
+        currency = order.params.make.assetType.contract!;
+        if (currency !== Sdk.Common.Addresses.Weth[config.chainId]) {
           return results.push({
             id,
-            status: "invalid-side",
+            status: "unsupported-payment-token",
           });
+        }
       }
 
       // Check: order is valid
@@ -231,9 +222,7 @@ export const save = async (
       const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
 
       // Handle: price and value
-      const price = side === "buy" ? order.params.make.value : order.params.take.value;
-
-      // For sell orders, the value is the same as the price
+      let price = side === "buy" ? order.params.make.value : order.params.take.value;
       let value = price;
       if (side === "buy") {
         // For buy orders, we set the value as `price - fee` since it
@@ -275,6 +264,46 @@ export const save = async (
         }
       }
 
+      // Handle: price conversion
+      const currencyPrice = price.toString();
+      const currencyValue = value.toString();
+
+      let needsConversion = false;
+      if (
+        ![
+          Sdk.Common.Addresses.Eth[config.chainId],
+          Sdk.Common.Addresses.Weth[config.chainId],
+        ].includes(currency)
+      ) {
+        needsConversion = true;
+
+        // If the currency is anything other than ETH/WETH, we convert
+        // `price` and `value` from that currency denominations to the
+        // ETH denomination
+        {
+          const prices = await getUSDAndNativePrices(currency, price.toString(), currentTime);
+          if (!prices.nativePrice) {
+            // Getting the native price is a must
+            return results.push({
+              id,
+              status: "failed-to-convert-price",
+            });
+          }
+          price = bn(prices.nativePrice).toString();
+        }
+        {
+          const prices = await getUSDAndNativePrices(currency, value.toString(), currentTime);
+          if (!prices.nativePrice) {
+            // Getting the native price is a must
+            return results.push({
+              id,
+              status: "failed-to-convert-price",
+            });
+          }
+          value = bn(prices.nativePrice).toString();
+        }
+      }
+
       // Handle: source
       const sources = await Sources.getInstance();
       let source = await sources.getOrInsert("universe.xyz");
@@ -304,9 +333,9 @@ export const save = async (
         price,
         value,
         currency: toBuffer(currency),
-        currency_price: price,
-        currency_value: value,
-        needs_conversion: null,
+        currency_price: currencyPrice,
+        currency_value: currencyValue,
+        needs_conversion: needsConversion,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: order.params.salt,
         source_id_int: source?.id,
