@@ -4,6 +4,7 @@ dotEnvConfig();
 import { extractRoyalties } from "@/events-sync/handlers/royalties/core";
 import { getRoyalties } from "@/utils/royalties";
 import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
+import { StateCache } from "@/events-sync/handlers/royalties";
 
 jest.setTimeout(1000 * 1000);
 
@@ -54,10 +55,14 @@ describe("Royalties - Router normalize", () => {
     });
 
     const { fillEvents } = await getFillEventsFromTx(txHash);
+    const cache: StateCache = {
+      royalties: new Map(),
+    };
+
     for (let index = 0; index < fillEvents.length; index++) {
       const fillEvent = fillEvents[index];
       const feeForPlatform = platformFees.find((_) => _.kind === fillEvent.orderKind);
-      const fees = await extractRoyalties(fillEvent);
+      const fees = await extractRoyalties(fillEvent, cache);
 
       const matched = testCollectionRoyalties.find((c) => c.collection === fillEvent.contract);
 
