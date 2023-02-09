@@ -311,9 +311,9 @@ export const getExecuteSellV7Options: RouteOptions = {
 
           // TODO: Handle any other on-chain orderbooks that cannot be "posted"
           if (order.kind === "sudoswap") {
-            payload.orderId = sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId);
+            item.orderId = sudoswap.getOrderId(order.data.pair, "buy");
           } else if (order.kind === "nftx") {
-            payload.orderId = nftx.getOrderId(order.data.pool, "sell", order.data.specificIds[0]);
+            item.orderId = nftx.getOrderId(order.data.pool, "buy");
           } else {
             const response = await inject({
               method: "POST",
@@ -325,7 +325,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               payload: { order },
             }).then((response) => JSON.parse(response.payload));
             if (response.orderId) {
-              payload.orderId = response.orderId;
+              item.orderId = response.orderId;
             } else {
               if (payload.partial) {
                 continue;
