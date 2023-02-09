@@ -62,7 +62,7 @@ if (config.doBackgroundWork) {
           `There are ${pendingCount} collections slugs pending to refresh for ${data.method}`
         );
         if (await acquireLock(metadataIndexProcessBySlug.getLockName(data.method), 60 * 5)) {
-          await metadataIndexProcessBySlug.addToQueue(data.method);
+          await metadataIndexProcessBySlug.addToQueue();
         }
         return;
       }

@@ -158,8 +158,6 @@ if (config.doBackgroundWork) {
       if (rateLimitExpiredIn || _.size(refreshTokensBySlug) == countTotal || retry) {
         if (await extendLock(getLockName(method), 60 * 5 + rateLimitExpiredIn)) {
           await addToQueue(
-            method,
-
             rateLimitExpiredIn * 1000
           );
         }
@@ -179,12 +177,10 @@ export const getLockName = (method: string) => {
   return `${QUEUE_NAME}:${method}`;
 };
 
-export const addToQueue = async (method: string, delay = 0) => {
+export const addToQueue = async (delay = 0) => {
   await queue.add(
     randomUUID(),
-    {
-      method,
-    },
+    {},
     { delay }
   );
 };
