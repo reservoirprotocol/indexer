@@ -1,13 +1,13 @@
+import { Result, defaultAbiCoder } from "@ethersproject/abi";
 import * as Sdk from "@reservoir0x/sdk";
+
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { defaultAbiCoder } from "@ethersproject/abi";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
-  // Handle the events
   for (const { subKind, baseEventParams, log } of events) {
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
@@ -15,11 +15,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const { args } = eventData.abi.parseLog(log);
         const maker = args["makerAddress"].toLowerCase();
         const taker = args["takerAddress"].toLowerCase();
-        let amount = "";
-        let tokenContract = "";
-        let tokenId = "";
-        let currency = "";
-        let currencyPrice = "";
 
         const MultiAssetProxy = "0x94cfcdd7";
         const ERC20Proxy = "0xf47261b0";
@@ -58,7 +53,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const orderSide = makerAssetType === ERC20Proxy ? "buy" : "sell";
 
         // Decode taker asset data
-        let decodedTakerAssetData = null;
+        let decodedTakerAssetData: Result;
         if (takerAssetType === ERC721Proxy) {
           decodedTakerAssetData = defaultAbiCoder.decode(
             ["address", "uint256"],
@@ -72,7 +67,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         }
 
         // Decode maker asset data
-        let decodedMakerAssetData = null;
+        let decodedMakerAssetData: Result;
         if (makerAssetType === ERC721Proxy) {
           decodedMakerAssetData = defaultAbiCoder.decode(
             ["address", "uint256"],
@@ -85,12 +80,13 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           );
         }
 
-        currency = orderSide === "sell" ? decodedTakerAssetData[0] : decodedMakerAssetData[0];
-        currencyPrice = orderSide === "sell" ? takerAssetData[0][0] : makerAssetData[0][0];
-        amount = orderSide === "sell" ? makerAssetData[0][0] : takerAssetData[0][0];
-        tokenContract = orderSide === "sell" ? decodedMakerAssetData[0] : decodedTakerAssetData[0];
-        tokenId = orderSide === "sell" ? decodedMakerAssetData[1] : decodedTakerAssetData[1];
+        const currencyPrice = orderSide === "sell" ? takerAssetData[0][0] : makerAssetData[0][0];
+        const amount = orderSide === "sell" ? makerAssetData[0][0] : takerAssetData[0][0];
+        const tokenContract =
+          orderSide === "sell" ? decodedMakerAssetData[0] : decodedTakerAssetData[0];
+        const tokenId = orderSide === "sell" ? decodedMakerAssetData[1] : decodedTakerAssetData[1];
 
+        let currency = orderSide === "sell" ? decodedTakerAssetData[0] : decodedMakerAssetData[0];
         if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address
           currency = Sdk.Common.Addresses.Eth[config.chainId];
@@ -119,11 +115,11 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           maker,
           taker,
           price: priceData.nativePrice,
-          currencyPrice,
+          currencyPrice: currencyPrice.toString(),
           usdPrice: priceData.usdPrice,
           contract: tokenContract,
-          tokenId,
-          amount,
+          tokenId: tokenId.toString(),
+          amount: amount.toString(),
           orderSourceId: attributionData.orderSource?.id,
           aggregatorSourceId: attributionData.aggregatorSource?.id,
           fillSourceId: attributionData.fillSource?.id,
