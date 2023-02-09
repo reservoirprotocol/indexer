@@ -8,7 +8,6 @@ import _ from "lodash";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { config } from "@/config/index";
 import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
@@ -172,32 +171,34 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         // Revalidate the contract orders
         await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
 
+        let metadataIndexInfo: MetadataIndexInfo | null = null;
+        const method = metadataIndexFetch.getIndexingMethod(collection.community);
+        if (method === "opensea") {
+          // Refresh contract orders from OpenSea
+          await OpenseaIndexerApi.fastContractSync(collection.contract);
+          if (collection.slug) {
+            metadataIndexInfo = {
+              kind: "full-collection-by-slug",
+              data: {
+                method,
+                contract: collection.contract,
+                slug: collection.slug,
+                collection: collection.id,
+              },
+            };
+          }
+        }
         // Do these refresh operation only for small collections
-        if (!isLargeCollection) {
-          const method = metadataIndexFetch.getIndexingMethod(collection.community);
-          let metadataIndexInfo: MetadataIndexInfo = {
+        if (!isLargeCollection && metadataIndexInfo == null) {
+          metadataIndexInfo = {
             kind: "full-collection",
             data: {
               method,
               collection: collection.id,
             },
           };
-          if (method === "opensea") {
-            // Refresh contract orders from OpenSea
-            await OpenseaIndexerApi.fastContractSync(collection.contract);
-            if (collection.slug) {
-              metadataIndexInfo = {
-                kind: "full-collection-by-slug",
-                data: {
-                  method,
-                  contract: collection.contract,
-                  slug: collection.slug,
-                  collection: collection.id,
-                },
-              };
-            }
-          }
-
+        }
+        if (metadataIndexInfo != null) {
           // Refresh the collection tokens metadata
           await metadataIndexFetch.addToQueue([metadataIndexInfo], true);
         }
