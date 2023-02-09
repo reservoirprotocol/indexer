@@ -7,7 +7,7 @@ import { redis, acquireLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { Collections } from "@/models/collections";
 
-const QUEUE_NAME = "collections-metadata-queue";
+export const QUEUE_NAME = "collections-metadata-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
