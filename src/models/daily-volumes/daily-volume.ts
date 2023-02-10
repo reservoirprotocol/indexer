@@ -364,13 +364,13 @@ export class DailyVolume {
             UPDATE collections
             SET
                 day1_volume = $/day1_volume/,
-                ${collectionId ? `day1_rank   = $/day1_rank/,` : ""}
+                ${collectionId ? "" : `day1_rank = $/day1_rank/,`}
                 day7_volume = $/day7_volume/,
-                ${collectionId ? `day7_rank   = $/day7_rank/,` : ""}
+                ${collectionId ? "" : `day7_rank = $/day7_rank/,`}
                 day30_volume = $/day30_volume/,
-                ${collectionId ? `day30_rank   = $/day30_rank/,` : ""}
+                ${collectionId ? "" : `day30_rank = $/day30_rank/,`}
                 all_time_volume = $/all_time_volume/,
-                ${collectionId ? `all_time_rank = $/all_time_rank/,` : ""}
+                ${collectionId ? "" : `all_time_rank = $/all_time_rank/,`}
                 updated_at = now()
             WHERE
                 id = $/collection_id/`,

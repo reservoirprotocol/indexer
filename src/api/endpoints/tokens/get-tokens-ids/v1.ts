@@ -47,9 +47,9 @@ export const getTokensIdsV4Options: RouteOptions = {
         .max(10000)
         .default(100)
         .description("Amount of items returned in response."),
-      continuation: Joi.number().description(
-        "Use continuation token to request next offset of items."
-      ),
+      continuation: Joi.string()
+        .pattern(regex.number)
+        .description("Use continuation token to request next offset of items."),
     })
       .or("collection", "contract", "tokenSetId")
       .oxor("collection", "contract", "tokenSetId")
