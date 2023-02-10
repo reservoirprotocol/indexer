@@ -10,8 +10,10 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { PendingRefreshTokens, RefreshTokens } from "@/models/pending-refresh-tokens";
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
+import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue-by-slug";
+import { PendingRefreshTokensBySlug } from "@/models/pending-refresh-tokens-by-slug";
 
-const QUEUE_NAME = "metadata-index-fetch-queue";
+export const QUEUE_NAME = "metadata-index-fetch-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -43,6 +45,27 @@ if (config.doBackgroundWork) {
       const limit = 1000;
       let refreshTokens: RefreshTokens[] = [];
 
+      if (kind === "full-collection-by-slug") {
+        // Add the collections slugs to the list
+        const pendingRefreshTokensBySlug = new PendingRefreshTokensBySlug();
+        const pendingCount = await pendingRefreshTokensBySlug.add(
+          {
+            slug: data.slug,
+            contract: data.contract,
+            collection: data.collection,
+          },
+          prioritized
+        );
+
+        logger.debug(
+          QUEUE_NAME,
+          `There are ${pendingCount} collections slugs pending to refresh for ${data.method}`
+        );
+        if (await acquireLock(metadataIndexProcessBySlug.getLockName(data.method), 60 * 5)) {
+          await metadataIndexProcessBySlug.addToQueue();
+        }
+        return;
+      }
       if (kind === "full-collection") {
         // Get batch of tokens for the collection
         const [contract, tokenId] = data.continuation
@@ -90,7 +113,7 @@ if (config.doBackgroundWork) {
 
       logger.debug(
         QUEUE_NAME,
-        `There are ${pendingCount} tokens pending to refresh for ${data.method}`
+        `There are ${pendingCount} collection slugs pending to refresh for ${data.method}`
       );
 
       if (await acquireLock(metadataIndexProcess.getLockName(data.method), 60 * 5)) {
@@ -146,6 +169,15 @@ export type MetadataIndexInfo =
         method: string;
         collection: string;
         continuation?: string;
+      };
+    }
+  | {
+      kind: "full-collection-by-slug";
+      data: {
+        method: string;
+        contract: string;
+        collection: string;
+        slug: string;
       };
     }
   | {

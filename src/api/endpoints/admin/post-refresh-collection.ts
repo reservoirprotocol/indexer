@@ -15,6 +15,7 @@ import * as orderFixes from "@/jobs/order-fixes/queue";
 import { Collections } from "@/models/collections";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { Tokens } from "@/models/tokens";
+import { MetadataIndexInfo } from "@/jobs/metadata-index/fetch-queue";
 
 export const postRefreshCollectionOptions: RouteOptions = {
   description: "Refresh a collection's orders and metadata",
@@ -99,24 +100,32 @@ export const postRefreshCollectionOptions: RouteOptions = {
         // Revalidate the contract orders
         await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
 
-        if (config.metadataIndexingMethod === "opensea") {
+        const method = metadataIndexFetch.getIndexingMethod(collection.community);
+        let metadataIndexInfo: MetadataIndexInfo = {
+          kind: "full-collection",
+          data: {
+            method,
+            collection: collection.id,
+          },
+        };
+        if (method === "opensea") {
           // Refresh contract orders from OpenSea
           await OpenseaIndexerApi.fastContractSync(collection.contract);
+          if (collection.slug) {
+            metadataIndexInfo = {
+              kind: "full-collection-by-slug",
+              data: {
+                method,
+                contract: collection.contract,
+                slug: collection.slug,
+                collection: collection.id,
+              },
+            };
+          }
         }
 
         // Refresh the collection tokens metadata
-        await metadataIndexFetch.addToQueue(
-          [
-            {
-              kind: "full-collection",
-              data: {
-                method: metadataIndexFetch.getIndexingMethod(collection.community),
-                collection: collection.id,
-              },
-            },
-          ],
-          true
-        );
+        await metadataIndexFetch.addToQueue([metadataIndexInfo], true);
       }
 
       return { message: "Request accepted" };

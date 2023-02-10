@@ -13,6 +13,7 @@ import axios from "axios";
 import { getNetworkName } from "@/config/network";
 import { config } from "@/config/index";
 import { Boom } from "@hapi/boom";
+import tracer from "@/common/tracer";
 
 export type ApiKeyRecord = {
   app_name: string;
@@ -210,6 +211,23 @@ export class ApiKeyManager {
   public static async logRequest(request: Request) {
     const log: any = await ApiKeyManager.getBaseLog(request);
     logger.info("metrics", JSON.stringify(log));
+
+    // Add request query or payload to Datadog trace
+    try {
+      tracer
+        .scope()
+        .active()
+        ?.setTag(
+          "requestParams",
+          log.payload
+            ? { ...log.payload, ...log.params }
+            : log.query
+            ? { ...log.query, ...log.params }
+            : null
+        );
+    } catch (error) {
+      logger.warn("metrics", "Could not add payload to Datadog trace: " + error);
+    }
   }
 
   public static async logUnexpectedErrorResponse(request: Request, error: Boom) {

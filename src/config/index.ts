@@ -102,6 +102,9 @@ export const config = {
   websocketServerEventMaxBatchSize: String(process.env.WEBSOCKET_SERVER_EVENT_MAX_BATCH_SIZE || 10),
 
   maxParallelTokenRefreshJobs: Number(process.env.MAX_PARALLEL_TOKEN_REFRESH_JOBS || 1),
+  maxParallelTokenCollectionSlugRefreshJobs: Number(
+    process.env.MAX_PARALLEL_TOKEN_COLLECTION_SLUG_REFRESH_JOBS || 1
+  ),
 
   // Backfilling
   doNftTransfersWrite: Boolean(Number(process.env.DO_NFT_TRANSFERS_WRITE)),

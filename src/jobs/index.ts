@@ -84,6 +84,7 @@ import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/genera
 import * as flagStatusUpdate from "@/jobs/flag-status/update";
 
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
+import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue-by-slug";
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 
@@ -101,6 +102,8 @@ import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-que
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
 import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
+import * as orderbookSaveOpenseaWebsocketEvents from "@/jobs/orderbook/save-opensea-websocket-events-queue";
+import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
 
 import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
 
@@ -190,6 +193,7 @@ export const allJobQueues = [
   flagStatusUpdate.queue,
 
   metadataIndexFetch.queue,
+  metadataIndexProcessBySlug.queue,
   metadataIndexProcess.queue,
   metadataIndexWrite.queue,
 
@@ -207,6 +211,8 @@ export const allJobQueues = [
   orderbookOrders.queue,
   orderbookPostOrderExternal.queue,
   orderbookTokenSets.queue,
+  orderbookSaveOpenseaWebsocketEvents.queue,
+  orderbookOpenseaListings.queue,
 
   fetchSourceInfo.queue,
 
