@@ -1,7 +1,7 @@
 import { BigNumberish } from "@ethersproject/bignumber";
 import { JsonRpcProvider } from "@ethersproject/providers";
 import { parseEther } from "@ethersproject/units";
-import { getCallTrace, parseCallTrace } from "@georgeroman/evm-tx-simulator";
+import { getCallTrace, getStateChange } from "@georgeroman/evm-tx-simulator";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 
 import { bn, now } from "@/common/utils";
@@ -46,7 +46,7 @@ export const ensureBuyTxSucceeds = async (
     };
   }
 
-  const result = parseCallTrace(callTrace);
+  const result = getStateChange(callTrace);
 
   if (
     result[taker].tokenBalanceState[`${token.kind}:${token.contract}:${token.tokenId}`] !==
@@ -103,7 +103,7 @@ export const ensureSellTxSucceeds = async (
     };
   }
 
-  const result = parseCallTrace(callTrace);
+  const result = getStateChange(callTrace);
 
   if (
     result[taker].tokenBalanceState[`${token.kind}:${token.contract}:${token.tokenId}`] !==

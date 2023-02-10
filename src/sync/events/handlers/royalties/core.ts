@@ -1,5 +1,5 @@
 import { formatEther } from "@ethersproject/units";
-import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
+import { getStateChange } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { redis } from "@/common/redis";
@@ -126,7 +126,7 @@ export async function extractRoyalties(
     }
   }, bn(0));
 
-  const state = parseCallTrace(txTrace.calls);
+  const state = getStateChange(txTrace.calls);
 
   const matchDefinition = allRoyaltiesDefinition.find(
     (_) => _.contract === contract && _.tokenId === tokenId

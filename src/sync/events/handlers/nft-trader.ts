@@ -1,4 +1,4 @@
-import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
+import { getStateChange } from "@georgeroman/evm-tx-simulator";
 
 import { bn } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
@@ -30,7 +30,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        const parsedTrace = parseCallTrace(txTrace.calls);
+        const state = getStateChange(txTrace.calls);
 
         let transferredTokensCounter = 0;
         let tokenId = "";
@@ -43,11 +43,11 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         let amount = "0";
         let currencyKey = "";
 
-        for (const token of Object.keys(parsedTrace[taker].tokenBalanceState)) {
+        for (const token of Object.keys(state[taker].tokenBalanceState)) {
           if (token.startsWith("erc721") || token.startsWith("erc1155")) {
             tokenKey = token;
             transferredTokensCounter++;
-            amount = parsedTrace[taker].tokenBalanceState[token];
+            amount = state[taker].tokenBalanceState[token];
             [, tokenContract, tokenId] = token.split(":");
           } else if (token.startsWith("erc20") || token.startsWith("native")) {
             currencyKey = token;
@@ -61,10 +61,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        for (const address of Object.keys(parsedTrace).filter(
-          (key) => baseEventParams.address !== key
-        )) {
-          for (const token of Object.keys(parsedTrace[address].tokenBalanceState)) {
+        for (const address of Object.keys(state).filter((key) => baseEventParams.address !== key)) {
+          for (const token of Object.keys(state[address].tokenBalanceState)) {
             if (address !== taker && token === tokenKey) {
               maker = address;
             }
@@ -80,12 +78,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // that are not getting parsed properly
         try {
           if (orderSide === "sell") {
-            currencyPrice = bn(parsedTrace[taker].tokenBalanceState[currencyKey])
-              .add(bn(parsedTrace[baseEventParams.address].tokenBalanceState[currencyKey]))
+            currencyPrice = bn(state[taker].tokenBalanceState[currencyKey])
+              .add(bn(state[baseEventParams.address].tokenBalanceState[currencyKey]))
               .abs()
               .toString();
           } else {
-            currencyPrice = bn(parsedTrace[baseEventParams.address].tokenBalanceState[currencyKey])
+            currencyPrice = bn(state[baseEventParams.address].tokenBalanceState[currencyKey])
               .abs()
               .toString();
           }

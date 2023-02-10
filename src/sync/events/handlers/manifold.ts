@@ -1,5 +1,5 @@
 import { BigNumber } from "@ethersproject/bignumber";
-import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
+import { getStateChange } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { idb } from "@/common/db";
@@ -58,16 +58,16 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        const parsedTrace = parseCallTrace(txTrace.calls);
+        const state = getStateChange(txTrace.calls);
 
-        const tokenKey = Object.keys(parsedTrace[baseEventParams.address].tokenBalanceState)[0];
+        const tokenKey = Object.keys(state[baseEventParams.address].tokenBalanceState)[0];
         const [, tokenContract, tokenId] = tokenKey.split(":");
 
-        const purchasedAmount = bn(parsedTrace[baseEventParams.address].tokenBalanceState[tokenKey])
+        const purchasedAmount = bn(state[baseEventParams.address].tokenBalanceState[tokenKey])
           .abs()
           .toString();
 
-        for (const token of Object.keys(parsedTrace[taker].tokenBalanceState)) {
+        for (const token of Object.keys(state[taker].tokenBalanceState)) {
           if (token.startsWith("erc20")) {
             currency = token.split(":")[1];
           }
@@ -76,17 +76,17 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // We assume the maker is the address that got paid the largest amount of tokens.
         // In case of 50 / 50 splits, the maker will be the first address which got paid.
         let maxPayout: BigNumber | undefined;
-        const payoutAddresses = Object.keys(parsedTrace).filter(
+        const payoutAddresses = Object.keys(state).filter(
           (address) => address !== baseEventParams.address
         );
 
         let maker: string | undefined;
         for (const payoutAddress of payoutAddresses) {
-          const tokenPayouts = Object.keys(parsedTrace[payoutAddress].tokenBalanceState).filter(
-            (token) => token.includes(currency)
+          const tokenPayouts = Object.keys(state[payoutAddress].tokenBalanceState).filter((token) =>
+            token.includes(currency)
           );
           for (const token of tokenPayouts) {
-            const tokensTransfered = bn(parsedTrace[payoutAddress].tokenBalanceState[token]);
+            const tokensTransfered = bn(state[payoutAddress].tokenBalanceState[token]);
             if (tokensTransfered.gt(0) && (!maxPayout || tokensTransfered.gt(maxPayout))) {
               maxPayout = tokensTransfered;
               maker = payoutAddress;
@@ -249,7 +249,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        const parsedTrace = parseCallTrace(txTrace.calls);
+        const state = getStateChange(txTrace.calls);
 
         let maker: string | undefined;
         let taker: string | undefined;
@@ -260,7 +260,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         let purchasedAmount: string | undefined;
         let tokenKey: string | undefined;
 
-        const contractTrace = parsedTrace[baseEventParams.address];
+        const contractTrace = state[baseEventParams.address];
         for (const token of Object.keys(contractTrace.tokenBalanceState)) {
           if (token.startsWith("erc721") || token.startsWith("erc1155")) {
             tokenKey = token;
@@ -275,14 +275,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // We assume the maker is the address that got paid the largest amount of tokens.
         // In case of 50 / 50 splits, the maker will be the first address which got paid.
         let maxPayout: BigNumber | undefined;
-        for (const payoutAddress of Object.keys(parsedTrace).filter(
+        for (const payoutAddress of Object.keys(state).filter(
           (address) => address !== baseEventParams.address
         )) {
-          const tokenPayouts = Object.keys(parsedTrace[payoutAddress].tokenBalanceState).filter(
-            (token) => token.includes(currency)
+          const tokenPayouts = Object.keys(state[payoutAddress].tokenBalanceState).filter((token) =>
+            token.includes(currency)
           );
           for (const token of tokenPayouts) {
-            const tokensTransfered = bn(parsedTrace[payoutAddress].tokenBalanceState[token]);
+            const tokensTransfered = bn(state[payoutAddress].tokenBalanceState[token]);
             if (tokensTransfered.gt(0) && (!maxPayout || tokensTransfered.gt(maxPayout))) {
               maxPayout = tokensTransfered;
               maker = payoutAddress;
@@ -294,8 +294,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        for (const address of Object.keys(parsedTrace)) {
-          if (tokenKey in parsedTrace[address].tokenBalanceState) {
+        for (const address of Object.keys(state)) {
+          if (tokenKey in state[address].tokenBalanceState) {
             // The taker should be the receiver of NFTs
             taker = address;
           }
