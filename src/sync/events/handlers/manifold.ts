@@ -1,4 +1,4 @@
-import { Log } from "@ethersproject/abstract-provider";
+import { BigNumber } from "@ethersproject/bignumber";
 import { parseCallTrace } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
 
@@ -13,18 +13,7 @@ import { manifold } from "@/orderbook/orders";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
-  // Keep track of all events within the currently processing transaction
-  let currentTx: string | undefined;
-  let currentTxLogs: Log[] = [];
-
-  // Handle the events
   for (const { subKind, baseEventParams, log } of events) {
-    if (currentTx !== baseEventParams.txHash) {
-      currentTx = baseEventParams.txHash;
-      currentTxLogs = [];
-    }
-    currentTxLogs.push(log);
-
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
       case "manifold-cancel": {
@@ -60,7 +49,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const currencyPrice = parsedLog.args["amount"].toString();
         let taker = parsedLog.args["buyer"].toLowerCase();
         let currency = Sdk.Common.Addresses.Eth[config.chainId];
-        let maker = "";
 
         const orderId = manifold.getOrderId(listingId);
 
@@ -85,13 +73,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           }
         }
 
-        // We assume the seller is the address that got paid the largest amount of tokens
-        // In case of 50/50 split, maker will be the first address paid
-        let maxPayout = null;
+        // We assume the maker is the address that got paid the largest amount of tokens.
+        // In case of 50 / 50 splits, the maker will be the first address which got paid.
+        let maxPayout: BigNumber | undefined;
         const payoutAddresses = Object.keys(parsedTrace).filter(
           (address) => address !== baseEventParams.address
         );
 
+        let maker: string | undefined;
         for (const payoutAddress of payoutAddresses) {
           const tokenPayouts = Object.keys(parsedTrace[payoutAddress].tokenBalanceState).filter(
             (token) => token.includes(currency)
@@ -163,7 +152,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           { id: orderId }
         );
 
-        // Some manifold order have end time that is set after the first purchase
+        // Some manifold orders have an end time that is set after the first purchase
         if (orderResult && orderResult.valid_from === 0) {
           const endTime = baseEventParams.timestamp + orderResult.raw_data.details.endTime;
           onChainData.orders.push({
@@ -221,8 +210,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const startTime = args["startTime"];
         const endTime = args["endTime"];
 
-        // Manifold doesn't provide full order info. `any` helps us overcome the type differences.
-        // If we don' want to use `any` we'd have to specify some default values for the whole struct
+        // Manifold doesn't provide the full order info in the event. Using `any` helps us overcome
+        // the type differences. If we don' want to use `any` we would have to specify some default
+        // values for the whole struct.
         onChainData.orders.push({
           kind: "manifold",
           info: {
@@ -253,13 +243,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const listingId = args["listingId"];
         const orderId = getOrderId(listingId);
 
-        let maker = "";
-        let tokenContract = "";
-        let tokenId = "";
-        let taker = "";
-        let currencyPrice = "0";
-        let currency = Sdk.Common.Addresses.Eth[config.chainId];
-
         const txTrace = await utils.fetchTransactionTrace(baseEventParams.txHash);
         if (!txTrace) {
           // Skip any failed attempts to get the trace
@@ -268,8 +251,15 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         const parsedTrace = parseCallTrace(txTrace.calls);
 
-        let purchasedAmount = "0";
-        let tokenKey = "";
+        let maker: string | undefined;
+        let taker: string | undefined;
+        let tokenContract: string | undefined;
+        let tokenId: string | undefined;
+        let currencyPrice: string | undefined;
+        let currency = Sdk.Common.Addresses.Eth[config.chainId];
+        let purchasedAmount: string | undefined;
+        let tokenKey: string | undefined;
+
         const contractTrace = parsedTrace[baseEventParams.address];
         for (const token of Object.keys(contractTrace.tokenBalanceState)) {
           if (token.startsWith("erc721") || token.startsWith("erc1155")) {
@@ -282,9 +272,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           }
         }
 
-        // We assume the seller is the address that got paid the largest amount of tokens
-        // In case of 50/50 split, maker will be the first address paid
-        let maxPayout = null;
+        // We assume the maker is the address that got paid the largest amount of tokens.
+        // In case of 50 / 50 splits, the maker will be the first address which got paid.
+        let maxPayout: BigNumber | undefined;
         for (const payoutAddress of Object.keys(parsedTrace).filter(
           (address) => address !== baseEventParams.address
         )) {
@@ -300,21 +290,28 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           }
         }
 
-        if (!maker) {
-          // Skip if maker couldn't be retrieved
-          break;
-        }
-
-        // not a sale event
-        if (bn(currencyPrice).eq("0")) {
+        if (!tokenKey) {
           break;
         }
 
         for (const address of Object.keys(parsedTrace)) {
           if (tokenKey in parsedTrace[address].tokenBalanceState) {
-            // Taker should be receiver of NFT tokens
+            // The taker should be the receiver of NFTs
             taker = address;
           }
+        }
+
+        if (
+          !maker ||
+          !currencyPrice ||
+          currencyPrice === "0" ||
+          !taker ||
+          !tokenContract ||
+          !tokenId ||
+          !purchasedAmount
+        ) {
+          // Skip if the maker couldn't be retrieved
+          break;
         }
 
         // Handle: attribution

@@ -199,15 +199,16 @@ export const postOrderV3Options: RouteOptions = {
 
           const [result] = await orders.seaport.save([orderInfo]);
 
-          if (result.status === "already-exists") {
-            return { message: "Success", orderId: result.id };
-          }
-
-          if (result.status !== "success") {
-            const error = Boom.badRequest(result.status);
-            error.output.payload.orderId = result.id;
-            throw error;
-          }
+          logger.info(
+            `post-order-${version}-handler`,
+            JSON.stringify({
+              forward: false,
+              orderbook,
+              data: order.data,
+              orderId: result.id,
+              status: result.status,
+            })
+          );
 
           if (orderbook === "opensea") {
             await postOrderExternal.addToQueue(result.id, order.data, orderbook, orderbookApiKey);
@@ -246,6 +247,16 @@ export const postOrderV3Options: RouteOptions = {
                 })
               );
             }
+          }
+
+          if (result.status === "already-exists") {
+            return { message: "Success", orderId: result.id };
+          }
+
+          if (result.status !== "success") {
+            const error = Boom.badRequest(result.status);
+            error.output.payload.orderId = result.id;
+            throw error;
           }
 
           return { message: "Success", orderId: result.id };
