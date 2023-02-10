@@ -6,6 +6,7 @@ import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import { bn } from "@/common/utils";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   for (const { subKind, baseEventParams, log } of events) {
