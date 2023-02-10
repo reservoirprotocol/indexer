@@ -35,7 +35,7 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
-    async () => {
+    async (job: Job) => {
       const method = "opensea";
       const count = 1; // Default number of tokens to fetch
       let retry = false;
