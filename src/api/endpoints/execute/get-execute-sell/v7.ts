@@ -385,6 +385,30 @@ export const getExecuteSellV7Options: RouteOptions = {
             }
           }
 
+          // The taker must match the owner for partial Seaport orders
+          if (["seaport-partial"].includes(result.kind)) {
+            const ownerResult = await idb.oneOrNone(
+              `
+                SELECT 1 FROM nft_balances
+                WHERE nft_balances.contract = $/contract/
+                  AND nft_balances.token_id = $/tokenId/
+                  AND nft_balances.owner = $/owner/
+                  AND nft_balances.amount >= $/quantity/
+              `,
+              {
+                contract: toBuffer(contract),
+                tokenId,
+                owner: toBuffer(payload.taker),
+                quantity: item.quantity,
+              }
+            );
+            if (!ownerResult) {
+              throw Boom.badData(
+                `Taker ${payload.taker} does not own quantity ${item.quantity} of token ${item.token}`
+              );
+            }
+          }
+
           // Do not fill X2Y2 and Seaport orders with flagged tokens
           if (["x2y2", "seaport"].includes(result.kind)) {
             if (
@@ -461,6 +485,30 @@ export const getExecuteSellV7Options: RouteOptions = {
 
           let quantityToFill = item.quantity;
           for (const result of orderResults) {
+            // The taker must match the owner for partial Seaport orders
+            if (["seaport-partial"].includes(result.kind)) {
+              const ownerResult = await idb.oneOrNone(
+                `
+                  SELECT 1 FROM nft_balances
+                  WHERE nft_balances.contract = $/contract/
+                    AND nft_balances.token_id = $/tokenId/
+                    AND nft_balances.owner = $/owner/
+                    AND nft_balances.amount >= $/quantity/
+                `,
+                {
+                  contract: toBuffer(contract),
+                  tokenId,
+                  owner: toBuffer(payload.taker),
+                  quantity: item.quantity,
+                }
+              );
+              if (!ownerResult) {
+                throw Boom.badData(
+                  `Taker ${payload.taker} does not own quantity ${item.quantity} of token ${item.token}`
+                );
+              }
+            }
+
             // Do not fill X2Y2 and Seaport orders with flagged tokens
             if (["x2y2", "seaport"].includes(result.kind)) {
               if (
