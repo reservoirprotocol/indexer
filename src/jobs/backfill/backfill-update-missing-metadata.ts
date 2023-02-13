@@ -38,8 +38,8 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const limit = config.updateMissingMetadataCollectionsLimit;
-      const { lastCollectionId, methodsSet } = job.data;
-
+      const { lastCollectionId } = job.data;
+      const methodsSet = job.data.methodsSet as Set<string> ?? new Set<string>;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         let idFilter = "";
