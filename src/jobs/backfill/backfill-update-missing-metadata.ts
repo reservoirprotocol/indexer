@@ -15,7 +15,7 @@ import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
 import { getIndexingMethod } from "@/jobs/metadata-index/fetch-queue";
 import { PendingRefreshTokensBySlug } from "@/models/pending-refresh-tokens-by-slug";
 
-const QUEUE_NAME = "backfill-update-missing-metadata-queue";
+const QUEUE_NAME = "backfill-update-missing-metadata-new-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -40,14 +40,13 @@ if (config.doBackgroundWork) {
       const limit = config.updateMissingMetadataCollectionsLimit;
       const { lastCollectionId } = job.data;
       // eslint-disable-next-line no-constant-condition
-      while (true) {
-        let idFilter = "";
-        if (lastCollectionId != "") {
-          logger.info(QUEUE_NAME, `Last collection ID = ${lastCollectionId}`);
-          idFilter = `WHERE id > '${lastCollectionId}'`;
-        }
+      let idFilter = "";
+      if (lastCollectionId != "") {
+        logger.info(QUEUE_NAME, `Last collection ID = ${lastCollectionId}`);
+        idFilter = `WHERE id > '${lastCollectionId}'`;
+      }
 
-        const query = `
+      const query = `
           SELECT id, contract, community, slug
           FROM collections
           ${idFilter}
@@ -55,31 +54,29 @@ if (config.doBackgroundWork) {
           LIMIT ${limit}
         `;
 
-        const collections = await redb.manyOrNone(query);
-        await Promise.all(
-          _.map(collections, (collection) => {
-            logger.info(QUEUE_NAME, `Processing collection with ID: ${collection.id}`);
+      const collections = await redb.manyOrNone(query);
+      await Promise.all(
+        _.map(collections, (collection) => {
+          logger.info(QUEUE_NAME, `Processing collection with ID: ${collection.id}`);
 
-            return processCollection({
-              contract: fromBuffer(collection.contract),
-              id: collection.id,
-              community: collection.community,
-              slug: collection.slug,
-            });
-          })
-        );
+          return processCollection({
+            contract: fromBuffer(collection.contract),
+            id: collection.id,
+            community: collection.community,
+            slug: collection.slug,
+          });
+        })
+      );
 
-        if (_.size(collections) < limit) {
-          // push queue messages
-          await Promise.all([
-            metadataIndexProcessBySlug.addToQueue(),
-            metadataIndexProcess.addToQueue("opensea"),
-          ]);
-          break;
-        } else {
-          const lastId = _.last(collections).id;
-          await addToQueue(lastId);
-        }
+      if (_.size(collections) < limit) {
+        // push queue messages
+        await Promise.all([
+          metadataIndexProcessBySlug.addToQueue(),
+          metadataIndexProcess.addToQueue("opensea"),
+        ]);
+      } else {
+        const lastId = _.last(collections).id;
+        await addToQueue(lastId);
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
