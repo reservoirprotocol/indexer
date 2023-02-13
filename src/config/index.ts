@@ -110,4 +110,7 @@ export const config = {
   doNftTransfersWrite: Boolean(Number(process.env.DO_NFT_TRANSFERS_WRITE)),
   doProcessBackfilling: Boolean(Number(process.env.DO_PROCESS_BACKFILLING)),
   doProcessRealtime: Boolean(Number(process.env.DO_PROCESS_REALTIME)),
+  updateMissingMetadataCollectionsLimit:
+    process.env.UPDATE_MISSING_METADATA_COLLECTIONS_LIMIT || 10,
+  updateMissingMetadataTokensLimit: process.env.UPDATE_MISSING_METADATA_TOKENS_LIMIT || 100,
 };

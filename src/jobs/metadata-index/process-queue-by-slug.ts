@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
@@ -35,7 +35,7 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
-    async (job: Job) => {
+    async () => {
       const method = "opensea";
       const count = 1; // Default number of tokens to fetch
       let retry = false;
