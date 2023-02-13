@@ -1,5 +1,6 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
 
+import _ from "lodash";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
@@ -81,6 +82,15 @@ export const addToQueue = async (batches: EventsBatch[]) => {
   await queue.addBulk(jobs);
 };
 
-export const addToQueueByJobDataId = async (id: string) => {
-  await queue.add(id, { id });
+export const addToQueueByJobDataId = async (ids: string | string[]) => {
+  if (_.isArray(ids)) {
+    const jobs: { name: string; data: { id: string } }[] = [];
+    for (const id of ids) {
+      jobs.push({ name: id, data: { id } });
+    }
+
+    await queue.addBulk(jobs);
+  } else {
+    await queue.add(ids, { id: ids });
+  }
 };
