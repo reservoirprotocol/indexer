@@ -183,6 +183,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           contract: string;
           tokenId: string;
           quantity?: number;
+          owner?: string;
         }
       ) => {
         const feesOnTop = payload.normalizeRoyalties ? order.feesOnTop ?? [] : [];
@@ -258,6 +259,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               contract: token.contract,
               tokenId: token.tokenId,
               amount: token.quantity,
+              owner: token.owner,
             }
           )
         );
@@ -385,32 +387,35 @@ export const getExecuteSellV7Options: RouteOptions = {
             }
           }
 
-          // The taker must match the owner for partial Seaport orders
-          if (["seaport-partial"].includes(result.kind)) {
+          // Partial Seaport orders require knowing the owner
+          let owner: string | undefined;
+          if (["seaport-partial", "seaport-v1.2-partial"].includes(result.kind)) {
             const ownerResult = await idb.oneOrNone(
               `
-                SELECT 1 FROM nft_balances
+                SELECT
+                  nft_balances.owner
+                FROM nft_balances
                 WHERE nft_balances.contract = $/contract/
                   AND nft_balances.token_id = $/tokenId/
-                  AND nft_balances.owner = $/owner/
                   AND nft_balances.amount >= $/quantity/
               `,
               {
                 contract: toBuffer(contract),
                 tokenId,
-                owner: toBuffer(payload.taker),
                 quantity: item.quantity,
               }
             );
-            if (!ownerResult) {
-              throw Boom.badData(
-                `Taker ${payload.taker} does not own quantity ${item.quantity} of token ${item.token}`
-              );
+            if (ownerResult) {
+              owner = fromBuffer(ownerResult.owner);
             }
           }
 
           // Do not fill X2Y2 and Seaport orders with flagged tokens
-          if (["x2y2", "seaport"].includes(result.kind)) {
+          if (
+            ["x2y2", "seaport", "seaport-v1.2", "seaport-partial", "seaport-v1.2-partial"].includes(
+              result.kind
+            )
+          ) {
             if (
               (tokenToSuspicious.has(item.token) && tokenToSuspicious.get(item.token)) ||
               tokenResult.is_flagged
@@ -440,6 +445,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               contract,
               tokenId,
               quantity: item.quantity,
+              owner,
             }
           );
         }
@@ -485,32 +491,39 @@ export const getExecuteSellV7Options: RouteOptions = {
 
           let quantityToFill = item.quantity;
           for (const result of orderResults) {
-            // The taker must match the owner for partial Seaport orders
-            if (["seaport-partial"].includes(result.kind)) {
+            // Partial Seaport orders require knowing the owner
+            let owner: string | undefined;
+            if (["seaport-partial", "seaport-v1.2-partial"].includes(result.kind)) {
               const ownerResult = await idb.oneOrNone(
                 `
-                  SELECT 1 FROM nft_balances
+                  SELECT
+                    nft_balances.owner
+                  FROM nft_balances
                   WHERE nft_balances.contract = $/contract/
                     AND nft_balances.token_id = $/tokenId/
-                    AND nft_balances.owner = $/owner/
                     AND nft_balances.amount >= $/quantity/
                 `,
                 {
                   contract: toBuffer(contract),
                   tokenId,
-                  owner: toBuffer(payload.taker),
                   quantity: item.quantity,
                 }
               );
-              if (!ownerResult) {
-                throw Boom.badData(
-                  `Taker ${payload.taker} does not own quantity ${item.quantity} of token ${item.token}`
-                );
+              if (ownerResult) {
+                owner = fromBuffer(ownerResult.owner);
               }
             }
 
             // Do not fill X2Y2 and Seaport orders with flagged tokens
-            if (["x2y2", "seaport"].includes(result.kind)) {
+            if (
+              [
+                "x2y2",
+                "seaport",
+                "seaport-v1.2",
+                "seaport-partial",
+                "seaport-v1.2-partial",
+              ].includes(result.kind)
+            ) {
               if (
                 (tokenToSuspicious.has(item.token) && tokenToSuspicious.get(item.token)) ||
                 tokenResult.is_flagged
@@ -568,6 +581,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 contract,
                 tokenId,
                 quantity: availableQuantity,
+                owner,
               }
             );
           }

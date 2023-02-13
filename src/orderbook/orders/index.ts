@@ -389,6 +389,7 @@ export const generateBidDetailsV6 = async (
     contract: string;
     tokenId: string;
     amount?: number;
+    owner?: string;
   }
 ): Promise<SdkTypesV6.BidDetails> => {
   const common = {
@@ -396,6 +397,7 @@ export const generateBidDetailsV6 = async (
     contract: token.contract,
     tokenId: token.tokenId,
     amount: token.amount ?? 1,
+    owner: token.owner,
     fees: order.fees ?? [],
   };
 

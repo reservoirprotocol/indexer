@@ -319,6 +319,30 @@ export const getExecuteSellV6Options: RouteOptions = {
           rawQuote: totalPrice.toString(),
         },
       ];
+
+      // Partial Seaport orders require knowing the owner
+      let owner: string | undefined;
+      if (["seaport-partial", "seaport-v1.2-partial"].includes(orderResult.kind)) {
+        const ownerResult = await idb.oneOrNone(
+          `
+            SELECT
+              nft_balances.owner
+            FROM nft_balances
+            WHERE nft_balances.contract = $/contract/
+              AND nft_balances.token_id = $/tokenId/
+              AND nft_balances.amount >= $/quantity/
+          `,
+          {
+            contract: toBuffer(contract),
+            tokenId,
+            quantity: payload.quantity ?? 1,
+          }
+        );
+        if (ownerResult) {
+          owner = fromBuffer(ownerResult.owner);
+        }
+      }
+
       const bidDetails = await generateBidDetailsV6(
         {
           id: orderResult.id,
@@ -332,36 +356,15 @@ export const getExecuteSellV6Options: RouteOptions = {
           contract,
           tokenId,
           amount: payload.quantity,
+          owner,
         }
       );
 
-      // The taker must match the owner for partial Seaport orders
-      if (["seaport-partial"].includes(bidDetails!.kind)) {
-        const ownerResult = await idb.oneOrNone(
-          `
-            SELECT 1 FROM nft_balances
-            WHERE nft_balances.contract = $/contract/
-              AND nft_balances.token_id = $/tokenId/
-              AND nft_balances.owner = $/owner/
-              AND nft_balances.amount >= $/quantity/
-          `,
-          {
-            contract: toBuffer(contract),
-            tokenId,
-            owner: toBuffer(payload.taker),
-            quantity: payload.quantity ?? 1,
-          }
-        );
-        if (!ownerResult) {
-          throw Boom.badData(
-            `Taker ${payload.taker} does not own quantity ${payload.quantity ?? 1} of token ${
-              payload.token
-            }`
-          );
-        }
-      }
-
-      if (["x2y2", "seaport", "seaport-partial"].includes(bidDetails!.kind)) {
+      if (
+        ["x2y2", "seaport", "seaport-v1.2", "seaport-partial", "seaport-v1.2-partial"].includes(
+          bidDetails!.kind
+        )
+      ) {
         const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
           tokenResult.last_flag_update < now() - 3600 ? [payload.token] : []
         );
