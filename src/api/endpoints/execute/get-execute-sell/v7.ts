@@ -12,6 +12,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import { Sources } from "@/models/sources";
 import { OrderKind, generateBidDetailsV6 } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
@@ -606,12 +607,16 @@ export const getExecuteSellV7Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
       });
+
+      const { customTokenAddresses } = getNetworkSettings();
+      const forcePermit = customTokenAddresses.includes(bidDetails[0].contract);
       const { txData, success, approvals, permits } = await router.fillBidsTx(
         bidDetails,
         payload.taker,
         {
           source: payload.source,
           partial: payload.partial,
+          forcePermit,
         }
       );
 

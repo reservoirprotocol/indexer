@@ -48,11 +48,17 @@ export const getTransfersV2Options: RouteOptions = {
       attributes: Joi.object()
         .unknown()
         .description("Filter to a particular attribute, e.g. `attributes[Type]=Original`"),
+      txHash: Joi.string()
+        .lowercase()
+        .pattern(regex.bytes32)
+        .description(
+          "Filter to a particular transaction. Example: `0x04654cc4c81882ed4d20b958e0eeb107915d75730110cce65333221439de6afc`"
+        ),
       limit: Joi.number().integer().min(1).max(100).default(20),
       continuation: Joi.string().pattern(regex.base64),
     })
-      .oxor("contract", "token", "collection")
-      .or("contract", "token", "collection")
+      .oxor("contract", "token", "collection", "txHash")
+      .or("contract", "token", "collection", "txHash")
       .with("attributes", "collection"),
   },
   response: {
@@ -181,6 +187,11 @@ export const getTransfersV2Options: RouteOptions = {
           (query as any).contract = toBuffer(query.collection);
           conditions.push(`nft_transfer_events.address = $/contract/`);
         }
+      }
+
+      if (query.txHash) {
+        (query as any).txHash = toBuffer(query.txHash);
+        conditions.push(`nft_transfer_events.tx_hash = $/txHash/`);
       }
 
       if (query.continuation) {

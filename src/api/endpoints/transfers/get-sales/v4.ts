@@ -378,7 +378,7 @@ export const getSalesV4Options: RouteOptions = {
           marketplaceFeeBps:
             r.marketplace_fee_bps !== null && feeInfoIsValid ? r.marketplace_fee_bps : undefined,
           paidFullRoyalty:
-            r.paid_full_royalty !== null && feeInfoIsValid ? r.paid_full_royalty : false,
+            r.paid_full_royalty !== null && feeInfoIsValid ? r.paid_full_royalty : undefined,
           feeBreakdown:
             (r.royalty_fee_breakdown !== null || r.marketplace_fee_breakdown !== null) &&
             feeInfoIsValid

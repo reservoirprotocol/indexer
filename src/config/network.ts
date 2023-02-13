@@ -41,6 +41,7 @@ type NetworkSettings = {
   washTradingExcludedContracts: string[];
   washTradingWhitelistedAddresses: string[];
   washTradingBlacklistedAddresses: string[];
+  customTokenAddresses: string[];
   mintsAsSalesBlacklist: string[];
   mintAddresses: string[];
   multiCollectionContracts: string[];
@@ -64,6 +65,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     washTradingExcludedContracts: [],
     washTradingWhitelistedAddresses: [],
     washTradingBlacklistedAddresses: [],
+    customTokenAddresses: [],
     multiCollectionContracts: [],
     mintsAsSalesBlacklist: [],
     mintAddresses: [AddressZero],
@@ -113,6 +115,10 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x62e37f664b5945629b6549a87f8e10ed0b6d923b",
           "0x0a1bbd57033f57e7b6743621b79fcb9eb2ce3676",
           "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
+        ],
+        customTokenAddresses: [
+          "0x95784f7b5c8849b0104eaf5d13d6341d8cc40750",
+          "0xc9cb0fee73f060db66d2693d92d75c825b1afdbf",
         ],
         mintsAsSalesBlacklist: [
           // Uniswap V3: Positions NFT
