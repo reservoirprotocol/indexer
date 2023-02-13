@@ -39,7 +39,6 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const limit = config.updateMissingMetadataCollectionsLimit;
       const { lastCollectionId } = job.data;
-      const methodsSet = job.data.methodsSet as Set<string> ?? new Set<string>;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         let idFilter = "";
@@ -61,30 +60,25 @@ if (config.doBackgroundWork) {
           _.map(collections, (collection) => {
             logger.info(QUEUE_NAME, `Processing collection with ID: ${collection.id}`);
 
-            return processCollection(
-              {
-                contract: fromBuffer(collection.contract),
-                id: collection.id,
-                community: collection.community,
-                slug: collection.slug,
-              },
-              methodsSet
-            );
+            return processCollection({
+              contract: fromBuffer(collection.contract),
+              id: collection.id,
+              community: collection.community,
+              slug: collection.slug,
+            });
           })
         );
 
         if (_.size(collections) < limit) {
           // push queue messages
-          for (const method of methodsSet) {
-            await Promise.all([
-              metadataIndexProcessBySlug.addToQueue(),
-              metadataIndexProcess.addToQueue(method),
-            ]);
-          }
+          await Promise.all([
+            metadataIndexProcessBySlug.addToQueue(),
+            metadataIndexProcess.addToQueue("opensea"),
+          ]);
           break;
         } else {
           const lastId = _.last(collections).id;
-          await addToQueue(lastId, methodsSet);
+          await addToQueue(lastId);
         }
       }
     },
@@ -98,24 +92,20 @@ if (config.doBackgroundWork) {
   redlock
     .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
-      await addToQueue("", new Set<string>());
+      await addToQueue("");
     })
     .catch(() => {
       // Skip on any errors
     });
 }
 
-async function processCollection(
-  collection: {
-    contract: string;
-    id: string;
-    community: string;
-    slug: string;
-  },
-  methodsSet: Set<string>
-) {
+async function processCollection(collection: {
+  contract: string;
+  id: string;
+  community: string;
+  slug: string;
+}) {
   const indexingMethod = getIndexingMethod(collection.community);
-  methodsSet.add(indexingMethod);
   const limit = config.updateMissingMetadataTokensLimit;
   let lastTokenId = "";
   const unindexedTokens: RefreshTokens[] = [];
@@ -174,6 +164,6 @@ async function processCollection(
   }
 }
 
-export const addToQueue = async (lastCollectionId: string, methodsSet: Set<string>, delay = 0) => {
-  await queue.add(randomUUID(), { lastCollectionId, methodsSet }, { delay });
+export const addToQueue = async (lastCollectionId: string, delay = 0) => {
+  await queue.add(randomUUID(), { lastCollectionId }, { delay });
 };
