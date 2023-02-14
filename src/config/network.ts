@@ -26,7 +26,7 @@ export const getNetworkName = () => {
 };
 
 export const getServiceName = () => {
-  return `indexer-${config.version}-${getNetworkName()}`;
+  return `indexer`;
 };
 
 type NetworkSettings = {
