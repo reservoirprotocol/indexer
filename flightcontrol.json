@@ -1,151 +1,220 @@
 {
   "environments": [
     {
-      "id": "production",
-      "name": "Production",
-      "region": "us-east-2",
+      "id": "mainnet",
+      "name": "mainnet",
+      "region": "us-west-2",
       "source": {
-        "branch": "feat/flightcontrol"
+        "branch": "main"
       },
       "services": [
         {
-          "id": "api-1-Aah3Lq",
-          "name": "api-1",
+          "id": "indexer-mainnet",
+          "name": "indexer-mainnet",
           "type": "fargate",
           "buildType": "docker",
-          "cpu": 2,
-          "memory": 4,
-          "minInstances": 1,
-          "maxInstances": 1,
+          "cpu": 8,
+          "memory": 16,
+          "minInstances": 5,
+          "maxInstances": 8,
           "healthCheckPath": "/livez",
           "dockerLabels": {
             "com.datadoghq.ad.instances": "[{\"host\": \"%%host%%\", \"port\": 3000}]",
-            "com.datadoghq.ad.check_names": "[\"fc-indexer\"]",
+            "com.datadoghq.ad.check_names": "[\"indexer\"]",
             "com.datadoghq.ad.init_configs": "[{}]"
           },
           "experimental": {
             "datadog": {
               "enabled": true,
-              "datadogSite": "datadoghq.com",
-              "datadogApiKey": "fc.indexer-mainnet.env.production.d1ex0izx.DD_API_KEY",
+              "datadogSite": "us5.datadoghq.com",
+              "datadogApiKey": "fc.indexer.env.production.ujdy0iz1.DATADOG_API_KEY",
               "envVariables":{
+                "DD_ENV": "mainnet",
                 "DD_APM_ENABLED": true,
                 "DD_LOGS_ENABLED": true,
-                "ECS_FARGATE": true
+                "ECS_FARGATE": true,
+                "DD_APM_MAX_CPU_PERCENT": 80
+                
               }
-            }
-          },
-          "envVariables": {
-            "PORT": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdf00lx.PORT"
-            },
-            "CATCHUP": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zcy007s.CATCHUP"
-            },
-            "VERSION": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdp00mv.VERSION"
-            },
-            "CHAIN_ID": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zcz00o7.CHAIN_ID"
-            },
-            "REDEPLOY": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdi00f0.REDEPLOY"
-            },
-            "REDIS_URL": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdj00hc.REDIS_URL"
-            },
-            "DATABASE_URL": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zd000wx.DATABASE_URL"
-            },
-            "X2Y2_API_KEY": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdr005o.X2Y2_API_KEY"
-            },
-            "ADMIN_API_KEY": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5ycv004r.ADMIN_API_KEY"
-            },
-            "CIPHER_SECRET": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5ycu00y3.CIPHER_SECRET"
-            },
-            "TENDERLY_USER": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdn00yi.TENDERLY_USER"
-            },
-            "FORCE_REDEPLOY": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zd800he.FORCE_REDEPLOY"
-            },
-            "DATADOG_API_KEY": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zd200as.DATADOG_API_KEY"
-            },
-            "OPENSEA_API_KEY": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdc003p.OPENSEA_API_KEY"
-            },
-            "TENDERLY_PROJECT": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdm005j.TENDERLY_PROJECT"
-            },
-            "LOOKSRARE_API_KEY": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zd900y1.LOOKSRARE_API_KEY"
-            },
-            "DO_BACKGROUND_WORK": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zd700iq.DO_BACKGROUND_WORK"
-            },
-            "ORACLE_PRIVATE_KEY": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zde009c.ORACLE_PRIVATE_KEY"
-            },
-            "ARWEAVE_RELAYER_KEY": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5ycw007m.ARWEAVE_RELAYER_KEY"
-            },
-            "TENDERLY_ACCESS_KEY": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdl00st.TENDERLY_ACCESS_KEY"
-            },
-            "RATE_LIMIT_REDIS_URL": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5yct002w.RATE_LIMIT_REDIS_URL"
-            },
-            "BASE_NETWORK_HTTP_URL": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zcx00tg.BASE_NETWORK_HTTP_URL"
-            },
-            "METADATA_API_BASE_URL": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zda00xp.METADATA_API_BASE_URL"
-            },
-            "SLOW_NETWORK_HTTP_URL": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdk00id.SLOW_NETWORK_HTTP_URL"
-            },
-            "TRACE_NETWORK_HTTP_URL": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdo00vq.TRACE_NETWORK_HTTP_URL"
-            },
-            "METADATA_API_BASE_URL_ALT": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdb009h.METADATA_API_BASE_URL_ALT"
-            },
-            "READ_REPLICA_DATABASE_URL": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdh002e.READ_REPLICA_DATABASE_URL"
-            },
-            "DATA_EXPORT_S3_BUCKET_NAME": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zd600z5.DATA_EXPORT_S3_BUCKET_NAME"
-            },
-            "WRITE_REPLICA_DATABASE_URL": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdq00ff.WRITE_REPLICA_DATABASE_URL"
-            },
-            "DATA_EXPORT_AWS_ACCESS_ROLE": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zd300mm.DATA_EXPORT_AWS_ACCESS_ROLE"
-            },
-            "OPENSEA_INDEXER_API_BASE_URL": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdd009r.OPENSEA_INDEXER_API_BASE_URL"
-            },
-            "DATA_EXPORT_AWS_S3_UPLOAD_ROLE": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zd500c1.DATA_EXPORT_AWS_S3_UPLOAD_ROLE"
-            },
-            "RAILWAY_DEPLOYMENT_OVERLAP_SECONDS": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zdg00hr.RAILWAY_DEPLOYMENT_OVERLAP_SECONDS"
-            },
-            "DATA_EXPORT_AWS_S3_UPLOAD_EXTERNAL_ID": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.5zd400vu.DATA_EXPORT_AWS_S3_UPLOAD_EXTERNAL_ID"
-            },
-            "DD_API_KEY": {
-              "fromParameterStore": "fc.indexer-mainnet.env.production.d1ex0izx.DD_API_KEY"
             }
           },
           "port": 3000,
           "enableCloudfrontSwr": false,
           "dockerfilePath": "Dockerfile",
           "dockerContext": "."
+        }        
+      ]
+    },
+    {
+      "id": "goerli",
+      "name": "goerli",
+      "region": "us-east-2",
+      "source": {
+        "branch": "development"
+      },
+      "services": [
+        {
+          "id": "indexer-goerli",
+          "name": "indexer-goerli",
+          "type": "fargate",
+          "buildType": "docker",
+          "cpu": 2,
+          "memory": 4,
+          "minInstances": 2,
+          "maxInstances": 2,
+          "healthCheckPath": "/livez",
+          "dockerLabels": {
+            "com.datadoghq.ad.instances": "[{\"host\": \"%%host%%\", \"port\": 3000}]",
+            "com.datadoghq.ad.check_names": "[\"indexer\"]",
+            "com.datadoghq.ad.init_configs": "[{}]"
+          },
+          "experimental": {
+            "datadog": {
+              "enabled": true,
+              "datadogSite": "us5.datadoghq.com",
+              "datadogApiKey": "fc.indexer.env.production.ujdy0iz1.DATADOG_API_KEY",
+              "envVariables":{
+                "DD_ENV": "goerli",
+                "DD_APM_ENABLED": true,
+                "DD_LOGS_ENABLED": true,
+                "ECS_FARGATE": true,
+                "DD_APM_MAX_CPU_PERCENT": 80                
+              }
+            }
+          },
+          "port": 3000,
+          "enableCloudfrontSwr": false,
+          "dockerfilePath": "Dockerfile",
+          "dockerContext": "."
+        },
+        {
+          "id": "db",
+          "name": "Database",
+          "type": "rds",
+          "engine": "postgres",
+          "engineVersion": "14",
+          "instanceSize": "db.m6g.large",
+          "port": 5432,
+          "storage": 100,
+          "maxStorage": 500,
+          "autoUpgradeMinorVersions": true,
+          "applyChangesImmediately": false,
+          "private": false
+        }
+      ]
+    },
+    {
+      "id": "polygon",
+      "name": "polygon",
+      "region": "us-west-2",
+      "source": {
+        "branch": "main"
+      },
+      "services": [
+        {
+          "id": "indexer-polygon",
+          "name": "indexer-polygon",
+          "type": "fargate",
+          "buildType": "docker",
+          "cpu": 2,
+          "memory": 4,
+          "minInstances": 2,
+          "maxInstances": 4,
+          "healthCheckPath": "/livez",
+          "dockerLabels": {
+            "com.datadoghq.ad.instances": "[{\"host\": \"%%host%%\", \"port\": 3000}]",
+            "com.datadoghq.ad.check_names": "[\"indexer\"]",
+            "com.datadoghq.ad.init_configs": "[{}]"
+          },
+          "experimental": {
+            "datadog": {
+              "enabled": true,
+              "datadogSite": "us5.datadoghq.com",
+              "datadogApiKey": "fc.indexer.env.production.ujdy0iz1.DATADOG_API_KEY",
+              "envVariables":{
+                "DD_ENV": "polygon",
+                "DD_APM_ENABLED": true,
+                "DD_LOGS_ENABLED": true,
+                "ECS_FARGATE": true,
+                "DD_APM_MAX_CPU_PERCENT": 80                
+              }
+            }
+          },
+          "port": 3000,
+          "enableCloudfrontSwr": false,
+          "dockerfilePath": "Dockerfile",
+          "dockerContext": "."
+        },
+        {
+          "id": "db",
+          "name": "Database",
+          "type": "rds",
+          "engine": "postgres",
+          "engineVersion": "14",
+          "instanceSize": "db.m6g.large",
+          "port": 5432,
+          "storage": 1000,
+          "maxStorage": 5000,
+          "autoUpgradeMinorVersions": true,
+          "applyChangesImmediately": true,
+          "private": false
+        }
+      ]
+    },
+    {
+      "id": "optimism",
+      "name": "optimism",
+      "region": "us-east-2",
+      "source": {
+        "branch": "main"
+      },
+      "services": [
+        {
+          "id": "indexer-optimism",
+          "name": "indexer-optimism",
+          "type": "fargate",
+          "buildType": "docker",
+          "cpu": 1,
+          "memory": 2,
+          "minInstances": 1,
+          "maxInstances": 1,
+          "healthCheckPath": "/livez",
+          "dockerLabels": {
+            "com.datadoghq.ad.instances": "[{\"host\": \"%%host%%\", \"port\": 3000}]",
+            "com.datadoghq.ad.check_names": "[\"indexer\"]",
+            "com.datadoghq.ad.init_configs": "[{}]"
+          },
+          "experimental": {
+            "datadog": {
+              "enabled": true,
+              "datadogSite": "us5.datadoghq.com",
+              "datadogApiKey": "fc.indexer.env.production.ujdy0iz1.DATADOG_API_KEY",
+              "envVariables":{
+                "DD_ENV": "optimism",
+                "DD_APM_ENABLED": true,
+                "DD_LOGS_ENABLED": true,
+                "ECS_FARGATE": true,
+                "DD_APM_MAX_CPU_PERCENT": 80                
+              }
+            }
+          },
+          "port": 3000,
+          "enableCloudfrontSwr": false,
+          "dockerfilePath": "Dockerfile",
+          "dockerContext": "."
+        },
+        {
+          "id": "db",
+          "name": "Database",
+          "type": "rds",
+          "engine": "postgres",
+          "engineVersion": "14",
+          "instanceSize": "db.t4g.medium",
+          "port": 5432,
+          "storage": 100,
+          "maxStorage": 500,
+          "autoUpgradeMinorVersions": true,
+          "private": false
         }
       ]
     }
