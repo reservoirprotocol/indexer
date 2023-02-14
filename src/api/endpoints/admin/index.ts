@@ -24,3 +24,4 @@ export * from "@/api/endpoints/admin/post-create-rate-limit-rule";
 export * from "@/api/endpoints/admin/post-delete-rate-limit-rule";
 export * from "@/api/endpoints/admin/post-flag-address";
 export * from "@/api/endpoints/admin/post-routers";
+export * from "@/api/endpoints/admin/get-api-key-details";

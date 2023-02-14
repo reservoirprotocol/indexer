@@ -293,6 +293,12 @@ export const setupRoutes = (server: Server) => {
     options: adminEndpoints.postRoutersOptions,
   });
 
+  server.route({
+    method: "GET",
+    path: "/admin/get-api-key/{key}",
+    options: adminEndpoints.getApiKeyDetails,
+  });
+
   // API keys
 
   server.route({

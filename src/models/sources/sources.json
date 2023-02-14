@@ -7,7 +7,9 @@
     "data": {
       "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/opensea-logo.svg",
       "tokenUrlMainnet": "https://opensea.io/assets/${contract}/${tokenId}",
-      "tokenUrlRinkeby": "https://testnets.opensea.io/assets/${contract}/${tokenId}"
+      "tokenUrlRinkeby": "https://testnets.opensea.io/assets/${contract}/${tokenId}",
+      "tokenUrlGoerli": "https://testnets.opensea.io/assets/${contract}/${tokenId}",
+      "tokenUrlPolygon": "https://opensea.io/assets/matic/${contract}/${tokenId}"
     }
   },
   "2": {
@@ -18,7 +20,8 @@
     "data": {
       "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/forgottenmarket-logo.png",
       "tokenUrlMainnet": "https://forgotten.market/${contract}/${tokenId}",
-      "tokenUrlRinkeby": "https://forgotten.market/${contract}/${tokenId}"
+      "tokenUrlRinkeby": "https://forgotten.market/${contract}/${tokenId}",
+      "tokenUrlGoerli": "https://forgotten.market/${contract}/${tokenId}"
     }
   },
   "3": {
@@ -29,7 +32,8 @@
     "data": {
       "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/looksrare-logo.svg",
       "tokenUrlMainnet": "https://looksrare.org/collections/${contract}/${tokenId}",
-      "tokenUrlRinkeby": "https://rinkeby.looksrare.org/collections/${contract}/${tokenId}"
+      "tokenUrlRinkeby": "https://rinkeby.looksrare.org/collections/${contract}/${tokenId}",
+      "tokenUrlGoerli": "https://rinkeby.looksrare.org/collections/${contract}/${tokenId}"
     }
   },
   "5": {
@@ -40,7 +44,8 @@
     "data": {
       "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/pleasebepatientwithme-logo.png",
       "tokenUrlMainnet": "https://www.pleasebepatientwith.me/${contract}/${tokenId}",
-      "tokenUrlRinkeby": "https://www.pleasebepatientwith.me/${contract}/${tokenId}"
+      "tokenUrlRinkeby": "https://www.pleasebepatientwith.me/${contract}/${tokenId}",
+      "tokenUrlGoerli": "https://www.pleasebepatientwith.me/${contract}/${tokenId}"
     }
   },
   "6": {
@@ -51,7 +56,8 @@
     "data": {
       "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/KNNY-logo.png",
       "tokenUrlMainnet": "https://knny.vercel.app/${contract}/${tokenId}",
-      "tokenUrlRinkeby": "https://knny.vercel.app/${contract}/${tokenId}"
+      "tokenUrlRinkeby": "https://knny.vercel.app/${contract}/${tokenId}",
+      "tokenUrlGoerli": "https://knny.vercel.app/${contract}/${tokenId}"
     }
   },
   "12": {
@@ -62,7 +68,8 @@
     "data": {
       "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/foundation-logo.svg",
       "tokenUrlMainnet": "https://foundation.app/",
-      "tokenUrlRinkeby": "https://foundation.app/"
+      "tokenUrlRinkeby": "https://foundation.app/",
+      "tokenUrlGoerli": "https://foundation.app/"
     }
   },
   "14": {
@@ -73,7 +80,8 @@
     "data": {
       "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/gmoney-logo.png",
       "tokenUrlMainnet": "https://gmoney.market/${contract}/${tokenId}",
-      "tokenUrlRinkeby": "https://gmoney.market/${contract}/${tokenId}"
+      "tokenUrlRinkeby": "https://gmoney.market/${contract}/${tokenId}",
+      "tokenUrlGoerli": "https://gmoney.market/${contract}/${tokenId}"
     }
   }
 }
