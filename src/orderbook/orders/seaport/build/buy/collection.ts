@@ -2,12 +2,13 @@ import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers";
 import { BaseBuilder } from "@reservoir0x/sdk/dist/seaport/builders/base";
 
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as utils from "@/orderbook/orders/seaport/build/utils";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
+import * as tokenSets from "@/orderbook/token-sets";
 import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 
 interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
@@ -15,14 +16,14 @@ interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
 }
 
 export const build = async (options: BuildOrderOptions) => {
-  const collectionResult = await redb.oneOrNone(
+  // Fetch some details about the collection
+  const collectionResult = await idb.oneOrNone(
     `
       SELECT
         collections.token_set_id,
         collections.token_count,
         collections.contract,
-        collections.slug,
-        collections.non_flagged_token_set_id
+        collections.slug
       FROM collections
       WHERE collections.id = $/collection/
     `,
@@ -32,7 +33,7 @@ export const build = async (options: BuildOrderOptions) => {
     throw new Error("Could not retrieve collection");
   }
   if (Number(collectionResult.token_count) > config.maxTokenSetSize) {
-    throw new Error("Collection has too many items");
+    throw new Error("Collection has too many tokens");
   }
 
   const buildInfo = await utils.getBuildInfo(
@@ -45,17 +46,19 @@ export const build = async (options: BuildOrderOptions) => {
   );
 
   const collectionIsContractWide = collectionResult.token_set_id?.startsWith("contract:");
-  if (!options.excludeFlaggedTokens && collectionIsContractWide) {
-    // Use contract-wide order
+  if (collectionIsContractWide && !options.excludeFlaggedTokens) {
+    // By default, use a contract-wide builder
     let builder: BaseBuilder = new Sdk.Seaport.Builders.ContractWide(config.chainId);
 
-    if (options.orderbook === "opensea" && config.chainId === 1) {
+    if (options.orderbook === "opensea" && config.chainId !== 5) {
       const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
         options.maker,
         options.quantity || 1,
         collectionResult.slug
       );
 
+      // When cross-posting to OpenSea, if the result from their API is not
+      // a contract-wide order, then switch to using a token-list builder
       if (
         buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria != "0"
       ) {
@@ -67,13 +70,14 @@ export const build = async (options: BuildOrderOptions) => {
       }
     }
 
-    return builder?.build(buildInfo.params);
+    return builder.build(buildInfo.params);
   } else {
-    // Use token-list order
+    // Use a token-list builder
     const builder: BaseBuilder = new Sdk.Seaport.Builders.TokenList(config.chainId);
 
-    if (options.orderbook === "opensea" && config.chainId === 1) {
-      // We need to call OpenSea to compute the most up-to-date root of the Merkle Tree (currently only supported on OS production apis)
+    if (options.orderbook === "opensea" && config.chainId !== 5) {
+      // We need to fetch from OpenSea the most up-to-date merkle root
+      // (currently only supported on production APIs)
       const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
         options.maker,
         options.quantity || 1,
@@ -86,56 +90,55 @@ export const build = async (options: BuildOrderOptions) => {
     } else {
       // For up-to-date results we need to compute the corresponding token set id
       // from the tokens table. However, that can be computationally-expensive so
-      // we go through two levels of caches before performing the computation.
+      // we go through one level of caching before performing the computation.
       let cachedMerkleRoot: string | null = null;
 
-      if (options.excludeFlaggedTokens && collectionResult.non_flagged_token_set_id) {
-        // Attempt 1: fetch the token set id for non-flagged tokens directly from the collection
-        cachedMerkleRoot = collectionResult.non_flagged_token_set_id.split(":")[2];
-      }
+      if (options.excludeFlaggedTokens) {
+        // First ensure the dynamic non-flagged collection token set exists
+        await tokenSets.dynamicCollectionNonFlagged.save({ collection: options.collection });
+        // Then get the cached merkle root
+        cachedMerkleRoot = await tokenSets.dynamicCollectionNonFlagged
+          .get({ collection: options.collection })
+          .then((ts) => ts.merkleRoot);
+      } else {
+        // Build the resulting token set's schema
+        const schema = {
+          kind: "collection",
+          data: {
+            collection: options.collection,
+          },
+        };
+        const schemaHash = generateSchemaHash(schema);
 
-      // Build the resulting token set's schema
-      const schema = {
-        kind: options.excludeFlaggedTokens ? "collection-non-flagged" : "collection",
-        data: {
-          collection: options.collection,
-        },
-      };
-      const schemaHash = generateSchemaHash(schema);
-
-      if (!cachedMerkleRoot) {
-        // Attempt 2: use a cached version of the token set
+        // Attempt 1: use a cached version of the token set
         cachedMerkleRoot = await redis.get(schemaHash);
+
+        if (!cachedMerkleRoot) {
+          // Attempt 2 (final - will definitely work): compute the token set id (can be computationally-expensive)
+
+          // Fetch all relevant tokens from the collection
+          const tokens = await idb.manyOrNone(
+            `
+              SELECT
+                tokens.token_id
+              FROM tokens
+              WHERE tokens.collection_id = $/collection/
+            `,
+            { collection: options.collection }
+          );
+
+          // Also cache the computation for one hour
+          cachedMerkleRoot = generateMerkleTree(
+            tokens.map(({ token_id }) => token_id)
+          ).getHexRoot();
+          await redis.set(schemaHash, cachedMerkleRoot, "ex", 3600);
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (buildInfo.params as any).merkleRoot = cachedMerkleRoot;
       }
-
-      if (!cachedMerkleRoot) {
-        // Attempt 3 (final - will definitely work): compute the token set id (can be computationally-expensive)
-
-        // Fetch all relevant tokens from the collection
-        const tokens = await redb.manyOrNone(
-          `
-          SELECT
-            tokens.token_id
-          FROM tokens
-          WHERE tokens.collection_id = $/collection/
-          ${
-            options.excludeFlaggedTokens
-              ? "AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
-              : ""
-          }
-        `,
-          { collection: options.collection }
-        );
-
-        // Also cache the computation for one hour
-        cachedMerkleRoot = generateMerkleTree(tokens.map(({ token_id }) => token_id)).getHexRoot();
-        await redis.set(schemaHash, cachedMerkleRoot, "ex", 3600);
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (buildInfo.params as any).merkleRoot = cachedMerkleRoot;
     }
 
-    return builder?.build(buildInfo.params);
+    return builder.build(buildInfo.params);
   }
 };

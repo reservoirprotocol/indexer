@@ -106,7 +106,7 @@ export const save = async (
         });
       }
 
-      // Check: order doesn't already exist or partial order
+      // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(
         `
           WITH x AS (
@@ -240,14 +240,14 @@ export const save = async (
 
       // Check and save: associated token set
       let tokenSetId: string | undefined;
-      let schemaHash;
+      let schemaHash: string | undefined;
 
-      if (openSeaOrderParams && openSeaOrderParams.kind != "single-token") {
-        // Currently, we don't save the raw data on the order to make sure we utilize the OS graphql to fill the order (due to inconsistency with flagged tokens).
+      if (openSeaOrderParams && openSeaOrderParams.kind !== "single-token") {
+        // Currently, we do not save the raw data on the order to make sure
+        // we utilize the order-fetcher service for generating the calldata
         saveRawData = false;
 
         const collection = await getCollection(openSeaOrderParams);
-
         if (!collection) {
           return results.push({
             id,
@@ -259,32 +259,12 @@ export const save = async (
 
         switch (openSeaOrderParams.kind) {
           case "contract-wide": {
-            if (collection?.token_set_id) {
-              tokenSetId = collection.token_set_id;
-            }
-
-            if (tokenSetId) {
-              if (tokenSetId.startsWith("contract:")) {
-                await tokenSet.contractWide.save([
-                  {
-                    id: tokenSetId,
-                    schemaHash,
-                    contract: info.contract,
-                  },
-                ]);
-              } else if (tokenSetId.startsWith("range:")) {
-                const [, , startTokenId, endTokenId] = tokenSetId.split(":");
-
-                await tokenSet.tokenRange.save([
-                  {
-                    id: tokenSetId,
-                    schemaHash,
-                    contract: info.contract,
-                    startTokenId,
-                    endTokenId,
-                  },
-                ]);
-              }
+            const ts = await tokenSet.dynamicCollectionNonFlagged.save({
+              collection: collection.id,
+            });
+            if (ts) {
+              tokenSetId = ts.id;
+              schemaHash = ts.schemaHash;
             }
 
             break;
@@ -382,22 +362,25 @@ export const save = async (
           }
 
           case "token-list": {
-            // For collection offers, if the target orderbook is opensea, the token set should always be a contract wide.
-            // This is due to a mismatch between the collection flags in our system and OpenSea.
-            // The actual merkle root is returned by the build collection offer API from OpenSea (see the logic in the execute bid API).
-            if (metadata?.target === "opensea") {
-              tokenSetId = `contract:${info.contract}`;
-              await tokenSet.contractWide.save([
-                {
-                  id: tokenSetId,
-                  schemaHash,
-                  contract: info.contract,
-                },
-              ]);
-            } else {
-              const typedInfo = info as typeof info & { merkleRoot: string };
-              const merkleRoot = typedInfo.merkleRoot;
+            const typedInfo = info as typeof info & { merkleRoot: string };
+            const merkleRoot = typedInfo.merkleRoot;
 
+            if (metadata.schema?.kind === "collection-non-flagged") {
+              const ts = await tokenSet.dynamicCollectionNonFlagged.save(
+                {
+                  collection: metadata.schema.data.collection,
+                },
+                // For native orders we should always check the merkle root since
+                // we don't want anyone to mess around with orders (post an order
+                // with the "collection-non-flagged" schema but which actually is
+                // not on a non-flagged token set)
+                merkleRoot
+              );
+              if (ts) {
+                tokenSetId = ts.id;
+                schemaHash = ts.schemaHash;
+              }
+            } else {
               if (merkleRoot) {
                 tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
 
