@@ -74,8 +74,6 @@ if (config.doBackgroundWork) {
           metadataIndexProcessBySlug.addToQueue(),
           metadataIndexProcess.addToQueue("opensea"),
         ]);
-
-        break;
       } else {
         const lastId = _.last(collections).id;
         await addToQueue(lastId);
