@@ -15,7 +15,7 @@ import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
 import { getIndexingMethod } from "@/jobs/metadata-index/fetch-queue";
 import { PendingRefreshTokensBySlug } from "@/models/pending-refresh-tokens-by-slug";
 
-const QUEUE_NAME = "backfill-update-missing-metadata-new-queue";
+const QUEUE_NAME = "backfill-update-missing-metadata-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
