@@ -82,6 +82,14 @@
               }
             }
           },
+          "envVariables": {
+            "DATABASE_URL": {
+              "fromService": {
+                "id": "db",
+                "value": "dbConnectionString"
+              }
+            }
+          },
           "port": 3000,
           "enableCloudfrontSwr": false,
           "dockerfilePath": "Dockerfile",
@@ -140,6 +148,14 @@
               }
             }
           },
+          "envVariables": {
+            "DATABASE_URL": {
+              "fromService": {
+                "id": "db",
+                "value": "dbConnectionString"
+              }
+            }
+          },
           "port": 3000,
           "enableCloudfrontSwr": false,
           "dockerfilePath": "Dockerfile",
@@ -195,6 +211,14 @@
                 "DD_LOGS_ENABLED": true,
                 "ECS_FARGATE": true,
                 "DD_APM_MAX_CPU_PERCENT": 80                
+              }
+            }
+          },
+          "envVariables": {
+            "DATABASE_URL": {
+              "fromService": {
+                "id": "db",
+                "value": "dbConnectionString"
               }
             }
           },
