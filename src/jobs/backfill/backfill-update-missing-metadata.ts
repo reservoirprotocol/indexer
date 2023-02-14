@@ -120,7 +120,7 @@ async function processCollection(collection: {
     }
 
     const query = `
-      SELECT token_id, metadata_indexed, image
+      SELECT token_id, metadata_indexed, image, collection_id
       FROM tokens t ${collectionAndTokenIdFilter}
       ORDER BY t.collection_id ASC, t.token_id ASC
       LIMIT ${limit}
