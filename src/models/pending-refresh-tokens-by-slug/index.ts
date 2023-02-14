@@ -35,4 +35,12 @@ export class PendingRefreshTokensBySlug {
 
     return [];
   }
+
+  public async getTop(): Promise<string> {
+    return redis.lindex(this.key, 0);
+  }
+
+  public async length(): Promise<number> {
+    return redis.scard(this.key);
+  }
 }
