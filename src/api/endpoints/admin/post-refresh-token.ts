@@ -54,10 +54,8 @@ export const postRefreshTokenOptions: RouteOptions = {
       const currentUtcTime = new Date().toISOString();
       await Tokens.update(contract, tokenId, { lastMetadataSync: currentUtcTime });
 
-      if (config.metadataIndexingMethod === "opensea") {
-        // Refresh orders from OpenSea
-        await OpenseaIndexerApi.fastTokenSync(payload.token);
-      }
+      // Refresh orders from OpenSea
+      await OpenseaIndexerApi.fastTokenSync(payload.token);
 
       // Refresh meta data
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);

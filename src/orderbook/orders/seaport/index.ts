@@ -4,6 +4,7 @@ import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle"
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport/types";
 import _ from "lodash";
 import pLimit from "p-limit";
+import tags from "dd-trace/ext/tags";
 
 import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -308,13 +309,13 @@ export const save = async (
             // Fetch all tokens matching the attributes
             const tokens = await redb.manyOrNone(
               `
-              SELECT token_attributes.token_id
-              FROM token_attributes
-              WHERE token_attributes.collection_id = $/collection/
-                AND token_attributes.key = $/key/
-                AND token_attributes.value = $/value/
-              ORDER BY token_attributes.token_id
-            `,
+                SELECT token_attributes.token_id
+                FROM token_attributes
+                WHERE token_attributes.collection_id = $/collection/
+                  AND token_attributes.key = $/key/
+                  AND token_attributes.value = $/value/
+                ORDER BY token_attributes.token_id
+              `,
               {
                 collection: collection.id,
                 key: openSeaOrderParams.attributeKey,
@@ -1202,13 +1203,16 @@ export const save = async (
       limit(async () =>
         orderInfo.kind == "partial"
           ? handlePartialOrder(orderInfo.orderParams as PartialOrderComponents, orderInfo.metadata)
-          : tracer.trace("handleOrder", { resource: "seaportSave" }, () =>
-              handleOrder(
-                orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
-                orderInfo.metadata,
-                orderInfo.isReservoir,
-                orderInfo.openSeaOrderParams
-              )
+          : tracer.trace(
+              "handleOrder",
+              { resource: "seaportSave", tags: { [tags.MANUAL_KEEP]: true, orderInfo } },
+              () =>
+                handleOrder(
+                  orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
+                  orderInfo.metadata,
+                  orderInfo.isReservoir,
+                  orderInfo.openSeaOrderParams
+                )
             )
       )
     )

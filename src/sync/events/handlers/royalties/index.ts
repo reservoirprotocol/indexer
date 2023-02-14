@@ -7,7 +7,6 @@ import * as fallback from "@/events-sync/handlers/royalties/core";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import { extractEventsBatches } from "@/events-sync/index";
 import * as es from "@/events-sync/storage";
-import { TransactionTrace } from "@/models/transaction-traces";
 import { Royalty } from "@/utils/royalties";
 
 const registry = new Map<string, RoyaltyAdapter>();
@@ -26,13 +25,15 @@ export type TxEvent = {
 };
 
 export type StateCache = {
-  traces: Map<string, TransactionTrace | undefined>;
   royalties: Map<string, Royalty[]>;
-  events: Map<string, TxEvent>;
 };
 
 export interface RoyaltyAdapter {
-  extractRoyalties(fillEvent: es.fills.Event, cache?: boolean): Promise<RoyaltyResult | null>;
+  extractRoyalties(
+    fillEvent: es.fills.Event,
+    cache: StateCache,
+    useCache?: boolean
+  ): Promise<RoyaltyResult | null>;
 }
 
 export async function extractOnChainData(enhancedEvents: EnhancedEvent[]) {
@@ -79,12 +80,21 @@ export const assignRoyaltiesToFillEvents = async (
   fillEvents: es.fills.Event[],
   enableCache = true
 ) => {
+  const excludeOrderKinds = ["mint"];
+
+  const cache: StateCache = {
+    royalties: new Map(),
+  };
+
   for (let i = 0; i < fillEvents.length; i++) {
     const fillEvent = fillEvents[i];
+    if (excludeOrderKinds.includes(fillEvent.orderKind)) {
+      continue;
+    }
     const royaltyAdapter = registry.get(fillEvent.orderKind) ?? registry.get("fallback");
     try {
       if (royaltyAdapter) {
-        const result = await royaltyAdapter.extractRoyalties(fillEvent, enableCache);
+        const result = await royaltyAdapter.extractRoyalties(fillEvent, cache, enableCache);
         if (result) {
           const isValid = checkFeeIsValid(result);
           if (!isValid) {

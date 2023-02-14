@@ -64,7 +64,9 @@ if (config.doBackgroundWork) {
           if (localBlock < fromBlock) {
             logger.info(
               QUEUE_NAME,
-              `Out of sync: local block ${localBlock} and upstream block ${fromBlock}`
+              `Out of sync: local block ${localBlock} and upstream block ${fromBlock} total missing ${
+                fromBlock - localBlock
+              }`
             );
             await eventsSyncBackfill.addToQueue(localBlock, fromBlock - 1);
           }

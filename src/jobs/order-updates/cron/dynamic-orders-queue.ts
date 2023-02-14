@@ -21,7 +21,7 @@ export const queue = new Queue(QUEUE_NAME, {
       type: "exponential",
       delay: 10000,
     },
-    removeOnComplete: 10000,
+    removeOnComplete: 10,
     removeOnFail: 10000,
     timeout: 5000,
   },
@@ -87,10 +87,11 @@ if (config.doBackgroundWork) {
         const columns = new pgp.helpers.ColumnSet(
           [
             "?id",
-            { name: "price", cast: "NUMERIC(78, 0)" },
-            { name: "currency_price", cast: "NUMERIC(78, 0)" },
-            { name: "value", cast: "NUMERIC(78, 0)" },
-            { name: "currency_value", cast: "NUMERIC(78, 0) " },
+            { name: "price", cast: "numeric(78, 0)" },
+            { name: "currency_price", cast: "numeric(78, 0)" },
+            { name: "value", cast: "numeric(78, 0)" },
+            { name: "currency_value", cast: "numeric(78, 0) " },
+            { name: "updated_at", mod: ":raw", init: () => "now()" },
           ],
           {
             table: "orders",

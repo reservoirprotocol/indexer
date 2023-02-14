@@ -9,7 +9,6 @@ import {
 } from "@opensea/stream-js";
 import { WebSocket } from "ws";
 import * as Sdk from "@reservoir0x/sdk";
-import AWS from "aws-sdk";
 
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
@@ -21,7 +20,13 @@ import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handl
 
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
+import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
+
 import * as orders from "@/orderbook/orders";
+import { redis } from "@/common/redis";
+import { now } from "@/common/utils";
+import { generateHash } from "@/websockets/opensea/utils";
+import { OpenseaWebsocketEvents } from "@/models/opensea-websocket-events";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
@@ -51,6 +56,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     ],
     async (event) => {
       try {
+        if (await isDuplicateEvent(event)) {
+          return;
+        }
+
         await saveEvent(event);
 
         const eventType = event.event_type as EventType;
@@ -90,7 +99,11 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
             };
           }
 
-          await orderbookOrders.addToQueue([orderInfo]);
+          if (eventType === EventType.ITEM_LISTED) {
+            await orderbookOpenseaListings.addToQueue([orderInfo]);
+          } else {
+            await orderbookOrders.addToQueue([orderInfo]);
+          }
         }
       } catch (error) {
         logger.error(
@@ -103,44 +116,31 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 }
 
 const saveEvent = async (event: BaseStreamMessage<unknown>) => {
-  try {
-    if (!config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName) {
-      return;
-    }
-
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-
-    // TODO: Filter out the properties when ingesting from S3 to Redshift instead of here.
-    delete (event.payload as any).item.metadata;
-    delete (event.payload as any).item.permalink;
-
-    const params = {
-      Record: {
-        Data: JSON.stringify({
-          event_type: event.event_type,
-          event_timestamp: new Date((event.payload as any).event_timestamp).toISOString(),
-          order_hash: (event.payload as any).order_hash,
-          maker: (event.payload as any).maker?.address,
-          event_data: event,
-          created_at: new Date().toISOString(),
-        }),
-      },
-      DeliveryStreamName: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName,
-    };
-
-    const firehouse = new AWS.Firehose({
-      accessKeyId: config.awsAccessKeyId,
-      secretAccessKey: config.awsSecretAccessKey,
-      region: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamRegion,
-    });
-
-    await firehouse.putRecord(params).promise();
-  } catch (error) {
-    logger.error(
-      "opensea-websocket",
-      `saveEvent error. event=${JSON.stringify(event)}, error=${error}`
-    );
+  if (!config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName) {
+    return;
   }
+
+  const openseaWebsocketEvents = new OpenseaWebsocketEvents();
+  await openseaWebsocketEvents.add([event]);
+};
+
+export const getEventHash = (event: BaseStreamMessage<unknown>): string => {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  return generateHash(event.event_type, (event.payload as any).order_hash);
+};
+
+export const isDuplicateEvent = async (event: BaseStreamMessage<unknown>): Promise<boolean> => {
+  const eventHash = getEventHash(event);
+
+  const setResult = await redis.set(
+    `opensea-websocket-event:${eventHash}`,
+    now(),
+    "EX",
+    60 * 5,
+    "NX"
+  );
+
+  return setResult === null;
 };
 
 export const handleEvent = (type: EventType, payload: unknown): PartialOrderComponents | null => {

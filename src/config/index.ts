@@ -73,6 +73,12 @@ export const config = {
     process.env.OPENSEA_WEBSOCKET_EVENTS_AWS_FIREHOSE_DELIVERY_STREAM_REGION
   ),
 
+  // For forwarding orders to OpenSea
+  forwardOpenseaApiKey: String(process.env.FORWARD_OPENSEA_API_KEY),
+  forwardReservoirApiKeys: process.env.FORWARD_RESERVOIR_API_KEYS
+    ? (JSON.parse(process.env.FORWARD_RESERVOIR_API_KEYS) as string[])
+    : [],
+
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),

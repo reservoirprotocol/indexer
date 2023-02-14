@@ -22,20 +22,20 @@ export const offChainCheck = async (
 ) => {
   const id = order.hashOrderKey();
   const { side } = order.getInfo()!;
+
   // Check: order has a valid target
-  let kind: string | undefined = "";
+  let kind: string | undefined;
   switch (side) {
     case "buy":
       kind = await commonHelpers.getContractKind(order.params.take.assetType.contract!);
       break;
+
     case "sell":
       kind = await commonHelpers.getContractKind(order.params.make.assetType.contract!);
       break;
+
     default:
-      break;
-  }
-  if (!kind) {
-    throw new Error("invalid-target");
+      throw new Error("invalid-target");
   }
 
   if (options?.checkFilledOrCancelled) {

@@ -529,6 +529,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/events/tokens/floor-ask/v4",
+    options: eventsEndpoints.getTokensFloorAskV4Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/events/bids/v1",
     options: eventsEndpoints.getBidEventsV1Options,
   });
@@ -567,20 +573,14 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
-    path: "/execute/bid/v3",
-    options: executeEndpoints.getExecuteBidV3Options,
-  });
-
-  server.route({
-    method: "POST",
     path: "/execute/bid/v4",
     options: executeEndpoints.getExecuteBidV4Options,
   });
 
   server.route({
-    method: "GET",
-    path: "/execute/buy/v1",
-    options: executeEndpoints.getExecuteBuyV1Options,
+    method: "POST",
+    path: "/execute/bid/v5",
+    options: executeEndpoints.getExecuteBidV5Options,
   });
 
   server.route({
@@ -614,6 +614,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "POST",
+    path: "/execute/buy/v7",
+    options: executeEndpoints.getExecuteBuyV7Options,
+  });
+
+  server.route({
     method: "GET",
     path: "/execute/cancel/v1",
     options: executeEndpoints.getExecuteCancelV1Options,
@@ -644,15 +650,9 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
-    method: "GET",
-    path: "/execute/sell/v1",
-    options: executeEndpoints.getExecuteSellV1Options,
-  });
-
-  server.route({
-    method: "GET",
-    path: "/execute/sell/v2",
-    options: executeEndpoints.getExecuteSellV2Options,
+    method: "POST",
+    path: "/execute/list/v5",
+    options: executeEndpoints.getExecuteListV5Options,
   });
 
   server.route({
@@ -906,6 +906,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/order/v3",
     options: ordersEndpoints.postOrderV3Options,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/order/v4",
+    options: ordersEndpoints.postOrderV4Options,
   });
 
   server.route({

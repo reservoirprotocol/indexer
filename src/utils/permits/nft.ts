@@ -1,10 +1,10 @@
 import { keccak256 } from "@ethersproject/solidity";
-import { NFTPermit, Token } from "@reservoir0x/sdk/dist/router/v6/types";
+import { NFTPermit, NFTToken } from "@reservoir0x/sdk/dist/router/v6/types";
 import stringify from "json-stable-stringify";
 
 import { redis } from "@/common/redis";
 
-export const getPermitId = (requestPayload: object, tokens: Token[]) =>
+export const getPermitId = (requestPayload: object, tokens: NFTToken[]) =>
   `nft-permit:${keccak256(["string"], [stringify({ requestPayload, tokens })])}`;
 
 export const savePermit = async (id: string, permit: NFTPermit, expiresIn: number) =>

@@ -47,7 +47,7 @@ if (config.doBackgroundWork) {
           break;
       }
 
-      const countTotal = method === "opensea" ? config.maxParallelTokenRefreshJobs * count : count;
+      const countTotal = method !== "soundxyz" ? config.maxParallelTokenRefreshJobs * count : count;
 
       // Get the tokens from the list
       const pendingRefreshTokens = new PendingRefreshTokens(method);
@@ -56,7 +56,6 @@ if (config.doBackgroundWork) {
       // If no more tokens
       if (_.isEmpty(refreshTokens)) {
         await releaseLock(getLockName(method));
-
         return;
       }
 

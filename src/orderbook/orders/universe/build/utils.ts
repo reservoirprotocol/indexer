@@ -1,20 +1,22 @@
 import * as Sdk from "@reservoir0x/sdk";
+import { OrderSide } from "@reservoir0x/sdk/dist/universe/types";
 
 import { redb } from "@/common/db";
-import { OrderSide } from "@reservoir0x/sdk/dist/universe/types";
+import { now } from "@/common/utils";
+import { config } from "@/config/index";
 
 export interface BaseOrderBuildOptions {
   maker: string;
   contract: string;
   tokenId: string;
-  quantity: number;
-  salt: number;
-  currency: string;
-  nftAssetClass: string;
+  quantity?: number;
+  salt?: string;
+  currency?: string;
+  nftAssetClass?: string;
   weiPrice: string;
-  listingTime: number;
-  expirationTime: number;
-  signature: string;
+  listingTime?: number;
+  expirationTime?: number;
+  signature?: string;
   fees: string[];
 }
 
@@ -57,10 +59,10 @@ export const getBuildInfo = async (
     tokenId: options.tokenId,
     tokenAmount: options.quantity,
     price: options.weiPrice,
-    paymentToken: options.currency,
+    paymentToken: options.currency ?? Sdk.Common.Addresses.Eth[config.chainId],
     fees: options.fees,
-    startTime: options.listingTime,
-    endTime: options.expirationTime,
+    startTime: options.listingTime ?? now() - 60,
+    endTime: options.expirationTime ?? now() + 3600,
   };
   return {
     params,

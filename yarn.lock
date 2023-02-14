@@ -1946,10 +1946,10 @@
   resolved "https://registry.npmjs.org/@exodus/schemasafe/-/schemasafe-1.0.0-rc.9.tgz"
   integrity sha512-dGGHpb61hLwifAu7sotuHFDBw6GTdpG8aKC0fsK17EuTzMRvUrH7lEAr6LTJ+sx3AZYed9yZ77rltVDHyg2hRg==
 
-"@georgeroman/evm-tx-simulator@^0.0.13":
-  version "0.0.13"
-  resolved "https://registry.yarnpkg.com/@georgeroman/evm-tx-simulator/-/evm-tx-simulator-0.0.13.tgz#27dacb52daf8469692adfd4517f81e9e24d0325f"
-  integrity sha512-wp8ktnnQZk9gIsLbM3dTgctPC6OwFjfIOUH46a6cbg9bxbyZoWyJyn7vY6XHa4sfm/cIu2+9rCdcL23vpgQfHA==
+"@georgeroman/evm-tx-simulator@^0.0.15":
+  version "0.0.15"
+  resolved "https://registry.yarnpkg.com/@georgeroman/evm-tx-simulator/-/evm-tx-simulator-0.0.15.tgz#c7c0a4fcfef88d4ea33823ba66450ff8985c0ed7"
+  integrity sha512-ppfrGhGdUg0+/Ys3+23EwlY8vNuN1nPeaK1EEIxVMTKwpF7+xdbzMoEI4CaWBT1VW5EDnhSL5epDCPgB3XrBuA==
   dependencies:
     ethers "^5.6.9"
 
@@ -2675,11 +2675,12 @@
   resolved "https://registry.npmjs.org/@protobufjs/utf8/-/utf8-1.1.0.tgz"
   integrity sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==
 
-"@reservoir0x/sdk@0.0.308":
-  version "0.0.308"
-  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.308.tgz#144d815642b30b744c869dd662f0076d46f08699"
-  integrity sha512-TP+lEs6AWkzFNldclxU/EWOGO0aIDHXFzr04CAKcN343knm3BF2G1AmzPignJRz4xQDONHHDR4ucYJVYYddIDg==
+"@reservoir0x/sdk@0.0.319":
+  version "0.0.319"
+  resolved "https://registry.yarnpkg.com/@reservoir0x/sdk/-/sdk-0.0.319.tgz#a0598bd92951ed96c9171bece4c4a28c492925e2"
+  integrity sha512-R8KtPCvYbOvT8ShVH0PF3w2W3tDYjk3FaVtlQVPdDeh8LdY/nzbMxZyETb/FpKqgWxOmCEtN95eSboDHX+cBsA==
   dependencies:
+    "@uniswap/permit2-sdk" "^1.2.0"
     "@uniswap/smart-order-router" "^3.0.4"
     ethers "^5.7.2"
     merkletreejs "^0.3.9"

@@ -265,6 +265,8 @@ export const getTokensV5Options: RouteOptions = {
     // Include top bid
     let selectTopBid = "";
     let topBidQuery = "";
+    let nullsPosition = "LAST";
+
     if (query.includeTopBid) {
       selectTopBid = `, y.*`;
       topBidQuery = `
@@ -740,6 +742,7 @@ export const getTokensV5Options: RouteOptions = {
                   conditions.push(
                     `(${sortColumn} is null AND (t.contract, t.token_id) ${sign} ($/contContract/, $/contTokenId/))`
                   );
+                  nullsPosition = "FIRST";
                   (query as any).contContract = toBuffer(contArr[1]);
                   (query as any).contTokenId = contArr[2];
                 }
@@ -780,7 +783,7 @@ export const getTokensV5Options: RouteOptions = {
           case "rarity": {
             baseQuery += ` ORDER BY t.rarity_rank ${
               query.sortDirection || "ASC"
-            } NULLS LAST, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
+            } NULLS ${nullsPosition}, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
               query.sortDirection || "ASC"
             }`;
             break;
@@ -803,7 +806,7 @@ export const getTokensV5Options: RouteOptions = {
 
             baseQuery += ` ORDER BY ${sortColumn} ${
               query.sortDirection || "ASC"
-            } NULLS LAST, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
+            } NULLS ${nullsPosition}, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
               query.sortDirection || "ASC"
             }`;
             break;

@@ -33,6 +33,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
     currentTxLogs.push(log);
 
     const eventData = getEventData([subKind])[0];
+    if (!eventData) {
+      continue;
+    }
+
     const parsedLog = eventData.abi.parseLog(log);
 
     switch (subKind) {

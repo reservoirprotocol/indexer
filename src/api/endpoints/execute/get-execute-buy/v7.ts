@@ -2,31 +2,30 @@ import { BigNumber } from "@ethersproject/bignumber";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import * as SeaportPermit from "@reservoir0x/sdk/dist/router/v6/permits/seaport";
-import { BidDetails } from "@reservoir0x/sdk/dist/router/v6/types";
+import * as Permit2 from "@reservoir0x/sdk/dist/router/v6/permits/permit2";
+import { ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
+import { bn, formatPrice, fromBuffer, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
-import { getNetworkSettings } from "@/config/network";
 import { Sources } from "@/models/sources";
-import { OrderKind, generateBidDetailsV6 } from "@/orderbook/orders";
+import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import { getCurrency } from "@/utils/currencies";
-import { getPermitId, getPermit, savePermit } from "@/utils/permits/nft";
-import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
+import * as onChainData from "@/utils/on-chain-data";
+import { getPermitId, getPermit, savePermit } from "@/utils/permits/ft";
 
 const version = "v7";
 
-export const getExecuteSellV7Options: RouteOptions = {
-  description: "Sell tokens (accept bids)",
-  tags: ["api", "x-experimental"],
+export const getExecuteBuyV7Options: RouteOptions = {
+  description: "Buy tokens (fill listings)",
+  tags: ["api", "Router", "x-experimental"],
   timeout: {
     server: 20 * 1000,
   },
@@ -44,13 +43,13 @@ export const getExecuteSellV7Options: RouteOptions = {
               .lowercase()
               .pattern(regex.token)
               .required()
-              .description("Token to sell."),
+              .description("Token to buy."),
             quantity: Joi.number()
               .integer()
               .positive()
               .default(1)
-              .description("Quantity of tokens to sell."),
-            orderId: Joi.string().lowercase().description("Optional order id to sell into."),
+              .description("Quantity of tokens to buy."),
+            orderId: Joi.string().lowercase().description("Optional order id to fill."),
             rawOrder: Joi.object({
               kind: Joi.string()
                 .lowercase()
@@ -64,37 +63,63 @@ export const getExecuteSellV7Options: RouteOptions = {
                   "rarible",
                   "infinity",
                   "sudoswap",
+                  "flow",
                   "nftx"
                 )
                 .required(),
               data: Joi.object().required(),
-            }).description("Optional raw order to sell into."),
-          }).oxor("orderId", "rawOrder")
+            }).description("Optional raw order to fill."),
+            preferredOrderSource: Joi.string()
+              .lowercase()
+              .pattern(regex.domain)
+              .when("tokens", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
+              .description(
+                "If there are multiple listings with equal best price, prefer this source over others.\nNOTE: if you want to fill a listing that is not the best priced, you need to pass a specific order id."
+              ),
+          }).oxor("token", "orderId", "rawOrder")
         )
         .min(1)
         .required()
-        .description("List of items to sell."),
+        .description("List of items to buy."),
       taker: Joi.string()
         .lowercase()
         .pattern(regex.address)
         .required()
         .description("Address of wallet filling."),
-      source: Joi.string()
+      relayer: Joi.string()
         .lowercase()
-        .pattern(regex.domain)
-        .description("Filling source used for attribution."),
+        .pattern(regex.address)
+        .description("Address of wallet relaying the fill transaction."),
       onlyPath: Joi.boolean()
         .default(false)
-        .description("If true, only the filling path will be returned."),
+        .description("If true, only the path will be returned."),
+      forceRouter: Joi.boolean().description(
+        "If true, all fills will be executed through the router."
+      ),
+      currency: Joi.string()
+        .valid(Sdk.Common.Addresses.Eth[config.chainId])
+        .description("Currency to be used for purchases."),
       normalizeRoyalties: Joi.boolean().default(false).description("Charge any missing royalties."),
       allowInactiveOrderIds: Joi.boolean()
         .default(false)
         .description(
           "If true, inactive orders will not be skipped over (only relevant when filling via a specific order id)."
         ),
+      source: Joi.string()
+        .lowercase()
+        .pattern(regex.domain)
+        .description("Filling source used for attribution. Example: `reservoir.market`"),
+      feesOnTop: Joi.array()
+        .items(Joi.string().pattern(regex.fee))
+        .description(
+          "List of fees (formatted as `feeRecipient:feeAmount`) to be taken when filling.\nUnless overridden via the `currency` param, the currency used for any fees on top matches the buy-in currency detected by the backend.\nExample: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:1000000000000000`"
+        ),
       partial: Joi.boolean()
         .default(false)
         .description("If true, any off-chain or on-chain errors will be skipped."),
+      skipBalanceCheck: Joi.boolean()
+        .default(false)
+        .description("If true, balance check will be skipped."),
       maxFeePerGas: Joi.string().pattern(regex.number).description("Optional custom gas settings."),
       maxPriorityFeePerGas: Joi.string()
         .pattern(regex.number)
@@ -133,9 +158,9 @@ export const getExecuteSellV7Options: RouteOptions = {
           rawQuote: Joi.string().pattern(regex.number),
         })
       ),
-    }).label(`getExecuteSell${version.toUpperCase()}Response`),
+    }).label(`getExecuteBuy${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`get-execute-sell-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(`get-execute-buy-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },
@@ -144,8 +169,18 @@ export const getExecuteSellV7Options: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      // Keep track of the bids and path to fill
-      const bidDetails: BidDetails[] = [];
+      // Handle fees on top
+      const feesOnTop: {
+        recipient: string;
+        amount: string;
+      }[] = [];
+      for (const fee of payload.feesOnTop ?? []) {
+        const [recipient, amount] = fee.split(":");
+        feesOnTop.push({ recipient, amount });
+      }
+
+      // Keep track of the listings and path to fill
+      const listingDetails: ListingDetails[] = [];
       let path: {
         orderId: string;
         contract: string;
@@ -162,8 +197,9 @@ export const getExecuteSellV7Options: RouteOptions = {
       // Keep track of the remaining quantities as orders are filled
       const quantityFilled: { [orderId: string]: number } = {};
       // Keep track of the maker balances as orders are filled
-      const getMakerBalancesKey = (maker: string, currency: string) => `${maker}-${currency}`;
-      const makerBalances: { [makerAndCurrency: string]: BigNumber } = {};
+      const getMakerBalancesKey = (maker: string, contract: string, tokenId: string) =>
+        `${maker}-${contract}-${tokenId}`;
+      const makerBalances: { [makerAndToken: string]: BigNumber } = {};
       // TODO: Also keep track of the maker's allowance per exchange
 
       const sources = await Sources.getInstance();
@@ -176,7 +212,6 @@ export const getExecuteSellV7Options: RouteOptions = {
           sourceId: number | null;
           currency: string;
           rawData: object;
-          builtInFeeBps: number;
           feesOnTop?: Sdk.RouterV6.Types.Fee[];
         },
         token: {
@@ -184,7 +219,6 @@ export const getExecuteSellV7Options: RouteOptions = {
           contract: string;
           tokenId: string;
           quantity?: number;
-          owner?: string;
         }
       ) => {
         const feesOnTop = payload.normalizeRoyalties ? order.feesOnTop ?? [] : [];
@@ -226,15 +260,18 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
         quantityFilled[order.id] += quantity;
 
-        // Decrement the maker's available FT balance
-        const price = bn(order.price).mul(quantity);
-        const key = getMakerBalancesKey(order.maker, order.currency);
+        // Decrement the maker's available NFT balance
+        const key = getMakerBalancesKey(order.maker, token.contract, token.tokenId);
         if (!makerBalances[key]) {
-          makerBalances[key] = await commonHelpers.getFtBalance(order.currency, order.maker);
+          makerBalances[key] = await commonHelpers.getNftBalance(
+            token.contract,
+            token.tokenId,
+            order.maker
+          );
         }
-        makerBalances[key] = makerBalances[key].sub(price);
+        makerBalances[key] = makerBalances[key].sub(quantity);
 
-        const netPrice = price.sub(price.mul(order.builtInFeeBps).div(10000)).sub(totalFeeOnTop);
+        const totalPrice = bn(order.price).add(totalFeeOnTop).mul(quantity);
         path.push({
           orderId: order.id,
           contract: token.contract,
@@ -242,16 +279,16 @@ export const getExecuteSellV7Options: RouteOptions = {
           quantity,
           source: order.sourceId !== null ? sources.get(order.sourceId)?.domain ?? null : null,
           currency: order.currency,
-          quote: formatPrice(netPrice, (await getCurrency(order.currency)).decimals, true),
-          rawQuote: netPrice.toString(),
+          quote: formatPrice(totalPrice, (await getCurrency(order.currency)).decimals, true),
+          rawQuote: totalPrice.toString(),
         });
 
-        bidDetails.push(
-          await generateBidDetailsV6(
+        listingDetails.push(
+          generateListingDetailsV6(
             {
               id: order.id,
               kind: order.kind,
-              unitPrice: order.price,
+              currency: order.currency,
               rawData: order.rawData,
               fees: feesOnTop,
             },
@@ -260,7 +297,6 @@ export const getExecuteSellV7Options: RouteOptions = {
               contract: token.contract,
               tokenId: token.tokenId,
               amount: token.quantity,
-              owner: token.owner,
             }
           )
         );
@@ -275,34 +311,10 @@ export const getExecuteSellV7Options: RouteOptions = {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           data: any;
         };
+        preferredOrderSource?: string;
       }[] = payload.items;
 
-      const tokenToSuspicious = await tryGetTokensSuspiciousStatus(items.map((i) => i.token));
       for (const item of items) {
-        const [contract, tokenId] = item.token.split(":");
-
-        const tokenResult = await idb.oneOrNone(
-          `
-            SELECT
-              tokens.is_flagged,
-              coalesce(extract('epoch' from tokens.last_flag_update), 0) AS last_flag_update
-            FROM tokens
-            WHERE tokens.contract = $/contract/
-              AND tokens.token_id = $/tokenId/
-          `,
-          {
-            contract: toBuffer(contract),
-            tokenId,
-          }
-        );
-        if (!tokenResult) {
-          if (payload.partial) {
-            continue;
-          } else {
-            throw Boom.badData("Unknown token");
-          }
-        }
-
         // Scenario 1: fill via `rawOrder`
         if (item.rawOrder) {
           const order = item.rawOrder;
@@ -313,9 +325,9 @@ export const getExecuteSellV7Options: RouteOptions = {
 
           // TODO: Handle any other on-chain orderbooks that cannot be "posted"
           if (order.kind === "sudoswap") {
-            item.orderId = sudoswap.getOrderId(order.data.pair, "buy");
+            item.orderId = sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId);
           } else if (order.kind === "nftx") {
-            item.orderId = nftx.getOrderId(order.data.pool, "buy");
+            item.orderId = nftx.getOrderId(order.data.pool, "sell", order.data.specificIds[0]);
           } else {
             const response = await inject({
               method: "POST",
@@ -343,7 +355,6 @@ export const getExecuteSellV7Options: RouteOptions = {
           const result = await idb.oneOrNone(
             `
               SELECT
-                orders.id,
                 orders.kind,
                 contracts.kind AS token_kind,
                 coalesce(orders.currency_price, orders.price) AS price,
@@ -352,19 +363,17 @@ export const getExecuteSellV7Options: RouteOptions = {
                 orders.currency,
                 orders.missing_royalties,
                 orders.maker,
-                orders.token_set_id,
-                orders.fee_bps
+                token_sets_tokens.contract,
+                token_sets_tokens.token_id
               FROM orders
               JOIN contracts
                 ON orders.contract = contracts.address
               JOIN token_sets_tokens
                 ON orders.token_set_id = token_sets_tokens.token_set_id
               WHERE orders.id = $/id/
-                AND token_sets_tokens.contract = $/contract/
-                AND token_sets_tokens.token_id = $/tokenId/
-                AND orders.side = 'buy'
-                AND orders.quantity_remaining >= $/quantity/
+                AND orders.side = 'sell'
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                AND orders.quantity_remaining >= $/quantity/
                 ${
                   payload.allowInactiveOrderIds
                     ? ""
@@ -373,8 +382,6 @@ export const getExecuteSellV7Options: RouteOptions = {
             `,
             {
               id: item.orderId,
-              contract: toBuffer(contract),
-              tokenId,
               quantity: item.quantity,
             }
           );
@@ -382,50 +389,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData(
-                `Order ${item.orderId} not found or not fillable with token ${item.token}`
-              );
-            }
-          }
-
-          // Partial Seaport orders require knowing the owner
-          let owner: string | undefined;
-          if (["seaport-partial", "seaport-v1.2-partial"].includes(result.kind)) {
-            const ownerResult = await idb.oneOrNone(
-              `
-                SELECT
-                  nft_balances.owner
-                FROM nft_balances
-                WHERE nft_balances.contract = $/contract/
-                  AND nft_balances.token_id = $/tokenId/
-                  AND nft_balances.amount >= $/quantity/
-              `,
-              {
-                contract: toBuffer(contract),
-                tokenId,
-                quantity: item.quantity,
-              }
-            );
-            if (ownerResult) {
-              owner = fromBuffer(ownerResult.owner);
-            }
-          }
-
-          // Do not fill X2Y2 and Seaport orders with flagged tokens
-          if (
-            ["x2y2", "seaport", "seaport-v1.2", "seaport-partial", "seaport-v1.2-partial"].includes(
-              result.kind
-            )
-          ) {
-            if (
-              (tokenToSuspicious.has(item.token) && tokenToSuspicious.get(item.token)) ||
-              tokenResult.is_flagged
-            ) {
-              if (payload.partial) {
-                continue;
-              } else {
-                throw Boom.badData(`Token ${item.token} is flagged`);
-              }
+              throw Boom.badData(`Order ${item.orderId} not found or not fillable`);
             }
           }
 
@@ -438,21 +402,21 @@ export const getExecuteSellV7Options: RouteOptions = {
               sourceId: result.source_id_int,
               currency: fromBuffer(result.currency),
               rawData: result.raw_data,
-              builtInFeeBps: result.fee_bps,
               feesOnTop: result.missing_royalties,
             },
             {
               kind: result.token_kind,
-              contract,
-              tokenId,
+              contract: fromBuffer(result.contract),
+              tokenId: result.token_id,
               quantity: item.quantity,
-              owner,
             }
           );
         }
 
         // Scenario 3: fill via `token`
-        if (!item.rawOrder && !item.orderId) {
+        if (item.token) {
+          const [contract, tokenId] = item.token.split(":");
+
           // Fetch all matching orders sorted by price
           const orderResults = await idb.manyOrNone(
             `
@@ -461,80 +425,45 @@ export const getExecuteSellV7Options: RouteOptions = {
                 orders.kind,
                 contracts.kind AS token_kind,
                 coalesce(orders.currency_price, orders.price) AS price,
-                orders.raw_data,
+                orders.quantity_remaining,
                 orders.source_id_int,
                 orders.currency,
                 orders.missing_royalties,
                 orders.maker,
-                orders.quantity_remaining,
-                orders.fee_bps
+                orders.raw_data,
+                contracts.kind AS token_kind,
+                orders.quantity_remaining AS quantity
               FROM orders
               JOIN contracts
                 ON orders.contract = contracts.address
-              JOIN token_sets_tokens
-                ON orders.token_set_id = token_sets_tokens.token_set_id
-              WHERE token_sets_tokens.contract = $/contract/
-                AND token_sets_tokens.token_id = $/tokenId/
-                AND orders.side = 'buy'
-                AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'
+              WHERE orders.token_set_id = $/tokenSetId/
+                AND orders.side = 'sell'
+                AND orders.fillability_status = 'fillable'
+                AND orders.approval_status = 'approved'
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-              ORDER BY ${
-                payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"
-              } DESC
+              ORDER BY
+                ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
+                ${
+                  item.preferredOrderSource
+                    ? `(
+                        CASE
+                          WHEN orders.source_id_int = $/sourceId/ THEN 0
+                          ELSE 1
+                        END
+                      )`
+                    : "orders.fee_bps"
+                }
+              LIMIT 1000
             `,
             {
-              id: item.orderId,
-              contract: toBuffer(contract),
-              tokenId,
+              tokenSetId: `token:${item.token}`,
               quantity: item.quantity,
+              sourceId: item.preferredOrderSource,
             }
           );
 
           let quantityToFill = item.quantity;
           for (const result of orderResults) {
-            // Partial Seaport orders require knowing the owner
-            let owner: string | undefined;
-            if (["seaport-partial", "seaport-v1.2-partial"].includes(result.kind)) {
-              const ownerResult = await idb.oneOrNone(
-                `
-                  SELECT
-                    nft_balances.owner
-                  FROM nft_balances
-                  WHERE nft_balances.contract = $/contract/
-                    AND nft_balances.token_id = $/tokenId/
-                    AND nft_balances.amount >= $/quantity/
-                `,
-                {
-                  contract: toBuffer(contract),
-                  tokenId,
-                  quantity: item.quantity,
-                }
-              );
-              if (ownerResult) {
-                owner = fromBuffer(ownerResult.owner);
-              }
-            }
-
-            // Do not fill X2Y2 and Seaport orders with flagged tokens
-            if (
-              [
-                "x2y2",
-                "seaport",
-                "seaport-v1.2",
-                "seaport-partial",
-                "seaport-v1.2-partial",
-              ].includes(result.kind)
-            ) {
-              if (
-                (tokenToSuspicious.has(item.token) && tokenToSuspicious.get(item.token)) ||
-                tokenResult.is_flagged
-              ) {
-                if (payload.partial) {
-                  continue;
-                }
-              }
-            }
-
             // Stop if we filled the total quantity
             if (quantityToFill <= 0) {
               break;
@@ -548,10 +477,9 @@ export const getExecuteSellV7Options: RouteOptions = {
 
             // Account for the already filled maker's balance
             const maker = fromBuffer(result.maker);
-            const currency = fromBuffer(result.currency);
-            const key = getMakerBalancesKey(maker, currency);
+            const key = getMakerBalancesKey(maker, contract, tokenId);
             if (makerBalances[key]) {
-              const makerAvailableQuantity = makerBalances[key].div(result.price).toNumber();
+              const makerAvailableQuantity = makerBalances[key].toNumber();
               if (makerAvailableQuantity < availableQuantity) {
                 availableQuantity = makerAvailableQuantity;
               }
@@ -572,9 +500,8 @@ export const getExecuteSellV7Options: RouteOptions = {
                 maker,
                 price: result.price,
                 sourceId: result.source_id_int,
-                currency,
+                currency: fromBuffer(result.currency),
                 rawData: result.raw_data,
-                builtInFeeBps: result.fee_bps,
                 feesOnTop: result.missing_royalties,
               },
               {
@@ -582,7 +509,6 @@ export const getExecuteSellV7Options: RouteOptions = {
                 contract,
                 tokenId,
                 quantity: availableQuantity,
-                owner,
               }
             );
           }
@@ -603,20 +529,39 @@ export const getExecuteSellV7Options: RouteOptions = {
         throw Boom.badRequest("No available orders");
       }
 
+      let buyInCurrency = payload.currency;
+      if (!buyInCurrency) {
+        // If no buy-in-currency is specified then we use the following defaults:
+        if (path.length === 1) {
+          // If a single order is to get filled, we use its currency
+          buyInCurrency = path[0].currency;
+        } else if (path.every((p) => p.currency === path[0].currency)) {
+          // If multiple same-currency orders are to get filled, we use that currency
+          buyInCurrency = path[0].currency;
+        } else {
+          // If multiple different-currency orders are to get filled, we use the native currency
+          buyInCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+        }
+      }
+
       const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
       });
-
-      const { customTokenAddresses } = getNetworkSettings();
-      const forcePermit = customTokenAddresses.includes(bidDetails[0].contract);
-      const { txData, success, approvals, permits } = await router.fillBidsTx(
-        bidDetails,
+      const { txData, success, approvals, permits } = await router.fillListingsTx(
+        listingDetails,
         payload.taker,
+        buyInCurrency,
         {
           source: payload.source,
           partial: payload.partial,
-          forcePermit,
+          forceRouter: payload.forceRouter,
+          relayer: payload.relayer,
+          globalFees: feesOnTop,
+          // TODO: Move this defaulting to the core SDK
+          directFillingData: {
+            conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId],
+          },
         }
       );
 
@@ -643,24 +588,23 @@ export const getExecuteSellV7Options: RouteOptions = {
         }[];
       }[] = [
         {
-          id: "nft-approval",
-          action: "Approve NFT contract",
-          description:
-            "Each NFT collection you want to trade requires a one-time approval transaction",
+          id: "currency-approval",
+          action: "Approve exchange contract",
+          description: "A one-time setup transaction to enable trading",
           kind: "transaction",
           items: [],
         },
         {
           id: "permit",
           action: "Sign permits",
-          description: "Sign permits for accessing the NFTs in your wallet",
+          description: "Sign permits for accessing the tokens in your wallet",
           kind: "signature",
           items: [],
         },
         {
           id: "sale",
-          action: "Accept offer",
-          description: "To sell this item you must confirm the transaction and pay the gas fee",
+          action: "Confirm transaction in your wallet",
+          description: "To purchase this item you must confirm the transaction and pay the gas fee",
           kind: "transaction",
           items: [],
         },
@@ -675,11 +619,23 @@ export const getExecuteSellV7Options: RouteOptions = {
         : undefined;
 
       for (const approval of approvals) {
-        const isApproved = await commonHelpers.getNftApproval(
-          approval.contract,
-          approval.owner,
-          approval.operator
-        );
+        const approvedAmount = await onChainData
+          .fetchAndUpdateFtApproval(approval.currency, approval.owner, approval.operator, true)
+          .then((a) => a.value);
+
+        const amountToApprove = permits.length
+          ? permits
+              .map((p) =>
+                p.details.data.transferDetails.filter(({ token }) => token === approval.currency)
+              )
+              .flat()
+              .reduce((total, { amount }) => total.add(amount), bn(0))
+          : path
+              .filter((p) => p.currency === approval.currency)
+              .map(({ rawQuote }) => bn(rawQuote))
+              .reduce((total, amount) => total.add(amount), bn(0));
+
+        const isApproved = bn(approvedAmount).gte(amountToApprove);
         if (!isApproved) {
           steps[0].items.push({
             status: "incomplete",
@@ -692,10 +648,10 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
-      const permitHandler = new SeaportPermit.Handler(config.chainId, baseProvider);
+      const permitHandler = new Permit2.Handler(config.chainId, baseProvider);
       if (permits.length) {
         for (const permit of permits) {
-          const id = getPermitId(request.payload as object, permit.tokens);
+          const id = getPermitId(request.payload as object, permit.currencies);
 
           let cachedPermit = await getPermit(id);
           if (cachedPermit) {
@@ -703,7 +659,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             permit.details = cachedPermit.details;
 
             // If the cached permit has a signature attached to it, we can skip it
-            const hasSignature = (permit.details.data as SeaportPermit.Data).order.signature;
+            const hasSignature = (permit.details.data as Permit2.Data).signature;
             if (hasSignature) {
               continue;
             }
@@ -713,7 +669,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               id,
               permit,
               // Give a 1 minute buffer for the permit to expire
-              (permit.details.data as SeaportPermit.Data).order.endTime - now() - 60
+              parseInt(permit.details.data.permitBatch.sigDeadline.toString()) - now() - 60
             );
             cachedPermit = permit;
           }
@@ -726,12 +682,41 @@ export const getExecuteSellV7Options: RouteOptions = {
                 endpoint: "/execute/permit-signature/v1",
                 method: "POST",
                 body: {
-                  kind: "nft-permit",
+                  kind: "ft-permit",
                   id,
                 },
               },
             },
           });
+        }
+      }
+
+      // Get the total price to be paid in the buy-in currency:
+      // - orders already denominated in the buy-in currency
+      // - permit amounts (which will be denominated in the buy-in currency)
+      const totalBuyInCurrencyPrice = path
+        .filter(({ currency }) => currency === buyInCurrency)
+        .map(({ rawQuote }) => bn(rawQuote))
+        .reduce((a, b) => a.add(b), bn(0))
+        .add(
+          permits
+            .map((p) => p.details.data.transferDetails.map((d) => bn(d.amount)))
+            .flat()
+            .reduce((a, b) => a.add(b), bn(0))
+        );
+
+      // Check that the transaction sender has enough funds to fill all requested tokens
+      const txSender = payload.relayer ?? payload.taker;
+      if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
+        const balance = await baseProvider.getBalance(txSender);
+        if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
+          throw Boom.badData("Balance too low to proceed with transaction");
+        }
+      } else {
+        const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, buyInCurrency);
+        const balance = await erc20.getBalance(txSender);
+        if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
+          throw Boom.badData("Balance too low to proceed with transaction");
         }
       }
 
@@ -758,7 +743,7 @@ export const getExecuteSellV7Options: RouteOptions = {
     } catch (error) {
       if (!(error instanceof Boom.Boom)) {
         logger.error(
-          `get-execute-sell-${version}-handler`,
+          `get-execute-buy-${version}-handler`,
           `Handler failure: ${error} (path = ${JSON.stringify({})}, request = ${JSON.stringify(
             payload
           )})`

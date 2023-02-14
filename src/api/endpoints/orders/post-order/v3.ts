@@ -8,12 +8,13 @@ import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orders from "@/orderbook/orders";
 
 import * as postOrderExternal from "@/jobs/orderbook/post-order-external";
-import { regex } from "@/common/utils";
 
 const version = "v3";
 
@@ -198,15 +199,16 @@ export const postOrderV3Options: RouteOptions = {
 
           const [result] = await orders.seaport.save([orderInfo]);
 
-          if (result.status === "already-exists") {
-            return { message: "Success", orderId: result.id };
-          }
-
-          if (result.status !== "success") {
-            const error = Boom.badRequest(result.status);
-            error.output.payload.orderId = result.id;
-            throw error;
-          }
+          logger.info(
+            `post-order-${version}-handler`,
+            JSON.stringify({
+              forward: false,
+              orderbook,
+              data: order.data,
+              orderId: result.id,
+              status: result.status,
+            })
+          );
 
           if (orderbook === "opensea") {
             await postOrderExternal.addToQueue(result.id, order.data, orderbook, orderbookApiKey);
@@ -217,6 +219,44 @@ export const postOrderV3Options: RouteOptions = {
                 result.id
               }`
             );
+          } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
+            const orderResult = await idb.oneOrNone(
+              `
+                SELECT
+                  orders.token_set_id
+                FROM orders
+                WHERE orders.id = $/id/
+              `,
+              { id: result.id }
+            );
+            if (orderResult?.token_set_id?.startsWith("token")) {
+              await postOrderExternal.addToQueue(
+                result.id,
+                order.data,
+                "opensea",
+                config.forwardOpenseaApiKey
+              );
+
+              logger.info(
+                `post-order-${version}-handler`,
+                JSON.stringify({
+                  forward: true,
+                  orderbook: "opensea",
+                  data: order.data,
+                  orderId: result.id,
+                })
+              );
+            }
+          }
+
+          if (result.status === "already-exists") {
+            return { message: "Success", orderId: result.id };
+          }
+
+          if (result.status !== "success") {
+            const error = Boom.badRequest(result.status);
+            error.output.payload.orderId = result.id;
+            throw error;
           }
 
           return { message: "Success", orderId: result.id };

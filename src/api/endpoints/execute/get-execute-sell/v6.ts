@@ -6,7 +6,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
@@ -142,7 +142,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       const [contract, tokenId] = payload.token.split(":");
 
-      const tokenResult = await redb.oneOrNone(
+      const tokenResult = await idb.oneOrNone(
         `
           SELECT
             tokens.is_flagged,
@@ -159,6 +159,8 @@ export const getExecuteSellV6Options: RouteOptions = {
       if (!tokenResult) {
         throw Boom.badData("Unknown token");
       }
+
+      const isFlagged = Boolean(tokenResult.is_flagged);
 
       // Scenario 3: pass raw orders that don't yet exist
       if (payload.rawOrder) {
@@ -184,7 +186,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       // Scenario 2: explicitly pass an order id to fill
       if (payload.orderId) {
-        orderResult = await redb
+        orderResult = await idb
           .manyOrNone(
             `
               SELECT
@@ -229,7 +231,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           .then((result) => result[0]);
       } else {
         // Scenario 3: fetch the best offer on specified current token
-        orderResult = await redb
+        orderResult = await idb
           .manyOrNone(
             `
               SELECT
@@ -256,6 +258,7 @@ export const getExecuteSellV6Options: RouteOptions = {
                 AND orders.approval_status = 'approved'
                 AND orders.quantity_remaining >= $/quantity/
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                ${isFlagged ? "AND orders.kind NOT IN ('x2y2', 'seaport')" : ""}
               ORDER BY orders.value DESC
             `,
             {
@@ -316,6 +319,30 @@ export const getExecuteSellV6Options: RouteOptions = {
           rawQuote: totalPrice.toString(),
         },
       ];
+
+      // Partial Seaport orders require knowing the owner
+      let owner: string | undefined;
+      if (["seaport-partial", "seaport-v1.2-partial"].includes(orderResult.kind)) {
+        const ownerResult = await idb.oneOrNone(
+          `
+            SELECT
+              nft_balances.owner
+            FROM nft_balances
+            WHERE nft_balances.contract = $/contract/
+              AND nft_balances.token_id = $/tokenId/
+              AND nft_balances.amount >= $/quantity/
+          `,
+          {
+            contract: toBuffer(contract),
+            tokenId,
+            quantity: payload.quantity ?? 1,
+          }
+        );
+        if (ownerResult) {
+          owner = fromBuffer(ownerResult.owner);
+        }
+      }
+
       const bidDetails = await generateBidDetailsV6(
         {
           id: orderResult.id,
@@ -329,10 +356,15 @@ export const getExecuteSellV6Options: RouteOptions = {
           contract,
           tokenId,
           amount: payload.quantity,
+          owner,
         }
       );
 
-      if (["x2y2", "seaport", "seaport-partial"].includes(bidDetails!.kind)) {
+      if (
+        ["x2y2", "seaport", "seaport-v1.2", "seaport-partial", "seaport-v1.2-partial"].includes(
+          bidDetails!.kind
+        )
+      ) {
         const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
           tokenResult.last_flag_update < now() - 3600 ? [payload.token] : []
         );

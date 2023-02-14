@@ -1,5 +1,5 @@
 import { Interface } from "@ethersproject/abi";
-import { parseCallTrace, searchForCall } from "@georgeroman/evm-tx-simulator";
+import { getStateChange, searchForCall } from "@georgeroman/evm-tx-simulator";
 
 import { logger } from "@/common/logger";
 import { bn } from "@/common/utils";
@@ -137,7 +137,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             }
 
             // Detect the traded tokens from the trace's state changes
-            const state = parseCallTrace(poolCallTrace);
+            const state = getStateChange(poolCallTrace);
 
             let i = 0;
             for (const token of Object.keys(state[address].tokenBalanceState)) {
