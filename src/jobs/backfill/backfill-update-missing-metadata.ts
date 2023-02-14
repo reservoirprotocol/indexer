@@ -112,7 +112,10 @@ async function processCollection(collection: {
   while (true) {
     let collectionAndTokenIdFilter = "";
     if (lastTokenId != "") {
-      logger.info(QUEUE_NAME, `Collection ID ${collection.id}, lastTokenId = ${lastTokenId}`);
+      logger.info(
+        QUEUE_NAME,
+        `Collection ID ${collection.id}, lastTokenId = ${lastTokenId}`
+      );
       collectionAndTokenIdFilter = `WHERE collection_id = '${collection.id}' AND (t.collection_id, t.token_id) > ('${collection.id}','${lastTokenId}')`;
     }
 

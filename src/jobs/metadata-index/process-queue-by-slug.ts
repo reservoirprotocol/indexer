@@ -45,14 +45,7 @@ if (config.doBackgroundWork) {
       // Get the collection slugs from the list
       const pendingRefreshTokensBySlug = new PendingRefreshTokensBySlug();
       const refreshTokensBySlug = await pendingRefreshTokensBySlug.get(countTotal);
-      const top = await pendingRefreshTokensBySlug.getTop();
-      const length = await pendingRefreshTokensBySlug.length();
-      logger.info(
-        QUEUE_NAME,
-        `refreshTokensBySlug: ${JSON.stringify(refreshTokensBySlug)}\n top: ${JSON.stringify(
-          top
-        )} \n length: ${length}`
-      );
+
       // If no more collection slugs, release lock
       if (_.isEmpty(refreshTokensBySlug)) {
         await releaseLock(getLockName(method));
@@ -71,15 +64,6 @@ if (config.doBackgroundWork) {
               refreshTokenBySlug.continuation
             );
             if (results.continuation) {
-              logger.info(
-                QUEUE_NAME,
-                `adding continuation ${JSON.stringify({
-                  contract: refreshTokenBySlug.contract,
-                  slug: refreshTokenBySlug.slug,
-                  method,
-                  continuation: refreshTokenBySlug.continuation,
-                })}`
-              );
               retry = true;
               await pendingRefreshTokensBySlug.add(
                 {
