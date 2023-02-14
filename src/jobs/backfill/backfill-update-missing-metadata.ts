@@ -74,6 +74,8 @@ if (config.doBackgroundWork) {
           metadataIndexProcessBySlug.addToQueue(),
           metadataIndexProcess.addToQueue("opensea"),
         ]);
+
+        break;
       } else {
         const lastId = _.last(collections).id;
         await addToQueue(lastId);
@@ -110,19 +112,19 @@ async function processCollection(collection: {
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    let collectionAndTokenIdFilter = "";
+    let idAndContractFilter = "";
     if (lastTokenId != "") {
       logger.info(
         QUEUE_NAME,
         `Collection contract ${collection.contract}, lastTokenId = ${lastTokenId}`
       );
-      collectionAndTokenIdFilter = `WHERE (t.collection_id, t.token_id) > ('${collection.id}','${lastTokenId}')`;
+      idAndContractFilter = `WHERE collection_id = '${collection.id}' AND (t.collection_id, t.token_id) > ('${collection.id}','${lastTokenId}')`;
     }
 
     const query = `
       SELECT token_id, metadata_indexed, image
-      FROM tokens t ${collectionAndTokenIdFilter}
-      ORDER BY t.collection_id ASC, t.token_id ASC
+      FROM tokens t ${idAndContractFilter}
+      ORDER BY t.contract ASC, t.token_id ASC
       LIMIT ${limit}
     `;
 
