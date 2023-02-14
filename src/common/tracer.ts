@@ -1,9 +1,9 @@
 import tracer from "dd-trace";
 import { getServiceName } from "@/config/network";
 
-if (process.env.DATADOG_AGENT_URL) {
-  const service = getServiceName();
+const service = getServiceName();
 
+if (process.env.DATADOG_AGENT_URL) {
   tracer.init({
     profiling: true,
     logInjection: true,
@@ -11,10 +11,17 @@ if (process.env.DATADOG_AGENT_URL) {
     service,
     url: process.env.DATADOG_AGENT_URL,
   });
-
-  tracer.use("hapi", {
-    headers: ["x-api-key", "referer"],
+} else {
+  tracer.init({
+    profiling: true,
+    logInjection: true,
+    runtimeMetrics: true,
+    service,
   });
 }
+
+tracer.use("hapi", {
+  headers: ["x-api-key", "referer"],
+});
 
 export default tracer;
