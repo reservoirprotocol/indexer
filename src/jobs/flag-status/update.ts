@@ -84,7 +84,7 @@ if (config.doBackgroundWork) {
             tokenSets.dynamicCollectionNonFlagged.update(
               { collection: result.collection_id },
               { contract, tokenId },
-              isFlagged ? "add" : "remove"
+              isFlagged ? "remove" : "add"
             ),
           ]);
         } else {

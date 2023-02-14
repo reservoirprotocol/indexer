@@ -133,10 +133,10 @@ export const build = async (options: BuildOrderOptions) => {
           ).getHexRoot();
           await redis.set(schemaHash, cachedMerkleRoot, "ex", 3600);
         }
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (buildInfo.params as any).merkleRoot = cachedMerkleRoot;
       }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (buildInfo.params as any).merkleRoot = cachedMerkleRoot;
     }
 
     return builder.build(buildInfo.params);
