@@ -4,8 +4,7 @@ export class Orders {
     tokenSetIdColumnName: string,
     includeMetadata: boolean
   ): string {
-    let criteriaQuery;
-
+    let criteriaQuery: string;
     if (includeMetadata) {
       criteriaQuery = `
           CASE
@@ -108,6 +107,22 @@ export class Orders {
               FROM token_sets
               WHERE token_sets.id = ${tableName}.${tokenSetIdColumnName}
               LIMIT 1)
+
+            WHEN ${tableName}.${tokenSetIdColumnName} LIKE 'dynamic:collection-non-flagged:%' THEN
+              (SELECT
+                json_build_object(
+                  'kind', 'collection',
+                  'data', json_build_object(
+                    'collection', json_build_object(
+                      'id', collections.id,
+                      'name', collections.name,
+                      'image', (collections.metadata ->> 'imageUrl')::TEXT
+                    )
+                  )
+                )
+              FROM collections
+              WHERE collections.id = substring(${tableName}.${tokenSetIdColumnName} from 32))
+
             ELSE NULL
           END
       `;
@@ -189,7 +204,19 @@ export class Orders {
               FROM token_sets
               WHERE token_sets.id = ${tableName}.${tokenSetIdColumnName}
               LIMIT 1)
-              
+
+            WHEN ${tableName}.${tokenSetIdColumnName} LIKE 'dynamic:collection-non-flagged:%' THEN
+              (SELECT
+                json_build_object(
+                  'kind', 'collection',
+                  'data', json_build_object(
+                    'collection', json_build_object(
+                      'id', substring(${tableName}.${tokenSetIdColumnName} from 32)
+                    )
+                  )
+                )
+              )
+
             ELSE NULL
           END
       `;
