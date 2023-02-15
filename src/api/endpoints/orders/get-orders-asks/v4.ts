@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import * as Boom from "@hapi/boom";
 import Joi from "joi";
 import _ from "lodash";
 
@@ -18,10 +18,10 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { config } from "@/config/index";
+import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { Orders } from "@/utils/orders";
-import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v4";
 
@@ -273,8 +273,16 @@ export const getOrdersAsksV4Options: RouteOptions = {
       }
 
       if (query.tokenSetId) {
+        baseQuery += `
+          JOIN token_sets_tokens tst1
+            ON tst1.token_set_id = orders.token_set_id
+          JOIN token_sets_tokens tst2
+            ON tst2.contract = tst1.contract
+            AND tst2.token_id = tst1.token_id
+        `;
+
         (query as any).tokenSetId = `${query.tokenSetId}`;
-        conditions.push(`orders.token_set_id = $/tokenSetId/`);
+        conditions.push(`tst2.token_set_id = $/tokenSetId/`);
       }
 
       if (query.contracts) {
