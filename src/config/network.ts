@@ -14,14 +14,44 @@ export const getNetworkName = () => {
   switch (config.chainId) {
     case 1:
       return "mainnet";
+
     case 5:
       return "goerli";
+
     case 10:
       return "optimism";
+
     case 137:
       return "polygon";
+
     default:
       return "unknown";
+  }
+};
+
+export const getOpenseaNetworkName = () => {
+  switch (config.chainId) {
+    case 5:
+      return "goerli";
+
+    case 10:
+      return "optimism";
+
+    case 137:
+      return "matic";
+
+    default:
+      return "ethereum";
+  }
+};
+
+export const getOpenseaSubDomain = () => {
+  switch (config.chainId) {
+    case 5:
+      return "testnets-api";
+
+    default:
+      return "api";
   }
 };
 
