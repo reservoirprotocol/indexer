@@ -18,14 +18,11 @@ export type OrderMetadata = {
 export type DbOrder = {
   id: string;
   kind: OrderKind;
-  side: "buy" | "sell" | "bundle";
+  side: "buy" | "sell";
   fillability_status: string;
   approval_status: string;
   token_set_id?: string | null;
   token_set_schema_hash?: Buffer | null;
-  offer_bundle_id?: string | null;
-  consideration_bundle_id?: string | null;
-  bundle_kind?: "bundle-ask" | null;
   maker: Buffer;
   taker: Buffer;
   price: string;
