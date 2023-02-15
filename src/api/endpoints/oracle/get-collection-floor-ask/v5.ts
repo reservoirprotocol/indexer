@@ -233,7 +233,7 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
           EIP712_TYPES.CollectionPriceByToken,
           {
             kind,
-            twapSeconds: query.twapSeconds,
+            twapSeconds: kind === PriceKind.SPOT ? 0 : query.twapSeconds,
             token,
             tokenId,
           }
@@ -245,7 +245,7 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
           EIP712_TYPES.TokenRangeCollectionPrice,
           {
             kind,
-            twapSeconds: query.twapSeconds,
+            twapSeconds: kind === PriceKind.SPOT ? 0 : query.twapSeconds,
             contract,
             startTokenId,
             endTokenId,
@@ -257,7 +257,7 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
           EIP712_TYPES.ContractWideCollectionPrice,
           {
             kind,
-            twapSeconds: query.twapSeconds,
+            twapSeconds: kind === PriceKind.SPOT ? 0 : query.twapSeconds,
             contract: query.collection,
           }
         );
