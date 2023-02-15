@@ -6,6 +6,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import * as tokenSets from "@/orderbook/token-sets";
 
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
@@ -66,6 +67,7 @@ if (config.doBackgroundWork) {
 
           // Trigger further processes that depend on flagged tokens changes
           await Promise.all([
+            // Update the token's collection cached non-flagged floor ask
             collectionUpdatesNonFlaggedFloorAsk.addToQueue([
               {
                 kind: "revalidation",
@@ -75,7 +77,15 @@ if (config.doBackgroundWork) {
                 txTimestamp: null,
               },
             ]),
+            // Regenerate a new non-flagged token set
+            // TODO: Is this needed anymore (we should always use the dynamic token set going forward)?
             flagStatusGenerateCollectionTokenSet.addToQueue(contract, result.collection_id),
+            // Update the dynamic collection non-flagged token set
+            tokenSets.dynamicCollectionNonFlagged.update(
+              { collection: result.collection_id },
+              { contract, tokenId },
+              isFlagged ? "remove" : "add"
+            ),
           ]);
         } else {
           await idb.none(

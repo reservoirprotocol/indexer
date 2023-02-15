@@ -1,12 +1,12 @@
 import { Result, defaultAbiCoder } from "@ethersproject/abi";
 import * as Sdk from "@reservoir0x/sdk";
 
-import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import { bn } from "@/common/utils";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   for (const { subKind, baseEventParams, log } of events) {
@@ -116,6 +116,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             : takerAssetType === ERC1155Proxy
             ? decodedTakerAssetData[1][0].toString()
             : decodedTakerAssetData[1].toString();
+
         let currency = orderSide === "sell" ? decodedTakerAssetData[0] : decodedMakerAssetData[0];
         if (currency === Sdk.ZeroExV4.Addresses.Eth[config.chainId]) {
           // Map the weird ZeroEx ETH address to the default ETH address

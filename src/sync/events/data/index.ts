@@ -170,6 +170,7 @@ export type EventSubKind =
   | "manifold-modify"
   | "manifold-cancel"
   | "manifold-finalize"
+  | "manifold-accept"
   | "tofu-inventory-update"
   | "decentraland-sale"
   | "nft-trader-swap"
@@ -287,6 +288,7 @@ const allEventData = [
   manifold.finalize,
   manifold.purchase,
   manifold.cancel,
+  manifold.accept,
   tofu.inventoryUpdate,
   decentraland.sale,
   nftTrader.swap,

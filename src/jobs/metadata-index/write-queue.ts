@@ -1,20 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-
+import { getUnixTime } from "date-fns";
 import _ from "lodash";
+
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
 import * as rarityQueue from "@/jobs/collection-updates/rarity-queue";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
-import { getUnixTime } from "date-fns";
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
-import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
+import * as flagStatusUpdate from "@/jobs/flag-status/update";
 import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
 import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
@@ -55,18 +55,7 @@ if (config.doBackgroundWork) {
       } = job.data as TokenMetadataInfo;
 
       try {
-        const isFlagged = flagged === undefined ? null : Number(flagged);
-
-        const flaggedQueryPart =
-          flagged === undefined
-            ? ""
-            : `
-              is_flagged = $/isFlagged/,
-              last_flag_update = now(),
-              last_flag_change = CASE WHEN (is_flagged != $/isFlagged/) THEN NOW() ELSE last_flag_change END,
-        `;
-
-        // Update the token's metadata.
+        // Update the token's metadata
         const result = await idb.oneOrNone(
           `
             UPDATE tokens SET
@@ -74,19 +63,12 @@ if (config.doBackgroundWork) {
               description = $/description/,
               image = $/image/,
               media = $/media/,
-              ${flaggedQueryPart}
               updated_at = now(),
               collection_id = collection_id,
               created_at = created_at
             WHERE tokens.contract = $/contract/
             AND tokens.token_id = $/tokenId/
-            RETURNING collection_id, created_at, (
-                  SELECT
-                    is_flagged
-                  FROM tokens
-                  WHERE tokens.contract = $/contract/
-                  AND tokens.token_id = $/tokenId/
-                ) AS old_is_flagged
+            RETURNING collection_id, created_at
           `,
           {
             contract: toBuffer(contract),
@@ -95,7 +77,6 @@ if (config.doBackgroundWork) {
             description: description || null,
             image: imageUrl || null,
             media: mediaUrl || null,
-            isFlagged,
           }
         );
 
@@ -145,24 +126,13 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        if (isFlagged != null && result.old_is_flagged != isFlagged) {
-          logger.info(
-            QUEUE_NAME,
-            `Flag Status Diff. collectionId:${result.collection_id}, contract:${contract}, tokenId: ${tokenId}, IsFlagged:${isFlagged}, OldIsFlagged:${result.old_is_flagged}`
-          );
-
-          await collectionUpdatesNonFlaggedFloorAsk.addToQueue([
-            {
-              kind: "revalidation",
-              contract,
-              tokenId,
-              txHash: null,
-              txTimestamp: null,
-            },
-          ]);
-
-          await flagStatusGenerateCollectionTokenSet.addToQueue(contract, result.collection_id);
-        }
+        await flagStatusUpdate.addToQueue([
+          {
+            contract,
+            tokenId,
+            isFlagged: Boolean(flagged),
+          },
+        ]);
 
         const addedTokenAttributes = [];
         const attributeIds = [];
