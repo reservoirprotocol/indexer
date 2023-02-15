@@ -162,7 +162,7 @@ async function processCollection(collection: {
     `;
 
       const tokens = await redb.manyOrNone(query);
-      _.map(tokens, (token) => {
+      _.forEach(tokens, (token) => {
         unindexedTokens.push({
           collection: collection.id,
           contract: collection.contract,
