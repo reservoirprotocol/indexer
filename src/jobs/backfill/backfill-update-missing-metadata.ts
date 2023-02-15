@@ -8,7 +8,7 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { PendingRefreshTokens, RefreshTokens } from "@/models/pending-refresh-tokens";
-import { redb } from "@/common/db";
+import { pgp } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue-by-slug";
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
@@ -32,6 +32,16 @@ export const queue = new Queue(QUEUE_NAME, {
 });
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
+const redb = pgp({
+  connectionString: config.readReplicaDatabaseUrl,
+  keepAlive: true,
+  max: 60,
+  connectionTimeoutMillis: 10 * 1000,
+  query_timeout: 120 * 1000,
+  statement_timeout: 120 * 1000,
+  allowExitOnIdle: true,
+});
+
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
   const worker = new Worker(
@@ -39,6 +49,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const limit = config.updateMissingMetadataCollectionsLimit;
       const { lastCollectionId } = job.data;
+
       // eslint-disable-next-line no-constant-condition
       let idFilter = "";
       if (lastCollectionId != "") {
@@ -105,48 +116,27 @@ async function processCollection(collection: {
   const indexingMethod = getIndexingMethod(collection.community);
   const limit = config.updateMissingMetadataTokensLimit;
   let lastTokenId = "";
-  const unindexedTokens: RefreshTokens[] = [];
-  let indexedTokensCount = 0;
+  const missingMetadataPercentageThreshold = 0.15;
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    let collectionAndTokenIdFilter = "";
-    if (lastTokenId != "") {
-      logger.info(
-        QUEUE_NAME,
-        `Collection ID ${collection.id}, lastTokenId = ${lastTokenId}`
-      );
-      collectionAndTokenIdFilter = `WHERE collection_id = '${collection.id}' AND (t.collection_id, t.token_id) > ('${collection.id}','${lastTokenId}')`;
-    }
-
-    const query = `
-      SELECT token_id, metadata_indexed, image, collection_id
-      FROM tokens t ${collectionAndTokenIdFilter}
-      ORDER BY t.collection_id ASC, t.token_id ASC
-      LIMIT ${limit}
+  const unindexedCountQuery = `
+      SELECT count(*) as unindexed_token_count
+      FROM tokens t
+      WHERE t.image is null or t.image = ''
+    `;
+  const totalCountQuery = `
+      SELECT count(*) as token_count
+      FROM tokens
     `;
 
-    const tokens = await redb.manyOrNone(query);
-    _.map(tokens, (token) => {
-      if (token.metadata_indexed && token.image) {
-        indexedTokensCount++;
-      } else {
-        unindexedTokens.push({
-          collection: collection.id,
-          contract: collection.contract,
-          tokenId: token.token_id,
-        } as RefreshTokens);
-      }
-    });
+  const [unindexedResult, totalResult] = await Promise.all([
+    redb.one(unindexedCountQuery),
+    redb.one(totalCountQuery),
+  ]);
 
-    if (_.size(tokens) < limit) {
-      break;
-    } else {
-      lastTokenId = _.last(tokens).token_id;
-    }
-  }
-
-  if (unindexedTokens.length / indexedTokensCount > 0.15) {
+  if (
+    unindexedResult.unindexed_token_count / totalResult.token_count >
+    missingMetadataPercentageThreshold
+  ) {
     // push to collection refresh queue
     const pendingRefreshTokensBySlug = new PendingRefreshTokensBySlug();
     await pendingRefreshTokensBySlug.add({
@@ -155,6 +145,37 @@ async function processCollection(collection: {
       collection: collection.id,
     });
   } else {
+    const unindexedTokens: RefreshTokens[] = [];
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      let collectionAndTokenIdFilter = "WHERE t.image is null or t.image = ''";
+      if (lastTokenId != "") {
+        logger.info(QUEUE_NAME, `Collection ID ${collection.id}, lastTokenId = ${lastTokenId}`);
+        collectionAndTokenIdFilter = `WHERE (t.image is null or t.image = '') AND collection_id = '${collection.id}' AND (t.collection_id, t.token_id) > ('${collection.id}','${lastTokenId}')`;
+      }
+
+      const query = `
+      SELECT token_id, metadata_indexed, image, collection_id
+      FROM tokens t ${collectionAndTokenIdFilter}
+      ORDER BY t.collection_id ASC, t.token_id ASC
+      LIMIT ${limit}
+    `;
+
+      const tokens = await redb.manyOrNone(query);
+      _.map(tokens, (token) => {
+        unindexedTokens.push({
+          collection: collection.id,
+          contract: collection.contract,
+          tokenId: token.token_id,
+        } as RefreshTokens);
+      });
+
+      if (_.size(tokens) < limit) {
+        break;
+      } else {
+        lastTokenId = _.last(tokens).token_id;
+      }
+    }
     // push to tokens refresh queue
     const pendingRefreshTokens = new PendingRefreshTokens(indexingMethod);
     await pendingRefreshTokens.add(unindexedTokens);
