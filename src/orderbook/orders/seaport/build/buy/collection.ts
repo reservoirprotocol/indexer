@@ -8,7 +8,6 @@ import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as utils from "@/orderbook/orders/seaport/build/utils";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
-import * as tokenSets from "@/orderbook/token-sets";
 import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 
 interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
@@ -23,7 +22,8 @@ export const build = async (options: BuildOrderOptions) => {
         collections.token_set_id,
         collections.token_count,
         collections.contract,
-        collections.slug
+        collections.slug,
+        collections.non_flagged_token_set_id
       FROM collections
       WHERE collections.id = $/collection/
     `,
@@ -90,49 +90,50 @@ export const build = async (options: BuildOrderOptions) => {
     } else {
       // For up-to-date results we need to compute the corresponding token set id
       // from the tokens table. However, that can be computationally-expensive so
-      // we go through one level of caching before performing the computation.
+      // we go through two levels of caches before performing the computation.
       let cachedMerkleRoot: string | null = null;
 
-      if (options.excludeFlaggedTokens) {
-        // First ensure the dynamic non-flagged collection token set exists
-        await tokenSets.dynamicCollectionNonFlagged.save({ collection: options.collection });
-        // Then get the cached merkle root
-        cachedMerkleRoot = await tokenSets.dynamicCollectionNonFlagged
-          .get({ collection: options.collection })
-          .then((ts) => ts.merkleRoot);
-      } else {
-        // Build the resulting token set's schema
-        const schema = {
-          kind: "collection",
-          data: {
-            collection: options.collection,
-          },
-        };
-        const schemaHash = generateSchemaHash(schema);
+      if (options.excludeFlaggedTokens && collectionResult.non_flagged_token_set_id) {
+        // Attempt 1: fetch the token set id for non-flagged tokens directly from the collection
+        cachedMerkleRoot = collectionResult.non_flagged_token_set_id.split(":")[2];
+      }
 
-        // Attempt 1: use a cached version of the token set
+      // Build the resulting token set's schema
+      const schema = {
+        kind: options.excludeFlaggedTokens ? "collection-non-flagged" : "collection",
+        data: {
+          collection: options.collection,
+        },
+      };
+      const schemaHash = generateSchemaHash(schema);
+
+      if (!cachedMerkleRoot) {
+        // Attempt 2: use a cached version of the token set
         cachedMerkleRoot = await redis.get(schemaHash);
+      }
 
-        if (!cachedMerkleRoot) {
-          // Attempt 2 (final - will definitely work): compute the token set id (can be computationally-expensive)
+      if (!cachedMerkleRoot) {
+        // Attempt 3 (final - will definitely work): compute the token set id (can be computationally-expensive)
 
-          // Fetch all relevant tokens from the collection
-          const tokens = await idb.manyOrNone(
-            `
-              SELECT
-                tokens.token_id
-              FROM tokens
-              WHERE tokens.collection_id = $/collection/
-            `,
-            { collection: options.collection }
-          );
+        // Fetch all relevant tokens from the collection
+        const tokens = await idb.manyOrNone(
+          `
+          SELECT
+            tokens.token_id
+          FROM tokens
+          WHERE tokens.collection_id = $/collection/
+          ${
+            options.excludeFlaggedTokens
+              ? "AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
+              : ""
+          }
+        `,
+          { collection: options.collection }
+        );
 
-          // Also cache the computation for one hour
-          cachedMerkleRoot = generateMerkleTree(
-            tokens.map(({ token_id }) => token_id)
-          ).getHexRoot();
-          await redis.set(schemaHash, cachedMerkleRoot, "ex", 3600);
-        }
+        // Also cache the computation for one hour
+        cachedMerkleRoot = generateMerkleTree(tokens.map(({ token_id }) => token_id)).getHexRoot();
+        await redis.set(schemaHash, cachedMerkleRoot, "EX", 3600);
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

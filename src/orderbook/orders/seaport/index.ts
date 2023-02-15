@@ -360,25 +360,7 @@ export const save = async (
           }
 
           case "token-list": {
-            const typedInfo = info as typeof info & { merkleRoot: string };
-            const merkleRoot = typedInfo.merkleRoot;
-
-            if (metadata.schema?.kind === "collection-non-flagged") {
-              const ts = await tokenSet.dynamicCollectionNonFlagged.save(
-                {
-                  collection: metadata.schema.data.collection,
-                },
-                // For native orders we should always check the merkle root since
-                // we don't want anyone to mess around with orders (post an order
-                // with the "collection-non-flagged" schema but which actually is
-                // not on a non-flagged token set)
-                merkleRoot
-              );
-              if (ts) {
-                tokenSetId = ts.id;
-                schemaHash = ts.schemaHash;
-              }
-            } else if (metadata.target === "opensea") {
+            if (metadata.target === "opensea") {
               tokenSetId = `contract:${info.contract}`;
               await tokenSet.contractWide.save([
                 {
@@ -392,6 +374,9 @@ export const save = async (
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               (order.params as any).partial = true;
             } else {
+              const typedInfo = info as typeof info & { merkleRoot: string };
+              const merkleRoot = typedInfo.merkleRoot;
+
               if (merkleRoot) {
                 tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
 
