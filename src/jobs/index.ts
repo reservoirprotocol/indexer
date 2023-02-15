@@ -84,6 +84,7 @@ import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/genera
 import * as flagStatusUpdate from "@/jobs/flag-status/update";
 
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
+import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue-by-slug";
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 
@@ -190,6 +191,7 @@ export const allJobQueues = [
   flagStatusUpdate.queue,
 
   metadataIndexFetch.queue,
+  metadataIndexProcessBySlug.queue,
   metadataIndexProcess.queue,
   metadataIndexWrite.queue,
 

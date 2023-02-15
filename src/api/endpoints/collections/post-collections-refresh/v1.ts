@@ -8,7 +8,6 @@ import _ from "lodash";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { config } from "@/config/index";
 import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
@@ -17,6 +16,7 @@ import { Collections } from "@/models/collections";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Tokens } from "@/models/tokens";
+import { MetadataIndexInfo } from "@/jobs/metadata-index/fetch-queue";
 
 const version = "v1";
 
@@ -173,24 +173,32 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
 
         // Do these refresh operation only for small collections
         if (!isLargeCollection) {
-          if (config.metadataIndexingMethod === "opensea") {
+          const method = metadataIndexFetch.getIndexingMethod(collection.community);
+          let metadataIndexInfo: MetadataIndexInfo = {
+            kind: "full-collection",
+            data: {
+              method,
+              collection: collection.id,
+            },
+          };
+          if (method === "opensea") {
             // Refresh contract orders from OpenSea
             await OpenseaIndexerApi.fastContractSync(collection.contract);
+            if (collection.slug) {
+              metadataIndexInfo = {
+                kind: "full-collection-by-slug",
+                data: {
+                  method,
+                  contract: collection.contract,
+                  slug: collection.slug,
+                  collection: collection.id,
+                },
+              };
+            }
           }
 
           // Refresh the collection tokens metadata
-          await metadataIndexFetch.addToQueue(
-            [
-              {
-                kind: "full-collection",
-                data: {
-                  method: metadataIndexFetch.getIndexingMethod(collection.community),
-                  collection: collection.id,
-                },
-              },
-            ],
-            true
-          );
+          await metadataIndexFetch.addToQueue([metadataIndexInfo], true);
         }
       }
 
