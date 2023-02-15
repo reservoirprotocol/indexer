@@ -1,6 +1,6 @@
 import _ from "lodash";
-import { config } from "@/config/index";
 import { encrypt } from "@/common/utils";
+import { getNetworkSettings } from "@/config/network";
 
 export class Assets {
   public static getLocalAssetsLink(assets: string | string[]) {
@@ -8,7 +8,7 @@ export class Assets {
       return undefined;
     }
 
-    const baseUrl = `https://api${config.chainId == 1 ? "" : "-goerli"}.reservoir.tools/assets/v1?`;
+    const baseUrl = `https://${getNetworkSettings().subDomain}.reservoir.tools/assets/v1?`;
 
     if (_.isArray(assets)) {
       const assetsResult = [];
