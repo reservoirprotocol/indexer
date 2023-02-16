@@ -179,6 +179,132 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+            {
+              contract: "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+              name: "Aave Token",
+              symbol: "AAVE",
+              decimals: 18,
+            }
+          ],
+          [
+            "0x4d224452801aced8b2f0aebe155379bb5d594381",
+            {
+              contract: "0x4d224452801aced8b2f0aebe155379bb5d594381",
+              name: "ApeCoin",
+              symbol: "APE",
+              decimals: 18,
+            }
+          ],
+          [
+            "0x823556202e86763853b40e9cde725f412e294689",
+            {
+              contract: "0x823556202e86763853b40e9cde725f412e294689",
+              name: "Altered State Machine Utility Token",
+              symbol: "ASTO",
+              decimals: 18,
+            }
+          ],
+          [
+            "0x0391d2021f89dc339f60fff84546ea23e337750f",
+            {
+              contract: "0x0391d2021f89dc339f60fff84546ea23e337750f",
+              name: "BarnBridge Governance Token",
+              symbol: "BOND",
+              decimals: 18,
+            }
+          ],
+          [
+            "0xd779eea9936b4e323cddff2529eb6f13d0a4d66e",
+            {
+              contract: "0xd779eea9936b4e323cddff2529eb6f13d0a4d66e",
+              name: "ENTER Governance Token",
+              symbol: "ENTR",
+              decimals: 18,
+            }
+          ],
+          [
+            "0xed1480d12be41d92f36f5f7bdd88212e381a3677",
+            {
+              contract: "0xed1480d12be41d92f36f5f7bdd88212e381a3677",
+              name: "FIAT DAO Token",
+              symbol: "FDT",
+              decimals: 18,
+            }
+          ],
+          [
+            "0x767fe9edc9e0df98e07454847909b5e959d7ca0e",
+            {
+              contract: "0x767fe9edc9e0df98e07454847909b5e959d7ca0e",
+              name: "Illuvium",
+              symbol: "ILV",
+              decimals: 18,
+            }
+          ],
+          [
+            "0x7b39917f9562c8bc83c7a6c2950ff571375d505d",
+            {
+              contract: "0x7b39917f9562c8bc83c7a6c2950ff571375d505d",
+              name: "LeagueDAO Governance Token",
+              symbol: "LEAG",
+              decimals: 18,
+            }
+          ],
+          [
+            "0x514910771af9ca656af840dff83e8264ecf986ca",
+            {
+              contract: "0x514910771af9ca656af840dff83e8264ecf986ca",
+              name: "ChainLink Token",
+              symbol: "LINK",
+              decimals: 18,
+            }
+          ],
+          [
+            "0x0f5d2fb29fb7d3cfee444a200298f468908cc942",
+            {
+              contract: "0x0f5d2fb29fb7d3cfee444a200298f468908cc942",
+              name: "Decentraland",
+              symbol: "MANA",
+              decimals: 18,
+            }
+          ],
+          [
+            "0x3845badade8e6dff049820680d1f14bd3903a5d0",
+            {
+              contract: "0x3845badade8e6dff049820680d1f14bd3903a5d0",
+              name: "SAND",
+              symbol: "SAND",
+              decimals: 18,
+            }
+          ],
+          [
+            "0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f",
+            {
+              contract: "0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f",
+              name: "Synthetix Network Token",
+              symbol: "SNX",
+              decimals: 18,
+            }
+          ],
+          [
+            "0xf293d23bf2cdc05411ca0eddd588eb1977e8dcd4",
+            {
+              contract: "0xf293d23bf2cdc05411ca0eddd588eb1977e8dcd4",
+              name: "Sylo",
+              symbol: "SYLO",
+              decimals: 18,
+            }
+          ],
+          [
+            "0x618679df9efcd19694bb1daa8d00718eacfa2883",
+            {
+              contract: "0x618679df9efcd19694bb1daa8d00718eacfa2883",
+              name: "XYZ Governance Token",
+              symbol: "XYZ",
+              decimals: 18,
+            }
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",
