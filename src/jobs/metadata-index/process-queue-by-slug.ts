@@ -34,6 +34,32 @@ export const queue = new Queue(QUEUE_NAME, {
 });
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
+async function addToTokenRefreshQueueAndUpdateCollectionMetadata(
+  method: string,
+  refreshTokenBySlug: RefreshTokenBySlug
+) {
+  logger.warn(
+    QUEUE_NAME,
+    `Method=${method}. Metadata list is empty on collection slug ${refreshTokenBySlug.slug}. Slug might be missing or might be wrong, so pushing message to the following queues to update collection metadata and token metadata: ${metadataIndexFetch.QUEUE_NAME}, ${collectionUpdatesMetadata.QUEUE_NAME}`
+  );
+  const tokenId = await Tokens.getSingleToken(refreshTokenBySlug.collection);
+  await Promise.all([
+    metadataIndexFetch.addToQueue(
+      [
+        {
+          kind: "full-collection",
+          data: {
+            method,
+            collection: refreshTokenBySlug.collection,
+          },
+        },
+      ],
+      true
+    ),
+    collectionUpdatesMetadata.addToQueue(refreshTokenBySlug.contract, tokenId, method, 0),
+  ]);
+}
+
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
   const worker = new Worker(
@@ -60,6 +86,10 @@ if (config.doBackgroundWork) {
 
       async function processSlug(refreshTokenBySlug: RefreshTokenBySlug) {
         try {
+          if (!refreshTokenBySlug.slug) {
+            await addToTokenRefreshQueueAndUpdateCollectionMetadata(method, refreshTokenBySlug);
+            return;
+          }
           const results = await MetadataApi.getTokensMetadataBySlug(
             refreshTokenBySlug.contract,
             refreshTokenBySlug.slug,
@@ -70,27 +100,8 @@ if (config.doBackgroundWork) {
             QUEUE_NAME,
             `Slug: ${refreshTokenBySlug.slug}, metadata length: ${results.metadata.length}, continuation: ${results.continuation}`
           );
-          if (results.metadata.length === 0 || !refreshTokenBySlug.slug) {
-            logger.warn(
-              QUEUE_NAME,
-              `Method=${method}. Metadata list is empty on collection slug ${refreshTokenBySlug.slug}. Slug might be missing so pushing message to the following queues to update collection metadata and token metadata: ${metadataIndexFetch.QUEUE_NAME}, ${collectionUpdatesMetadata.QUEUE_NAME}`
-            );
-            const tokenId = await Tokens.getSingleToken(refreshTokenBySlug.collection);
-            await Promise.all([
-              metadataIndexFetch.addToQueue(
-                [
-                  {
-                    kind: "full-collection",
-                    data: {
-                      method,
-                      collection: refreshTokenBySlug.collection,
-                    },
-                  },
-                ],
-                true
-              ),
-              collectionUpdatesMetadata.addToQueue(refreshTokenBySlug.contract, tokenId, method, 0),
-            ]);
+          if (results.metadata.length === 0) {
+            await addToTokenRefreshQueueAndUpdateCollectionMetadata(method, refreshTokenBySlug);
             return;
           }
           if (results.continuation) {
