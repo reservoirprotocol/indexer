@@ -70,18 +70,6 @@ if (config.doBackgroundWork) {
             QUEUE_NAME,
             `Slug: ${refreshTokenBySlug.slug}, metadata length: ${results.metadata.length}, continuation: ${results.continuation}`
           );
-          if (results.continuation) {
-            retry = true;
-            await pendingRefreshTokensBySlug.add(
-              {
-                slug: refreshTokenBySlug.slug,
-                contract: refreshTokenBySlug.contract,
-                collection: refreshTokenBySlug.collection,
-                continuation: results.continuation,
-              },
-              true
-            );
-          }
           if (results.metadata.length === 0 || !refreshTokenBySlug.slug) {
             logger.warn(
               QUEUE_NAME,
@@ -104,9 +92,20 @@ if (config.doBackgroundWork) {
               collectionUpdatesMetadata.addToQueue(refreshTokenBySlug.contract, tokenId, method, 0),
             ]);
             return;
-          } else {
-            metadata.push(...results.metadata);
           }
+          if (results.continuation) {
+            retry = true;
+            await pendingRefreshTokensBySlug.add(
+              {
+                slug: refreshTokenBySlug.slug,
+                contract: refreshTokenBySlug.contract,
+                collection: refreshTokenBySlug.collection,
+                continuation: results.continuation,
+              },
+              true
+            );
+          }
+          metadata.push(...results.metadata);
         } catch (error: any) {
           if (error.response?.status === 429) {
             logger.warn(
