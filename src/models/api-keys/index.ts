@@ -229,11 +229,7 @@ export class ApiKeyManager {
       tracer
         .scope()
         .active()
-        ?.setTag("nestedTag", {
-          nestedKey: {
-            nestedKey_2: "nestedValue",
-          },
-        });
+        ?.setTag("nestedTag", "nestedValue");
     } catch (error) {
       logger.warn("metrics", "Could not add payload to Datadog trace: " + error);
     }
