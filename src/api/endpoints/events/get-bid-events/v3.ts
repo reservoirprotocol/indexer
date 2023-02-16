@@ -6,7 +6,15 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrderCriteria, JoiPrice, getJoiPriceObject } from "@/common/joi";
-import { buildContinuation, fromBuffer, splitContinuation, regex, toBuffer } from "@/common/utils";
+import {
+  buildContinuation,
+  fromBuffer,
+  now,
+  splitContinuation,
+  regex,
+  toBuffer,
+} from "@/common/utils";
+import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { Orders } from "@/utils/orders";
 
@@ -109,8 +117,12 @@ export const getBidEventsV3Options: RouteOptions = {
     const query = request.query as any;
 
     try {
+      // TODO: Backfill order fields in the bid events
+      const joinWithOrders = config.chainId === 5 ? now() < 1676532638 : true;
+      const t = joinWithOrders ? "orders" : "bid_events";
+
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
-        "orders",
+        t,
         "token_set_id",
         query.includeCriteriaMetadata
       );
@@ -121,19 +133,13 @@ export const getBidEventsV3Options: RouteOptions = {
           bid_events.kind,
           bid_events.status,
           bid_events.contract,
+          bid_events.token_set_id,
           bid_events.order_id,
           bid_events.order_quantity_remaining,
           bid_events.order_nonce,
           bid_events.maker,
           bid_events.price,
-          orders.value,
-          orders.currency,
-          orders.currency_price,
-          orders.currency_normalized_value,
-          orders.normalized_value,
-          orders.kind AS order_kind,
-          orders.raw_data,
-          trunc(orders.currency_price, 0) AS currency_price,
+          bid_events.value,
           bid_events.order_source_id_int,
           coalesce(
             nullif(date_part('epoch', upper(bid_events.order_valid_between)), 'Infinity'),
@@ -143,26 +149,34 @@ export const getBidEventsV3Options: RouteOptions = {
           bid_events.tx_hash,
           bid_events.tx_timestamp,
           extract(epoch from bid_events.created_at) AS created_at,
+          ${t}.order_currency,
+          ${t}.order_normalized_value,
+          ${t}.order_currency_normalized_value,
+          ${t}.order_kind,
+          ${t}.order_raw_data,
+          trunc(${t}.order_currency_price, 0) AS order_currency_price,
           (${criteriaBuildQuery}) AS criteria
         FROM bid_events
-        LEFT JOIN LATERAL (
-          SELECT
-            orders.value,
-            orders.currency,
-            orders.currency_price,
-            orders.normalized_value,
-            orders.currency_normalized_value,
-            orders.token_set_id,
-            orders.kind,
-            (
-              CASE
-                WHEN orders.kind IN ('nftx', 'sudoswap') OR bid_events.kind IN ('new-order', 'reprice') THEN orders.raw_data
-                ELSE NULL
-              END
-            ) AS raw_data
-         FROM orders
-         WHERE orders.id = bid_events.order_id
-        ) orders ON TRUE
+        ${
+          joinWithOrders
+            ? `LEFT JOIN LATERAL (
+                SELECT
+                  orders.currency AS order_currency,
+                  orders.currency_price AS order_currency_price,
+                  orders.normalized_value AS order_normalized_value,
+                  orders.currency_normalized_value AS order_currency_normalized_value,
+                  orders.kind AS order_kind,
+                  (
+                    CASE
+                      WHEN orders.kind IN ('nftx', 'sudoswap') OR bid_events.kind IN ('new-order', 'reprice') THEN orders.raw_data
+                      ELSE NULL
+                    END
+                  ) AS order_raw_data
+                FROM orders
+                WHERE orders.id = bid_events.order_id
+              ) orders ON TRUE`
+            : ""
+        }
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -228,26 +242,26 @@ export const getBidEventsV3Options: RouteOptions = {
               ? await getJoiPriceObject(
                   {
                     gross: {
-                      amount: r.currency_price ?? r.price,
+                      amount: r.order_currency_price ?? r.price,
                       nativeAmount: r.price,
                     },
                     net: {
                       amount: query.normalizeRoyalties
-                        ? r.currency_normalized_value ?? r.value
-                        : r.currency_value ?? r.value,
+                        ? r.order_currency_normalized_value ?? r.value
+                        : r.order_currency_value ?? r.value,
                       nativeAmount: query.normalizeRoyalties
-                        ? r.normalized_value ?? r.value
+                        ? r.order_normalized_value ?? r.value
                         : r.value,
                     },
                   },
-                  fromBuffer(r.currency)
+                  fromBuffer(r.order_currency)
                 )
               : null,
             quantityRemaining: Number(r.order_quantity_remaining),
             nonce: r.order_nonce ?? null,
             validFrom: r.valid_from ? Number(r.valid_from) : null,
             validUntil: r.valid_until ? Number(r.valid_until) : null,
-            rawData: r.raw_data ? r.raw_data : undefined,
+            rawData: r.order_raw_data ? r.order_raw_data : undefined,
             kind: r.order_kind,
             source: sources.get(r.order_source_id_int)?.name,
             criteria: r.criteria,
