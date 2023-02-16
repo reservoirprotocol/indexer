@@ -357,6 +357,180 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
+
+      case "rarible-buy-v1": {
+        const { args } = eventData.abi.parseLog(log);
+        const tokenContract = args["sellToken"];
+        const tokenId = args["sellTokenId"];
+        const maker = args["owner"];
+        const currency = args["buyToken"];
+        let currencyPrice = args["buyValue"];
+        let taker = args["buyer"];
+        const amount = args["amount"]; // amount bought
+
+        const orderKind = "rarible";
+        const side = "sell";
+
+        currencyPrice = bn(currencyPrice).div(amount).toString();
+
+        const prices = await getUSDAndNativePrices(
+          currency.toLowerCase(),
+          currencyPrice,
+          baseEventParams.timestamp
+        );
+        if (!prices.nativePrice) {
+          // We must always have the native price
+          break;
+        }
+
+        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind);
+        if (data.taker) {
+          taker = data.taker;
+        }
+
+        onChainData.fillEventsPartial.push({
+          orderKind,
+          orderSide: side,
+          maker,
+          taker,
+          price: prices.nativePrice,
+          currency,
+          currencyPrice,
+          usdPrice: prices.usdPrice,
+          contract: tokenContract,
+          tokenId: tokenId.toString(),
+          amount: amount.toString(),
+          orderSourceId: data.orderSource?.id,
+          aggregatorSourceId: data.aggregatorSource?.id,
+          fillSourceId: data.fillSource?.id,
+          baseEventParams,
+        });
+
+        onChainData.fillInfos.push({
+          context: `rarible-v1-${tokenContract}-${tokenId}-${baseEventParams.txHash}`,
+          orderSide: side,
+          contract: tokenContract,
+          tokenId: tokenId.toString(),
+          amount: amount.toString(),
+          price: prices.nativePrice,
+          timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
+        });
+
+        break;
+      }
+
+      case "rarible-match-v2": {
+        const { args } = eventData.abi.parseLog(log);
+        const leftHash = args["leftHash"].toLowerCase();
+        const leftMaker = args["leftMaker"].toLowerCase();
+        const rightMaker = args["rightMaker"].toLowerCase();
+        const newLeftFill = args["newLeftFill"].toString();
+        const newRightFill = args["newRightFill"].toString();
+        const leftAsset = args["leftAsset"];
+        const rightAsset = args["rightAsset"];
+
+        const ERC20 = "0x8ae85d84";
+        const ETH = "0xaaaebeba";
+        const ERC721 = "0x73ad2146";
+        const ERC1155 = "0x973bb640";
+
+        const assetTypes = [ERC721, ERC1155, ERC20, ETH];
+
+        // Exclude orders with exotic asset types
+        if (
+          !assetTypes.includes(leftAsset.assetClass) ||
+          !assetTypes.includes(rightAsset.assetClass)
+        ) {
+          break;
+        }
+
+        // Assume the left order is the maker's order
+        const side = [ERC721, ERC1155].includes(leftAsset.assetClass) ? "sell" : "buy";
+
+        const currencyAsset = side === "sell" ? rightAsset : leftAsset;
+        const nftAsset = side === "sell" ? leftAsset : rightAsset;
+
+        let currency: string;
+        if (currencyAsset.assetClass === ETH) {
+          currency = Sdk.Common.Addresses.Eth[config.chainId];
+        } else if (currencyAsset.assetClass === ERC20) {
+          const decodedCurrencyAsset = defaultAbiCoder.decode(
+            ["(address token)"],
+            currencyAsset.data
+          );
+          currency = decodedCurrencyAsset[0][0];
+        } else {
+          break;
+        }
+
+        const decodedNftAsset = defaultAbiCoder.decode(
+          ["(address token, uint tokenId)"],
+          nftAsset.data
+        );
+
+        const contract = decodedNftAsset[0][0].toLowerCase();
+        const tokenId = decodedNftAsset[0][1].toString();
+
+        let currencyPrice = side === "sell" ? newLeftFill : newRightFill;
+        const amount = side === "sell" ? newRightFill : newLeftFill;
+        currencyPrice = bn(currencyPrice).div(amount).toString();
+
+        const prices = await getUSDAndNativePrices(
+          currency,
+          currencyPrice,
+          baseEventParams.timestamp
+        );
+        if (!prices.nativePrice) {
+          // We must always have the native price
+          break;
+        }
+
+        const orderKind = "rarible";
+        let taker = rightMaker;
+
+        // Handle attribution
+        const data = await utils.extractAttributionData(baseEventParams.txHash, orderKind);
+
+        if (data.taker) {
+          taker = data.taker;
+        }
+
+        onChainData.fillEventsPartial.push({
+          orderKind,
+          orderId: leftHash,
+          orderSide: side,
+          maker: leftMaker,
+          taker,
+          price: prices.nativePrice,
+          currency,
+          currencyPrice,
+          usdPrice: prices.usdPrice,
+          contract,
+          tokenId,
+          amount,
+          orderSourceId: data.orderSource?.id,
+          aggregatorSourceId: data.aggregatorSource?.id,
+          fillSourceId: data.fillSource?.id,
+          baseEventParams,
+        });
+
+        onChainData.fillInfos.push({
+          context: `${leftHash}-${baseEventParams.txHash}`,
+          orderId: leftHash,
+          orderSide: side,
+          contract,
+          tokenId,
+          amount,
+          price: prices.nativePrice,
+          timestamp: baseEventParams.timestamp,
+          maker: leftMaker,
+          taker,
+        });
+
+        break;
+      }
     }
   }
 };
