@@ -14,7 +14,6 @@ import {
   regex,
   toBuffer,
 } from "@/common/utils";
-import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { Orders } from "@/utils/orders";
 
@@ -118,11 +117,11 @@ export const getBidEventsV3Options: RouteOptions = {
 
     try {
       // TODO: Backfill order fields in the bid events
-      const joinWithOrders = config.chainId === 5 ? now() < 1676532638 : true;
+      const joinWithOrders = now() < 1676554238;
       const t = joinWithOrders ? "orders" : "bid_events";
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
-        t,
+        "bid_events",
         "token_set_id",
         query.includeCriteriaMetadata
       );
@@ -153,8 +152,13 @@ export const getBidEventsV3Options: RouteOptions = {
           ${t}.order_normalized_value,
           ${t}.order_currency_normalized_value,
           ${t}.order_kind,
-          ${t}.order_raw_data,
           trunc(${t}.order_currency_price, 0) AS order_currency_price,
+          (
+            CASE
+              WHEN bid_events.kind IN ('new-order', 'reprice') THEN ${t}.order_raw_data
+              ELSE NULL
+            END
+          ) AS order_raw_data,
           (${criteriaBuildQuery}) AS criteria
         FROM bid_events
         ${
@@ -166,12 +170,7 @@ export const getBidEventsV3Options: RouteOptions = {
                   orders.normalized_value AS order_normalized_value,
                   orders.currency_normalized_value AS order_currency_normalized_value,
                   orders.kind AS order_kind,
-                  (
-                    CASE
-                      WHEN orders.kind IN ('nftx', 'sudoswap') OR bid_events.kind IN ('new-order', 'reprice') THEN orders.raw_data
-                      ELSE NULL
-                    END
-                  ) AS order_raw_data
+                  orders.raw_data AS order_raw_data
                 FROM orders
                 WHERE orders.id = bid_events.order_id
               ) orders ON TRUE`
