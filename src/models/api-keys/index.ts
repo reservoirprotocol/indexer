@@ -225,6 +225,15 @@ export class ApiKeyManager {
             ? { ...log.query, ...log.params }
             : null
         );
+
+      tracer
+        .scope()
+        .active()
+        ?.setTag("nestedTag", {
+          nestedKey: {
+            nestedKey_2: "nestedValue",
+          },
+        });
     } catch (error) {
       logger.warn("metrics", "Could not add payload to Datadog trace: " + error);
     }
