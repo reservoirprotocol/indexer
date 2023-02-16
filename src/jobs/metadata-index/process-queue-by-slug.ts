@@ -66,6 +66,10 @@ if (config.doBackgroundWork) {
             method,
             refreshTokenBySlug.continuation
           );
+          logger.debug(
+            QUEUE_NAME,
+            `Slug: ${refreshTokenBySlug.slug}, metadata length: ${results.metadata.length}, continuation: ${results.continuation}`
+          );
           if (results.continuation) {
             retry = true;
             await pendingRefreshTokensBySlug.add(
@@ -113,7 +117,11 @@ if (config.doBackgroundWork) {
             rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.response.data.expires_in, 5);
 
             await pendingRefreshTokensBySlug.add(refreshTokenBySlug, true);
-          } else if (error.response.status === 400) {
+          } else {
+            logger.error(
+              QUEUE_NAME,
+              `Error. method=${method}, error=${JSON.stringify(error.response.data)}`
+            );
             await metadataIndexFetch.addToQueue(
               [
                 {
@@ -126,16 +134,6 @@ if (config.doBackgroundWork) {
               ],
               true
             );
-          } else {
-            logger.error(
-              QUEUE_NAME,
-              `Error. method=${method}, error=${JSON.stringify(error.response.data)}`
-            );
-
-            if (error.response?.data.error === "Request failed with status code 403") {
-              await pendingRefreshTokensBySlug.add(refreshTokenBySlug, true);
-              retry = true;
-            }
           }
         }
       }
@@ -148,7 +146,11 @@ if (config.doBackgroundWork) {
 
       logger.info(
         QUEUE_NAME,
-        `Debug. method=${method}, metadata=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`
+        `Debug. method=${method}, metadata=${
+          metadata.length
+        }, rateLimitExpiredIn=${rateLimitExpiredIn}, slug collections: ${JSON.stringify(
+          refreshTokensBySlug
+        )}`
       );
 
       await metadataIndexWrite.addToQueue(
