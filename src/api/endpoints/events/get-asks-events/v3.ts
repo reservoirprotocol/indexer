@@ -118,7 +118,7 @@ export const getAsksEventsV3Options: RouteOptions = {
 
     try {
       // TODO: Backfill order fields in the ask events
-      const joinWithOrders = now() < 1676554238;
+      const joinWithOrders = (query.startTimestamp ?? now()) < 1676554238;
       const t = joinWithOrders ? "orders" : "order_events";
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery(

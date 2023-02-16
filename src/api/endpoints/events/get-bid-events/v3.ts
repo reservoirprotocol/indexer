@@ -117,7 +117,7 @@ export const getBidEventsV3Options: RouteOptions = {
 
     try {
       // TODO: Backfill order fields in the bid events
-      const joinWithOrders = now() < 1676554238;
+      const joinWithOrders = (query.startTimestamp ?? now()) < 1676554238;
       const t = joinWithOrders ? "orders" : "bid_events";
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
