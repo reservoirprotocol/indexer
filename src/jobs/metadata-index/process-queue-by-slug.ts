@@ -82,7 +82,7 @@ if (config.doBackgroundWork) {
               true
             );
           }
-          if (results.metadata.length === 0) {
+          if (results.metadata.length === 0 || !refreshTokenBySlug.slug) {
             logger.warn(
               QUEUE_NAME,
               `Method=${method}. Metadata list is empty on collection slug ${refreshTokenBySlug.slug}. Slug might be missing so pushing message to the following queues to update collection metadata and token metadata: ${metadataIndexFetch.QUEUE_NAME}, ${collectionUpdatesMetadata.QUEUE_NAME}`
