@@ -54,7 +54,7 @@
     "aws-kms-ethers-signer": "^0.1.3",
     "aws-sdk": "^2.1148.0",
     "bullmq": "1.76.1",
-    "dd-trace": "^3.5.0",
+    "dd-trace": "^3.13.2",
     "dotenv": "^10.0.0",
     "eslint": "^8.10.0",
     "eslint-config-prettier": "^8.5.0",
