@@ -67,6 +67,15 @@ export const addToQueue = async (query: string) => {
   await Promise.all(_.map(ids, async (id) => await queue.add(id, { id })));
 };
 
-export const addToQueueByJobDataId = async (id: string) => {
-  await queue.add(id, { id });
+export const addToQueueByJobDataId = async (ids: string | string[]) => {
+  if (_.isArray(ids)) {
+    const jobs: { name: string; data: { id: string } }[] = [];
+    for (const id of ids) {
+      jobs.push({ name: id, data: { id } });
+    }
+
+    await queue.addBulk(jobs);
+  } else {
+    await queue.add(ids, { id: ids });
+  }
 };

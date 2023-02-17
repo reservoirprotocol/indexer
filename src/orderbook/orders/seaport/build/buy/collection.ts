@@ -2,7 +2,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers";
 import { BaseBuilder } from "@reservoir0x/sdk/dist/seaport/builders/base";
 
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -15,7 +15,8 @@ interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
 }
 
 export const build = async (options: BuildOrderOptions) => {
-  const collectionResult = await redb.oneOrNone(
+  // Fetch some details about the collection
+  const collectionResult = await idb.oneOrNone(
     `
       SELECT
         collections.token_set_id,
@@ -32,7 +33,7 @@ export const build = async (options: BuildOrderOptions) => {
     throw new Error("Could not retrieve collection");
   }
   if (Number(collectionResult.token_count) > config.maxTokenSetSize) {
-    throw new Error("Collection has too many items");
+    throw new Error("Collection has too many tokens");
   }
 
   const buildInfo = await utils.getBuildInfo(
@@ -45,17 +46,19 @@ export const build = async (options: BuildOrderOptions) => {
   );
 
   const collectionIsContractWide = collectionResult.token_set_id?.startsWith("contract:");
-  if (!options.excludeFlaggedTokens && collectionIsContractWide) {
-    // Use contract-wide order
+  if (collectionIsContractWide && !options.excludeFlaggedTokens) {
+    // By default, use a contract-wide builder
     let builder: BaseBuilder = new Sdk.Seaport.Builders.ContractWide(config.chainId);
 
-    if (options.orderbook === "opensea" && config.chainId === 1) {
+    if (options.orderbook === "opensea" && config.chainId !== 5) {
       const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
         options.maker,
         options.quantity || 1,
         collectionResult.slug
       );
 
+      // When cross-posting to OpenSea, if the result from their API is not
+      // a contract-wide order, then switch to using a token-list builder
       if (
         buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria != "0"
       ) {
@@ -67,13 +70,14 @@ export const build = async (options: BuildOrderOptions) => {
       }
     }
 
-    return builder?.build(buildInfo.params);
+    return builder.build(buildInfo.params);
   } else {
-    // Use token-list order
+    // Use a token-list builder
     const builder: BaseBuilder = new Sdk.Seaport.Builders.TokenList(config.chainId);
 
-    if (options.orderbook === "opensea" && config.chainId === 1) {
-      // We need to call OpenSea to compute the most up-to-date root of the Merkle Tree (currently only supported on OS production apis)
+    if (options.orderbook === "opensea" && config.chainId !== 5) {
+      // We need to fetch from OpenSea the most up-to-date merkle root
+      // (currently only supported on production APIs)
       const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
         options.maker,
         options.quantity || 1,
@@ -112,7 +116,7 @@ export const build = async (options: BuildOrderOptions) => {
         // Attempt 3 (final - will definitely work): compute the token set id (can be computationally-expensive)
 
         // Fetch all relevant tokens from the collection
-        const tokens = await redb.manyOrNone(
+        const tokens = await idb.manyOrNone(
           `
           SELECT
             tokens.token_id
@@ -129,13 +133,13 @@ export const build = async (options: BuildOrderOptions) => {
 
         // Also cache the computation for one hour
         cachedMerkleRoot = generateMerkleTree(tokens.map(({ token_id }) => token_id)).getHexRoot();
-        await redis.set(schemaHash, cachedMerkleRoot, "ex", 3600);
+        await redis.set(schemaHash, cachedMerkleRoot, "EX", 3600);
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (buildInfo.params as any).merkleRoot = cachedMerkleRoot;
     }
 
-    return builder?.build(buildInfo.params);
+    return builder.build(buildInfo.params);
   }
 };

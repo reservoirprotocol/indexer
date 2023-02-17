@@ -14,14 +14,44 @@ export const getNetworkName = () => {
   switch (config.chainId) {
     case 1:
       return "mainnet";
+
     case 5:
       return "goerli";
+
     case 10:
       return "optimism";
+
     case 137:
       return "polygon";
+
     default:
       return "unknown";
+  }
+};
+
+export const getOpenseaNetworkName = () => {
+  switch (config.chainId) {
+    case 5:
+      return "goerli";
+
+    case 10:
+      return "optimism";
+
+    case 137:
+      return "matic";
+
+    default:
+      return "ethereum";
+  }
+};
+
+export const getOpenseaSubDomain = () => {
+  switch (config.chainId) {
+    case 5:
+      return "testnets-api";
+
+    default:
+      return "api";
   }
 };
 
@@ -51,6 +81,7 @@ type NetworkSettings = {
     networkId: string;
   };
   onStartup?: () => Promise<void>;
+  subDomain: string;
 };
 
 export const getNetworkSettings = (): NetworkSettings => {
@@ -72,6 +103,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     reorgCheckFrequency: [1, 5, 10, 30, 60], // In minutes
     whitelistedCurrencies: new Map<string, Currency>(),
     supportedBidCurrencies: { [Sdk.Common.Addresses.Weth[config.chainId]?.toLowerCase()]: true },
+    subDomain: "api",
   };
 
   switch (config.chainId) {
@@ -211,6 +243,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         backfillBlockBatchSize: 128,
+        subDomain: "api-goerli",
         washTradingExcludedContracts: [
           // ArtBlocks Contracts
           "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
@@ -258,6 +291,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         ...defaultNetworkSettings,
         enableWebSocket: false,
         enableReorgCheck: false,
+        subDomain: "api-optimism",
         realtimeSyncFrequencySeconds: 10,
         realtimeSyncMaxBlockLag: 128,
         backfillBlockBatchSize: 512,
@@ -292,12 +326,13 @@ export const getNetworkSettings = (): NetworkSettings => {
     case 137: {
       return {
         ...defaultNetworkSettings,
+        subDomain: "api-polygon",
         metadataMintDelay: 180,
         enableWebSocket: false,
         enableReorgCheck: true,
         realtimeSyncFrequencySeconds: 10,
         realtimeSyncMaxBlockLag: 30,
-        backfillBlockBatchSize: 30,
+        backfillBlockBatchSize: 60,
         reorgCheckFrequency: [30],
         coingecko: {
           networkId: "polygon-pos",

@@ -8,15 +8,16 @@ import {
   RequestWasThrottledError,
   InvalidRequestError,
 } from "@/jobs/orderbook/post-order-external/api/errors";
+import { getOpenseaNetworkName, getOpenseaSubDomain } from "@/config/network";
 
 // Open Sea default rate limit - 2 requests per second for post apis
 export const RATE_LIMIT_REQUEST_COUNT = 2;
 export const RATE_LIMIT_INTERVAL = 1;
 
 export const postOrder = async (order: Sdk.Seaport.Order, apiKey: string) => {
-  const url = `https://${config.chainId === 5 ? "testnets-api." : "api."}opensea.io/v2/orders/${
-    config.chainId === 5 ? "goerli" : "ethereum"
-  }/seaport/${order.getInfo()?.side === "sell" ? "listings" : "offers"}`;
+  const url = `https://${getOpenseaSubDomain()}.opensea.io/v2/orders/${getOpenseaNetworkName()}/seaport/${
+    order.getInfo()?.side === "sell" ? "listings" : "offers"
+  }`;
 
   // Skip posting orders that already expired
   if (order.params.endTime <= now()) {
@@ -68,9 +69,7 @@ export const buildCollectionOffer = async (
   collectionSlug: string,
   apiKey = ""
 ) => {
-  const url = `https://${
-    config.chainId === 5 ? "testnets-api." : "api."
-  }opensea.io/v2/offers/build`;
+  const url = `https://${getOpenseaSubDomain()}.opensea.io/v2/offers/build`;
 
   return (
     axios
@@ -127,7 +126,7 @@ export const postCollectionOffer = async (
   collectionSlug: string,
   apiKey: string
 ) => {
-  const url = `https://${config.chainId === 5 ? "testnets-api." : "api."}opensea.io/v2/offers`;
+  const url = `https://${getOpenseaSubDomain()}.opensea.io/v2/offers`;
   const data = JSON.stringify({
     criteria: {
       collection: {

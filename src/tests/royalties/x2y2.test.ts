@@ -69,6 +69,12 @@ describe("Royalties - X2Y2", () => {
       royaltyFeeBps: 750,
       marketplaceFeeBps: 50,
     },
+    {
+      name: "multiple-sale-with-different-collection",
+      tx: "0x50bca012a66e1227e2ce11f74e2787043a13703b37be903f166c14b79680c54d",
+      royaltyFeeBps: 0,
+      marketplaceFeeBps: 50,
+    },
   ];
   for (const { name, tx, royaltyFeeBps, marketplaceFeeBps } of txIds) {
     it(`${name}`, async () => testFeeExtract(tx, { royaltyFeeBps, marketplaceFeeBps }));

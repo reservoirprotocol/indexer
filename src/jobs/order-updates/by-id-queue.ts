@@ -11,13 +11,12 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
 
-import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
-import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
+import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
-
+import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
 import * as websocketEventsTriggerQueue from "@/jobs/websocket-events/trigger-queue";
 
 const QUEUE_NAME = "order-updates-by-id";
@@ -30,7 +29,7 @@ export const queue = new Queue(QUEUE_NAME, {
       type: "exponential",
       delay: 10000,
     },
-    removeOnComplete: 1000,
+    removeOnComplete: 100000,
     removeOnFail: 10000,
     timeout: 60000,
   },
@@ -48,9 +47,7 @@ if (config.doBackgroundWork) {
       let { side, tokenSetId } = job.data as OrderInfo;
 
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let order: any;
-
         if (id) {
           // Fetch the order's associated data
           order = await idb.oneOrNone(
@@ -68,6 +65,13 @@ if (config.doBackgroundWork) {
                 orders.value,
                 orders.fillability_status AS "fillabilityStatus",
                 orders.approval_status AS "approvalStatus",
+                orders.kind,
+                orders.dynamic,
+                orders.currency,
+                orders.currency_price,
+                orders.normalized_value,
+                orders.currency_normalized_value,
+                orders.raw_data,
                 token_sets_tokens.contract,
                 token_sets_tokens.token_id AS "tokenId"
               FROM orders
@@ -224,7 +228,15 @@ if (config.doBackgroundWork) {
                     maker,
                     price,
                     tx_hash,
-                    tx_timestamp
+                    tx_timestamp,
+                    order_kind,
+                    order_token_set_id,
+                    order_dynamic,
+                    order_currency,
+                    order_currency_price,
+                    order_normalized_value,
+                    order_currency_normalized_value,
+                    order_raw_data
                   )
                   VALUES (
                     $/kind/,
@@ -248,7 +260,15 @@ if (config.doBackgroundWork) {
                     $/maker/,
                     $/value/,
                     $/txHash/,
-                    $/txTimestamp/
+                    $/txTimestamp/,
+                    $/orderKind/,
+                    $/orderTokenSetId/,
+                    $/orderDynamic/,
+                    $/orderCurrency/,
+                    $/orderCurrencyPrice/,
+                    $/orderNormalizedValue/,
+                    $/orderCurrencyNormalizedValue/,
+                    $/orderRawData/
                   )
                 `,
                 {
@@ -266,6 +286,14 @@ if (config.doBackgroundWork) {
                   kind: trigger.kind,
                   txHash: trigger.txHash ? toBuffer(trigger.txHash) : null,
                   txTimestamp: trigger.txTimestamp || null,
+                  orderKind: order.kind,
+                  orderTokenSetId: order.tokenSetId,
+                  orderDynamic: order.dynamic,
+                  orderCurrency: order.currency,
+                  orderCurrencyPrice: order.currency_price,
+                  orderNormalizedValue: order.normalized_value,
+                  orderCurrencyNormalizedValue: order.currency_normalized_value,
+                  orderRawData: order.raw_data,
                 }
               );
 
@@ -294,7 +322,13 @@ if (config.doBackgroundWork) {
                     price,
                     value,
                     tx_hash,
-                    tx_timestamp
+                    tx_timestamp,
+                    order_kind,
+                    order_currency,
+                    order_currency_price,
+                    order_normalized_value,
+                    order_currency_normalized_value,
+                    order_raw_data
                   )
                   VALUES (
                     $/kind/,
@@ -319,7 +353,13 @@ if (config.doBackgroundWork) {
                     $/price/,
                     $/value/,
                     $/txHash/,
-                    $/txTimestamp/
+                    $/txTimestamp/,
+                    $/orderKind/,
+                    $/orderCurrency/,
+                    $/orderCurrencyPrice/,
+                    $/orderNormalizedValue/,
+                    $/orderCurrencyNormalizedValue/,
+                    $/orderRawData/
                   )
                 `,
                 {
@@ -338,6 +378,12 @@ if (config.doBackgroundWork) {
                   kind: trigger.kind,
                   txHash: trigger.txHash ? toBuffer(trigger.txHash) : null,
                   txTimestamp: trigger.txTimestamp || null,
+                  orderKind: order.kind,
+                  orderCurrency: order.currency,
+                  orderCurrencyPrice: order.currency_price,
+                  orderNormalizedValue: order.normalized_value,
+                  orderCurrencyNormalizedValue: order.currency_normalized_value,
+                  orderRawData: order.raw_data,
                 }
               );
             }

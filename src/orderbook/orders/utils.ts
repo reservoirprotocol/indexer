@@ -3,26 +3,11 @@ import crypto from "crypto";
 import stringify from "json-stable-stringify";
 
 import { OrderKind } from "@/orderbook/orders";
+import { TokenSetSchema } from "@/orderbook/token-sets/utils";
 
 // Optional metadata associated to an order
 export type OrderMetadata = {
-  // For now, only attribute orders will have an associated schema.
-  // The other order kinds only have a single possible schema that
-  // can be attached to them:
-  // - single-token -> order on a single token
-  // - token-range / contract-wide -> order on a full collection
-  schema?: {
-    kind: "attribute";
-    data: {
-      collection: string;
-      attributes: [
-        {
-          key: string;
-          value: string;
-        }
-      ];
-    };
-  };
+  schema?: TokenSetSchema;
   schemaHash?: string;
   source?: string;
   target?: string;
@@ -33,14 +18,11 @@ export type OrderMetadata = {
 export type DbOrder = {
   id: string;
   kind: OrderKind;
-  side: "buy" | "sell" | "bundle";
+  side: "buy" | "sell";
   fillability_status: string;
   approval_status: string;
   token_set_id?: string | null;
   token_set_schema_hash?: Buffer | null;
-  offer_bundle_id?: string | null;
-  consideration_bundle_id?: string | null;
-  bundle_kind?: "bundle-ask" | null;
   maker: Buffer;
   taker: Buffer;
   price: string;
@@ -69,6 +51,7 @@ export type DbOrder = {
   log_index?: number | null;
 };
 
+// TODO: Move under `token-sets`
 const defaultSchemaHash = HashZero;
 export const generateSchemaHash = (schema?: object) =>
   schema

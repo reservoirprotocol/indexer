@@ -12,8 +12,9 @@ import Joi from "joi";
 
 import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { Signers, addressToSigner } from "@/common/signers";
-import { bn, formatPrice, now, regex, toBuffer } from "@/common/utils";
+import { bn, formatPrice, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v5";
@@ -233,7 +234,7 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
           EIP712_TYPES.CollectionPriceByToken,
           {
             kind,
-            twapSeconds: query.twapSeconds,
+            twapSeconds: kind === PriceKind.SPOT ? 0 : query.twapSeconds,
             token,
             tokenId,
           }
@@ -245,7 +246,7 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
           EIP712_TYPES.TokenRangeCollectionPrice,
           {
             kind,
-            twapSeconds: query.twapSeconds,
+            twapSeconds: kind === PriceKind.SPOT ? 0 : query.twapSeconds,
             contract,
             startTokenId,
             endTokenId,
@@ -257,7 +258,7 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
           EIP712_TYPES.ContractWideCollectionPrice,
           {
             kind,
-            twapSeconds: query.twapSeconds,
+            twapSeconds: kind === PriceKind.SPOT ? 0 : query.twapSeconds,
             contract: query.collection,
           }
         );
@@ -283,6 +284,9 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
         throw Boom.badRequest("Unsupported currency");
       }
 
+      // Use the timestamp of the latest available block as the message timestamp
+      const timestamp = await baseProvider.getBlock("latest").then((b) => b.timestamp);
+
       const message: {
         id: string;
         payload: string;
@@ -291,7 +295,7 @@ export const getCollectionFloorAskOracleV5Options: RouteOptions = {
       } = {
         id,
         payload: defaultAbiCoder.encode(["address", "uint256"], [query.currency, price]),
-        timestamp: now(),
+        timestamp,
       };
 
       if (config.oraclePrivateKey) {

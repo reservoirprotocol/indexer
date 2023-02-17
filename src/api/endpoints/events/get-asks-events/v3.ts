@@ -6,7 +6,14 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrderCriteria, JoiPrice, getJoiPriceObject } from "@/common/joi";
-import { buildContinuation, fromBuffer, splitContinuation, regex, toBuffer } from "@/common/utils";
+import {
+  buildContinuation,
+  fromBuffer,
+  splitContinuation,
+  regex,
+  toBuffer,
+  now,
+} from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Orders } from "@/utils/orders";
 
@@ -110,9 +117,13 @@ export const getAsksEventsV3Options: RouteOptions = {
     const query = request.query as any;
 
     try {
+      // TODO: Backfill order fields in the ask events
+      const joinWithOrders = (query.startTimestamp ?? now()) < 1676554238;
+      const t = joinWithOrders ? "orders" : "order_events";
+
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
-        "orders",
-        "token_set_id",
+        t,
+        "order_token_set_id",
         query.includeCriteriaMetadata
       );
 
@@ -128,13 +139,6 @@ export const getAsksEventsV3Options: RouteOptions = {
           order_events.order_nonce,
           order_events.maker,
           order_events.price,
-          orders.currency,
-          orders.dynamic,
-          orders.currency_normalized_value,
-          orders.normalized_value,
-          orders.kind AS order_kind,
-          orders.raw_data,
-          TRUNC(orders.currency_price, 0) AS currency_price,
           order_events.order_source_id_int,
           coalesce(
             nullif(date_part('epoch', upper(order_events.order_valid_between)), 'Infinity'),
@@ -144,26 +148,38 @@ export const getAsksEventsV3Options: RouteOptions = {
           order_events.tx_hash,
           order_events.tx_timestamp,
           extract(epoch from order_events.created_at) AS created_at,
+          ${t}.order_currency,
+          ${t}.order_dynamic,
+          ${t}.order_currency_normalized_value,
+          ${t}.order_normalized_value,
+          ${t}.order_kind,
+          ${t}.order_token_set_id,
+          trunc(${t}.order_currency_price, 0) AS order_currency_price,
+          (
+            CASE
+              WHEN order_events.kind IN ('new-order', 'reprice') THEN ${t}.order_raw_data
+              ELSE NULL
+            END
+          ) AS order_raw_data,
           (${criteriaBuildQuery}) AS criteria
         FROM order_events
-        LEFT JOIN LATERAL (
-          SELECT
-            orders.currency,
-            orders.currency_price,
-            orders.normalized_value,
-            orders.currency_normalized_value,
-            orders.token_set_id,
-            orders.dynamic,
-            orders.kind,
-            (
-              CASE
-                WHEN orders.kind IN ('nftx', 'sudoswap') OR order_events.kind IN ('new-order', 'reprice') THEN orders.raw_data
-                ELSE NULL
-              END
-            ) AS raw_data
-         FROM orders
-         WHERE orders.id = order_events.order_id
-        ) orders ON TRUE
+        ${
+          joinWithOrders
+            ? `LEFT JOIN LATERAL (
+                SELECT
+                  orders.currency AS order_currency,
+                  orders.currency_price AS order_currency_price,
+                  orders.normalized_value AS order_normalized_value,
+                  orders.currency_normalized_value AS order_currency_normalized_value,
+                  orders.token_set_id AS order_token_set_id,
+                  orders.dynamic AS order_dynamic,
+                  orders.kind AS order_kind,
+                  orders.raw_data AS order_raw_data
+                FROM orders
+                WHERE orders.id = order_events.order_id
+              ) orders ON TRUE`
+            : ""
+        }
       `;
 
       // We default in the code so that these values don't appear in the docs
@@ -233,24 +249,24 @@ export const getAsksEventsV3Options: RouteOptions = {
                   {
                     gross: {
                       amount: query.normalizeRoyalties
-                        ? r.currency_normalized_value ?? r.price
-                        : r.currency_price ?? r.price,
+                        ? r.order_currency_normalized_value ?? r.price
+                        : r.order_currency_price ?? r.price,
                       nativeAmount: query.normalizeRoyalties
-                        ? r.normalized_value ?? r.price
+                        ? r.order_normalized_value ?? r.price
                         : r.price,
                     },
                   },
-                  fromBuffer(r.currency)
+                  fromBuffer(r.order_currency)
                 )
               : null,
             quantityRemaining: Number(r.order_quantity_remaining),
             nonce: r.order_nonce ?? null,
             validFrom: r.valid_from ? Number(r.valid_from) : null,
             validUntil: r.valid_until ? Number(r.valid_until) : null,
-            rawData: r.raw_data ? r.raw_data : undefined,
+            rawData: r.order_raw_data ? r.order_raw_data : undefined,
             kind: r.order_kind,
             source: sources.get(r.order_source_id_int)?.name,
-            isDynamic: Boolean(r.dynamic),
+            isDynamic: Boolean(r.order_dynamic),
             criteria: r.criteria,
           },
           event: {

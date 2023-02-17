@@ -4,6 +4,7 @@ import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle"
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport/types";
 import _ from "lodash";
 import pLimit from "p-limit";
+import tags from "dd-trace/ext/tags";
 
 import { idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -105,7 +106,7 @@ export const save = async (
         });
       }
 
-      // Check: order doesn't already exist or partial order
+      // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(
         `
           WITH x AS (
@@ -235,18 +236,12 @@ export const save = async (
         }
       }
 
-      let saveRawData = true;
-
       // Check and save: associated token set
       let tokenSetId: string | undefined;
-      let schemaHash;
+      let schemaHash: string | undefined;
 
-      if (openSeaOrderParams && openSeaOrderParams.kind != "single-token") {
-        // Currently, we don't save the raw data on the order to make sure we utilize the OS graphql to fill the order (due to inconsistency with flagged tokens).
-        saveRawData = false;
-
+      if (openSeaOrderParams && openSeaOrderParams.kind !== "single-token") {
         const collection = await getCollection(openSeaOrderParams);
-
         if (!collection) {
           return results.push({
             id,
@@ -258,33 +253,17 @@ export const save = async (
 
         switch (openSeaOrderParams.kind) {
           case "contract-wide": {
-            if (collection?.token_set_id) {
-              tokenSetId = collection.token_set_id;
+            const ts = await tokenSet.dynamicCollectionNonFlagged.save({
+              collection: collection.id,
+            });
+            if (ts) {
+              tokenSetId = ts.id;
+              schemaHash = ts.schemaHash;
             }
 
-            if (tokenSetId) {
-              if (tokenSetId.startsWith("contract:")) {
-                await tokenSet.contractWide.save([
-                  {
-                    id: tokenSetId,
-                    schemaHash,
-                    contract: info.contract,
-                  },
-                ]);
-              } else if (tokenSetId.startsWith("range:")) {
-                const [, , startTokenId, endTokenId] = tokenSetId.split(":");
-
-                await tokenSet.tokenRange.save([
-                  {
-                    id: tokenSetId,
-                    schemaHash,
-                    contract: info.contract,
-                    startTokenId,
-                    endTokenId,
-                  },
-                ]);
-              }
-            }
+            // Mark the order as being partial in order to force filling through the order-fetcher service
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (order.params as any).partial = true;
 
             break;
           }
@@ -381,10 +360,7 @@ export const save = async (
           }
 
           case "token-list": {
-            // For collection offers, if the target orderbook is opensea, the token set should always be a contract wide.
-            // This is due to a mismatch between the collection flags in our system and OpenSea.
-            // The actual merkle root is returned by the build collection offer API from OpenSea (see the logic in the execute bid API).
-            if (metadata?.target === "opensea") {
+            if (metadata.target === "opensea") {
               tokenSetId = `contract:${info.contract}`;
               await tokenSet.contractWide.save([
                 {
@@ -393,6 +369,10 @@ export const save = async (
                   contract: info.contract,
                 },
               ]);
+
+              // Mark the order as being partial in order to force filling through the order-fetcher service
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (order.params as any).partial = true;
             } else {
               const typedInfo = info as typeof info & { merkleRoot: string };
               const merkleRoot = typedInfo.merkleRoot;
@@ -673,9 +653,6 @@ export const save = async (
         approval_status: approvalStatus,
         token_set_id: tokenSetId,
         token_set_schema_hash: toBuffer(schemaHash),
-        offer_bundle_id: null,
-        consideration_bundle_id: null,
-        bundle_kind: null,
         maker: toBuffer(order.params.offerer),
         taker: toBuffer(info.taker),
         price: price.toString(),
@@ -696,7 +673,7 @@ export const save = async (
         fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
         dynamic: info.isDynamic ?? null,
-        raw_data: saveRawData ? order.params : null,
+        raw_data: order.params,
         expiration: validTo,
         missing_royalties: missingRoyalties,
         normalized_value: normalizedValue,
@@ -741,9 +718,6 @@ export const save = async (
           openSeaOrderParams
         )}, error=${error}`
       );
-
-      // Throw so that we retry with he bundle-handling code
-      throw error;
     }
   };
 
@@ -1140,9 +1114,6 @@ export const save = async (
         approval_status: approvalStatus,
         token_set_id: tokenSetId,
         token_set_schema_hash: toBuffer(schemaHash),
-        offer_bundle_id: null,
-        consideration_bundle_id: null,
-        bundle_kind: null,
         maker: toBuffer(orderParams.offerer),
         taker: orderParams.taker ? toBuffer(orderParams.taker) : toBuffer(AddressZero),
         price: price.toString(),
@@ -1189,9 +1160,6 @@ export const save = async (
           orderParams
         )}: ${error} (will retry)`
       );
-
-      // Throw so that we retry with he bundle-handling code
-      throw error;
     }
   };
 
@@ -1202,13 +1170,16 @@ export const save = async (
       limit(async () =>
         orderInfo.kind == "partial"
           ? handlePartialOrder(orderInfo.orderParams as PartialOrderComponents, orderInfo.metadata)
-          : tracer.trace("handleOrder", { resource: "seaportSave" }, () =>
-              handleOrder(
-                orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
-                orderInfo.metadata,
-                orderInfo.isReservoir,
-                orderInfo.openSeaOrderParams
-              )
+          : tracer.trace(
+              "handleOrder",
+              { resource: "seaportSave", tags: { [tags.MANUAL_KEEP]: true, orderInfo } },
+              () =>
+                handleOrder(
+                  orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
+                  orderInfo.metadata,
+                  orderInfo.isReservoir,
+                  orderInfo.openSeaOrderParams
+                )
             )
       )
     )
@@ -1224,9 +1195,6 @@ export const save = async (
         "approval_status",
         "token_set_id",
         "token_set_schema_hash",
-        "offer_bundle_id",
-        "consideration_bundle_id",
-        "bundle_kind",
         "maker",
         "taker",
         "price",

@@ -15,8 +15,6 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
 
   const valid: Set<TokenSet> = new Set();
   for (const tokenSet of tokenSets) {
-    // For efficiency, first check if the token set exists before
-    // triggering a potentially-expensive validation of it
     const tokenSetExists = await redb.oneOrNone(
       `
         SELECT 1
@@ -30,7 +28,7 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
       }
     );
     if (tokenSetExists) {
-      // If the token set already exists, we can simply skip every other checks
+      // If the token set already exists, we can simply skip any other further actions
       valid.add(tokenSet);
       continue;
     }
@@ -89,7 +87,7 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
       valid.add(tokenSet);
     } catch (error) {
       logger.error(
-        "orderbook-token-list-set",
+        "orderbook-mixed-token-list-set",
         `Failed to check/save token set ${JSON.stringify(tokenSet)}: ${error}`
       );
     }

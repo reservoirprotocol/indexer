@@ -4,6 +4,16 @@ import { getAllNftsRarity, NftInit } from "@poprank/rankings";
 import { TraitBase } from "@poprank/rankings/lib/types";
 
 export class Rarity {
+  public static getExcludedKeys(collectionId: string) {
+    const excludedKeys = new Map([
+      ["0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d", ["Trait Count", "ApeCoin Staked"]],
+      ["0xba30e5f9bb24caa003e9f2f0497ad287fdf95623", ["ApeCoin Staked"]],
+      ["0x60e4d786628fea6478f785a6d7e704777c86a7c6", ["ApeCoin Staked"]],
+    ]);
+
+    return excludedKeys.get(collectionId) || [];
+  }
+
   public static async getCollectionTokensRarity(collectionId: string) {
     const limit = 1000;
     let values = {
@@ -23,6 +33,7 @@ export class Rarity {
     const valuesCount = await Rarity.getValuesCount(collectionId);
     const excludedKeys: string[] = [];
     _.map(valuesCount, (value) => (value.count > 5000 ? excludedKeys.push(value.key) : null));
+    _.map(Rarity.getExcludedKeys(collectionId), (key) => excludedKeys.push(key));
 
     let lastTokenId;
 

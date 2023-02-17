@@ -367,6 +367,140 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         });
         break;
       }
+
+      case "manifold-accept": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const listingId = parsedLog.args["listingId"].toString();
+        const currencyPrice = parsedLog.args["amount"].toString();
+        const maker = parsedLog.args["oferrer"].toLowerCase();
+        let currency = Sdk.Common.Addresses.Eth[config.chainId];
+
+        const orderId = manifold.getOrderId(listingId);
+
+        const txTrace = await utils.fetchTransactionTrace(baseEventParams.txHash);
+        if (!txTrace) {
+          // Skip any failed attempts to get the trace
+          break;
+        }
+
+        const state = getStateChange(txTrace.calls);
+
+        let tokenContract: string | undefined;
+        let tokenId: string | undefined;
+        let amount: string | undefined;
+
+        // This logic will only work when the transfer tokens are being minted
+        // TODO Revisit this logic once manifold have began using the accept event without mints
+        for (const transferEvent of onChainData.nftTransferEvents) {
+          if (transferEvent.to === maker) {
+            tokenId = transferEvent.tokenId;
+            amount = transferEvent.amount;
+          }
+        }
+
+        for (const mintEvent of onChainData.mintInfos) {
+          if (mintEvent.tokenId === tokenId) {
+            tokenContract = mintEvent.contract;
+          }
+        }
+
+        for (const token of Object.keys(state[baseEventParams.address].tokenBalanceState)) {
+          if (token.startsWith("erc20")) {
+            currency = token.split(":")[1];
+          }
+        }
+
+        // We assume the taker is the address that got paid the largest amount of tokens.
+        // In case of 50 / 50 splits, the maker will be the first address which got paid.
+        let maxPayout: BigNumber | undefined;
+        const payoutAddresses = Object.keys(state).filter(
+          (address) => address !== baseEventParams.address
+        );
+
+        let taker: string | undefined;
+        for (const payoutAddress of payoutAddresses) {
+          const tokenPayouts = Object.keys(state[payoutAddress].tokenBalanceState).filter((token) =>
+            token.includes(currency)
+          );
+          for (const token of tokenPayouts) {
+            const tokensTransfered = bn(state[payoutAddress].tokenBalanceState[token]);
+            if (tokensTransfered.gt(0) && (!maxPayout || tokensTransfered.gt(maxPayout))) {
+              maxPayout = tokensTransfered;
+              taker = payoutAddress;
+            }
+          }
+        }
+
+        if (
+          !taker ||
+          !currencyPrice ||
+          currencyPrice === "0" ||
+          !maker ||
+          !tokenContract ||
+          !tokenId ||
+          !amount
+        ) {
+          // Skip if we couldn't retrieve any of the params
+          break;
+        }
+
+        // Handle: attribution
+        const orderKind = "manifold";
+        const attributionData = await utils.extractAttributionData(
+          baseEventParams.txHash,
+          orderKind,
+          { orderId }
+        );
+
+        if (attributionData.taker) {
+          taker = attributionData.taker;
+        }
+
+        // Handle: prices
+        const priceData = await getUSDAndNativePrices(
+          currency,
+          currencyPrice,
+          baseEventParams.timestamp
+        );
+        if (!priceData.nativePrice) {
+          // We must always have the native price
+          break;
+        }
+
+        onChainData.fillEventsPartial.push({
+          orderKind,
+          orderId,
+          orderSide: "buy",
+          maker,
+          taker,
+          price: priceData.nativePrice,
+          currency,
+          currencyPrice,
+          usdPrice: priceData.usdPrice,
+          contract: tokenContract,
+          tokenId,
+          amount,
+          orderSourceId: attributionData.orderSource?.id,
+          aggregatorSourceId: attributionData.aggregatorSource?.id,
+          fillSourceId: attributionData.fillSource?.id,
+          baseEventParams,
+        });
+
+        onChainData.fillInfos.push({
+          context: `${orderId}-${baseEventParams.txHash}`,
+          orderId: orderId,
+          orderSide: "buy",
+          contract: tokenContract,
+          tokenId,
+          amount,
+          price: priceData.nativePrice,
+          timestamp: baseEventParams.timestamp,
+          maker,
+          taker,
+        });
+
+        break;
+      }
     }
   }
 };

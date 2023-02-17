@@ -45,3 +45,14 @@ export const finalize: EventData = {
   numTopics: 2,
   abi: new Interface([`event FinalizeListing(uint40 indexed listingId)`]),
 };
+
+export const accept: EventData = {
+  kind: "manifold",
+  subKind: "manifold-accept",
+  addresses: { [Manifold.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0xd6df7c9a0f20ac7b678de872504d1dc938cd654638a43d5312d295e51c23e470",
+  numTopics: 2,
+  abi: new Interface([
+    `event AcceptOfferEvent(uint40 indexed listingId, address oferrer, uint256 amount)`,
+  ]),
+};
