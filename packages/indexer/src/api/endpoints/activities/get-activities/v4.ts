@@ -33,6 +33,12 @@ export const getActivityV4Options: RouteOptions = {
         .valid("asc", "desc")
         .default("desc")
         .description("Order the items are returned in the response."),
+      contract: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
     }),
   },
   response: {
@@ -71,14 +77,15 @@ export const getActivityV4Options: RouteOptions = {
     const query = request.query as any;
 
     try {
-      const activities = await Activities.getActivities(
-        query.continuation,
-        query.limit,
-        true,
-        query.includeMetadata,
-        query.sortDirection,
-        true
-      );
+      const activities = await Activities.getActivities({
+        continuation: query.continuation,
+        limit: query.limit,
+        byEventTimestamp: true,
+        includeMetadata: query.includeMetadata,
+        sortDirection: query.sortDirection,
+        includeCriteria: true,
+        contract: query.contract ?? undefined,
+      });
 
       // If no activities found
       if (!activities.length) {

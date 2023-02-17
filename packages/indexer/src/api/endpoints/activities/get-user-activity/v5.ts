@@ -94,6 +94,12 @@ export const getUserActivityV5Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
+      contract: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
     }).oxor("collection", "collectionsSetId", "contractsSetId", "community"),
   },
   response: {
@@ -178,20 +184,23 @@ export const getUserActivityV5Options: RouteOptions = {
         throw Boom.badRequest(`No contracts for contracts set ${query.contractsSetId}`);
       }
     }
+    if (query.contract) {
+      query.contracts ? query.contracts.push(query.contract) : (query.contracts = [query.contract]);
+    }
 
     try {
-      const activities = await UserActivities.getActivities(
-        query.users,
-        query.collection,
-        query.community,
-        query.continuation,
-        query.types,
-        query.limit,
-        query.sortBy,
-        query.includeMetadata,
-        true,
-        query.contracts
-      );
+      const activities = await UserActivities.getActivities({
+        users: query.users,
+        collections: query.collection,
+        community: query.community,
+        createdBefore: query.continuation,
+        types: query.types,
+        limit: query.limit,
+        sortBy: query.sortBy,
+        includeMetadata: query.includeMetadata,
+        includeCriteria: true,
+        contracts: query.contracts,
+      });
 
       // If no activities found
       if (!activities.length) {
