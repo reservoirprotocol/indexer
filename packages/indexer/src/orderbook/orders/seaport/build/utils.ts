@@ -95,6 +95,7 @@ export const getBuildInfo = async (
 
   // Keep track of the total amount of fees
   let totalFees = bn(0);
+  let totalBps = 0;
 
   if (options.automatedRoyalties) {
     // Include the royalties
@@ -104,6 +105,7 @@ export const getBuildInfo = async (
         : collectionResult.royalties;
     for (const { recipient, bps } of royalties || []) {
       if (recipient && Number(bps) > 0) {
+        totalBps += Number(bps);
         const fee = bn(bps).mul(options.weiPrice).div(10000).toString();
         buildParams.fees!.push({
           recipient,
@@ -121,7 +123,8 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
-    options.fee.push(250);
+    options.fee.push(totalBps < 50 ? 50 - totalBps : 0);
+
     // OpenSea's Seaport fee recipient
     options.feeRecipient.push("0x0000a26b00c1f0df003000390027140000faa719");
   }

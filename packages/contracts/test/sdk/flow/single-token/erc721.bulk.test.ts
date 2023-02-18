@@ -34,7 +34,7 @@ describe("Flow - Bulk Single Token ERC721", () => {
 
   afterEach(reset);
 
-  it("Build and take sell orders", async () => {
+  it("Build and take sell orders - Complication V1", async () => {
     const buyer = alice;
     const sellerOne = bob;
     const sellerTwo = eve;
@@ -69,6 +69,7 @@ describe("Flow - Bulk Single Token ERC721", () => {
       currency: Common.Addresses.Eth[chainId],
       tokenId: tokenIdOne,
       numTokens: 1,
+      complication: Flow.Addresses.Complication[chainId],
     });
 
     const sellOrderTwo = builder.build({
@@ -84,6 +85,7 @@ describe("Flow - Bulk Single Token ERC721", () => {
       currency: Common.Addresses.Eth[chainId],
       tokenId: tokenIdTwo,
       numTokens: 1,
+      complication: Flow.Addresses.Complication[chainId],
     });
 
     await sellOrderOne.sign(sellerOne);
@@ -138,7 +140,7 @@ describe("Flow - Bulk Single Token ERC721", () => {
     expect(nftTwoOwnerAfter).to.eq(buyer.address);
   });
 
-  it("Build and take offer orders", async () => {
+  it("Build and take offer orders - Complication V1", async () => {
     const buyerOne = alice;
     const buyerTwo = eve;
     const seller = bob;
@@ -181,6 +183,7 @@ describe("Flow - Bulk Single Token ERC721", () => {
       currency: Common.Addresses.Weth[chainId],
       tokenId: tokenIdOne,
       numTokens: 1,
+      complication: Flow.Addresses.Complication[chainId],
     });
 
     const offerOrderTwo = builder.build({
@@ -196,6 +199,218 @@ describe("Flow - Bulk Single Token ERC721", () => {
       currency: Common.Addresses.Weth[chainId],
       tokenId: tokenIdTwo,
       numTokens: 1,
+      complication: Flow.Addresses.Complication[chainId],
+    });
+
+    await offerOrderOne.sign(buyerOne);
+    await offerOrderTwo.sign(buyerTwo);
+    await offerOrderOne.checkFillability(ethers.provider);
+    await offerOrderTwo.checkFillability(ethers.provider);
+
+    const buyerOneWethBalanceBefore = await weth.getBalance(buyerOne.address);
+    const buyerTwoWethBalanceBefore = await weth.getBalance(buyerTwo.address);
+    const sellerWethBalanceBefore = await weth.getBalance(seller.address);
+
+    const nftOneOwnerBefore = await nft.getOwner(tokenIdOne);
+    const nftTwoOwnerBefore = await nft.getOwner(tokenIdTwo);
+    expect(nftOneOwnerBefore).to.eq(seller.address);
+    expect(nftTwoOwnerBefore).to.eq(seller.address);
+
+    await exchange.takeMultipleOneOrders(seller, [
+      offerOrderOne,
+      offerOrderTwo,
+    ]);
+
+    const buyerOneWethBalanceAfter = await weth.getBalance(buyerOne.address);
+    const buyerTwoWethBalanceAfter = await weth.getBalance(buyerTwo.address);
+    const sellerWethBalanceAfter = await weth.getBalance(seller.address);
+    const nftOneOwnerAfter = await nft.getOwner(tokenIdOne);
+    const nftTwoOwnerAfter = await nft.getOwner(tokenIdTwo);
+
+    const protocolFeeBps: BigNumberish = await exchange.contract
+      .connect(seller)
+      .protocolFeeBps();
+    const fees = bn(price).mul(protocolFeeBps).div(10000);
+
+    expect(buyerOneWethBalanceBefore.sub(buyerOneWethBalanceAfter)).to.be.gte(
+      price
+    );
+    expect(buyerTwoWethBalanceBefore.sub(buyerTwoWethBalanceAfter)).to.be.gte(
+      price
+    );
+    expect(sellerWethBalanceAfter).to.eq(
+      sellerWethBalanceBefore.add(price).sub(fees).mul(2)
+    );
+    expect(nftOneOwnerAfter).to.eq(buyerOne.address);
+    expect(nftTwoOwnerAfter).to.eq(buyerTwo.address);
+  });
+
+  it("Build and take sell orders - Complication V2", async () => {
+    const buyer = alice;
+    const sellerOne = bob;
+    const sellerTwo = eve;
+
+    const price = parseEther("1").toString();
+
+    const tokenIdOne = "1";
+    const tokenIdTwo = "2";
+
+    await erc721.connect(sellerOne).mint(tokenIdOne);
+    await erc721.connect(sellerTwo).mint(tokenIdTwo);
+
+    const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
+
+    await nft.approve(sellerOne, Flow.Addresses.Exchange[chainId]);
+    await nft.approve(sellerTwo, Flow.Addresses.Exchange[chainId]);
+
+    const exchange = new Flow.Exchange(chainId);
+
+    const builder = new Flow.Builders.SingleToken(chainId);
+
+    const sellOrderOne = builder.build({
+      isSellOrder: true,
+      collection: erc721.address,
+      signer: sellerOne.address,
+      startPrice: price,
+      endPrice: price,
+      startTime: await getCurrentTimestamp(ethers.provider),
+      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      nonce: "1",
+      maxGasPrice: "100000000000",
+      currency: Common.Addresses.Eth[chainId],
+      tokenId: tokenIdOne,
+      numTokens: 1,
+      complication: Flow.Addresses.ComplicationV2[chainId],
+    });
+
+    const sellOrderTwo = builder.build({
+      isSellOrder: true,
+      collection: erc721.address,
+      signer: sellerTwo.address,
+      startPrice: price,
+      endPrice: price,
+      startTime: await getCurrentTimestamp(ethers.provider),
+      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      nonce: "1",
+      maxGasPrice: "100000000000",
+      currency: Common.Addresses.Eth[chainId],
+      tokenId: tokenIdTwo,
+      numTokens: 1,
+      complication: Flow.Addresses.ComplicationV2[chainId],
+    });
+
+    await sellOrderOne.sign(sellerOne);
+    await sellOrderTwo.sign(sellerTwo);
+    await sellOrderOne.checkFillability(ethers.provider);
+    await sellOrderTwo.checkFillability(ethers.provider);
+
+    const buyerEthBalanceBefore = await ethers.provider.getBalance(
+      buyer.address
+    );
+    const sellerOneEthBalanceBefore = await ethers.provider.getBalance(
+      sellerOne.address
+    );
+    const sellerTwoEthBalanceBefore = await ethers.provider.getBalance(
+      sellerTwo.address
+    );
+
+    const nftOneOwnerBefore = await nft.getOwner(tokenIdOne);
+    const nftTwoOwnerBefore = await nft.getOwner(tokenIdTwo);
+    expect(nftOneOwnerBefore).to.eq(sellerOne.address);
+    expect(nftTwoOwnerBefore).to.eq(sellerTwo.address);
+
+    await exchange.takeMultipleOneOrders(buyer, [sellOrderOne, sellOrderTwo]);
+
+    const buyerEthBalanceAfter = await ethers.provider.getBalance(
+      buyer.address
+    );
+    const sellerOneEthBalanceAfter = await ethers.provider.getBalance(
+      sellerOne.address
+    );
+    const sellerTwoEthBalanceAfter = await ethers.provider.getBalance(
+      sellerTwo.address
+    );
+    const nftOneOwnerAfter = await nft.getOwner(tokenIdOne);
+    const nftTwoOwnerAfter = await nft.getOwner(tokenIdTwo);
+
+    const protocolFeeBps: BigNumberish = await exchange.contract
+      .connect(sellerOne)
+      .protocolFeeBps();
+    const fees = bn(price).mul(protocolFeeBps).div(10000);
+
+    expect(buyerEthBalanceBefore.sub(buyerEthBalanceAfter)).to.be.gte(
+      bn(price).mul(2)
+    );
+    expect(sellerOneEthBalanceAfter).to.eq(
+      sellerOneEthBalanceBefore.add(price).sub(fees)
+    );
+    expect(sellerTwoEthBalanceAfter).to.eq(
+      sellerTwoEthBalanceBefore.add(price).sub(fees)
+    );
+    expect(nftOneOwnerAfter).to.eq(buyer.address);
+    expect(nftTwoOwnerAfter).to.eq(buyer.address);
+  });
+
+  it("Build and take offer orders - Complication V2", async () => {
+    const buyerOne = alice;
+    const buyerTwo = eve;
+    const seller = bob;
+
+    const price = parseEther("1").toString();
+
+    const tokenIdOne = "1";
+    const tokenIdTwo = "2";
+
+    await erc721.connect(seller).mint(tokenIdOne);
+    await erc721.connect(seller).mint(tokenIdTwo);
+
+    const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
+
+    await nft.approve(seller, Flow.Addresses.Exchange[chainId]);
+
+    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
+
+    // Mint weth to buyer
+    await weth.deposit(buyerOne, price);
+    await weth.deposit(buyerTwo, price);
+    // Approve the exchange contract for the buyer
+    await weth.approve(buyerOne, Flow.Addresses.Exchange[chainId]);
+    await weth.approve(buyerTwo, Flow.Addresses.Exchange[chainId]);
+
+    const exchange = new Flow.Exchange(chainId);
+
+    const builder = new Flow.Builders.SingleToken(chainId);
+
+    const offerOrderOne = builder.build({
+      isSellOrder: false,
+      collection: erc721.address,
+      signer: buyerOne.address,
+      startPrice: price,
+      endPrice: price,
+      startTime: await getCurrentTimestamp(ethers.provider),
+      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      nonce: "1",
+      maxGasPrice: "100000000000",
+      currency: Common.Addresses.Weth[chainId],
+      tokenId: tokenIdOne,
+      numTokens: 1,
+      complication: Flow.Addresses.ComplicationV2[chainId],
+    });
+
+    const offerOrderTwo = builder.build({
+      isSellOrder: false,
+      collection: erc721.address,
+      signer: buyerTwo.address,
+      startPrice: price,
+      endPrice: price,
+      startTime: await getCurrentTimestamp(ethers.provider),
+      endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
+      nonce: "1",
+      maxGasPrice: "100000000000",
+      currency: Common.Addresses.Weth[chainId],
+      tokenId: tokenIdTwo,
+      numTokens: 1,
+      complication: Flow.Addresses.ComplicationV2[chainId],
     });
 
     await offerOrderOne.sign(buyerOne);

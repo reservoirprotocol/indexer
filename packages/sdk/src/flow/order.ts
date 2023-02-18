@@ -6,7 +6,6 @@ import {
   keccak256,
   solidityKeccak256,
   defaultAbiCoder,
-  splitSignature,
   _TypedDataEncoder,
 } from "ethers/lib/utils";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -14,10 +13,10 @@ import { OrderParams } from "./order-params";
 import * as CommonAddresses from "../common/addresses";
 import { Addresses } from ".";
 import ExchangeAbi from "./abis/Exchange.json";
-import ComplicationAbi from "./abis/Complication.json";
 
 import { Builders } from ".";
 import { Common } from "..";
+import { getComplication } from "./complications";
 
 export class Order extends OrderParams {
   constructor(
@@ -28,10 +27,24 @@ export class Order extends OrderParams {
     this.checkBaseValid();
   }
 
+  get supportsBulkSignatures() {
+    const complication = getComplication(this.chainId, this.complication);
+    return complication.supportsBulkSignatures;
+  }
+
+  get supportsContractSignatures() {
+    const complication = getComplication(this.chainId, this.complication);
+    return complication.supportsContractSignatures;
+  }
+
   public async sign(signer: TypedDataSigner, force = false) {
-    const [types, value] = this._getEip712TypesAndValue();
-    const sig = splitSignature(
-      await signer._signTypedData(this._domain, types, value)
+    const complicationInstance = getComplication(
+      this.chainId,
+      this.complication
+    );
+    const sig = await complicationInstance.sign(
+      signer,
+      this.getInternalOrder(this.params)
     );
     if (force) {
       this.forceSetSig(sig);
@@ -45,19 +58,31 @@ export class Order extends OrderParams {
   }
 
   public getSignatureData() {
-    const [types, value] = this._getEip712TypesAndValue();
-    return {
-      signatureKind: "eip712",
-      domain: this._domain,
-      types,
-      value,
-    };
+    const complicationInstance = getComplication(
+      this.chainId,
+      this.complication
+    );
+    return complicationInstance.getSignatureData(
+      this.getInternalOrder(this.params)
+    );
   }
 
   public checkValidity() {
     if (!this.getBuilder().isValid(this)) {
       throw new Error("Invalid order");
     }
+  }
+
+  public async checkSignature(provider?: Provider) {
+    const complicationInstance = getComplication(
+      this.chainId,
+      this.complication
+    );
+    await complicationInstance.verifySignature(
+      this.sig,
+      this.getInternalOrder(this),
+      provider
+    );
   }
 
   public checkBaseValid() {
@@ -76,12 +101,12 @@ export class Order extends OrderParams {
       }
     }
 
-    const complicationValid =
-      this.complication === Addresses.Complication[this.chainId];
+    const complicationInstance = getComplication(
+      this.chainId,
+      this.complication
+    );
 
-    if (!complicationValid) {
-      throw new Error("Invalid complication address");
-    }
+    complicationInstance.checkBaseValid();
   }
 
   public async checkFillability(provider: Provider) {
@@ -93,23 +118,17 @@ export class Order extends OrderParams {
       provider
     );
 
-    const complication = new Contract(
-      Addresses.Complication[chainId],
-      ComplicationAbi,
-      provider
-    );
-
     const isNonceValid = await exchange.isNonceValid(this.signer, this.nonce);
     if (!isNonceValid) {
       throw new Error("not-fillable");
     }
 
-    if (this.currency !== CommonAddresses.Eth[chainId]) {
-      const isCurrencyValid = await complication.isValidCurrency(this.currency);
-      if (!isCurrencyValid) {
-        throw new Error("not-fillable");
-      }
-    }
+    const complicationInstance = getComplication(
+      this.chainId,
+      this.complication
+    );
+
+    await complicationInstance.checkFillability(provider, this);
 
     if (this.isSellOrder) {
       const { balance } = await this.getFillableTokens(provider);

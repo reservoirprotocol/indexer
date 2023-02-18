@@ -1,11 +1,14 @@
 import { constants } from "ethers";
-import { Addresses, Order, Types } from "../..";
+import { Order, Types } from "../..";
 import { BaseBuilder } from "../base";
+import { getComplication } from "../../complications";
 
 export type SingleTokenOrderParams = Omit<
   Types.OrderInput,
   "complication" | "numItems" | "nfts" | "extraParams" | "trustedExecution"
-> & { collection: string; tokenId: string; numTokens: number };
+> & { collection: string; tokenId: string; numTokens: number } & Partial<
+    Pick<Types.OrderInput, "complication" | "trustedExecution">
+  >;
 
 export class SingleTokenBuilder extends BaseBuilder<SingleTokenOrderParams> {
   public isValid(order: Order): boolean {
@@ -21,8 +24,9 @@ export class SingleTokenBuilder extends BaseBuilder<SingleTokenOrderParams> {
     const { collection, tokenId, numTokens, ...rest } = params;
 
     const order = new Order(this.chainId, {
-      ...rest,
+      complication: getComplication(this.chainId).address,
       trustedExecution: "0",
+      ...rest,
       extraParams: constants.HashZero,
       numItems: 1,
       nfts: [
@@ -31,7 +35,6 @@ export class SingleTokenBuilder extends BaseBuilder<SingleTokenOrderParams> {
           tokens: [{ tokenId: params.tokenId, numTokens: params.numTokens }],
         },
       ],
-      complication: Addresses.Complication[this.chainId],
     });
 
     return order;

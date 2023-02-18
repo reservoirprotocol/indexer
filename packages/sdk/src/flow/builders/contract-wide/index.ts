@@ -1,11 +1,14 @@
 import { constants } from "ethers";
-import { Addresses, Order, Types } from "../..";
+import { Order, Types } from "../..";
 import { BaseBuilder } from "../base";
+import { getComplication } from "../../complications";
 
 export type ContractWideOrderParams = Omit<
   Types.OrderInput,
   "complication" | "nfts" | "extraParams" | "trustedExecution"
-> & { collection: string };
+> & { collection: string } & Partial<
+    Pick<Types.OrderInput, "complication" | "trustedExecution">
+  >;
 
 export class ContractWideBuilder extends BaseBuilder<ContractWideOrderParams> {
   public isValid(order: Order): boolean {
@@ -21,11 +24,11 @@ export class ContractWideBuilder extends BaseBuilder<ContractWideOrderParams> {
     const { collection, ...rest } = params;
 
     const order = new Order(this.chainId, {
-      ...rest,
       trustedExecution: "0",
+      complication: getComplication(this.chainId).address,
+      ...rest,
       extraParams: constants.HashZero,
       nfts: [{ collection, tokens: [] }],
-      complication: Addresses.Complication[this.chainId],
     });
 
     return order;

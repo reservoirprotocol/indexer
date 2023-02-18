@@ -34,7 +34,7 @@ describe("Flow - Complex ERC721", () => {
 
   afterEach(reset);
 
-  it("Build and take one of three sell order", async () => {
+  it("Build and take one of three sell order - Complication V1 ", async () => {
     const buyer = alice;
     const seller = bob;
 
@@ -65,6 +65,112 @@ describe("Flow - Complex ERC721", () => {
       nonce: "1",
       maxGasPrice: "1",
       numItems: 1,
+      complication: Flow.Addresses.Complication[chainId],
+      currency: Common.Addresses.Weth[chainId],
+      nfts: [
+        {
+          collection: erc721.address,
+          tokens: [
+            {
+              tokenId: tokenIdOne,
+              numTokens: 1,
+            },
+            {
+              tokenId: tokenIdTwo,
+              numTokens: 1,
+            },
+            {
+              tokenId: tokenIdThree,
+              numTokens: 1,
+            },
+          ],
+        },
+      ],
+    });
+
+    await buyOrder.sign(buyer);
+
+    await erc721
+      .connect(seller)
+      .setApprovalForAll(Flow.Addresses.Exchange[chainId], true);
+    await weth.deposit(buyer, price);
+    await weth.approve(buyer, Flow.Addresses.Exchange[chainId], price);
+
+    await buyOrder.checkFillability(ethers.provider);
+    const buyerWethBalanceBefore = await weth.getBalance(buyer.address);
+    const sellerWethBalanceBefore = await weth.getBalance(seller.address);
+    const ownerBeforeOne = await nft.getOwner(tokenIdOne);
+    const ownerBeforeTwo = await nft.getOwner(tokenIdTwo);
+    const ownerBeforeThree = await nft.getOwner(tokenIdThree);
+
+    expect(ownerBeforeOne).to.eq(seller.address);
+    expect(ownerBeforeTwo).to.eq(seller.address);
+    expect(ownerBeforeThree).to.eq(seller.address);
+
+    await exchange.takeOrders(seller, [
+      {
+        order: buyOrder,
+        tokens: [
+          {
+            collection: erc721.address,
+            tokens: [{ tokenId: tokenIdTwo, numTokens: 1 }],
+          },
+        ],
+      },
+    ]);
+
+    const buyerWethBalanceAfter = await weth.getBalance(buyer.address);
+    const sellerWethBalanceAfter = await weth.getBalance(seller.address);
+    const ownerAfterTwo = await nft.getOwner(tokenIdTwo);
+    const ownerAfterOne = await nft.getOwner(tokenIdOne);
+    const ownerAfterThree = await nft.getOwner(tokenIdThree);
+
+    const protocolFeeBps: BigNumberish = await exchange.contract
+      .connect(seller)
+      .protocolFeeBps();
+    const fees = bn(price).mul(protocolFeeBps).div(10000);
+
+    expect(buyerWethBalanceBefore.sub(buyerWethBalanceAfter)).to.be.gte(price);
+    expect(sellerWethBalanceAfter).to.eq(
+      sellerWethBalanceBefore.add(price).sub(fees)
+    );
+    expect(ownerAfterTwo).to.eq(buyer.address);
+    expect(ownerAfterOne).to.eq(seller.address);
+    expect(ownerAfterThree).to.eq(seller.address);
+  });
+
+  it("Build and take one of three sell order - Complication V2 ", async () => {
+    const buyer = alice;
+    const seller = bob;
+
+    const price = parseEther("1").toString();
+
+    const tokenIdOne = "1";
+    const tokenIdTwo = "2";
+    const tokenIdThree = "3";
+    await erc721.connect(seller).mint(tokenIdOne);
+    await erc721.connect(seller).mint(tokenIdTwo);
+    await erc721.connect(seller).mint(tokenIdThree);
+
+    const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
+
+    const exchange = new Flow.Exchange(chainId);
+
+    const builder = new Flow.Builders.Complex(chainId);
+
+    const currentTime = await getCurrentTimestamp(ethers.provider);
+
+    const buyOrder = builder.build({
+      isSellOrder: false,
+      signer: buyer.address,
+      startPrice: price,
+      endPrice: price,
+      startTime: currentTime,
+      endTime: currentTime + 60,
+      nonce: "1",
+      maxGasPrice: "1",
+      numItems: 1,
+      complication: Flow.Addresses.ComplicationV2[chainId],
       currency: Common.Addresses.Weth[chainId],
       nfts: [
         {

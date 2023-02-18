@@ -1,23 +1,13 @@
 import * as Types from "./types";
 import * as Errors from "./errors";
 import { bn, lc, s } from "../utils";
-import { Signature, TypedDataField } from "ethers";
-import { SignatureLike } from "@ethersproject/bytes";
-import { defaultAbiCoder, verifyTypedData } from "ethers/lib/utils";
+import { Signature } from "ethers";
 import { AddressZero } from "@ethersproject/constants";
+import { getComplication } from "./complications";
 
 export class OrderParams implements Types.OrderInput {
   protected _params: Types.InternalOrder;
   protected _sig?: string;
-
-  protected get _domain() {
-    return {
-      name: "FlowComplication",
-      version: "1",
-      chainId: this.chainId,
-      verifyingContract: this.complication,
-    };
-  }
 
   get kind(): Types.OrderKind {
     if (this._isSingleToken) {
@@ -168,14 +158,15 @@ export class OrderParams implements Types.OrderInput {
   }
 
   set sig(signature: string | Signature | { v: number; r: string; s: string }) {
-    let encodedSignature: string;
+    let sig: string;
+    const complication = getComplication(this.chainId, this.complication);
     if (typeof signature === "string") {
-      encodedSignature = signature;
+      sig = signature;
     } else {
-      encodedSignature = this._getEncodedSig(signature);
+      sig = complication.joinSignature(signature);
     }
-    this._verifySig(encodedSignature);
-    this._sig = encodedSignature;
+    complication.verifySignature(sig, this.getInternalOrder(this.params));
+    this._sig = sig;
   }
 
   forceSetSig(
@@ -185,7 +176,8 @@ export class OrderParams implements Types.OrderInput {
     if (typeof signature === "string") {
       encodedSignature = signature;
     } else {
-      encodedSignature = this._getEncodedSig(signature);
+      const complication = getComplication(this.chainId, this.complication);
+      encodedSignature = complication.joinSignature(signature);
     }
     this._sig = encodedSignature;
   }
@@ -240,29 +232,6 @@ export class OrderParams implements Types.OrderInput {
     return this.nfts.length === 1 && this.nfts[0]?.tokens?.length === 0;
   }
 
-  protected _verifySig(encodedSignature: string) {
-    if (!encodedSignature) {
-      throw new Error("Order has not been signed");
-    }
-
-    const decodedSig = this._getDecodedSig(encodedSignature);
-    const [types, value] = this._getEip712TypesAndValue();
-
-    const signer = verifyTypedData(this._domain, types, value, decodedSig);
-
-    if (lc(signer) !== this.signer) {
-      throw new Error("Invalid signature");
-    }
-  }
-
-  protected _getEip712TypesAndValue(): [
-    Record<string, TypedDataField[]>,
-    Types.InternalOrder,
-    string
-  ] {
-    return [ORDER_EIP712_TYPES, this.getInternalOrder(this), "Order"];
-  }
-
   public getSignedOrder() {
     return { ...this._params, sig: this.sig };
   }
@@ -287,26 +256,6 @@ export class OrderParams implements Types.OrderInput {
     };
 
     return d;
-  }
-
-  protected _getEncodedSig(
-    signature: Signature | { v: number; r: string; s: string }
-  ): string {
-    const encodedSig = defaultAbiCoder.encode(
-      ["bytes32", "bytes32", "uint8"],
-      [signature.r, signature.s, signature.v]
-    );
-
-    return encodedSig;
-  }
-
-  protected _getDecodedSig(encodedSig: string): SignatureLike {
-    const [r, s, v] = defaultAbiCoder.decode(
-      ["bytes32", "bytes32", "uint8"],
-      encodedSig
-    );
-
-    return { r, s, v };
   }
 }
 
@@ -408,23 +357,4 @@ export const normalize = (
     currency: lc(input.currency),
     signature: input.signature,
   };
-};
-
-const ORDER_EIP712_TYPES = {
-  Order: [
-    { name: "isSellOrder", type: "bool" },
-    { name: "signer", type: "address" },
-    { name: "constraints", type: "uint256[]" },
-    { name: "nfts", type: "OrderItem[]" },
-    { name: "execParams", type: "address[]" },
-    { name: "extraParams", type: "bytes" },
-  ],
-  OrderItem: [
-    { name: "collection", type: "address" },
-    { name: "tokens", type: "TokenInfo[]" },
-  ],
-  TokenInfo: [
-    { name: "tokenId", type: "uint256" },
-    { name: "numTokens", type: "uint256" },
-  ],
 };

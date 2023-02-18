@@ -1,3 +1,4 @@
+import { TypedDataDomain, TypedDataField } from "ethers";
 import { Order } from "./order";
 
 export type OrderNFTs = {
@@ -48,3 +49,10 @@ export type TakeOrderParams = {
   order: Order;
   tokens: OrderNFTs[];
 };
+
+export interface SignatureData {
+  signatureKind: "eip712";
+  domain: TypedDataDomain;
+  type: Record<string, TypedDataField[]>;
+  value: InternalOrder;
+}
