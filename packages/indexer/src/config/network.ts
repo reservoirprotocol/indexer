@@ -151,6 +151,15 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0xb73758fe1dc58ac2a255a2950a3fdd84da656b84",
+            {
+              contract: "0xb73758fe1dc58ac2a255a2950a3fdd84da656b84",
+              name: "GANG",
+              symbol: "GANG",
+              decimals: 18,
+            },
+          ],
+          [
             "0x726516b20c4692a6bea3900971a37e0ccf7a6bff",
             {
               contract: "0x726516b20c4692a6bea3900971a37e0ccf7a6bff",
