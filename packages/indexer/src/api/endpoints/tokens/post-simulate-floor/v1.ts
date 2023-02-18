@@ -174,7 +174,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
         );
 
         if (
-          ["nftx", "sudoswap", "universe"].includes(orderResult.id) ||
+          ["nftx", "sudoswap", "universe"].includes(orderResult.kind) ||
           getNetworkSettings().whitelistedCurrencies.has(fromBuffer(orderResult.currency))
         ) {
           return { message: "Order not simulatable" };
