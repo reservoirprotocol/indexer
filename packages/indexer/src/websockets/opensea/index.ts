@@ -21,6 +21,8 @@ import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handl
 
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
+import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
+
 import * as orders from "@/orderbook/orders";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
@@ -90,7 +92,11 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
             };
           }
 
-          await orderbookOrders.addToQueue([orderInfo]);
+          if (eventType === EventType.ITEM_LISTED) {
+            await orderbookOpenseaListings.addToQueue([orderInfo]);
+          } else {
+            await orderbookOrders.addToQueue([orderInfo]);
+          }
         }
       } catch (error) {
         logger.error(
