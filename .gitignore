@@ -8,11 +8,39 @@ node_modules
 # Build
 dist
 tsconfig.tsbuildinfo
+.turbo
 
 # Misc
-yarn-error.log
+yarn-debug.log*
+yarn-error.log*
 postgres/
 scripts/
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
+# Npm
+.npmrc
+
+# Hardhat
+artifacts
+cache
+
+# Tenderly
+tenderly.yaml
+
+# Script files
+test*.ts
+
+# OpenZeppelin
+unknown-*
+
 
 # IDE
 *.iml

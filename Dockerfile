@@ -1,4 +1,4 @@
-FROM node:16.13-slim
+FROM node:16.15
 
 ARG DATABASE_URL
 ARG PORT
