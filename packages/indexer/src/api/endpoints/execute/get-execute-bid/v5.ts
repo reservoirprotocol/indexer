@@ -121,6 +121,9 @@ export const getExecuteBidV5Options: RouteOptions = {
           automatedRoyalties: Joi.boolean()
             .default(true)
             .description("If true, royalties will be automatically included."),
+          royaltyBps: Joi.number().description(
+            "The royalty percentage to pay. Only relevant when using automated royalties."
+          ),
           fees: Joi.array()
             .items(Joi.string().pattern(regex.fee))
             .description(
@@ -204,6 +207,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         orderbook: string;
         orderbookApiKey?: string;
         automatedRoyalties: boolean;
+        royaltyBps?: number;
         excludeFlaggedTokens: boolean;
         fees: string[];
         currency: string;
