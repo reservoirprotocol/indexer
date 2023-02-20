@@ -1,0 +1,762 @@
+[
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_nftxFactory",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "_sushiRouter",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "previousOwner",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "count",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "lpBalance",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "timelockUntil",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            }
+        ],
+        "name": "UserStaked",
+        "type": "event"
+    },
+    {
+        "inputs": [],
+        "name": "WETH",
+        "outputs": [
+            {
+                "internalType": "contract IWETH",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "amounts",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256",
+                "name": "minWethIn",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "wethIn",
+                "type": "uint256"
+            }
+        ],
+        "name": "addLiquidity1155",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "amounts",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256",
+                "name": "minEthIn",
+                "type": "uint256"
+            }
+        ],
+        "name": "addLiquidity1155ETH",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "amounts",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256",
+                "name": "minEthIn",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "to",
+                "type": "address"
+            }
+        ],
+        "name": "addLiquidity1155ETHTo",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "amounts",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256",
+                "name": "minWethIn",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "wethIn",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "to",
+                "type": "address"
+            }
+        ],
+        "name": "addLiquidity1155To",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256",
+                "name": "minWethIn",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "wethIn",
+                "type": "uint256"
+            }
+        ],
+        "name": "addLiquidity721",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256",
+                "name": "minWethIn",
+                "type": "uint256"
+            }
+        ],
+        "name": "addLiquidity721ETH",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256",
+                "name": "minWethIn",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "to",
+                "type": "address"
+            }
+        ],
+        "name": "addLiquidity721ETHTo",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "ids",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256",
+                "name": "minWethIn",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "wethIn",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "to",
+                "type": "address"
+            }
+        ],
+        "name": "addLiquidity721To",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "assignStakingContracts",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "inventoryLockTime",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "inventoryStaking",
+        "outputs": [
+            {
+                "internalType": "contract INFTXInventoryStaking",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "addr",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            }
+        ],
+        "name": "isAddressTimelockExcluded",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "lpLockTime",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "lpStaking",
+        "outputs": [
+            {
+                "internalType": "contract INFTXLPStaking",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "nftxFactory",
+        "outputs": [
+            {
+                "internalType": "contract INFTXVaultFactory",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "bytes",
+                "name": "",
+                "type": "bytes"
+            }
+        ],
+        "name": "onERC1155BatchReceived",
+        "outputs": [
+            {
+                "internalType": "bytes4",
+                "name": "",
+                "type": "bytes4"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            },
+            {
+                "internalType": "bytes",
+                "name": "",
+                "type": "bytes"
+            }
+        ],
+        "name": "onERC1155Received",
+        "outputs": [
+            {
+                "internalType": "bytes4",
+                "name": "",
+                "type": "bytes4"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            },
+            {
+                "internalType": "bytes",
+                "name": "",
+                "type": "bytes"
+            }
+        ],
+        "name": "onERC721Received",
+        "outputs": [
+            {
+                "internalType": "bytes4",
+                "name": "",
+                "type": "bytes4"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "tokenIds",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "amounts",
+                "type": "uint256[]"
+            }
+        ],
+        "name": "provideInventory1155",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "vaultId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "tokenIds",
+                "type": "uint256[]"
+            }
+        ],
+        "name": "provideInventory721",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "renounceOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            }
+        ],
+        "name": "rescue",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "newInventoryLockTime",
+                "type": "uint256"
+            }
+        ],
+        "name": "setInventoryLockTime",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "newLPLockTime",
+                "type": "uint256"
+            }
+        ],
+        "name": "setLPLockTime",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "addr",
+                "type": "address"
+            }
+        ],
+        "name": "setTimelockExcludeList",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes4",
+                "name": "interfaceId",
+                "type": "bytes4"
+            }
+        ],
+        "name": "supportsInterface",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "sushiRouter",
+        "outputs": [
+            {
+                "internalType": "contract IUniswapV2Router01",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "timelockExcludeList",
+        "outputs": [
+            {
+                "internalType": "contract ITimelockExcludeList",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "transferOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "stateMutability": "payable",
+        "type": "receive"
+    }
+]

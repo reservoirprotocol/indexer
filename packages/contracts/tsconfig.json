@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2019",
+    "module": "commonjs",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "composite": true
+  },
+  "include": ["**/*.ts", "**/*.js"],
+  "references": [{ "path": "../sdk" }]
+}

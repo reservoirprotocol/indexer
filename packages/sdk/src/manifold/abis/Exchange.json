@@ -1,0 +1,962 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "AdminApproved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "AdminRevoked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "requestor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "value",
+        "type": "bool"
+      }
+    ],
+    "name": "MarketplaceEnabled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "requestor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "feeBPS",
+        "type": "uint16"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "referrerBPS",
+        "type": "uint16"
+      }
+    ],
+    "name": "MarketplaceFees",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "royaltyEngineV1",
+        "type": "address"
+      }
+    ],
+    "name": "MarketplaceRoyaltyEngineUpdate",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "requestor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "registry",
+        "type": "address"
+      }
+    ],
+    "name": "MarketplaceSellerRegistry",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "requestor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "erc20",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "MarketplaceWithdraw",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "requestor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "erc20",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "MarketplaceWithdrawEscrow",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "admin", "type": "address" }
+    ],
+    "name": "approveAdmin",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address payable",
+        "name": "referrer",
+        "type": "address"
+      },
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "bool", "name": "increase", "type": "bool" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "bid",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address payable",
+        "name": "referrer",
+        "type": "address"
+      },
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint256", "name": "bidAmount", "type": "uint256" },
+      { "internalType": "bool", "name": "increase", "type": "bool" }
+    ],
+    "name": "bid",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint256", "name": "bidAmount", "type": "uint256" },
+      { "internalType": "bool", "name": "increase", "type": "bool" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "bid",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address payable",
+        "name": "referrer",
+        "type": "address"
+      },
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "bool", "name": "increase", "type": "bool" }
+    ],
+    "name": "bid",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "bool", "name": "increase", "type": "bool" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "bid",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint256", "name": "bidAmount", "type": "uint256" },
+      { "internalType": "bool", "name": "increase", "type": "bool" }
+    ],
+    "name": "bid",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "bool", "name": "increase", "type": "bool" }
+    ],
+    "name": "bid",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address payable",
+        "name": "referrer",
+        "type": "address"
+      },
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint256", "name": "bidAmount", "type": "uint256" },
+      { "internalType": "bool", "name": "increase", "type": "bool" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "bid",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint16", "name": "holdbackBPS", "type": "uint16" }
+    ],
+    "name": "cancel",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
+    ],
+    "name": "collect",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "initialAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum MarketplaceLib.ListingType",
+            "name": "type_",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint24",
+            "name": "totalAvailable",
+            "type": "uint24"
+          },
+          {
+            "internalType": "uint24",
+            "name": "totalPerSale",
+            "type": "uint24"
+          },
+          {
+            "internalType": "uint16",
+            "name": "extensionInterval",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "minIncrementBPS",
+            "type": "uint16"
+          },
+          { "internalType": "address", "name": "erc20", "type": "address" },
+          {
+            "internalType": "address",
+            "name": "identityVerifier",
+            "type": "address"
+          },
+          { "internalType": "uint48", "name": "startTime", "type": "uint48" },
+          { "internalType": "uint48", "name": "endTime", "type": "uint48" }
+        ],
+        "internalType": "struct MarketplaceLib.ListingDetails",
+        "name": "listingDetails",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          { "internalType": "uint256", "name": "id", "type": "uint256" },
+          { "internalType": "address", "name": "address_", "type": "address" },
+          {
+            "internalType": "enum TokenLib.Spec",
+            "name": "spec",
+            "type": "uint8"
+          },
+          { "internalType": "bool", "name": "lazy", "type": "bool" }
+        ],
+        "internalType": "struct MarketplaceLib.TokenDetails",
+        "name": "tokenDetails",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          { "internalType": "uint16", "name": "deliverBPS", "type": "uint16" },
+          {
+            "internalType": "uint240",
+            "name": "deliverFixed",
+            "type": "uint240"
+          }
+        ],
+        "internalType": "struct MarketplaceLib.DeliveryFees",
+        "name": "deliveryFees",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address payable",
+            "name": "receiver",
+            "type": "address"
+          },
+          { "internalType": "uint16", "name": "receiverBPS", "type": "uint16" }
+        ],
+        "internalType": "struct MarketplaceLib.ListingReceiver[]",
+        "name": "listingReceivers",
+        "type": "tuple[]"
+      },
+      { "internalType": "bool", "name": "enableReferrer", "type": "bool" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "createListing",
+    "outputs": [{ "internalType": "uint40", "name": "", "type": "uint40" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint256", "name": "bidIndex", "type": "uint256" }
+    ],
+    "name": "deliver",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeBPS",
+    "outputs": [{ "internalType": "uint16", "name": "", "type": "uint16" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
+    ],
+    "name": "finalize",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAdmins",
+    "outputs": [
+      { "internalType": "address[]", "name": "admins", "type": "address[]" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
+    ],
+    "name": "getBids",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "amount", "type": "uint256" },
+          {
+            "internalType": "address payable",
+            "name": "bidder",
+            "type": "address"
+          },
+          { "internalType": "bool", "name": "delivered", "type": "bool" },
+          { "internalType": "bool", "name": "settled", "type": "bool" },
+          { "internalType": "bool", "name": "refunded", "type": "bool" },
+          { "internalType": "uint48", "name": "timestamp", "type": "uint48" },
+          {
+            "internalType": "address payable",
+            "name": "referrer",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct MarketplaceLib.Bid[]",
+        "name": "bids",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
+    ],
+    "name": "getListing",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "id", "type": "uint256" },
+          {
+            "internalType": "address payable",
+            "name": "seller",
+            "type": "address"
+          },
+          { "internalType": "bool", "name": "finalized", "type": "bool" },
+          { "internalType": "uint24", "name": "totalSold", "type": "uint24" },
+          {
+            "internalType": "uint16",
+            "name": "marketplaceBPS",
+            "type": "uint16"
+          },
+          { "internalType": "uint16", "name": "referrerBPS", "type": "uint16" },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "initialAmount",
+                "type": "uint256"
+              },
+              {
+                "internalType": "enum MarketplaceLib.ListingType",
+                "name": "type_",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint24",
+                "name": "totalAvailable",
+                "type": "uint24"
+              },
+              {
+                "internalType": "uint24",
+                "name": "totalPerSale",
+                "type": "uint24"
+              },
+              {
+                "internalType": "uint16",
+                "name": "extensionInterval",
+                "type": "uint16"
+              },
+              {
+                "internalType": "uint16",
+                "name": "minIncrementBPS",
+                "type": "uint16"
+              },
+              { "internalType": "address", "name": "erc20", "type": "address" },
+              {
+                "internalType": "address",
+                "name": "identityVerifier",
+                "type": "address"
+              },
+              {
+                "internalType": "uint48",
+                "name": "startTime",
+                "type": "uint48"
+              },
+              { "internalType": "uint48", "name": "endTime", "type": "uint48" }
+            ],
+            "internalType": "struct MarketplaceLib.ListingDetails",
+            "name": "details",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              { "internalType": "uint256", "name": "id", "type": "uint256" },
+              {
+                "internalType": "address",
+                "name": "address_",
+                "type": "address"
+              },
+              {
+                "internalType": "enum TokenLib.Spec",
+                "name": "spec",
+                "type": "uint8"
+              },
+              { "internalType": "bool", "name": "lazy", "type": "bool" }
+            ],
+            "internalType": "struct MarketplaceLib.TokenDetails",
+            "name": "token",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "address payable",
+                "name": "receiver",
+                "type": "address"
+              },
+              {
+                "internalType": "uint16",
+                "name": "receiverBPS",
+                "type": "uint16"
+              }
+            ],
+            "internalType": "struct MarketplaceLib.ListingReceiver[]",
+            "name": "receivers",
+            "type": "tuple[]"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint16",
+                "name": "deliverBPS",
+                "type": "uint16"
+              },
+              {
+                "internalType": "uint240",
+                "name": "deliverFixed",
+                "type": "uint240"
+              }
+            ],
+            "internalType": "struct MarketplaceLib.DeliveryFees",
+            "name": "fees",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "internalType": "address payable",
+                "name": "bidder",
+                "type": "address"
+              },
+              { "internalType": "bool", "name": "delivered", "type": "bool" },
+              { "internalType": "bool", "name": "settled", "type": "bool" },
+              { "internalType": "bool", "name": "refunded", "type": "bool" },
+              {
+                "internalType": "uint48",
+                "name": "timestamp",
+                "type": "uint48"
+              },
+              {
+                "internalType": "address payable",
+                "name": "referrer",
+                "type": "address"
+              }
+            ],
+            "internalType": "struct MarketplaceLib.Bid",
+            "name": "bid",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct IMarketplaceCore.Listing",
+        "name": "listing",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
+    ],
+    "name": "getListingCurrentPrice",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint256", "name": "price", "type": "uint256" }
+    ],
+    "name": "getListingDeliverFee",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint24", "name": "count", "type": "uint24" }
+    ],
+    "name": "getListingTotalPrice",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "initialize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "admin", "type": "address" }
+    ],
+    "name": "isAdmin",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint256", "name": "initialAmount", "type": "uint256" },
+      { "internalType": "uint48", "name": "startTime", "type": "uint48" },
+      { "internalType": "uint48", "name": "endTime", "type": "uint48" }
+    ],
+    "name": "modifyListing",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "operator", "type": "address" },
+      { "internalType": "address", "name": "from", "type": "address" },
+      { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+      { "internalType": "uint256", "name": "count", "type": "uint256" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "onERC1155Received",
+    "outputs": [{ "internalType": "bytes4", "name": "", "type": "bytes4" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "operator", "type": "address" },
+      { "internalType": "address", "name": "from", "type": "address" },
+      { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "onERC721Received",
+    "outputs": [{ "internalType": "bytes4", "name": "", "type": "bytes4" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "referrer", "type": "address" },
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint24", "name": "count", "type": "uint24" }
+    ],
+    "name": "purchase",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
+    ],
+    "name": "purchase",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint24", "name": "count", "type": "uint24" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "purchase",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "purchase",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "referrer", "type": "address" },
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "purchase",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint24", "name": "count", "type": "uint24" }
+    ],
+    "name": "purchase",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "referrer", "type": "address" },
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" },
+      { "internalType": "uint24", "name": "count", "type": "uint24" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "purchase",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "referrer", "type": "address" },
+      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
+    ],
+    "name": "purchase",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "referrerBPS",
+    "outputs": [{ "internalType": "uint16", "name": "", "type": "uint16" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "admin", "type": "address" }
+    ],
+    "name": "revokeAdmin",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "bool", "name": "enabled", "type": "bool" }],
+    "name": "setEnabled",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint16",
+        "name": "marketplaceFeeBPS",
+        "type": "uint16"
+      },
+      {
+        "internalType": "uint16",
+        "name": "marketplaceReferrerBPS",
+        "type": "uint16"
+      }
+    ],
+    "name": "setFees",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "royaltyEngineV1",
+        "type": "address"
+      }
+    ],
+    "name": "setRoyaltyEngineV1",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "registry", "type": "address" }
+    ],
+    "name": "setSellerRegistry",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "bytes4", "name": "interfaceId", "type": "bytes4" }
+    ],
+    "name": "supportsInterface",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "newOwner", "type": "address" }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "amount", "type": "uint256" },
+      {
+        "internalType": "address payable",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "withdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "erc20", "type": "address" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" },
+      {
+        "internalType": "address payable",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "withdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "erc20", "type": "address" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "withdrawEscrow",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "withdrawEscrow",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

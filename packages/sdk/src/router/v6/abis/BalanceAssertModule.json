@@ -1,0 +1,58 @@
+[
+  {
+    "inputs": [],
+    "name": "AssertFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "contract IERC1155",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "balance",
+        "type": "uint256"
+      }
+    ],
+    "name": "assertERC1155Balance",
+    "outputs": [],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "contract IERC721",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "assertERC721Owner",
+    "outputs": [],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

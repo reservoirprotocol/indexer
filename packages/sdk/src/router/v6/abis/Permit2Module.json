@@ -1,0 +1,257 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidParams",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnsuccessfulCall",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnsuccessfulPayment",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "WrongParams",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "target",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "value",
+        "type": "uint256"
+      }
+    ],
+    "name": "CallExecuted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "PERMIT2",
+    "outputs": [
+      {
+        "internalType": "contract IAllowanceTransfer",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "claimOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address[]",
+        "name": "targets",
+        "type": "address[]"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "data",
+        "type": "bytes[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "values",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "makeCalls",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pendingOwner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+              },
+              {
+                "internalType": "uint160",
+                "name": "amount",
+                "type": "uint160"
+              },
+              {
+                "internalType": "uint48",
+                "name": "expiration",
+                "type": "uint48"
+              },
+              {
+                "internalType": "uint48",
+                "name": "nonce",
+                "type": "uint48"
+              }
+            ],
+            "internalType": "struct IAllowanceTransfer.PermitDetails[]",
+            "name": "details",
+            "type": "tuple[]"
+          },
+          {
+            "internalType": "address",
+            "name": "spender",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "sigDeadline",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct IAllowanceTransfer.PermitBatch",
+        "name": "permitBatch",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "from",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "to",
+            "type": "address"
+          },
+          {
+            "internalType": "uint160",
+            "name": "amount",
+            "type": "uint160"
+          },
+          {
+            "internalType": "address",
+            "name": "token",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct IAllowanceTransfer.AllowanceTransferDetails[]",
+        "name": "transferDetails",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "permitTransfer",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
+  }
+]
