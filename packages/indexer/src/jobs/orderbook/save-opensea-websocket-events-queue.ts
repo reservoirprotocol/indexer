@@ -47,7 +47,10 @@ if (config.doBackgroundWork) {
         logger.info(QUEUE_NAME, `Pending events: ${await openseaWebsocketEventsQueue.count()}`);
 
         const params = {
-          Records: openseaWebsocketEvents.map((event) => {
+          Records: openseaWebsocketEvents.map((openseaWebsocketEvent) => {
+            const event = openseaWebsocketEvent.event;
+            const createdAt = openseaWebsocketEvent.createdAt;
+
             /* eslint-disable @typescript-eslint/no-explicit-any */
             // TODO: Filter out the properties when ingesting from S3 to Redshift instead of here.
             delete (event.payload as any).item.metadata;
@@ -60,14 +63,12 @@ if (config.doBackgroundWork) {
                 order_hash: (event.payload as any).order_hash,
                 maker: (event.payload as any).maker?.address,
                 event_data: event,
-                created_at: new Date().toISOString(),
+                created_at: createdAt,
               }),
             };
           }),
           DeliveryStreamName: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName,
         };
-
-        logger.info(QUEUE_NAME, `Saving ${params.Records.length} events.`);
 
         const firehouse = new AWS.Firehose({
           accessKeyId: config.awsAccessKeyId,
@@ -104,10 +105,10 @@ export const addToQueue = async () => {
 
 if (config.doWebsocketWork) {
   cron.schedule(
-    "*/30 * * * * *",
+    "*/10 * * * * *",
     async () =>
       await redlock
-        .acquire(["orderbook-save-opensea-websocket-events-queue-cron-lock"], (30 - 5) * 1000)
+        .acquire(["orderbook-save-opensea-websocket-events-queue-cron-lock"], (10 - 5) * 1000)
         .then(async () => addToQueue())
         .catch(() => {
           // Skip on any errors
