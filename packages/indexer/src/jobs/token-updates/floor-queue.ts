@@ -179,7 +179,7 @@ if (config.doBackgroundWork) {
 
         logger.info(
           QUEUE_NAME,
-          `Start. tokenSetId=${tokenSetId}, jobData=${JSON.stringify(
+          `Result. tokenSetId=${tokenSetId}, jobData=${JSON.stringify(
             job.data
           )}, sellOrderResult=${JSON.stringify(sellOrderResult)}`
         );
