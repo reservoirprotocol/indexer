@@ -48,6 +48,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
   let permit2: Contract;
   let permit2Module: Contract;
   let wethModule: Contract;
+  let uniswapV3SwapModule: Contract
 
   beforeEach(async () => {
     [deployer, alice, bob, carol, david, emilio] = await ethers.getSigners();
@@ -70,6 +71,12 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
         .then((factory) => factory.deploy(deployer.address))) as any;
     uniswapV3Module = (await ethers
       .getContractFactory("UniswapV3Module", deployer)
+      .then((factory) =>
+        factory.deploy(router.address, router.address)
+      )) as any;
+    
+    uniswapV3SwapModule = (await ethers
+      .getContractFactory("UniswapV3SwapModule", deployer)
       .then((factory) =>
         factory.deploy(router.address, router.address)
       )) as any;

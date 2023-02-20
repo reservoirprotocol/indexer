@@ -180,3 +180,17 @@ export type ListingDetailsExtracted = {
 export type PerCurrencyDetails = {
   [currency: string]: ListingDetailsExtracted[];
 };
+
+export type PerPoolDetails = {
+  [pool: string]: SwapDetail[];
+};
+
+export type SwapDetail = {
+  tokenIn: string;
+  tokenOut: string;
+  tokenOutAmount: BigNumberish;
+  recipient: string;
+  refundTo: string;
+  details: ListingDetailsExtracted[];
+  executionIndex: number;
+}

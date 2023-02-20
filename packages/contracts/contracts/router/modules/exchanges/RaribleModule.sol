@@ -36,6 +36,10 @@ contract RaribleModule is BaseExchangeModule {
         BaseExchangeModule(router)
     {}
 
+    // --- Fallback ---
+
+    receive() external payable {}
+
     // --- Single ETH listing ---
 
     function acceptETHListing(
