@@ -23,6 +23,7 @@ export interface BaseOrderBuildOptions {
   expirationTime?: number;
   salt?: string;
   automatedRoyalties?: boolean;
+  royaltyBps?: number;
   excludeFlaggedTokens?: boolean;
   source?: string;
 }
@@ -67,6 +68,7 @@ export const getBuildInfo = async (
     offerer: options.maker,
     side,
     tokenKind: collectionResult.kind,
+    // TODO: Fix types
     contract: options.contract!,
     price: options.weiPrice,
     amount: options.quantity,
@@ -94,24 +96,36 @@ export const getBuildInfo = async (
 
   // Keep track of the total amount of fees
   let totalFees = bn(0);
+
+  // Include royalties
   let totalBps = 0;
-
   if (options.automatedRoyalties) {
-    // Include the royalties
-    const royalties =
-      options.orderbook === "opensea"
+    const royalties: { bps: number; recipient: string }[] =
+      (options.orderbook === "opensea"
         ? collectionResult.new_royalties?.opensea
-        : collectionResult.royalties;
-    for (const { recipient, bps } of royalties || []) {
-      if (recipient && Number(bps) > 0) {
-        totalBps += Number(bps);
-        const fee = bn(bps).mul(options.weiPrice).div(10000).toString();
-        buildParams.fees!.push({
-          recipient,
-          amount: fee,
-        });
+        : collectionResult.royalties) ?? [];
 
-        totalFees = totalFees.add(fee);
+    let royaltyBpsToPay = royalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+    if (options.royaltyBps !== undefined) {
+      // The royalty bps to pay will be min(collectionRoyaltyBps, requestedRoyaltyBps)
+      royaltyBpsToPay = Math.min(options.royaltyBps, royaltyBpsToPay);
+    }
+
+    for (const r of royalties) {
+      if (r.recipient && r.bps > 0) {
+        const bps = Math.min(royaltyBpsToPay, r.bps);
+        if (bps > 0) {
+          royaltyBpsToPay -= bps;
+          totalBps += bps;
+
+          const fee = bn(bps).mul(options.weiPrice).div(10000).toString();
+          buildParams.fees!.push({
+            recipient: r.recipient,
+            amount: fee,
+          });
+
+          totalFees = totalFees.add(fee);
+        }
       }
     }
   }
@@ -122,9 +136,11 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
-    options.fee.push(totalBps < 50 ? 50 - totalBps : 0);
     // OpenSea's Seaport fee recipient
-    options.feeRecipient.push("0x0000a26b00c1f0df003000390027140000faa719");
+    if (totalBps < 50) {
+      options.fee.push(50 - totalBps);
+      options.feeRecipient.push("0x0000a26b00c1f0df003000390027140000faa719");
+    }
   }
 
   if (options.fee && options.feeRecipient) {
