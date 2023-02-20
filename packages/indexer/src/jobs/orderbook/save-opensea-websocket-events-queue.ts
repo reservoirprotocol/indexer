@@ -90,7 +90,7 @@ if (config.doBackgroundWork) {
         logger.error(QUEUE_NAME, `Failed to process job. error=${error}`);
       }
     },
-    { connection: redis.duplicate(), concurrency: 1 }
+    { connection: redis.duplicate(), concurrency: 10 }
   );
 
   worker.on("error", (error) => {
