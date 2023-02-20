@@ -126,7 +126,12 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
   }
 
   const openseaWebsocketEvents = new OpenseaWebsocketEvents();
-  await openseaWebsocketEvents.add([event]);
+  await openseaWebsocketEvents.add([
+    {
+      event,
+      createdAt: new Date().toISOString(),
+    },
+  ]);
 };
 
 export const getEventHash = (event: BaseStreamMessage<unknown>): string => {
