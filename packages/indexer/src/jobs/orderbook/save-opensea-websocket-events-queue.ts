@@ -44,6 +44,8 @@ if (config.doBackgroundWork) {
           return;
         }
 
+        logger.info(QUEUE_NAME, `Pending events: ${await openseaWebsocketEventsQueue.count()}`);
+
         const params = {
           Records: openseaWebsocketEvents.map((event) => {
             /* eslint-disable @typescript-eslint/no-explicit-any */
