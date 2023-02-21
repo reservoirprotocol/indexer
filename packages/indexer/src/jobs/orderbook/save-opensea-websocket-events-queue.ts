@@ -7,9 +7,11 @@ import AWS from "aws-sdk";
 import { OpenseaWebsocketEvents } from "@/models/opensea-websocket-events";
 import cron from "node-cron";
 import { randomUUID } from "crypto";
+import _ from "lodash";
 
 const QUEUE_NAME = "orderbook-save-opensea-websocket-events-queue";
 const BATCH_LIMIT = 500;
+const MAX_PARALLEL_BATCHES = 1;
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -37,38 +39,23 @@ if (config.doBackgroundWork) {
 
       try {
         const openseaWebsocketEventsQueue = new OpenseaWebsocketEvents();
-        const openseaWebsocketEvents = await openseaWebsocketEventsQueue.get(BATCH_LIMIT);
+        const openseaWebsocketEvents = await openseaWebsocketEventsQueue.get(
+          BATCH_LIMIT * MAX_PARALLEL_BATCHES
+        );
 
         if (!openseaWebsocketEvents.length) {
           logger.info(QUEUE_NAME, `No more events.`);
           return;
         }
 
-        logger.info(QUEUE_NAME, `Pending events: ${await openseaWebsocketEventsQueue.count()}`);
+        const openseaWebsocketEventsChunks = _.chunk(openseaWebsocketEvents, BATCH_LIMIT);
 
-        const params = {
-          Records: openseaWebsocketEvents.map((openseaWebsocketEvent) => {
-            const event = openseaWebsocketEvent.event;
-            const createdAt = openseaWebsocketEvent.createdAt;
-
-            /* eslint-disable @typescript-eslint/no-explicit-any */
-            // TODO: Filter out the properties when ingesting from S3 to Redshift instead of here.
-            delete (event.payload as any).item.metadata;
-            delete (event.payload as any).item.permalink;
-
-            return {
-              Data: JSON.stringify({
-                event_type: event.event_type,
-                event_timestamp: new Date((event.payload as any).event_timestamp).toISOString(),
-                order_hash: (event.payload as any).order_hash,
-                maker: (event.payload as any).maker?.address,
-                event_data: event,
-                created_at: createdAt,
-              }),
-            };
-          }),
-          DeliveryStreamName: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName,
-        };
+        logger.info(
+          QUEUE_NAME,
+          `Chunks: ${
+            openseaWebsocketEventsChunks.length
+          }, Pending events: ${await openseaWebsocketEventsQueue.count()}`
+        );
 
         const firehouse = new AWS.Firehose({
           accessKeyId: config.awsAccessKeyId,
@@ -76,22 +63,50 @@ if (config.doBackgroundWork) {
           region: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamRegion,
         });
 
-        try {
-          await firehouse.putRecordBatch(params).promise();
-        } catch (error) {
-          logger.error(QUEUE_NAME, `Failed to save events. error=${error}`);
+        await Promise.all(
+          openseaWebsocketEventsChunks.map(async (openseaWebsocketEventsChunk) => {
+            const params = {
+              Records: openseaWebsocketEventsChunk.map((openseaWebsocketEvent) => {
+                const event = openseaWebsocketEvent.event;
+                const createdAt = openseaWebsocketEvent.createdAt;
 
-          await openseaWebsocketEventsQueue.add(openseaWebsocketEvents);
-        }
+                /* eslint-disable @typescript-eslint/no-explicit-any */
+                // TODO: Filter out the properties when ingesting from S3 to Redshift instead of here.
+                delete (event.payload as any).item.metadata;
+                delete (event.payload as any).item.permalink;
 
-        if (openseaWebsocketEvents.length >= BATCH_LIMIT) {
+                return {
+                  Data: JSON.stringify({
+                    event_type: event.event_type,
+                    event_timestamp: new Date((event.payload as any).event_timestamp).toISOString(),
+                    order_hash: (event.payload as any).order_hash,
+                    maker: (event.payload as any).maker?.address,
+                    event_data: event,
+                    created_at: createdAt,
+                  }),
+                };
+              }),
+              DeliveryStreamName: config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName,
+            };
+
+            try {
+              await firehouse.putRecordBatch(params).promise();
+            } catch (error) {
+              logger.error(QUEUE_NAME, `Failed to save events. error=${error}`);
+
+              await openseaWebsocketEventsQueue.add(openseaWebsocketEvents);
+            }
+          })
+        );
+
+        if (openseaWebsocketEvents.length >= BATCH_LIMIT * MAX_PARALLEL_BATCHES) {
           await queue.add(randomUUID(), {});
         }
       } catch (error) {
         logger.error(QUEUE_NAME, `Failed to process job. error=${error}`);
       }
     },
-    { connection: redis.duplicate(), concurrency: 10 }
+    { connection: redis.duplicate(), concurrency: 1 }
   );
 
   worker.on("error", (error) => {
