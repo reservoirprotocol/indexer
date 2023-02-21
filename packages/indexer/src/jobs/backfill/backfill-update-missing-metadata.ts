@@ -177,7 +177,7 @@ async function processCollection(collection: {
   );
 
   if (
-    unindexedResult.unindexed_token_count / collection.tokenCount >
+    unindexedResult.unindexed_token_count / (collection.tokenCount || 1) >
     missingMetadataPercentageThreshold
   ) {
     // push to collection refresh queue
