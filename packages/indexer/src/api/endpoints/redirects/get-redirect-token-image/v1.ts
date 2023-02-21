@@ -7,6 +7,7 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { Tokens } from "@/models/tokens";
 import * as Boom from "@hapi/boom";
+import { Assets } from "@/utils/assets";
 
 const version = "v1";
 
@@ -32,9 +33,11 @@ export const getRedirectTokenImageV1Options: RouteOptions = {
           "Redirect to the given token image. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
     }),
+    query: Joi.object({}).options({ allowUnknown: true, stripUnknown: false }),
   },
   handler: async (request: Request, response) => {
     const params = request.params as any;
+
     try {
       const [contract, tokenId] = params.token.split(":");
       const token = await Tokens.getByContractAndTokenId(contract, tokenId, true);
@@ -42,8 +45,8 @@ export const getRedirectTokenImageV1Options: RouteOptions = {
       if (_.isNull(token)) {
         throw Boom.badData(`Token ${params.token} not found`);
       }
-
-      return response.redirect(token.image).header("cache-control", `${1000 * 60}`);
+      const imageWithQueryParams = Assets.addImageParams(token.image, request.query);
+      return response.redirect(imageWithQueryParams).header("cache-control", `${1000 * 60}`);
     } catch (error) {
       logger.error(`get-redirect-token-image-${version}-handler`, `Handler failure: ${error}`);
       throw error;
