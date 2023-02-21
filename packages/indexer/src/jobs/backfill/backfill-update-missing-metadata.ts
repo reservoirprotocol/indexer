@@ -113,7 +113,7 @@ async function processCollectionTokens(
   let lastTokenId = "";
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    let collectionAndTokenIdFilter = "WHERE t.image is null or t.image = ''";
+    let collectionAndTokenIdFilter = `WHERE (t.image is null or t.image = '') AND collection_id = '${collection.id}'`;
     if (lastTokenId != "") {
       logger.info(QUEUE_NAME, `Collection ID ${collection.id}, lastTokenId = ${lastTokenId}`);
       collectionAndTokenIdFilter = `WHERE (t.image is null or t.image = '') AND collection_id = '${collection.id}' AND t.token_id > '${lastTokenId}'`;
@@ -141,6 +141,11 @@ async function processCollectionTokens(
       lastTokenId = _.last(tokens).token_id;
     }
   }
+
+  if (unindexedTokens.length === 0) {
+    return;
+  }
+
   // push to tokens refresh queue
   const pendingRefreshTokens = new PendingRefreshTokens(indexingMethod);
   await pendingRefreshTokens.add(unindexedTokens);
@@ -153,6 +158,9 @@ async function processCollection(collection: {
   slug: string;
   tokenCount: number;
 }) {
+  if (collection.tokenCount === 0) {
+    return;
+  }
   const indexingMethod = getIndexingMethod(collection.community);
   const limit = Number(await redis.get(`${QUEUE_NAME}-tokens-limit`)) || 1000;
   if (!collection.slug) {
@@ -176,6 +184,9 @@ async function processCollection(collection: {
     `Processing collection with ID: ${collection.id}. Total tokens count: ${collection.tokenCount}, unindexed count: ${unindexedResult.unindexed_token_count}`
   );
 
+  if (unindexedResult.unindexed_token_count === 0) {
+    return;
+  }
   if (
     unindexedResult.unindexed_token_count / collection.tokenCount >
     missingMetadataPercentageThreshold
