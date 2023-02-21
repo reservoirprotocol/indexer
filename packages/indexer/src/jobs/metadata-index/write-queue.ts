@@ -18,6 +18,7 @@ import * as flagStatusUpdate from "@/jobs/flag-status/update";
 import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
 import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
+import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute-counts";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -369,25 +370,7 @@ if (config.doBackgroundWork) {
           await rarityQueue.addToQueue(collection); // Recalculate the collection rarity
         }
 
-        // Update the attributes token count
-        const replacementParams = {};
-        let updateCountsString = "";
-
-        _.forEach(tokenAttributeCounter, (count, attributeId) => {
-          (replacementParams as any)[`${attributeId}`] = count;
-          updateCountsString += `(${attributeId}, $/${attributeId}/),`;
-        });
-
-        updateCountsString = _.trimEnd(updateCountsString, ",");
-
-        if (updateCountsString !== "") {
-          const updateQuery = `UPDATE attributes
-                             SET token_count = token_count + x.countColumn
-                             FROM (VALUES ${updateCountsString}) AS x(idColumn, countColumn)
-                             WHERE x.idColumn = attributes.id`;
-
-          await idb.none(updateQuery, replacementParams);
-        }
+        await updateAttributeCounts.addToQueue(tokenAttributeCounter);
 
         // Mark the token as having metadata indexed.
         await idb.none(
@@ -410,7 +393,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 30 }
+    { connection: redis.duplicate(), concurrency: 15 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

@@ -121,6 +121,7 @@ import * as resyncAttributeCollection from "@/jobs/update-attribute/resync-attri
 import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attribute-floor-sell";
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
+import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute-counts";
 
 import * as websocketEventsTriggerQueue from "@/jobs/websocket-events/trigger-queue";
 
@@ -231,6 +232,7 @@ export const allJobQueues = [
   resyncAttributeFloorSell.queue,
   resyncAttributeKeyCounts.queue,
   resyncAttributeValueCounts.queue,
+  updateAttributeCounts.queue,
 
   websocketEventsTriggerQueue.queue,
 ];
