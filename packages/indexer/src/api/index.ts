@@ -160,11 +160,12 @@ export const start = async (): Promise<void> => {
 
     // Get the rule for the incoming request
     const rateLimitRules = await RateLimitRules.getInstance();
-    const rateLimitRule = rateLimitRules.getRule(
+    const rateLimitRule = rateLimitRules.getRateLimitObject(
       request.route.path,
       request.route.method,
       tier,
-      apiKey?.key
+      apiKey?.key,
+      new Map(Object.entries(_.merge(request.payload, request.query)))
     );
 
     // If matching rule was found

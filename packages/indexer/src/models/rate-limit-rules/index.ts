@@ -7,6 +7,7 @@ import {
   RateLimitRuleEntity,
   RateLimitRuleEntityParams,
   RateLimitRuleOptions,
+  RateLimitRulePayload,
   RateLimitRuleUpdateParams,
 } from "@/models/rate-limit-rules/rate-limit-rule-entity";
 import { Channel } from "@/pubsub/channels";
@@ -17,8 +18,8 @@ import { RateLimiterRedis } from "rate-limiter-flexible";
 export class RateLimitRules {
   private static instance: RateLimitRules;
 
-  public rulesEntities: Map<string, RateLimitRuleEntity>;
-  public rules: Map<string, RateLimiterRedis>;
+  public rulesEntities: Map<string, RateLimitRuleEntity[]>;
+  public rules: Map<number, RateLimiterRedis>;
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   private constructor() {
@@ -29,45 +30,47 @@ export class RateLimitRules {
   private async loadData(forceDbLoad = false) {
     // Try to load from cache
     const rulesCache = await redis.get(RateLimitRules.getCacheKey());
-    let rules: RateLimitRuleEntityParams[] = [];
+    let rulesRawData: RateLimitRuleEntityParams[] = [];
 
     if (_.isNull(rulesCache) || forceDbLoad) {
       // If no cache load from DB
       try {
-        rules = await redb.manyOrNone(`SELECT * FROM rate_limit_rules`);
+        const query = `
+          SELECT *
+          FROM rate_limit_rules
+          ORDER BY route DESC, api_key DESC, payload DESC, method DESC, tier DESC
+        `;
+
+        rulesRawData = await redb.manyOrNone(query);
       } catch (error) {
         logger.error("rate-limit-rules", "Failed to load rate limit rules");
       }
 
-      await redis.set(RateLimitRules.getCacheKey(), JSON.stringify(rules), "EX", 60 * 60 * 24);
+      await redis.set(
+        RateLimitRules.getCacheKey(),
+        JSON.stringify(rulesRawData),
+        "EX",
+        60 * 60 * 24
+      );
     } else {
       // Parse the cache data
-      rules = JSON.parse(rulesCache);
+      rulesRawData = JSON.parse(rulesCache);
     }
 
-    const newRulesMetadata = new Map(); // Reset current rules
-    const newRules = new Map(); // Reset current rules
+    const rulesEntities = new Map<string, RateLimitRuleEntity[]>(); // Reset current rules entities
+    const rules = new Map(); // Reset current rules
 
-    for (const rule of rules) {
+    for (const rule of rulesRawData) {
       const rateLimitRule = new RateLimitRuleEntity(rule);
 
-      newRulesMetadata.set(
-        RateLimitRules.getRuleKey(
-          rateLimitRule.route,
-          rateLimitRule.method,
-          rateLimitRule.tier,
-          rateLimitRule.apiKey
-        ),
-        rateLimitRule
-      );
+      if (rulesEntities.has(rateLimitRule.route)) {
+        rulesEntities.get(rateLimitRule.route)?.push(rateLimitRule);
+      } else {
+        rulesEntities.set(rateLimitRule.route, [rateLimitRule]);
+      }
 
-      newRules.set(
-        RateLimitRules.getRuleKey(
-          rateLimitRule.route,
-          rateLimitRule.method,
-          rateLimitRule.tier,
-          rateLimitRule.apiKey
-        ),
+      rules.set(
+        rateLimitRule.id,
         new RateLimiterRedis({
           storeClient: rateLimitRedis,
           points: rateLimitRule.options.points,
@@ -77,16 +80,8 @@ export class RateLimitRules {
       );
     }
 
-    this.rulesEntities = newRulesMetadata;
-    this.rules = newRules;
-  }
-
-  public static getRuleKey(route: string, method: string, tier: number | null, apiKey: string) {
-    return `${route}:${method}:${_.isNull(tier) ? "" : tier}:${apiKey}`;
-  }
-
-  public static getDefaultRuleKeyForTier(tier: number) {
-    return RateLimitRules.getRuleKey("/", "", tier, "");
+    this.rulesEntities = rulesEntities;
+    this.rules = rules;
   }
 
   public static getCacheKey() {
@@ -113,10 +108,11 @@ export class RateLimitRules {
     apiKey: string,
     method: string,
     tier: number | null,
-    options: RateLimitRuleOptions
+    options: RateLimitRuleOptions,
+    payload: RateLimitRulePayload[]
   ) {
-    const query = `INSERT INTO rate_limit_rules (route, api_key, method, tier, options)
-                   VALUES ($/route/, $/apiKey/, $/method/, $/tier/, $/options:json/)
+    const query = `INSERT INTO rate_limit_rules (route, api_key, method, tier, options, payload)
+                   VALUES ($/route/, $/apiKey/, $/method/, $/tier/, $/options:json/, $/payload:json/)
                    RETURNING *`;
 
     const values = {
@@ -125,6 +121,7 @@ export class RateLimitRules {
       method,
       tier,
       options,
+      payload,
     };
 
     const rateLimitRule = await idb.oneOrNone(query, values);
@@ -167,7 +164,9 @@ export class RateLimitRules {
           updateString += `options = options || jsonb_build_object (${jsonBuildObject}),`;
         }
       } else if (!_.isUndefined(param)) {
-        updateString += `${_.snakeCase(fieldName)} = $/${fieldName}/,`;
+        updateString += `${_.snakeCase(fieldName)} = $/${fieldName}${
+          _.includes(["payload"], fieldName) ? ":json" : ""
+        }/,`;
         (replacementValues as any)[fieldName] = param;
       }
     });
@@ -215,54 +214,86 @@ export class RateLimitRules {
     return _.map(rules, (rule) => new RateLimitRuleEntity(rule));
   }
 
-  public getRule(route: string, method: string, tier: number, apiKey = "") {
-    let rule: RateLimiterRedis | undefined;
+  public findMostMatchingRule(
+    route: string,
+    method: string,
+    tier: number,
+    apiKey = "",
+    payload: Map<string, string> = new Map()
+  ) {
+    // If there are any rules for the given route
+    const rules = this.rulesEntities.get(route);
 
-    // Check for api key specific rule on the route method
-    rule = this.rules.get(RateLimitRules.getRuleKey(route, method, null, apiKey));
-    if (rule) {
-      rule.keyPrefix = route;
-      return rule;
+    if (rules) {
+      for (const rule of rules) {
+        // Check what criteria to check for the rule
+        const verifyApiKey = rule.apiKey !== "";
+        const verifyPayload = !_.isEmpty(rule.payload);
+        const verifyMethod = rule.method !== "";
+        const verifyTier = !_.isNull(rule.tier);
+
+        // Check the rule criteria if any not matching the rule is not matching
+        if (verifyApiKey && rule.apiKey !== apiKey) {
+          continue;
+        }
+
+        if (verifyPayload) {
+          let payloadMatching = true;
+
+          // If rule needs payload verification all params need to match
+          for (const rulePayload of rule.payload) {
+            // If the request consists any of the keys in the request and the value match
+            if (
+              !payload.has(rulePayload.param) ||
+              payload.get(rulePayload.param) !== rulePayload.value
+            ) {
+              payloadMatching = false;
+            }
+          }
+
+          if (!payloadMatching) {
+            continue;
+          }
+        }
+
+        if (verifyMethod && rule.method !== method) {
+          continue;
+        }
+
+        if (verifyTier && rule.tier !== tier) {
+          continue;
+        }
+
+        // If we reached here the rule is matching
+        return rule;
+      }
     }
 
-    // Check for api key specific rule on the route
-    rule = this.rules.get(RateLimitRules.getRuleKey(route, "", null, apiKey));
-    if (rule) {
-      rule.keyPrefix = route;
-      return rule;
+    // No matching rule found, return default rules
+    const defaultRules = this.rulesEntities.get("/") || [];
+    for (const rule of defaultRules) {
+      if (rule.tier === tier) {
+        return rule;
+      }
     }
+  }
 
-    // Check for route method rule for the given tier
-    rule = this.rules.get(RateLimitRules.getRuleKey(route, method, tier, ""));
-    if (rule) {
-      rule.keyPrefix = route;
-      return rule;
-    }
+  public getRateLimitObject(
+    route: string,
+    method: string,
+    tier: number,
+    apiKey = "",
+    payload: Map<string, string> = new Map()
+  ) {
+    const rule = this.findMostMatchingRule(route, method, tier, apiKey, payload);
 
-    // Check for route method rule for all tiers
-    rule = this.rules.get(RateLimitRules.getRuleKey(route, method, null, ""));
     if (rule) {
-      rule.keyPrefix = route;
-      return rule;
-    }
+      const rateLimitObject = this.rules.get(rule.id);
 
-    // Check for route all methods rule
-    rule = this.rules.get(RateLimitRules.getRuleKey(route, "", tier, ""));
-    if (rule) {
-      rule.keyPrefix = route;
-      return rule;
-    }
-
-    // Check for route all methods rule all tiers
-    rule = this.rules.get(RateLimitRules.getRuleKey(route, "", null, ""));
-    if (rule) {
-      rule.keyPrefix = route;
-      return rule;
-    }
-
-    rule = this.rules.get(RateLimitRules.getDefaultRuleKeyForTier(tier));
-    if (rule) {
-      return rule;
+      if (rateLimitObject) {
+        rateLimitObject.keyPrefix = route;
+        return rateLimitObject;
+      }
     }
 
     return null;
