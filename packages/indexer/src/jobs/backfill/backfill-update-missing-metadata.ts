@@ -142,6 +142,10 @@ async function processCollectionTokens(
     }
   }
 
+  if (unindexedTokens.length === 0) {
+    return;
+  }
+
   // push to tokens refresh queue
   const pendingRefreshTokens = new PendingRefreshTokens(indexingMethod);
   await pendingRefreshTokens.add(unindexedTokens);
@@ -179,6 +183,10 @@ async function processCollection(collection: {
     QUEUE_NAME,
     `Processing collection with ID: ${collection.id}. Total tokens count: ${collection.tokenCount}, unindexed count: ${unindexedResult.unindexed_token_count}`
   );
+
+  if (unindexedResult.unindexed_token_count === 0) {
+    return;
+  }
   if (
     unindexedResult.unindexed_token_count / collection.tokenCount >
     missingMetadataPercentageThreshold
