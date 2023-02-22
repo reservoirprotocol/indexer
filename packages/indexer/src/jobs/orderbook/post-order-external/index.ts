@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import * as Sdk from "@reservoir0x/sdk";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import * as crypto from "crypto";
@@ -19,6 +21,8 @@ import {
 } from "@/jobs/orderbook/post-order-external/api/errors";
 import { redb } from "@/common/db";
 import { RateLimiterRedis, RateLimiterRes } from "rate-limiter-flexible";
+import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
+import { CrossPostingOrderStatus } from "@/models/cross-posting-orders";
 
 const QUEUE_NAME = "orderbook-post-order-external-queue";
 const MAX_RETRIES = 5;
@@ -88,6 +92,7 @@ if (config.doBackgroundWork) {
       } else {
         try {
           await postOrder(orderbook, orderId, orderData, orderbookApiKey);
+          await crossPostingOrdersModel.updateOrderStatus(orderId, CrossPostingOrderStatus.posted);
 
           logger.info(
             QUEUE_NAME,
@@ -128,6 +133,12 @@ if (config.doBackgroundWork) {
               )}, retry: ${retry}, error: ${error}`
             );
 
+            await crossPostingOrdersModel.updateOrderStatus(
+              orderId,
+              CrossPostingOrderStatus.failed,
+              error.message
+            );
+
             throw new Error("Post Order Failed - Invalid Order");
           } else if (retry < MAX_RETRIES) {
             // If we got an unknown error from the api, reschedule job based on fixed delay.
@@ -153,6 +164,12 @@ if (config.doBackgroundWork) {
               `Post Order Failed - Max Retries Reached. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
               )}, retry: ${retry}, error: ${error}`
+            );
+
+            await crossPostingOrdersModel.updateOrderStatus(
+              orderId,
+              CrossPostingOrderStatus.failed,
+              (error as any).message
             );
 
             throw new Error("Post Order Failed - Max Retries Reached");
