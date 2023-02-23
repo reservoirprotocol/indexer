@@ -90,12 +90,12 @@ export type GenericOrder =
       order: Sdk.Seaport.Types.PartialOrder;
     }
   | {
-      kind: "seaport-v1.2";
-      order: Sdk.SeaportV12.Order;
+      kind: "seaport-v1.4";
+      order: Sdk.SeaportV14.Order;
     }
   | {
-      kind: "seaport-v1.2-partial";
-      order: Sdk.SeaportV12.Types.PartialOrder;
+      kind: "seaport-v1.4-partial";
+      order: Sdk.SeaportV14.Types.PartialOrder;
     }
   | {
       kind: "cryptopunks";
@@ -164,6 +164,7 @@ export type BidFillDetails = {
   // Relevant for partially-fillable orders
   amount?: number | string;
   // Relevant for merkle orders
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extraArgs?: any;
   // Relevant for partial Seaport orders
   owner?: string;

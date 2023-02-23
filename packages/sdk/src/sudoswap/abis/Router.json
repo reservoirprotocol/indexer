@@ -89,9 +89,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "robustSwapERC20ForAnyNFTs",
-    "outputs": [
-      { "internalType": "uint256", "name": "remainingValue", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "remainingValue", "type": "uint256" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -127,9 +125,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "robustSwapERC20ForSpecificNFTs",
-    "outputs": [
-      { "internalType": "uint256", "name": "remainingValue", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "remainingValue", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -264,9 +260,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "robustSwapETHForAnyNFTs",
-    "outputs": [
-      { "internalType": "uint256", "name": "remainingValue", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "remainingValue", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -306,9 +300,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "robustSwapETHForSpecificNFTs",
-    "outputs": [
-      { "internalType": "uint256", "name": "remainingValue", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "remainingValue", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -442,9 +434,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "robustSwapNFTsForToken",
-    "outputs": [
-      { "internalType": "uint256", "name": "outputAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "outputAmount", "type": "uint256" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -468,9 +458,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "swapERC20ForAnyNFTs",
-    "outputs": [
-      { "internalType": "uint256", "name": "remainingValue", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "remainingValue", "type": "uint256" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -494,9 +482,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "swapERC20ForSpecificNFTs",
-    "outputs": [
-      { "internalType": "uint256", "name": "remainingValue", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "remainingValue", "type": "uint256" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -524,9 +510,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "swapETHForAnyNFTs",
-    "outputs": [
-      { "internalType": "uint256", "name": "remainingValue", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "remainingValue", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -554,9 +538,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "swapETHForSpecificNFTs",
-    "outputs": [
-      { "internalType": "uint256", "name": "remainingValue", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "remainingValue", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -609,9 +591,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "swapNFTsForAnyNFTsThroughERC20",
-    "outputs": [
-      { "internalType": "uint256", "name": "outputAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "outputAmount", "type": "uint256" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -668,9 +648,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "swapNFTsForAnyNFTsThroughETH",
-    "outputs": [
-      { "internalType": "uint256", "name": "outputAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "outputAmount", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -723,9 +701,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "swapNFTsForSpecificNFTsThroughERC20",
-    "outputs": [
-      { "internalType": "uint256", "name": "outputAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "outputAmount", "type": "uint256" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -782,9 +758,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "swapNFTsForSpecificNFTsThroughETH",
-    "outputs": [
-      { "internalType": "uint256", "name": "outputAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "outputAmount", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -812,9 +786,7 @@
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
     ],
     "name": "swapNFTsForToken",
-    "outputs": [
-      { "internalType": "uint256", "name": "outputAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "outputAmount", "type": "uint256" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },

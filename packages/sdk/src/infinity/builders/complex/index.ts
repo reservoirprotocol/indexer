@@ -2,10 +2,7 @@ import { constants } from "ethers";
 import { Addresses, Order, Types } from "../..";
 import { BaseBuilder } from "../base";
 
-export type ComplexOrderParams = Omit<
-  Types.OrderInput,
-  "complication" | "extraParams"
->;
+export type ComplexOrderParams = Omit<Types.OrderInput, "complication" | "extraParams">;
 
 export class ComplexBuilder extends BaseBuilder<ComplexOrderParams> {
   public isValid(order: Order): boolean {

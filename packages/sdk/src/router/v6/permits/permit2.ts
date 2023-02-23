@@ -2,11 +2,7 @@ import { Interface } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { Contract } from "@ethersproject/contracts";
 import { verifyTypedData } from "@ethersproject/wallet";
-import {
-  AllowanceTransfer,
-  PermitBatch,
-  PermitDetails,
-} from "@uniswap/permit2-sdk";
+import { AllowanceTransfer, PermitBatch, PermitDetails } from "@uniswap/permit2-sdk";
 
 import * as Sdk from "../../../index";
 import { TxData, bn, getCurrentTimestamp } from "../../../utils";
@@ -45,10 +41,7 @@ export class Handler {
     );
   }
 
-  public async generate(
-    transferDetails: TransferDetail[],
-    expiresIn = 10 * 60
-  ): Promise<Data> {
+  public async generate(transferDetails: TransferDetail[], expiresIn = 10 * 60): Promise<Data> {
     if (!transferDetails.length) {
       throw new Error("Empty permit");
     }
@@ -85,9 +78,7 @@ export class Handler {
       if (!existingPermit) {
         finalDetails.push(detail);
       } else {
-        existingPermit.amount = bn(existingPermit.amount)
-          .add(bn(detail.amount))
-          .toString();
+        existingPermit.amount = bn(existingPermit.amount).add(bn(detail.amount)).toString();
       }
     }
 
@@ -141,10 +132,7 @@ export class Handler {
     }
 
     const routerIface = new Interface(RouterAbi);
-    const executionInfos = routerIface.decodeFunctionData(
-      "execute",
-      txData.data
-    ).executionInfos;
+    const executionInfos = routerIface.decodeFunctionData("execute", txData.data).executionInfos;
 
     const permit2ModuleIface = new Interface(Permit2ModuleAbi);
     return {

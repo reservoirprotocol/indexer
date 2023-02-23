@@ -19,153 +19,128 @@ import {ICryptoPunksMarket} from "../interfaces/ICryptoPunksMarket.sol";
 // a corresponding CryptoPunks-native approval (basically a private offer for
 // a price of zero to the proxy contract).
 contract PunksProxy {
-    using Address for address;
+  using Address for address;
 
-    // --- Fields ---
+  // --- Fields ---
 
-    ICryptoPunksMarket public constant EXCHANGE =
-        ICryptoPunksMarket(0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB);
+  ICryptoPunksMarket public constant EXCHANGE =
+    ICryptoPunksMarket(0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB);
 
-    mapping(uint256 => address) private tokenApprovals;
-    mapping(address => mapping(address => bool)) private operatorApprovals;
+  mapping(uint256 => address) private tokenApprovals;
+  mapping(address => mapping(address => bool)) private operatorApprovals;
 
-    // --- Errors ---
+  // --- Errors ---
 
-    error Unauthorized();
-    error UnsuccessfulSafeTransfer();
+  error Unauthorized();
+  error UnsuccessfulSafeTransfer();
 
-    // --- ERC721 standard events ---
+  // --- ERC721 standard events ---
 
-    event Transfer(
-        address indexed from,
-        address indexed to,
-        uint256 indexed tokenId
-    );
+  event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
 
-    event Approval(
-        address indexed owner,
-        address indexed approved,
-        uint256 indexed tokenId
-    );
+  event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
 
-    event ApprovalForAll(
-        address indexed owner,
-        address indexed operator,
-        bool approved
-    );
+  event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
 
-    // --- ERC721 standard methods ---
+  // --- ERC721 standard methods ---
 
-    function balanceOf(address owner) external view returns (uint256 balance) {
-        balance = EXCHANGE.balanceOf(owner);
+  function balanceOf(address owner) external view returns (uint256 balance) {
+    balance = EXCHANGE.balanceOf(owner);
+  }
+
+  function ownerOf(uint256 tokenId) public view returns (address owner) {
+    owner = EXCHANGE.punkIndexToAddress(tokenId);
+  }
+
+  function getApproved(uint256 tokenId) public view returns (address approved) {
+    approved = tokenApprovals[tokenId];
+  }
+
+  function isApprovedForAll(address owner, address operator) public view returns (bool approved) {
+    approved = operatorApprovals[owner][operator];
+  }
+
+  function approve(address to, uint256 tokenId) external {
+    address owner = ownerOf(tokenId);
+    if (msg.sender != owner && !isApprovedForAll(owner, msg.sender)) {
+      revert Unauthorized();
     }
 
-    function ownerOf(uint256 tokenId) public view returns (address owner) {
-        owner = EXCHANGE.punkIndexToAddress(tokenId);
+    tokenApprovals[tokenId] = to;
+    emit Approval(owner, to, tokenId);
+  }
+
+  function setApprovalForAll(address operator, bool approved) external {
+    operatorApprovals[msg.sender][operator] = approved;
+    emit ApprovalForAll(msg.sender, operator, approved);
+  }
+
+  function safeTransferFrom(
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes calldata data
+  ) external {
+    transfer(from, to, tokenId);
+    checkOnERC721Received(from, to, tokenId, data);
+  }
+
+  function safeTransferFrom(
+    address from,
+    address to,
+    uint256 tokenId
+  ) external {
+    transfer(from, to, tokenId);
+    checkOnERC721Received(from, to, tokenId, "");
+  }
+
+  function transferFrom(
+    address from,
+    address to,
+    uint256 tokenId
+  ) external {
+    transfer(from, to, tokenId);
+  }
+
+  function transfer(
+    address from,
+    address to,
+    uint256 tokenId
+  ) internal {
+    address owner = ownerOf(tokenId);
+    if (from != owner) {
+      revert Unauthorized();
     }
 
-    function getApproved(uint256 tokenId)
-        public
-        view
-        returns (address approved)
-    {
-        approved = tokenApprovals[tokenId];
+    if (
+      msg.sender != owner &&
+      getApproved(tokenId) != msg.sender &&
+      !isApprovedForAll(owner, msg.sender)
+    ) {
+      revert Unauthorized();
     }
 
-    function isApprovedForAll(address owner, address operator)
-        public
-        view
-        returns (bool approved)
-    {
-        approved = operatorApprovals[owner][operator];
-    }
+    EXCHANGE.buyPunk(tokenId);
+    EXCHANGE.transferPunk(to, tokenId);
+    emit Transfer(from, to, tokenId);
+  }
 
-    function approve(address to, uint256 tokenId) external {
-        address owner = ownerOf(tokenId);
-        if (msg.sender != owner && !isApprovedForAll(owner, msg.sender)) {
-            revert Unauthorized();
+  function checkOnERC721Received(
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes memory data
+  ) private {
+    if (to.isContract()) {
+      try IERC721Receiver(to).onERC721Received(msg.sender, from, tokenId, data) returns (
+        bytes4 result
+      ) {
+        if (result != IERC721Receiver.onERC721Received.selector) {
+          revert UnsuccessfulSafeTransfer();
         }
-
-        tokenApprovals[tokenId] = to;
-        emit Approval(owner, to, tokenId);
+      } catch {
+        revert UnsuccessfulSafeTransfer();
+      }
     }
-
-    function setApprovalForAll(address operator, bool approved) external {
-        operatorApprovals[msg.sender][operator] = approved;
-        emit ApprovalForAll(msg.sender, operator, approved);
-    }
-
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes calldata data
-    ) external {
-        transfer(from, to, tokenId);
-        checkOnERC721Received(from, to, tokenId, data);
-    }
-
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) external {
-        transfer(from, to, tokenId);
-        checkOnERC721Received(from, to, tokenId, "");
-    }
-
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) external {
-        transfer(from, to, tokenId);
-    }
-
-    function transfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal {
-        address owner = ownerOf(tokenId);
-        if (from != owner) {
-            revert Unauthorized();
-        }
-
-        if (
-            msg.sender != owner &&
-            getApproved(tokenId) != msg.sender &&
-            !isApprovedForAll(owner, msg.sender)
-        ) {
-            revert Unauthorized();
-        }
-
-        EXCHANGE.buyPunk(tokenId);
-        EXCHANGE.transferPunk(to, tokenId);
-        emit Transfer(from, to, tokenId);
-    }
-
-    function checkOnERC721Received(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes memory data
-    ) private {
-        if (to.isContract()) {
-            try
-                IERC721Receiver(to).onERC721Received(
-                    msg.sender,
-                    from,
-                    tokenId,
-                    data
-                )
-            returns (bytes4 result) {
-                if (result != IERC721Receiver.onERC721Received.selector) {
-                    revert UnsuccessfulSafeTransfer();
-                }
-            } catch {
-                revert UnsuccessfulSafeTransfer();
-            }
-        }
-    }
+  }
 }

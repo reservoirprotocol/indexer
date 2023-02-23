@@ -15,621 +15,573 @@ import {IElement} from "../../../interfaces/IElement.sol";
 // - supports filling offers (both ERC721/ERC1155)
 
 contract ElementModule is BaseExchangeModule {
-    using SafeERC20 for IERC20;
+  using SafeERC20 for IERC20;
 
-    // --- Fields ---
+  // --- Fields ---
 
-    IElement public constant EXCHANGE =
-        IElement(0x20F780A973856B93f63670377900C1d2a50a77c4);
+  IElement public constant EXCHANGE = IElement(0x20F780A973856B93f63670377900C1d2a50a77c4);
 
-    // --- Constructor ---
+  // --- Constructor ---
 
-    constructor(address owner, address router)
-        BaseModule(owner)
-        BaseExchangeModule(router)
-    {}
+  constructor(address owner, address router) BaseModule(owner) BaseExchangeModule(router) {}
 
-    // --- Fallback ---
+  // --- Fallback ---
 
-    receive() external payable {}
+  receive() external payable {}
 
-    // --- [ERC721] Single ETH listing ---
+  // --- [ERC721] Single ETH listing ---
 
-    function acceptETHListingERC721(
-        IElement.NFTSellOrder calldata order,
-        IElement.Signature calldata signature,
-        ETHListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundETHLeftover(params.refundTo)
-        chargeETHFees(fees, params.amount)
-    {
-        // Execute fill
-        _buyERC721Ex(
-            order,
-            signature,
-            params.fillTo,
-            params.revertIfIncomplete,
-            params.amount
-        );
-    }
+  function acceptETHListingERC721(
+    IElement.NFTSellOrder calldata order,
+    IElement.Signature calldata signature,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    // Execute fill
+    _buyERC721Ex(order, signature, params.fillTo, params.revertIfIncomplete, params.amount);
+  }
 
-    // --- [ERC721] Single ERC20 listing ---
+  // --- [ERC721] Single ERC20 listing ---
 
-    function acceptERC20ListingERC721(
-        IElement.NFTSellOrder calldata order,
-        IElement.Signature calldata signature,
-        ERC20ListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundERC20Leftover(params.refundTo, params.token)
-        chargeERC20Fees(fees, params.token, params.amount)
-    {
-        // Approve the exchange if needed
-        _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
+  function acceptERC20ListingERC721(
+    IElement.NFTSellOrder calldata order,
+    IElement.Signature calldata signature,
+    ERC20ListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundERC20Leftover(params.refundTo, params.token)
+    chargeERC20Fees(fees, params.token, params.amount)
+  {
+    // Approve the exchange if needed
+    _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
 
-        // Execute fill
-        _buyERC721Ex(
-            order,
-            signature,
-            params.fillTo,
-            params.revertIfIncomplete,
-            0
-        );
-    }
+    // Execute fill
+    _buyERC721Ex(order, signature, params.fillTo, params.revertIfIncomplete, 0);
+  }
 
-    // --- [ERC721] Multiple ETH listings ---
+  // --- [ERC721] Multiple ETH listings ---
 
-    function acceptETHListingsERC721(
-        IElement.NFTSellOrder[] calldata orders,
-        IElement.Signature[] calldata signatures,
-        ETHListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundETHLeftover(params.refundTo)
-        chargeETHFees(fees, params.amount)
-    {
-        // Execute fill
-        _buyERC721sEx(
-            orders,
-            signatures,
-            params.fillTo,
-            params.revertIfIncomplete,
-            params.amount
-        );
-    }
+  function acceptETHListingsERC721(
+    IElement.NFTSellOrder[] calldata orders,
+    IElement.Signature[] calldata signatures,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    // Execute fill
+    _buyERC721sEx(orders, signatures, params.fillTo, params.revertIfIncomplete, params.amount);
+  }
 
-    // --- [ERC721] Multiple ERC20 listings ---
+  // --- [ERC721] Multiple ERC20 listings ---
 
-    function acceptERC20ListingsERC721(
-        IElement.NFTSellOrder[] calldata orders,
-        IElement.Signature[] calldata signatures,
-        ERC20ListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundERC20Leftover(params.refundTo, params.token)
-        chargeERC20Fees(fees, params.token, params.amount)
-    {
-        // Approve the exchange if needed
-        _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
+  function acceptERC20ListingsERC721(
+    IElement.NFTSellOrder[] calldata orders,
+    IElement.Signature[] calldata signatures,
+    ERC20ListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundERC20Leftover(params.refundTo, params.token)
+    chargeERC20Fees(fees, params.token, params.amount)
+  {
+    // Approve the exchange if needed
+    _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
 
-        // Execute fill
-        _buyERC721sEx(
-            orders,
-            signatures,
-            params.fillTo,
-            params.revertIfIncomplete,
-            0
-        );
-    }
+    // Execute fill
+    _buyERC721sEx(orders, signatures, params.fillTo, params.revertIfIncomplete, 0);
+  }
 
-    // --- [ERC721] Single ETH listing V2 ---
+  // --- [ERC721] Single ETH listing V2 ---
 
-    function acceptETHListingERC721V2(
-        IElement.BatchSignedOrder calldata order,
-        ETHListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundETHLeftover(params.refundTo)
-        chargeETHFees(fees, params.amount)
-    {
-        // Execute fill
-        _fillBatchSignedOrder(
-            order,
-            params.fillTo,
-            params.revertIfIncomplete,
-            params.amount
-        );
-    }
+  function acceptETHListingERC721V2(
+    IElement.BatchSignedOrder calldata order,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    // Execute fill
+    _fillBatchSignedOrder(order, params.fillTo, params.revertIfIncomplete, params.amount);
+  }
 
-    // --- [ERC721] Single ERC20 listing V2 ---
+  // --- [ERC721] Single ERC20 listing V2 ---
 
-    function acceptERC20ListingERC721V2(
-        IElement.BatchSignedOrder calldata order,
-        ERC20ListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundERC20Leftover(params.refundTo, params.token)
-        chargeERC20Fees(fees, params.token, params.amount)
-    {
-        // Approve the exchange if needed
-        _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
+  function acceptERC20ListingERC721V2(
+    IElement.BatchSignedOrder calldata order,
+    ERC20ListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundERC20Leftover(params.refundTo, params.token)
+    chargeERC20Fees(fees, params.token, params.amount)
+  {
+    // Approve the exchange if needed
+    _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
 
-        // Execute fill
-        _fillBatchSignedOrder(
-            order,
-            params.fillTo,
-            params.revertIfIncomplete,
-            0
-        );
-    }
+    // Execute fill
+    _fillBatchSignedOrder(order, params.fillTo, params.revertIfIncomplete, 0);
+  }
 
-    // --- [ERC721] Multiple ETH listings V2 ---
+  // --- [ERC721] Multiple ETH listings V2 ---
 
-    function acceptETHListingsERC721V2(
-        IElement.BatchSignedOrder[] calldata orders,
-        ETHListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundETHLeftover(params.refundTo)
-        chargeETHFees(fees, params.amount)
-    {
-        // Execute fill
-        _fillBatchSignedOrders(
-            orders,
-            params.fillTo,
-            params.revertIfIncomplete,
-            params.amount
-        );
-    }
+  function acceptETHListingsERC721V2(
+    IElement.BatchSignedOrder[] calldata orders,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    // Execute fill
+    _fillBatchSignedOrders(orders, params.fillTo, params.revertIfIncomplete, params.amount);
+  }
 
-    // --- [ERC721] Multiple ERC20 listings V2 ---
+  // --- [ERC721] Multiple ERC20 listings V2 ---
 
-    function acceptERC20ListingsERC721V2(
-        IElement.BatchSignedOrder[] calldata orders,
-        ERC20ListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundERC20Leftover(params.refundTo, params.token)
-        chargeERC20Fees(fees, params.token, params.amount)
-    {
-        // Approve the exchange if needed
-        _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
+  function acceptERC20ListingsERC721V2(
+    IElement.BatchSignedOrder[] calldata orders,
+    ERC20ListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundERC20Leftover(params.refundTo, params.token)
+    chargeERC20Fees(fees, params.token, params.amount)
+  {
+    // Approve the exchange if needed
+    _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
 
-        // Execute fill
-        _fillBatchSignedOrders(
-            orders,
-            params.fillTo,
-            params.revertIfIncomplete,
-            0
-        );
-    }
+    // Execute fill
+    _fillBatchSignedOrders(orders, params.fillTo, params.revertIfIncomplete, 0);
+  }
 
-    // --- [ERC1155] Single ETH listing ---
+  // --- [ERC1155] Single ETH listing ---
 
-    function acceptETHListingERC1155(
-        IElement.ERC1155SellOrder calldata order,
-        IElement.Signature calldata signature,
-        uint128 amount,
-        ETHListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundETHLeftover(params.refundTo)
-        chargeETHFees(fees, params.amount)
-    {
-        // Execute fill
-        _buyERC1155Ex(
-            order,
-            signature,
-            amount,
-            params.fillTo,
-            params.revertIfIncomplete,
-            params.amount
-        );
-    }
+  function acceptETHListingERC1155(
+    IElement.ERC1155SellOrder calldata order,
+    IElement.Signature calldata signature,
+    uint128 amount,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    // Execute fill
+    _buyERC1155Ex(
+      order,
+      signature,
+      amount,
+      params.fillTo,
+      params.revertIfIncomplete,
+      params.amount
+    );
+  }
 
-    // --- [ERC1155] Single ERC20 listing ---
+  // --- [ERC1155] Single ERC20 listing ---
 
-    function acceptERC20ListingERC1155(
-        IElement.ERC1155SellOrder calldata order,
-        IElement.Signature calldata signature,
-        uint128 amount,
-        ERC20ListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundERC20Leftover(params.refundTo, params.token)
-        chargeERC20Fees(fees, params.token, params.amount)
-    {
-        // Approve the exchange if needed
-        _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
+  function acceptERC20ListingERC1155(
+    IElement.ERC1155SellOrder calldata order,
+    IElement.Signature calldata signature,
+    uint128 amount,
+    ERC20ListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundERC20Leftover(params.refundTo, params.token)
+    chargeERC20Fees(fees, params.token, params.amount)
+  {
+    // Approve the exchange if needed
+    _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
 
-        // Execute fill
-        _buyERC1155Ex(
-            order,
-            signature,
-            amount,
-            params.fillTo,
-            params.revertIfIncomplete,
-            0
-        );
-    }
+    // Execute fill
+    _buyERC1155Ex(order, signature, amount, params.fillTo, params.revertIfIncomplete, 0);
+  }
 
-    // --- [ERC1155] Multiple ETH listings ---
+  // --- [ERC1155] Multiple ETH listings ---
 
-    function acceptETHListingsERC1155(
-        IElement.ERC1155SellOrder[] calldata orders,
-        IElement.Signature[] calldata signatures,
-        uint128[] calldata amounts,
-        ETHListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundETHLeftover(params.refundTo)
-        chargeETHFees(fees, params.amount)
-    {
-        // Execute fill
-        _buyERC1155sEx(
-            orders,
-            signatures,
-            amounts,
-            params.fillTo,
-            params.revertIfIncomplete,
-            params.amount
-        );
-    }
+  function acceptETHListingsERC1155(
+    IElement.ERC1155SellOrder[] calldata orders,
+    IElement.Signature[] calldata signatures,
+    uint128[] calldata amounts,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    // Execute fill
+    _buyERC1155sEx(
+      orders,
+      signatures,
+      amounts,
+      params.fillTo,
+      params.revertIfIncomplete,
+      params.amount
+    );
+  }
 
-    // --- [ERC1155] Multiple ERC20 listings ---
+  // --- [ERC1155] Multiple ERC20 listings ---
 
-    function acceptERC20ListingsERC1155(
-        IElement.ERC1155SellOrder[] calldata orders,
-        IElement.Signature[] calldata signatures,
-        uint128[] calldata amounts,
-        ERC20ListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundERC20Leftover(params.refundTo, params.token)
-        chargeERC20Fees(fees, params.token, params.amount)
-    {
-        // Approve the exchange if needed
-        _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
+  function acceptERC20ListingsERC1155(
+    IElement.ERC1155SellOrder[] calldata orders,
+    IElement.Signature[] calldata signatures,
+    uint128[] calldata amounts,
+    ERC20ListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundERC20Leftover(params.refundTo, params.token)
+    chargeERC20Fees(fees, params.token, params.amount)
+  {
+    // Approve the exchange if needed
+    _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
 
-        // Execute fill
-        _buyERC1155sEx(
-            orders,
-            signatures,
-            amounts,
-            params.fillTo,
-            params.revertIfIncomplete,
-            0
-        );
-    }
+    // Execute fill
+    _buyERC1155sEx(orders, signatures, amounts, params.fillTo, params.revertIfIncomplete, 0);
+  }
 
-    // --- [ERC721] Single offer ---
+  // --- [ERC721] Single offer ---
 
-    function acceptERC721Offer(
-        IElement.NFTBuyOrder calldata order,
-        IElement.Signature calldata signature,
-        OfferParams calldata params,
-        uint256 tokenId,
-        Fee[] calldata fees
-    ) external nonReentrant {
-        // Approve the exchange if needed
-        _approveERC721IfNeeded(IERC721(order.nft), address(EXCHANGE));
+  function acceptERC721Offer(
+    IElement.NFTBuyOrder calldata order,
+    IElement.Signature calldata signature,
+    OfferParams calldata params,
+    uint256 tokenId,
+    Fee[] calldata fees
+  ) external nonReentrant {
+    // Approve the exchange if needed
+    _approveERC721IfNeeded(IERC721(order.nft), address(EXCHANGE));
 
-        // Execute fill
-        try EXCHANGE.sellERC721(order, signature, tokenId, false, "") {
-            // Pay fees
-            uint256 feesLength = fees.length;
-            for (uint256 i; i < feesLength; ) {
-                Fee memory fee = fees[i];
-                _sendERC20(fee.recipient, fee.amount, order.erc20Token);
+    // Execute fill
+    try EXCHANGE.sellERC721(order, signature, tokenId, false, "") {
+      // Pay fees
+      uint256 feesLength = fees.length;
+      for (uint256 i; i < feesLength; ) {
+        Fee memory fee = fees[i];
+        _sendERC20(fee.recipient, fee.amount, order.erc20Token);
 
-                unchecked {
-                    ++i;
-                }
-            }
-
-            // Forward any left payment to the specified receiver
-            _sendAllERC20(params.fillTo, order.erc20Token);
-        } catch {
-            // Revert if specified
-            if (params.revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
+        unchecked {
+          ++i;
         }
+      }
 
-        // Refund any ERC721 leftover
-        _sendAllERC721(params.refundTo, IERC721(order.nft), tokenId);
+      // Forward any left payment to the specified receiver
+      _sendAllERC20(params.fillTo, order.erc20Token);
+    } catch {
+      // Revert if specified
+      if (params.revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
     }
 
-    // --- [ERC1155] Single offer ---
+    // Refund any ERC721 leftover
+    _sendAllERC721(params.refundTo, IERC721(order.nft), tokenId);
+  }
 
-    function acceptERC1155Offer(
-        IElement.ERC1155BuyOrder calldata order,
-        IElement.Signature calldata signature,
-        uint128 amount,
-        OfferParams calldata params,
-        uint256 tokenId,
-        Fee[] calldata fees
-    ) external nonReentrant {
-        // Approve the exchange if needed
-        _approveERC1155IfNeeded(IERC1155(order.erc1155Token), address(EXCHANGE));
+  // --- [ERC1155] Single offer ---
 
-        // Execute fill
-        try EXCHANGE.sellERC1155(order, signature, tokenId, amount, false, "") {
-            // Pay fees
-            uint256 feesLength = fees.length;
-            for (uint256 i; i < feesLength; ) {
-                Fee memory fee = fees[i];
-                _sendERC20(fee.recipient, fee.amount, order.erc20Token);
+  function acceptERC1155Offer(
+    IElement.ERC1155BuyOrder calldata order,
+    IElement.Signature calldata signature,
+    uint128 amount,
+    OfferParams calldata params,
+    uint256 tokenId,
+    Fee[] calldata fees
+  ) external nonReentrant {
+    // Approve the exchange if needed
+    _approveERC1155IfNeeded(IERC1155(order.erc1155Token), address(EXCHANGE));
 
-                unchecked {
-                    ++i;
-                }
-            }
+    // Execute fill
+    try EXCHANGE.sellERC1155(order, signature, tokenId, amount, false, "") {
+      // Pay fees
+      uint256 feesLength = fees.length;
+      for (uint256 i; i < feesLength; ) {
+        Fee memory fee = fees[i];
+        _sendERC20(fee.recipient, fee.amount, order.erc20Token);
 
-            // Forward any left payment to the specified receiver
-            _sendAllERC20(params.fillTo, order.erc20Token);
-        } catch {
-            // Revert if specified
-            if (params.revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
+        unchecked {
+          ++i;
         }
+      }
 
-        // Refund any ERC1155 leftover
-        _sendAllERC1155(params.refundTo, IERC1155(order.erc1155Token), tokenId);
+      // Forward any left payment to the specified receiver
+      _sendAllERC20(params.fillTo, order.erc20Token);
+    } catch {
+      // Revert if specified
+      if (params.revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
     }
 
-    // --- ERC721 / ERC1155 hooks ---
+    // Refund any ERC1155 leftover
+    _sendAllERC1155(params.refundTo, IERC1155(order.erc1155Token), tokenId);
+  }
 
-    // Single token offer acceptance can be done approval-less by using the
-    // standard `safeTransferFrom` method together with specifying data for
-    // further contract calls. An example:
-    // `safeTransferFrom(
-    //      0xWALLET,
-    //      0xMODULE,
-    //      TOKEN_ID,
-    //      0xABI_ENCODED_ROUTER_EXECUTION_CALLDATA_FOR_OFFER_ACCEPTANCE
-    // )`
+  // --- ERC721 / ERC1155 hooks ---
 
-    function onERC721Received(
-        address, // operator,
-        address, // from
-        uint256, // tokenId,
-        bytes calldata data
-    ) external returns (bytes4) {
-        if (data.length > 0) {
-            _makeCall(router, data, 0);
-        }
+  // Single token offer acceptance can be done approval-less by using the
+  // standard `safeTransferFrom` method together with specifying data for
+  // further contract calls. An example:
+  // `safeTransferFrom(
+  //      0xWALLET,
+  //      0xMODULE,
+  //      TOKEN_ID,
+  //      0xABI_ENCODED_ROUTER_EXECUTION_CALLDATA_FOR_OFFER_ACCEPTANCE
+  // )`
 
-        return this.onERC721Received.selector;
+  function onERC721Received(
+    address, // operator,
+    address, // from
+    uint256, // tokenId,
+    bytes calldata data
+  ) external returns (bytes4) {
+    if (data.length > 0) {
+      _makeCall(router, data, 0);
     }
 
-    function onERC1155Received(
-        address, // operator
-        address, // from
-        uint256, // tokenId
-        uint256, // amount
-        bytes calldata data
-    ) external returns (bytes4) {
-        if (data.length > 0) {
-            _makeCall(router, data, 0);
-        }
+    return this.onERC721Received.selector;
+  }
 
-        return this.onERC1155Received.selector;
+  function onERC1155Received(
+    address, // operator
+    address, // from
+    uint256, // tokenId
+    uint256, // amount
+    bytes calldata data
+  ) external returns (bytes4) {
+    if (data.length > 0) {
+      _makeCall(router, data, 0);
     }
 
-    // --- Internal ---
+    return this.onERC1155Received.selector;
+  }
 
-    function _buyERC721Ex(
-        IElement.NFTSellOrder calldata order,
-        IElement.Signature calldata signature,
-        address receiver,
-        bool revertIfIncomplete,
-        uint256 value
-    ) internal {
-        // Execute fill
-        try EXCHANGE.buyERC721Ex{value: value}(order, signature, receiver, "") {
-        } catch {
-            // Revert if specified
-            if (revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
-        }
+  // --- Internal ---
+
+  function _buyERC721Ex(
+    IElement.NFTSellOrder calldata order,
+    IElement.Signature calldata signature,
+    address receiver,
+    bool revertIfIncomplete,
+    uint256 value
+  ) internal {
+    // Execute fill
+    try EXCHANGE.buyERC721Ex{value: value}(order, signature, receiver, "") {} catch {
+      // Revert if specified
+      if (revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
+    }
+  }
+
+  function _buyERC721sEx(
+    IElement.NFTSellOrder[] calldata orders,
+    IElement.Signature[] calldata signatures,
+    address receiver,
+    bool revertIfIncomplete,
+    uint256 value
+  ) internal {
+    uint256 length = orders.length;
+
+    address[] memory takers = new address[](length);
+    for (uint256 i; i < length; ) {
+      takers[i] = receiver;
+      unchecked {
+        ++i;
+      }
     }
 
-    function _buyERC721sEx(
-        IElement.NFTSellOrder[] calldata orders,
-        IElement.Signature[] calldata signatures,
-        address receiver,
-        bool revertIfIncomplete,
-        uint256 value
-    ) internal {
-        uint256 length = orders.length;
+    // Execute fill
+    try
+      EXCHANGE.batchBuyERC721sEx{value: value}(
+        orders,
+        signatures,
+        takers,
+        new bytes[](length),
+        revertIfIncomplete
+      )
+    {} catch {
+      // Revert if specified
+      if (revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
+    }
+  }
 
-        address[] memory takers = new address[](length);
-        for (uint256 i; i < length; ) {
-            takers[i] = receiver;
-            unchecked { ++i; }
-        }
+  function _fillBatchSignedOrder(
+    IElement.BatchSignedOrder calldata order,
+    address receiver,
+    bool revertIfIncomplete,
+    uint256 value
+  ) internal {
+    IElement.Parameter memory parameter;
+    parameter.r = order.r;
+    parameter.s = order.s;
 
-        // Execute fill
-        try EXCHANGE.batchBuyERC721sEx{value: value}(
-            orders,
-            signatures,
-            takers,
-            new bytes[](length),
-            revertIfIncomplete
-        ) {} catch {
-            // Revert if specified
-            if (revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
-        }
+    // data1 [56 bits(startNonce) + 8 bits(v) + 32 bits(listingTime) + 160 bits(maker)]
+    parameter.data1 =
+      (order.startNonce << 200) |
+      (uint256(order.v) << 192) |
+      (order.listingTime << 160) |
+      uint256(uint160(order.maker));
+
+    // data2 [64 bits(taker part1) + 32 bits(expiryTime) + 160 bits(erc20Token)]
+    uint256 taker = uint256(uint160(receiver));
+    parameter.data2 =
+      ((taker >> 96) << 192) |
+      (order.expirationTime << 160) |
+      uint256(uint160(order.erc20Token));
+
+    // data3 [96 bits(taker part2) + 160 bits(platformFeeRecipient)]
+    parameter.data3 = (taker << 160) | uint256(uint160(order.platformFeeRecipient));
+
+    // Execute fill
+    try
+      EXCHANGE.fillBatchSignedERC721Order{value: value}(parameter, order.collectionsBytes)
+    {} catch {
+      // Revert if specified
+      if (revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
+    }
+  }
+
+  function _fillBatchSignedOrders(
+    IElement.BatchSignedOrder[] calldata orders,
+    address receiver,
+    bool revertIfIncomplete,
+    uint256 value
+  ) internal {
+    uint256 length = orders.length;
+    uint256 taker = uint256(uint160(receiver));
+
+    IElement.Parameters[] memory parameters = new IElement.Parameters[](length);
+    for (uint256 i; i < length; ) {
+      IElement.BatchSignedOrder calldata order = orders[i];
+
+      IElement.Parameters memory parameter;
+      parameter.r = order.r;
+      parameter.s = order.s;
+      parameter.collections = order.collectionsBytes;
+
+      // data1 [56 bits(startNonce) + 8 bits(v) + 32 bits(listingTime) + 160 bits(maker)]
+      parameter.data1 =
+        (order.startNonce << 200) |
+        (uint256(order.v) << 192) |
+        (order.listingTime << 160) |
+        uint256(uint160(order.maker));
+
+      // data2 [64 bits(taker part1) + 32 bits(expiryTime) + 160 bits(erc20Token)]
+      parameter.data2 =
+        ((taker >> 96) << 192) |
+        (order.expirationTime << 160) |
+        uint256(uint160(order.erc20Token));
+
+      // data3 [96 bits(taker part2) + 160 bits(platformFeeRecipient)]
+      parameter.data3 = (taker << 160) | uint256(uint160(order.platformFeeRecipient));
+
+      parameters[i] = parameter;
+      unchecked {
+        ++i;
+      }
     }
 
-    function _fillBatchSignedOrder(
-        IElement.BatchSignedOrder calldata order,
-        address receiver,
-        bool revertIfIncomplete,
-        uint256 value
-    ) internal {
-        IElement.Parameter memory parameter;
-        parameter.r = order.r;
-        parameter.s = order.s;
+    // Execute fill
+    uint256 additional2 = revertIfIncomplete ? (1 << 248) : 0;
+    try EXCHANGE.fillBatchSignedERC721Orders{value: value}(parameters, 0, additional2) {} catch {
+      // Revert if specified
+      if (revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
+    }
+  }
 
-        // data1 [56 bits(startNonce) + 8 bits(v) + 32 bits(listingTime) + 160 bits(maker)]
-        parameter.data1 =
-            (order.startNonce << 200) | (uint256(order.v) << 192) |
-            (order.listingTime << 160) | uint256(uint160(order.maker));
+  function _buyERC1155Ex(
+    IElement.ERC1155SellOrder calldata order,
+    IElement.Signature calldata signature,
+    uint128 amount,
+    address receiver,
+    bool revertIfIncomplete,
+    uint256 value
+  ) internal {
+    try EXCHANGE.buyERC1155Ex{value: value}(order, signature, receiver, amount, "") {} catch {
+      // Revert if specified
+      if (revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
+    }
+  }
 
-        // data2 [64 bits(taker part1) + 32 bits(expiryTime) + 160 bits(erc20Token)]
-        uint256 taker = uint256(uint160(receiver));
-        parameter.data2 =
-            ((taker >> 96) << 192) | (order.expirationTime << 160) | uint256(uint160(order.erc20Token));
+  function _buyERC1155sEx(
+    IElement.ERC1155SellOrder[] calldata orders,
+    IElement.Signature[] calldata signatures,
+    uint128[] calldata amounts,
+    address receiver,
+    bool revertIfIncomplete,
+    uint256 value
+  ) internal {
+    uint256 length = orders.length;
 
-        // data3 [96 bits(taker part2) + 160 bits(platformFeeRecipient)]
-        parameter.data3 =
-            (taker << 160) | uint256(uint160(order.platformFeeRecipient));
-
-        // Execute fill
-        try EXCHANGE.fillBatchSignedERC721Order{value: value}(parameter, order.collectionsBytes) {
-        } catch {
-            // Revert if specified
-            if (revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
-        }
+    address[] memory takers = new address[](length);
+    for (uint256 i; i < length; ) {
+      takers[i] = receiver;
+      unchecked {
+        ++i;
+      }
     }
 
-    function _fillBatchSignedOrders(
-        IElement.BatchSignedOrder[] calldata orders,
-        address receiver,
-        bool revertIfIncomplete,
-        uint256 value
-    ) internal {
-        uint256 length = orders.length;
-        uint256 taker = uint256(uint160(receiver));
-
-        IElement.Parameters[] memory parameters = new IElement.Parameters[](length);
-        for (uint256 i; i < length; ) {
-            IElement.BatchSignedOrder calldata order = orders[i];
-
-            IElement.Parameters memory parameter;
-            parameter.r = order.r;
-            parameter.s = order.s;
-            parameter.collections = order.collectionsBytes;
-
-            // data1 [56 bits(startNonce) + 8 bits(v) + 32 bits(listingTime) + 160 bits(maker)]
-            parameter.data1 =
-                (order.startNonce << 200) | (uint256(order.v) << 192) |
-                (order.listingTime << 160) | uint256(uint160(order.maker));
-
-            // data2 [64 bits(taker part1) + 32 bits(expiryTime) + 160 bits(erc20Token)]
-            parameter.data2 =
-                ((taker >> 96) << 192) | (order.expirationTime << 160) | uint256(uint160(order.erc20Token));
-
-            // data3 [96 bits(taker part2) + 160 bits(platformFeeRecipient)]
-            parameter.data3 =
-                (taker << 160) | uint256(uint160(order.platformFeeRecipient));
-
-            parameters[i] = parameter;
-            unchecked { ++i; }
-        }
-
-        // Execute fill
-        uint256 additional2 = revertIfIncomplete ? (1 << 248) : 0;
-        try EXCHANGE.fillBatchSignedERC721Orders{value: value}(parameters, 0, additional2) {
-        } catch {
-            // Revert if specified
-            if (revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
-        }
+    // Execute fill
+    try
+      EXCHANGE.batchBuyERC1155sEx{value: value}(
+        orders,
+        signatures,
+        takers,
+        amounts,
+        new bytes[](length),
+        revertIfIncomplete
+      )
+    {} catch {
+      // Revert if specified
+      if (revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
     }
-
-    function _buyERC1155Ex(
-        IElement.ERC1155SellOrder calldata order,
-        IElement.Signature calldata signature,
-        uint128 amount,
-        address receiver,
-        bool revertIfIncomplete,
-        uint256 value
-    ) internal {
-        try EXCHANGE.buyERC1155Ex{value: value}(order, signature, receiver, amount, "") {
-        } catch {
-            // Revert if specified
-            if (revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
-        }
-    }
-
-    function _buyERC1155sEx(
-        IElement.ERC1155SellOrder[] calldata orders,
-        IElement.Signature[] calldata signatures,
-        uint128[] calldata amounts,
-        address receiver,
-        bool revertIfIncomplete,
-        uint256 value
-    ) internal {
-        uint256 length = orders.length;
-
-        address[] memory takers = new address[](length);
-        for (uint256 i; i < length; ) {
-            takers[i] = receiver;
-            unchecked { ++i; }
-        }
-
-        // Execute fill
-        try EXCHANGE.batchBuyERC1155sEx{value: value}(
-            orders,
-            signatures,
-            takers,
-            amounts,
-            new bytes[](length),
-            revertIfIncomplete
-        ) {} catch {
-            // Revert if specified
-            if (revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
-        }
-    }
+  }
 }

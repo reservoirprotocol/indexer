@@ -56,10 +56,6 @@ if (config.doBackgroundWork) {
         attributes,
       } = job.data as TokenMetadataInfo;
 
-      if (contract == "0x0e3a2a1f2146d86a604adc220b4967a898d7fe07") {
-        return;
-      }
-
       try {
         // Update the token's metadata
         const result = await idb.oneOrNone(

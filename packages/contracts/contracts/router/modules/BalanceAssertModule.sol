@@ -11,34 +11,34 @@ import {BaseModule} from "./BaseModule.sol";
 // module performs a balance/owner check so that we revert as early as possible
 // and spend as few gas as possible.
 contract BalanceAssertModule {
-    // --- Errors ---
+  // --- Errors ---
 
-    error AssertFailed();
+  error AssertFailed();
 
-    // --- [ERC721] Single assert ---
+  // --- [ERC721] Single assert ---
 
-    function assertERC721Owner(
-        IERC721 token,
-        uint256 tokenId,
-        address owner
-    ) external view {
-        address actualOwner = token.ownerOf(tokenId);
-        if (owner != actualOwner) {
-            revert AssertFailed();
-        }
+  function assertERC721Owner(
+    IERC721 token,
+    uint256 tokenId,
+    address owner
+  ) external view {
+    address actualOwner = token.ownerOf(tokenId);
+    if (owner != actualOwner) {
+      revert AssertFailed();
     }
+  }
 
-    // --- [ERC1155] Single assert ---
+  // --- [ERC1155] Single assert ---
 
-    function assertERC1155Balance(
-        IERC1155 token,
-        uint256 tokenId,
-        address owner,
-        uint256 balance
-    ) external view {
-        uint256 actualBalance = token.balanceOf(owner, tokenId);
-        if (balance < actualBalance) {
-            revert AssertFailed();
-        }
+  function assertERC1155Balance(
+    IERC1155 token,
+    uint256 tokenId,
+    address owner,
+    uint256 balance
+  ) external view {
+    uint256 actualBalance = token.balanceOf(owner, tokenId);
+    if (balance < actualBalance) {
+      revert AssertFailed();
     }
+  }
 }

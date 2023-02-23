@@ -12,10 +12,7 @@ export class Exchange {
 
   constructor(chainId: number) {
     this.chainId = chainId;
-    this.contract = new Contract(
-      Addresses.PairFactory[this.chainId],
-      PairFactoryAbi
-    );
+    this.contract = new Contract(Addresses.PairFactory[this.chainId], PairFactoryAbi);
   }
 
   // --- Deposit NFTs ---
@@ -30,20 +27,11 @@ export class Exchange {
     return maker.sendTransaction(tx);
   }
 
-  public depositNFTsTx(
-    maker: string,
-    nft: string,
-    ids: number[],
-    pool: string
-  ): TxData {
+  public depositNFTsTx(maker: string, nft: string, ids: number[], pool: string): TxData {
     return {
       from: maker,
       to: this.contract.address,
-      data: this.contract.interface.encodeFunctionData("depositNFTs", [
-        nft,
-        ids,
-        pool,
-      ]),
+      data: this.contract.interface.encodeFunctionData("depositNFTs", [nft, ids, pool]),
     };
   }
 }

@@ -1,7 +1,4 @@
-import {
-  Provider,
-  TransactionResponse,
-} from "@ethersproject/abstract-provider";
+import { Provider, TransactionResponse } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
 import { BigNumberish } from "@ethersproject/bignumber";
 
@@ -14,10 +11,7 @@ export class Weth extends Erc20 {
     super(provider, Addresses.Weth[chainId]);
   }
 
-  public async deposit(
-    depositor: Signer,
-    amount: BigNumberish
-  ): Promise<TransactionResponse> {
+  public async deposit(depositor: Signer, amount: BigNumberish): Promise<TransactionResponse> {
     return this.contract.connect(depositor).deposit({ value: amount });
   }
 

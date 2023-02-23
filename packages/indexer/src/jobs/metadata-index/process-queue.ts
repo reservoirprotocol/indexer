@@ -51,12 +51,7 @@ if (config.doBackgroundWork) {
 
       // Get the tokens from the list
       const pendingRefreshTokens = new PendingRefreshTokens(method);
-      let refreshTokens = await pendingRefreshTokens.get(countTotal);
-
-      refreshTokens = _.filter(
-        refreshTokens,
-        (token) => token.contract !== "0x0e3a2a1f2146d86a604adc220b4967a898d7fe07"
-      );
+      const refreshTokens = await pendingRefreshTokens.get(countTotal);
 
       // If no more tokens
       if (_.isEmpty(refreshTokens)) {
@@ -89,7 +84,9 @@ if (config.doBackgroundWork) {
             } else {
               logger.error(
                 QUEUE_NAME,
-                `Error. method=${method}, error=${JSON.stringify(error.response.data)}`
+                `Error. method=${method}, status=${error.response?.status}, error=${JSON.stringify(
+                  error.response.data
+                )}, refreshTokensChunk=${JSON.stringify(refreshTokensChunk)}`
               );
 
               if (error.response?.data.error === "Request failed with status code 403") {

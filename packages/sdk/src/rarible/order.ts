@@ -1,19 +1,24 @@
+import { defaultAbiCoder } from "@ethersproject/abi";
+import { isAddress } from "@ethersproject/address";
 import { Provider } from "@ethersproject/abstract-provider";
 import { TypedDataSigner } from "@ethersproject/abstract-signer";
-import { _TypedDataEncoder } from "@ethersproject/hash";
+import { AddressZero } from "@ethersproject/constants";
+import { Contract } from "@ethersproject/contracts";
+import { keccak256 } from "@ethersproject/keccak256";
+import { parseEther } from "@ethersproject/units";
+import { verifyTypedData } from "@ethersproject/wallet";
 
 import * as Addresses from "./addresses";
 import { Builders } from "./builders";
 import { BaseBuilder, BaseOrderInfo } from "./builders/base";
+import { ORDER_DATA_TYPES } from "./constants";
 import * as Types from "./types";
+import { encodeForMatchOrders, encodeOrderData, hashAssetType } from "./utils";
 import { lc, n, s } from "../utils";
 
-import { BigNumber, constants, ethers, utils } from "ethers/lib";
 import Erc721Abi from "../common/abis/Erc721.json";
 import Erc20Abi from "../common/abis/Erc20.json";
 import Erc1155Abi from "../common/abis/Erc1155.json";
-import { encodeForMatchOrders, encodeOrderData, hashAssetType } from "./utils";
-import { ORDER_DATA_TYPES } from "./constants";
 
 export class Order {
   public chainId: number;
@@ -24,8 +29,7 @@ export class Order {
 
     try {
       this.params = normalize(params);
-    } catch (err) {
-      console.log(err);
+    } catch {
       throw new Error("Invalid params");
     }
 
@@ -39,8 +43,8 @@ export class Order {
 
     switch (this.params.data.dataType) {
       case ORDER_DATA_TYPES.V1:
-      case ORDER_DATA_TYPES.DEFAULT_DATA_TYPE:
-        encodedOrderKey = utils.defaultAbiCoder.encode(
+      case ORDER_DATA_TYPES.DEFAULT_DATA_TYPE: {
+        encodedOrderKey = defaultAbiCoder.encode(
           ["address", "bytes32", "bytes32", "uint256"],
           [
             lc(this.params.maker),
@@ -50,8 +54,9 @@ export class Order {
           ]
         );
         break;
-      default:
-        encodedOrderKey = utils.defaultAbiCoder.encode(
+      }
+      default: {
+        encodedOrderKey = defaultAbiCoder.encode(
           ["address", "bytes32", "bytes32", "uint256", "bytes"],
           [
             lc(this.params.maker),
@@ -62,9 +67,10 @@ export class Order {
           ]
         );
         break;
+      }
     }
 
-    return utils.keccak256(encodedOrderKey);
+    return keccak256(encodedOrderKey);
   }
 
   private EIP712_DOMAIN = (chainId: number) => ({
@@ -97,7 +103,7 @@ export class Order {
   }
 
   public checkSignature() {
-    const signer = utils.verifyTypedData(
+    const signer = verifyTypedData(
       this.EIP712_DOMAIN(this.chainId),
       Types.EIP712_TYPES,
       toRawOrder(this),
@@ -122,17 +128,24 @@ export class Order {
   public async checkFillability(provider: Provider) {
     let value = false;
     switch (this.params.make.assetType.assetClass) {
-      case "ERC721":
+      case "ERC721": {
         value = await this.verifyAllowanceERC721(provider);
         break;
-      case "ERC20":
+      }
+      case "ERC20": {
         value = await this.verifyAllowanceERC20(provider);
         break;
-      case "ERC1155":
+      }
+      case "ERC1155": {
         value = await this.verifyAllowanceERC1155(provider);
         break;
+      }
       default:
         break;
+    }
+
+    if (!value) {
+      throw new Error("Order not fillable");
     }
   }
 
@@ -151,7 +164,7 @@ export class Order {
     let value = false;
 
     try {
-      if (!utils.isAddress(this.params.make.assetType.contract!)) {
+      if (!isAddress(this.params.make.assetType.contract!)) {
         throw new Error(`invalid-address`);
       }
 
@@ -163,7 +176,7 @@ export class Order {
         throw new Error("invalid-tokenId");
       }
 
-      const erc1155Contract = new ethers.Contract(
+      const erc1155Contract = new Contract(
         this.params.make.assetType.contract!,
         Erc1155Abi,
         provider
@@ -204,7 +217,7 @@ export class Order {
     let value = false;
 
     try {
-      if (!utils.isAddress(this.params.make.assetType.contract!)) {
+      if (!isAddress(this.params.make.assetType.contract!)) {
         throw new Error("invalid-address");
       }
 
@@ -212,11 +225,7 @@ export class Order {
         throw new Error("invalid-amount");
       }
 
-      const erc20Contract = new ethers.Contract(
-        this.params.make.assetType.contract!,
-        Erc20Abi,
-        provider
-      );
+      const erc20Contract = new Contract(this.params.make.assetType.contract!, Erc20Abi, provider);
 
       const allowance = await erc20Contract.allowance(
         this.params.maker,
@@ -252,7 +261,7 @@ export class Order {
     let value = false;
 
     try {
-      if (!utils.isAddress(this.params.make.assetType.contract!)) {
+      if (!isAddress(this.params.make.assetType.contract!)) {
         throw new Error(`Invalid contract address.`);
       }
 
@@ -260,29 +269,19 @@ export class Order {
         throw new Error(`invalid-tokenId`);
       }
 
-      const nftContract = new ethers.Contract(
-        this.params.make.assetType.contract!,
-        Erc721Abi,
-        provider
-      );
+      const nftContract = new Contract(this.params.make.assetType.contract!, Erc721Abi, provider);
 
-      const isApprovedForAll = await nftContract.isApprovedForAll(
-        this.params.maker
-      );
+      const isApprovedForAll = await nftContract.isApprovedForAll(this.params.maker);
 
       if (!isApprovedForAll) {
-        const approvedAddress = await nftContract.getApproved(
-          this.params.make.assetType.tokenId
-        );
+        const approvedAddress = await nftContract.getApproved(this.params.make.assetType.tokenId);
 
         if (lc(approvedAddress) !== lc(Addresses.Exchange[this.chainId])) {
           throw new Error("no-approval");
         }
       }
 
-      const owner = await nftContract.ownerOf(
-        this.params.make.assetType.tokenId
-      );
+      const owner = await nftContract.ownerOf(this.params.make.assetType.tokenId);
       if (lc(owner) !== lc(this.params.maker)) {
         throw new Error(`not-owner`);
       }
@@ -295,7 +294,7 @@ export class Order {
     return value;
   }
 
-  public buildMatching(taker: string, data?: any) {
+  public buildMatching(taker: string, data?: object) {
     return this.getBuilder().buildMatching(this.params, taker, data);
   }
 
@@ -327,12 +326,11 @@ export class Order {
       return "contract-wide";
     }
 
-    throw new Error(
-      "Could not detect order kind (order might have unsupported params/calldata)"
-    );
+    throw new Error("Could not detect order kind (order might have unsupported params/calldata)");
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const toRawOrder = (order: Order): any => {
   const encoded = encodeForMatchOrders(order.params);
   return encoded;
@@ -353,8 +351,7 @@ const normalize = (order: Types.Order): Types.Order => {
     | Types.IV3OrderBuyData
     | null = null;
 
-  order.data.dataType =
-    order.data.dataType || (order.data["@type"] as ORDER_DATA_TYPES) || "";
+  order.data.dataType = order.data.dataType || (order.data["@type"] as ORDER_DATA_TYPES) || "";
 
   switch (order.data.dataType) {
     case ORDER_DATA_TYPES.LEGACY:
@@ -370,14 +367,10 @@ const normalize = (order: Types.Order): Types.Order => {
 
       dataInfo = order.data as Types.IV2OrderData;
       if (dataInfo.originFees) {
-        dataInfo.originFees = dataInfo.originFees.map((fee) =>
-          normalizePartData(fee)
-        );
+        dataInfo.originFees = dataInfo.originFees.map((fee) => normalizePartData(fee));
       }
       if (dataInfo.payouts) {
-        dataInfo.payouts = dataInfo.payouts.map((fee) =>
-          normalizePartData(fee)
-        );
+        dataInfo.payouts = dataInfo.payouts.map((fee) => normalizePartData(fee));
       }
 
       break;
@@ -420,14 +413,16 @@ const normalize = (order: Types.Order): Types.Order => {
     default:
       throw Error("Unknown rarible order data type");
   }
-  var {
+
+  const {
     assetClass: makeAssetClass,
     tokenId: makeTokenId,
     contract: makeContract,
     value: makeValue,
     lazyMintInfo: makeLazyMintInfo,
   } = parseAssetData(order.make);
-  var {
+
+  const {
     assetClass: takeAssetClass,
     tokenId: takeTokenId,
     contract: takeContract,
@@ -436,7 +431,7 @@ const normalize = (order: Types.Order): Types.Order => {
   } = parseAssetData(order.take);
 
   const maker = extractAddressFromChain(order.maker);
-  const taker = extractAddressFromChain(order.taker || constants.AddressZero);
+  const taker = extractAddressFromChain(order.taker || AddressZero);
   const hash = extractAddressFromChain(order.hash || order.id || "");
 
   const tokenKind = takeAssetClass.toLowerCase().includes("collection")
@@ -446,10 +441,7 @@ const normalize = (order: Types.Order): Types.Order => {
   const side = tokenKind === "contract-wide" || takeTokenId ? "buy" : "sell";
   const salt = order.salt;
   const start = n(order.start) || 0;
-  const end =
-    Math.floor(new Date(order.endedAt || "").getTime() / 1000) ||
-    n(order.end) ||
-    0;
+  const end = Math.floor(new Date(order.endedAt || "").getTime() / 1000) || n(order.end) || 0;
 
   return {
     kind: tokenKind,
@@ -503,24 +495,24 @@ function extractAddressFromChain(address: string) {
 }
 
 function parseAssetData(assetInfo: Types.LocalAsset) {
-  let assetClass = (
+  const assetClass = (
     assetInfo.assetType?.assetClass ||
     assetInfo.type["@type"] ||
     ""
   ).toUpperCase();
 
   const contract = extractAddressFromChain(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     assetInfo.assetType?.contract || (assetInfo as any)?.type?.contract || ""
   );
 
   const tokenId =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     assetInfo.assetType?.tokenId || (assetInfo as any)?.type?.tokenId || "";
 
   const valueIsDecimal = assetInfo.value.includes(".");
   // It's safe to assume for now that 18 will work
-  const value = valueIsDecimal
-    ? utils.parseEther(assetInfo.value)
-    : assetInfo.value;
+  const value = valueIsDecimal ? parseEther(assetInfo.value) : assetInfo.value;
 
   const lazyMintInfo = {
     ...((assetInfo.assetType?.uri || assetInfo.type?.uri) && {
@@ -530,18 +522,23 @@ function parseAssetData(assetInfo: Types.LocalAsset) {
       supply: assetInfo.assetType?.supply || assetInfo.type?.supply,
     }),
     ...((assetInfo.assetType?.creators || assetInfo.type?.creators) && {
-      creators: (assetInfo.assetType?.creators || assetInfo.type?.creators).map(
-        (l: Types.IPart) => normalizePartData(l)
+      // eslint-disable-next-line no-unsafe-optional-chaining
+      creators: (assetInfo.assetType?.creators || assetInfo.type?.creators).map((l: Types.IPart) =>
+        normalizePartData(l)
       ),
     }),
     ...((assetInfo.assetType?.royalties || assetInfo.type?.royalties) && {
       royalties: (
-        assetInfo.assetType?.royalties || assetInfo.type?.royalties
+        assetInfo.assetType?.royalties ||
+        // eslint-disable-next-line no-unsafe-optional-chaining
+        assetInfo.type?.royalties
       ).map((l: Types.IPart) => normalizePartData(l)),
     }),
     ...((assetInfo.assetType?.signatures || assetInfo.type?.signatures) && {
       signatures: (
-        assetInfo.assetType?.signatures || assetInfo.type?.signatures
+        assetInfo.assetType?.signatures ||
+        // eslint-disable-next-line no-unsafe-optional-chaining
+        assetInfo.type?.signatures
       ).map((l: string) => extractAddressFromChain(l)),
     }),
   };

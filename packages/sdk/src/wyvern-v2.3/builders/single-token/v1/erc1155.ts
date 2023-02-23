@@ -6,12 +6,7 @@ import { BaseBuilder, BaseBuildParams, BaseOrderInfo } from "../../base";
 import * as Addresses from "../../../addresses";
 import { Order } from "../../../order";
 import * as Types from "../../../types";
-import {
-  BytesEmpty,
-  getCurrentTimestamp,
-  getRandomBytes,
-  s,
-} from "../../../../utils";
+import { BytesEmpty, getCurrentTimestamp, getRandomBytes, s } from "../../../../utils";
 
 import Erc1155Abi from "../../../../common/abis/Erc1155.json";
 
@@ -125,16 +120,13 @@ export class SingleTokenErc1155BuilderV1 extends BaseBuilder {
         saleKind,
         target: params.contract,
         howToCall: Types.OrderHowToCall.CALL,
-        calldata: new Interface(Erc1155Abi).encodeFunctionData(
-          "safeTransferFrom",
-          [
-            AddressZero,
-            params.recipient ?? params.maker,
-            params.tokenId,
-            1,
-            "0x",
-          ]
-        ),
+        calldata: new Interface(Erc1155Abi).encodeFunctionData("safeTransferFrom", [
+          AddressZero,
+          params.recipient ?? params.maker,
+          params.tokenId,
+          1,
+          "0x",
+        ]),
         replacementPattern: REPLACEMENT_PATTERN_BUY,
         staticTarget: AddressZero,
         staticExtradata: BytesEmpty,
@@ -162,10 +154,13 @@ export class SingleTokenErc1155BuilderV1 extends BaseBuilder {
         saleKind,
         target: params.contract,
         howToCall: Types.OrderHowToCall.CALL,
-        calldata: new Interface(Erc1155Abi).encodeFunctionData(
-          "safeTransferFrom",
-          [params.maker, AddressZero, params.tokenId, 1, "0x"]
-        ),
+        calldata: new Interface(Erc1155Abi).encodeFunctionData("safeTransferFrom", [
+          params.maker,
+          AddressZero,
+          params.tokenId,
+          1,
+          "0x",
+        ]),
         replacementPattern: REPLACEMENT_PATTERN_SELL,
         staticTarget: AddressZero,
         staticExtradata: BytesEmpty,
@@ -185,11 +180,7 @@ export class SingleTokenErc1155BuilderV1 extends BaseBuilder {
     }
   }
 
-  public buildMatching(
-    order: Order,
-    taker: string,
-    data: { nonce: string; recipient?: string }
-  ) {
+  public buildMatching(order: Order, taker: string, data: { nonce: string; recipient?: string }) {
     const info = this.getInfo(order);
     if (!info) {
       throw new Error("Invalid order");

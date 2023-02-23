@@ -1,7 +1,4 @@
-import {
-  TypedDataDomain,
-  TypedDataSigner,
-} from "@ethersproject/abstract-signer";
+import { TypedDataDomain, TypedDataSigner } from "@ethersproject/abstract-signer";
 import { Types } from "..";
 import { Provider } from "@ethersproject/providers";
 import { OrderParams } from "../order-params";
@@ -18,11 +15,7 @@ export interface Complication {
 
   sign(signer: TypedDataSigner, params: Types.InternalOrder): Promise<string>;
 
-  verifySignature(
-    sig: string,
-    params: Types.InternalOrder,
-    provider?: Provider
-  ): Promise<void>;
+  verifySignature(sig: string, params: Types.InternalOrder, provider?: Provider): Promise<void>;
 
   getSignatureData(params: Types.InternalOrder): Types.SignatureData;
 

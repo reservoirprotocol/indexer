@@ -29,10 +29,7 @@ export class Exchange {
 
   // --- Create order ---
 
-  public async createOrder(
-    maker: Signer,
-    order: Order
-  ): Promise<ContractTransaction> {
+  public async createOrder(maker: Signer, order: Order): Promise<ContractTransaction> {
     const tx = this.createOrderTx(order);
     return maker.sendTransaction(tx);
   }
@@ -63,13 +60,7 @@ export class Exchange {
       source?: string;
     }
   ): Promise<ContractTransaction> {
-    const tx = this.fillOrderTx(
-      await taker.getAddress(),
-      listingId,
-      amount,
-      price,
-      options
-    );
+    const tx = this.fillOrderTx(await taker.getAddress(), listingId, amount, price, options);
     return taker.sendTransaction(tx);
   }
 
@@ -86,10 +77,11 @@ export class Exchange {
       from: taker,
       to: this.contract.address,
       data:
-        this.contract.interface.encodeFunctionData(
-          "purchase(address, uint40, uint24)",
-          [taker, listingId, amount]
-        ) + generateSourceBytes(options?.source),
+        this.contract.interface.encodeFunctionData("purchase(address, uint40, uint24)", [
+          taker,
+          listingId,
+          amount,
+        ]) + generateSourceBytes(options?.source),
       value: bn(price).toHexString(),
     };
   }

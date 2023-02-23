@@ -6,12 +6,7 @@ import { BaseBuilder, BaseBuildParams, BaseOrderInfo } from "../../base";
 import * as Addresses from "../../../addresses";
 import { Order } from "../../../order";
 import * as Types from "../../../types";
-import {
-  BytesEmpty,
-  getCurrentTimestamp,
-  getRandomBytes,
-  s,
-} from "../../../../utils";
+import { BytesEmpty, getCurrentTimestamp, getRandomBytes, s } from "../../../../utils";
 
 import OpenSeaMerkleValidatorAbi from "../../../abis/OpenSeaMerkleValidator.json";
 
@@ -86,12 +81,8 @@ export class SingleTokenErc721BuilderV2 extends BaseBuilder {
     try {
       const iface = new Interface(OpenSeaMerkleValidatorAbi);
 
-      const regularTransferSighash = iface.getSighash(
-        "matchERC721UsingCriteria"
-      );
-      const safeTransferSighash = iface.getSighash(
-        "matchERC721WithSafeTransferUsingCriteria"
-      );
+      const regularTransferSighash = iface.getSighash("matchERC721UsingCriteria");
+      const safeTransferSighash = iface.getSighash("matchERC721WithSafeTransferUsingCriteria");
 
       let method: string;
       if (order.params.calldata.startsWith(regularTransferSighash)) {
@@ -211,14 +202,7 @@ export class SingleTokenErc721BuilderV2 extends BaseBuilder {
           params.useSafeTransfer
             ? "matchERC721WithSafeTransferUsingCriteria"
             : "matchERC721UsingCriteria",
-          [
-            params.maker,
-            AddressZero,
-            params.contract,
-            params.tokenId,
-            HashZero,
-            [],
-          ]
+          [params.maker, AddressZero, params.contract, params.tokenId, HashZero, []]
         ),
         replacementPattern: REPLACEMENT_PATTERN_SELL,
         staticTarget: AddressZero,
@@ -239,11 +223,7 @@ export class SingleTokenErc721BuilderV2 extends BaseBuilder {
     }
   }
 
-  public buildMatching(
-    order: Order,
-    taker: string,
-    data: { nonce: string; recipient?: string }
-  ) {
+  public buildMatching(order: Order, taker: string, data: { nonce: string; recipient?: string }) {
     const info = this.getInfo(order);
     if (!info) {
       throw new Error("Invalid order");

@@ -131,6 +131,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x62e37f664b5945629b6549a87f8e10ed0b6d923b",
           "0x0a1bbd57033f57e7b6743621b79fcb9eb2ce3676",
           "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
+          "0x32d4be5ee74376e08038d652d4dc26e62c67f436",
         ],
         washTradingBlacklistedAddresses: ["0xac335e6855df862410f96f345f93af4f96351a87"],
         multiCollectionContracts: [
@@ -149,6 +150,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x62e37f664b5945629b6549a87f8e10ed0b6d923b",
           "0x0a1bbd57033f57e7b6743621b79fcb9eb2ce3676",
           "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
+          "0x32d4be5ee74376e08038d652d4dc26e62c67f436",
         ],
         customTokenAddresses: [
           "0x95784f7b5c8849b0104eaf5d13d6341d8cc40750",

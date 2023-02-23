@@ -57,9 +57,7 @@ export class Exchange {
   }
 
   public async signOrder(signer: Signer, order: Types.LocalOrder) {
-    const signature = splitSignature(
-      await signer.signMessage(arrayify(this.hash(order)))
-    );
+    const signature = splitSignature(await signer.signMessage(arrayify(this.hash(order))));
 
     order.v = signature.v;
     order.r = signature.r;
@@ -106,9 +104,7 @@ export class Exchange {
     };
 
     return axios.post(
-      `https://${
-        this.chainId === 5 ? "goerli-" : ""
-      }api.x2y2.org/api/orders/add`,
+      `https://${this.chainId === 5 ? "goerli-" : ""}api.x2y2.org/api/orders/add`,
       orderPayload,
       {
         headers: {
@@ -157,9 +153,7 @@ export class Exchange {
     const sign = await maker.signMessage(arrayify(signMessage));
 
     const response = await axios.post(
-      `https://${
-        this.chainId === 5 ? "goerli-" : ""
-      }api.x2y2.org/api/orders/cancel`,
+      `https://${this.chainId === 5 ? "goerli-" : ""}api.x2y2.org/api/orders/cancel`,
       {
         caller: maker,
         // CANCEL_OFFER
@@ -177,9 +171,7 @@ export class Exchange {
     );
 
     const input = defaultAbiCoder.decode(
-      [
-        "(bytes32[] itemHashes, uint256 deadline, uint8 v, bytes32 r, bytes32 s)",
-      ],
+      ["(bytes32[] itemHashes, uint256 deadline, uint8 v, bytes32 r, bytes32 s)"],
       response.data.input
     )[0];
 
@@ -208,15 +200,11 @@ export class Exchange {
     }
 
     const response = await axios.post(
-      `https://${
-        this.chainId === 5 ? "goerli-" : ""
-      }api.x2y2.org/api/orders/sign`,
+      `https://${this.chainId === 5 ? "goerli-" : ""}api.x2y2.org/api/orders/sign`,
       {
         caller: taker,
         op:
-          order.params.type === "sell"
-            ? Types.Op.COMPLETE_SELL_OFFER
-            : Types.Op.COMPLETE_BUY_OFFER,
+          order.params.type === "sell" ? Types.Op.COMPLETE_SELL_OFFER : Types.Op.COMPLETE_BUY_OFFER,
         amountToEth: "0",
         amountToWeth: "0",
         // Do not check taker's balance (for filling through router contracts)
@@ -243,9 +231,6 @@ export class Exchange {
       }
     );
 
-    return (
-      this.contract.interface.getSighash("run") +
-      response.data.data[0].input.slice(2)
-    );
+    return this.contract.interface.getSighash("run") + response.data.data[0].input.slice(2);
   }
 }

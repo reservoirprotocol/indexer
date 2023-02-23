@@ -3,6 +3,7 @@
 import { Request, RouteOptions } from "@hapi/hapi";
 import crypto from "crypto";
 import Joi from "joi";
+import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -120,7 +121,7 @@ export const getTransfersBulkV1Options: RouteOptions = {
           query.continuation,
           /^(\d+)_(\d+)_(\d+)$/
         );
-        (query as any).timestamp = timestamp;
+        (query as any).timestamp = _.toInteger(timestamp);
         (query as any).logIndex = logIndex;
         (query as any).batchIndex = batchIndex;
 

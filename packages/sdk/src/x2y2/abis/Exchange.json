@@ -374,9 +374,7 @@
   {
     "inputs": [{ "internalType": "bytes32", "name": "", "type": "bytes32" }],
     "name": "inventoryStatus",
-    "outputs": [
-      { "internalType": "enum Market.InvStatus", "name": "", "type": "uint8" }
-    ],
+    "outputs": [{ "internalType": "enum Market.InvStatus", "name": "", "type": "uint8" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -708,9 +706,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "newOwner", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }],
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",

@@ -15,329 +15,298 @@ import {IX2Y2} from "../../../interfaces/IX2Y2.sol";
 // - supports filling offers (both ERC721/ERC1155)
 
 contract X2Y2Module is BaseExchangeModule {
-    using SafeERC20 for IERC20;
+  using SafeERC20 for IERC20;
 
-    // --- Fields ---
+  // --- Fields ---
 
-    IX2Y2 public constant EXCHANGE =
-        IX2Y2(0x74312363e45DCaBA76c59ec49a7Aa8A65a67EeD3);
+  IX2Y2 public constant EXCHANGE = IX2Y2(0x74312363e45DCaBA76c59ec49a7Aa8A65a67EeD3);
 
-    address public constant ERC721_DELEGATE =
-        0xF849de01B080aDC3A814FaBE1E2087475cF2E354;
+  address public constant ERC721_DELEGATE = 0xF849de01B080aDC3A814FaBE1E2087475cF2E354;
 
-    address public constant ERC1155_DELEGATE =
-        0x024aC22ACdB367a3ae52A3D94aC6649fdc1f0779;
+  address public constant ERC1155_DELEGATE = 0x024aC22ACdB367a3ae52A3D94aC6649fdc1f0779;
 
-    // --- Constructor ---
+  // --- Constructor ---
 
-    constructor(address owner, address router)
-        BaseModule(owner)
-        BaseExchangeModule(router)
-    {}
+  constructor(address owner, address router) BaseModule(owner) BaseExchangeModule(router) {}
 
-    // --- Fallback ---
+  // --- Fallback ---
 
-    receive() external payable {}
+  receive() external payable {}
 
-    // --- Single ETH listing ---
+  // --- Single ETH listing ---
 
-    function acceptETHListing(
-        IX2Y2.RunInput calldata input,
-        ETHListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundETHLeftover(params.refundTo)
-        chargeETHFees(fees, params.amount)
+  function acceptETHListing(
+    IX2Y2.RunInput calldata input,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    // Execute fill
+    _buy(input, params.fillTo, params.revertIfIncomplete, params.amount);
+  }
+
+  // --- Multiple ETH listings ---
+
+  function acceptETHListings(
+    IX2Y2.RunInput[] calldata inputs,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    // X2Y2 does not support batch filling so we fill orders one by one
+    uint256 length = inputs.length;
+    for (uint256 i = 0; i < length; ) {
+      // Execute fill
+      _buy(inputs[i], params.fillTo, params.revertIfIncomplete, inputs[i].details[0].price);
+
+      unchecked {
+        ++i;
+      }
+    }
+  }
+
+  // --- [ERC721] Single offer ---
+
+  function acceptERC721Offer(
+    IX2Y2.RunInput calldata input,
+    OfferParams calldata params,
+    Fee[] calldata fees
+  ) external nonReentrant {
+    if (input.details.length != 1) {
+      revert WrongParams();
+    }
+
+    // Extract the order's corresponding token
+    IX2Y2.SettleDetail calldata detail = input.details[0];
+    IX2Y2.Order calldata order = input.orders[detail.orderIdx];
+    IX2Y2.OrderItem calldata orderItem = order.items[detail.itemIdx];
+    if (detail.op != IX2Y2.Op.COMPLETE_BUY_OFFER) {
+      revert WrongParams();
+    }
+
+    // Apply any mask (if required)
+    bytes memory data = orderItem.data;
     {
-        // Execute fill
-        _buy(input, params.fillTo, params.revertIfIncomplete, params.amount);
+      if (order.dataMask.length > 0 && detail.dataReplacement.length > 0) {
+        _arrayReplace(data, detail.dataReplacement, order.dataMask);
+      }
     }
 
-    // --- Multiple ETH listings ---
+    IX2Y2.ERC721Pair[] memory pairs = abi.decode(orderItem.data, (IX2Y2.ERC721Pair[]));
+    if (pairs.length != 1) {
+      revert WrongParams();
+    }
 
-    function acceptETHListings(
-        IX2Y2.RunInput[] calldata inputs,
-        ETHListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundETHLeftover(params.refundTo)
-        chargeETHFees(fees, params.amount)
+    IERC721 collection = pairs[0].token;
+    uint256 tokenId = pairs[0].tokenId;
+
+    // Approve the delegate if needed
+    _approveERC721IfNeeded(collection, ERC721_DELEGATE);
+
+    // Execute fill
+    try EXCHANGE.run(input) {
+      // Pay fees
+      uint256 feesLength = fees.length;
+      for (uint256 i; i < feesLength; ) {
+        Fee memory fee = fees[i];
+        _sendERC20(fee.recipient, fee.amount, order.currency);
+
+        unchecked {
+          ++i;
+        }
+      }
+
+      // Forward any left payment to the specified receiver
+      _sendAllERC20(params.fillTo, order.currency);
+    } catch {
+      // Revert if specified
+      if (params.revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
+    }
+
+    // Refund any ERC721 leftover
+    _sendAllERC721(params.refundTo, collection, tokenId);
+  }
+
+  // --- [ERC1155] Single offer ---
+
+  function acceptERC1155Offer(
+    IX2Y2.RunInput calldata input,
+    OfferParams calldata params,
+    Fee[] calldata fees
+  ) external nonReentrant {
+    if (input.details.length != 1) {
+      revert WrongParams();
+    }
+
+    // Extract the order's corresponding token
+    IX2Y2.SettleDetail calldata detail = input.details[0];
+    IX2Y2.Order calldata order = input.orders[detail.orderIdx];
+    IX2Y2.OrderItem calldata orderItem = order.items[detail.itemIdx];
+    if (detail.op != IX2Y2.Op.COMPLETE_BUY_OFFER) {
+      revert WrongParams();
+    }
+
+    // Apply any mask (if required)
+    bytes memory data = orderItem.data;
     {
-        // X2Y2 does not support batch filling so we fill orders one by one
-        uint256 length = inputs.length;
-        for (uint256 i = 0; i < length; ) {
-            // Execute fill
-            _buy(
-                inputs[i],
-                params.fillTo,
-                params.revertIfIncomplete,
-                inputs[i].details[0].price
-            );
-
-            unchecked {
-                ++i;
-            }
-        }
+      if (order.dataMask.length > 0 && detail.dataReplacement.length > 0) {
+        _arrayReplace(data, detail.dataReplacement, order.dataMask);
+      }
     }
 
-    // --- [ERC721] Single offer ---
+    IX2Y2.ERC1155Pair[] memory pairs = abi.decode(orderItem.data, (IX2Y2.ERC1155Pair[]));
+    if (pairs.length != 1) {
+      revert WrongParams();
+    }
 
-    function acceptERC721Offer(
-        IX2Y2.RunInput calldata input,
-        OfferParams calldata params,
-        Fee[] calldata fees
-    ) external nonReentrant {
-        if (input.details.length != 1) {
-            revert WrongParams();
+    IERC1155 collection = pairs[0].token;
+    uint256 tokenId = pairs[0].tokenId;
+
+    // Approve the delegate if needed
+    _approveERC1155IfNeeded(collection, ERC1155_DELEGATE);
+
+    // Execute fill
+    try EXCHANGE.run(input) {
+      // Pay fees
+      uint256 feesLength = fees.length;
+      for (uint256 i; i < feesLength; ) {
+        Fee memory fee = fees[i];
+        _sendERC20(fee.recipient, fee.amount, order.currency);
+
+        unchecked {
+          ++i;
         }
+      }
 
-        // Extract the order's corresponding token
-        IX2Y2.SettleDetail calldata detail = input.details[0];
-        IX2Y2.Order calldata order = input.orders[detail.orderIdx];
-        IX2Y2.OrderItem calldata orderItem = order.items[detail.itemIdx];
-        if (detail.op != IX2Y2.Op.COMPLETE_BUY_OFFER) {
-            revert WrongParams();
-        }
+      // Forward any left payment to the specified receiver
+      _sendAllERC20(params.fillTo, order.currency);
+    } catch {
+      // Revert if specified
+      if (params.revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
+    }
 
-        // Apply any mask (if required)
-        bytes memory data = orderItem.data;
-        {
-            if (
-                order.dataMask.length > 0 && detail.dataReplacement.length > 0
-            ) {
-                _arrayReplace(data, detail.dataReplacement, order.dataMask);
-            }
-        }
+    // Refund any ERC1155 leftover
+    _sendAllERC1155(params.refundTo, collection, tokenId);
+  }
 
-        IX2Y2.ERC721Pair[] memory pairs = abi.decode(
-            orderItem.data,
-            (IX2Y2.ERC721Pair[])
-        );
+  // --- ERC721 / ERC1155 hooks ---
+
+  // Single token offer acceptance can be done approval-less by using the
+  // standard `safeTransferFrom` method together with specifying data for
+  // further contract calls. An example:
+  // `safeTransferFrom(
+  //      0xWALLET,
+  //      0xMODULE,
+  //      TOKEN_ID,
+  //      0xABI_ENCODED_ROUTER_EXECUTION_CALLDATA_FOR_OFFER_ACCEPTANCE
+  // )`
+
+  function onERC721Received(
+    address, // operator,
+    address, // from
+    uint256, // tokenId,
+    bytes calldata data
+  ) external returns (bytes4) {
+    if (data.length > 0) {
+      _makeCall(router, data, 0);
+    }
+
+    return this.onERC721Received.selector;
+  }
+
+  function onERC1155Received(
+    address, // operator
+    address, // from
+    uint256, // tokenId
+    uint256, // amount
+    bytes calldata data
+  ) external returns (bytes4) {
+    if (data.length > 0) {
+      _makeCall(router, data, 0);
+    }
+
+    return this.onERC1155Received.selector;
+  }
+
+  // --- Internal ---
+
+  function _arrayReplace(
+    bytes memory source,
+    bytes memory replacement,
+    bytes memory mask
+  ) internal view virtual {
+    uint256 sourceLength = source.length;
+    for (uint256 i; i < sourceLength; ) {
+      if (mask[i] != 0) {
+        source[i] = replacement[i];
+      }
+
+      unchecked {
+        ++i;
+      }
+    }
+  }
+
+  function _buy(
+    IX2Y2.RunInput calldata input,
+    address receiver,
+    bool revertIfIncomplete,
+    uint256 value
+  ) internal {
+    if (input.details.length != 1) {
+      revert WrongParams();
+    }
+
+    // Extract the order's corresponding token
+    IX2Y2.SettleDetail calldata detail = input.details[0];
+    IX2Y2.Order calldata order = input.orders[detail.orderIdx];
+    IX2Y2.OrderItem calldata orderItem = order.items[detail.itemIdx];
+    if (detail.op != IX2Y2.Op.COMPLETE_SELL_OFFER) {
+      revert WrongParams();
+    }
+
+    // Execute fill
+    try EXCHANGE.run{value: value}(input) {
+      if (order.delegateType == 1) {
+        IX2Y2.ERC721Pair[] memory pairs = abi.decode(orderItem.data, (IX2Y2.ERC721Pair[]));
         if (pairs.length != 1) {
-            revert WrongParams();
+          revert WrongParams();
         }
 
-        IERC721 collection = pairs[0].token;
-        uint256 tokenId = pairs[0].tokenId;
-
-        // Approve the delegate if needed
-        _approveERC721IfNeeded(collection, ERC721_DELEGATE);
-
-        // Execute fill
-        try EXCHANGE.run(input) {
-            // Pay fees
-            uint256 feesLength = fees.length;
-            for (uint256 i; i < feesLength; ) {
-                Fee memory fee = fees[i];
-                _sendERC20(fee.recipient, fee.amount, order.currency);
-
-                unchecked {
-                    ++i;
-                }
-            }
-
-            // Forward any left payment to the specified receiver
-            _sendAllERC20(params.fillTo, order.currency);
-        } catch {
-            // Revert if specified
-            if (params.revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
-        }
-
-        // Refund any ERC721 leftover
-        _sendAllERC721(params.refundTo, collection, tokenId);
-    }
-
-    // --- [ERC1155] Single offer ---
-
-    function acceptERC1155Offer(
-        IX2Y2.RunInput calldata input,
-        OfferParams calldata params,
-        Fee[] calldata fees
-    ) external nonReentrant {
-        if (input.details.length != 1) {
-            revert WrongParams();
-        }
-
-        // Extract the order's corresponding token
-        IX2Y2.SettleDetail calldata detail = input.details[0];
-        IX2Y2.Order calldata order = input.orders[detail.orderIdx];
-        IX2Y2.OrderItem calldata orderItem = order.items[detail.itemIdx];
-        if (detail.op != IX2Y2.Op.COMPLETE_BUY_OFFER) {
-            revert WrongParams();
-        }
-
-        // Apply any mask (if required)
-        bytes memory data = orderItem.data;
-        {
-            if (
-                order.dataMask.length > 0 && detail.dataReplacement.length > 0
-            ) {
-                _arrayReplace(data, detail.dataReplacement, order.dataMask);
-            }
-        }
-
-        IX2Y2.ERC1155Pair[] memory pairs = abi.decode(
-            orderItem.data,
-            (IX2Y2.ERC1155Pair[])
-        );
+        pairs[0].token.safeTransferFrom(address(this), receiver, pairs[0].tokenId);
+      } else {
+        IX2Y2.ERC1155Pair[] memory pairs = abi.decode(orderItem.data, (IX2Y2.ERC1155Pair[]));
         if (pairs.length != 1) {
-            revert WrongParams();
+          revert WrongParams();
         }
 
-        IERC1155 collection = pairs[0].token;
-        uint256 tokenId = pairs[0].tokenId;
-
-        // Approve the delegate if needed
-        _approveERC1155IfNeeded(collection, ERC1155_DELEGATE);
-
-        // Execute fill
-        try EXCHANGE.run(input) {
-            // Pay fees
-            uint256 feesLength = fees.length;
-            for (uint256 i; i < feesLength; ) {
-                Fee memory fee = fees[i];
-                _sendERC20(fee.recipient, fee.amount, order.currency);
-
-                unchecked {
-                    ++i;
-                }
-            }
-
-            // Forward any left payment to the specified receiver
-            _sendAllERC20(params.fillTo, order.currency);
-        } catch {
-            // Revert if specified
-            if (params.revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
-        }
-
-        // Refund any ERC1155 leftover
-        _sendAllERC1155(params.refundTo, collection, tokenId);
+        pairs[0].token.safeTransferFrom(
+          address(this),
+          receiver,
+          pairs[0].tokenId,
+          pairs[0].amount,
+          ""
+        );
+      }
+    } catch {
+      // Revert if specified
+      if (revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
     }
-
-    // --- ERC721 / ERC1155 hooks ---
-
-    // Single token offer acceptance can be done approval-less by using the
-    // standard `safeTransferFrom` method together with specifying data for
-    // further contract calls. An example:
-    // `safeTransferFrom(
-    //      0xWALLET,
-    //      0xMODULE,
-    //      TOKEN_ID,
-    //      0xABI_ENCODED_ROUTER_EXECUTION_CALLDATA_FOR_OFFER_ACCEPTANCE
-    // )`
-
-    function onERC721Received(
-        address, // operator,
-        address, // from
-        uint256, // tokenId,
-        bytes calldata data
-    ) external returns (bytes4) {
-        if (data.length > 0) {
-            _makeCall(router, data, 0);
-        }
-
-        return this.onERC721Received.selector;
-    }
-
-    function onERC1155Received(
-        address, // operator
-        address, // from
-        uint256, // tokenId
-        uint256, // amount
-        bytes calldata data
-    ) external returns (bytes4) {
-        if (data.length > 0) {
-            _makeCall(router, data, 0);
-        }
-
-        return this.onERC1155Received.selector;
-    }
-
-    // --- Internal ---
-
-    function _arrayReplace(
-        bytes memory source,
-        bytes memory replacement,
-        bytes memory mask
-    ) internal view virtual {
-        uint256 sourceLength = source.length;
-        for (uint256 i; i < sourceLength; ) {
-            if (mask[i] != 0) {
-                source[i] = replacement[i];
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _buy(
-        IX2Y2.RunInput calldata input,
-        address receiver,
-        bool revertIfIncomplete,
-        uint256 value
-    ) internal {
-        if (input.details.length != 1) {
-            revert WrongParams();
-        }
-
-        // Extract the order's corresponding token
-        IX2Y2.SettleDetail calldata detail = input.details[0];
-        IX2Y2.Order calldata order = input.orders[detail.orderIdx];
-        IX2Y2.OrderItem calldata orderItem = order.items[detail.itemIdx];
-        if (detail.op != IX2Y2.Op.COMPLETE_SELL_OFFER) {
-            revert WrongParams();
-        }
-
-        // Execute fill
-        try EXCHANGE.run{value: value}(input) {
-            if (order.delegateType == 1) {
-                IX2Y2.ERC721Pair[] memory pairs = abi.decode(
-                    orderItem.data,
-                    (IX2Y2.ERC721Pair[])
-                );
-                if (pairs.length != 1) {
-                    revert WrongParams();
-                }
-
-                pairs[0].token.safeTransferFrom(
-                    address(this),
-                    receiver,
-                    pairs[0].tokenId
-                );
-            } else {
-                IX2Y2.ERC1155Pair[] memory pairs = abi.decode(
-                    orderItem.data,
-                    (IX2Y2.ERC1155Pair[])
-                );
-                if (pairs.length != 1) {
-                    revert WrongParams();
-                }
-
-                pairs[0].token.safeTransferFrom(
-                    address(this),
-                    receiver,
-                    pairs[0].tokenId,
-                    pairs[0].amount,
-                    ""
-                );
-            }
-        } catch {
-            // Revert if specified
-            if (revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
-        }
-    }
+  }
 }

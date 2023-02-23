@@ -1,11 +1,12 @@
+import { BigNumber } from "@ethersproject/bignumber";
+import { AddressZero } from "@ethersproject/constants";
+
 import { BaseBuilder, BaseOrderInfo } from "../base";
+import { buildOrderData } from "../utils";
+import { ORDER_DATA_TYPES } from "../../constants";
 import { Order } from "../../order";
 import * as Types from "../../types";
 import { lc, n, s } from "../../../utils";
-import { BigNumber, constants } from "ethers/lib/ethers";
-import { AssetClass } from "../../types";
-import { ORDER_DATA_TYPES } from "../../constants";
-import { buildOrderData } from "../utils";
 
 export class ContractWideBuilder extends BaseBuilder {
   public getInfo(order: Order): BaseOrderInfo {
@@ -13,10 +14,8 @@ export class ContractWideBuilder extends BaseBuilder {
     const makeAssetClass = order.params.make.assetType.assetClass;
     const takeAssetClass = order.params.take.assetType.assetClass;
     if (
-      (makeAssetClass === Types.AssetClass.ERC721 ||
-        makeAssetClass === Types.AssetClass.ERC1155) &&
-      (takeAssetClass === Types.AssetClass.ERC20 ||
-        takeAssetClass === Types.AssetClass.ETH)
+      (makeAssetClass === Types.AssetClass.ERC721 || makeAssetClass === Types.AssetClass.ERC1155) &&
+      (takeAssetClass === Types.AssetClass.ERC20 || takeAssetClass === Types.AssetClass.ETH)
     ) {
       side = "sell";
     } else if (
@@ -39,11 +38,10 @@ export class ContractWideBuilder extends BaseBuilder {
     const { side } = this.getInfo(order);
     try {
       const nftInfo = side === "buy" ? order.params.take : order.params.make;
-      const paymentInfo =
-        side === "buy" ? order.params.make : order.params.take;
+      const paymentInfo = side === "buy" ? order.params.make : order.params.take;
 
-      let dataType = order.params.data.dataType;
-      let data = JSON.parse(JSON.stringify(order.params.data));
+      const dataType = order.params.data.dataType;
+      const data = JSON.parse(JSON.stringify(order.params.data));
 
       if (!Array.isArray(data.payouts)) {
         data.payouts = [data.payouts];
@@ -60,8 +58,8 @@ export class ContractWideBuilder extends BaseBuilder {
         tokenId: nftInfo.assetType.tokenId!,
         price: paymentInfo.value,
         paymentToken:
-          paymentInfo.assetType.assetClass === AssetClass.ETH
-            ? constants.AddressZero
+          paymentInfo.assetType.assetClass === Types.AssetClass.ETH
+            ? AddressZero
             : lc(paymentInfo.assetType.contract!),
         tokenAmount: n(nftInfo.value),
         uri: nftInfo.assetType.uri,
@@ -87,6 +85,7 @@ export class ContractWideBuilder extends BaseBuilder {
 
   public build(params: Types.BaseBuildParams) {
     this.defaultInitialize(params);
+
     const nftInfo = {
       assetType: {
         assetClass: Types.AssetClass.COLLECTION,
@@ -97,13 +96,13 @@ export class ContractWideBuilder extends BaseBuilder {
 
     const paymentInfo = {
       assetType: {
-        ...(params.paymentToken && params.paymentToken !== constants.AddressZero
+        ...(params.paymentToken && params.paymentToken !== AddressZero
           ? {
-              assetClass: AssetClass.ERC20,
+              assetClass: Types.AssetClass.ERC20,
               contract: lc(params.paymentToken),
             }
           : {
-              assetClass: AssetClass.ETH,
+              assetClass: Types.AssetClass.ETH,
             }),
       },
       value: params.price,
@@ -115,7 +114,7 @@ export class ContractWideBuilder extends BaseBuilder {
       type: params.orderType,
       maker: params.maker,
       make: params.side === "buy" ? paymentInfo : nftInfo,
-      taker: constants.AddressZero,
+      taker: AddressZero,
       take: params.side === "buy" ? nftInfo : paymentInfo,
       salt: s(params.salt),
       start: params.startTime,
@@ -176,19 +175,20 @@ export class ContractWideBuilder extends BaseBuilder {
       rightOrder.data.payouts = null;
     }
 
-    // for erc1155 we need to take the value from request (the amount parameter)
-    if (AssetClass.ERC1155 == order.make.assetType.assetClass) {
+    // For erc1155 we need to take the value from request (the amount parameter)
+    if (Types.AssetClass.ERC1155 == order.make.assetType.assetClass) {
       rightOrder.take.value = Math.floor(Number(data.amount)).toString();
     }
 
-    if (AssetClass.ERC1155 == order.take.assetType.assetClass) {
-      const oldValue = rightOrder.make.value as any;
+    if (Types.AssetClass.ERC1155 == order.take.assetType.assetClass) {
+      const oldValue = rightOrder.make.value;
 
       rightOrder.make.value = Math.floor(Number(data.amount)).toString();
       rightOrder.take.value = BigNumber.from(rightOrder.take.value)
-        .div(oldValue - (rightOrder.make.value as any) || "1")
+        .div(Number(oldValue) - Number(rightOrder.make.value || 1))
         .toString();
     }
+
     return rightOrder;
   }
 }

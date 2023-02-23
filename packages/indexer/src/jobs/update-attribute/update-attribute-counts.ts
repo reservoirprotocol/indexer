@@ -26,10 +26,6 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { tokenAttributeCounter } = job.data;
 
-      if (_.has(tokenAttributeCounter, "6794439")) {
-        return;
-      }
-
       // Update the attributes token count
       const replacementParams = {};
       let updateCountsString = "";

@@ -6,12 +6,7 @@ import { BaseBuilder, BaseBuildParams, BaseOrderInfo } from "../../base";
 import * as Addresses from "../../../addresses";
 import { Order } from "../../../order";
 import * as Types from "../../../types";
-import {
-  BytesEmpty,
-  getCurrentTimestamp,
-  getRandomBytes,
-  s,
-} from "../../../../utils";
+import { BytesEmpty, getCurrentTimestamp, getRandomBytes, s } from "../../../../utils";
 
 import OpenSeaMerkleValidatorAbi from "../../../abis/OpenSeaMerkleValidator.json";
 
@@ -80,10 +75,7 @@ export class SingleTokenErc1155BuilderV2 extends BaseBuilder {
     try {
       const iface = new Interface(OpenSeaMerkleValidatorAbi);
 
-      const result = iface.decodeFunctionData(
-        "matchERC1155UsingCriteria",
-        order.params.calldata
-      );
+      const result = iface.decodeFunctionData("matchERC1155UsingCriteria", order.params.calldata);
       const contract = result.token.toString().toLowerCase();
       const tokenId = result.tokenId.toString().toLowerCase();
 
@@ -184,15 +176,7 @@ export class SingleTokenErc1155BuilderV2 extends BaseBuilder {
         howToCall: Types.OrderHowToCall.DELEGATE_CALL,
         calldata: new Interface(OpenSeaMerkleValidatorAbi).encodeFunctionData(
           "matchERC1155UsingCriteria",
-          [
-            params.maker,
-            AddressZero,
-            params.contract,
-            params.tokenId,
-            1,
-            HashZero,
-            [],
-          ]
+          [params.maker, AddressZero, params.contract, params.tokenId, 1, HashZero, []]
         ),
         replacementPattern: REPLACEMENT_PATTERN_SELL,
         staticTarget: AddressZero,
@@ -213,11 +197,7 @@ export class SingleTokenErc1155BuilderV2 extends BaseBuilder {
     }
   }
 
-  public buildMatching(
-    order: Order,
-    taker: string,
-    data: { nonce: string; recipient?: string }
-  ) {
+  public buildMatching(order: Order, taker: string, data: { nonce: string; recipient?: string }) {
     const info = this.getInfo(order);
     if (!info) {
       throw new Error("Invalid order");

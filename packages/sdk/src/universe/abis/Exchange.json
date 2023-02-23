@@ -706,9 +706,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "daoFee", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "daoFee", "type": "uint256" }],
     "name": "setDaoFee",
     "outputs": [],
     "stateMutability": "nonpayable",

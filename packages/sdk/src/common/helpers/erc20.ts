@@ -1,7 +1,4 @@
-import {
-  Provider,
-  TransactionResponse,
-} from "@ethersproject/abstract-provider";
+import { Provider, TransactionResponse } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
 import { BigNumberish, BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
@@ -14,7 +11,7 @@ export class Erc20 {
   public contract: Contract;
 
   constructor(provider: Provider, address: string) {
-    this.contract = new Contract(address, Erc20Abi as any, provider);
+    this.contract = new Contract(address, Erc20Abi, provider);
   }
 
   public async transfer(
@@ -25,15 +22,8 @@ export class Erc20 {
     return this.contract.connect(from).transfer(to, amount);
   }
 
-  public transferTransaction(
-    from: string,
-    to: string,
-    amount: BigNumberish
-  ): TxData {
-    const data = this.contract.interface.encodeFunctionData("transfer", [
-      to,
-      amount,
-    ]);
+  public transferTransaction(from: string, to: string, amount: BigNumberish): TxData {
+    const data = this.contract.interface.encodeFunctionData("transfer", [to, amount]);
     return {
       from,
       to: this.contract.address,
@@ -54,10 +44,7 @@ export class Erc20 {
     spender: string,
     amount: BigNumberish = MaxUint256
   ): TxData {
-    const data = this.contract.interface.encodeFunctionData("approve", [
-      spender,
-      amount,
-    ]);
+    const data = this.contract.interface.encodeFunctionData("approve", [spender, amount]);
     return {
       from: approver,
       to: this.contract.address,
@@ -69,10 +56,7 @@ export class Erc20 {
     return this.contract.balanceOf(owner);
   }
 
-  public async getAllowance(
-    owner: string,
-    spender: string
-  ): Promise<BigNumber> {
+  public async getAllowance(owner: string, spender: string): Promise<BigNumber> {
     return this.contract.allowance(owner, spender);
   }
 }

@@ -43,6 +43,7 @@ export abstract class BaseBuilder {
   public abstract buildMatching(
     order: Order,
     taker: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any
   ): TakerOrderParams;
 }

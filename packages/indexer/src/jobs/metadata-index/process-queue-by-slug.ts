@@ -85,10 +85,6 @@ if (config.doBackgroundWork) {
       const metadata: any[] = [];
 
       async function processSlug(refreshTokenBySlug: RefreshTokenBySlug) {
-        if (refreshTokenBySlug.contract == "0x0e3a2a1f2146d86a604adc220b4967a898d7fe07") {
-          return;
-        }
-
         try {
           const results = await MetadataApi.getTokensMetadataBySlug(
             refreshTokenBySlug.contract,
