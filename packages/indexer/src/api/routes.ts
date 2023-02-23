@@ -935,7 +935,7 @@ export const setupRoutes = (server: Server) => {
   server.route({
     method: "GET",
     path: "/cross-posting-orders/v1",
-    options: ordersEndpoints.postSeaportOffersV1Options,
+    options: ordersEndpoints.getCrossPostingOrdersV1Options,
   });
 
   // Owners
