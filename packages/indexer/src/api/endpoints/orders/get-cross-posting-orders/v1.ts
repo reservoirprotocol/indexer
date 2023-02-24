@@ -10,9 +10,8 @@ import { buildContinuation, regex, splitContinuation } from "@/common/utils";
 const version = "v1";
 
 export const getCrossPostingOrdersV1Options: RouteOptions = {
-  description: "Cross posted orders",
-  notes:
-    "Get a list of asks (listings), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
+  description: "Cross posting orders",
+  notes: "Get a list of cross posting orders with status",
   tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
@@ -21,8 +20,8 @@ export const getCrossPostingOrdersV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      ids: Joi.alternatives(Joi.array().items(Joi.string()), Joi.string()).description(
-        "Order id(s) to search for."
+      ids: Joi.alternatives(Joi.array().items(Joi.number()), Joi.string()).description(
+        "id(s) to search for."
       ),
       continuation: Joi.string()
         .pattern(regex.base64)
@@ -39,14 +38,12 @@ export const getCrossPostingOrdersV1Options: RouteOptions = {
     schema: Joi.object({
       orders: Joi.array().items(
         Joi.object({
-          id: Joi.string().required(),
-          kind: Joi.string().required(),
+          id: Joi.number().required(),
           orderbook: Joi.string().required(),
           status: Joi.string().required(),
-          statusReason: Joi.string(),
+          statusReason: Joi.string().allow(null, ""),
           createdAt: Joi.string().required(),
           updatedAt: Joi.string().required(),
-          rawData: Joi.object().optional().allow(null),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
@@ -65,24 +62,24 @@ export const getCrossPostingOrdersV1Options: RouteOptions = {
     try {
       let baseQuery = `
         SELECT
-          orders.id,
-          orders.kind,
-          orders.orderbook,
-          orders.status,
-          orders.status_reason,
-          extract(epoch from orders.created_at) AS created_at,
-          orders.updated_at,
-          orders.raw_data
-        FROM orders
+          cross_posting_orders.id,
+          cross_posting_orders.orderbook,
+          cross_posting_orders.status,
+          cross_posting_orders.status_reason,
+          extract(epoch from cross_posting_orders.created_at) AS created_at,
+          cross_posting_orders.updated_at
+        FROM cross_posting_orders
       `;
 
       // Filters
       const conditions: string[] = [];
 
-      if (Array.isArray(query.ids)) {
-        conditions.push(`id IN ($/ids:csv/)`);
-      } else {
-        conditions.push(`id = $/ids/`);
+      if (query.ids) {
+        if (Array.isArray(query.ids)) {
+          conditions.push(`id IN ($/ids:csv/)`);
+        } else {
+          conditions.push(`id = $/ids/`);
+        }
       }
 
       if (query.continuation) {
@@ -118,14 +115,12 @@ export const getCrossPostingOrdersV1Options: RouteOptions = {
 
       const result = rawResult.map(async (r) => {
         return {
-          id: r.id,
-          kind: r.kind,
+          id: Number(r.id),
           orderbook: r.orderbook,
           status: r.status,
           statusReason: r.status_reason,
           createdAt: new Date(r.created_at * 1000).toISOString(),
           updatedAt: new Date(r.updated_at).toISOString(),
-          rawData: r.raw_data,
         };
       });
 
