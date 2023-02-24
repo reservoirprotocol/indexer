@@ -5,8 +5,9 @@ import { generateSourceBytes, getRandomBytes } from "@reservoir0x/sdk/dist/utils
 
 import { redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
-import { bn, now } from "@/common/utils";
+import { bn, fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
+import { getCollectionOpenseaFees } from "@/orderbook/orders/seaport/build/utils";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -136,10 +137,15 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
-    // OpenSea's Seaport fee recipient
-    if (totalBps < 50) {
-      options.fee.push(50 - totalBps);
-      options.feeRecipient.push("0x0000a26b00c1f0df003000390027140000faa719");
+    const openseaFees = await getCollectionOpenseaFees(
+      collection,
+      fromBuffer(collectionResult.contract),
+      totalBps
+    );
+
+    for (const [feeRecipient, feeBps] of Object.entries(openseaFees)) {
+      options.fee.push(feeBps);
+      options.feeRecipient.push(feeRecipient);
     }
   }
 

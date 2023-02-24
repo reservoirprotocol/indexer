@@ -1167,7 +1167,7 @@ export class Router {
       }
     }
 
-    // Handle Seaport V1.3 listings
+    // Handle Seaport V1.4 listings
     if (Object.keys(seaportV14Details).length) {
       const exchange = new Sdk.SeaportV14.Exchange(this.chainId);
       for (const currency of Object.keys(seaportV14Details)) {

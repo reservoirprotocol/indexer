@@ -38,7 +38,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       transport: WebSocket,
     },
     onError: async (error) => {
-      logger.warn("opensea-websocket", `network=${network}, error=${JSON.stringify(error)}`);
+      logger.warn("opensea-websocket", `network=${network}, error=${error}`);
     },
   });
 
@@ -56,6 +56,13 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     ],
     async (event) => {
       try {
+        if (
+          event.event_type === EventType.COLLECTION_OFFER ||
+          event.event_type === EventType.TRAIT_OFFER
+        ) {
+          logger.info("opensea-websocket", `${JSON.stringify(event)}`);
+        }
+
         if (await isDuplicateEvent(event)) {
           logger.debug(
             "opensea-websocket",

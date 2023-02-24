@@ -1,5 +1,6 @@
 import { Interface } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
+import { AddressZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import { verifyTypedData } from "@ethersproject/wallet";
 import { AllowanceTransfer, PermitBatch, PermitDetails } from "@uniswap/permit2-sdk";
@@ -35,7 +36,7 @@ export class Handler {
     this.chainId = chainId;
     this.provider = provider;
     this.permit2Contract = new Contract(
-      Sdk.Common.Addresses.Permit2[this.chainId],
+      Sdk.Common.Addresses.Permit2[this.chainId] ?? AddressZero,
       Permit2Abi,
       provider
     );
