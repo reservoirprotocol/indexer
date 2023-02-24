@@ -117,7 +117,8 @@ if (config.doBackgroundWork) {
           }
 
           // Refresh any dynamic token set
-          {
+          const cacheKey = `refresh-collection-non-flagged-token-set:${collection.id}`;
+          if (!(await redis.get(cacheKey))) {
             const tokenSet = await tokenSets.dynamicCollectionNonFlagged.get({
               collection: collection.id,
             });
@@ -131,12 +132,14 @@ if (config.doBackgroundWork) {
               }
             );
             if (tokenSetResult) {
-              await tokenSets.dynamicCollectionNonFlagged.update(
+              await tokenSets.dynamicCollectionNonFlagged.save(
                 { collection: collection.id },
-                { contract, tokenId },
-                "add"
+                undefined,
+                true
               );
             }
+
+            await redis.set(cacheKey, "locked", "EX", 10 * 60);
           }
 
           await idb.none(pgp.helpers.concat(queries));
