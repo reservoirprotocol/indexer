@@ -29,7 +29,7 @@ const internalGetTokenSet = (metadata: Metadata) => {
   return tokenSet;
 };
 
-export const get = async (metadata: Metadata): Promise<TokenSet & { merkleRoot: string }> => {
+export const get = async (metadata: Metadata): Promise<TokenSet & { merkleRoot?: string }> => {
   const tokenSet = internalGetTokenSet(metadata);
   return {
     ...tokenSet,
@@ -37,7 +37,7 @@ export const get = async (metadata: Metadata): Promise<TokenSet & { merkleRoot: 
       .oneOrNone(
         `
           SELECT
-            token_sets.metadata
+            coalesce(token_sets.metadata, '{}') AS metadata
           FROM token_sets
           WHERE token_sets.id = $/id/
             AND token_sets.schema_hash = $/schemaHash/
@@ -47,13 +47,14 @@ export const get = async (metadata: Metadata): Promise<TokenSet & { merkleRoot: 
           schemaHash: toBuffer(tokenSet.schemaHash),
         }
       )
-      .then(({ metadata }) => metadata.merkleRoot),
+      .then((result) => result?.metadata.merkleRoot),
   };
 };
 
 export const save = async (
   metadata: Metadata,
-  checkAgainstMerkleRoot?: string
+  checkAgainstMerkleRoot?: string,
+  forceRefresh?: boolean
 ): Promise<TokenSet | undefined> => {
   const tokenSet = internalGetTokenSet(metadata);
 
@@ -61,7 +62,7 @@ export const save = async (
   const tokenSetResult = await idb.oneOrNone(
     `
       SELECT
-        token_sets.metadata
+        coalesce(token_sets.metadata, '{}') AS metadata
       FROM token_sets
       JOIN token_sets_tokens
         ON token_sets.id = token_sets_tokens.token_set_id
@@ -72,7 +73,7 @@ export const save = async (
       id: tokenSet.id,
     }
   );
-  if (tokenSetResult) {
+  if (tokenSetResult && !forceRefresh) {
     // If specified, check the current token set's merkle root
     if (checkAgainstMerkleRoot && tokenSetResult.metadata.merkleRoot !== checkAgainstMerkleRoot) {
       return undefined;
@@ -133,7 +134,9 @@ export const save = async (
           $/collection/,
           $/metadata:json/
         )
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (id, schema_hash)
+        DO UPDATE SET
+          metadata = $/metadata:json/
       `,
       values: {
         id: tokenSet.id,
@@ -199,7 +202,7 @@ export const update = async (
             $/id/,
             $/contract/,
             $/tokenId/
-          )
+          ) ON CONFLICT DO NOTHING
         `,
         {
           id: tokenSet.id,

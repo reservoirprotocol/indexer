@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Queue, QueueScheduler, Worker } from "bullmq";
+import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
@@ -38,10 +38,11 @@ async function addToTokenRefreshQueueAndUpdateCollectionMetadata(
   method: string,
   refreshTokenBySlug: RefreshTokenBySlug
 ) {
-  logger.warn(
+  logger.info(
     QUEUE_NAME,
-    `Method=${method}. Metadata list is empty on collection slug ${refreshTokenBySlug.slug}. Slug might be missing or might be wrong, so pushing message to the following queues to update collection metadata and token metadata: ${metadataIndexFetch.QUEUE_NAME}, ${collectionUpdatesMetadata.QUEUE_NAME}`
+    `Fallback. method=${method}, refreshTokenBySlug=${JSON.stringify(refreshTokenBySlug)}`
   );
+
   const tokenId = await Tokens.getSingleToken(refreshTokenBySlug.collection);
   await Promise.all([
     metadataIndexFetch.addToQueue(
@@ -64,7 +65,7 @@ async function addToTokenRefreshQueueAndUpdateCollectionMetadata(
 if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
-    async () => {
+    async (job: Job) => {
       const method = "opensea";
       const count = 1; // Default number of tokens to fetch
       let retry = false;
@@ -92,11 +93,8 @@ if (config.doBackgroundWork) {
             method,
             refreshTokenBySlug.continuation
           );
-          logger.debug(
-            QUEUE_NAME,
-            `Slug: ${refreshTokenBySlug.slug}, metadata length: ${results.metadata.length}, continuation: ${results.continuation}`
-          );
           if (results.metadata.length === 0) {
+            //  Slug might be missing or might be wrong.
             await addToTokenRefreshQueueAndUpdateCollectionMetadata(method, refreshTokenBySlug);
             return;
           }
@@ -117,7 +115,9 @@ if (config.doBackgroundWork) {
           if (error.response?.status === 429) {
             logger.warn(
               QUEUE_NAME,
-              `Too Many Requests. method=${method}, error=${JSON.stringify(error.response.data)}`
+              `Too Many Requests. jobId=${job.id}, method=${method}, error=${JSON.stringify(
+                error.response.data
+              )}`
             );
 
             rateLimitExpiredIn = Math.max(rateLimitExpiredIn, error.response.data.expires_in, 5);
@@ -126,7 +126,9 @@ if (config.doBackgroundWork) {
           } else {
             logger.error(
               QUEUE_NAME,
-              `Error. method=${method}, error=${JSON.stringify(error.response.data)}`
+              `Error. jobId=${job.id}, method=${method}, refreshTokenBySlug=${JSON.stringify(
+                refreshTokenBySlug
+              )}, error=${JSON.stringify(error.response.data)}`
             );
             await metadataIndexFetch.addToQueue(
               [
@@ -152,11 +154,9 @@ if (config.doBackgroundWork) {
 
       logger.info(
         QUEUE_NAME,
-        `Debug. method=${method}, metadata=${
-          metadata.length
-        }, rateLimitExpiredIn=${rateLimitExpiredIn}, slug collections: ${JSON.stringify(
+        `Debug. jobId=${job.id}, method=${method}, refreshTokensBySlug=${JSON.stringify(
           refreshTokensBySlug
-        )}`
+        )}, metadata=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`
       );
 
       await metadataIndexWrite.addToQueue(
@@ -168,6 +168,15 @@ if (config.doBackgroundWork) {
       // If there are potentially more tokens to process trigger another job
       if (rateLimitExpiredIn || _.size(refreshTokensBySlug) == countTotal || retry) {
         if (await extendLock(getLockName(method), 60 * 5 + rateLimitExpiredIn)) {
+          logger.info(
+            QUEUE_NAME,
+            `Debug. jobId=${job.id}, method=${method}, refreshTokensBySlugSize=${_.size(
+              refreshTokensBySlug
+            )}, metadata=${
+              metadata.length
+            }, rateLimitExpiredIn=${rateLimitExpiredIn}, retry=${retry}, countTotal=${countTotal}`
+          );
+
           await addToQueue(rateLimitExpiredIn * 1000);
         }
       } else {
