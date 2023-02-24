@@ -111,13 +111,18 @@ export const postOrderV4Options: RouteOptions = {
         }
       }
 
-      const results: { message: string; orderIndex: number; orderId?: string }[] = [];
+      const results: {
+        message: string;
+        orderIndex: number;
+        orderId?: string;
+        crossPostingOrderId?: number;
+      }[] = [];
       await Promise.all(
         items.map(async (item, i) => {
           const source = payload.source;
           const order = item.order;
           const orderbook = item.orderbook;
-          const orderbookApiKey = item.orderbookApiKey ?? null;
+          const orderbookApiKey = item.orderbookApiKey;
           const bulkData = item.bulkData;
 
           // We'll always have only one of the below cases:
@@ -230,11 +235,13 @@ export const postOrderV4Options: RouteOptions = {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
+              let crossPostingOrder;
+
               const orderId = new Sdk.Seaport.Order(config.chainId, order.data).hash();
 
               if (orderbook === "opensea") {
-                const orderSaved = await crossPostingOrdersModel.saveOrder({
-                  id: orderId,
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
                   kind: order.kind,
                   orderbook,
                   source,
@@ -242,17 +249,16 @@ export const postOrderV4Options: RouteOptions = {
                   rawData: order.data,
                 } as crossPostingOrdersModel.CrossPostingOrder);
 
-                if (orderSaved) {
-                  await postOrderExternal.addToQueue(
-                    orderId,
-                    order.data,
-                    orderbook,
-                    orderbookApiKey
-                  );
-                }
+                await postOrderExternal.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: order.data,
+                  orderbook,
+                  orderbookApiKey,
+                });
               } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
-                const orderSaved = await crossPostingOrdersModel.saveOrder({
-                  id: orderId,
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
                   kind: order.kind,
                   orderbook: "opensea",
                   source,
@@ -260,14 +266,13 @@ export const postOrderV4Options: RouteOptions = {
                   rawData: order.data,
                 } as crossPostingOrdersModel.CrossPostingOrder);
 
-                if (orderSaved) {
-                  await postOrderExternal.addToQueue(
-                    orderId,
-                    order.data,
-                    "opensea",
-                    config.forwardOpenseaApiKey
-                  );
-                }
+                await postOrderExternal.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: order.data,
+                  orderbook: "opensea",
+                  orderbookApiKey: config.forwardOpenseaApiKey,
+                });
               } else {
                 const [result] = await orders.seaport.save([
                   {
@@ -286,7 +291,12 @@ export const postOrderV4Options: RouteOptions = {
                 }
               }
 
-              return results.push({ message: "success", orderIndex: i, orderId });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder?.id,
+              });
             }
 
             case "seaport-v1.4": {
@@ -294,11 +304,13 @@ export const postOrderV4Options: RouteOptions = {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
+              let crossPostingOrder;
+
               const orderId = new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
 
               if (orderbook === "opensea") {
-                const orderSaved = await crossPostingOrdersModel.saveOrder({
-                  id: orderId,
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
                   kind: order.kind,
                   orderbook,
                   source,
@@ -306,17 +318,16 @@ export const postOrderV4Options: RouteOptions = {
                   rawData: order.data,
                 } as crossPostingOrdersModel.CrossPostingOrder);
 
-                if (orderSaved) {
-                  await postOrderExternal.addToQueue(
-                    orderId,
-                    order.data,
-                    orderbook,
-                    orderbookApiKey
-                  );
-                }
+                await postOrderExternal.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: order.data,
+                  orderbook,
+                  orderbookApiKey,
+                });
               } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
-                const orderSaved = await crossPostingOrdersModel.saveOrder({
-                  id: orderId,
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
                   kind: order.kind,
                   orderbook: "opensea",
                   source,
@@ -324,14 +335,13 @@ export const postOrderV4Options: RouteOptions = {
                   rawData: order.data,
                 } as crossPostingOrdersModel.CrossPostingOrder);
 
-                if (orderSaved) {
-                  await postOrderExternal.addToQueue(
-                    orderId,
-                    order.data,
-                    "opensea",
-                    config.forwardOpenseaApiKey
-                  );
-                }
+                await postOrderExternal.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: order.data,
+                  orderbook: "opensea",
+                  orderbookApiKey: config.forwardOpenseaApiKey,
+                });
               } else {
                 const [result] = await orders.seaportV14.save([
                   {
@@ -350,7 +360,12 @@ export const postOrderV4Options: RouteOptions = {
                 }
               }
 
-              return results.push({ message: "success", orderIndex: i, orderId });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder?.id,
+              });
             }
 
             case "looks-rare": {
@@ -358,11 +373,13 @@ export const postOrderV4Options: RouteOptions = {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
+              let crossPostingOrder;
+
               const orderId = new Sdk.LooksRare.Order(config.chainId, order.data).hash();
 
               if (orderbook === "looks-rare") {
-                const orderSaved = await crossPostingOrdersModel.saveOrder({
-                  id: orderId,
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
                   kind: order.kind,
                   orderbook,
                   source,
@@ -370,14 +387,13 @@ export const postOrderV4Options: RouteOptions = {
                   rawData: order.data,
                 } as crossPostingOrdersModel.CrossPostingOrder);
 
-                if (orderSaved) {
-                  await postOrderExternal.addToQueue(
-                    orderId,
-                    order.data,
-                    orderbook,
-                    orderbookApiKey
-                  );
-                }
+                await postOrderExternal.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: order.data,
+                  orderbook,
+                  orderbookApiKey,
+                });
               } else {
                 const [result] = await orders.looksRare.save([
                   {
@@ -394,13 +410,20 @@ export const postOrderV4Options: RouteOptions = {
                 }
               }
 
-              return results.push({ message: "success", orderIndex: i, orderId });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder?.id,
+              });
             }
 
             case "x2y2": {
               if (!["x2y2", "reservoir"].includes(orderbook)) {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
+
+              let crossPostingOrder;
 
               const orderId = new Sdk.X2Y2.Order(config.chainId, order.data).params.itemHash;
 
@@ -409,8 +432,8 @@ export const postOrderV4Options: RouteOptions = {
                 // unless their backend has processed them first. So we just need to be
                 // patient until the relayer acknowledges the order (via X2Y2's server)
                 // before us being able to ingest it.
-                const orderSaved = await crossPostingOrdersModel.saveOrder({
-                  id: orderId,
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
                   kind: order.kind,
                   orderbook,
                   source,
@@ -418,14 +441,13 @@ export const postOrderV4Options: RouteOptions = {
                   rawData: order.data,
                 } as crossPostingOrdersModel.CrossPostingOrder);
 
-                if (orderSaved) {
-                  await postOrderExternal.addToQueue(
-                    orderId,
-                    order.data,
-                    orderbook,
-                    orderbookApiKey
-                  );
-                }
+                await postOrderExternal.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: order.data,
+                  orderbook,
+                  orderbookApiKey,
+                });
               } else {
                 const [result] = await orders.x2y2.save([
                   {
@@ -441,7 +463,12 @@ export const postOrderV4Options: RouteOptions = {
                 }
               }
 
-              return results.push({ message: "success", orderIndex: i, orderId });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder?.id,
+              });
             }
 
             case "universe": {
@@ -451,22 +478,8 @@ export const postOrderV4Options: RouteOptions = {
 
               const orderId = new Sdk.Universe.Order(config.chainId, order.data).hashOrderKey();
 
-              const [result] = await orders.universe.save([
-                {
-                  orderParams: order.data,
-                  metadata: {
-                    schema,
-                    source,
-                  },
-                },
-              ]);
-
-              if (!["success", "already-exists"].includes(result.status)) {
-                return results.push({ message: result.status, orderIndex: i, orderId });
-              }
-
-              const orderSaved = await crossPostingOrdersModel.saveOrder({
-                id: orderId,
+              const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                orderId,
                 kind: order.kind,
                 orderbook,
                 source,
@@ -474,16 +487,20 @@ export const postOrderV4Options: RouteOptions = {
                 rawData: order.data,
               } as crossPostingOrdersModel.CrossPostingOrder);
 
-              if (orderSaved) {
-                await postOrderExternal.addToQueue(
-                  result.id,
-                  order.data,
-                  orderbook,
-                  orderbookApiKey
-                );
-              }
+              await postOrderExternal.addToQueue({
+                crossPostingOrderId: crossPostingOrder.id,
+                orderId,
+                orderData: order.data,
+                orderbook: "universe",
+                orderbookApiKey,
+              });
 
-              return results.push({ message: "success", orderIndex: i, orderId });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder.id,
+              });
             }
 
             case "infinity": {
@@ -493,22 +510,8 @@ export const postOrderV4Options: RouteOptions = {
 
               const orderId = new Sdk.Infinity.Order(config.chainId, order.data).hash();
 
-              const [result] = await orders.infinity.save([
-                {
-                  orderParams: order.data,
-                  metadata: {
-                    schema,
-                    source: orderbook === "infinity" ? source : undefined,
-                  },
-                },
-              ]);
-
-              if (!["success", "already-exists"].includes(result.status)) {
-                return results.push({ message: result.status, orderIndex: i, orderId });
-              }
-
-              const orderSaved = await crossPostingOrdersModel.saveOrder({
-                id: orderId,
+              const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                orderId,
                 kind: order.kind,
                 orderbook,
                 source,
@@ -516,11 +519,20 @@ export const postOrderV4Options: RouteOptions = {
                 rawData: order.data,
               } as crossPostingOrdersModel.CrossPostingOrder);
 
-              if (orderSaved) {
-                await postOrderExternal.addToQueue(orderId, order.data, orderbook, orderbookApiKey);
-              }
+              await postOrderExternal.addToQueue({
+                crossPostingOrderId: crossPostingOrder.id,
+                orderId,
+                orderData: order.data,
+                orderbook: "infinity",
+                orderbookApiKey,
+              });
 
-              return results.push({ message: "success", orderIndex: i, orderId });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder.id,
+              });
             }
 
             case "flow": {
@@ -530,22 +542,8 @@ export const postOrderV4Options: RouteOptions = {
 
               const orderId = new Sdk.Flow.Order(config.chainId, order.data).hash();
 
-              const [result] = await orders.flow.save([
-                {
-                  orderParams: order.data,
-                  metadata: {
-                    schema,
-                    source: orderbook === "flow" ? source : undefined,
-                  },
-                },
-              ]);
-
-              if (!["success", "already-exists"].includes(result.status)) {
-                return results.push({ message: result.status, orderIndex: i, orderId });
-              }
-
-              const orderSaved = await crossPostingOrdersModel.saveOrder({
-                id: orderId,
+              const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                orderId,
                 kind: order.kind,
                 orderbook,
                 source,
@@ -553,11 +551,20 @@ export const postOrderV4Options: RouteOptions = {
                 rawData: order.data,
               } as crossPostingOrdersModel.CrossPostingOrder);
 
-              if (orderSaved) {
-                await postOrderExternal.addToQueue(orderId, order.data, orderbook, orderbookApiKey);
-              }
+              await postOrderExternal.addToQueue({
+                crossPostingOrderId: crossPostingOrder.id,
+                orderId,
+                orderData: order.data,
+                orderbook: "flow",
+                orderbookApiKey,
+              });
 
-              return results.push({ message: "success", orderIndex: i, orderId });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder.id,
+              });
             }
           }
         })

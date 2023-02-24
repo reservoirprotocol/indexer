@@ -66,7 +66,7 @@ export const postOrderV2Options: RouteOptions = {
     try {
       const order = payload.order;
       const orderbook = payload.orderbook;
-      const orderbookApiKey = payload.orderbookApiKey || null;
+      const orderbookApiKey = payload.orderbookApiKey;
       const source = payload.source;
 
       // We'll always have only one of the below cases:
@@ -174,14 +174,16 @@ export const postOrderV2Options: RouteOptions = {
             throw new Error("Unsupported orderbook");
           }
 
+          let crossPostingOrder;
+
           const orderId = new Sdk.Seaport.Order(
             config.chainId,
             order.data as Sdk.Seaport.Types.OrderComponents
           ).hash();
 
           if (orderbook === "opensea") {
-            const orderSaved = await crossPostingOrdersModel.saveOrder({
-              id: orderId,
+            crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+              orderId,
               kind: order.kind,
               orderbook,
               source,
@@ -189,9 +191,13 @@ export const postOrderV2Options: RouteOptions = {
               rawData: order.data,
             } as crossPostingOrdersModel.CrossPostingOrder);
 
-            if (orderSaved) {
-              await postOrderExternal.addToQueue(orderId, order.data, orderbook, orderbookApiKey);
-            }
+            await postOrderExternal.addToQueue({
+              crossPostingOrderId: crossPostingOrder.id,
+              orderId,
+              orderData: order.data,
+              orderbook,
+              orderbookApiKey,
+            });
           } else {
             const orderInfo: orders.seaport.OrderInfo = {
               kind: "full",
@@ -212,7 +218,7 @@ export const postOrderV2Options: RouteOptions = {
             }
           }
 
-          return { message: "Success", orderId };
+          return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder?.id };
         }
 
         case "seaport-partial": {
@@ -251,14 +257,16 @@ export const postOrderV2Options: RouteOptions = {
             throw new Error("Unsupported orderbook");
           }
 
+          let crossPostingOrder;
+
           const orderId = new Sdk.LooksRare.Order(
             config.chainId,
             order.data as Sdk.LooksRare.Types.MakerOrderParams
           ).hash();
 
           if (orderbook === "looks-rare") {
-            const orderSaved = await crossPostingOrdersModel.saveOrder({
-              id: orderId,
+            crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+              orderId,
               kind: order.kind,
               orderbook,
               source,
@@ -266,9 +274,13 @@ export const postOrderV2Options: RouteOptions = {
               rawData: order.data,
             } as crossPostingOrdersModel.CrossPostingOrder);
 
-            if (orderSaved) {
-              await postOrderExternal.addToQueue(orderId, order.data, orderbook, orderbookApiKey);
-            }
+            await postOrderExternal.addToQueue({
+              crossPostingOrderId: crossPostingOrder.id,
+              orderId,
+              orderData: order.data,
+              orderbook,
+              orderbookApiKey,
+            });
           } else {
             const orderInfo: orders.looksRare.OrderInfo = {
               orderParams: order.data,
@@ -287,7 +299,7 @@ export const postOrderV2Options: RouteOptions = {
             }
           }
 
-          return { message: "Success", orderId };
+          return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder?.id };
         }
 
         case "opensea": {

@@ -7,25 +7,26 @@ export enum CrossPostingOrderStatus {
 }
 
 export type CrossPostingOrder = {
-  id: string;
+  id?: number;
+  orderId: string;
   kind: string;
   orderbook: string;
   source: string;
   schema: unknown;
   status: CrossPostingOrderStatus;
-  status_reason: string;
+  statusReason: string;
   rawData: string;
 };
 
-export const saveOrder = async (order: CrossPostingOrder): Promise<boolean> => {
+export const saveOrder = async (order: CrossPostingOrder): Promise<{ id: number }> => {
   const columns = new pgp.helpers.ColumnSet(
-    ["id", "kind", "orderbook", "source", "schema", " status", "status_reason", "raw_data"],
+    ["order_id", "kind", "orderbook", "source", "schema", " status", "status_reason", "raw_data"],
     { table: "cross_posting_orders" }
   );
 
   const data = [
     {
-      id: order.id,
+      order_id: order.orderId,
       kind: order.kind,
       orderbook: order.orderbook,
       source: order.source,
@@ -35,22 +36,22 @@ export const saveOrder = async (order: CrossPostingOrder): Promise<boolean> => {
     },
   ];
 
-  const query = pgp.helpers.insert(data, columns) + " ON CONFLICT DO NOTHING RETURNING 1";
+  const query = pgp.helpers.insert(data, columns) + " RETURNING id";
 
-  return (await idb.oneOrNone(query)) === 1;
+  return idb.one(query);
 };
 
-export const updateOrderStatus = async (orderId: string, status: string, statusReason = "") =>
+export const updateOrderStatus = async (id: number, status: string, statusReason = "") =>
   idb.none(
     `
       UPDATE cross_posting_orders
       SET status = $/status/,
           status_reason = $/statusReason/,
           updated_at = now()
-      WHERE blocks.orderId = $/orderId/
+      WHERE id = $/id/
     `,
     {
-      orderId,
+      id,
       status,
       statusReason,
     }

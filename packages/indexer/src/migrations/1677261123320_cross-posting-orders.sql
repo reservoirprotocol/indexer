@@ -16,7 +16,8 @@ CREATE TYPE "cross_posting_order_orderbook_t" AS ENUM (
 );
 
 CREATE TABLE "cross_posting_orders" (
-  "id" TEXT NOT NULL,
+  "id" bigserial NOT NULL,
+  "order_id" TEXT,
   "kind" "order_kind_t" NOT NULL,
   "orderbook" "cross_posting_order_orderbook_t" NOT NULL,
   "source" TEXT NOT NULL,
@@ -27,10 +28,6 @@ CREATE TABLE "cross_posting_orders" (
   "created_at" TIMESTAMPTZ DEFAULT now(),
   "updated_at" TIMESTAMPTZ DEFAULT now()
 );
-
-ALTER TABLE "cross_posting_orders"
-  ADD CONSTRAINT "cross_posting_orders_pk"
-  PRIMARY KEY ("id");
 
 -- Down Migration
 
