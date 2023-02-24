@@ -88,6 +88,12 @@ export type GenericOrderInfo =
       validateBidValue?: boolean;
     }
   | {
+      kind: "seaport-v1.4";
+      info: orders.seaportV14.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
       kind: "cryptopunks";
       info: orders.cryptopunks.OrderInfo;
       relayToArweave?: boolean;

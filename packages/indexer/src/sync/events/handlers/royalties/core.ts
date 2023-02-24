@@ -75,7 +75,7 @@ export async function extractRoyalties(
     if (useCache) await redis.set(cacheKeyEvents, JSON.stringify(fillEvents), "EX", 10 * 60);
   }
 
-  // Get all related royaltly settings from the same transcation
+  // Get all related royaltly settings from the same transaction
   const allRoyaltiesDefinition = await Promise.all(
     fillEvents.map(async (_) => {
       const cacheKey = `${_.contract}:${_.tokenId}`;

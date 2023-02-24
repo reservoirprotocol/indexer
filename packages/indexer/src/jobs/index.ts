@@ -38,6 +38,7 @@ import * as backfillBlurSales from "@/jobs/backfill/backfill-blur-sales";
 import * as backfillFoundationSales from "@/jobs/backfill/backfill-foundation-sales";
 import * as backfillMints from "@/jobs/backfill/backfill-mints";
 import * as backfillRefreshCryptopunksOrders from "@/jobs/backfill/backfill-refresh-cryptopunks-orders";
+import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 import * as backfillTokensWithMissingCollection from "@/jobs/backfill/backfill-tokens-with-missing-collection";
 import * as backfillUpdateMissingMetadata from "@/jobs/backfill/backfill-update-missing-metadata";
 import * as backfillTokensLastFlagUpdate from "@/jobs/backfill/backfill-tokens-last-flag-update";
@@ -148,6 +149,7 @@ export const allJobQueues = [
   backfillFoundationSales.queue,
   backfillMints.queue,
   backfillRefreshCryptopunksOrders.queue,
+  backfillSaleRoyalties.queue,
   backfillTokensWithMissingCollection.queue,
   backfillUpdateMissingMetadata.queue,
   backfillTokensLastFlagUpdate.queue,
