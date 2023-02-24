@@ -53,8 +53,8 @@ if (config.doBackgroundWork) {
         throw new Error("Unsupported orderbook");
       }
 
-      const orderbookApiKey = job.data.orderbookApiKey || getOrderbookDefaultApiKey(orderbook);
-      const retry = job.data.retry || 0;
+      const orderbookApiKey = job.data.orderbookApiKey ?? getOrderbookDefaultApiKey(orderbook);
+      const retry = job.data.retry ?? 0;
 
       let isRateLimited = false;
       let rateLimitExpiration = 0;

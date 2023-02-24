@@ -79,7 +79,7 @@ export const postOrderV3Options: RouteOptions = {
     try {
       const order = payload.order;
       const orderbook = payload.orderbook;
-      const orderbookApiKey = payload.orderbookApiKey || null;
+      const orderbookApiKey = payload.orderbookApiKey;
       const source = payload.source;
 
       // We'll always have only one of the below cases:
