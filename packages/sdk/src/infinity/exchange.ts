@@ -71,14 +71,8 @@ export class Exchange {
   }
 
   // --- Take Multiple One Orders ---
-  public async takeMultipleOneOrders(
-    taker: Signer,
-    order: Order
-  ): Promise<ContractTransaction>;
-  public async takeMultipleOneOrders(
-    taker: Signer,
-    orders: Order[]
-  ): Promise<ContractTransaction>;
+  public async takeMultipleOneOrders(taker: Signer, order: Order): Promise<ContractTransaction>;
+  public async takeMultipleOneOrders(taker: Signer, orders: Order[]): Promise<ContractTransaction>;
   public async takeMultipleOneOrders(
     taker: Signer,
     orders: Order | Order[]
@@ -97,10 +91,9 @@ export class Exchange {
     const commonTxData = {
       from: taker,
       to: this.contract.address,
-      data: this.contract.interface.encodeFunctionData(
-        "takeMultipleOneOrders",
-        [orders.map((item) => item.getSignedOrder())]
-      ),
+      data: this.contract.interface.encodeFunctionData("takeMultipleOneOrders", [
+        orders.map((item) => item.getSignedOrder()),
+      ]),
     };
 
     if (orders[0].currency === CommonAddresses.Eth[this.chainId]) {
@@ -142,18 +135,13 @@ export class Exchange {
     return {
       from: signer,
       to: this.contract.address,
-      data: this.contract.interface.encodeFunctionData("cancelMultipleOrders", [
-        orderNonces,
-      ]),
+      data: this.contract.interface.encodeFunctionData("cancelMultipleOrders", [orderNonces]),
     };
   }
 
   // --- Cancel All Orders ---
 
-  public async cancelAllOrders(
-    signer: Signer,
-    minNonce: string
-  ): Promise<ContractTransaction> {
+  public async cancelAllOrders(signer: Signer, minNonce: string): Promise<ContractTransaction> {
     const signerAddress = lc(await signer.getAddress());
     const tx = this.cancelAllOrdersTx(signerAddress, minNonce);
     return signer.sendTransaction(tx);
@@ -163,23 +151,17 @@ export class Exchange {
     return {
       from: signer,
       to: this.contract.address,
-      data: this.contract.interface.encodeFunctionData("cancelAllOrders", [
-        minNonce,
-      ]),
+      data: this.contract.interface.encodeFunctionData("cancelAllOrders", [minNonce]),
     };
   }
 
   protected checkOrders(taker: string, orders: Order[]) {
-    const sameSide = orders.every(
-      (order) => order.isSellOrder === orders[0].isSellOrder
-    );
+    const sameSide = orders.every((order) => order.isSellOrder === orders[0].isSellOrder);
     if (!sameSide) {
       throw new Error("All orders must be of the same side");
     }
 
-    const sameCurrency = orders.every(
-      (order) => order.currency === orders[0].currency
-    );
+    const sameCurrency = orders.every((order) => order.currency === orders[0].currency);
     if (!sameCurrency) {
       throw new Error("All orders must be of the same currency");
     }

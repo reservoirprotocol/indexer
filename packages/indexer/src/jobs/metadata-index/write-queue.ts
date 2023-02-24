@@ -18,6 +18,8 @@ import * as flagStatusUpdate from "@/jobs/flag-status/update";
 import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
 import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
+import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute-counts";
+import PgPromise from "pg-promise";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -134,55 +136,70 @@ if (config.doBackgroundWork) {
           },
         ]);
 
+        // Fetch all existing keys
         const addedTokenAttributes = [];
         const attributeIds = [];
+        const attributeKeysIds = await redb.manyOrNone(
+          `
+            SELECT key, id
+            FROM attribute_keys
+            WHERE collection_id = $/collection/
+            AND key IN ('${_.join(
+              _.map(attributes, (a) => PgPromise.as.value(a.key)),
+              "','"
+            )}')
+          `,
+          { collection }
+        );
+
+        const attributeKeysIdsMap = new Map(_.map(attributeKeysIds, (a) => [a.key, a.id]));
 
         // Token attributes
         for (const { key, value, kind, rank } of attributes) {
-          // Try to update the attribute keys, if number type update range as well and return the ID
-          let infoUpdate = "info"; // By default no update to the info
-          if (kind == "number") {
-            infoUpdate = `
-            CASE WHEN info IS NULL THEN 
-                  jsonb_object(array['min_range', 'max_range'], array[$/value/, $/value/]::text[])
-                ELSE
-                  info || jsonb_object(array['min_range', 'max_range'], array[
-                        CASE
-                            WHEN (info->>'min_range')::numeric > $/value/::numeric THEN $/value/::numeric
-                            ELSE (info->>'min_range')::numeric
-                        END,
-                        CASE
-                            WHEN (info->>'max_range')::numeric < $/value/::numeric THEN $/value/::numeric
-                            ELSE (info->>'max_range')::numeric
-                        END
-                  ]::text[])
-            END
+          if (attributeKeysIdsMap.has(key) && kind == "number") {
+            // If number type try to update range as well and return the ID
+            const infoUpdate = `
+              CASE WHEN info IS NULL THEN 
+                    jsonb_object(array['min_range', 'max_range'], array[$/value/, $/value/]::text[])
+                  ELSE
+                    info || jsonb_object(array['min_range', 'max_range'], array[
+                          CASE
+                              WHEN (info->>'min_range')::numeric > $/value/::numeric THEN $/value/::numeric
+                              ELSE (info->>'min_range')::numeric
+                          END,
+                          CASE
+                              WHEN (info->>'max_range')::numeric < $/value/::numeric THEN $/value/::numeric
+                              ELSE (info->>'max_range')::numeric
+                          END
+                    ]::text[])
+              END
             `;
+
+            await idb.oneOrNone(
+              `
+                UPDATE attribute_keys
+                SET info = ${infoUpdate}
+                WHERE collection_id = $/collection/
+                AND key = $/key/
+                RETURNING id
+              `,
+              {
+                collection,
+                key: String(key),
+                value,
+              }
+            );
           }
 
-          let attributeKeyResult = await idb.oneOrNone(
-            `
-              UPDATE attribute_keys
-              SET info = ${infoUpdate}
-              WHERE collection_id = $/collection/
-              AND key = $/key/
-              RETURNING id
-            `,
-            {
-              collection,
-              key: String(key),
-              value,
-            }
-          );
-
-          if (!attributeKeyResult?.id) {
+          // This is a new key, insert it and return the ID
+          if (!attributeKeysIdsMap.has(key)) {
             let info = null;
             if (kind == "number") {
               info = { min_range: Number(value), max_range: Number(value) };
             }
 
             // If no attribute key is available, then save it and refetch
-            attributeKeyResult = await idb.oneOrNone(
+            const attributeKeyResult = await idb.oneOrNone(
               `
                 INSERT INTO "attribute_keys" (
                   "collection_id",
@@ -208,11 +225,14 @@ if (config.doBackgroundWork) {
                 info,
               }
             );
-          }
 
-          if (!attributeKeyResult?.id) {
-            // Otherwise, fail (and retry)
-            throw new Error(`Could not fetch/save attribute key "${key}"`);
+            if (!attributeKeyResult?.id) {
+              // Otherwise, fail (and retry)
+              throw new Error(`Could not fetch/save attribute key "${key}"`);
+            }
+
+            // Add the new key and id to the map
+            attributeKeysIdsMap.set(key, attributeKeyResult.id);
           }
 
           // Fetch the attribute from the database (will succeed in the common case)
@@ -224,7 +244,7 @@ if (config.doBackgroundWork) {
               AND value = $/value/
             `,
             {
-              attributeKeyId: attributeKeyResult.id,
+              attributeKeyId: attributeKeysIdsMap.get(key),
               value: String(value),
             }
           );
@@ -261,7 +281,7 @@ if (config.doBackgroundWork) {
                 RETURNING (SELECT x.id FROM "x"), "attribute_count"
               `,
               {
-                attributeKeyId: attributeKeyResult.id,
+                attributeKeyId: attributeKeysIdsMap.get(key),
                 value: String(value),
                 collection,
                 kind,
@@ -369,24 +389,8 @@ if (config.doBackgroundWork) {
           await rarityQueue.addToQueue(collection); // Recalculate the collection rarity
         }
 
-        // Update the attributes token count
-        const replacementParams = {};
-        let updateCountsString = "";
-
-        _.forEach(tokenAttributeCounter, (count, attributeId) => {
-          (replacementParams as any)[`${attributeId}`] = count;
-          updateCountsString += `(${attributeId}, $/${attributeId}/),`;
-        });
-
-        updateCountsString = _.trimEnd(updateCountsString, ",");
-
-        if (updateCountsString !== "") {
-          const updateQuery = `UPDATE attributes
-                             SET token_count = token_count + x.countColumn
-                             FROM (VALUES ${updateCountsString}) AS x(idColumn, countColumn)
-                             WHERE x.idColumn = attributes.id`;
-
-          await idb.none(updateQuery, replacementParams);
+        if (!_.isEmpty(tokenAttributeCounter)) {
+          await updateAttributeCounts.addToQueue(tokenAttributeCounter);
         }
 
         // Mark the token as having metadata indexed.

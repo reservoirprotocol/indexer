@@ -122,6 +122,9 @@ export const getExecuteBidV4Options: RouteOptions = {
           automatedRoyalties: Joi.boolean()
             .default(true)
             .description("If true, royalties will be automatically included."),
+          royaltyBps: Joi.number().description(
+            "The royalty percentage to pay. Only relevant when using automated royalties."
+          ),
           fees: Joi.array()
             .items(Joi.string().pattern(regex.fee))
             .description(
@@ -767,9 +770,6 @@ export const getExecuteBidV4Options: RouteOptions = {
             }
             if (params.fees?.length) {
               throw Boom.badRequest("X2Y2 does not support explicit fees");
-            }
-            if (params.excludeFlaggedTokens) {
-              throw Boom.badRequest("X2Y2 does not support token-list bids");
             }
 
             let order: Sdk.X2Y2.Types.LocalOrder | undefined;

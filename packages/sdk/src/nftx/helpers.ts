@@ -18,14 +18,13 @@ export const getPoolFeatures = async (address: string, provider: Provider) => {
   ]);
 
   const vault = new Contract(address, iface, provider);
-  const [assetAddress, is1155, allowAllItems, enableMint, enableTargetRedeem] =
-    await Promise.all([
-      vault.assetAddress(),
-      vault.is1155(),
-      vault.allowAllItems(),
-      vault.enableMint(),
-      vault.enableTargetRedeem(),
-    ]);
+  const [assetAddress, is1155, allowAllItems, enableMint, enableTargetRedeem] = await Promise.all([
+    vault.assetAddress(),
+    vault.is1155(),
+    vault.allowAllItems(),
+    vault.enableMint(),
+    vault.enableTargetRedeem(),
+  ]);
 
   return {
     assetAddress: assetAddress.toLowerCase(),
@@ -99,9 +98,7 @@ export const getPoolPrice = async (
 
 export const getPoolNFTs = async (vault: string, provider: Provider) => {
   const tokenIds: string[] = [];
-  const iface = new Interface([
-    "function allHoldings() view returns (uint256[] memory)",
-  ]);
+  const iface = new Interface(["function allHoldings() view returns (uint256[] memory)"]);
 
   const factory = new Contract(vault, iface, provider);
   try {
@@ -123,10 +120,7 @@ export const getPoolFees = async (address: string, provider: Provider) => {
   ]);
 
   const vault = new Contract(address, iface, provider);
-  const [mintFee, redeemFee] = await Promise.all([
-    vault.mintFee(),
-    vault.targetRedeemFee(),
-  ]);
+  const [mintFee, redeemFee] = await Promise.all([vault.mintFee(), vault.targetRedeemFee()]);
 
   return {
     mintFee: mintFee.toString(),

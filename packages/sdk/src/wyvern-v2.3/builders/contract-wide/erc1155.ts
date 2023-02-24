@@ -88,10 +88,13 @@ export class ContractWideErc1155Builder extends BaseBuilder {
         saleKind,
         target: params.contract,
         howToCall: Types.OrderHowToCall.CALL,
-        calldata: new Interface(Erc1155Abi).encodeFunctionData(
-          "safeTransferFrom",
-          [AddressZero, params.recipient ?? params.maker, 0, 1, "0x"]
-        ),
+        calldata: new Interface(Erc1155Abi).encodeFunctionData("safeTransferFrom", [
+          AddressZero,
+          params.recipient ?? params.maker,
+          0,
+          1,
+          "0x",
+        ]),
         replacementPattern: REPLACEMENT_PATTERN_BUY,
         staticTarget: AddressZero,
         staticExtradata: "0x",

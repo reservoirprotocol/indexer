@@ -16,8 +16,7 @@ export class SingleTokenBuilder extends BaseBuilder {
       const params = order.params as Types.BaseOrder;
       const copyOrder = this.build({
         ...params,
-        direction:
-          params.direction === Types.TradeDirection.SELL ? "sell" : "buy",
+        direction: params.direction === Types.TradeDirection.SELL ? "sell" : "buy",
         contract: params.nft,
         maker: params.maker,
         paymentToken: params.erc20Token,
@@ -45,10 +44,7 @@ export class SingleTokenBuilder extends BaseBuilder {
 
     return new Order(this.chainId, {
       kind: params.amount ? "erc1155-single-token" : "erc721-single-token",
-      direction:
-        params.direction === "sell"
-          ? Types.TradeDirection.SELL
-          : Types.TradeDirection.BUY,
+      direction: params.direction === "sell" ? Types.TradeDirection.SELL : Types.TradeDirection.BUY,
       maker: params.maker,
       taker: AddressZero,
       expiry: s(params.expiry)!,

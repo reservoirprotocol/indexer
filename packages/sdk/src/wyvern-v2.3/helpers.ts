@@ -1,7 +1,4 @@
-import {
-  Provider,
-  TransactionResponse,
-} from "@ethersproject/abstract-provider";
+import { Provider, TransactionResponse } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
 import { Contract } from "@ethersproject/contracts";
 
@@ -25,11 +22,7 @@ export class ProxyRegistry {
    * @param chainId The chain ID for the Ethereum network to be used. For example, 1 for Ethereum Mainnet and 4 for Rinkeby Testnet.
    */
   constructor(provider: Provider, chainId: number) {
-    this.contract = new Contract(
-      Addresses.ProxyRegistry[chainId],
-      ProxyRegistryAbi as any,
-      provider
-    );
+    this.contract = new Contract(Addresses.ProxyRegistry[chainId], ProxyRegistryAbi, provider);
   }
 
   /**

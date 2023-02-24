@@ -1,19 +1,12 @@
 import { Provider } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
-import {
-  Contract,
-  ContractTransaction,
-  PopulatedTransaction,
-} from "@ethersproject/contracts";
+import { Contract, ContractTransaction, PopulatedTransaction } from "@ethersproject/contracts";
 
 import * as Addresses from "./addresses";
 import { Order } from "./order";
 import * as Types from "./types";
-import {
-  encodeForContract as v2Encode,
-  encodeForMatchOrders as v1Encode,
-} from "./utils";
+import { encodeForContract as v2Encode, encodeForMatchOrders as v1Encode } from "./utils";
 import { TxData, generateSourceBytes } from "../utils";
 
 import ExchangeAbi from "./abis/Exchange.json";
@@ -24,10 +17,7 @@ export class Exchange {
 
   constructor(chainId: number) {
     this.chainId = chainId;
-    this.contract = new Contract(
-      Addresses.Exchange[this.chainId],
-      ExchangeAbi as any
-    );
+    this.contract = new Contract(Addresses.Exchange[this.chainId], ExchangeAbi);
   }
 
   // --- Fill order ---
@@ -42,11 +32,7 @@ export class Exchange {
       source?: string;
     }
   ): Promise<ContractTransaction> {
-    const tx = await this.fillOrderTx(
-      await taker.getAddress(),
-      makerOrder,
-      options
-    );
+    const tx = await this.fillOrderTx(await taker.getAddress(), makerOrder, options);
     return taker.sendTransaction(tx);
   }
 
@@ -71,8 +57,7 @@ export class Exchange {
     //TODO: We can refactor this in the future to use directAcceptBid function to cost less gass
     if (
       side === "buy" &&
-      makerOrder.params.take.assetType.assetClass ===
-        Types.AssetClass.COLLECTION
+      makerOrder.params.take.assetType.assetClass === Types.AssetClass.COLLECTION
     ) {
       result = await this.contract.populateTransaction.matchOrders(
         v1Encode(makerOrder.params),
@@ -86,27 +71,20 @@ export class Exchange {
       );
     } else if (
       side === "buy" &&
-      (makerOrder.params.take.assetType.assetClass ===
-        Types.AssetClass.ERC1155 ||
+      (makerOrder.params.take.assetType.assetClass === Types.AssetClass.ERC1155 ||
         makerOrder.params.take.assetType.assetClass === Types.AssetClass.ERC721)
     ) {
       const encodedOrder = v2Encode(makerOrder.params, takerOrderParams);
-      result = await this.contract.populateTransaction.directAcceptBid(
-        encodedOrder,
-        {
-          from: taker,
-          value: value.toString(),
-        }
-      );
+      result = await this.contract.populateTransaction.directAcceptBid(encodedOrder, {
+        from: taker,
+        value: value.toString(),
+      });
     } else if (side === "sell") {
       const encodedOrder = v2Encode(makerOrder.params, takerOrderParams);
-      result = await this.contract.populateTransaction.directPurchase(
-        encodedOrder,
-        {
-          from: taker,
-          value: value.toString(),
-        }
-      );
+      result = await this.contract.populateTransaction.directPurchase(encodedOrder, {
+        from: taker,
+        value: value.toString(),
+      });
     } else {
       throw Error("Unknown order side");
     }
@@ -136,17 +114,15 @@ export class Exchange {
 
   // --- Cancel order ---
 
-  public async cancelOrder(
-    maker: Signer,
-    order: Order
-  ): Promise<ContractTransaction> {
+  public async cancelOrder(maker: Signer, order: Order): Promise<ContractTransaction> {
     const tx = await this.cancelOrderTx(order.params);
     return maker.sendTransaction(tx);
   }
 
   public async cancelOrderTx(orderParams: Types.Order): Promise<TxData> {
-    const { from, to, data, value } =
-      await this.contract.populateTransaction.cancel(v1Encode(orderParams));
+    const { from, to, data, value } = await this.contract.populateTransaction.cancel(
+      v1Encode(orderParams)
+    );
 
     return {
       from: from!,
@@ -160,10 +136,7 @@ export class Exchange {
    * Get the fill amount of a specifc order
    * @returns uint256 order fill
    */
-  public async getOrderFill(
-    provider: Provider,
-    order: Order
-  ): Promise<BigNumberish> {
+  public async getOrderFill(provider: Provider, order: Order): Promise<BigNumberish> {
     const hash = order.hashOrderKey();
     return this.contract.connect(provider).fills(hash);
   }

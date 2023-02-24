@@ -6,14 +6,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrderCriteria, JoiPrice, getJoiPriceObject } from "@/common/joi";
-import {
-  buildContinuation,
-  fromBuffer,
-  now,
-  splitContinuation,
-  regex,
-  toBuffer,
-} from "@/common/utils";
+import { buildContinuation, fromBuffer, splitContinuation, regex, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Orders } from "@/utils/orders";
 
@@ -117,7 +110,8 @@ export const getBidEventsV3Options: RouteOptions = {
 
     try {
       // TODO: Backfill order fields in the bid events
-      const joinWithOrders = (query.startTimestamp ?? now()) < 1676554238;
+      // const joinWithOrders = (query.startTimestamp ?? now()) < 1676554238;
+      const joinWithOrders = true;
       const t = joinWithOrders ? "orders" : "bid_events";
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery(

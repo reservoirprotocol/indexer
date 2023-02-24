@@ -11,6 +11,7 @@ import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
+import * as Boom from "@hapi/boom";
 
 const version = "v4";
 
@@ -200,13 +201,15 @@ export const getSalesV4Options: RouteOptions = {
     }
 
     if (query.continuation) {
-      const [timestamp, logIndex, batchIndex] = splitContinuation(
-        query.continuation,
-        /^(\d+)_(\d+)_(\d+)$/
-      );
-      (query as any).timestamp = timestamp;
-      (query as any).logIndex = logIndex;
-      (query as any).batchIndex = batchIndex;
+      const contArr = splitContinuation(query.continuation, /^(\d+)_(\d+)_(\d+)$/);
+
+      if (contArr.length !== 3) {
+        throw Boom.badRequest("Invalid continuation string used");
+      }
+
+      (query as any).timestamp = contArr[0];
+      (query as any).logIndex = contArr[1];
+      (query as any).batchIndex = contArr[2];
 
       paginationFilter = `
         AND (fill_events_2.timestamp, fill_events_2.log_index, fill_events_2.batch_index) < ($/timestamp/, $/logIndex/, $/batchIndex/)

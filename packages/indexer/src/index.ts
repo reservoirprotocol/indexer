@@ -2,6 +2,7 @@ import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
 import "@/common/tracer";
+import "@/config/polyfills";
 import "@/jobs/index";
 import "@/pubsub/index";
 import "@/websockets/index";

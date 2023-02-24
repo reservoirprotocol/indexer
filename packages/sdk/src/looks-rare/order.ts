@@ -42,20 +42,12 @@ export class Order {
   }
 
   public hash() {
-    return _TypedDataEncoder.hashStruct(
-      "MakerOrder",
-      EIP712_TYPES,
-      this.params
-    );
+    return _TypedDataEncoder.hashStruct("MakerOrder", EIP712_TYPES, this.params);
   }
 
   public async sign(signer: TypedDataSigner) {
     const { v, r, s } = splitSignature(
-      await signer._signTypedData(
-        EIP712_DOMAIN(this.chainId),
-        EIP712_TYPES,
-        this.params
-      )
+      await signer._signTypedData(EIP712_DOMAIN(this.chainId), EIP712_TYPES, this.params)
     );
 
     this.params = {
@@ -76,16 +68,11 @@ export class Order {
   }
 
   public checkSignature() {
-    const signer = verifyTypedData(
-      EIP712_DOMAIN(this.chainId),
-      EIP712_TYPES,
-      toRawOrder(this),
-      {
-        v: this.params.v,
-        r: this.params.r ?? "",
-        s: this.params.s ?? "",
-      }
-    );
+    const signer = verifyTypedData(EIP712_DOMAIN(this.chainId), EIP712_TYPES, toRawOrder(this), {
+      v: this.params.v,
+      r: this.params.r ?? "",
+      s: this.params.s ?? "",
+    });
 
     if (lc(this.params.signer) !== lc(signer)) {
       throw new Error("Invalid signature");
@@ -101,17 +88,12 @@ export class Order {
   public async checkFillability(provider: Provider) {
     const chainId = await provider.getNetwork().then((n) => n.chainId);
 
-    const exchange = new Contract(
-      Addresses.Exchange[this.chainId],
-      ExchangeAbi as any,
-      provider
-    );
+    const exchange = new Contract(Addresses.Exchange[this.chainId], ExchangeAbi, provider);
 
-    const executedOrCancelled =
-      await exchange.isUserOrderNonceExecutedOrCancelled(
-        this.params.signer,
-        this.params.nonce
-      );
+    const executedOrCancelled = await exchange.isUserOrderNonceExecutedOrCancelled(
+      this.params.signer,
+      this.params.nonce
+    );
     if (executedOrCancelled) {
       throw new Error("executed-or-cancelled");
     }
@@ -120,10 +102,7 @@ export class Order {
       // Detect the collection kind (erc721 or erc1155)
       let kind: string | undefined;
       if (!kind) {
-        const erc721 = new Common.Helpers.Erc721(
-          provider,
-          this.params.collection
-        );
+        const erc721 = new Common.Helpers.Erc721(provider, this.params.collection);
         if (await erc721.isValid()) {
           kind = "erc721";
 
@@ -144,18 +123,12 @@ export class Order {
         }
       }
       if (!kind) {
-        const erc1155 = new Common.Helpers.Erc1155(
-          provider,
-          this.params.collection
-        );
+        const erc1155 = new Common.Helpers.Erc1155(provider, this.params.collection);
         if (await erc1155.isValid()) {
           kind = "erc1155";
 
           // Check balance
-          const balance = await erc1155.getBalance(
-            this.params.signer,
-            this.params.tokenId
-          );
+          const balance = await erc1155.getBalance(this.params.signer, this.params.tokenId);
           if (bn(balance).lt(1)) {
             throw new Error("no-balance");
           }
@@ -184,17 +157,14 @@ export class Order {
       }
 
       // Check allowance
-      const allowance = await erc20.getAllowance(
-        this.params.signer,
-        Addresses.Exchange[chainId]
-      );
+      const allowance = await erc20.getAllowance(this.params.signer, Addresses.Exchange[chainId]);
       if (bn(allowance).lt(this.params.price)) {
         throw new Error("no-approval");
       }
     }
   }
 
-  public buildMatching(taker: string, data?: any) {
+  public buildMatching(taker: string, data?: object) {
     return this.getBuilder().buildMatching(this, taker, data);
   }
 
@@ -231,9 +201,7 @@ export class Order {
       }
     }
 
-    throw new Error(
-      "Could not detect order kind (order might have unsupported params/calldata)"
-    );
+    throw new Error("Could not detect order kind (order might have unsupported params/calldata)");
   }
 }
 
@@ -262,7 +230,7 @@ const EIP712_TYPES = {
   ],
 };
 
-const toRawOrder = (order: Order): any => ({
+const toRawOrder = (order: Order): object => ({
   ...order.params,
 });
 

@@ -48,9 +48,5 @@ if (config.doBackgroundWork) {
 }
 
 export const addToQueue = async (collection: string, delay = 60 * 1000) => {
-  if (config.chainId === 137) {
-    delay = 60 * 10 * 1000;
-  }
-
   await queue.add(collection, { collection }, { delay, jobId: collection });
 };

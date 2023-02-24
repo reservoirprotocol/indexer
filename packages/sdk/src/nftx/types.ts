@@ -5,10 +5,10 @@ export type OrderParams = {
   specificIds?: string[];
   amounts?: string[];
   amount?: string;
-  path:  string[];
+  path: string[];
   currency?: string;
   price: string;
   extra: {
     prices: string[];
-  }
+  };
 };

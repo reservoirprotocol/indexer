@@ -40,10 +40,7 @@ export class ComplicationV2 implements Complication {
     this.address = Addresses.ComplicationV2[chainId] || "";
   }
 
-  async sign(
-    signer: TypedDataSigner,
-    params: Types.InternalOrder
-  ): Promise<string> {
+  async sign(signer: TypedDataSigner, params: Types.InternalOrder): Promise<string> {
     const { type, value, domain } = this.getSignatureData(params);
     const sig = await signer._signTypedData(domain, type, value);
 
@@ -74,62 +71,37 @@ export class ComplicationV2 implements Complication {
         const signature = proofAndSignature.slice(0, signatureLength + 2);
 
         const key = bn(
-          "0x" +
-            proofAndSignature.slice(
-              2 + signatureLength,
-              2 + signatureLength + 6
-            )
+          "0x" + proofAndSignature.slice(2 + signatureLength, 2 + signatureLength + 6)
         ).toNumber();
 
-        const height = Math.floor(
-          (proofAndSignature.length - 2 - signatureLength) / 64
-        );
+        const height = Math.floor((proofAndSignature.length - 2 - signatureLength) / 64);
 
         const proofElements: string[] = [];
         for (let i = 0; i < height; i++) {
           const start = 2 + signatureLength + 6 + i * 64;
-          proofElements.push(
-            "0x" + proofAndSignature.slice(start, start + 64).padEnd(64, "0")
-          );
+          proofElements.push("0x" + proofAndSignature.slice(start, start + 64).padEnd(64, "0"));
         }
 
         let root = _TypedDataEncoder.hashStruct("Order", type, value);
         for (let i = 0; i < proofElements.length; i++) {
           if ((key >> i) % 2 === 0) {
-            root = solidityKeccak256(
-              ["bytes"],
-              [root + proofElements[i].slice(2)]
-            );
+            root = solidityKeccak256(["bytes"], [root + proofElements[i].slice(2)]);
           } else {
-            root = solidityKeccak256(
-              ["bytes"],
-              [proofElements[i] + root.slice(2)]
-            );
+            root = solidityKeccak256(["bytes"], [proofElements[i] + root.slice(2)]);
           }
         }
 
         const types = { ...type };
-        (types as any).BulkOrder = [
-          { name: "tree", type: `Order${`[2]`.repeat(height)}` },
-        ];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (types as any).BulkOrder = [{ name: "tree", type: `Order${`[2]`.repeat(height)}` }];
         const encoder = _TypedDataEncoder.from(types);
 
-        const bulkOrderTypeHash = solidityKeccak256(
-          ["string"],
-          [encoder.encodeType("BulkOrder")]
-        );
-        const bulkOrderHash = solidityKeccak256(
-          ["bytes"],
-          [bulkOrderTypeHash + root.slice(2)]
-        );
+        const bulkOrderTypeHash = solidityKeccak256(["string"], [encoder.encodeType("BulkOrder")]);
+        const bulkOrderHash = solidityKeccak256(["bytes"], [bulkOrderTypeHash + root.slice(2)]);
 
         const result = solidityKeccak256(
           ["bytes"],
-          [
-            "0x1901" +
-              _TypedDataEncoder.hashDomain(domain).slice(2) +
-              bulkOrderHash.slice(2),
-          ]
+          ["0x1901" + _TypedDataEncoder.hashDomain(domain).slice(2) + bulkOrderHash.slice(2)]
         );
 
         const signer = recoverAddress(result, signature);
@@ -156,11 +128,10 @@ export class ComplicationV2 implements Complication {
         "function isValidSignature(bytes32 digest, bytes signature) view returns (bytes4)",
       ]);
 
-      const result = await new Contract(
-        params.signer,
-        iface,
-        provider
-      ).isValidSignature(eip712Hash, sig);
+      const result = await new Contract(params.signer, iface, provider).isValidSignature(
+        eip712Hash,
+        sig
+      );
       if (result !== iface.getSighash("isValidSignature")) {
         throw new Error("Invalid signature");
       }
@@ -180,20 +151,11 @@ export class ComplicationV2 implements Complication {
     return joinSignature(sig);
   }
 
-  async checkFillability(
-    provider: Provider,
-    order: OrderParams
-  ): Promise<void> {
-    const complication = new Contract(
-      this.address,
-      ComplicationV2Abi,
-      provider
-    );
+  async checkFillability(provider: Provider, order: OrderParams): Promise<void> {
+    const complication = new Contract(this.address, ComplicationV2Abi, provider);
 
     if (order.currency !== CommonAddresses.Eth[this.chainId]) {
-      const isCurrencyValid = await complication.isValidCurrency(
-        order.currency
-      );
+      const isCurrencyValid = await complication.isValidCurrency(order.currency);
       if (!isCurrencyValid) {
         throw new Error("not-fillable");
       }

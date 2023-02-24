@@ -43,11 +43,13 @@ export abstract class BaseBuilder {
     params.s = params.s ?? HashZero;
   }
 
-  public getInfo(_order: Order): BaseOrderInfo {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public getInfo(order: Order): BaseOrderInfo {
     return {};
   }
 
   public abstract isValid(order: Order): boolean;
   public abstract build(params: BaseBuildParams): Order;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public abstract buildMatching(order: Order, data: any): MatchParams;
 }

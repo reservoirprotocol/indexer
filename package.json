@@ -1,20 +1,19 @@
 {
   "name": "@reservoir0x/monorepo",
   "version": "0.0.1",
+  "description": "Reservoir Protocol Monorepo",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "build": "turbo run build",
     "start": "turbo run start",
     "commitlint": "commitlint --edit",
-    "lint-check": "eslint --max-warnings 0 --ext .js,.ts,.json packages/indexer/src",
-    "format-check": "prettier --check \"packages/indexer/src/**/*.+(js|ts|json)\"",
-    "format": "prettier --write \"packages/indexer/src/**/*.+(js|ts|json)\"",
+    "lint-check": "eslint --cache --max-warnings 0 \"packages/**/src/**/*.+(js|ts|json)\"",
+    "format-check": "prettier --cache --check \"packages/**/src/**/*.+(js|ts|json)\"",
+    "format": "prettier --cache --write \"packages/**/src/**/*.+(js|ts|json)\"",
     "prepare": "husky install",
     "release": "standard-version"
   },
-  "workspaces": [
-    "packages/*"
-  ],
   "dependencies": {
     "@commitlint/cli": "^16.2.1",
     "@commitlint/config-conventional": "^16.2.1",
@@ -25,6 +24,9 @@
     "standard-version": "^9.3.2",
     "turbo": "latest"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "_moduleAliases": {
     "@/api": "./packages/indexer/dist/api",
     "@/arweave-sync": "./packages/indexer/dist/sync/arweave",
@@ -37,5 +39,20 @@
     "@/events-sync": "./packages/indexer/dist/sync/events",
     "@/pubsub": "./packages/indexer/dist/pubsub",
     "@/websockets": "./packages/indexer/dist/websockets"
+  },
+  "resolutions": {
+    "**/flat": "^5.0.1",
+    "**/underscore": "^1.12.1",
+    "**/@openzeppelin/contracts": "^4.7.3",
+    "**/json5": "^2.2.2",
+    "**/minimatch": "^3.0.5",
+    "**/async": "^2.6.4",
+    "**/lodash": "^4.17.21",
+    "**/node-fetch": "^2.6.7",
+    "**/yargs-parser": "^5.0.1",
+    "**/@sideway/formula": "^3.0.1",
+    "**/got": "^11.8.5",
+    "**/validator": "^13.7.0",
+    "**/swagger-ui-dist": "4.13"
   }
 }

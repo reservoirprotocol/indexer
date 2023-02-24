@@ -6,12 +6,7 @@ import { BaseBuilder, BaseBuildParams, BaseOrderInfo } from "../../base";
 import * as Addresses from "../../../addresses";
 import { Order } from "../../../order";
 import * as Types from "../../../types";
-import {
-  BytesEmpty,
-  getCurrentTimestamp,
-  getRandomBytes,
-  s,
-} from "../../../../utils";
+import { BytesEmpty, getCurrentTimestamp, getRandomBytes, s } from "../../../../utils";
 
 import Erc721Abi from "../../../../common/abis/Erc721.json";
 
@@ -173,11 +168,7 @@ export class SingleTokenErc721BuilderV1 extends BaseBuilder {
     }
   }
 
-  public buildMatching(
-    order: Order,
-    taker: string,
-    data: { nonce: string; recipient?: string }
-  ) {
+  public buildMatching(order: Order, taker: string, data: { nonce: string; recipient?: string }) {
     const info = this.getInfo(order);
     if (!info) {
       throw new Error("Invalid order");

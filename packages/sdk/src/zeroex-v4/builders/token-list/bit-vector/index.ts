@@ -5,11 +5,7 @@ import { BaseBuildParams, BaseBuilder, BaseOrderInfo } from "../../base";
 import * as Addresses from "../../../addresses";
 import { Order } from "../../../order";
 import * as Types from "../../../types";
-import * as CommonAddresses from "../../../../common/addresses";
-import {
-  decomposeBitVector,
-  generateBitVector,
-} from "../../../../common/helpers/bit-vector";
+import { decomposeBitVector, generateBitVector } from "../../../../common/helpers/bit-vector";
 import { BytesEmpty, lc, s } from "../../../../utils";
 
 interface BuildParams extends BaseBuildParams {
@@ -25,16 +21,13 @@ export class BitVectorTokenListBuilder extends BaseBuilder {
     try {
       const copyOrder = this.build({
         ...order.params,
-        direction:
-          order.params.direction === Types.TradeDirection.SELL ? "sell" : "buy",
+        direction: order.params.direction === Types.TradeDirection.SELL ? "sell" : "buy",
         contract: order.params.nft,
         maker: order.params.maker,
         paymentToken: order.params.erc20Token,
         price: order.params.erc20TokenAmount,
         amount: order.params.nftAmount,
-        tokenIds: decomposeBitVector(
-          order.params.nftProperties[0].propertyData
-        ),
+        tokenIds: decomposeBitVector(order.params.nftProperties[0].propertyData),
       });
 
       if (!copyOrder) {
@@ -55,13 +48,8 @@ export class BitVectorTokenListBuilder extends BaseBuilder {
     this.defaultInitialize(params);
 
     return new Order(this.chainId, {
-      kind: params.amount
-        ? "erc1155-token-list-bit-vector"
-        : "erc721-token-list-bit-vector",
-      direction:
-        params.direction === "sell"
-          ? Types.TradeDirection.SELL
-          : Types.TradeDirection.BUY,
+      kind: params.amount ? "erc1155-token-list-bit-vector" : "erc721-token-list-bit-vector",
+      direction: params.direction === "sell" ? Types.TradeDirection.SELL : Types.TradeDirection.BUY,
       maker: params.maker,
       taker: AddressZero,
       expiry: params.expiry!,
@@ -105,9 +93,7 @@ export class BitVectorTokenListBuilder extends BaseBuilder {
   }
 
   public getInfo(order: Order): OrderInfo {
-    const tokenIds = decomposeBitVector(
-      order.params.nftProperties[0].propertyData
-    );
+    const tokenIds = decomposeBitVector(order.params.nftProperties[0].propertyData);
     return { tokenIds };
   }
 }

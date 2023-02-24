@@ -14,473 +14,406 @@ import {ISeaport} from "../../../interfaces/ISeaport.sol";
 // - supports filling offers (both ERC721/ERC1155)
 
 contract SeaportModule is BaseExchangeModule {
-    // --- Structs ---
+  // --- Structs ---
 
-    struct SeaportETHListingWithPrice {
-        ISeaport.AdvancedOrder order;
-        uint256 price;
-    }
+  struct SeaportETHListingWithPrice {
+    ISeaport.AdvancedOrder order;
+    uint256 price;
+  }
 
-    // --- Fields ---
+  // --- Fields ---
 
-    ISeaport public constant EXCHANGE =
-        ISeaport(0x00000000006c3852cbEf3e08E8dF289169EdE581);
+  ISeaport public constant EXCHANGE = ISeaport(0x00000000006c3852cbEf3e08E8dF289169EdE581);
 
-    // --- Constructor ---
+  // --- Constructor ---
 
-    constructor(address owner, address router)
-        BaseModule(owner)
-        BaseExchangeModule(router)
-    {}
+  constructor(address owner, address router) BaseModule(owner) BaseExchangeModule(router) {}
 
-    // --- Fallback ---
+  // --- Fallback ---
 
-    receive() external payable {}
+  receive() external payable {}
 
-    // --- Single ETH listing ---
+  // --- Single ETH listing ---
 
-    function acceptETHListing(
-        ISeaport.AdvancedOrder calldata order,
-        ETHListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundETHLeftover(params.refundTo)
-        chargeETHFees(fees, params.amount)
-    {
-        // Execute the fill
-        params.revertIfIncomplete
-            ? _fillSingleOrderWithRevertIfIncomplete(
-                order,
-                new ISeaport.CriteriaResolver[](0),
-                params.fillTo,
-                params.amount
-            )
-            : _fillSingleOrder(
-                order,
-                new ISeaport.CriteriaResolver[](0),
-                params.fillTo,
-                params.amount
-            );
-    }
+  function acceptETHListing(
+    ISeaport.AdvancedOrder calldata order,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    // Execute the fill
+    params.revertIfIncomplete
+      ? _fillSingleOrderWithRevertIfIncomplete(
+        order,
+        new ISeaport.CriteriaResolver[](0),
+        params.fillTo,
+        params.amount
+      )
+      : _fillSingleOrder(order, new ISeaport.CriteriaResolver[](0), params.fillTo, params.amount);
+  }
 
-    // --- Single ERC20 listing ---
+  // --- Single ERC20 listing ---
 
-    function acceptERC20Listing(
-        ISeaport.AdvancedOrder calldata order,
-        ERC20ListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        nonReentrant
-        refundERC20Leftover(params.refundTo, params.token)
-        chargeERC20Fees(fees, params.token, params.amount)
-    {
-        // Approve the exchange if needed
-        _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
+  function acceptERC20Listing(
+    ISeaport.AdvancedOrder calldata order,
+    ERC20ListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    nonReentrant
+    refundERC20Leftover(params.refundTo, params.token)
+    chargeERC20Fees(fees, params.token, params.amount)
+  {
+    // Approve the exchange if needed
+    _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
 
-        // Execute the fill
-        params.revertIfIncomplete
-            ? _fillSingleOrderWithRevertIfIncomplete(
-                order,
-                new ISeaport.CriteriaResolver[](0),
-                params.fillTo,
-                0
-            )
-            : _fillSingleOrder(
-                order,
-                new ISeaport.CriteriaResolver[](0),
-                params.fillTo,
-                0
-            );
-    }
+    // Execute the fill
+    params.revertIfIncomplete
+      ? _fillSingleOrderWithRevertIfIncomplete(
+        order,
+        new ISeaport.CriteriaResolver[](0),
+        params.fillTo,
+        0
+      )
+      : _fillSingleOrder(order, new ISeaport.CriteriaResolver[](0), params.fillTo, 0);
+  }
 
-    // --- Multiple ETH listings ---
+  // --- Multiple ETH listings ---
 
-    function acceptETHListings(
-        SeaportETHListingWithPrice[] calldata orders,
-        ETHListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundETHLeftover(params.refundTo)
-        chargeETHFees(fees, params.amount)
-    {
-        uint256 length = orders.length;
-        ISeaport.CriteriaResolver[]
-            memory criteriaResolvers = new ISeaport.CriteriaResolver[](0);
+  function acceptETHListings(
+    SeaportETHListingWithPrice[] calldata orders,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    uint256 length = orders.length;
+    ISeaport.CriteriaResolver[] memory criteriaResolvers = new ISeaport.CriteriaResolver[](0);
 
-        // Execute the fills
-        if (params.revertIfIncomplete) {
-            for (uint256 i; i < length; ) {
-                _fillSingleOrderWithRevertIfIncomplete(
-                    orders[i].order,
-                    criteriaResolvers,
-                    params.fillTo,
-                    orders[i].price
-                );
-
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            for (uint256 i; i < length; ) {
-                _fillSingleOrder(
-                    orders[i].order,
-                    criteriaResolvers,
-                    params.fillTo,
-                    orders[i].price
-                );
-
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-    }
-
-    // --- Multiple ERC20 listings ---
-
-    function acceptERC20Listings(
-        ISeaport.AdvancedOrder[] calldata orders,
-        ERC20ListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        nonReentrant
-        refundERC20Leftover(params.refundTo, params.token)
-        chargeERC20Fees(fees, params.token, params.amount)
-    {
-        // Approve the exchange if needed
-        _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
-
-        uint256 length = orders.length;
-        ISeaport.CriteriaResolver[]
-            memory criteriaResolvers = new ISeaport.CriteriaResolver[](0);
-
-        // Execute the fills
-        if (params.revertIfIncomplete) {
-            for (uint256 i; i < length; ) {
-                _fillSingleOrderWithRevertIfIncomplete(
-                    orders[i],
-                    criteriaResolvers,
-                    params.fillTo,
-                    0
-                );
-
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            for (uint256 i; i < length; ) {
-                _fillSingleOrder(
-                    orders[i],
-                    criteriaResolvers,
-                    params.fillTo,
-                    0
-                );
-
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-    }
-
-    // --- Single ERC721 offer ---
-
-    function acceptERC721Offer(
-        ISeaport.AdvancedOrder calldata order,
-        // Use `memory` instead of `calldata` to avoid `Stack too deep` errors
-        ISeaport.CriteriaResolver[] memory criteriaResolvers,
-        OfferParams calldata params,
-        Fee[] calldata fees
-    ) external nonReentrant {
-        // Extract the ERC721 token from the consideration items
-        ISeaport.ConsiderationItem calldata nftItem = order
-            .parameters
-            .consideration[0];
-        if (
-            nftItem.itemType != ISeaport.ItemType.ERC721 &&
-            nftItem.itemType != ISeaport.ItemType.ERC721_WITH_CRITERIA
-        ) {
-            revert WrongParams();
-        }
-        IERC721 nftToken = IERC721(nftItem.token);
-
-        // Extract the payment token from the offer items
-        ISeaport.OfferItem calldata paymentItem = order.parameters.offer[0];
-        IERC20 paymentToken = IERC20(paymentItem.token);
-
-        // Approve the exchange if needed
-        _approveERC721IfNeeded(nftToken, address(EXCHANGE));
-        _approveERC20IfNeeded(
-            paymentToken,
-            address(EXCHANGE),
-            type(uint256).max
+    // Execute the fills
+    if (params.revertIfIncomplete) {
+      for (uint256 i; i < length; ) {
+        _fillSingleOrderWithRevertIfIncomplete(
+          orders[i].order,
+          criteriaResolvers,
+          params.fillTo,
+          orders[i].price
         );
 
-        // Execute the fill
-        params.revertIfIncomplete
-            ? _fillSingleOrderWithRevertIfIncomplete(
-                order,
-                criteriaResolvers,
-                address(this),
-                0
-            )
-            : _fillSingleOrder(order, criteriaResolvers, address(this), 0);
-
-        uint256 identifier = nftItem.itemType == ISeaport.ItemType.ERC721
-            ? nftItem.identifierOrCriteria
-            : criteriaResolvers[0].identifier;
-
-        // Pay fees
-        if (nftToken.ownerOf(identifier) != address(this)) {
-            // Only pay fees if the fill was successful
-            uint256 feesLength = fees.length;
-            for (uint256 i; i < feesLength; ) {
-                Fee memory fee = fees[i];
-                _sendERC20(fee.recipient, fee.amount, paymentToken);
-
-                unchecked {
-                    ++i;
-                }
-            }
+        unchecked {
+          ++i;
         }
+      }
+    } else {
+      for (uint256 i; i < length; ) {
+        _fillSingleOrder(orders[i].order, criteriaResolvers, params.fillTo, orders[i].price);
 
-        // Refund any ERC721 leftover
-        _sendAllERC721(params.refundTo, nftToken, identifier);
+        unchecked {
+          ++i;
+        }
+      }
+    }
+  }
 
-        // Forward any left payment to the specified receiver
-        _sendAllERC20(params.fillTo, paymentToken);
+  // --- Multiple ERC20 listings ---
+
+  function acceptERC20Listings(
+    ISeaport.AdvancedOrder[] calldata orders,
+    ERC20ListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    nonReentrant
+    refundERC20Leftover(params.refundTo, params.token)
+    chargeERC20Fees(fees, params.token, params.amount)
+  {
+    // Approve the exchange if needed
+    _approveERC20IfNeeded(params.token, address(EXCHANGE), params.amount);
+
+    uint256 length = orders.length;
+    ISeaport.CriteriaResolver[] memory criteriaResolvers = new ISeaport.CriteriaResolver[](0);
+
+    // Execute the fills
+    if (params.revertIfIncomplete) {
+      for (uint256 i; i < length; ) {
+        _fillSingleOrderWithRevertIfIncomplete(orders[i], criteriaResolvers, params.fillTo, 0);
+
+        unchecked {
+          ++i;
+        }
+      }
+    } else {
+      for (uint256 i; i < length; ) {
+        _fillSingleOrder(orders[i], criteriaResolvers, params.fillTo, 0);
+
+        unchecked {
+          ++i;
+        }
+      }
+    }
+  }
+
+  // --- Single ERC721 offer ---
+
+  function acceptERC721Offer(
+    ISeaport.AdvancedOrder calldata order,
+    // Use `memory` instead of `calldata` to avoid `Stack too deep` errors
+    ISeaport.CriteriaResolver[] memory criteriaResolvers,
+    OfferParams calldata params,
+    Fee[] calldata fees
+  ) external nonReentrant {
+    // Extract the ERC721 token from the consideration items
+    ISeaport.ConsiderationItem calldata nftItem = order.parameters.consideration[0];
+    if (
+      nftItem.itemType != ISeaport.ItemType.ERC721 &&
+      nftItem.itemType != ISeaport.ItemType.ERC721_WITH_CRITERIA
+    ) {
+      revert WrongParams();
+    }
+    IERC721 nftToken = IERC721(nftItem.token);
+
+    // Extract the payment token from the offer items
+    ISeaport.OfferItem calldata paymentItem = order.parameters.offer[0];
+    IERC20 paymentToken = IERC20(paymentItem.token);
+
+    // Approve the exchange if needed
+    _approveERC721IfNeeded(nftToken, address(EXCHANGE));
+    _approveERC20IfNeeded(paymentToken, address(EXCHANGE), type(uint256).max);
+
+    // Execute the fill
+    params.revertIfIncomplete
+      ? _fillSingleOrderWithRevertIfIncomplete(order, criteriaResolvers, address(this), 0)
+      : _fillSingleOrder(order, criteriaResolvers, address(this), 0);
+
+    uint256 identifier = nftItem.itemType == ISeaport.ItemType.ERC721
+      ? nftItem.identifierOrCriteria
+      : criteriaResolvers[0].identifier;
+
+    // Pay fees
+    if (nftToken.ownerOf(identifier) != address(this)) {
+      // Only pay fees if the fill was successful
+      uint256 feesLength = fees.length;
+      for (uint256 i; i < feesLength; ) {
+        Fee memory fee = fees[i];
+        _sendERC20(fee.recipient, fee.amount, paymentToken);
+
+        unchecked {
+          ++i;
+        }
+      }
     }
 
-    // --- Single ERC1155 offer ---
+    // Refund any ERC721 leftover
+    _sendAllERC721(params.refundTo, nftToken, identifier);
 
-    function acceptERC1155Offer(
-        ISeaport.AdvancedOrder calldata order,
-        // Use `memory` instead of `calldata` to avoid `Stack too deep` errors
-        ISeaport.CriteriaResolver[] memory criteriaResolvers,
-        OfferParams calldata params,
-        Fee[] calldata fees
-    ) external nonReentrant {
-        // Extract the ERC1155 token from the consideration items
-        ISeaport.ConsiderationItem calldata nftItem = order
-            .parameters
-            .consideration[0];
-        if (
-            nftItem.itemType != ISeaport.ItemType.ERC1155 &&
-            nftItem.itemType != ISeaport.ItemType.ERC1155_WITH_CRITERIA
-        ) {
-            revert WrongParams();
-        }
-        IERC1155 nftToken = IERC1155(nftItem.token);
+    // Forward any left payment to the specified receiver
+    _sendAllERC20(params.fillTo, paymentToken);
+  }
 
-        // Extract the payment token from the offer items
-        ISeaport.OfferItem calldata paymentItem = order.parameters.offer[0];
-        IERC20 paymentToken = IERC20(paymentItem.token);
+  // --- Single ERC1155 offer ---
 
-        // Approve the exchange if needed
-        _approveERC1155IfNeeded(nftToken, address(EXCHANGE));
-        _approveERC20IfNeeded(
-            paymentToken,
-            address(EXCHANGE),
-            type(uint256).max
+  function acceptERC1155Offer(
+    ISeaport.AdvancedOrder calldata order,
+    // Use `memory` instead of `calldata` to avoid `Stack too deep` errors
+    ISeaport.CriteriaResolver[] memory criteriaResolvers,
+    OfferParams calldata params,
+    Fee[] calldata fees
+  ) external nonReentrant {
+    // Extract the ERC1155 token from the consideration items
+    ISeaport.ConsiderationItem calldata nftItem = order.parameters.consideration[0];
+    if (
+      nftItem.itemType != ISeaport.ItemType.ERC1155 &&
+      nftItem.itemType != ISeaport.ItemType.ERC1155_WITH_CRITERIA
+    ) {
+      revert WrongParams();
+    }
+    IERC1155 nftToken = IERC1155(nftItem.token);
+
+    // Extract the payment token from the offer items
+    ISeaport.OfferItem calldata paymentItem = order.parameters.offer[0];
+    IERC20 paymentToken = IERC20(paymentItem.token);
+
+    // Approve the exchange if needed
+    _approveERC1155IfNeeded(nftToken, address(EXCHANGE));
+    _approveERC20IfNeeded(paymentToken, address(EXCHANGE), type(uint256).max);
+
+    uint256 identifier = nftItem.itemType == ISeaport.ItemType.ERC1155
+      ? nftItem.identifierOrCriteria
+      : criteriaResolvers[0].identifier;
+
+    uint256 balanceBefore = nftToken.balanceOf(address(this), identifier);
+
+    // Execute the fill
+    params.revertIfIncomplete
+      ? _fillSingleOrderWithRevertIfIncomplete(order, criteriaResolvers, address(this), 0)
+      : _fillSingleOrder(order, criteriaResolvers, address(this), 0);
+
+    uint256 balanceAfter = nftToken.balanceOf(address(this), identifier);
+
+    // Pay fees
+    uint256 amountFilled = balanceBefore - balanceAfter;
+    if (amountFilled > 0) {
+      uint256 feesLength = fees.length;
+      for (uint256 i; i < feesLength; ) {
+        Fee memory fee = fees[i];
+        _sendERC20(
+          fee.recipient,
+          // Only pay fees for the amount that was actually filled
+          (fee.amount * amountFilled) / order.numerator,
+          paymentToken
         );
 
-        uint256 identifier = nftItem.itemType == ISeaport.ItemType.ERC1155
-            ? nftItem.identifierOrCriteria
-            : criteriaResolvers[0].identifier;
-
-        uint256 balanceBefore = nftToken.balanceOf(address(this), identifier);
-
-        // Execute the fill
-        params.revertIfIncomplete
-            ? _fillSingleOrderWithRevertIfIncomplete(
-                order,
-                criteriaResolvers,
-                address(this),
-                0
-            )
-            : _fillSingleOrder(order, criteriaResolvers, address(this), 0);
-
-        uint256 balanceAfter = nftToken.balanceOf(address(this), identifier);
-
-        // Pay fees
-        uint256 amountFilled = balanceBefore - balanceAfter;
-        if (amountFilled > 0) {
-            uint256 feesLength = fees.length;
-            for (uint256 i; i < feesLength; ) {
-                Fee memory fee = fees[i];
-                _sendERC20(
-                    fee.recipient,
-                    // Only pay fees for the amount that was actually filled
-                    (fee.amount * amountFilled) / order.numerator,
-                    paymentToken
-                );
-
-                unchecked {
-                    ++i;
-                }
-            }
+        unchecked {
+          ++i;
         }
-
-        // Refund any ERC1155 leftover
-        _sendAllERC1155(params.refundTo, nftToken, identifier);
-
-        // Forward any left payment to the specified receiver
-        _sendAllERC20(params.fillTo, paymentToken);
+      }
     }
 
-    // --- Generic handler (used for Seaport-based approvals) ---
+    // Refund any ERC1155 leftover
+    _sendAllERC1155(params.refundTo, nftToken, identifier);
 
-    function matchOrders(
-        ISeaport.Order[] calldata orders,
-        ISeaport.Fulfillment[] calldata fulfillments
-    ) external nonReentrant {
-        // We don't perform any kind of input or return value validation,
-        // so this function should be used with precaution - the official
-        // way to use it is only for Seaport-based approvals
-        EXCHANGE.matchOrders(orders, fulfillments);
+    // Forward any left payment to the specified receiver
+    _sendAllERC20(params.fillTo, paymentToken);
+  }
+
+  // --- Generic handler (used for Seaport-based approvals) ---
+
+  function matchOrders(
+    ISeaport.Order[] calldata orders,
+    ISeaport.Fulfillment[] calldata fulfillments
+  ) external nonReentrant {
+    // We don't perform any kind of input or return value validation,
+    // so this function should be used with precaution - the official
+    // way to use it is only for Seaport-based approvals
+    EXCHANGE.matchOrders(orders, fulfillments);
+  }
+
+  // --- ERC721 / ERC1155 hooks ---
+
+  // Single token offer acceptance can be done approval-less by using the
+  // standard `safeTransferFrom` method together with specifying data for
+  // further contract calls. An example:
+  // `safeTransferFrom(
+  //      0xWALLET,
+  //      0xMODULE,
+  //      TOKEN_ID,
+  //      0xABI_ENCODED_ROUTER_EXECUTION_CALLDATA_FOR_OFFER_ACCEPTANCE
+  // )`
+
+  function onERC721Received(
+    address, // operator,
+    address, // from
+    uint256, // tokenId,
+    bytes calldata data
+  ) external returns (bytes4) {
+    if (data.length > 0) {
+      _makeCall(router, data, 0);
     }
 
-    // --- ERC721 / ERC1155 hooks ---
+    return this.onERC721Received.selector;
+  }
 
-    // Single token offer acceptance can be done approval-less by using the
-    // standard `safeTransferFrom` method together with specifying data for
-    // further contract calls. An example:
-    // `safeTransferFrom(
-    //      0xWALLET,
-    //      0xMODULE,
-    //      TOKEN_ID,
-    //      0xABI_ENCODED_ROUTER_EXECUTION_CALLDATA_FOR_OFFER_ACCEPTANCE
-    // )`
-
-    function onERC721Received(
-        address, // operator,
-        address, // from
-        uint256, // tokenId,
-        bytes calldata data
-    ) external returns (bytes4) {
-        if (data.length > 0) {
-            _makeCall(router, data, 0);
-        }
-
-        return this.onERC721Received.selector;
+  function onERC1155Received(
+    address, // operator
+    address, // from
+    uint256, // tokenId
+    uint256, // amount
+    bytes calldata data
+  ) external returns (bytes4) {
+    if (data.length > 0) {
+      _makeCall(router, data, 0);
     }
 
-    function onERC1155Received(
-        address, // operator
-        address, // from
-        uint256, // tokenId
-        uint256, // amount
-        bytes calldata data
-    ) external returns (bytes4) {
-        if (data.length > 0) {
-            _makeCall(router, data, 0);
-        }
+    return this.onERC1155Received.selector;
+  }
 
-        return this.onERC1155Received.selector;
+  // --- Internal ---
+
+  // NOTE: In lots of cases, Seaport will not revert if fills were not
+  // fully executed. An example of that is partial filling, which will
+  // successfully fill any amount that is still available (including a
+  // zero amount). One way to ensure that we revert in case of partial
+  // executions is to check the order's filled amount before and after
+  // we trigger the fill (we can use Seaport's `getOrderStatus` method
+  // to check). Since this can be expensive in terms of gas, we have a
+  // separate method variant to be called when reverts are enabled.
+
+  function _fillSingleOrder(
+    ISeaport.AdvancedOrder calldata order,
+    // Use `memory` instead of `calldata` to avoid `Stack too deep` errors
+    ISeaport.CriteriaResolver[] memory criteriaResolvers,
+    address receiver,
+    uint256 value
+  ) internal {
+    // Execute the fill
+    try
+      EXCHANGE.fulfillAdvancedOrder{value: value}(order, criteriaResolvers, bytes32(0), receiver)
+    {} catch {}
+  }
+
+  function _fillSingleOrderWithRevertIfIncomplete(
+    ISeaport.AdvancedOrder calldata order,
+    // Use `memory` instead of `calldata` to avoid `Stack too deep` errors
+    ISeaport.CriteriaResolver[] memory criteriaResolvers,
+    address receiver,
+    uint256 value
+  ) internal {
+    // Cache the order's hash
+    bytes32 orderHash = _getOrderHash(order.parameters);
+
+    // Before filling, get the order's filled amount
+    uint256 beforeFilledAmount = _getFilledAmount(orderHash);
+
+    // Execute the fill
+    bool success;
+    try
+      EXCHANGE.fulfillAdvancedOrder{value: value}(order, criteriaResolvers, bytes32(0), receiver)
+    returns (bool fulfilled) {
+      success = fulfilled;
+    } catch {
+      revert UnsuccessfulFill();
     }
 
-    // --- Internal ---
+    if (!success) {
+      revert UnsuccessfulFill();
+    } else {
+      // After successfully filling, get the order's filled amount
+      uint256 afterFilledAmount = _getFilledAmount(orderHash);
 
-    // NOTE: In lots of cases, Seaport will not revert if fills were not
-    // fully executed. An example of that is partial filling, which will
-    // successfully fill any amount that is still available (including a
-    // zero amount). One way to ensure that we revert in case of partial
-    // executions is to check the order's filled amount before and after
-    // we trigger the fill (we can use Seaport's `getOrderStatus` method
-    // to check). Since this can be expensive in terms of gas, we have a
-    // separate method variant to be called when reverts are enabled.
-
-    function _fillSingleOrder(
-        ISeaport.AdvancedOrder calldata order,
-        // Use `memory` instead of `calldata` to avoid `Stack too deep` errors
-        ISeaport.CriteriaResolver[] memory criteriaResolvers,
-        address receiver,
-        uint256 value
-    ) internal {
-        // Execute the fill
-        try
-            EXCHANGE.fulfillAdvancedOrder{value: value}(
-                order,
-                criteriaResolvers,
-                bytes32(0),
-                receiver
-            )
-        {} catch {}
+      // Make sure the amount filled as part of this call is correct
+      if (afterFilledAmount - beforeFilledAmount != order.numerator) {
+        revert UnsuccessfulFill();
+      }
     }
+  }
 
-    function _fillSingleOrderWithRevertIfIncomplete(
-        ISeaport.AdvancedOrder calldata order,
-        // Use `memory` instead of `calldata` to avoid `Stack too deep` errors
-        ISeaport.CriteriaResolver[] memory criteriaResolvers,
-        address receiver,
-        uint256 value
-    ) internal {
-        // Cache the order's hash
-        bytes32 orderHash = _getOrderHash(order.parameters);
-
-        // Before filling, get the order's filled amount
-        uint256 beforeFilledAmount = _getFilledAmount(orderHash);
-
-        // Execute the fill
-        bool success;
-        try
-            EXCHANGE.fulfillAdvancedOrder{value: value}(
-                order,
-                criteriaResolvers,
-                bytes32(0),
-                receiver
-            )
-        returns (bool fulfilled) {
-            success = fulfilled;
-        } catch {
-            revert UnsuccessfulFill();
-        }
-
-        if (!success) {
-            revert UnsuccessfulFill();
-        } else {
-            // After successfully filling, get the order's filled amount
-            uint256 afterFilledAmount = _getFilledAmount(orderHash);
-
-            // Make sure the amount filled as part of this call is correct
-            if (afterFilledAmount - beforeFilledAmount != order.numerator) {
-                revert UnsuccessfulFill();
-            }
-        }
+  function _getOrderHash(
+    // Must use `memory` instead of `calldata` for the below cast
+    ISeaport.OrderParameters memory orderParameters
+  ) internal view returns (bytes32 orderHash) {
+    // `OrderParameters` and `OrderComponents` share the exact same
+    // fields, apart from the last one, so here we simply treat the
+    // `orderParameters` argument as `OrderComponents` and then set
+    // the last field to the correct data
+    ISeaport.OrderComponents memory orderComponents;
+    assembly {
+      orderComponents := orderParameters
     }
+    orderComponents.counter = EXCHANGE.getCounter(orderParameters.offerer);
 
-    function _getOrderHash(
-        // Must use `memory` instead of `calldata` for the below cast
-        ISeaport.OrderParameters memory orderParameters
-    ) internal view returns (bytes32 orderHash) {
-        // `OrderParameters` and `OrderComponents` share the exact same
-        // fields, apart from the last one, so here we simply treat the
-        // `orderParameters` argument as `OrderComponents` and then set
-        // the last field to the correct data
-        ISeaport.OrderComponents memory orderComponents;
-        assembly {
-            orderComponents := orderParameters
-        }
-        orderComponents.counter = EXCHANGE.getCounter(orderParameters.offerer);
+    orderHash = EXCHANGE.getOrderHash(orderComponents);
+  }
 
-        orderHash = EXCHANGE.getOrderHash(orderComponents);
-    }
-
-    function _getFilledAmount(bytes32 orderHash)
-        internal
-        view
-        returns (uint256 totalFilled)
-    {
-        (, , totalFilled, ) = EXCHANGE.getOrderStatus(orderHash);
-    }
+  function _getFilledAmount(bytes32 orderHash) internal view returns (uint256 totalFilled) {
+    (, , totalFilled, ) = EXCHANGE.getOrderStatus(orderHash);
+  }
 }

@@ -33,9 +33,7 @@
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "buyPrice", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "buyPrice", "type": "uint256" }],
     "name": "NFTMarketBuyPrice_Cannot_Buy_At_Lower_Price",
     "type": "error"
   },
@@ -50,16 +48,12 @@
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "owner", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "owner", "type": "address" }],
     "name": "NFTMarketBuyPrice_Only_Owner_Can_Cancel_Price",
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "owner", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "owner", "type": "address" }],
     "name": "NFTMarketBuyPrice_Only_Owner_Can_Set_Price",
     "type": "error"
   },
@@ -70,9 +64,7 @@
   },
   { "inputs": [], "name": "NFTMarketBuyPrice_Price_Too_High", "type": "error" },
   {
-    "inputs": [
-      { "internalType": "address", "name": "seller", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "seller", "type": "address" }],
     "name": "NFTMarketBuyPrice_Seller_Mismatch",
     "type": "error"
   },
@@ -109,9 +101,7 @@
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "expiry", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "expiry", "type": "uint256" }],
     "name": "NFTMarketOffer_Offer_Expired",
     "type": "error"
   },
@@ -127,9 +117,7 @@
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "minOfferAmount", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "minOfferAmount", "type": "uint256" }],
     "name": "NFTMarketOffer_Offer_Must_Be_At_Least_Min_Amount",
     "type": "error"
   },
@@ -170,16 +158,12 @@
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "auctionId", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "auctionId", "type": "uint256" }],
     "name": "NFTMarketReserveAuction_Already_Listed",
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "minAmount", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "minAmount", "type": "uint256" }],
     "name": "NFTMarketReserveAuction_Bid_Must_Be_At_Least_Min_Amount",
     "type": "error"
   },
@@ -189,16 +173,12 @@
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "reservePrice", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "reservePrice", "type": "uint256" }],
     "name": "NFTMarketReserveAuction_Cannot_Bid_Lower_Than_Reserve_Price",
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "endTime", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "endTime", "type": "uint256" }],
     "name": "NFTMarketReserveAuction_Cannot_Bid_On_Ended_Auction",
     "type": "error"
   },
@@ -218,9 +198,7 @@
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "endTime", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "endTime", "type": "uint256" }],
     "name": "NFTMarketReserveAuction_Cannot_Finalize_Auction_In_Progress",
     "type": "error"
   },
@@ -235,9 +213,7 @@
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "maxDuration", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "maxDuration", "type": "uint256" }],
     "name": "NFTMarketReserveAuction_Exceeds_Max_Duration",
     "type": "error"
   },
@@ -258,16 +234,12 @@
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "seller", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "seller", "type": "address" }],
     "name": "NFTMarketReserveAuction_Not_Matching_Seller",
     "type": "error"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "owner", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "owner", "type": "address" }],
     "name": "NFTMarketReserveAuction_Only_Owner_Can_Update_Auction",
     "type": "error"
   },
@@ -931,9 +903,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "auctionId", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "auctionId", "type": "uint256" }],
     "name": "cancelReserveAuction",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -951,9 +921,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "auctionId", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "auctionId", "type": "uint256" }],
     "name": "finalizeReserveAuction",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -1001,9 +969,7 @@
   {
     "inputs": [],
     "name": "getFethAddress",
-    "outputs": [
-      { "internalType": "address", "name": "fethAddress", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "address", "name": "fethAddress", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -1021,13 +987,9 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "auctionId", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "auctionId", "type": "uint256" }],
     "name": "getMinBidAmount",
-    "outputs": [
-      { "internalType": "uint256", "name": "minimum", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "minimum", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -1037,9 +999,7 @@
       { "internalType": "uint256", "name": "tokenId", "type": "uint256" }
     ],
     "name": "getMinOfferAmount",
-    "outputs": [
-      { "internalType": "uint256", "name": "minimum", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "minimum", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -1074,9 +1034,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "auctionId", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "auctionId", "type": "uint256" }],
     "name": "getReserveAuction",
     "outputs": [
       {
@@ -1115,9 +1073,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "auctionId", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "auctionId", "type": "uint256" }],
     "name": "getReserveAuctionBidReferrer",
     "outputs": [
       {
@@ -1135,18 +1091,14 @@
       { "internalType": "uint256", "name": "tokenId", "type": "uint256" }
     ],
     "name": "getReserveAuctionIdFor",
-    "outputs": [
-      { "internalType": "uint256", "name": "auctionId", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "auctionId", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "getRoyaltyRegistry",
-    "outputs": [
-      { "internalType": "address", "name": "registry", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "address", "name": "registry", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -1164,9 +1116,7 @@
       { "internalType": "uint256", "name": "amount", "type": "uint256" }
     ],
     "name": "makeOffer",
-    "outputs": [
-      { "internalType": "uint256", "name": "expiration", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "expiration", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -1182,16 +1132,12 @@
       }
     ],
     "name": "makeOfferV2",
-    "outputs": [
-      { "internalType": "uint256", "name": "expiration", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "expiration", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "auctionId", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "auctionId", "type": "uint256" }],
     "name": "placeBid",
     "outputs": [],
     "stateMutability": "payable",

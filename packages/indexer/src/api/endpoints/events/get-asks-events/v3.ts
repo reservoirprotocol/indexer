@@ -6,14 +6,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrderCriteria, JoiPrice, getJoiPriceObject } from "@/common/joi";
-import {
-  buildContinuation,
-  fromBuffer,
-  splitContinuation,
-  regex,
-  toBuffer,
-  now,
-} from "@/common/utils";
+import { buildContinuation, fromBuffer, splitContinuation, regex, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Orders } from "@/utils/orders";
 
@@ -118,7 +111,8 @@ export const getAsksEventsV3Options: RouteOptions = {
 
     try {
       // TODO: Backfill order fields in the ask events
-      const joinWithOrders = (query.startTimestamp ?? now()) < 1676554238;
+      // const joinWithOrders = (query.startTimestamp ?? now()) < 1676554238;
+      const joinWithOrders = true;
       const t = joinWithOrders ? "orders" : "order_events";
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery(

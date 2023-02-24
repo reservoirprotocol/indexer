@@ -1,20 +1,15 @@
-import { Interface } from "@ethersproject/abi";
+import { Interface, Result } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { BigNumberish } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { Protocol } from "@uniswap/router-sdk";
-import {
-  Currency,
-  CurrencyAmount,
-  Ether,
-  Percent,
-  Token,
-  TradeType,
-} from "@uniswap/sdk-core";
+import { Currency, CurrencyAmount, Ether, Percent, Token, TradeType } from "@uniswap/sdk-core";
 import { AlphaRouter, SwapType } from "@uniswap/smart-order-router";
 
 import { ExecutionInfo } from "./types";
 import { isETH, isWETH } from "./utils";
+import { Weth } from "../../common/addresses";
+import { Network } from "../../utils";
 
 export type SwapInfo = {
   amountIn: BigNumberish;
@@ -38,10 +33,10 @@ const getToken = async (
 };
 
 export type TransferDetail = {
-  recipient: string
-  toETH: boolean
-  amount: BigNumberish
-}
+  recipient: string;
+  toETH: boolean;
+  amount: BigNumberish;
+};
 
 export const generateSwapExecutions = async (
   chainId: number,
@@ -53,13 +48,13 @@ export const generateSwapExecutions = async (
     swapModule: Contract;
     wethModule: Contract;
     // recipient: string;
-    transfers: TransferDetail[],
+    transfers: TransferDetail[];
     refundTo: string;
   }
 ): Promise<SwapInfo> => {
-
   const router = new AlphaRouter({
     chainId: chainId,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     provider: provider as any,
   });
 
@@ -70,26 +65,19 @@ export const generateSwapExecutions = async (
       executions: [
         {
           module: options.swapModule.address,
-          data: options.swapModule.interface.encodeFunctionData("wrap", [
-            options.transfers,
-          ]),
+          data: options.swapModule.interface.encodeFunctionData("wrap", [options.transfers]),
           value: toTokenAmount,
         },
       ],
     };
-  } else if (
-    isWETH(chainId, fromTokenAddress) &&
-    isETH(chainId, toTokenAddress)
-  ) {
+  } else if (isWETH(chainId, fromTokenAddress) && isETH(chainId, toTokenAddress)) {
     // We need to unwrap WETH
     return {
       amountIn: toTokenAmount,
       executions: [
         {
           module: options.swapModule.address,
-          data: options.swapModule.interface.encodeFunctionData("unwrap", [
-            options.transfers,
-          ]),
+          data: options.swapModule.interface.encodeFunctionData("unwrap", [options.transfers]),
           value: 0,
         },
       ],
@@ -97,10 +85,15 @@ export const generateSwapExecutions = async (
   } else {
     // We need to swap
 
-    const fromToken = await getToken(chainId, provider, fromTokenAddress);
+    // Uniswap's core SDK doesn't support MATIC -> WMATIC conversion
+    // https://github.com/Uniswap/sdk-core/issues/39
+    let fromToken = await getToken(chainId, provider, fromTokenAddress);
+    if (chainId === Network.Polygon && isETH(chainId, fromTokenAddress)) {
+      fromToken = await getToken(chainId, provider, Weth[chainId]);
+    }
+
     const toToken = await getToken(chainId, provider, toTokenAddress);
 
-    // on the same pool which influence the price of each other)
     const route = await router.route(
       CurrencyAmount.fromRawAmount(toToken, toTokenAmount.toString()),
       fromToken,
@@ -139,15 +132,12 @@ export const generateSwapExecutions = async (
       `,
     ]);
 
-    let params: any;
+    let params: Result;
     try {
       // Properly handle multicall-wrapping
       let calldata = route.methodParameters!.calldata;
       if (calldata.startsWith(iface.getSighash("multicall"))) {
-        const decodedMulticall = iface.decodeFunctionData(
-          "multicall",
-          calldata
-        );
+        const decodedMulticall = iface.decodeFunctionData("multicall", calldata);
         for (const data of decodedMulticall.data) {
           if (data.startsWith(iface.getSighash("exactOutputSingle"))) {
             calldata = data;
@@ -179,7 +169,7 @@ export const generateSwapExecutions = async (
               amountInMaximum: params.params.amountInMaximum,
               sqrtPriceLimitX96: params.params.sqrtPriceLimitX96,
             },
-            recipients: options.transfers
+            recipients: options.transfers,
           },
           options.refundTo,
         ]

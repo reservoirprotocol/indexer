@@ -1,9 +1,6 @@
 import { BigNumberish } from "@ethersproject/bignumber";
 
-import {
-  generateMerkleProof,
-  generateMerkleTree,
-} from "../../../common/helpers";
+import { generateMerkleProof, generateMerkleTree } from "../../../common/helpers";
 import { BaseBuildParams, BaseBuilder } from "../base";
 import { Order } from "../../order";
 import * as Types from "../../types";
@@ -20,11 +17,10 @@ export class TokenListBuilder extends BaseBuilder {
       const copyOrder = this.build({
         ...order.params,
         tokenKind:
-          order.params.itemKind === Types.ItemKind.ERC721_WITH_CRITERIA
-            ? "erc721"
-            : "erc1155",
+          order.params.itemKind === Types.ItemKind.ERC721_WITH_CRITERIA ? "erc721" : "erc1155",
         contract: order.params.token,
         merkleRoot: order.params.identifierOrCriteria,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       if (!copyOrder) {
@@ -44,8 +40,7 @@ export class TokenListBuilder extends BaseBuilder {
   public build(params: BuildParams) {
     this.defaultInitialize(params);
 
-    const merkleRoot =
-      params.merkleRoot ?? generateMerkleTree(params.tokenIds!).getHexRoot();
+    const merkleRoot = params.merkleRoot ?? generateMerkleTree(params.tokenIds!).getHexRoot();
 
     return new Order(this.chainId, {
       kind: "token-list",

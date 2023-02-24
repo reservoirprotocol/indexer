@@ -1,5 +1,5 @@
 import { Interface } from "@ethersproject/abi";
-import { BigNumberish } from "ethers";
+import { BigNumberish } from "@ethersproject/bignumber";
 
 import * as Sdk from "../../index";
 import { MaxUint256, TxData } from "../../utils";
@@ -30,7 +30,8 @@ export const generateFTApprovalTxData = (
 ): TxData => ({
   from: owner,
   to: contract,
-  data: new Interface([
-    "function approve(address spender, uint256 amount)",
-  ]).encodeFunctionData("approve", [spender, amount ?? MaxUint256]),
+  data: new Interface(["function approve(address spender, uint256 amount)"]).encodeFunctionData(
+    "approve",
+    [spender, amount ?? MaxUint256]
+  ),
 });

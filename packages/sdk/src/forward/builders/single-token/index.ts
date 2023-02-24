@@ -14,12 +14,10 @@ export class SingleTokenBuilder extends BaseBuilder {
     try {
       const copyOrder = this.build({
         ...order.params,
-        tokenKind:
-          order.params.itemKind === Types.ItemKind.ERC721
-            ? "erc721"
-            : "erc1155",
+        tokenKind: order.params.itemKind === Types.ItemKind.ERC721 ? "erc721" : "erc1155",
         contract: order.params.token,
         tokenId: order.params.identifierOrCriteria,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       if (!copyOrder) {
@@ -41,10 +39,7 @@ export class SingleTokenBuilder extends BaseBuilder {
 
     return new Order(this.chainId, {
       kind: "single-token",
-      itemKind:
-        params.tokenKind === "erc721"
-          ? Types.ItemKind.ERC721
-          : Types.ItemKind.ERC1155,
+      itemKind: params.tokenKind === "erc721" ? Types.ItemKind.ERC721 : Types.ItemKind.ERC1155,
       maker: params.maker,
       token: params.contract,
       identifierOrCriteria: s(params.tokenId),
@@ -56,10 +51,7 @@ export class SingleTokenBuilder extends BaseBuilder {
     });
   }
 
-  public buildMatching(
-    _order: Order,
-    data?: { amount?: BigNumberish }
-  ): Types.MatchParams {
+  public buildMatching(_order: Order, data?: { amount?: BigNumberish }): Types.MatchParams {
     return {
       fillAmount: data?.amount ? s(data.amount) : "1",
     };

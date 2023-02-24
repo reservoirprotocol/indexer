@@ -30,12 +30,7 @@ export class Exchange {
       referrer?: string;
     }
   ): Promise<ContractTransaction> {
-    const tx = this.fillOrderTx(
-      await taker.getAddress(),
-      order,
-      matchParams,
-      options
-    );
+    const tx = this.fillOrderTx(await taker.getAddress(), order, matchParams, options);
     return taker.sendTransaction(tx);
   }
 
@@ -48,16 +43,13 @@ export class Exchange {
       referrer?: string;
     }
   ): TxData {
-    let to = this.contract.address;
-    let data: string;
+    const to = this.contract.address;
     let value: BigNumber | undefined;
 
     const isBuy = order.params.side === Types.TradeDirection.BUY;
-    const executeArgs = isBuy
-      ? [matchOrder, order.getRaw()]
-      : [order.getRaw(), matchOrder];
+    const executeArgs = isBuy ? [matchOrder, order.getRaw()] : [order.getRaw(), matchOrder];
 
-    data = this.contract.interface.encodeFunctionData("execute", executeArgs);
+    const data = this.contract.interface.encodeFunctionData("execute", executeArgs);
 
     if (!isBuy) value = bn(order.params.price);
 
@@ -71,19 +63,15 @@ export class Exchange {
 
   // --- Cancel order ---
 
-  public async cancelOrder(
-    maker: Signer,
-    order: Order
-  ): Promise<ContractTransaction> {
+  public async cancelOrder(maker: Signer, order: Order): Promise<ContractTransaction> {
     const tx = this.cancelOrderTx(await maker.getAddress(), order);
     return maker.sendTransaction(tx);
   }
 
   public cancelOrderTx(maker: string, order: Order): TxData {
-    const data: string = this.contract.interface.encodeFunctionData(
-      "cancelOrder",
-      [order.getRaw().order]
-    );
+    const data: string = this.contract.interface.encodeFunctionData("cancelOrder", [
+      order.getRaw().order,
+    ]);
     return {
       from: maker,
       to: this.contract.address,
@@ -104,10 +92,7 @@ export class Exchange {
   }
 
   public incrementHashNonceTx(maker: string): TxData {
-    const data: string = this.contract.interface.encodeFunctionData(
-      "incrementNonce",
-      []
-    );
+    const data: string = this.contract.interface.encodeFunctionData("incrementNonce", []);
     return {
       from: maker,
       to: this.contract.address,

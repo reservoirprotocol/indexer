@@ -1,6 +1,5 @@
 import { Provider } from "@ethersproject/abstract-provider";
 import { TypedDataSigner } from "@ethersproject/abstract-signer";
-import { _TypedDataEncoder } from "@ethersproject/hash";
 
 import * as Addresses from "./addresses";
 import { Builders } from "./builders";
@@ -30,10 +29,7 @@ export class Order {
     if (
       this.params.data.revenueSplits &&
       this.params.data.revenueSplits.length &&
-      this.params.data.revenueSplits.reduce(
-        (acc, curr) => (acc += Number(curr.value)),
-        0
-      ) > 10000
+      this.params.data.revenueSplits.reduce((acc, curr) => (acc += Number(curr.value)), 0) > 10000
     ) {
       throw new Error("Invalid royalties");
     }
@@ -105,17 +101,24 @@ export class Order {
   public async checkFillability(provider: Provider) {
     let value = false;
     switch (this.params.make.assetType.assetClass) {
-      case "ERC721":
+      case "ERC721": {
         value = await this.verifyAllowanceERC721(provider);
         break;
-      case "ERC20":
+      }
+      case "ERC20": {
         value = await this.verifyAllowanceERC20(provider);
         break;
-      case "ERC1155":
+      }
+      case "ERC1155": {
         value = await this.verifyAllowanceERC1155(provider);
         break;
+      }
       default:
         break;
+    }
+
+    if (!value) {
+      throw new Error("Order not fillable");
     }
   }
 
@@ -249,23 +252,17 @@ export class Order {
         provider
       );
 
-      const isApprovedForAll = await nftContract.isApprovedForAll(
-        this.params.maker
-      );
+      const isApprovedForAll = await nftContract.isApprovedForAll(this.params.maker);
 
       if (!isApprovedForAll) {
-        const approvedAddress = await nftContract.getApproved(
-          this.params.make.assetType.tokenId
-        );
+        const approvedAddress = await nftContract.getApproved(this.params.make.assetType.tokenId);
 
         if (lc(approvedAddress) !== lc(Addresses.Exchange[this.chainId])) {
           throw new Error("no-approval");
         }
       }
 
-      const owner = await nftContract.ownerOf(
-        this.params.make.assetType.tokenId
-      );
+      const owner = await nftContract.ownerOf(this.params.make.assetType.tokenId);
       if (lc(owner) !== lc(this.params.maker)) {
         throw new Error(`not-owner`);
       }
@@ -278,7 +275,7 @@ export class Order {
     return value;
   }
 
-  public buildMatching(taker: string, data?: any) {
+  public buildMatching(taker: string, data?: object) {
     return this.getBuilder().buildMatching(this.params, taker, data);
   }
 
@@ -303,9 +300,7 @@ export class Order {
       }
     }
 
-    throw new Error(
-      "Could not detect order kind (order might have unsupported params/calldata)"
-    );
+    throw new Error("Could not detect order kind (order might have unsupported params/calldata)");
   }
 }
 
@@ -338,6 +333,7 @@ const EIP712_TYPES = {
   ],
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const toRawOrder = (order: Order): any =>
   encode({
     ...order.params,

@@ -6,6 +6,7 @@ import { config } from "@/config/index";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 import { MqJobsDataManager } from "@/models/mq-jobs-data";
 import { randomUUID } from "crypto";
+import _ from "lodash";
 
 const QUEUE_NAME = "events-sync-process-backfill";
 
@@ -81,6 +82,15 @@ export const addToQueue = async (batches: EventsBatch[]) => {
   await queue.addBulk(jobs);
 };
 
-export const addToQueueByJobDataId = async (id: string) => {
-  await queue.add(id, { id });
+export const addToQueueByJobDataId = async (ids: string | string[]) => {
+  if (_.isArray(ids)) {
+    const jobs: { name: string; data: { id: string } }[] = [];
+    for (const id of ids) {
+      jobs.push({ name: id, data: { id } });
+    }
+
+    await queue.addBulk(jobs);
+  } else {
+    await queue.add(ids, { id: ids });
+  }
 };

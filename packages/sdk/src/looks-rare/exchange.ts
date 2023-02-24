@@ -16,10 +16,7 @@ export class Exchange {
 
   constructor(chainId: number) {
     this.chainId = chainId;
-    this.contract = new Contract(
-      Addresses.Exchange[this.chainId],
-      ExchangeAbi as any
-    );
+    this.contract = new Contract(Addresses.Exchange[this.chainId], ExchangeAbi);
   }
 
   // --- Fill order ---
@@ -32,12 +29,7 @@ export class Exchange {
       source?: string;
     }
   ): Promise<ContractTransaction> {
-    const tx = this.fillOrderTx(
-      await taker.getAddress(),
-      makerOrder,
-      takerOrderParams,
-      options
-    );
+    const tx = this.fillOrderTx(await taker.getAddress(), makerOrder, takerOrderParams, options);
     return taker.sendTransaction(tx);
   }
 
@@ -52,16 +44,16 @@ export class Exchange {
     let data: string;
     let value: string | undefined;
     if (makerOrder.params.isOrderAsk) {
-      data = this.contract.interface.encodeFunctionData(
-        "matchAskWithTakerBidUsingETHAndWETH",
-        [takerOrderParams, makerOrder.params]
-      );
+      data = this.contract.interface.encodeFunctionData("matchAskWithTakerBidUsingETHAndWETH", [
+        takerOrderParams,
+        makerOrder.params,
+      ]);
       value = makerOrder.params.price;
     } else {
-      data = this.contract.interface.encodeFunctionData(
-        "matchBidWithTakerAsk",
-        [takerOrderParams, makerOrder.params]
-      );
+      data = this.contract.interface.encodeFunctionData("matchBidWithTakerAsk", [
+        takerOrderParams,
+        makerOrder.params,
+      ]);
     }
 
     return {
@@ -74,10 +66,7 @@ export class Exchange {
 
   // --- Cancel order ---
 
-  public async cancelOrder(
-    maker: Signer,
-    order: Order
-  ): Promise<ContractTransaction> {
+  public async cancelOrder(maker: Signer, order: Order): Promise<ContractTransaction> {
     const tx = this.cancelOrderTx(await maker.getAddress(), order);
     return maker.sendTransaction(tx);
   }
@@ -86,20 +75,16 @@ export class Exchange {
     return {
       from: maker,
       to: this.contract.address,
-      data: this.contract.interface.encodeFunctionData(
-        "cancelMultipleMakerOrders",
-        [[order.params.nonce]]
-      ),
+      data: this.contract.interface.encodeFunctionData("cancelMultipleMakerOrders", [
+        [order.params.nonce],
+      ]),
     };
   }
 
   // --- Get nonce ---
 
-  public async getNonce(
-    provider: Provider,
-    user: string
-  ): Promise<BigNumberish> {
-    return new Contract(Addresses.Exchange[this.chainId], ExchangeAbi as any)
+  public async getNonce(provider: Provider, user: string): Promise<BigNumberish> {
+    return new Contract(Addresses.Exchange[this.chainId], ExchangeAbi)
       .connect(provider)
       .userMinOrderNonce(user);
   }

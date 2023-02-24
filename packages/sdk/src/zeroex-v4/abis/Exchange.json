@@ -1145,9 +1145,7 @@
       { "internalType": "address", "name": "recipient", "type": "address" }
     ],
     "name": "_sellHeldTokenForTokenToUniswapV3",
-    "outputs": [
-      { "internalType": "uint256", "name": "buyAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "buyAmount", "type": "uint256" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -1338,9 +1336,7 @@
       }
     ],
     "name": "batchBuyERC1155s",
-    "outputs": [
-      { "internalType": "bool[]", "name": "successes", "type": "bool[]" }
-    ],
+    "outputs": [{ "internalType": "bool[]", "name": "successes", "type": "bool[]" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -1452,9 +1448,7 @@
       }
     ],
     "name": "batchBuyERC721s",
-    "outputs": [
-      { "internalType": "bool[]", "name": "successes", "type": "bool[]" }
-    ],
+    "outputs": [{ "internalType": "bool[]", "name": "successes", "type": "bool[]" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -1998,9 +1992,7 @@
       { "internalType": "bool[]", "name": "unwrapWeth", "type": "bool[]" }
     ],
     "name": "batchFillTakerSignedOtcOrders",
-    "outputs": [
-      { "internalType": "bool[]", "name": "successes", "type": "bool[]" }
-    ],
+    "outputs": [{ "internalType": "bool[]", "name": "successes", "type": "bool[]" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -2620,18 +2612,14 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "orderNonce", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "orderNonce", "type": "uint256" }],
     "name": "cancelERC1155Order",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "orderNonce", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "orderNonce", "type": "uint256" }],
     "name": "cancelERC721Order",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -2908,9 +2896,7 @@
       }
     ],
     "name": "executeMetaTransaction",
-    "outputs": [
-      { "internalType": "bytes", "name": "returnResult", "type": "bytes" }
-    ],
+    "outputs": [{ "internalType": "bytes", "name": "returnResult", "type": "bytes" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -3709,9 +3695,7 @@
       }
     ],
     "name": "getERC1155OrderHash",
-    "outputs": [
-      { "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }
-    ],
+    "outputs": [{ "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -3918,9 +3902,7 @@
       }
     ],
     "name": "getERC721OrderHash",
-    "outputs": [
-      { "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }
-    ],
+    "outputs": [{ "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -4023,9 +4005,7 @@
       { "internalType": "uint248", "name": "nonceRange", "type": "uint248" }
     ],
     "name": "getERC721OrderStatusBitVector",
-    "outputs": [
-      { "internalType": "uint256", "name": "bitVector", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "bitVector", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -4080,9 +4060,7 @@
       }
     ],
     "name": "getLimitOrderHash",
-    "outputs": [
-      { "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }
-    ],
+    "outputs": [{ "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -4371,16 +4349,12 @@
       }
     ],
     "name": "getMetaTransactionHash",
-    "outputs": [
-      { "internalType": "bytes32", "name": "mtxHash", "type": "bytes32" }
-    ],
+    "outputs": [{ "internalType": "bytes32", "name": "mtxHash", "type": "bytes32" }],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "bytes32", "name": "mtxHash", "type": "bytes32" }
-    ],
+    "inputs": [{ "internalType": "bytes32", "name": "mtxHash", "type": "bytes32" }],
     "name": "getMetaTransactionHashExecutedBlock",
     "outputs": [
       {
@@ -4435,9 +4409,7 @@
       }
     ],
     "name": "getOtcOrderHash",
-    "outputs": [
-      { "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }
-    ],
+    "outputs": [{ "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -4509,18 +4481,14 @@
   {
     "inputs": [],
     "name": "getProtocolFeeMultiplier",
-    "outputs": [
-      { "internalType": "uint32", "name": "multiplier", "type": "uint32" }
-    ],
+    "outputs": [{ "internalType": "uint32", "name": "multiplier", "type": "uint32" }],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "getQuoteSigner",
-    "outputs": [
-      { "internalType": "address", "name": "signer", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "address", "name": "signer", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -4565,9 +4533,7 @@
       }
     ],
     "name": "getRfqOrderHash",
-    "outputs": [
-      { "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }
-    ],
+    "outputs": [{ "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -4734,16 +4700,12 @@
       { "internalType": "uint256", "name": "idx", "type": "uint256" }
     ],
     "name": "getRollbackEntryAtIndex",
-    "outputs": [
-      { "internalType": "address", "name": "impl", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "address", "name": "impl", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "bytes4", "name": "selector", "type": "bytes4" }
-    ],
+    "inputs": [{ "internalType": "bytes4", "name": "selector", "type": "bytes4" }],
     "name": "getRollbackLength",
     "outputs": [
       {
@@ -4771,9 +4733,7 @@
   {
     "inputs": [],
     "name": "getTransformerDeployer",
-    "outputs": [
-      { "internalType": "address", "name": "deployer", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "address", "name": "deployer", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -4783,9 +4743,7 @@
       { "internalType": "address", "name": "signer", "type": "address" }
     ],
     "name": "isValidOrderSigner",
-    "outputs": [
-      { "internalType": "bool", "name": "isAllowed", "type": "bool" }
-    ],
+    "outputs": [{ "internalType": "bool", "name": "isAllowed", "type": "bool" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -4795,9 +4753,7 @@
       { "internalType": "uint64", "name": "nonceBucket", "type": "uint64" }
     ],
     "name": "lastOtcTxOriginNonce",
-    "outputs": [
-      { "internalType": "uint128", "name": "lastNonce", "type": "uint128" }
-    ],
+    "outputs": [{ "internalType": "uint128", "name": "lastNonce", "type": "uint128" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -4993,9 +4949,7 @@
       }
     ],
     "name": "matchERC721Orders",
-    "outputs": [
-      { "internalType": "uint256", "name": "profit", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "profit", "type": "uint256" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -5281,9 +5235,7 @@
       { "internalType": "bytes", "name": "data", "type": "bytes" }
     ],
     "name": "onERC1155Received",
-    "outputs": [
-      { "internalType": "bytes4", "name": "success", "type": "bytes4" }
-    ],
+    "outputs": [{ "internalType": "bytes4", "name": "success", "type": "bytes4" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -5295,9 +5247,7 @@
       { "internalType": "bytes", "name": "data", "type": "bytes" }
     ],
     "name": "onERC721Received",
-    "outputs": [
-      { "internalType": "bytes4", "name": "success", "type": "bytes4" }
-    ],
+    "outputs": [{ "internalType": "bytes4", "name": "success", "type": "bytes4" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -5774,9 +5724,7 @@
       { "internalType": "address", "name": "recipient", "type": "address" }
     ],
     "name": "sellEthForTokenToUniswapV3",
-    "outputs": [
-      { "internalType": "uint256", "name": "buyAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "buyAmount", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -5845,9 +5793,7 @@
       }
     ],
     "name": "sellToPancakeSwap",
-    "outputs": [
-      { "internalType": "uint256", "name": "buyAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "buyAmount", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -5871,9 +5817,7 @@
       { "internalType": "bool", "name": "isSushi", "type": "bool" }
     ],
     "name": "sellToUniswap",
-    "outputs": [
-      { "internalType": "uint256", "name": "buyAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "buyAmount", "type": "uint256" }],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -5897,9 +5841,7 @@
       }
     ],
     "name": "sellTokenForEthToUniswapV3",
-    "outputs": [
-      { "internalType": "uint256", "name": "buyAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "buyAmount", "type": "uint256" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -5919,9 +5861,7 @@
       { "internalType": "address", "name": "recipient", "type": "address" }
     ],
     "name": "sellTokenForTokenToUniswapV3",
-    "outputs": [
-      { "internalType": "uint256", "name": "buyAmount", "type": "uint256" }
-    ],
+    "outputs": [{ "internalType": "uint256", "name": "buyAmount", "type": "uint256" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -5952,20 +5892,14 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "bytes4", "name": "interfaceId", "type": "bytes4" }
-    ],
+    "inputs": [{ "internalType": "bytes4", "name": "interfaceId", "type": "bytes4" }],
     "name": "supportInterface",
-    "outputs": [
-      { "internalType": "bool", "name": "isSupported", "type": "bool" }
-    ],
+    "outputs": [{ "internalType": "bool", "name": "isSupported", "type": "bool" }],
     "stateMutability": "pure",
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "newOwner", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }],
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",

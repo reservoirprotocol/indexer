@@ -29,11 +29,11 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
       case "seaport-order-cancelled":
-      case "seaport-v1.2-order-cancelled": {
+      case "seaport-v1.4-order-cancelled": {
         const parsedLog = eventData.abi.parseLog(log);
         const orderId = parsedLog.args["orderHash"].toLowerCase();
 
-        const orderKind = subKind.startsWith("seaport-v1.2") ? "seaport-v1.2" : "seaport";
+        const orderKind = subKind.startsWith("seaport-v1.4") ? "seaport-v1.4" : "seaport";
         onChainData.cancelEvents.push({
           orderKind,
           orderId,
@@ -57,12 +57,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       }
 
       case "seaport-counter-incremented":
-      case "seaport-v1.2-counter-incremented": {
+      case "seaport-v1.4-counter-incremented": {
         const parsedLog = eventData.abi.parseLog(log);
         const maker = parsedLog.args["offerer"].toLowerCase();
         const newCounter = parsedLog.args["newCounter"].toString();
 
-        const orderKind = subKind.startsWith("seaport-v1.2") ? "seaport-v1.2" : "seaport";
+        const orderKind = subKind.startsWith("seaport-v1.4") ? "seaport-v1.4" : "seaport";
         onChainData.bulkCancelEvents.push({
           orderKind,
           maker,
@@ -74,7 +74,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       }
 
       case "seaport-order-filled":
-      case "seaport-v1.2-order-filled": {
+      case "seaport-v1.4-order-filled": {
         const parsedLog = eventData.abi.parseLog(log);
         const orderId = parsedLog.args["orderHash"].toLowerCase();
         const maker = parsedLog.args["offerer"].toLowerCase();
@@ -86,10 +86,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        const orderKind = subKind.startsWith("seaport-v1.2") ? "seaport-v1.2" : "seaport";
+        const orderKind = subKind.startsWith("seaport-v1.4") ? "seaport-v1.4" : "seaport";
         const exchange =
-          orderKind === "seaport-v1.2"
-            ? new Sdk.SeaportV12.Exchange(config.chainId)
+          orderKind === "seaport-v1.4"
+            ? new Sdk.SeaportV14.Exchange(config.chainId)
             : new Sdk.Seaport.Exchange(config.chainId);
 
         const saleInfo = exchange.deriveBasicSale(offer, consideration);

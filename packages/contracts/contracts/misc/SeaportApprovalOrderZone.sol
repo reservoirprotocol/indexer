@@ -12,36 +12,36 @@ import {ISeaport} from "../interfaces/ISeaport.sol";
 // so that the risk of reusing them via a malicious contract which
 // forwards them is low.
 contract SeaportApprovalOrderZone {
-    // --- Errors ---
+  // --- Errors ---
 
-    error Unauthorized();
+  error Unauthorized();
 
-    // --- Seaport `ZoneInterface` overrides ---
+  // --- Seaport `ZoneInterface` overrides ---
 
-    function isValidOrder(
-        bytes32,
-        address,
-        address offerer,
-        bytes32
-    ) external view returns (bytes4 validOrderMagicValue) {
-        if (offerer != tx.origin) {
-            revert Unauthorized();
-        }
-
-        validOrderMagicValue = this.isValidOrder.selector;
+  function isValidOrder(
+    bytes32,
+    address,
+    address offerer,
+    bytes32
+  ) external view returns (bytes4 validOrderMagicValue) {
+    if (offerer != tx.origin) {
+      revert Unauthorized();
     }
 
-    function isValidOrderIncludingExtraData(
-        bytes32,
-        address,
-        ISeaport.AdvancedOrder calldata order,
-        bytes32[] calldata,
-        ISeaport.CriteriaResolver[] calldata
-    ) external view returns (bytes4 validOrderMagicValue) {
-        if (order.parameters.offerer != tx.origin) {
-            revert Unauthorized();
-        }
+    validOrderMagicValue = this.isValidOrder.selector;
+  }
 
-        validOrderMagicValue = this.isValidOrder.selector;
+  function isValidOrderIncludingExtraData(
+    bytes32,
+    address,
+    ISeaport.AdvancedOrder calldata order,
+    bytes32[] calldata,
+    ISeaport.CriteriaResolver[] calldata
+  ) external view returns (bytes4 validOrderMagicValue) {
+    if (order.parameters.offerer != tx.origin) {
+      revert Unauthorized();
     }
+
+    validOrderMagicValue = this.isValidOrder.selector;
+  }
 }

@@ -12,7 +12,7 @@ import {IWETH} from "../../../interfaces/IWETH.sol";
 
 contract SwapModule is BaseExchangeModule {
 
-    struct TrasnferDetail {
+    struct TransferDetail {
         address recipient;
         bool toETH;
         uint256 amount;
@@ -20,7 +20,7 @@ contract SwapModule is BaseExchangeModule {
 
     struct Swap {
         IUniswapV3Router.ExactOutputSingleParams params;
-        TrasnferDetail[] recipients;
+        TransferDetail[] recipients;
     }
 
     // --- Fields ---
@@ -44,7 +44,7 @@ contract SwapModule is BaseExchangeModule {
     
     // --- Wrap ---
 
-    function wrap(TrasnferDetail[] calldata targets) external payable nonReentrant {
+    function wrap(TransferDetail[] calldata targets) external payable nonReentrant {
         WETH.deposit{value: msg.value}();
         for (uint256 i = 0; i < targets.length; ) {
             _sendERC20(targets[i].recipient, targets[i].amount, WETH);
@@ -56,7 +56,7 @@ contract SwapModule is BaseExchangeModule {
 
     // --- Unwrap ---
 
-    function unwrap(TrasnferDetail[] calldata targets) external nonReentrant {
+    function unwrap(TransferDetail[] calldata targets) external nonReentrant {
         uint256 balance = WETH.balanceOf(address(this));
         WETH.withdraw(balance);
         for (uint256 i = 0; i < targets.length; ) {
@@ -87,7 +87,7 @@ contract SwapModule is BaseExchangeModule {
         SWAP_ROUTER.refundETH();
 
         for (uint256 i = 0; i < swap.recipients.length; ) {
-            TrasnferDetail calldata transferDetail = swap.recipients[i];
+            TransferDetail calldata transferDetail = swap.recipients[i];
             if (transferDetail.toETH) {
                 WETH.withdraw(transferDetail.amount);
                 _sendETH(transferDetail.recipient, transferDetail.amount);
@@ -116,7 +116,7 @@ contract SwapModule is BaseExchangeModule {
         SWAP_ROUTER.exactOutputSingle(swap.params);
 
         for (uint256 i = 0; i < swap.recipients.length; ) {
-            TrasnferDetail calldata transferDetail = swap.recipients[i];
+            TransferDetail calldata transferDetail = swap.recipients[i];
             if (transferDetail.toETH) {
                 WETH.withdraw(transferDetail.amount);
                 _sendETH(transferDetail.recipient, transferDetail.amount);

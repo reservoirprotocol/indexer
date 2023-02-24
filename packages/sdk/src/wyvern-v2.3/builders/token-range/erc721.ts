@@ -116,9 +116,7 @@ export class TokenRangeErc721Builder extends BaseBuilder {
         ]),
         replacementPattern: REPLACEMENT_PATTERN_BUY,
         staticTarget: Addresses.TokenRangeVerifier[this.chainId],
-        staticExtradata: new Interface(
-          TokenRangeVerifierAbi
-        ).encodeFunctionData("verify", [
+        staticExtradata: new Interface(TokenRangeVerifierAbi).encodeFunctionData("verify", [
           params.startTokenId,
           params.endTokenId,
         ]),
@@ -140,22 +138,13 @@ export class TokenRangeErc721Builder extends BaseBuilder {
     }
   }
 
-  public buildMatching(
-    order: Order,
-    taker: string,
-    data: { tokenId: string; nonce: string }
-  ) {
+  public buildMatching(order: Order, taker: string, data: { tokenId: string; nonce: string }) {
     const info = this.getInfo(order);
     if (!info) {
       throw new Error("Invalid order");
     }
 
-    if (
-      !(
-        bn(info.startTokenId).lte(data.tokenId) &&
-        bn(data.tokenId).lte(info.endTokenId)
-      )
-    ) {
+    if (!(bn(info.startTokenId).lte(data.tokenId) && bn(data.tokenId).lte(info.endTokenId))) {
       throw new Error("Invalid token id");
     }
 

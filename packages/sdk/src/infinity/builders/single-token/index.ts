@@ -18,6 +18,7 @@ export class SingleTokenBuilder extends BaseBuilder<SingleTokenOrderParams> {
   }
 
   public build(params: SingleTokenOrderParams): Order {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { collection, tokenId, numTokens, ...rest } = params;
 
     const order = new Order(this.chainId, {

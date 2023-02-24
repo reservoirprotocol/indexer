@@ -5,8 +5,11 @@ import { generateSourceBytes, getRandomBytes } from "@reservoir0x/sdk/dist/utils
 
 import { redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
-import { bn, now } from "@/common/utils";
+import { bn, fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
+import { tryGetCollectionOpenseaFees } from "@/utils/opensea";
+import { Tokens } from "@/models/tokens";
+import { redis } from "@/common/redis";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -23,6 +26,7 @@ export interface BaseOrderBuildOptions {
   expirationTime?: number;
   salt?: string;
   automatedRoyalties?: boolean;
+  royaltyBps?: number;
   excludeFlaggedTokens?: boolean;
   source?: string;
 }
@@ -48,7 +52,8 @@ export const getBuildInfo = async (
       SELECT
         contracts.kind,
         collections.royalties,
-        collections.new_royalties
+        collections.new_royalties,
+        collections.contract
       FROM collections
       JOIN contracts
         ON collections.contract = contracts.address
@@ -95,24 +100,36 @@ export const getBuildInfo = async (
 
   // Keep track of the total amount of fees
   let totalFees = bn(0);
+
+  // Include royalties
   let totalBps = 0;
-
   if (options.automatedRoyalties) {
-    // Include the royalties
-    const royalties =
-      options.orderbook === "opensea"
+    const royalties: { bps: number; recipient: string }[] =
+      (options.orderbook === "opensea"
         ? collectionResult.new_royalties?.opensea
-        : collectionResult.royalties;
-    for (const { recipient, bps } of royalties || []) {
-      if (recipient && Number(bps) > 0) {
-        totalBps += Number(bps);
-        const fee = bn(bps).mul(options.weiPrice).div(10000).toString();
-        buildParams.fees!.push({
-          recipient,
-          amount: fee,
-        });
+        : collectionResult.royalties) ?? [];
 
-        totalFees = totalFees.add(fee);
+    let royaltyBpsToPay = royalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+    if (options.royaltyBps !== undefined) {
+      // The royalty bps to pay will be min(collectionRoyaltyBps, requestedRoyaltyBps)
+      royaltyBpsToPay = Math.min(options.royaltyBps, royaltyBpsToPay);
+    }
+
+    for (const r of royalties) {
+      if (r.recipient && r.bps > 0) {
+        const bps = Math.min(royaltyBpsToPay, r.bps);
+        if (bps > 0) {
+          royaltyBpsToPay -= bps;
+          totalBps += bps;
+
+          const fee = bn(bps).mul(options.weiPrice).div(10000).toString();
+          buildParams.fees!.push({
+            recipient: r.recipient,
+            amount: fee,
+          });
+
+          totalFees = totalFees.add(fee);
+        }
       }
     }
   }
@@ -123,10 +140,16 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
-    options.fee.push(totalBps < 50 ? 50 - totalBps : 0);
+    const openseaFees = await getCollectionOpenseaFees(
+      collection,
+      fromBuffer(collectionResult.contract),
+      totalBps
+    );
 
-    // OpenSea's Seaport fee recipient
-    options.feeRecipient.push("0x0000a26b00c1f0df003000390027140000faa719");
+    for (const [feeRecipient, feeBps] of Object.entries(openseaFees)) {
+      options.fee.push(feeBps);
+      options.feeRecipient.push(feeRecipient);
+    }
   }
 
   if (options.fee && options.feeRecipient) {
@@ -155,4 +178,35 @@ export const getBuildInfo = async (
     params: buildParams,
     kind: collectionResult.kind,
   };
+};
+
+export const getCollectionOpenseaFees = async (
+  collection: string,
+  contract: string,
+  totalBps: number
+) => {
+  let openseaFees = new Map<string, number>();
+
+  const cachedCollectionOpenseaFees = await redis.get(`collection-opensea-fees:${collection}`);
+
+  if (cachedCollectionOpenseaFees) {
+    openseaFees = JSON.parse(cachedCollectionOpenseaFees);
+  } else {
+    const tokenId = await Tokens.getSingleToken(collection);
+    const tryGetCollectionOpenseaFeesResult = await tryGetCollectionOpenseaFees(contract, tokenId);
+
+    if (tryGetCollectionOpenseaFeesResult.isSuccess) {
+      openseaFees = tryGetCollectionOpenseaFeesResult.openseaFees;
+      await redis.set(
+        `collection-opensea-fees:${collection}`,
+        JSON.stringify(openseaFees),
+        "EX",
+        3600
+      );
+    } else if (totalBps < 50) {
+      openseaFees.set("0x0000a26b00c1f0df003000390027140000faa719", 50 - totalBps);
+    }
+  }
+
+  return openseaFees;
 };

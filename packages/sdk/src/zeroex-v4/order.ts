@@ -99,19 +99,13 @@ export class Order {
   public async checkFillability(provider: Provider) {
     const chainId = await provider.getNetwork().then((n) => n.chainId);
 
-    const exchange = new Contract(
-      Addresses.Exchange[this.chainId],
-      ExchangeAbi as any,
-      provider
-    );
+    const exchange = new Contract(Addresses.Exchange[this.chainId], ExchangeAbi, provider);
 
     let status: number | undefined;
     if (this.params.kind?.startsWith("erc721")) {
       status = await exchange.getERC721OrderStatus(toRawErc721Order(this));
     } else {
-      ({ status } = await exchange.getERC1155OrderInfo(
-        toRawErc1155Order(this)
-      ));
+      ({ status } = await exchange.getERC1155OrderInfo(toRawErc1155Order(this)));
     }
 
     if (status !== 1) {
@@ -119,7 +113,7 @@ export class Order {
     }
 
     // Determine the order's fees (which are to be payed by the buyer)
-    let feeAmount = this.getFeeAmount();
+    const feeAmount = this.getFeeAmount();
 
     if (this.params.direction === Types.TradeDirection.BUY) {
       // Check that maker has enough balance to cover the payment
@@ -131,10 +125,7 @@ export class Order {
       }
 
       // Check allowance
-      const allowance = await erc20.getAllowance(
-        this.params.maker,
-        Addresses.Exchange[chainId]
-      );
+      const allowance = await erc20.getAllowance(this.params.maker, Addresses.Exchange[chainId]);
       if (bn(allowance).lt(bn(this.params.erc20TokenAmount).add(feeAmount))) {
         throw new Error("no-approval");
       }
@@ -160,10 +151,7 @@ export class Order {
         const erc1155 = new Common.Helpers.Erc1155(provider, this.params.nft);
 
         // Check balance
-        const balance = await erc1155.getBalance(
-          this.params.maker,
-          this.params.nftId
-        );
+        const balance = await erc1155.getBalance(this.params.maker, this.params.nftId);
         if (bn(balance).lt(this.params.nftAmount!)) {
           throw new Error("no-balance");
         }
@@ -180,7 +168,7 @@ export class Order {
     }
   }
 
-  public buildMatching(data?: any) {
+  public buildMatching(data?: object) {
     return this.getBuilder().buildMatching(this, data);
   }
 
@@ -236,9 +224,7 @@ export class Order {
     {
       const builder = new Builders.ContractWide(this.chainId);
       if (builder.isValid(this)) {
-        return this.params.nftAmount
-          ? "erc1155-contract-wide"
-          : "erc721-contract-wide";
+        return this.params.nftAmount ? "erc1155-contract-wide" : "erc721-contract-wide";
       }
     }
 
@@ -246,9 +232,7 @@ export class Order {
     {
       const builder = new Builders.SingleToken(this.chainId);
       if (builder.isValid(this)) {
-        return this.params.nftAmount
-          ? "erc1155-single-token"
-          : "erc721-single-token";
+        return this.params.nftAmount ? "erc1155-single-token" : "erc721-single-token";
       }
     }
 
@@ -256,9 +240,7 @@ export class Order {
     {
       const builder = new Builders.TokenRange(this.chainId);
       if (builder.isValid(this)) {
-        return this.params.nftAmount
-          ? "erc1155-token-range"
-          : "erc721-token-range";
+        return this.params.nftAmount ? "erc1155-token-range" : "erc721-token-range";
       }
     }
 
@@ -280,9 +262,7 @@ export class Order {
       }
     }
 
-    throw new Error(
-      "Could not detect order kind (order might have unsupported params/calldata)"
-    );
+    throw new Error("Could not detect order kind (order might have unsupported params/calldata)");
   }
 }
 
@@ -344,6 +324,7 @@ const ERC1155_ORDER_EIP712_TYPES = {
   ],
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const toRawErc721Order = (order: Order): any => ({
   ...order.params,
   erc721Token: order.params.nft,
@@ -351,6 +332,7 @@ const toRawErc721Order = (order: Order): any => ({
   erc721TokenProperties: order.params.nftProperties,
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const toRawErc1155Order = (order: Order): any => ({
   ...order.params,
   erc1155Token: order.params.nft,
@@ -382,12 +364,10 @@ const normalize = (order: Types.BaseOrder): Types.BaseOrder => {
     })),
     nft: lc(order.nft),
     nftId: s(order.nftId),
-    nftProperties: order.nftProperties.map(
-      ({ propertyValidator, propertyData }) => ({
-        propertyValidator: lc(propertyValidator),
-        propertyData: lc(propertyData),
-      })
-    ),
+    nftProperties: order.nftProperties.map(({ propertyValidator, propertyData }) => ({
+      propertyValidator: lc(propertyValidator),
+      propertyData: lc(propertyData),
+    })),
     nftAmount: order.nftAmount ? s(order.nftAmount) : undefined,
     signatureType: order.signatureType ?? 1,
     v: order.v ?? 0,

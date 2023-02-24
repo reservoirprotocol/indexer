@@ -107,9 +107,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "_currency", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "_currency", "type": "address" }],
     "name": "addCurrency",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -989,9 +987,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "index", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "index", "type": "uint256" }],
     "name": "getCurrencyAt",
     "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
     "stateMutability": "view",
@@ -1276,9 +1272,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "currency", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "currency", "type": "address" }],
     "name": "isValidCurrency",
     "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
     "stateMutability": "view",
@@ -1299,9 +1293,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "_currency", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "_currency", "type": "address" }],
     "name": "removeCurrency",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -1322,9 +1314,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "newOwner", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }],
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",

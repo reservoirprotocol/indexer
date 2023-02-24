@@ -25,7 +25,7 @@ import * as Okex from "./okex";
 import * as Quixotic from "./quixotic";
 import * as Rarible from "./rarible";
 import * as Seaport from "./seaport";
-import * as SeaportV12 from "./seaport-v1.2";
+import * as SeaportV14 from "./seaport-v1.4";
 import * as Sudoswap from "./sudoswap";
 import * as SuperRare from "./superrare";
 import * as TofuNft from "./tofunft";
@@ -66,7 +66,7 @@ export {
   Quixotic,
   Rarible,
   Seaport,
-  SeaportV12,
+  SeaportV14,
   Sudoswap,
   SuperRare,
   TofuNft,

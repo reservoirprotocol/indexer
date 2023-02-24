@@ -39,6 +39,7 @@ import * as backfillFoundationSales from "@/jobs/backfill/backfill-foundation-sa
 import * as backfillMints from "@/jobs/backfill/backfill-mints";
 import * as backfillRefreshCryptopunksOrders from "@/jobs/backfill/backfill-refresh-cryptopunks-orders";
 import * as backfillTokensWithMissingCollection from "@/jobs/backfill/backfill-tokens-with-missing-collection";
+import * as backfillUpdateMissingMetadata from "@/jobs/backfill/backfill-update-missing-metadata";
 import * as backfillTokensLastFlagUpdate from "@/jobs/backfill/backfill-tokens-last-flag-update";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
@@ -102,6 +103,8 @@ import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-que
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
 import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
+import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
+import * as orderbookSaveOpenseaWebsocketEvents from "@/jobs/orderbook/save-opensea-websocket-events-queue";
 
 import * as fetchSourceInfo from "@/jobs/sources/fetch-source-info";
 
@@ -118,6 +121,7 @@ import * as resyncAttributeCollection from "@/jobs/update-attribute/resync-attri
 import * as resyncAttributeFloorSell from "@/jobs/update-attribute/resync-attribute-floor-sell";
 import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attribute-key-counts";
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
+import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute-counts";
 
 import * as websocketEventsTriggerQueue from "@/jobs/websocket-events/trigger-queue";
 
@@ -145,6 +149,7 @@ export const allJobQueues = [
   backfillMints.queue,
   backfillRefreshCryptopunksOrders.queue,
   backfillTokensWithMissingCollection.queue,
+  backfillUpdateMissingMetadata.queue,
   backfillTokensLastFlagUpdate.queue,
 
   currencies.queue,
@@ -209,6 +214,8 @@ export const allJobQueues = [
   orderbookOrders.queue,
   orderbookPostOrderExternal.queue,
   orderbookTokenSets.queue,
+  orderbookOpenseaListings.queue,
+  orderbookSaveOpenseaWebsocketEvents.queue,
 
   fetchSourceInfo.queue,
 
@@ -225,6 +232,7 @@ export const allJobQueues = [
   resyncAttributeFloorSell.queue,
   resyncAttributeKeyCounts.queue,
   resyncAttributeValueCounts.queue,
+  updateAttributeCounts.queue,
 
   websocketEventsTriggerQueue.queue,
 ];

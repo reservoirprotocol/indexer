@@ -12,10 +12,7 @@ export class ModuleManager {
 
   constructor(chainId: number) {
     this.chainId = chainId;
-    this.contract = new Contract(
-      Addresses.ModuleManager[this.chainId],
-      ModuleManagerAbi as any
-    );
+    this.contract = new Contract(Addresses.ModuleManager[this.chainId], ModuleManagerAbi);
   }
 
   // --- Set approval for module ---
@@ -25,26 +22,15 @@ export class ModuleManager {
     module: string,
     approved: boolean
   ): Promise<ContractTransaction> {
-    const tx = this.setApprovalForModuleTx(
-      await signer.getAddress(),
-      module,
-      approved
-    );
+    const tx = this.setApprovalForModuleTx(await signer.getAddress(), module, approved);
     return signer.sendTransaction(tx);
   }
 
-  public setApprovalForModuleTx(
-    signer: string,
-    module: string,
-    approved: boolean
-  ): TxData {
+  public setApprovalForModuleTx(signer: string, module: string, approved: boolean): TxData {
     return {
       from: signer,
       to: this.contract.address,
-      data: this.contract.interface.encodeFunctionData("setApprovalForModule", [
-        module,
-        approved,
-      ]),
+      data: this.contract.interface.encodeFunctionData("setApprovalForModule", [module, approved]),
     };
   }
 }

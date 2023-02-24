@@ -2,9 +2,6 @@
   "name": "@reservoir0x/indexer",
   "version": "5.257.1",
   "description": "Reservoir Protocol Indexer",
-  "main": "./dist/index.js",
-  "repository": "https://github.com/reservoirprotocol/indexer",
-  "author": "Uneven Labs",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -14,13 +11,7 @@
     "start": "yarn migrate up; node -r module-alias/register ./dist/index.js",
     "migrate": "node ../../node_modules/node-pg-migrate/bin/node-pg-migrate -m ./src/migrations --no-check-order",
     "debug": "yarn build && yarn migrate up; node --inspect -r module-alias/register ./dist/index.js",
-    "commitlint": "commitlint --edit",
-    "lint-check": "eslint --max-warnings 0 --ext .js,.ts,.json src",
-    "format-check": "prettier --check \"src/**/*.+(js|ts|json)\"",
-    "format": "prettier --write \"src/**/*.+(js|ts|json)\"",
-    "test": "jest --no-watchman",
-    "prepare": "husky install",
-    "release": "standard-version"
+    "test": "jest --no-watchman"
   },
   "dependencies": {
     "@bull-board/hapi": "4.0.1",
@@ -90,19 +81,6 @@
     "uuid-by-string": "^3.0.7",
     "winston": "^3.3.3",
     "ws": "^8.10.0"
-  },
-  "_moduleAliases": {
-    "@/api": "dist/api",
-    "@/arweave-sync": "dist/sync/arweave",
-    "@/common": "dist/common",
-    "@/config": "dist/config",
-    "@/models": "dist/models",
-    "@/utils": "dist/utils",
-    "@/jobs": "dist/jobs",
-    "@/orderbook": "dist/orderbook",
-    "@/events-sync": "dist/sync/events",
-    "@/pubsub": "dist/pubsub",
-    "@/websockets": "dist/websockets"
   },
   "devDependencies": {
     "tsconfig-paths": "^4.1.0"

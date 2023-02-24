@@ -1,8 +1,13 @@
-import { constants, utils } from "ethers";
+import { defaultAbiCoder } from "@ethersproject/abi";
+import { AddressZero } from "@ethersproject/constants";
+import { keccak256 } from "@ethersproject/keccak256";
+import { toUtf8Bytes } from "@ethersproject/strings";
+import { utils } from "ethers";
+
+import { getOrderSide } from "./order-info";
 import { Constants, Types } from "..";
 import { ORDER_DATA_TYPES } from "../constants";
 import { AssetClass, IPart, LocalAssetType } from "../types";
-import { getOrderSide } from "./order-info";
 
 export const encodeAssetData = (assetType: LocalAssetType) => {
   switch (assetType.assetClass) {
@@ -10,15 +15,15 @@ export const encodeAssetData = (assetType: LocalAssetType) => {
       return "0x";
     case AssetClass.ERC20:
     case AssetClass.COLLECTION:
-      return utils.defaultAbiCoder.encode(["address"], [assetType.contract]);
+      return defaultAbiCoder.encode(["address"], [assetType.contract]);
     case AssetClass.ERC721:
     case AssetClass.ERC1155:
-      return utils.defaultAbiCoder.encode(
+      return defaultAbiCoder.encode(
         ["address", "uint256"],
         [assetType.contract, assetType.tokenId]
       );
     case AssetClass.ERC721_LAZY:
-      return utils.defaultAbiCoder.encode(
+      return defaultAbiCoder.encode(
         [
           "address contract",
           "tuple(uint256 tokenId, string uri, tuple(address account, uint96 value)[] creators, tuple(address account, uint96 value)[] royalties, bytes[] signatures)",
@@ -35,7 +40,7 @@ export const encodeAssetData = (assetType: LocalAssetType) => {
         ]
       );
     case AssetClass.ERC1155_LAZY:
-      return utils.defaultAbiCoder.encode(
+      return defaultAbiCoder.encode(
         [
           "address contract",
           "tuple(uint256 tokenId, string uri, uint256 supply, tuple(address account, uint96 value)[] creators, tuple(address account, uint96 value)[] royalties, bytes[] signatures)",
@@ -62,7 +67,7 @@ export const encodeAssetClass = (assetClass: string) => {
     return "0xffffffff";
   }
 
-  return utils.keccak256(utils.toUtf8Bytes(assetClass)).substring(0, 10);
+  return keccak256(toUtf8Bytes(assetClass)).substring(0, 10);
 };
 
 export const encodeV2OrderData = (payments: IPart[] | undefined) => {
@@ -77,7 +82,7 @@ export const encodeV2OrderData = (payments: IPart[] | undefined) => {
 // and address + amount are encoded into uint (first 12 bytes for amount, last 20 bytes for address), not using `LibPart.Part` struct
 export const encodeV3OrderData = (part: IPart) => {
   if (!part) {
-    return utils.defaultAbiCoder.encode(["uint"], ["0"]);
+    return defaultAbiCoder.encode(["uint"], ["0"]);
   }
 
   const { account, value } = part;
@@ -87,17 +92,15 @@ export const encodeV3OrderData = (part: IPart) => {
   return encodedData;
 };
 
-export const encodeOrderData = (
-  order: Types.Order | Types.TakerOrderParams
-) => {
+export const encodeOrderData = (order: Types.Order | Types.TakerOrderParams) => {
   let encodedOrderData = "";
 
   switch (order.data.dataType) {
     case ORDER_DATA_TYPES.V1:
-    case ORDER_DATA_TYPES.API_V1:
+    case ORDER_DATA_TYPES.API_V1: {
       const v1Data = order.data as Types.IV1OrderData;
 
-      encodedOrderData = utils.defaultAbiCoder.encode(
+      encodedOrderData = defaultAbiCoder.encode(
         [
           "tuple(tuple(address account,uint96 value)[] payouts, tuple(address account,uint96 value)[] originFees)",
         ],
@@ -109,18 +112,16 @@ export const encodeOrderData = (
         ]
       );
       break;
+    }
 
     case Constants.ORDER_DATA_TYPES.V2:
-    case Constants.ORDER_DATA_TYPES.API_V2:
+    case Constants.ORDER_DATA_TYPES.API_V2: {
       const v2Data = order.data as Types.IV2OrderData;
-      const side = getOrderSide(
-        order.make.assetType.assetClass,
-        order.take.assetType.assetClass
-      );
+      const side = getOrderSide(order.make.assetType.assetClass, order.take.assetType.assetClass);
 
       const isMakeFill = side === "buy" ? 0 : 1;
 
-      encodedOrderData = utils.defaultAbiCoder.encode(
+      encodedOrderData = defaultAbiCoder.encode(
         [
           "tuple(tuple(address account,uint96 value)[] payouts, tuple(address account,uint96 value)[] originFees, bool isMakeFill)",
         ],
@@ -133,11 +134,13 @@ export const encodeOrderData = (
         ]
       );
       break;
+    }
+
     case Constants.ORDER_DATA_TYPES.V3_SELL:
-    case Constants.ORDER_DATA_TYPES.API_V3_SELL:
+    case Constants.ORDER_DATA_TYPES.API_V3_SELL: {
       const v3SellData = order.data as Types.IV3OrderSellData;
 
-      encodedOrderData = utils.defaultAbiCoder.encode(
+      encodedOrderData = defaultAbiCoder.encode(
         [
           "uint payouts",
           "uint originFeeFirst",
@@ -151,18 +154,18 @@ export const encodeOrderData = (
           encodeV3OrderData(v3SellData.originFeeSecond),
           // TODO: Think of how to generate when maxFeesBasePoint is not passed in case of buy orders
           v3SellData.maxFeesBasePoint || "1000",
-          utils.keccak256(
-            utils.toUtf8Bytes(v3SellData.marketplaceMarker || "")
-          ),
+          keccak256(toUtf8Bytes(v3SellData.marketplaceMarker || "")),
         ]
       );
 
       break;
+    }
+
     case Constants.ORDER_DATA_TYPES.V3_BUY:
-    case Constants.ORDER_DATA_TYPES.API_V3_BUY:
+    case Constants.ORDER_DATA_TYPES.API_V3_BUY: {
       const v3BuyData = order.data as Types.IV3OrderBuyData;
 
-      encodedOrderData = utils.defaultAbiCoder.encode(
+      encodedOrderData = defaultAbiCoder.encode(
         [
           "uint payouts",
           "uint originFeeFirst",
@@ -173,28 +176,29 @@ export const encodeOrderData = (
           encodeV3OrderData(v3BuyData.payouts),
           encodeV3OrderData(v3BuyData.originFeeFirst),
           encodeV3OrderData(v3BuyData.originFeeSecond),
-          utils.keccak256(utils.toUtf8Bytes(v3BuyData.marketplaceMarker || "")),
+          keccak256(toUtf8Bytes(v3BuyData.marketplaceMarker || "")),
         ]
       );
       break;
+    }
+
     default:
       throw Error("Unknown rarible order type");
   }
+
   return encodedOrderData;
 };
 
 export const hashAssetType = (assetType: LocalAssetType) => {
-  const encodedAssetType = utils.defaultAbiCoder.encode(
+  const encodedAssetType = defaultAbiCoder.encode(
     ["bytes32", "bytes4", "bytes32"],
     [
-      utils.keccak256(
-        utils.toUtf8Bytes("AssetType(bytes4 assetClass,bytes data)")
-      ),
+      keccak256(toUtf8Bytes("AssetType(bytes4 assetClass,bytes data)")),
       encodeAssetClass(assetType.assetClass),
-      utils.keccak256(encodeAssetData(assetType)),
+      keccak256(encodeAssetData(assetType)),
     ]
   );
-  return utils.keccak256(encodedAssetType);
+  return keccak256(encodedAssetType);
 };
 
 /**
@@ -202,23 +206,20 @@ export const hashAssetType = (assetType: LocalAssetType) => {
  * @param order
  * @returns encoded order which is ready to be signed
  */
-export const encodeForContract = (
-  order: Types.Order,
-  matchingOrder: Types.TakerOrderParams
-) => {
+export const encodeForContract = (order: Types.Order, matchingOrder: Types.TakerOrderParams) => {
   switch (order.side) {
-    case "buy":
+    case "buy": {
       const bid: Types.AcceptBid = {
         bidMaker: order.maker,
         bidNftAmount: order.take.value,
         nftAssetClass: encodeAssetClass(order.take.assetType.assetClass),
         nftData: encodeAssetData(order.take.assetType),
         bidPaymentAmount: order.make.value,
-        paymentToken: order.make.assetType.contract || constants.AddressZero,
+        paymentToken: order.make.assetType.contract || AddressZero,
         bidSalt: order.salt,
         bidStart: order.start,
         bidEnd: order.end,
-        bidDataType: encodeAssetClass(order.data?.dataType!),
+        bidDataType: encodeAssetClass(order.data?.dataType),
         bidData: encodeOrderData(order),
         bidSignature: order.signature!,
         sellOrderPaymentAmount: matchingOrder.take.value,
@@ -226,18 +227,20 @@ export const encodeForContract = (
         sellOrderData: encodeOrderData(matchingOrder),
       };
       return bid;
-    case "sell":
+    }
+
+    case "sell": {
       const purchase: Types.Purchase = {
         sellOrderMaker: order.maker,
         sellOrderNftAmount: order.make.value,
         nftAssetClass: encodeAssetClass(order.make.assetType.assetClass),
         nftData: encodeAssetData(order.make.assetType),
         sellOrderPaymentAmount: order.take.value,
-        paymentToken: order.take.assetType.contract || constants.AddressZero,
+        paymentToken: order.take.assetType.contract || AddressZero,
         sellOrderSalt: order.salt,
         sellOrderStart: order.start,
         sellOrderEnd: order.end,
-        sellOrderDataType: encodeAssetClass(order.data?.dataType!),
+        sellOrderDataType: encodeAssetClass(order.data?.dataType),
         sellOrderData: encodeOrderData(order),
         sellOrderSignature: order.signature!,
         buyOrderPaymentAmount: matchingOrder.make.value,
@@ -245,6 +248,8 @@ export const encodeForContract = (
         buyOrderData: encodeOrderData(matchingOrder),
       };
       return purchase;
+    }
+
     default:
       throw Error("Unknown order side");
   }
@@ -255,9 +260,7 @@ export const encodeForContract = (
  * @param order
  * @returns encoded order which is ready to be signed
  */
-export const encodeForMatchOrders = (
-  order: Types.Order | Types.TakerOrderParams
-) => {
+export const encodeForMatchOrders = (order: Types.Order | Types.TakerOrderParams) => {
   return {
     maker: order.maker,
     makeAsset: {
@@ -278,7 +281,7 @@ export const encodeForMatchOrders = (
     salt: order.salt,
     start: order.start,
     end: order.end,
-    dataType: encodeAssetClass(order.data?.dataType!),
+    dataType: encodeAssetClass(order.data?.dataType),
     data: encodeOrderData(order),
   };
 };
