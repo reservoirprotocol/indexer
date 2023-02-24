@@ -1294,7 +1294,6 @@ export class Router {
         for (const { originalIndex } of currencyDetails) {
           success[originalIndex] = true;
         }
-        // }
       }
     }
 
