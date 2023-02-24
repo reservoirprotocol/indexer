@@ -42,12 +42,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     seaportApprovalOrderZone = await ethers
       .getContractFactory("SeaportApprovalOrderZone", deployer)
       .then((factory) => factory.deploy());
-    
-    swapModule = (await ethers
-      .getContractFactory("SwapModule", deployer)
-      .then((factory) =>
-        factory.deploy(deployer.address, deployer.address)
-      )) as any;
   });
 
   afterEach(reset);
@@ -219,7 +213,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     ];
 
     const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
-    router.contracts.swapModule = swapModule;
 
     const { txData } = await router.fillListingsTx(
       listings,
@@ -335,8 +328,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     expect(token1OwnerBefore).to.eq(seller1.address);
 
     const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
-    router.contracts.swapModule = swapModule;
-
     const feesOnTop = [
       {
         recipient: feeRecipient.address,
@@ -552,8 +543,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     expect(token3OwnerBefore).to.eq(seller3.address);
 
     const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
-    router.contracts.swapModule = swapModule;
-
     const tx = await router.fillListingsTx(
       listings,
       buyer.address,
@@ -753,7 +742,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     expect(token3OwnerBefore).to.eq(seller3.address);
 
     const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
-    router.contracts.swapModule = swapModule;
 
     const tx = await router.fillListingsTx(
       listings,
@@ -910,7 +898,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     expect(token2OwnerBefore).to.eq(seller.address);
 
     const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
-    router.contracts.swapModule = swapModule;
 
     const tx = await router.fillBidsTx(bids, seller.address, {
       source: "reservoir.market",
@@ -1127,7 +1114,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     expect(token3OwnerBefore).to.eq(seller.address);
 
     const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
-    router.contracts.swapModule = swapModule;
 
     const permitHandler = new SeaportPermit.Handler(chainId, ethers.provider);
     {
@@ -1282,7 +1268,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     expect(token1OwnerBefore).to.eq(seller.address);
 
     const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
-    router.contracts.swapModule = swapModule;
 
     const tx = await router.fillBidsTx(bids, seller.address, {
       source: "reservoir.market",
@@ -1351,7 +1336,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
 
   it("Fill multiple cross-currency Seaport listings with USDC", async () => {
     const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
-    router.contracts.swapModule = swapModule;
 
     // Get some USDC
     const swapExecutions = [
