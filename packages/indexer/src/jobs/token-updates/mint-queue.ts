@@ -131,10 +131,10 @@ if (config.doBackgroundWork) {
               }
             );
             if (tokenSetResult) {
-              await tokenSets.dynamicCollectionNonFlagged.save(
+              await tokenSets.dynamicCollectionNonFlagged.update(
                 { collection: collection.id },
-                undefined,
-                true
+                { contract, tokenId },
+                "add"
               );
             }
           }

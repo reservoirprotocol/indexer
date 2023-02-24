@@ -53,8 +53,7 @@ export const get = async (metadata: Metadata): Promise<TokenSet & { merkleRoot?:
 
 export const save = async (
   metadata: Metadata,
-  checkAgainstMerkleRoot?: string,
-  forceRefresh?: boolean
+  checkAgainstMerkleRoot?: string
 ): Promise<TokenSet | undefined> => {
   const tokenSet = internalGetTokenSet(metadata);
 
@@ -73,7 +72,7 @@ export const save = async (
       id: tokenSet.id,
     }
   );
-  if (tokenSetResult && !forceRefresh) {
+  if (tokenSetResult) {
     // If specified, check the current token set's merkle root
     if (checkAgainstMerkleRoot && tokenSetResult.metadata.merkleRoot !== checkAgainstMerkleRoot) {
       return undefined;
@@ -200,7 +199,7 @@ export const update = async (
             $/id/,
             $/contract/,
             $/tokenId/
-          )
+          ) ON CONFLICT DO NOTHING
         `,
         {
           id: tokenSet.id,

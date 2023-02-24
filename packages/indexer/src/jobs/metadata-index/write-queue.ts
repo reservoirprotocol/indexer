@@ -20,6 +20,7 @@ import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute-counts";
 import PgPromise from "pg-promise";
+import { updateActivities } from "@/jobs/activities/utils";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -94,23 +95,25 @@ if (config.doBackgroundWork) {
             `New collection ${collection} for contract=${contract}, tokenId=${tokenId}, old collection=${result.collection_id}`
           );
 
-          // Update the activities to the new collection
-          await updateCollectionActivity.addToQueue(
-            collection,
-            result.collection_id,
-            contract,
-            tokenId
-          );
+          if (updateActivities(contract)) {
+            // Update the activities to the new collection
+            await updateCollectionActivity.addToQueue(
+              collection,
+              result.collection_id,
+              contract,
+              tokenId
+            );
 
-          await updateCollectionUserActivity.addToQueue(
-            collection,
-            result.collection_id,
-            contract,
-            tokenId
-          );
+            await updateCollectionUserActivity.addToQueue(
+              collection,
+              result.collection_id,
+              contract,
+              tokenId
+            );
 
-          // Trigger a delayed job to recalc the daily volumes
-          await updateCollectionDailyVolume.addToQueue(collection, contract);
+            // Trigger a delayed job to recalc the daily volumes
+            await updateCollectionDailyVolume.addToQueue(collection, contract);
+          }
 
           // Set the new collection and update the token association
           await fetchCollectionMetadata.addToQueue(
