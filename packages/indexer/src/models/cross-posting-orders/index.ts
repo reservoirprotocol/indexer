@@ -20,7 +20,7 @@ export type CrossPostingOrder = {
 
 export const saveOrder = async (order: CrossPostingOrder): Promise<{ id: number }> => {
   const columns = new pgp.helpers.ColumnSet(
-    ["order_id", "kind", "orderbook", "source", "schema", " status", "status_reason", "raw_data"],
+    ["order_id", "kind", "orderbook", "source", "schema", "status", "status_reason", "raw_data"],
     { table: "cross_posting_orders" }
   );
 
