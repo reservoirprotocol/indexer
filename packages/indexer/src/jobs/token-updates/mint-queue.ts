@@ -1,4 +1,5 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import _ from "lodash";
 
 import { PgPromiseQuery, idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -6,11 +7,12 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
+import * as tokenSets from "@/orderbook/token-sets";
+
+import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
-import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
-import _ from "lodash";
 
 const QUEUE_NAME = "token-updates-mint-queue";
 
@@ -84,7 +86,7 @@ if (config.doBackgroundWork) {
           // Schedule a job to re-count tokens in the collection
           await collectionRecalcTokenCount.addToQueue(collection.id);
 
-          // We also need to include the new token to any collection-wide token set
+          // Include the new token to any collection-wide token set
           if (collection.token_set_id) {
             queries.push({
               query: `
@@ -112,6 +114,29 @@ if (config.doBackgroundWork) {
                 tokenSetId: collection.token_set_id,
               },
             });
+          }
+
+          // Refresh any dynamic token set
+          {
+            const tokenSet = await tokenSets.dynamicCollectionNonFlagged.get({
+              collection: collection.id,
+            });
+            const tokenSetResult = await idb.oneOrNone(
+              `
+                SELECT 1 FROM token_sets
+                WHERE token_sets.id = $/id/
+              `,
+              {
+                id: tokenSet.id,
+              }
+            );
+            if (tokenSetResult) {
+              await tokenSets.dynamicCollectionNonFlagged.save(
+                { collection: collection.id },
+                undefined,
+                true
+              );
+            }
           }
 
           await idb.none(pgp.helpers.concat(queries));
