@@ -84,7 +84,7 @@ export const getActivityV4Options: RouteOptions = {
         includeMetadata: query.includeMetadata,
         sortDirection: query.sortDirection,
         includeCriteria: true,
-        contract: query.contract ?? undefined,
+        contract: query.contract,
       });
 
       // If no activities found

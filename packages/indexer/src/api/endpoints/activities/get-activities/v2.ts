@@ -72,7 +72,7 @@ export const getActivityV2Options: RouteOptions = {
       const activities = await Activities.getActivities({
         continuation: query.continuation,
         limit: query.limit,
-        contract: query.contract ?? undefined,
+        contract: query.contract,
       });
 
       // If no activities found

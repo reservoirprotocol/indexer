@@ -83,7 +83,7 @@ export const getActivityV3Options: RouteOptions = {
         byEventTimestamp: true,
         includeMetadata: query.includeMetadata,
         sortDirection: query.sortDirection,
-        contract: query.contract ?? undefined,
+        contract: query.contract,
       });
 
       // If no activities found

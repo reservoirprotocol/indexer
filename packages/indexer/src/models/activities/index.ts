@@ -222,7 +222,6 @@ export class Activities {
         const sign = sortDirection == "desc" ? "<" : ">";
         [eventTimestamp, id] = splitContinuation(continuation, /^(\d+)_(\d+)$/);
         conditions.push(`(event_timestamp, id) ${sign} ($/eventTimestamp/, $/id/)`);
-        baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
@@ -234,7 +233,6 @@ export class Activities {
         id = continuation;
         const sign = sortDirection == "desc" ? "<" : ">";
         conditions.push(`id ${sign} $/id/`);
-        baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
