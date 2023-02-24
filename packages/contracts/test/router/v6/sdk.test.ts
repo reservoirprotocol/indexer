@@ -31,7 +31,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
   let erc1155: Contract;
 
   let seaportApprovalOrderZone: Contract;
-  let swapModule: Contract;
 
   beforeEach(async () => {
     [deployer, feeRecipient, alice, bob, carol, dan] = await ethers.getSigners();
@@ -344,9 +343,8 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         globalFees: feesOnTop,
       }
     );
-    await expect(buyer.sendTransaction({
-      ...nonPartialTx.txData,
-    })).to.be.revertedWith(
+
+    await expect(buyer.sendTransaction(nonPartialTx.txData)).to.be.revertedWith(
       "reverted with custom error 'UnsuccessfulExecution()'"
     );
 
@@ -752,7 +750,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
       }
     );
 
-    await buyer.sendTransaction({ ...tx.txData });
+    await buyer.sendTransaction(tx.txData);
 
     const seller1EthBalanceAfter = await seller1.getBalance();
     const seller2UsdcBalanceAfter = await usdc.getBalance(seller2.address);
@@ -1183,7 +1181,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
       partialTx.txData,
       partialTx.permits.map((p) => p.details.data)
     );
-    await seller.sendTransaction({ ...txData });
+    await seller.sendTransaction(txData);
 
     const sellerWethBalanceAfter = await weth.getBalance(seller.address);
     const token1OwnerAfter = await erc721.ownerOf(tokenId1);
@@ -1609,7 +1607,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
       tx.permits.map((p) => p.details.data)
     );
 
-    await buyer.sendTransaction({ ...txData });
+    await buyer.sendTransaction(txData);
 
     const seller1EthBalanceAfter = await seller1.getBalance();
     const seller2UsdcBalanceAfter = await usdc.getBalance(seller2.address);
