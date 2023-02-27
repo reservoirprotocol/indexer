@@ -6,14 +6,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrderCriteria, JoiPrice, getJoiPriceObject } from "@/common/joi";
-import {
-  buildContinuation,
-  fromBuffer,
-  now,
-  regex,
-  splitContinuation,
-  toBuffer,
-} from "@/common/utils";
+import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Orders } from "@/utils/orders";
 
@@ -116,8 +109,16 @@ export const getBidEventsV3Options: RouteOptions = {
     const query = request.query as any;
 
     try {
+      // We default in the code so that these values don't appear in the docs
+      if (!query.startTimestamp) {
+        query.startTimestamp = 0;
+      }
+      if (!query.endTimestamp) {
+        query.endTimestamp = 9999999999;
+      }
+
       // TODO: Backfill order fields in the bid events
-      const joinWithOrders = (query.startTimestamp ?? now()) < 1677484338;
+      const joinWithOrders = query.startTimestamp < 1677484338;
       const t = joinWithOrders ? "orders" : "bid_events";
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
@@ -177,14 +178,6 @@ export const getBidEventsV3Options: RouteOptions = {
             : ""
         }
       `;
-
-      // We default in the code so that these values don't appear in the docs
-      if (!query.startTimestamp) {
-        query.startTimestamp = 0;
-      }
-      if (!query.endTimestamp) {
-        query.endTimestamp = 9999999999;
-      }
 
       // Filters
       const conditions: string[] = [
