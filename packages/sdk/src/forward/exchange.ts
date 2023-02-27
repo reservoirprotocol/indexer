@@ -1,7 +1,4 @@
-import {
-  Provider,
-  TransactionResponse,
-} from "@ethersproject/abstract-provider";
+import { Provider, TransactionResponse } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
 import { BigNumberish } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
@@ -9,7 +6,7 @@ import { Contract } from "@ethersproject/contracts";
 import * as Addresses from "./addresses";
 import { Order } from "./order";
 import * as Types from "./types";
-import { TxData, bn, generateSourceBytes } from "../utils";
+import { TxData, generateSourceBytes } from "../utils";
 
 import ExchangeAbi from "./abis/Exchange.json";
 
@@ -32,12 +29,7 @@ export class Exchange {
       source?: string;
     }
   ): Promise<TransactionResponse> {
-    const tx = this.fillOrderTx(
-      await taker.getAddress(),
-      order,
-      matchParams,
-      options
-    );
+    const tx = this.fillOrderTx(await taker.getAddress(), order, matchParams, options);
     return taker.sendTransaction(tx);
   }
 
@@ -82,10 +74,7 @@ export class Exchange {
 
   // --- Cancel order ---
 
-  public async cancelOrder(
-    maker: Signer,
-    order: Order
-  ): Promise<TransactionResponse> {
+  public async cancelOrder(maker: Signer, order: Order): Promise<TransactionResponse> {
     const tx = this.cancelOrderTx(await maker.getAddress(), order);
     return maker.sendTransaction(tx);
   }
@@ -94,9 +83,7 @@ export class Exchange {
     return {
       from: maker,
       to: this.contract.address,
-      data: this.contract.interface.encodeFunctionData("cancel", [
-        [order.params],
-      ]),
+      data: this.contract.interface.encodeFunctionData("cancel", [[order.params]]),
     };
   }
 
@@ -117,10 +104,7 @@ export class Exchange {
 
   // --- Get counter (eg. nonce) ---
 
-  public async getCounter(
-    provider: Provider,
-    user: string
-  ): Promise<BigNumberish> {
+  public async getCounter(provider: Provider, user: string): Promise<BigNumberish> {
     return this.contract.connect(provider).counters(user);
   }
 }

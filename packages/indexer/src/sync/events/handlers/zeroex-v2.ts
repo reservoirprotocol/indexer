@@ -103,11 +103,11 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const amount =
           orderSide === "sell"
             ? makerAssetType === ERC1155Proxy
-              ? decodedMakerAssetData[2][0]
-              : makerAssetData[0][0]
+              ? decodedMakerAssetData[2][0].toString()
+              : makerAssetData[0][0].toString()
             : takerAssetType === ERC1155Proxy
-            ? decodedTakerAssetData[2]
-            : takerAssetData[0][0];
+            ? decodedTakerAssetData[2].toString()
+            : takerAssetData[0][0].toString();
         const tokenId =
           orderSide === "sell"
             ? makerAssetType === ERC1155Proxy
@@ -163,7 +163,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           context: `zeroex-v2-${tokenContract}-${tokenId}-${baseEventParams.txHash}`,
           orderSide,
           contract: tokenContract,
-          tokenId,
+          tokenId: tokenId.toString(),
           amount: amount.toString(),
           price: priceData.nativePrice,
           timestamp: baseEventParams.timestamp,

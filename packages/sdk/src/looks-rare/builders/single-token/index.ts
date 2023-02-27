@@ -71,8 +71,7 @@ export class SingleTokenBuilder extends BaseBuilder {
       price: order.params.price,
       tokenId: order.params.tokenId,
       minPercentageToAsk:
-        order.params.strategy.toLowerCase() ===
-        Addresses.StrategyStandardSale[this.chainId]
+        order.params.strategy.toLowerCase() === Addresses.StrategyStandardSale[this.chainId]
           ? 9800
           : 9750,
       params: BytesEmpty,

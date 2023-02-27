@@ -34,9 +34,9 @@ export const addPendingOrdersSeaport = async (
   }
 };
 
-export const addPendingOrdersSeaportV12 = async (
+export const addPendingOrdersSeaportV14 = async (
   data: {
-    order: Sdk.SeaportV12.Order;
+    order: Sdk.SeaportV14.Order;
     schemaHash?: string;
     source?: string;
   }[]
@@ -46,7 +46,7 @@ export const addPendingOrdersSeaportV12 = async (
       PENDING_DATA_KEY,
       ...data.map(({ order, schemaHash }) =>
         JSON.stringify({
-          kind: "seaport-v1.2",
+          kind: "seaport-v1.4",
           data: {
             ...order.params,
             schemaHash,

@@ -2,10 +2,7 @@ import { Interface, defaultAbiCoder } from "@ethersproject/abi";
 import { BigNumberish } from "@ethersproject/bignumber";
 import { AddressZero } from "@ethersproject/constants";
 
-import {
-  generateMerkleProof,
-  generateMerkleTree,
-} from "../../../common/helpers";
+import { generateMerkleProof, generateMerkleTree } from "../../../common/helpers";
 import { BaseBuilder, BaseBuildParams, BaseOrderInfo } from "../base";
 import * as Addresses from "../../addresses";
 import { Order } from "../../order";
@@ -154,11 +151,9 @@ export class TokenListErc721Builder extends BaseBuilder {
         "0".repeat(64).repeat(numMerkleTreeLevels);
 
       const staticExtradata =
-        new Interface(TokenListVerifierAbi as any).getSighash("verifyErc721") +
+        new Interface(TokenListVerifierAbi).getSighash("verifyErc721") +
         defaultAbiCoder.encode(["uint256"], [32]).slice(2) +
-        defaultAbiCoder
-          .encode(["uint256"], [calldata.slice(2).length / 2])
-          .slice(2);
+        defaultAbiCoder.encode(["uint256"], [calldata.slice(2).length / 2]).slice(2);
 
       return new Order(this.chainId, {
         kind: "erc721-token-list",
@@ -220,7 +215,7 @@ export class TokenListErc721Builder extends BaseBuilder {
 
     if (order.params.side === Types.OrderSide.BUY) {
       const calldata =
-        new Interface(Erc721Abi as any).encodeFunctionData("transferFrom", [
+        new Interface(Erc721Abi).encodeFunctionData("transferFrom", [
           taker,
           AddressZero,
           data.tokenId,

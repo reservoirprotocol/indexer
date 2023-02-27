@@ -50,5 +50,5 @@ export const Permit2: ChainIdToAddress = {
   [Network.Ethereum]: "0x000000000022d473030f116ddee9f6b43ac78ba3",
   [Network.Optimism]: "0x000000000022d473030f116ddee9f6b43ac78ba3",
   [Network.Arbitrum]: "0x000000000022d473030f116ddee9f6b43ac78ba3",
-  [Network.Polygon]: "0x000000000022d473030f116ddee9f6b43ac78ba3"
+  [Network.Polygon]: "0x000000000022d473030f116ddee9f6b43ac78ba3",
 };

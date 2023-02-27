@@ -18,10 +18,7 @@ export class Order {
     }
   }
 
-  public static fromLocalOrder(
-    chainId: number,
-    localOrder: Types.LocalOrder
-  ): Order {
+  public static fromLocalOrder(chainId: number, localOrder: Types.LocalOrder): Order {
     if (localOrder.items.length !== 1) {
       throw new Error("Batch orders are no supported");
     }
@@ -71,8 +68,7 @@ const normalize = (order: Types.Order): Types.Order => {
     itemHash: lc(order.itemHash),
     nft: {
       token: lc(order.nft.token),
-      tokenId:
-        order.nft.tokenId !== undefined ? s(order.nft.tokenId) : undefined,
+      tokenId: order.nft.tokenId !== undefined ? s(order.nft.tokenId) : undefined,
     },
     royalty_fee: order.royalty_fee ? n(order.royalty_fee) : 0,
   };

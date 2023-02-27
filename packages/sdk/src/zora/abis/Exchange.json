@@ -444,9 +444,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "_royaltyEngine", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "_royaltyEngine", "type": "address" }],
     "name": "setRoyaltyEngineAddress",
     "outputs": [],
     "stateMutability": "nonpayable",

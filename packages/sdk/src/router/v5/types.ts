@@ -78,6 +78,7 @@ export type BidFillDetails = {
   contract: string;
   tokenId: string;
   // Relevant for merkle orders and partially-fillable orders
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extraArgs?: any;
 };
 

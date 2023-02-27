@@ -17,10 +17,7 @@ export class Exchange {
 
   constructor(chainId: number) {
     this.chainId = chainId;
-    this.contract = new Contract(
-      Addresses.Exchange[this.chainId],
-      ExchangeAbi as any
-    );
+    this.contract = new Contract(Addresses.Exchange[this.chainId], ExchangeAbi);
   }
 
   // --- Fill order ---
@@ -33,11 +30,7 @@ export class Exchange {
       amount?: number;
     }
   ): Promise<ContractTransaction> {
-    const tx = await this.fillOrderTx(
-      await taker.getAddress(),
-      makerOrder,
-      options
-    );
+    const tx = await this.fillOrderTx(await taker.getAddress(), makerOrder, options);
     return taker.sendTransaction(tx);
   }
 
@@ -97,17 +90,15 @@ export class Exchange {
 
   // --- Cancel order ---
 
-  public async cancelOrder(
-    maker: Signer,
-    order: Order
-  ): Promise<ContractTransaction> {
+  public async cancelOrder(maker: Signer, order: Order): Promise<ContractTransaction> {
     const tx = await this.cancelOrderTx(order.params);
     return maker.sendTransaction(tx);
   }
 
   public async cancelOrderTx(orderParams: Types.Order): Promise<TxData> {
-    const { from, to, data, value } =
-      await this.contract.populateTransaction.cancel(encode(orderParams));
+    const { from, to, data, value } = await this.contract.populateTransaction.cancel(
+      encode(orderParams)
+    );
 
     return {
       from: from!,
@@ -137,10 +128,7 @@ export class Exchange {
    * Get the fill amount of a specifc order
    * @returns uint256 order fill
    */
-  public async getOrderFill(
-    provider: Provider,
-    order: Order
-  ): Promise<BigNumberish> {
+  public async getOrderFill(provider: Provider, order: Order): Promise<BigNumberish> {
     const hash = order.hashOrderKey();
     return this.contract.connect(provider).fills(hash);
   }

@@ -189,9 +189,7 @@
     "type": "event"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "admin", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "admin", "type": "address" }],
     "name": "approveAdmin",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -316,9 +314,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
-    ],
+    "inputs": [{ "internalType": "uint40", "name": "listingId", "type": "uint40" }],
     "name": "collect",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -438,9 +434,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
-    ],
+    "inputs": [{ "internalType": "uint40", "name": "listingId", "type": "uint40" }],
     "name": "finalize",
     "outputs": [],
     "stateMutability": "payable",
@@ -449,16 +443,12 @@
   {
     "inputs": [],
     "name": "getAdmins",
-    "outputs": [
-      { "internalType": "address[]", "name": "admins", "type": "address[]" }
-    ],
+    "outputs": [{ "internalType": "address[]", "name": "admins", "type": "address[]" }],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
-    ],
+    "inputs": [{ "internalType": "uint40", "name": "listingId", "type": "uint40" }],
     "name": "getBids",
     "outputs": [
       {
@@ -488,9 +478,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
-    ],
+    "inputs": [{ "internalType": "uint40", "name": "listingId", "type": "uint40" }],
     "name": "getListing",
     "outputs": [
       {
@@ -651,9 +639,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
-    ],
+    "inputs": [{ "internalType": "uint40", "name": "listingId", "type": "uint40" }],
     "name": "getListingCurrentPrice",
     "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
     "stateMutability": "view",
@@ -687,9 +673,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "admin", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "admin", "type": "address" }],
     "name": "isAdmin",
     "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
     "stateMutability": "view",
@@ -751,9 +735,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint40", "name": "listingId", "type": "uint40" }
-    ],
+    "inputs": [{ "internalType": "uint40", "name": "listingId", "type": "uint40" }],
     "name": "purchase",
     "outputs": [],
     "stateMutability": "payable",
@@ -838,9 +820,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "admin", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "admin", "type": "address" }],
     "name": "revokeAdmin",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -885,27 +865,21 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "registry", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "registry", "type": "address" }],
     "name": "setSellerRegistry",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "bytes4", "name": "interfaceId", "type": "bytes4" }
-    ],
+    "inputs": [{ "internalType": "bytes4", "name": "interfaceId", "type": "bytes4" }],
     "name": "supportsInterface",
     "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "newOwner", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }],
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -951,9 +925,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "amount", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "amount", "type": "uint256" }],
     "name": "withdrawEscrow",
     "outputs": [],
     "stateMutability": "nonpayable",

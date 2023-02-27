@@ -1,7 +1,4 @@
-import {
-  Provider,
-  TransactionResponse,
-} from "@ethersproject/abstract-provider";
+import { Provider, TransactionResponse } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
 import { BigNumberish } from "@ethersproject/bignumber";
 import { AddressZero, HashZero } from "@ethersproject/constants";
@@ -43,12 +40,7 @@ export class Exchange {
       source?: string;
     }
   ): Promise<TransactionResponse> {
-    const tx = await this.fillOrderTx(
-      await taker.getAddress(),
-      order,
-      matchParams,
-      options
-    );
+    const tx = await this.fillOrderTx(await taker.getAddress(), order, matchParams, options);
     return taker.sendTransaction(tx);
   }
 
@@ -110,23 +102,19 @@ export class Exchange {
                       : Types.BasicOrderType.ERC20_TO_ERC721_FULL_OPEN
                     : info.paymentToken === CommonAddresses.Eth[this.chainId]
                     ? Types.BasicOrderType.ETH_TO_ERC1155_FULL_OPEN
-                    : Types.BasicOrderType.ERC20_TO_ERC1155_FULL_OPEN) +
-                  order.params.orderType,
+                    : Types.BasicOrderType.ERC20_TO_ERC1155_FULL_OPEN) + order.params.orderType,
                 startTime: order.params.startTime,
                 endTime: order.params.endTime,
                 zoneHash: order.params.zoneHash,
                 salt: order.params.salt,
                 offererConduitKey: order.params.conduitKey,
                 fulfillerConduitKey: conduitKey,
-                totalOriginalAdditionalRecipients:
-                  order.params.consideration.length - 1,
+                totalOriginalAdditionalRecipients: order.params.consideration.length - 1,
                 additionalRecipients: [
-                  ...order.params.consideration
-                    .slice(1)
-                    .map(({ startAmount, recipient }) => ({
-                      amount: startAmount,
-                      recipient,
-                    })),
+                  ...order.params.consideration.slice(1).map(({ startAmount, recipient }) => ({
+                    amount: startAmount,
+                    recipient,
+                  })),
                   ...feesOnTop,
                 ],
                 signature: order.params.signature!,
@@ -150,8 +138,7 @@ export class Exchange {
               {
                 parameters: {
                   ...order.params,
-                  totalOriginalConsiderationItems:
-                    order.params.consideration.length,
+                  totalOriginalConsiderationItems: order.params.consideration.length,
                 },
                 numerator: matchParams.amount || "1",
                 denominator: info.amount,
@@ -202,23 +189,19 @@ export class Exchange {
                 basicOrderType:
                   (info.tokenKind === "erc721"
                     ? Types.BasicOrderType.ERC721_TO_ERC20_FULL_OPEN
-                    : Types.BasicOrderType.ERC1155_TO_ERC20_FULL_OPEN) +
-                  order.params.orderType,
+                    : Types.BasicOrderType.ERC1155_TO_ERC20_FULL_OPEN) + order.params.orderType,
                 startTime: order.params.startTime,
                 endTime: order.params.endTime,
                 zoneHash: order.params.zoneHash,
                 salt: order.params.salt,
                 offererConduitKey: order.params.conduitKey,
                 fulfillerConduitKey: conduitKey,
-                totalOriginalAdditionalRecipients:
-                  order.params.consideration.length - 1,
+                totalOriginalAdditionalRecipients: order.params.consideration.length - 1,
                 additionalRecipients: [
-                  ...order.params.consideration
-                    .slice(1)
-                    .map(({ startAmount, recipient }) => ({
-                      amount: startAmount,
-                      recipient,
-                    })),
+                  ...order.params.consideration.slice(1).map(({ startAmount, recipient }) => ({
+                    amount: startAmount,
+                    recipient,
+                  })),
                   ...feesOnTop,
                 ],
                 signature: order.params.signature!,
@@ -235,8 +218,7 @@ export class Exchange {
               {
                 parameters: {
                   ...order.params,
-                  totalOriginalConsiderationItems:
-                    order.params.consideration.length,
+                  totalOriginalConsiderationItems: order.params.consideration.length,
                 },
                 numerator: matchParams.amount || "1",
                 denominator: info.amount,
@@ -265,12 +247,7 @@ export class Exchange {
       maxOrdersToFulfill?: number;
     }
   ): Promise<TransactionResponse> {
-    const tx = await this.fillOrdersTx(
-      await taker.getAddress(),
-      orders,
-      matchParams,
-      options
-    );
+    const tx = await this.fillOrdersTx(await taker.getAddress(), orders, matchParams, options);
     return taker.sendTransaction(tx);
   }
 
@@ -292,54 +269,50 @@ export class Exchange {
       from: taker,
       to: this.contract.address,
       data:
-        this.contract.interface.encodeFunctionData(
-          "fulfillAvailableAdvancedOrders",
-          [
-            await Promise.all(
-              orders.map(async (order, i) => ({
-                parameters: {
-                  ...order.params,
-                  totalOriginalConsiderationItems:
-                    order.params.consideration.length,
-                },
-                numerator: matchParams[i].amount || "1",
-                denominator: order.getInfo()!.amount,
-                signature: order.params.signature!,
-                extraData: await this.getExtraData(order),
+        this.contract.interface.encodeFunctionData("fulfillAvailableAdvancedOrders", [
+          await Promise.all(
+            orders.map(async (order, i) => ({
+              parameters: {
+                ...order.params,
+                totalOriginalConsiderationItems: order.params.consideration.length,
+              },
+              numerator: matchParams[i].amount || "1",
+              denominator: order.getInfo()!.amount,
+              signature: order.params.signature!,
+              extraData: await this.getExtraData(order),
+            }))
+          ),
+          matchParams
+            .map((m, i) =>
+              (m.criteriaResolvers ?? []).map((resolver) => ({
+                ...resolver,
+                orderIndex: i,
               }))
-            ),
-            matchParams
-              .map((m, i) =>
-                (m.criteriaResolvers ?? []).map((resolver) => ({
-                  ...resolver,
-                  orderIndex: i,
-                }))
-              )
-              .flat(),
-            // TODO: Optimize fulfillment components
-            orders
-              .map((order, i) =>
-                order.params.offer.map((_, j) => ({
-                  orderIndex: i,
-                  itemIndex: j,
-                }))
-              )
-              .flat()
-              .map((x) => [x]),
-            orders
-              .map((order, i) =>
-                order.params.consideration.map((_, j) => ({
-                  orderIndex: i,
-                  itemIndex: j,
-                }))
-              )
-              .flat()
-              .map((x) => [x]),
-            conduitKey,
-            recipient,
-            options?.maxOrdersToFulfill ?? 255,
-          ]
-        ) + generateSourceBytes(options?.source),
+            )
+            .flat(),
+          // TODO: Optimize fulfillment components
+          orders
+            .map((order, i) =>
+              order.params.offer.map((_, j) => ({
+                orderIndex: i,
+                itemIndex: j,
+              }))
+            )
+            .flat()
+            .map((x) => [x]),
+          orders
+            .map((order, i) =>
+              order.params.consideration.map((_, j) => ({
+                orderIndex: i,
+                itemIndex: j,
+              }))
+            )
+            .flat()
+            .map((x) => [x]),
+          conduitKey,
+          recipient,
+          options?.maxOrdersToFulfill ?? 255,
+        ]) + generateSourceBytes(options?.source),
       value: bn(
         orders
           .filter((order) => {
@@ -362,10 +335,7 @@ export class Exchange {
 
   // --- Cancel order ---
 
-  public async cancelOrder(
-    maker: Signer,
-    order: Order
-  ): Promise<TransactionResponse> {
+  public async cancelOrder(maker: Signer, order: Order): Promise<TransactionResponse> {
     const tx = this.cancelOrderTx(await maker.getAddress(), order);
     return maker.sendTransaction(tx);
   }
@@ -374,9 +344,7 @@ export class Exchange {
     return {
       from: maker,
       to: this.contract.address,
-      data: this.contract.interface.encodeFunctionData("cancel", [
-        [order.params],
-      ]),
+      data: this.contract.interface.encodeFunctionData("cancel", [[order.params]]),
     };
   }
 
@@ -410,10 +378,7 @@ export class Exchange {
 
   // --- Get counter (eg. nonce) ---
 
-  public async getCounter(
-    provider: Provider,
-    user: string
-  ): Promise<BigNumberish> {
+  public async getCounter(provider: Provider, user: string): Promise<BigNumberish> {
     return this.contract.connect(provider).getCounter(user);
   }
 
@@ -437,10 +402,7 @@ export class Exchange {
 
   // --- Derive basic sale information ---
 
-  public deriveBasicSale(
-    spentItems: Types.SpentItem[],
-    receivedItems: Types.ReceivedItem[]
-  ) {
+  public deriveBasicSale(spentItems: Types.SpentItem[], receivedItems: Types.ReceivedItem[]) {
     // Normalize
     const nSpentItems: Types.SpentItem[] = [];
     for (const spentItem of spentItems) {

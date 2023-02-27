@@ -334,9 +334,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "minNonce", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "minNonce", "type": "uint256" }],
     "name": "cancelAllOrdersForSender",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -594,9 +592,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "newOwner", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }],
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",

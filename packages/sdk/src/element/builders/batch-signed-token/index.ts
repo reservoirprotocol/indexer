@@ -44,10 +44,7 @@ export class BatchSignedTokenBuilder {
 
     const basicCollections: Types.Collection[] = [];
     const collections: Types.Collection[] = [];
-    if (
-      bn(params.tokenId).gte(bn(1).shl(160)) ||
-      bn(params.price).gte(bn(1).shl(96))
-    ) {
+    if (bn(params.tokenId).gte(bn(1).shl(160)) || bn(params.price).gte(bn(1).shl(96))) {
       collections.push(collection);
     } else {
       basicCollections.push(collection);

@@ -32,12 +32,7 @@ export class Exchange {
       source?: string;
     }
   ): Promise<ContractTransaction> {
-    const tx = this.fillOrderTx(
-      await taker.getAddress(),
-      order,
-      matchParams,
-      options
-    );
+    const tx = this.fillOrderTx(await taker.getAddress(), order, matchParams, options);
     return taker.sendTransaction(tx);
   }
 
@@ -75,24 +70,18 @@ export class Exchange {
           .and(MaxUint256);
 
         // data3 [96 bits(taker part2) + 160 bits(platformFeeRecipient)]
-        const data3 = bn(taker)
-          .shl(160)
-          .or(bn(raw.platformFeeRecipient))
-          .and(MaxUint256);
+        const data3 = bn(taker).shl(160).or(bn(raw.platformFeeRecipient)).and(MaxUint256);
 
-        data = this.contract.interface.encodeFunctionData(
-          "fillBatchSignedERC721Order",
-          [
-            {
-              data1,
-              data2,
-              data3,
-              r: raw.r,
-              s: raw.s,
-            },
-            raw.collectionsBytes,
-          ]
-        );
+        data = this.contract.interface.encodeFunctionData("fillBatchSignedERC721Order", [
+          {
+            data1,
+            data2,
+            data3,
+            r: raw.r,
+            s: raw.s,
+          },
+          raw.collectionsBytes,
+        ]);
       } else if (order.contractKind() == "erc721") {
         data = this.contract.interface.encodeFunctionData("buyERC721Ex", [
           order.getRaw(),
@@ -154,10 +143,7 @@ export class Exchange {
 
   // --- Cancel order ---
 
-  public async cancelOrder(
-    maker: Signer,
-    order: Order
-  ): Promise<ContractTransaction> {
+  public async cancelOrder(maker: Signer, order: Order): Promise<ContractTransaction> {
     const tx = this.cancelOrderTx(await maker.getAddress(), order);
     return maker.sendTransaction(tx);
   }
@@ -165,13 +151,9 @@ export class Exchange {
   public cancelOrderTx(maker: string, order: Order): TxData {
     let data: string;
     if (order.contractKind() == "erc721") {
-      data = this.contract.interface.encodeFunctionData("cancelERC721Order", [
-        order.params.nonce,
-      ]);
+      data = this.contract.interface.encodeFunctionData("cancelERC721Order", [order.params.nonce]);
     } else {
-      data = this.contract.interface.encodeFunctionData("cancelERC1155Order", [
-        order.params.nonce,
-      ]);
+      data = this.contract.interface.encodeFunctionData("cancelERC1155Order", [order.params.nonce]);
     }
 
     return {
@@ -182,10 +164,7 @@ export class Exchange {
   }
 
   // --- Get hashNonce ---
-  public async getHashNonce(
-    provider: Provider,
-    user: string
-  ): Promise<BigNumber> {
+  public async getHashNonce(provider: Provider, user: string): Promise<BigNumber> {
     return this.contract.connect(provider).getHashNonce(user);
   }
 
@@ -197,10 +176,7 @@ export class Exchange {
   }
 
   public incrementHashNonceTx(maker: string): TxData {
-    const data: string = this.contract.interface.encodeFunctionData(
-      "incrementHashNonce",
-      []
-    );
+    const data: string = this.contract.interface.encodeFunctionData("incrementHashNonce", []);
     return {
       from: maker,
       to: this.contract.address,
@@ -208,10 +184,7 @@ export class Exchange {
     };
   }
 
-  public async getOrderHash(
-    provider: Provider,
-    order: Order
-  ): Promise<BigNumber> {
+  public async getOrderHash(provider: Provider, order: Order): Promise<BigNumber> {
     if (order.isBatchSignedOrder()) {
       return bn(order.hash());
     }
@@ -219,23 +192,15 @@ export class Exchange {
     const isSell = order.side() == "sell";
     if (order.contractKind() == "erc721") {
       if (isSell) {
-        return this.contract
-          .connect(provider)
-          .getERC721SellOrderHash(order.getRaw());
+        return this.contract.connect(provider).getERC721SellOrderHash(order.getRaw());
       } else {
-        return this.contract
-          .connect(provider)
-          .getERC721BuyOrderHash(order.getRaw());
+        return this.contract.connect(provider).getERC721BuyOrderHash(order.getRaw());
       }
     } else {
       if (isSell) {
-        return this.contract
-          .connect(provider)
-          .getERC1155SellOrderHash(order.getRaw());
+        return this.contract.connect(provider).getERC1155SellOrderHash(order.getRaw());
       } else {
-        return this.contract
-          .connect(provider)
-          .getERC1155BuyOrderHash(order.getRaw());
+        return this.contract.connect(provider).getERC1155BuyOrderHash(order.getRaw());
       }
     }
   }

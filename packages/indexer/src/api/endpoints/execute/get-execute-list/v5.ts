@@ -21,9 +21,9 @@ import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
 import * as seaportSellToken from "@/orderbook/orders/seaport/build/sell/token";
 import * as seaportCheck from "@/orderbook/orders/seaport/check";
 
-// Seaport v1.2
-import * as seaportV12SellToken from "@/orderbook/orders/seaport-v1.2/build/sell/token";
-import * as seaportV12Check from "@/orderbook/orders/seaport-v1.2/check";
+// Seaport v1.3
+import * as seaportV14SellToken from "@/orderbook/orders/seaport-v1.4/build/sell/token";
+import * as seaportV14Check from "@/orderbook/orders/seaport-v1.4/check";
 
 // X2Y2
 import * as x2y2SellToken from "@/orderbook/orders/x2y2/build/sell/token";
@@ -94,14 +94,14 @@ export const getExecuteListV5Options: RouteOptions = {
               "looks-rare",
               "zeroex-v4",
               "seaport",
-              "seaport-v1.2",
+              "seaport-v1.4",
               "x2y2",
               "universe",
               "infinity",
               "flow"
             )
-            .default("seaport-v1.2")
-            .description("Exchange protocol used to create order. Example: `seaport-v1.2`"),
+            .default("seaport-v1.4")
+            .description("Exchange protocol used to create order. Example: `seaport-v1.4`"),
           orderbook: Joi.string()
             .valid("opensea", "looks-rare", "reservoir", "x2y2", "universe", "infinity", "flow")
             .default("reservoir")
@@ -224,10 +224,10 @@ export const getExecuteListV5Options: RouteOptions = {
 
       // Keep track of orders which can be signed in bulk
       const bulkOrders = {
-        "seaport-v1.2": [] as {
+        "seaport-v1.4": [] as {
           order: {
-            kind: "seaport-v1.2";
-            data: Sdk.SeaportV12.Types.OrderComponents;
+            kind: "seaport-v1.4";
+            data: Sdk.SeaportV14.Types.OrderComponents;
           };
           orderbook: string;
           orderbookApiKey?: string;
@@ -244,7 +244,7 @@ export const getExecuteListV5Options: RouteOptions = {
           // For now, ERC20 listings are only supported on Seaport
           if (
             params.orderKind !== "seaport" &&
-            params.orderKind !== "seaport-v1.2" &&
+            params.orderKind !== "seaport-v1.4" &&
             params.currency !== Sdk.Common.Addresses.Eth[config.chainId]
           ) {
             return errors.push({ message: "Unsupported currency", orderIndex: i });
@@ -546,12 +546,12 @@ export const getExecuteListV5Options: RouteOptions = {
                 break;
               }
 
-              case "seaport-v1.2": {
+              case "seaport-v1.4": {
                 if (!["reservoir", "opensea"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
 
-                const order = await seaportV12SellToken.build({
+                const order = await seaportV14SellToken.build({
                   ...params,
                   orderbook: params.orderbook as "reservoir" | "opensea",
                   maker,
@@ -565,7 +565,7 @@ export const getExecuteListV5Options: RouteOptions = {
 
                 // Check the order's fillability
                 try {
-                  await seaportV12Check.offChainCheck(order, { onChainApprovalRecheck: true });
+                  await seaportV14Check.offChainCheck(order, { onChainApprovalRecheck: true });
                 } catch (error: any) {
                   switch (error.message) {
                     case "no-balance-no-approval":
@@ -576,7 +576,7 @@ export const getExecuteListV5Options: RouteOptions = {
                     case "no-approval": {
                       // Generate an approval transaction
 
-                      const exchange = new Sdk.SeaportV12.Exchange(config.chainId);
+                      const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
                       const info = order.getInfo()!;
 
                       const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";
@@ -597,7 +597,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
-                bulkOrders["seaport-v1.2"].push({
+                bulkOrders["seaport-v1.4"].push({
                   order: {
                     kind: params.orderKind,
                     data: {
@@ -865,12 +865,12 @@ export const getExecuteListV5Options: RouteOptions = {
 
       // Post any bulk orders together
       {
-        const exchange = new Sdk.SeaportV12.Exchange(config.chainId);
+        const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
 
-        const orders = bulkOrders["seaport-v1.2"];
+        const orders = bulkOrders["seaport-v1.4"];
         if (orders.length) {
           const { signatureData, proofs } = exchange.getBulkSignatureDataWithProofs(
-            orders.map((o) => new Sdk.SeaportV12.Order(config.chainId, o.order.data))
+            orders.map((o) => new Sdk.SeaportV14.Order(config.chainId, o.order.data))
           );
 
           steps[1].items.push({
@@ -886,7 +886,7 @@ export const getExecuteListV5Options: RouteOptions = {
                     orderbook: o.orderbook,
                     orderbookApiKey: o.orderbookApiKey,
                     bulkData: {
-                      kind: "seaport-v1.2",
+                      kind: "seaport-v1.4",
                       data: {
                         orderIndex: i,
                         merkleProof: proofs[i],

@@ -12,16 +12,13 @@ export class SingleTokenBuilder extends BaseBuilder {
     const makeAssetClass = order.params.make.assetType.assetClass;
     const takeAssetClass = order.params.take.assetType.assetClass;
     if (
-      (makeAssetClass === Types.AssetClass.ERC721 ||
-        makeAssetClass === Types.AssetClass.ERC1155) &&
-      (takeAssetClass === Types.AssetClass.ERC20 ||
-        takeAssetClass === Types.AssetClass.ETH)
+      (makeAssetClass === Types.AssetClass.ERC721 || makeAssetClass === Types.AssetClass.ERC1155) &&
+      (takeAssetClass === Types.AssetClass.ERC20 || takeAssetClass === Types.AssetClass.ETH)
     ) {
       side = "sell";
     } else if (
       makeAssetClass === Types.AssetClass.ERC20 &&
-      (takeAssetClass === Types.AssetClass.ERC721 ||
-        takeAssetClass === Types.AssetClass.ERC1155)
+      (takeAssetClass === Types.AssetClass.ERC721 || takeAssetClass === Types.AssetClass.ERC1155)
     ) {
       side = "buy";
     } else {
@@ -37,16 +34,12 @@ export class SingleTokenBuilder extends BaseBuilder {
     const { side } = this.getInfo(order);
     try {
       const nftInfo = side === "buy" ? order.params.take : order.params.make;
-      const paymentInfo =
-        side === "buy" ? order.params.make : order.params.take;
+      const paymentInfo = side === "buy" ? order.params.make : order.params.take;
 
       const copyOrder = this.build({
         maker: order.params.maker,
         side,
-        tokenKind:
-          nftInfo.assetType.assetClass === AssetClass.ERC721
-            ? "erc721"
-            : "erc1155",
+        tokenKind: nftInfo.assetType.assetClass === AssetClass.ERC721 ? "erc721" : "erc1155",
         contract: lc(nftInfo.assetType.contract!),
         tokenId: nftInfo.assetType.tokenId!,
         price: paymentInfo.value,
@@ -59,9 +52,7 @@ export class SingleTokenBuilder extends BaseBuilder {
         endTime: order.params.end,
         tokenAmount: n(nftInfo.value),
         fees:
-          order.params.data.revenueSplits?.map(
-            ({ account, value }) => `${account}:${value}`
-          ) || [],
+          order.params.data.revenueSplits?.map(({ account, value }) => `${account}:${value}`) || [],
       });
 
       if (!copyOrder) {
@@ -114,9 +105,7 @@ export class SingleTokenBuilder extends BaseBuilder {
       start: params.startTime,
       end: params.endTime!,
       data: {
-        dataType: params.fees?.length
-          ? Constants.ORDER_DATA
-          : Constants.DATA_TYPE_0X,
+        dataType: params.fees?.length ? Constants.ORDER_DATA : Constants.DATA_TYPE_0X,
         revenueSplits:
           params.fees?.map((fee) => {
             const [account, value] = fee.split(":");
@@ -129,11 +118,7 @@ export class SingleTokenBuilder extends BaseBuilder {
     });
   }
 
-  public buildMatching(
-    order: Types.Order,
-    taker: string,
-    data: { amount?: string }
-  ) {
+  public buildMatching(order: Types.Order, taker: string, data: { amount?: string }) {
     const rightOrder = {
       type: order.type,
       maker: taker,
@@ -144,9 +129,7 @@ export class SingleTokenBuilder extends BaseBuilder {
       start: order.start,
       end: order.end,
       data: {
-        dataType: order.data.revenueSplits?.length
-          ? Constants.ORDER_DATA
-          : Constants.DATA_TYPE_0X,
+        dataType: order.data.revenueSplits?.length ? Constants.ORDER_DATA : Constants.DATA_TYPE_0X,
         revenueSplits: order.data.revenueSplits || [],
       },
     };

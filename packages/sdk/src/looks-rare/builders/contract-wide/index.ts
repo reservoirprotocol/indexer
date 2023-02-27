@@ -53,8 +53,7 @@ export class ContractWideBuilder extends BaseBuilder {
       price: s(params.price),
       tokenId: "0",
       amount: "1",
-      strategy:
-        params.strategy ?? Addresses.StrategyCollectionSale[this.chainId],
+      strategy: params.strategy ?? Addresses.StrategyCollectionSale[this.chainId],
       currency: params.currency,
       nonce: s(params.nonce),
       startTime: params.startTime!,
@@ -67,19 +66,14 @@ export class ContractWideBuilder extends BaseBuilder {
     });
   }
 
-  public buildMatching(
-    order: Order,
-    taker: string,
-    data: { tokenId: BigNumberish }
-  ) {
+  public buildMatching(order: Order, taker: string, data: { tokenId: BigNumberish }) {
     return {
       isOrderAsk: !order.params.isOrderAsk,
       taker,
       price: order.params.price,
       tokenId: s(data.tokenId),
       minPercentageToAsk:
-        order.params.strategy.toLowerCase() ===
-        Addresses.StrategyCollectionSale[this.chainId]
+        order.params.strategy.toLowerCase() === Addresses.StrategyCollectionSale[this.chainId]
           ? 9800
           : 9750,
       params: BytesEmpty,

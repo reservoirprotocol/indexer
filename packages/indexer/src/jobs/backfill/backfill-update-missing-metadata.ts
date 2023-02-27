@@ -159,6 +159,15 @@ async function processCollection(collection: {
   tokenCount: number;
 }) {
   if (collection.tokenCount === 0) {
+    logger.info(QUEUE_NAME, `Collection ${collection.id} is empty. Skipping processing.`);
+    return;
+  }
+  // Disable large collections refresh
+  if (collection.tokenCount > 30000) {
+    logger.info(
+      QUEUE_NAME,
+      `Collection ${collection.id} contains ${collection.tokenCount} tokens. Skipping processing.`
+    );
     return;
   }
   const indexingMethod = getIndexingMethod(collection.community);

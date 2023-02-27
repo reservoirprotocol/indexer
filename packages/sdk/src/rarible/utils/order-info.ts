@@ -1,10 +1,7 @@
 import { Types } from "..";
 
-export const getOrderSide = (
-  makeAssetClass: string,
-  takeAssetClass: string
-) => {
-  //TODO: Can be rewriten to be more readable
+export const getOrderSide = (makeAssetClass: string, takeAssetClass: string) => {
+  // TODO: Can be rewriten to be more readable
   if (
     (makeAssetClass === Types.AssetClass.ERC721 ||
       makeAssetClass === Types.AssetClass.COLLECTION ||
@@ -17,8 +14,7 @@ export const getOrderSide = (
   ) {
     return "sell";
   } else if (
-    (makeAssetClass === Types.AssetClass.ERC20 ||
-      makeAssetClass === Types.AssetClass.ETH) &&
+    (makeAssetClass === Types.AssetClass.ERC20 || makeAssetClass === Types.AssetClass.ETH) &&
     (takeAssetClass === Types.AssetClass.ERC721 ||
       takeAssetClass === Types.AssetClass.ERC721_LAZY ||
       takeAssetClass === Types.AssetClass.ERC1155 ||

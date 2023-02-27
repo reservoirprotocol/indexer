@@ -5,11 +5,7 @@ import { ORDER_EIP712_TYPES } from "./constants";
 import { splitSignature } from "@ethersproject/bytes";
 import { Contract, Signature } from "ethers";
 import { defaultAbiCoder } from "@ethersproject/abi/lib/abi-coder";
-import {
-  Interface,
-  _TypedDataEncoder,
-  verifyTypedData,
-} from "ethers/lib/utils";
+import { Interface, _TypedDataEncoder, verifyTypedData } from "ethers/lib/utils";
 import { lc } from "../../utils";
 import { SignatureLike } from "@ethersproject/bytes";
 import { Provider } from "@ethersproject/abstract-provider";
@@ -40,14 +36,9 @@ export class ComplicationV1 implements Complication {
     this.address = Addresses.Complication[chainId] || "";
   }
 
-  async sign(
-    signer: TypedDataSigner,
-    params: Types.InternalOrder
-  ): Promise<string> {
+  async sign(signer: TypedDataSigner, params: Types.InternalOrder): Promise<string> {
     const { type, value, domain } = this.getSignatureData(params);
-    const sig = splitSignature(
-      await signer._signTypedData(domain, type, value)
-    );
+    const sig = splitSignature(await signer._signTypedData(domain, type, value));
     const encodedSig = this._getEncodedSig(sig);
     return encodedSig;
   }
@@ -80,11 +71,10 @@ export class ComplicationV1 implements Complication {
         "function isValidSignature(bytes32 digest, bytes signature) view returns (bytes4)",
       ]);
 
-      const result = await new Contract(
-        params.signer,
-        iface,
-        provider
-      ).isValidSignature(eip712Hash, encodedSig);
+      const result = await new Contract(params.signer, iface, provider).isValidSignature(
+        eip712Hash,
+        encodedSig
+      );
       if (result !== iface.getSighash("isValidSignature")) {
         throw new Error("Invalid signature");
       }
@@ -104,16 +94,11 @@ export class ComplicationV1 implements Complication {
     return this._getEncodedSig(sig);
   }
 
-  async checkFillability(
-    provider: Provider,
-    order: OrderParams
-  ): Promise<void> {
+  async checkFillability(provider: Provider, order: OrderParams): Promise<void> {
     const complication = new Contract(this.address, ComplicationAbi, provider);
 
     if (order.currency !== CommonAddresses.Eth[this.chainId]) {
-      const isCurrencyValid = await complication.isValidCurrency(
-        order.currency
-      );
+      const isCurrencyValid = await complication.isValidCurrency(order.currency);
       if (!isCurrencyValid) {
         throw new Error("not-fillable");
       }
@@ -126,9 +111,7 @@ export class ComplicationV1 implements Complication {
     }
   }
 
-  protected _getEncodedSig(
-    signature: Signature | { v: number; r: string; s: string }
-  ): string {
+  protected _getEncodedSig(signature: Signature | { v: number; r: string; s: string }): string {
     const encodedSig = defaultAbiCoder.encode(
       ["bytes32", "bytes32", "uint8"],
       [signature.r, signature.s, signature.v]
@@ -138,10 +121,7 @@ export class ComplicationV1 implements Complication {
   }
 
   protected _getDecodedSig(encodedSig: string): SignatureLike {
-    const [r, s, v] = defaultAbiCoder.decode(
-      ["bytes32", "bytes32", "uint8"],
-      encodedSig
-    );
+    const [r, s, v] = defaultAbiCoder.decode(["bytes32", "bytes32", "uint8"], encodedSig);
 
     return { r, s, v };
   }

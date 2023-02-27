@@ -1,7 +1,7 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
-import { idb, PgPromiseQuery, pgp } from "@/common/db";
+import { PgPromiseQuery, idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
@@ -44,30 +44,30 @@ if (config.doBackgroundWork) {
         const queries: PgPromiseQuery[] = allFillEvents.map((event) => {
           return {
             query: `
-                UPDATE fill_events_2 SET 
-                  wash_trading_score = $/wash_trading_score/,
-                  royalty_fee_bps = $/royalty_fee_bps/,
-                  marketplace_fee_bps = $/marketplace_fee_bps/,
-                  royalty_fee_breakdown = $/royalty_fee_breakdown:json/,
-                  marketplace_fee_breakdown = $/marketplace_fee_breakdown:json/,
-                  paid_full_royalty = $/paid_full_royalty/,
-                  net_amount = $/net_amount/
-                WHERE tx_hash = $/tx_hash/
-                  AND log_index = $/log_index/
-                  AND batch_index = $/batch_index/
-              `,
+              UPDATE fill_events_2 SET
+                wash_trading_score = $/washTradingScore/,
+                royalty_fee_bps = $/royaltyFeeBps/,
+                marketplace_fee_bps = $/marketplaceFeeBps/,
+                royalty_fee_breakdown = $/royaltyFeeBreakdown:json/,
+                marketplace_fee_breakdown = $/marketplaceFeeBreakdown:json/,
+                paid_full_royalty = $/paidFullRoyalty/,
+                net_amount = $/netAmount/,
+                updated_at = now()
+              WHERE tx_hash = $/txHash/
+                AND log_index = $/logIndex/
+                AND batch_index = $/batchIndex/
+            `,
             values: {
-              wash_trading_score: event.washTradingScore || 0,
-              royalty_fee_bps: event.royaltyFeeBps || undefined,
-              marketplace_fee_bps: event.marketplaceFeeBps || undefined,
-              royalty_fee_breakdown: event.royaltyFeeBreakdown || undefined,
-              marketplace_fee_breakdown: event.marketplaceFeeBreakdown || undefined,
-              paid_full_royalty: event.paidFullRoyalty || undefined,
-              net_amount: event.netAmount || undefined,
-
-              tx_hash: toBuffer(event.baseEventParams.txHash),
-              log_index: event.baseEventParams.logIndex,
-              batch_index: event.baseEventParams.batchIndex,
+              washTradingScore: event.washTradingScore || 0,
+              royaltyFeeBps: event.royaltyFeeBps || undefined,
+              marketplaceFeeBps: event.marketplaceFeeBps || undefined,
+              royaltyFeeBreakdown: event.royaltyFeeBreakdown || undefined,
+              marketplaceFeeBreakdown: event.marketplaceFeeBreakdown || undefined,
+              paidFullRoyalty: event.paidFullRoyalty || undefined,
+              netAmount: event.netAmount || undefined,
+              txHash: toBuffer(event.baseEventParams.txHash),
+              logIndex: event.baseEventParams.logIndex,
+              batchIndex: event.baseEventParams.batchIndex,
             },
           };
         });

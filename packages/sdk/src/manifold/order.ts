@@ -37,9 +37,7 @@ const normalize = (order: Types.Order): Types.Order => {
     details: {
       ...order.details,
       erc20: lc(order.details.erc20 || constants.AddressZero),
-      identityVerifier: lc(
-        order.details.identityVerifier || constants.AddressZero
-      ),
+      identityVerifier: lc(order.details.identityVerifier || constants.AddressZero),
       totalAvailable: n(order.details.totalAvailable || 0),
       totalPerSale: n(order.details.totalPerSale || 0),
       minIncrementBPS: n(order.details.minIncrementBPS || 0),

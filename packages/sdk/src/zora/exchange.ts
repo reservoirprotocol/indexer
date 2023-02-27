@@ -1,5 +1,4 @@
 import { Signer } from "@ethersproject/abstract-signer";
-import { AddressZero } from "@ethersproject/constants";
 import { Contract, ContractTransaction } from "@ethersproject/contracts";
 
 import * as Addresses from "./addresses";
@@ -18,18 +17,12 @@ export class Exchange {
 
   constructor(chainId: number) {
     this.chainId = chainId;
-    this.contract = new Contract(
-      Addresses.Exchange[this.chainId],
-      ExchangeAbi as any
-    );
+    this.contract = new Contract(Addresses.Exchange[this.chainId], ExchangeAbi);
   }
 
   // --- Create order ---
 
-  public async createOrder(
-    maker: Signer,
-    order: Order
-  ): Promise<ContractTransaction> {
+  public async createOrder(maker: Signer, order: Order): Promise<ContractTransaction> {
     const tx = this.createOrderTx(await maker.getAddress(), order);
     return maker.sendTransaction(tx);
   }
@@ -86,10 +79,7 @@ export class Exchange {
 
   // --- Cancel order ---
 
-  public async cancelOrder(
-    maker: Signer,
-    order: Order
-  ): Promise<ContractTransaction> {
+  public async cancelOrder(maker: Signer, order: Order): Promise<ContractTransaction> {
     const tx = this.cancelOrderTx(await maker.getAddress(), order);
     return maker.sendTransaction(tx);
   }

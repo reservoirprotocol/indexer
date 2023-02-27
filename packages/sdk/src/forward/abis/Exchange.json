@@ -278,9 +278,7 @@
   {
     "inputs": [],
     "name": "WETH",
-    "outputs": [
-      { "internalType": "contract IERC20", "name": "", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "contract IERC20", "name": "", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -325,9 +323,7 @@
   {
     "inputs": [],
     "name": "createVault",
-    "outputs": [
-      { "internalType": "contract Vault", "name": "vault", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "contract Vault", "name": "vault", "type": "address" }],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -468,9 +464,7 @@
       }
     ],
     "name": "getOrderHash",
-    "outputs": [
-      { "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }
-    ],
+    "outputs": [{ "internalType": "bytes32", "name": "orderHash", "type": "bytes32" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -498,9 +492,7 @@
   {
     "inputs": [],
     "name": "optOutList",
-    "outputs": [
-      { "internalType": "contract IOptOutList", "name": "", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "contract IOptOutList", "name": "", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -538,9 +530,7 @@
   {
     "inputs": [],
     "name": "priceOracle",
-    "outputs": [
-      { "internalType": "contract IPriceOracle", "name": "", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "contract IPriceOracle", "name": "", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -579,9 +569,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "newOwner", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }],
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -601,18 +589,14 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "newMinPriceBps", "type": "uint256" }
-    ],
+    "inputs": [{ "internalType": "uint256", "name": "newMinPriceBps", "type": "uint256" }],
     "name": "updateMinPriceBps",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "newOptOutList", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "newOptOutList", "type": "address" }],
     "name": "updateOptOutList",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -633,9 +617,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "newPriceOracle", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "newPriceOracle", "type": "address" }],
     "name": "updatePriceOracle",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -683,18 +665,14 @@
   {
     "inputs": [],
     "name": "vaultImplementation",
-    "outputs": [
-      { "internalType": "contract Vault", "name": "", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "contract Vault", "name": "", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
     "name": "vaults",
-    "outputs": [
-      { "internalType": "contract Vault", "name": "", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "contract Vault", "name": "", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },

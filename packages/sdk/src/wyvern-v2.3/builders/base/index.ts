@@ -75,5 +75,6 @@ export abstract class BaseBuilder {
   public abstract getInfo(order: Order): BaseOrderInfo | undefined;
   public abstract isValid(order: Order): boolean;
   public abstract build(params: BaseBuildParams): Order;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public abstract buildMatching(order: Order, taker: string, data: any): Order;
 }

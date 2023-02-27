@@ -11,12 +11,7 @@ import { Signer, TypedDataSigner } from "@ethersproject/abstract-signer";
 import { bn, lc, TxData } from "../utils";
 import { getComplication } from "./complications";
 import { Complication } from "./complications/complication.interface";
-import {
-  _TypedDataEncoder,
-  defaultAbiCoder,
-  hexConcat,
-  keccak256,
-} from "ethers/lib/utils";
+import { _TypedDataEncoder, defaultAbiCoder, hexConcat, keccak256 } from "ethers/lib/utils";
 import MerkleTree from "merkletreejs";
 
 export class Exchange {
@@ -81,14 +76,8 @@ export class Exchange {
   }
 
   // --- Take Multiple One Orders ---
-  public async takeMultipleOneOrders(
-    taker: Signer,
-    order: Order
-  ): Promise<ContractTransaction>;
-  public async takeMultipleOneOrders(
-    taker: Signer,
-    orders: Order[]
-  ): Promise<ContractTransaction>;
+  public async takeMultipleOneOrders(taker: Signer, order: Order): Promise<ContractTransaction>;
+  public async takeMultipleOneOrders(taker: Signer, orders: Order[]): Promise<ContractTransaction>;
   public async takeMultipleOneOrders(
     taker: Signer,
     orders: Order | Order[]
@@ -107,10 +96,9 @@ export class Exchange {
     const commonTxData = {
       from: taker,
       to: this.contract.address,
-      data: this.contract.interface.encodeFunctionData(
-        "takeMultipleOneOrders",
-        [orders.map((item) => item.getSignedOrder())]
-      ),
+      data: this.contract.interface.encodeFunctionData("takeMultipleOneOrders", [
+        orders.map((item) => item.getSignedOrder()),
+      ]),
     };
 
     if (orders[0].currency === CommonAddresses.Eth[this.chainId]) {
@@ -152,18 +140,13 @@ export class Exchange {
     return {
       from: signer,
       to: this.contract.address,
-      data: this.contract.interface.encodeFunctionData("cancelMultipleOrders", [
-        orderNonces,
-      ]),
+      data: this.contract.interface.encodeFunctionData("cancelMultipleOrders", [orderNonces]),
     };
   }
 
   // --- Cancel All Orders ---
 
-  public async cancelAllOrders(
-    signer: Signer,
-    minNonce: string
-  ): Promise<ContractTransaction> {
+  public async cancelAllOrders(signer: Signer, minNonce: string): Promise<ContractTransaction> {
     const signerAddress = lc(await signer.getAddress());
     const tx = this.cancelAllOrdersTx(signerAddress, minNonce);
     return signer.sendTransaction(tx);
@@ -173,23 +156,17 @@ export class Exchange {
     return {
       from: signer,
       to: this.contract.address,
-      data: this.contract.interface.encodeFunctionData("cancelAllOrders", [
-        minNonce,
-      ]),
+      data: this.contract.interface.encodeFunctionData("cancelAllOrders", [minNonce]),
     };
   }
 
   protected checkOrders(taker: string, orders: Order[]) {
-    const sameSide = orders.every(
-      (order) => order.isSellOrder === orders[0].isSellOrder
-    );
+    const sameSide = orders.every((order) => order.isSellOrder === orders[0].isSellOrder);
     if (!sameSide) {
       throw new Error("All orders must be of the same side");
     }
 
-    const sameCurrency = orders.every(
-      (order) => order.currency === orders[0].currency
-    );
+    const sameCurrency = orders.every((order) => order.currency === orders[0].currency);
     if (!sameCurrency) {
       throw new Error("All orders must be of the same currency");
     }
@@ -203,8 +180,7 @@ export class Exchange {
   // --- Bulk sign orders ---
 
   public async bulkSign(signer: TypedDataSigner, orders: Order[]) {
-    const { signatureData, proofs } =
-      this.getBulkSignatureDataWithProofs(orders);
+    const { signatureData, proofs } = this.getBulkSignatureDataWithProofs(orders);
 
     const signature = await signer._signTypedData(
       signatureData.domain,
@@ -213,11 +189,7 @@ export class Exchange {
     );
 
     orders.forEach((order, i) => {
-      order.sig = this.encodeBulkOrderProofAndSignature(
-        i,
-        proofs[i],
-        signature
-      );
+      order.sig = this.encodeBulkOrderProofAndSignature(i, proofs[i], signature);
     });
   }
 
@@ -240,21 +212,12 @@ export class Exchange {
     let complicationInstance: Complication | undefined;
     let firstOrderSignatureData: Types.SignatureData | undefined;
 
-    const checkDomains = (
-      domain1: TypedDataDomain,
-      domain2: TypedDataDomain
-    ) => {
+    const checkDomains = (domain1: TypedDataDomain, domain2: TypedDataDomain) => {
       const chainIdMatches = domain1.chainId === domain2.chainId;
-      const verifyingContractMatches =
-        domain1.verifyingContract === domain2.verifyingContract;
+      const verifyingContractMatches = domain1.verifyingContract === domain2.verifyingContract;
       const nameMatches = domain1.name === domain2.name;
       const versionMatches = domain1.version === domain2.version;
-      return (
-        chainIdMatches &&
-        verifyingContractMatches &&
-        nameMatches &&
-        versionMatches
-      );
+      return chainIdMatches && verifyingContractMatches && nameMatches && versionMatches;
     };
     for (const order of orders) {
       if (!order.supportsBulkSignatures) {
@@ -265,17 +228,11 @@ export class Exchange {
         firstOrderSignatureData = order.getSignatureData();
       }
 
-      const orderComplicationInstance = getComplication(
-        order.chainId,
-        order.complication
-      );
+      const orderComplicationInstance = getComplication(order.chainId, order.complication);
       if (!complicationInstance) {
         complicationInstance = orderComplicationInstance;
       } else {
-        checkDomains(
-          complicationInstance.domain,
-          orderComplicationInstance.domain
-        );
+        checkDomains(complicationInstance.domain, orderComplicationInstance.domain);
       }
     }
 
@@ -284,13 +241,11 @@ export class Exchange {
     }
 
     const types = { ...firstOrderSignatureData.type };
-    (types as any).BulkOrder = [
-      { name: "tree", type: `Order${`[2]`.repeat(height)}` },
-    ];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (types as any).BulkOrder = [{ name: "tree", type: `Order${`[2]`.repeat(height)}` }];
     const encoder = _TypedDataEncoder.from(types);
 
-    const hashElement = (element: Types.InternalOrder) =>
-      encoder.hashStruct("Order", element);
+    const hashElement = (element: Types.InternalOrder) => encoder.hashStruct("Order", element);
 
     const elements: Types.InternalOrder[] = orders.map((o) => {
       return o.getInternalOrder(o);
@@ -323,6 +278,7 @@ export class Exchange {
       fillDefaultHash: hexToBuffer(defaultLeaf),
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let chunks: any[] = [...elements];
     while (chunks.length > 2) {
       const newSize = Math.ceil(chunks.length / 2);

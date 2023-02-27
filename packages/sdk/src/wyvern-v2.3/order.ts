@@ -38,18 +38,12 @@ export class Order {
     // Perform light validations
 
     // Validate fees
-    if (
-      this.params.makerRelayerFee > 10000 ||
-      this.params.takerRelayerFee > 10000
-    ) {
+    if (this.params.makerRelayerFee > 10000 || this.params.takerRelayerFee > 10000) {
       throw new Error("Invalid fees");
     }
 
     // Validate side
-    if (
-      this.params.side !== Types.OrderSide.BUY &&
-      this.params.side !== Types.OrderSide.SELL
-    ) {
+    if (this.params.side !== Types.OrderSide.BUY && this.params.side !== Types.OrderSide.SELL) {
       throw new Error("Invalid side");
     }
 
@@ -70,10 +64,7 @@ export class Order {
     }
 
     // Validate listing and expiration times
-    if (
-      this.params.expirationTime !== 0 &&
-      this.params.listingTime >= this.params.expirationTime
-    ) {
+    if (this.params.expirationTime !== 0 && this.params.listingTime >= this.params.expirationTime) {
       throw new Error("Invalid listing and/or expiration time");
     }
 
@@ -84,28 +75,16 @@ export class Order {
   }
 
   public hash() {
-    return _TypedDataEncoder.hashStruct(
-      "Order",
-      EIP712_TYPES,
-      toRawOrder(this)
-    );
+    return _TypedDataEncoder.hashStruct("Order", EIP712_TYPES, toRawOrder(this));
   }
 
   public prefixHash() {
-    return _TypedDataEncoder.hash(
-      EIP712_DOMAIN(this.chainId),
-      EIP712_TYPES,
-      toRawOrder(this)
-    );
+    return _TypedDataEncoder.hash(EIP712_DOMAIN(this.chainId), EIP712_TYPES, toRawOrder(this));
   }
 
   public async sign(signer: TypedDataSigner) {
     const { v, r, s } = splitSignature(
-      await signer._signTypedData(
-        EIP712_DOMAIN(this.chainId),
-        EIP712_TYPES,
-        toRawOrder(this)
-      )
+      await signer._signTypedData(EIP712_DOMAIN(this.chainId), EIP712_TYPES, toRawOrder(this))
     );
 
     this.params = {
@@ -131,7 +110,7 @@ export class Order {
    * @param data Any aditional arguments
    * @returns The matching Wyvern v2 order
    */
-  public buildMatching(taker: string, data?: any) {
+  public buildMatching(taker: string, data?: object) {
     return this.getBuilder().buildMatching(this, taker, data);
   }
 
@@ -139,16 +118,11 @@ export class Order {
    * Check the validity of the order's signature
    */
   public checkSignature() {
-    const signer = verifyTypedData(
-      EIP712_DOMAIN(this.chainId),
-      EIP712_TYPES,
-      toRawOrder(this),
-      {
-        v: this.params.v,
-        r: this.params.r ?? "",
-        s: this.params.s ?? "",
-      }
-    );
+    const signer = verifyTypedData(EIP712_DOMAIN(this.chainId), EIP712_TYPES, toRawOrder(this), {
+      v: this.params.v,
+      r: this.params.r ?? "",
+      s: this.params.s ?? "",
+    });
 
     if (lc(this.params.maker) !== lc(signer)) {
       throw new Error("Invalid signature");
@@ -175,11 +149,7 @@ export class Order {
     } else {
       // Set a delay of 1 minute to allow for any timestamp discrepancies
       const diff = bn(this.params.extra)
-        .mul(
-          bn(timestampOverride ?? getCurrentTimestamp(-60)).sub(
-            this.params.listingTime
-          )
-        )
+        .mul(bn(timestampOverride ?? getCurrentTimestamp(-60)).sub(this.params.listingTime))
         .div(bn(this.params.expirationTime).sub(this.params.listingTime));
       return bn(this.params.basePrice).sub(diff);
     }
@@ -198,11 +168,7 @@ export class Order {
 
     // Make sure the order is not cancelled or filled
     const hash = this.prefixHash();
-    const exchange = new Contract(
-      this.params.exchange,
-      ExchangeAbi as any,
-      provider
-    );
+    const exchange = new Contract(this.params.exchange, ExchangeAbi, provider);
     const filledOrCancelled = await exchange.cancelledOrFinalized(hash);
     if (filledOrCancelled) {
       throw new Error("filled-or-cancelled");
@@ -218,10 +184,7 @@ export class Order {
       // Check that maker has enough balance to cover the payment
       // and the approval to the token transfer proxy is set
 
-      const erc20 = new Common.Helpers.Erc20(
-        provider,
-        this.params.paymentToken
-      );
+      const erc20 = new Common.Helpers.Erc20(provider, this.params.paymentToken);
 
       // Check balance
       const balance = await erc20.getBalance(this.params.maker);
@@ -256,6 +219,7 @@ export class Order {
         throw new Error("invalid");
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { contract, tokenId } = this.getInfo() as any;
       if (!contract || !tokenId) {
         throw new Error("invalid");
@@ -422,9 +386,7 @@ export class Order {
       }
     }
 
-    throw new Error(
-      "Could not detect order kind (order might have unsupported params/calldata)"
-    );
+    throw new Error("Could not detect order kind (order might have unsupported params/calldata)");
   }
 }
 
@@ -464,6 +426,7 @@ const EIP712_TYPES = {
   ],
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const toRawOrder = (order: Order): any => ({
   ...order.params,
   makerProtocolFee: 0,

@@ -33,11 +33,7 @@ export class Order {
   }
 
   public hash() {
-    return _TypedDataEncoder.hashStruct(
-      "Order",
-      ORDER_EIP712_TYPES,
-      this.params
-    );
+    return _TypedDataEncoder.hashStruct("Order", ORDER_EIP712_TYPES, this.params);
   }
 
   public async sign(signer: TypedDataSigner) {
@@ -81,16 +77,12 @@ export class Order {
     }
   }
 
-  public buildMatching(data?: any) {
+  public buildMatching(data?: object) {
     return this.getBuilder().buildMatching(this, data);
   }
 
   public async checkFillability(provider: Provider) {
-    const exchange = new Contract(
-      Addresses.Exchange[this.chainId],
-      ExchangeAbi as any,
-      provider
-    );
+    const exchange = new Contract(Addresses.Exchange[this.chainId], ExchangeAbi, provider);
 
     const status = await exchange.orderStatuses(this.hash());
     if (status.isCancelled) {
@@ -101,20 +93,14 @@ export class Order {
     }
 
     // Check balance
-    const erc20 = new Common.Helpers.Erc20(
-      provider,
-      Common.Addresses.Weth[this.chainId]
-    );
+    const erc20 = new Common.Helpers.Erc20(provider, Common.Addresses.Weth[this.chainId]);
     const balance = await erc20.getBalance(this.params.maker);
     if (bn(balance).lt(bn(this.params.unitPrice).mul(this.params.amount))) {
       throw new Error("no-balance");
     }
 
     // Check allowance
-    const allowance = await erc20.getAllowance(
-      this.params.maker,
-      exchange.address
-    );
+    const allowance = await erc20.getAllowance(this.params.maker, exchange.address);
     if (bn(allowance).lt(bn(this.params.unitPrice).mul(this.params.amount))) {
       throw new Error("no-approval");
     }
@@ -165,9 +151,7 @@ export class Order {
       }
     }
 
-    throw new Error(
-      "Could not detect order kind (order might have unsupported params/calldata)"
-    );
+    throw new Error("Could not detect order kind (order might have unsupported params/calldata)");
   }
 }
 

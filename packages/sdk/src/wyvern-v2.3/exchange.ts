@@ -28,12 +28,7 @@ export class Exchange {
       source?: string;
     }
   ): Promise<ContractTransaction> {
-    const tx = this.fillOrderTx(
-      await taker.getAddress(),
-      buyOrder,
-      sellOrder,
-      options
-    );
+    const tx = this.fillOrderTx(await taker.getAddress(), buyOrder, sellOrder, options);
     return taker.sendTransaction(tx);
   }
 
@@ -94,28 +89,28 @@ export class Exchange {
       sellOrder.params.howToCall,
     ];
 
-    const data = new Contract(
-      buyOrder.params.exchange,
-      ExchangeAbi as any
-    ).interface.encodeFunctionData("atomicMatch_", [
-      addrs,
-      uints,
-      feeMethodsSidesKindsHowToCalls,
-      buyOrder.params.calldata,
-      sellOrder.params.calldata,
-      buyOrder.params.replacementPattern,
-      sellOrder.params.replacementPattern,
-      buyOrder.params.staticExtradata,
-      sellOrder.params.staticExtradata,
-      [buyOrder.params.v, sellOrder.params.v],
+    const data = new Contract(buyOrder.params.exchange, ExchangeAbi).interface.encodeFunctionData(
+      "atomicMatch_",
       [
-        buyOrder.params.r,
-        buyOrder.params.s,
-        sellOrder.params.r,
-        sellOrder.params.s,
-        HashZero.slice(0, -1) + "f",
-      ],
-    ]);
+        addrs,
+        uints,
+        feeMethodsSidesKindsHowToCalls,
+        buyOrder.params.calldata,
+        sellOrder.params.calldata,
+        buyOrder.params.replacementPattern,
+        sellOrder.params.replacementPattern,
+        buyOrder.params.staticExtradata,
+        sellOrder.params.staticExtradata,
+        [buyOrder.params.v, sellOrder.params.v],
+        [
+          buyOrder.params.r,
+          buyOrder.params.s,
+          sellOrder.params.r,
+          sellOrder.params.s,
+          HashZero.slice(0, -1) + "f",
+        ],
+      ]
+    );
 
     const value =
       buyOrder.params.paymentToken === CommonAddresses.Eth[this.chainId]
@@ -153,31 +148,28 @@ export class Exchange {
       order.params.salt,
     ];
 
-    const data = new Contract(
-      order.params.exchange,
-      ExchangeAbi as any
-    ).interface.encodeFunctionData("cancelOrder_", [
-      addrs,
-      uints,
-      1, // feeMethod (always 1 - SplitFee)
-      order.params.side,
-      order.params.saleKind,
-      order.params.howToCall,
-      order.params.calldata,
-      order.params.replacementPattern,
-      order.params.staticExtradata,
-      order.params.v,
-      order.params.r,
-      order.params.s,
-    ]);
+    const data = new Contract(order.params.exchange, ExchangeAbi).interface.encodeFunctionData(
+      "cancelOrder_",
+      [
+        addrs,
+        uints,
+        1, // feeMethod (always 1 - SplitFee)
+        order.params.side,
+        order.params.saleKind,
+        order.params.howToCall,
+        order.params.calldata,
+        order.params.replacementPattern,
+        order.params.staticExtradata,
+        order.params.v,
+        order.params.r,
+        order.params.s,
+      ]
+    );
 
     return { from: maker, to: order.params.exchange, data };
   }
 
-  public async cancel(
-    maker: Signer,
-    order: Order
-  ): Promise<ContractTransaction> {
+  public async cancel(maker: Signer, order: Order): Promise<ContractTransaction> {
     const addrs = [
       order.params.exchange,
       order.params.maker,
@@ -200,35 +192,30 @@ export class Exchange {
       order.params.salt,
     ];
 
-    return new Contract(order.params.exchange, ExchangeAbi as any)
-      .connect(maker)
-      .cancelOrder_(
-        addrs,
-        uints,
-        1, // feeMethod (always 1 - SplitFee)
-        order.params.side,
-        order.params.saleKind,
-        order.params.howToCall,
-        order.params.calldata,
-        order.params.replacementPattern,
-        order.params.staticExtradata,
-        order.params.v,
-        order.params.r,
-        order.params.s
-      );
+    return new Contract(order.params.exchange, ExchangeAbi).connect(maker).cancelOrder_(
+      addrs,
+      uints,
+      1, // feeMethod (always 1 - SplitFee)
+      order.params.side,
+      order.params.saleKind,
+      order.params.howToCall,
+      order.params.calldata,
+      order.params.replacementPattern,
+      order.params.staticExtradata,
+      order.params.v,
+      order.params.r,
+      order.params.s
+    );
   }
 
   public async incrementNonce(user: Signer): Promise<ContractTransaction> {
-    return new Contract(Addresses.Exchange[this.chainId], ExchangeAbi as any)
+    return new Contract(Addresses.Exchange[this.chainId], ExchangeAbi)
       .connect(user)
       .incrementNonce();
   }
 
-  public async getNonce(
-    provider: Provider,
-    user: string
-  ): Promise<BigNumberish> {
-    return new Contract(Addresses.Exchange[this.chainId], ExchangeAbi as any)
+  public async getNonce(provider: Provider, user: string): Promise<BigNumberish> {
+    return new Contract(Addresses.Exchange[this.chainId], ExchangeAbi)
       .connect(provider)
       .nonces(user);
   }

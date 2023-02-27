@@ -9,56 +9,46 @@ import {IUniswapV3Router} from "../../../interfaces/IUniswapV3Router.sol";
 // - supports swapping ETH and ERC20 to any token via a direct path
 
 contract UniswapV3Module is BaseExchangeModule {
-    // --- Fields ---
+  // --- Fields ---
 
-    address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+  address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    IUniswapV3Router public constant SWAP_ROUTER =
-        IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
+  IUniswapV3Router public constant SWAP_ROUTER =
+    IUniswapV3Router(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
 
-    // --- Constructor ---
+  // --- Constructor ---
 
-    constructor(address owner, address router)
-        BaseModule(owner)
-        BaseExchangeModule(router)
-    {}
+  constructor(address owner, address router) BaseModule(owner) BaseExchangeModule(router) {}
 
-    // --- Fallback ---
+  // --- Fallback ---
 
-    receive() external payable {}
+  receive() external payable {}
 
-    // --- Swaps ---
+  // --- Swaps ---
 
-    function ethToExactOutput(
-        IUniswapV3Router.ExactOutputSingleParams calldata params,
-        address refundTo
-    ) external payable refundETHLeftover(refundTo) {
-        if (
-            address(params.tokenIn) != WETH ||
-            msg.value != params.amountInMaximum
-        ) {
-            revert WrongParams();
-        }
-
-        // Execute the swap
-        SWAP_ROUTER.exactOutputSingle{value: msg.value}(params);
-
-        // Refund any ETH stucked in the router
-        SWAP_ROUTER.refundETH();
+  function ethToExactOutput(
+    IUniswapV3Router.ExactOutputSingleParams calldata params,
+    address refundTo
+  ) external payable refundETHLeftover(refundTo) {
+    if (address(params.tokenIn) != WETH || msg.value != params.amountInMaximum) {
+      revert WrongParams();
     }
 
-    function erc20ToExactOutput(
-        IUniswapV3Router.ExactOutputSingleParams calldata params,
-        address refundTo
-    ) external refundERC20Leftover(refundTo, params.tokenIn) {
-        // Approve the router if needed
-        _approveERC20IfNeeded(
-            params.tokenIn,
-            address(SWAP_ROUTER),
-            params.amountInMaximum
-        );
+    // Execute the swap
+    SWAP_ROUTER.exactOutputSingle{value: msg.value}(params);
 
-        // Execute the swap
-        SWAP_ROUTER.exactOutputSingle(params);
-    }
+    // Refund any ETH stucked in the router
+    SWAP_ROUTER.refundETH();
+  }
+
+  function erc20ToExactOutput(
+    IUniswapV3Router.ExactOutputSingleParams calldata params,
+    address refundTo
+  ) external refundERC20Leftover(refundTo, params.tokenIn) {
+    // Approve the router if needed
+    _approveERC20IfNeeded(params.tokenIn, address(SWAP_ROUTER), params.amountInMaximum);
+
+    // Execute the swap
+    SWAP_ROUTER.exactOutputSingle(params);
+  }
 }

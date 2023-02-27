@@ -771,9 +771,6 @@ export const getExecuteBidV4Options: RouteOptions = {
             if (params.fees?.length) {
               throw Boom.badRequest("X2Y2 does not support explicit fees");
             }
-            if (params.excludeFlaggedTokens) {
-              throw Boom.badRequest("X2Y2 does not support token-list bids");
-            }
 
             let order: Sdk.X2Y2.Types.LocalOrder | undefined;
             if (token) {

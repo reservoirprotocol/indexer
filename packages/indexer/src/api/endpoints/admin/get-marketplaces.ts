@@ -2,6 +2,7 @@ import { RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 
 type Marketplace = {
   name: string;
@@ -49,7 +50,9 @@ export const getMarketplaces: RouteOptions = {
     const marketplaces: Marketplace[] = [
       {
         name: "Reservoir",
-        imageUrl: "https://api.reservoir.tools/redirect/sources/reservoir/logo/v2",
+        imageUrl: `https://${
+          getNetworkSettings().subDomain
+        }.reservoir.tools/redirect/sources/reservoir/logo/v2`,
         fee: {
           percent: 0,
           bps: 0,
@@ -61,7 +64,9 @@ export const getMarketplaces: RouteOptions = {
       },
       {
         name: "OpenSea",
-        imageUrl: "https://api.reservoir.tools/redirect/sources/opensea/logo/v2",
+        imageUrl: `https://${
+          getNetworkSettings().subDomain
+        }.reservoir.tools/redirect/sources/opensea/logo/v2`,
         fee: {
           percent: 2.5,
           bps: 250,
@@ -73,7 +78,9 @@ export const getMarketplaces: RouteOptions = {
       },
       {
         name: "LooksRare",
-        imageUrl: "https://api.reservoir.tools/redirect/sources/looksrare/logo/v2",
+        imageUrl: `https://${
+          getNetworkSettings().subDomain
+        }.reservoir.tools/redirect/sources/looksrare/logo/v2`,
         fee: {
           percent: 2,
           bps: 200,
@@ -85,7 +92,9 @@ export const getMarketplaces: RouteOptions = {
       },
       {
         name: "X2Y2",
-        imageUrl: "https://api.reservoir.tools/redirect/sources/x2y2/logo/v2",
+        imageUrl: `https://${
+          getNetworkSettings().subDomain
+        }.reservoir.tools/redirect/sources/x2y2/logo/v2`,
         fee: {
           percent: 0.5,
           bps: 50,
@@ -97,7 +106,9 @@ export const getMarketplaces: RouteOptions = {
       },
       {
         name: "Foundation",
-        imageUrl: "https://api.reservoir.tools/redirect/sources/foundation/logo/v2",
+        imageUrl: `https://${
+          getNetworkSettings().subDomain
+        }.reservoir.tools/redirect/sources/foundation/logo/v2`,
         fee: {
           percent: 5,
           bps: 500,
@@ -121,7 +132,11 @@ export const getMarketplaces: RouteOptions = {
           break;
         }
         case 5: {
-          listableOrderbooks = ["reservoir", "opensea", "looks-rare"];
+          listableOrderbooks = ["reservoir", "opensea", "looks-rare", "x2y2"];
+          break;
+        }
+        case 137: {
+          listableOrderbooks = ["reservoir", "opensea"];
           break;
         }
       }

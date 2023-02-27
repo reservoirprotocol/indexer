@@ -32,5 +32,6 @@ export abstract class BaseBuilder {
 
   public abstract isValid(order: Order): boolean;
   public abstract build(params: BaseBuildParams): Order;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public abstract buildMatching(order: Order, data: any): Types.MatchParams;
 }

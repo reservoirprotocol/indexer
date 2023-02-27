@@ -17,10 +17,7 @@ export class Router {
 
   constructor(chainId: number) {
     this.chainId = chainId;
-    this.contract = new Contract(
-      Addresses.RouterWithRoyalties[this.chainId],
-      RouterAbi
-    );
+    this.contract = new Contract(Addresses.RouterWithRoyalties[this.chainId], RouterAbi);
   }
 
   // --- Fill buy order ---
@@ -34,12 +31,7 @@ export class Router {
       source?: string;
     }
   ): Promise<ContractTransaction> {
-    const tx = this.fillBuyOrderTx(
-      await taker.getAddress(),
-      order,
-      tokenId,
-      options
-    );
+    const tx = this.fillBuyOrderTx(await taker.getAddress(), order, tokenId, options);
     return taker.sendTransaction(tx);
   }
 

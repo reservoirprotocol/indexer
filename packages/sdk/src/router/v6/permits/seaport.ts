@@ -85,10 +85,7 @@ export class Handler {
     }
 
     const routerIface = new Interface(RouterAbi);
-    const executionInfos = routerIface.decodeFunctionData(
-      "execute",
-      txData.data
-    ).executionInfos;
+    const executionInfos = routerIface.decodeFunctionData("execute", txData.data).executionInfos;
 
     const seaportModuleIface = new Interface(SeaportModuleAbi);
     return {

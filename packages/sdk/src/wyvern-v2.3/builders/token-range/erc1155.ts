@@ -113,15 +113,16 @@ export class TokenRangeErc1155Builder extends BaseBuilder {
         saleKind,
         target: params.contract,
         howToCall: Types.OrderHowToCall.CALL,
-        calldata: new Interface(Erc1155Abi).encodeFunctionData(
-          "safeTransferFrom",
-          [AddressZero, params.recipient ?? params.maker, 0, 1, "0x"]
-        ),
+        calldata: new Interface(Erc1155Abi).encodeFunctionData("safeTransferFrom", [
+          AddressZero,
+          params.recipient ?? params.maker,
+          0,
+          1,
+          "0x",
+        ]),
         replacementPattern: REPLACEMENT_PATTERN_BUY,
         staticTarget: Addresses.TokenRangeVerifier[this.chainId],
-        staticExtradata: new Interface(
-          TokenRangeVerifierAbi
-        ).encodeFunctionData("verify", [
+        staticExtradata: new Interface(TokenRangeVerifierAbi).encodeFunctionData("verify", [
           params.startTokenId,
           params.endTokenId,
         ]),
@@ -156,12 +157,7 @@ export class TokenRangeErc1155Builder extends BaseBuilder {
       throw new Error("Invalid order");
     }
 
-    if (
-      !(
-        bn(info.startTokenId).lte(data.tokenId) &&
-        bn(data.tokenId).lte(info.endTokenId)
-      )
-    ) {
+    if (!(bn(info.startTokenId).lte(data.tokenId) && bn(data.tokenId).lte(info.endTokenId))) {
       throw new Error("Invalid token id");
     }
 

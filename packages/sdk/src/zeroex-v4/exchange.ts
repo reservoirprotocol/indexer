@@ -35,12 +35,7 @@ export class Exchange {
       source?: string;
     }
   ): Promise<ContractTransaction> {
-    const tx = await this.fillOrderTx(
-      await taker.getAddress(),
-      order,
-      matchParams,
-      options
-    );
+    const tx = await this.fillOrderTx(await taker.getAddress(), order, matchParams, options);
     return taker.sendTransaction(tx);
   }
 
@@ -84,11 +79,7 @@ export class Exchange {
               matchParams.nftId!,
               defaultAbiCoder.encode(
                 [Erc721OrderAbiType, SignatureAbiType, "bool"],
-                [
-                  order.getRaw(),
-                  order.getRaw(),
-                  matchParams.unwrapNativeToken ?? true,
-                ]
+                [order.getRaw(), order.getRaw(), matchParams.unwrapNativeToken ?? true]
               ),
             ]
           );
@@ -122,11 +113,7 @@ export class Exchange {
             matchParams.nftAmount!,
             defaultAbiCoder.encode(
               [Erc1155OrderAbiType, SignatureAbiType, "bool"],
-              [
-                order.getRaw(),
-                order.getRaw(),
-                matchParams.unwrapNativeToken ?? false,
-              ]
+              [order.getRaw(), order.getRaw(), matchParams.unwrapNativeToken ?? false]
             ),
           ]);
         }
@@ -143,9 +130,7 @@ export class Exchange {
           .sub(1)
           .div(order.params.nftAmount!)
           // Buyer pays the fees
-          .add(
-            feeAmount.mul(matchParams.nftAmount!).div(order.params.nftAmount!)
-          );
+          .add(feeAmount.mul(matchParams.nftAmount!).div(order.params.nftAmount!));
       }
     }
 
@@ -167,12 +152,7 @@ export class Exchange {
       source?: string;
     }
   ): Promise<ContractTransaction> {
-    const tx = await this.batchBuyTx(
-      await taker.getAddress(),
-      orders,
-      matchParams,
-      options
-    );
+    const tx = await this.batchBuyTx(await taker.getAddress(), orders, matchParams, options);
     return taker.sendTransaction(tx);
   }
 
@@ -184,8 +164,8 @@ export class Exchange {
       source?: string;
     }
   ): Promise<TxData> {
-    const sellOrders: any[] = [];
-    const signatures: any[] = [];
+    const sellOrders = [];
+    const signatures = [];
     const fillAmounts: string[] = [];
     const callbackData: string[] = [];
 
@@ -218,11 +198,7 @@ export class Exchange {
           .sub(1)
           .div(orders[i].params.nftAmount!)
           // Buyer pays the fees
-          .add(
-            feeAmount
-              .mul(matchParams[i].nftAmount!)
-              .div(orders[i].params.nftAmount!)
-          )
+          .add(feeAmount.mul(matchParams[i].nftAmount!).div(orders[i].params.nftAmount!))
       );
 
       sellOrders.push(orders[i].getRaw());
@@ -255,10 +231,7 @@ export class Exchange {
 
   // --- Cancel order ---
 
-  public async cancelOrder(
-    maker: Signer,
-    order: Order
-  ): Promise<ContractTransaction> {
+  public async cancelOrder(maker: Signer, order: Order): Promise<ContractTransaction> {
     const tx = this.cancelOrderTx(await maker.getAddress(), order);
     return maker.sendTransaction(tx);
   }
@@ -266,13 +239,9 @@ export class Exchange {
   public cancelOrderTx(maker: string, order: Order): TxData {
     let data: string;
     if (order.params.kind?.startsWith("erc721")) {
-      data = this.contract.interface.encodeFunctionData("cancelERC721Order", [
-        order.params.nonce,
-      ]);
+      data = this.contract.interface.encodeFunctionData("cancelERC721Order", [order.params.nonce]);
     } else {
-      data = this.contract.interface.encodeFunctionData("cancelERC1155Order", [
-        order.params.nonce,
-      ]);
+      data = this.contract.interface.encodeFunctionData("cancelERC1155Order", [order.params.nonce]);
     }
 
     return {

@@ -6,7 +6,6 @@ import { BaseBuildParams, BaseBuilder, BaseOrderInfo } from "../base";
 import * as Addresses from "../../addresses";
 import { Order } from "../../order";
 import * as Types from "../../types";
-import * as CommonAddresses from "../../../common/addresses";
 import { BytesEmpty, lc, s } from "../../../utils";
 
 interface BuildParams extends BaseBuildParams {
@@ -29,8 +28,7 @@ export class TokenRangeBuilder extends BaseBuilder {
 
       const copyOrder = this.build({
         ...order.params,
-        direction:
-          order.params.direction === Types.TradeDirection.SELL ? "sell" : "buy",
+        direction: order.params.direction === Types.TradeDirection.SELL ? "sell" : "buy",
         contract: order.params.nft,
         maker: order.params.maker,
         paymentToken: order.params.erc20Token,
@@ -59,10 +57,7 @@ export class TokenRangeBuilder extends BaseBuilder {
 
     return new Order(this.chainId, {
       kind: params.amount ? "erc1155-token-range" : "erc721-token-range",
-      direction:
-        params.direction === "sell"
-          ? Types.TradeDirection.SELL
-          : Types.TradeDirection.BUY,
+      direction: params.direction === "sell" ? Types.TradeDirection.SELL : Types.TradeDirection.BUY,
       maker: params.maker,
       taker: AddressZero,
       expiry: params.expiry!,
