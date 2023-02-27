@@ -245,7 +245,7 @@ export const postOrderV3Options: RouteOptions = {
                 isReservoir: orderbook === "reservoir",
                 metadata: {
                   schema,
-                  source: orderbook === "reservoir" ? source : undefined,
+                  source,
                 },
               },
             ]);
@@ -322,6 +322,10 @@ export const postOrderV3Options: RouteOptions = {
             throw new Error("Unknown orderbook");
           }
 
+          let crossPostingOrder;
+
+          const orderId = new Sdk.Seaport.Order(config.chainId, order.data).hash();
+
           const orderComponents = order.data as Sdk.Seaport.Types.OrderComponents;
           const tokenOffer = orderComponents.offer[0];
 
@@ -388,41 +392,44 @@ export const postOrderV3Options: RouteOptions = {
             ]
           );
 
-          const orderInfo: orders.seaport.OrderInfo = {
-            kind: "full",
-            orderParams: orderComponents,
-            isReservoir: orderbook === "reservoir",
-            metadata: {
+          if (orderbook === "opensea") {
+            crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+              orderId,
+              kind: order.kind,
+              orderbook,
+              source,
               schema,
-              source: orderbook === "reservoir" ? source : undefined,
-              target: orderbook,
-            },
-          };
+              rawData: order.data,
+            } as crossPostingOrdersModel.CrossPostingOrder);
 
-          const [result] = await orders.seaport.save([orderInfo]);
+            await postOrderExternal.addToQueue({
+              crossPostingOrderId: crossPostingOrder.id,
+              orderId,
+              orderData: order.data,
+              orderbook,
+              orderbookApiKey,
+            });
+          } else {
+            const [result] = await orders.seaport.save([
+              {
+                kind: "full",
+                orderParams: order.data,
+                isReservoir: orderbook === "reservoir",
+                metadata: {
+                  schema,
+                  source,
+                },
+              },
+            ]);
 
-          if (result.status === "already-exists") {
-            return { message: "Success", orderId: result.id };
+            if (!["success", "already-exists"].includes(result.status)) {
+              const error = Boom.badRequest(result.status);
+              error.output.payload.orderId = orderId;
+              throw error;
+            }
           }
 
-          if (result.status !== "success") {
-            const error = Boom.badRequest(result.status);
-            error.output.payload.orderId = result.id;
-            throw error;
-          }
-
-          // if (orderbook === "opensea") {
-          //   await postOrderExternal.addToQueue(result.id, order.data, orderbook, orderbookApiKey);
-          //
-          //   logger.info(
-          //     `post-order-${version}-handler`,
-          //     `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}, orderId: ${
-          //       result.id
-          //     }`
-          //   );
-          // }
-
-          return { message: "Success", orderId: result.id };
+          return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder?.id };
         }
 
         case "looks-rare": {
@@ -459,7 +466,7 @@ export const postOrderV3Options: RouteOptions = {
               orderParams: order.data,
               metadata: {
                 schema,
-                source: orderbook === "reservoir" ? source : undefined,
+                source,
               },
             };
 
