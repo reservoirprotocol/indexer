@@ -4,7 +4,7 @@ import { HashZero } from "@ethersproject/constants";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import _ from "lodash";
 
-import { idb, redb } from "@/common/db";
+import { idb, ridb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
@@ -144,7 +144,7 @@ if (config.doBackgroundWork) {
 
             if (!buyOrderResult.length && trigger.kind === "revalidation") {
               // When revalidating, force revalidation of the attribute / collection
-              const tokenSetsResult = await redb.manyOrNone(
+              const tokenSetsResult = await ridb.manyOrNone(
                 `
                   SELECT
                     token_sets.collection_id,
