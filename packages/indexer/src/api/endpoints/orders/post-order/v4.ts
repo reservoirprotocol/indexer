@@ -281,7 +281,7 @@ export const postOrderV4Options: RouteOptions = {
                     isReservoir: orderbook === "reservoir",
                     metadata: {
                       schema,
-                      source: orderbook === "reservoir" ? source : undefined,
+                      source,
                     },
                   },
                 ]);
@@ -350,7 +350,7 @@ export const postOrderV4Options: RouteOptions = {
                     isReservoir: orderbook === "reservoir",
                     metadata: {
                       schema,
-                      source: orderbook === "reservoir" ? source : undefined,
+                      source,
                     },
                   },
                 ]);
@@ -400,7 +400,7 @@ export const postOrderV4Options: RouteOptions = {
                     orderParams: order.data,
                     metadata: {
                       schema,
-                      source: orderbook === "reservoir" ? source : undefined,
+                      source,
                     },
                   },
                 ]);
