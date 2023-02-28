@@ -100,7 +100,7 @@ export const getUserActivityV5Options: RouteOptions = {
         .description(
           "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
-    }).oxor("collection", "collectionsSetId", "contractsSetId", "community"),
+    }).oxor("collection", "collectionsSetId", "contractsSetId", "community", "contract"),
   },
   response: {
     schema: Joi.object({
