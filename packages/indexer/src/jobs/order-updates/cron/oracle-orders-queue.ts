@@ -38,7 +38,13 @@ if (config.doBackgroundWork) {
       const values: any[] = [];
 
       // Fetch any new cancellations
-      const result = await axios.get(`?fromTimestamp=${cursor}`).then((response) => response.data);
+      const result = await axios
+        .get(
+          `https://seaport-oracle-${
+            config.chainId === 1 ? "mainnet" : "goerli"
+          }.up.railway.app/api/cancellations?fromTimestamp=${cursor}`
+        )
+        .then((response) => response.data);
       const cancellations = result.cancellations;
       for (const { orderHash } of cancellations) {
         values.push({ id: orderHash });
