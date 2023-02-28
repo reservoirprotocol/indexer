@@ -693,6 +693,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/execute/cancel-signature/v1",
+    options: executeEndpoints.postCancelSignatureV1Options,
+  });
+
+  server.route({
+    method: "POST",
     path: "/execute/permit-signature/v1",
     options: executeEndpoints.postPermitSignatureV1Options,
   });

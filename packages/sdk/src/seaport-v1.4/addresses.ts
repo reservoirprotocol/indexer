@@ -46,4 +46,6 @@ export const PausableZone: ChainIdToAddress = {};
 
 export const ApprovalOrderZone: ChainIdToAddress = {};
 
-export const CancelXZone: ChainIdToAddress = {};
+export const CancellationZone: ChainIdToAddress = {
+  [Network.EthereumGoerli]: "0x49b91d1d7b9896d28d370b75b92c2c78c1ac984a",
+};

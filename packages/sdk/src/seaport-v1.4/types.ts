@@ -1,3 +1,5 @@
+import { BigNumberish } from "@ethersproject/bignumber";
+
 export type OrderKind = "contract-wide" | "single-token" | "token-list";
 
 export enum ItemType {
@@ -83,7 +85,7 @@ export type OrderComponents = {
 };
 
 export type MatchParams = {
-  amount?: string;
+  amount?: BigNumberish;
   criteriaResolvers?: CriteriaResolver[];
 };
 

@@ -21,7 +21,7 @@ import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
 import * as seaportSellToken from "@/orderbook/orders/seaport/build/sell/token";
 import * as seaportCheck from "@/orderbook/orders/seaport/check";
 
-// Seaport v1.3
+// Seaport v1.4
 import * as seaportV14SellToken from "@/orderbook/orders/seaport-v1.4/build/sell/token";
 import * as seaportV14Check from "@/orderbook/orders/seaport-v1.4/check";
 
@@ -102,6 +102,16 @@ export const getExecuteListV5Options: RouteOptions = {
             )
             .default("seaport-v1.4")
             .description("Exchange protocol used to create order. Example: `seaport-v1.4`"),
+          options: Joi.object({
+            "seaport-v1.4": Joi.object({
+              useOffChainCancellation: Joi.boolean().required(),
+              replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                is: true,
+                then: Joi.optional(),
+                otherwise: Joi.forbidden(),
+              }),
+            }),
+          }).description("Additional options."),
           orderbook: Joi.string()
             .valid("opensea", "looks-rare", "reservoir", "x2y2", "universe", "infinity", "flow")
             .default("reservoir")
@@ -182,10 +192,11 @@ export const getExecuteListV5Options: RouteOptions = {
         weiPrice: string;
         orderKind: string;
         orderbook: string;
+        fees: string[];
+        options?: any;
         orderbookApiKey?: string;
         automatedRoyalties: boolean;
         royaltyBps?: number;
-        fees: string[];
         listingTime?: number;
         expirationTime?: number;
         salt?: string;
@@ -551,8 +562,16 @@ export const getExecuteListV5Options: RouteOptions = {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
 
+                const options = params.options?.[params.orderKind] as
+                  | {
+                      useOffChainCancellation?: boolean;
+                      replaceOrderId?: string;
+                    }
+                  | undefined;
+
                 const order = await seaportV14SellToken.build({
                   ...params,
+                  ...options,
                   orderbook: params.orderbook as "reservoir" | "opensea",
                   maker,
                   contract,
