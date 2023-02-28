@@ -245,7 +245,7 @@ export class RateLimitRules {
             // If the request consists any of the keys in the request and the value match
             if (
               !payload.has(rulePayload.param) ||
-              payload.get(rulePayload.param) !== rulePayload.value
+              _.toLower(payload.get(rulePayload.param)) !== _.toLower(rulePayload.value)
             ) {
               payloadMatching = false;
             }
