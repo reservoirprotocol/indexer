@@ -104,10 +104,10 @@ export const postOrderV4Options: RouteOptions = {
         };
       }[];
 
-      // Only Seaport v1.3 supports bulk orders
+      // Only Seaport v1.4 supports bulk orders
       if (items.length > 1) {
         if (!items.every((item) => item.order.kind === "seaport-v1.4")) {
-          throw Boom.badRequest("Bulk orders are only supported on Seaport v1.3");
+          throw Boom.badRequest("Bulk orders are only supported on Seaport v1.4");
         }
       }
 
