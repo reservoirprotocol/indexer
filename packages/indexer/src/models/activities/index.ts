@@ -67,7 +67,7 @@ export class Activities {
     const query = `DELETE FROM activities
                    WHERE block_hash = $/blockHash/`;
 
-    return await idb.none(query, { blockHash });
+    return await idb.none(query, { blockHash: toBuffer(blockHash) });
   }
 
   public static async getActivities(
