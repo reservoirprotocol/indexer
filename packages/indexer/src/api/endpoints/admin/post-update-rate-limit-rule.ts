@@ -22,6 +22,14 @@ export const postUpdateRateLimitRuleOptions: RouteOptions = {
       duration: Joi.number().optional(),
       apiKey: Joi.string().uuid().optional().allow(""),
       method: Joi.string().valid("get", "post", "delete", "put", "").optional(),
+      payload: Joi.array()
+        .items(
+          Joi.object({
+            key: Joi.string(),
+            value: Joi.string(),
+          })
+        )
+        .optional(),
     }),
   },
   handler: async (request: Request) => {
@@ -40,6 +48,7 @@ export const postUpdateRateLimitRuleOptions: RouteOptions = {
           points: payload.points,
           duration: payload.duration,
         },
+        payload: payload.payload,
       });
 
       return {

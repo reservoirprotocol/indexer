@@ -59,18 +59,29 @@ export class UserActivities {
     await idb.none(query);
   }
 
-  public static async getActivities(
-    users: string[],
-    collections: string[] = [],
+  public static async getActivities({
+    users,
+    collections = [],
     community = "",
-    createdBefore: null | string = null,
-    types: string[] = [],
+    createdBefore = null,
+    types = [],
     limit = 20,
     sortBy = "eventTimestamp",
     includeMetadata = true,
     includeCriteria = false,
-    contracts: string[] = []
-  ) {
+    contracts = [],
+  }: {
+    users: string[];
+    collections?: string[];
+    community?: string;
+    createdBefore: null | string;
+    types: string[];
+    limit: number;
+    sortBy?: string;
+    includeMetadata?: boolean;
+    includeCriteria?: boolean;
+    contracts?: string[];
+  }) {
     const sortByColumn = sortBy == "eventTimestamp" ? "event_timestamp" : "created_at";
     let continuation = "";
     let typesFilter = "";

@@ -4,7 +4,7 @@ import { HashZero } from "@ethersproject/constants";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import _ from "lodash";
 
-import { idb, redb } from "@/common/db";
+import { idb, ridb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
@@ -46,6 +46,8 @@ if (config.doBackgroundWork) {
       const { id, trigger } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
+      logger.info(QUEUE_NAME, `Start. orderId=${id}, jobData=${JSON.stringify(job.data)}`);
+
       try {
         let order: any;
         if (id) {
@@ -81,6 +83,13 @@ if (config.doBackgroundWork) {
               LIMIT 1
             `,
             { id }
+          );
+
+          logger.info(
+            QUEUE_NAME,
+            `Order. orderId=${id}, jobData=${JSON.stringify(job.data)}, order=${JSON.stringify(
+              order
+            )}`
           );
 
           side = order?.side;
@@ -135,7 +144,7 @@ if (config.doBackgroundWork) {
 
             if (!buyOrderResult.length && trigger.kind === "revalidation") {
               // When revalidating, force revalidation of the attribute / collection
-              const tokenSetsResult = await redb.manyOrNone(
+              const tokenSetsResult = await ridb.manyOrNone(
                 `
                   SELECT
                     token_sets.collection_id,
@@ -203,6 +212,11 @@ if (config.doBackgroundWork) {
               txHash: trigger.txHash || null,
               txTimestamp: trigger.txTimestamp || null,
             };
+
+            logger.info(
+              QUEUE_NAME,
+              `Floor. orderId=${id}, jobData=${JSON.stringify(job.data)}, tokenSetId=${tokenSetId}`
+            );
 
             await Promise.all([
               tokenUpdatesFloorAsk.addToQueue([floorAskInfo]),
