@@ -95,8 +95,6 @@ export const save = async (
       const info = order.getInfo();
       const id = order.hash();
 
-      const timeStart = performance.now();
-
       // Check: order has a valid format
       if (!info) {
         return results.push({
@@ -696,15 +694,6 @@ export const save = async (
 
       if (relayToArweave) {
         arweaveData.push({ order, schemaHash, source: source?.domain });
-      }
-
-      const totalTimeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      if (totalTimeElapsed > 1) {
-        logger.info(
-          "orders-seaport-save-debug-latency",
-          `orderId=${id}, orderSide=${info.side}, totalTimeElapsed=${totalTimeElapsed}`
-        );
       }
     } catch (error) {
       logger.warn(
