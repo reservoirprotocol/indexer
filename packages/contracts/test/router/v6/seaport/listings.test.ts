@@ -45,7 +45,6 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
   let seaportApprovalOrderZone: Contract;
   let seaportModule: Contract;
   let uniswapV3Module: Contract;
-  let permit2: Contract;
   let permit2Module: Contract;
   let wethModule: Contract;
 
@@ -73,8 +72,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
       .then((factory) =>
         factory.deploy(router.address, router.address)
       )) as any;
-
-    permit2 = new Contract(Sdk.Common.Addresses.Permit2[chainId], Permit2ABI);
+    
     // erc20
     permit2Module = (await ethers
       .getContractFactory("Permit2Module", deployer)

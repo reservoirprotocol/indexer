@@ -106,6 +106,14 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
     .then((factory) => factory.deploy(deployer.address, router.address));
   Sdk.RouterV6.Addresses.UniswapV3Module[chainId] = uniswapV3Module.address.toLowerCase();
 
+  const swapModule = (await ethers
+    .getContractFactory("SwapModule", deployer)
+    .then((factory) =>
+      factory.deploy(deployer.address, deployer.address)
+    )) as any;
+  
+  Sdk.RouterV6.Addresses.SwapModule[chainId] = swapModule.address.toLowerCase();
+
   const wethModule = await ethers
     .getContractFactory("WETHModule", deployer)
     .then((factory) => factory.deploy(deployer.address));
