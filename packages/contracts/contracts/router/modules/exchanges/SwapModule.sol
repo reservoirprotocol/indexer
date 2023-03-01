@@ -20,7 +20,7 @@ contract SwapModule is BaseExchangeModule {
 
   struct Swap {
     IUniswapV3Router.ExactOutputSingleParams params;
-    TransferDetail[] recipients;
+    TransferDetail[] transfers;
   }
 
   // --- Fields ---
@@ -87,9 +87,9 @@ contract SwapModule is BaseExchangeModule {
     // Refund any ETH stucked in the router
     SWAP_ROUTER.refundETH();
 
-    uint256 length = swap.recipients.length;
+    uint256 length = swap.transfers.length;
     for (uint256 i = 0; i < length; ) {
-      TransferDetail calldata transferDetail = swap.recipients[i];
+      TransferDetail calldata transferDetail = swap.transfers[i];
       if (transferDetail.toETH) {
         WETH.withdraw(transferDetail.amount);
         _sendETH(transferDetail.recipient, transferDetail.amount);
@@ -114,9 +114,9 @@ contract SwapModule is BaseExchangeModule {
     // Execute the swap
     SWAP_ROUTER.exactOutputSingle(swap.params);
 
-    uint256 length = swap.recipients.length;
+    uint256 length = swap.transfers.length;
     for (uint256 i = 0; i < length; ) {
-      TransferDetail calldata transferDetail = swap.recipients[i];
+      TransferDetail calldata transferDetail = swap.transfers[i];
       if (transferDetail.toETH) {
         WETH.withdraw(transferDetail.amount);
         _sendETH(transferDetail.recipient, transferDetail.amount);
