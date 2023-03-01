@@ -2834,10 +2834,10 @@
   resolved "https://registry.yarnpkg.com/@nomiclabs/hardhat-waffle/-/hardhat-waffle-2.0.5.tgz#97c217f1db795395c04404291937edb528f3f218"
   integrity sha512-U1RH9OQ1mWYQfb+moX5aTgGjpVVlOcpiFI47wwnaGG4kLhcTy90cNiapoqZenxcRAITVbr0/+QSduINL5EsUIQ==
 
-"@opensea/stream-js@^0.0.21-rc.1":
-  version "0.0.21-rc.1"
-  resolved "https://registry.yarnpkg.com/@opensea/stream-js/-/stream-js-0.0.21-rc.1.tgz#22ce05f56a67eb8dff6c3dc618e5d20b1e50dfbe"
-  integrity sha512-Dwf7CUq+BGgtPX5ga8ZpgJib8aX2wnzb3iR6f8rWSYm5fQpV7kXr3j4eqQwsqye+ScXFPEtJsYE78+T7v18fng==
+"@opensea/stream-js@^0.0.23":
+  version "0.0.23"
+  resolved "https://registry.yarnpkg.com/@opensea/stream-js/-/stream-js-0.0.23.tgz#8ecebdd22ce1e6e31047fc33853dd2469cbe10ac"
+  integrity sha512-jyhejhCKpisPIwjaZl1mThHSLaKT7pMjYlJmZXzoWW4mWnvpKEyWxRihNo9uRI7h2Qxxsd8Q7+mLbOTFx4WhHg==
   dependencies:
     phoenix "^1.6.2"
 

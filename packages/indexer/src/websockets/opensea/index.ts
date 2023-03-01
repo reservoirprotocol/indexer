@@ -2,6 +2,7 @@ import {
   BaseStreamMessage,
   CollectionOfferEventPayload,
   EventType,
+  ItemMetadataUpdatePayload,
   ItemReceivedBidEventPayload,
   Network,
   OpenSeaStreamClient,
@@ -26,6 +27,7 @@ import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handl
 import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
 import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/handlers/collection_offer";
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
+import { handleEvent as handleItemMetadataUpdatedEvent } from "@/websockets/opensea/handlers/item_metadata_updated";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
@@ -109,6 +111,19 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       }
     }
   );
+
+  client.onEvents("*", [EventType.ITEM_METADATA_UPDATED], async (event) => {
+    try {
+      await handleItemMetadataUpdatedEvent(event.payload as ItemMetadataUpdatePayload);
+    } catch (error) {
+      logger.error(
+        "opensea-websocket",
+        `network=${network}, event type: ${event.event_type}, event=${JSON.stringify(
+          event
+        )}, error=${error}`
+      );
+    }
+  });
 }
 
 const saveEvent = async (event: BaseStreamMessage<unknown>) => {

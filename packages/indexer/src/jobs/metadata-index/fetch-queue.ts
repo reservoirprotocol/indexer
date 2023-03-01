@@ -45,6 +45,10 @@ if (config.doBackgroundWork) {
       const limit = 1000;
       let refreshTokens: RefreshTokens[] = [];
 
+      if (data.collection === "0x4923917e9e288b95405e2c893d0ac46b895dda22") {
+        return;
+      }
+
       if (kind === "full-collection-by-slug") {
         // Add the collections slugs to the list
         const pendingRefreshTokensBySlug = new PendingRefreshTokensBySlug();
@@ -198,7 +202,7 @@ export const addToQueue = async (
   if (config.chainId === 137) {
     metadataIndexInfos = _.filter(
       metadataIndexInfos,
-      (data) => data.data.collection !== "0xaa1ec1efef105599f849b8f5df9b937e25a16e6b"
+      (data) => data.data.collection !== "0x4923917e9e288b95405e2c893d0ac46b895dda22"
     );
   }
 

@@ -100,6 +100,9 @@ export const getTokensV5Options: RouteOptions = {
       source: Joi.string().description(
         "Domain of the order source. Example `opensea.io` (Only listed tokens are returned when filtering by source)"
       ),
+      nativeSource: Joi.string().description(
+        "Domain of the order source. Example `opensea.io`. For a native marketplace, return all tokens listed on this marketplace, even if better prices are available on other marketplaces."
+      ),
       minRarityRank: Joi.number()
         .integer()
         .min(1)
@@ -167,6 +170,7 @@ export const getTokensV5Options: RouteOptions = {
     })
       .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
+      .oxor("source", "nativeSource")
       .with("attributes", "collection")
       .with("tokenName", "collection"),
   },
@@ -398,28 +402,29 @@ export const getTokensV5Options: RouteOptions = {
     }
 
     let sourceQuery = "";
-    if (query.source) {
+    if (query.nativeSource) {
       const sources = await Sources.getInstance();
-      let source = sources.getByName(query.source, false);
-      if (!source) {
-        source = sources.getByDomain(query.source, false);
+      let nativeSource = sources.getByName(query.nativeSource, false);
+      if (!nativeSource) {
+        nativeSource = sources.getByDomain(query.nativeSource, false);
       }
 
-      if (!source) {
+      if (!nativeSource) {
         return {
           tokens: [],
           continuation: null,
         };
       }
 
-      (query as any).source = source?.id;
+      (query as any).nativeSource = nativeSource?.id;
       selectFloorData = "s.*";
 
       const sourceConditions: string[] = [];
       sourceConditions.push(`o.side = 'sell'`);
       sourceConditions.push(`o.fillability_status = 'fillable'`);
       sourceConditions.push(`o.approval_status = 'approved'`);
-      sourceConditions.push(`o.source_id_int = $/source/`);
+      sourceConditions.push(`o.source_id_int = $/nativeSource/`);
+      sourceConditions.push(`o.is_reservoir = TRUE`);
       sourceConditions.push(
         `o.taker = '\\x0000000000000000000000000000000000000000' OR o.taker IS NULL`
       );
@@ -588,7 +593,7 @@ export const getTokensV5Options: RouteOptions = {
       if (query.minFloorAskPrice !== undefined) {
         (query as any).minFloorSellValue = query.minFloorAskPrice * 10 ** 18;
         conditions.push(
-          `${query.source ? "s." : "t."}${
+          `${query.nativeSource ? "s." : "t."}${
             query.normalizeRoyalties ? "normalized_" : ""
           }floor_sell_value >= $/minFloorSellValue/`
         );
@@ -597,10 +602,21 @@ export const getTokensV5Options: RouteOptions = {
       if (query.maxFloorAskPrice !== undefined) {
         (query as any).maxFloorSellValue = query.maxFloorAskPrice * 10 ** 18;
         conditions.push(
-          `${query.source ? "s." : "t."}${
+          `${query.nativeSource ? "s." : "t."}${
             query.normalizeRoyalties ? "normalized_" : ""
           }floor_sell_value <= $/maxFloorSellValue/`
         );
+      }
+
+      if (query.source) {
+        const sources = await Sources.getInstance();
+        let source = sources.getByName(query.source, false);
+        if (!source) {
+          source = sources.getByDomain(query.source);
+        }
+
+        (query as any).source = source?.id;
+        conditions.push(`t.floor_sell_source_id_int = $/source/`);
       }
 
       if (query.tokens) {
@@ -653,8 +669,8 @@ export const getTokensV5Options: RouteOptions = {
 
         (query as any).currenciesFilter = _.join((query as any).currenciesFilter, ",");
 
-        if (query.source) {
-          // if source is passed in, then we have two floor_sell_currency columns
+        if (query.nativeSource) {
+          // if nativeSource is passed in, then we have two floor_sell_currency columns
           conditions.push(`s.floor_sell_currency IN ($/currenciesFilter:raw/)`);
         } else {
           conditions.push(`floor_sell_currency IN ($/currenciesFilter:raw/)`);
@@ -712,7 +728,7 @@ export const getTokensV5Options: RouteOptions = {
                   throw new Error("Invalid continuation string used");
                 }
                 const sign = query.sortDirection == "desc" ? "<" : ">";
-                const sortColumn = query.source
+                const sortColumn = query.nativeSource
                   ? "s.floor_sell_value"
                   : query.normalizeRoyalties
                   ? "t.normalized_floor_sell_value"
@@ -782,7 +798,7 @@ export const getTokensV5Options: RouteOptions = {
 
           case "floorAskPrice":
           default: {
-            const sortColumn = query.source
+            const sortColumn = query.nativeSource
               ? "s.floor_sell_value"
               : query.normalizeRoyalties
               ? "t.normalized_floor_sell_value"

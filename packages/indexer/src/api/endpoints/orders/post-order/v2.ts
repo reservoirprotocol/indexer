@@ -226,7 +226,10 @@ export const postOrderV2Options: RouteOptions = {
             throw new Error("Unsupported orderbook");
           }
 
-          const orderParams = handleEvent(order.data.event_type as EventType, order.data.payload);
+          const orderParams = await handleEvent(
+            order.data.event_type as EventType,
+            order.data.payload
+          );
           if (!orderParams) {
             throw new Error("Could not parse order");
           }

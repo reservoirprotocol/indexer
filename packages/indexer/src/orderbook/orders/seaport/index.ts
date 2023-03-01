@@ -202,14 +202,16 @@ export const save = async (
         });
       }
 
-      // Check: order has a valid signature
-      try {
-        await order.checkSignature(baseProvider);
-      } catch {
-        return results.push({
-          id,
-          status: "invalid-signature",
-        });
+      // Check: order has a valid signature (or was validated on-chain)
+      if (!metadata.fromOnChain) {
+        try {
+          await order.checkSignature(baseProvider);
+        } catch {
+          return results.push({
+            id,
+            status: "invalid-signature",
+          });
+        }
       }
 
       // Check: order fillability

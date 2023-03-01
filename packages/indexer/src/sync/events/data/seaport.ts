@@ -61,3 +61,18 @@ export const counterIncremented: EventData = {
     )`,
   ]),
 };
+
+export const orderValidated: EventData = {
+  kind: "seaport",
+  subKind: "seaport-order-validated",
+  addresses: { [Seaport.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0xfde361574a066b44b3b5fe98a87108b7565e327327954c4faeea56a4e6491a0a",
+  numTopics: 3,
+  abi: new Interface([
+    `event OrderValidated(
+      bytes32 orderHash,
+      address indexed offerer,
+      address indexed zone
+    )`,
+  ]),
+};

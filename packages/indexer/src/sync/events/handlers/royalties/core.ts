@@ -281,7 +281,8 @@ export async function extractRoyalties(
           _.royalties.find((c) => c.recipient === address)
         );
 
-        if (isEligible && notInOtherDef) {
+        const isAMM = ["sudoswap", "nftx"].includes(fillEvent.orderKind);
+        if (isEligible && notInOtherDef && !isAMM) {
           curRoyalties.bps = bps;
           royaltyFeeBreakdown.push(curRoyalties);
         }

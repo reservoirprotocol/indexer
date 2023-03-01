@@ -70,3 +70,42 @@ export const counterIncremented: EventData = {
     )`,
   ]),
 };
+
+export const orderValidated: EventData = {
+  kind: "seaport",
+  subKind: "seaport-v1.4-order-validated",
+  addresses: { [SeaportV14.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0xf280791efe782edcf06ce15c8f4dff17601db3b88eb3805a0db7d77faf757f04",
+  numTopics: 1,
+  abi: new Interface([
+    `event OrderValidated(
+      bytes32 orderHash,
+      (
+        address offerer,
+        address zone,
+        (
+          uint8 itemType,
+          address token,
+          uint256 identifierOrCriteria,
+          uint256 startAmount,
+          uint256 endAmount,
+        )[] offer,
+        (
+          uint8 itemType,
+          address token,
+          uint256 identifierOrCriteria,
+          uint256 startAmount,
+          uint256 endAmount,
+          address recipient,
+        )[] consideration,
+        uint8 orderType,
+        uint256 startTime,
+        uint256 endTime,
+        bytes32 zoneHash,
+        uint256 salt,
+        bytes32 conduitKey,
+        uint256 totalOriginalConsiderationItems
+      )
+    )`,
+  ]),
+};

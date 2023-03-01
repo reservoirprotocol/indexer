@@ -1,9 +1,11 @@
 import { Log } from "@ethersproject/abstract-provider";
-import { AddressZero } from "@ethersproject/constants";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
+import { searchForCall } from "@georgeroman/evm-tx-simulator";
 
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
+import { baseProvider } from "@/common/provider";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
@@ -17,12 +19,20 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
   const orderIdsToSkip = new Set<string>();
 
-  // Only consider the first order of any explicit match
-  for (const { log } of events.filter(({ subKind }) => subKind === "seaport-v1.4-orders-matched")) {
+  // For each transaction keep track of the orders that were explicitly matched
+  const matchedOrderIds: { [txHash: string]: Set<string> } = {};
+  for (const { baseEventParams, log } of events.filter(
+    ({ subKind }) => subKind === "seaport-v1.4-orders-matched"
+  )) {
+    const txHash = baseEventParams.txHash;
+    if (!matchedOrderIds[txHash]) {
+      matchedOrderIds[txHash] = new Set<string>();
+    }
+
     const eventData = getEventData(["seaport-v1.4-orders-matched"])[0];
     const parsedLog = eventData.abi.parseLog(log);
-    for (const orderId of parsedLog.args["orderHashes"].slice(1)) {
-      orderIdsToSkip.add(orderId);
+    for (const orderId of parsedLog.args["orderHashes"]) {
+      matchedOrderIds[txHash].add(orderId);
     }
   }
 
@@ -91,6 +101,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const offer = parsedLog.args["offer"];
         const consideration = parsedLog.args["consideration"];
 
+        // Skip the order if needed
         if (orderIdsToSkip.has(orderId)) {
           break;
         }
@@ -103,6 +114,19 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         const saleInfo = exchange.deriveBasicSale(offer, consideration);
         if (saleInfo) {
+          // If the order was explicitly matched, make sure to exclude it if
+          // the transaction sender is the order's offerer (since this means
+          // that the order was just auxiliary most of the time)
+          const matched = matchedOrderIds[baseEventParams.txHash];
+          if (matched && matched.has(orderId)) {
+            const txSender = await utils
+              .fetchTransaction(baseEventParams.txHash)
+              .then(({ from }) => from);
+            if (maker === txSender) {
+              break;
+            }
+          }
+
           // Handle: filling via `matchOrders`
           if (
             taker === AddressZero &&
@@ -214,6 +238,123 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               orderKind,
             },
           });
+        }
+
+        break;
+      }
+
+      case "seaport-v1.4-order-validated":
+      case "seaport-order-validated": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const orderId = parsedLog.args["orderHash"].toLowerCase();
+        const orderKind = subKind.startsWith("seaport-v1.4") ? "seaport-v1.4" : "seaport";
+
+        const isV14 = orderKind === "seaport-v1.4";
+        const exchange = isV14
+          ? new Sdk.SeaportV14.Exchange(config.chainId)
+          : new Sdk.Seaport.Exchange(config.chainId);
+
+        const allOrderParametersV14 = [];
+        const allOrderParameters = [];
+
+        if (isV14) {
+          const orderParameters = parsedLog.args["orderParameters"];
+          allOrderParametersV14.push(orderParameters);
+        } else {
+          const txTrace = await utils.fetchTransactionTrace(baseEventParams.txHash);
+          if (!txTrace) {
+            // Skip any failed attempts to get the trace
+            break;
+          }
+          const validateCalls = [];
+          for (let index = 0; index < 100; index++) {
+            const matchCall = searchForCall(
+              txTrace.calls,
+              {
+                sigHashes: ["0x88147732"],
+              },
+              index
+            );
+            if (matchCall) {
+              validateCalls.push(matchCall);
+            } else {
+              break;
+            }
+          }
+
+          for (let index = 0; index < validateCalls.length; index++) {
+            try {
+              const inputData = exchange.contract.interface.decodeFunctionData(
+                "validate",
+                validateCalls[index].input
+              );
+              for (let index = 0; index < inputData.orders.length; index++) {
+                allOrderParameters.push(inputData.orders[index].parameters);
+              }
+            } catch {
+              // Parse error
+            }
+          }
+        }
+
+        // Handle seaport
+        for (let index = 0; index < allOrderParameters.length; index++) {
+          const parameters = allOrderParameters[index];
+          try {
+            const counter = await exchange.getCounter(baseProvider, parameters.offerer);
+            const order = new Sdk.Seaport.Order(config.chainId, {
+              ...parameters,
+              counter,
+            });
+            order.params.signature = HashZero;
+            // Order hash match
+            if (orderId === order.hash()) {
+              onChainData.orders.push({
+                kind: "seaport",
+                info: {
+                  kind: "full",
+                  orderParams: order.params,
+                  metadata: {
+                    fromOnChain: true,
+                  },
+                },
+              });
+              // Skip
+              break;
+            }
+          } catch (error) {
+            // parse error
+          }
+        }
+
+        // Handle seaport-v1.4
+        for (let index = 0; index < allOrderParametersV14.length; index++) {
+          const parameters = allOrderParametersV14[index];
+          try {
+            const counter = await exchange.getCounter(baseProvider, parameters.offerer);
+            const order = new Sdk.SeaportV14.Order(config.chainId, {
+              ...parameters,
+              counter,
+            });
+            order.params.signature = HashZero;
+            // Order hash match
+            if (orderId === order.hash()) {
+              onChainData.orders.push({
+                kind: "seaport-v1.4",
+                info: {
+                  kind: "full",
+                  orderParams: order.params,
+                  metadata: {
+                    fromOnChain: true,
+                  },
+                },
+              });
+              // Skip
+              break;
+            }
+          } catch (error) {
+            // parse error
+          }
         }
 
         break;
