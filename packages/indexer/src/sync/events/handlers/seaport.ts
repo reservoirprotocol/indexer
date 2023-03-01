@@ -304,7 +304,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             const counter = await exchange.getCounter(baseProvider, parameters.offerer);
             const order = new Sdk.Seaport.Order(config.chainId, {
               ...parameters,
-              onChain: true,
               counter,
             });
             order.params.signature = HashZero;
@@ -335,7 +334,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             const counter = await exchange.getCounter(baseProvider, parameters.offerer);
             const order = new Sdk.SeaportV14.Order(config.chainId, {
               ...parameters,
-              onChain: true,
               counter,
             });
             order.params.signature = HashZero;
