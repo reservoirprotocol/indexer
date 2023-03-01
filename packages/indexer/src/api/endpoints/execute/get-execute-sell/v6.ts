@@ -326,7 +326,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       // Partial Seaport orders require knowing the owner
       let owner: string | undefined;
-      if (["seaport-partial", "seaport-v1.4-partial"].includes(orderResult.kind)) {
+      if (["seaport", "seaport-v1.4"].includes(orderResult.kind)) {
         const ownerResult = await idb.oneOrNone(
           `
             SELECT
