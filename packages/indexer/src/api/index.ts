@@ -148,7 +148,7 @@ export const start = async (): Promise<void> => {
     },
   ]);
 
-  server.ext("onPreAuth", async (request, reply) => {
+  server.ext("onPostAuth", async (request, reply) => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
     if ((request as any).isInjected || request.route.path === "/livez") {
       return reply.continue;

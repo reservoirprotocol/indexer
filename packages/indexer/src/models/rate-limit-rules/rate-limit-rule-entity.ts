@@ -14,7 +14,7 @@ export type RateLimitRuleOptions = {
 };
 
 export type RateLimitRulePayload = {
-  param: string;
+  key: string;
   value: string;
 };
 
