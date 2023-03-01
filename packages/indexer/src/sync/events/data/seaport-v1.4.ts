@@ -48,6 +48,15 @@ export const orderFulfilled: EventData = {
   ]),
 };
 
+export const ordersMatched: EventData = {
+  kind: "seaport",
+  subKind: "seaport-v1.4-orders-matched",
+  addresses: { [SeaportV14.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  topic: "0x4b9f2d36e1b4c93de62cc077b00b1a91d84b6c31b4a14e012718dcca230689e7",
+  numTopics: 1,
+  abi: new Interface([`event OrdersMatched(bytes32[] orderHashes)`]),
+};
+
 export const counterIncremented: EventData = {
   kind: "seaport",
   subKind: "seaport-v1.4-counter-incremented",

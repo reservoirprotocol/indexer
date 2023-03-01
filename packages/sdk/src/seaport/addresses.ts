@@ -34,10 +34,6 @@ export const ApprovalOrderZone: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x5595ddec926bfb297814c33a90e44f97c6074fe5",
 };
 
-export const CancelXZone: ChainIdToAddress = {
-  [Network.EthereumGoerli]: "0x601d58906d22ce2fabdfb112e15e515557aa191c",
-};
-
 export const OpenseaConduitKey: ChainIdToAddress = {
   [Network.Ethereum]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",
   [Network.EthereumGoerli]: "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000",

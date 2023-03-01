@@ -17,6 +17,15 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
   const orderIdsToSkip = new Set<string>();
 
+  // Only consider the first order of any explicit match
+  for (const { log } of events.filter(({ subKind }) => subKind === "seaport-v1.4-orders-matched")) {
+    const eventData = getEventData(["seaport-v1.4-orders-matched"])[0];
+    const parsedLog = eventData.abi.parseLog(log);
+    for (const orderId of parsedLog.args["orderHashes"].slice(1)) {
+      orderIdsToSkip.add(orderId);
+    }
+  }
+
   // Handle the events
   let i = 0;
   for (const { subKind, baseEventParams, log } of events) {

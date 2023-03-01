@@ -31,13 +31,7 @@ export const getRateLimitRulesOptions: RouteOptions = {
       const rules = rateLimitRules.getAllRules();
 
       if (query.route) {
-        const response = [];
-        for (const rule of rules.values()) {
-          if (rule.route == query.route) {
-            response.push(rule);
-          }
-        }
-
+        const response = rules.get(query.route);
         return { rules: response };
       }
 

@@ -38,6 +38,7 @@ import * as backfillBlurSales from "@/jobs/backfill/backfill-blur-sales";
 import * as backfillFoundationSales from "@/jobs/backfill/backfill-foundation-sales";
 import * as backfillMints from "@/jobs/backfill/backfill-mints";
 import * as backfillRefreshCryptopunksOrders from "@/jobs/backfill/backfill-refresh-cryptopunks-orders";
+import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 import * as backfillTokensWithMissingCollection from "@/jobs/backfill/backfill-tokens-with-missing-collection";
 import * as backfillUpdateMissingMetadata from "@/jobs/backfill/backfill-update-missing-metadata";
 import * as backfillTokensLastFlagUpdate from "@/jobs/backfill/backfill-tokens-last-flag-update";
@@ -99,6 +100,7 @@ import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle
 import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-queue";
 import * as erc20OrdersCron from "@/jobs/order-updates/cron/erc20-orders-queue";
 import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-queue";
+import * as oracleOrdersCron from "@/jobs/order-updates/cron/oracle-orders-queue";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
@@ -132,6 +134,7 @@ export const gracefulShutdownJobWorkers = [
   dynamicOrdersCron.worker,
   erc20OrdersCron.worker,
   expiredOrdersCron.worker,
+  oracleOrdersCron.worker,
   tokenUpdatesFloorAsk.worker,
   tokenUpdatesNormalizedFloorAsk.worker,
 ];
@@ -148,6 +151,7 @@ export const allJobQueues = [
   backfillFoundationSales.queue,
   backfillMints.queue,
   backfillRefreshCryptopunksOrders.queue,
+  backfillSaleRoyalties.queue,
   backfillTokensWithMissingCollection.queue,
   backfillUpdateMissingMetadata.queue,
   backfillTokensLastFlagUpdate.queue,
@@ -210,6 +214,7 @@ export const allJobQueues = [
   dynamicOrdersCron.queue,
   erc20OrdersCron.queue,
   expiredOrdersCron.queue,
+  oracleOrdersCron.queue,
 
   orderbookOrders.queue,
   orderbookPostOrderExternal.queue,

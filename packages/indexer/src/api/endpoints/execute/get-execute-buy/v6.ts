@@ -19,6 +19,7 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as nftx from "@/orderbook/orders/nftx";
 import { getCurrency } from "@/utils/currencies";
+import { keepAllTraces } from "@/common/tracer";
 
 const version = "v6";
 
@@ -165,6 +166,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
     const payload = request.payload as any;
 
     try {
+      // Override Datadog trace sampling to keep all
+      keepAllTraces();
+
       // Handle fees on top
       const feesOnTop: {
         recipient: string;

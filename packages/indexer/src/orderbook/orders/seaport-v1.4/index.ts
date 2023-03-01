@@ -2,6 +2,7 @@ import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport-v1.4/types";
+import axios from "axios";
 import _ from "lodash";
 import pLimit from "p-limit";
 
@@ -184,6 +185,8 @@ export const save = async (
           AddressZero,
           // Pausable zone
           Sdk.SeaportV14.Addresses.PausableZone[config.chainId],
+          // Cancellation zone
+          Sdk.SeaportV14.Addresses.CancellationZone[config.chainId],
         ].includes(order.params.zone)
       ) {
         return results.push({
@@ -640,6 +643,32 @@ export const save = async (
         }
       }
 
+      // Handle: off-chain cancellation via replacement
+      if (order.params.zone === Sdk.SeaportV14.Addresses.CancellationZone[config.chainId]) {
+        const replacedOrderResult = await idb.oneOrNone(
+          `
+            SELECT
+              orders.raw_data
+            FROM orders
+            WHERE orders.id = $/id/
+          `,
+          {
+            id: order.params.salt,
+          }
+        );
+        if (replacedOrderResult) {
+          await axios.post(
+            `https://seaport-oracle-${
+              config.chainId === 1 ? "mainnet" : "goerli"
+            }.up.railway.app/api/replacements`,
+            {
+              newOrders: [order.params],
+              replacedOrders: [replacedOrderResult.raw_data],
+            }
+          );
+        }
+      }
+
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
         ? `date_trunc('seconds', to_timestamp(${order.params.endTime}))`
@@ -708,7 +737,7 @@ export const save = async (
       }
     } catch (error) {
       logger.warn(
-        "orders-seaport-v1.4--save",
+        "orders-seaport-v1.4-save",
         `Failed to handle order (will retry). orderParams=${JSON.stringify(
           orderParams
         )}, metadata=${JSON.stringify(

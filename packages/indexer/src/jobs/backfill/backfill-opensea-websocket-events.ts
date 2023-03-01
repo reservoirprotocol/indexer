@@ -70,16 +70,16 @@ if (config.doBackgroundWork) {
           const openSeaOrderParams = handleEvent(eventType, eventData.payload);
 
           if (openSeaOrderParams) {
-            const seaportOrder = parseProtocolData(eventData.payload);
+            const protocolData = parseProtocolData(eventData.payload);
 
             let orderInfo: orderbookOrders.GenericOrderInfo;
 
-            if (seaportOrder) {
+            if (protocolData) {
               orderInfo = {
                 kind: "seaport",
                 info: {
                   kind: "full",
-                  orderParams: seaportOrder.params,
+                  orderParams: protocolData.order.params,
                   metadata: {},
                   openSeaOrderParams,
                 } as orders.seaport.OrderInfo,

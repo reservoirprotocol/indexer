@@ -106,6 +106,7 @@ export type EventSubKind =
   | "seaport-counter-incremented"
   | "seaport-v1.4-order-cancelled"
   | "seaport-v1.4-order-filled"
+  | "seaport-v1.4-orders-matched"
   | "seaport-v1.4-counter-incremented"
   | "rarible-match"
   | "rarible-cancel"
@@ -220,6 +221,7 @@ const allEventData = [
   seaportV14.counterIncremented,
   seaportV14.orderCancelled,
   seaportV14.orderFulfilled,
+  seaportV14.ordersMatched,
   wyvernV2.ordersMatched,
   wyvernV23.ordersMatched,
   zeroExV4.erc721OrderCancelled,
