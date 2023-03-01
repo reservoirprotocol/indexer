@@ -21,7 +21,7 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
   description: "Collection top bid changes",
   notes:
     "Every time the top offer of a collection changes (i.e. the 'top bid'), an event is generated. This API is designed to be polled at high frequency.",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Events"],
   plugins: {
     "hapi-swagger": {
       order: 4,
