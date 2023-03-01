@@ -92,7 +92,13 @@ export const getUserActivityV4Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
-    }).oxor("collection", "collectionsSetId", "community"),
+      contract: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
+    }).oxor("collection", "collectionsSetId", "community", "contract"),
   },
   response: {
     schema: Joi.object({
@@ -160,16 +166,17 @@ export const getUserActivityV4Options: RouteOptions = {
     }
 
     try {
-      const activities = await UserActivities.getActivities(
-        query.users,
-        query.collection,
-        query.community,
-        query.continuation,
-        query.types,
-        query.limit,
-        query.sortBy,
-        query.includeMetadata
-      );
+      const activities = await UserActivities.getActivities({
+        users: query.users,
+        collections: query.collection,
+        community: query.community,
+        createdBefore: query.continuation,
+        types: query.types,
+        limit: query.limit,
+        sortBy: query.sortBy,
+        includeMetadata: query.includeMetadata,
+        contracts: query.contract ? [query.contract] : [],
+      });
 
       // If no activities found
       if (!activities.length) {

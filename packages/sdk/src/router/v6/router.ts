@@ -1258,7 +1258,9 @@ export class Router {
                         numerator: currencyDetails[0].amount ?? 1,
                         denominator: orders[0].getInfo()!.amount,
                         signature: orders[0].params.signature,
-                        extraData: await exchange.getExtraData(orders[0]),
+                        extraData: await exchange.getExtraData(orders[0], {
+                          amount: currencyDetails[0].amount ?? 1,
+                        }),
                       },
                       {
                         fillTo: taker,
@@ -1284,7 +1286,9 @@ export class Router {
                             numerator: currencyDetails[i].amount ?? 1,
                             denominator: order.getInfo()!.amount,
                             signature: order.params.signature,
-                            extraData: await exchange.getExtraData(order),
+                            extraData: await exchange.getExtraData(order, {
+                              amount: currencyDetails[i].amount ?? "1",
+                            }),
                           };
 
                           if (currencyIsETH) {
@@ -2222,7 +2226,7 @@ export class Router {
                   numerator: matchParams.amount ?? 1,
                   denominator: order.getInfo()!.amount,
                   signature: order.params.signature,
-                  extraData: await exchange.getExtraData(order),
+                  extraData: await exchange.getExtraData(order, matchParams),
                 },
                 matchParams.criteriaResolvers ?? [],
                 {
@@ -2269,7 +2273,10 @@ export class Router {
                     numerator: detail.amount ?? 1,
                     denominator: fullOrder.getInfo()!.amount,
                     signature: fullOrder.params.signature,
-                    extraData: await exchange.getExtraData(fullOrder),
+                    extraData: await exchange.getExtraData(fullOrder, {
+                      amount: detail.amount ?? "1",
+                      criteriaResolvers: result.data.criteriaResolvers,
+                    }),
                   },
                   result.data.criteriaResolvers ?? [],
                   {

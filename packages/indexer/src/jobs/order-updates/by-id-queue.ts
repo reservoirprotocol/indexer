@@ -46,6 +46,8 @@ if (config.doBackgroundWork) {
       const { id, trigger } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
+      logger.info(QUEUE_NAME, `Start. orderId=${id}, jobData=${JSON.stringify(job.data)}`);
+
       try {
         let order: any;
         if (id) {
@@ -81,6 +83,13 @@ if (config.doBackgroundWork) {
               LIMIT 1
             `,
             { id }
+          );
+
+          logger.info(
+            QUEUE_NAME,
+            `Order. orderId=${id}, jobData=${JSON.stringify(job.data)}, order=${JSON.stringify(
+              order
+            )}`
           );
 
           side = order?.side;
@@ -203,6 +212,11 @@ if (config.doBackgroundWork) {
               txHash: trigger.txHash || null,
               txTimestamp: trigger.txTimestamp || null,
             };
+
+            logger.info(
+              QUEUE_NAME,
+              `Floor. orderId=${id}, jobData=${JSON.stringify(job.data)}, tokenSetId=${tokenSetId}`
+            );
 
             await Promise.all([
               tokenUpdatesFloorAsk.addToQueue([floorAskInfo]),

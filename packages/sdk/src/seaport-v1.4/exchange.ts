@@ -148,7 +148,7 @@ export class Exchange {
                 numerator: matchParams.amount || "1",
                 denominator: info.amount,
                 signature: order.params.signature!,
-                extraData: await this.getExtraData(order),
+                extraData: await this.getExtraData(order, matchParams),
               },
               matchParams.criteriaResolvers || [],
               conduitKey,
@@ -228,7 +228,7 @@ export class Exchange {
                 numerator: matchParams.amount || "1",
                 denominator: info.amount,
                 signature: order.params.signature!,
-                extraData: await this.getExtraData(order),
+                extraData: await this.getExtraData(order, matchParams),
               },
               matchParams.criteriaResolvers || [],
               conduitKey,
@@ -284,7 +284,7 @@ export class Exchange {
               numerator: matchParams[i].amount || "1",
               denominator: order.getInfo()!.amount,
               signature: order.params.signature!,
-              extraData: await this.getExtraData(order),
+              extraData: await this.getExtraData(order, matchParams[i]),
             }))
           ),
           matchParams
@@ -449,24 +449,50 @@ export class Exchange {
   // --- Get extra data ---
 
   public requiresExtraData(order: Order): boolean {
-    if (order.params.zone === Addresses.CancelXZone[this.chainId]) {
+    if (order.params.zone === Addresses.CancellationZone[this.chainId]) {
       return true;
     }
     return false;
   }
 
-  public async getExtraData(order: Order): Promise<string> {
+  public async getExtraData(order: Order, matchParams: Types.MatchParams): Promise<string> {
     switch (order.params.zone) {
-      case Addresses.CancelXZone[this.chainId]: {
-        const { extraData } = await axios
-          .get(
-            `https://cancelx-${
-              this.chainId === 1 ? "production" : "development"
-            }.up.railway.app/api/sign/${order.hash()}`
+      case Addresses.CancellationZone[this.chainId]: {
+        return axios
+          .post(
+            `https://seaport-oracle-${
+              this.chainId === 1 ? "mainnet" : "goerli"
+            }.up.railway.app/api/signatures`,
+            {
+              orders: [
+                {
+                  chainId: this.chainId,
+                  orderParameters: order.params,
+                  fulfiller: AddressZero,
+                  marketplaceContract: this.contract.address,
+                  substandardRequests: [
+                    {
+                      requestedReceivedItems: order.params.consideration.map((c) => ({
+                        ...c,
+                        // All criteria items should have been resolved
+                        itemType: c.itemType > 3 ? c.itemType - 2 : c.itemType,
+                        // Adjust the amount to the quantity filled (won't work for dutch auctions)
+                        amount: bn(matchParams.amount ?? 1)
+                          .mul(c.endAmount)
+                          .div(order.getInfo()!.amount)
+                          .toString(),
+                        identifier:
+                          c.itemType > 3
+                            ? matchParams.criteriaResolvers![0].identifier
+                            : c.identifierOrCriteria,
+                      })),
+                    },
+                  ],
+                },
+              ],
+            }
           )
-          .then((response) => response.data);
-
-        return extraData;
+          .then((response) => response.data.orders[0].extraDataComponent);
       }
 
       default:

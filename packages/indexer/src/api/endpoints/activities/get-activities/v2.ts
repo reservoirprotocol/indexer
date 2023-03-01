@@ -24,6 +24,12 @@ export const getActivityV2Options: RouteOptions = {
     query: Joi.object({
       limit: Joi.number().integer().min(1).max(1000).default(20),
       continuation: Joi.number(),
+      contract: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
     }),
   },
   response: {
@@ -63,7 +69,11 @@ export const getActivityV2Options: RouteOptions = {
     const query = request.query as any;
 
     try {
-      const activities = await Activities.getActivities(query.continuation, query.limit);
+      const activities = await Activities.getActivities({
+        continuation: query.continuation,
+        limit: query.limit,
+        contract: query.contract,
+      });
 
       // If no activities found
       if (!activities.length) {
