@@ -39,11 +39,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       items: Joi.array()
         .items(
           Joi.object({
-            token: Joi.string()
-              .lowercase()
-              .pattern(regex.token)
-              .required()
-              .description("Token to buy."),
+            token: Joi.string().lowercase().pattern(regex.token).description("Token to buy."),
             quantity: Joi.number()
               .integer()
               .positive()
@@ -76,7 +72,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
               .description(
                 "If there are multiple listings with equal best price, prefer this source over others.\nNOTE: if you want to fill a listing that is not the best priced, you need to pass a specific order id."
               ),
-          }).oxor("token", "orderId", "rawOrder")
+          })
+            .oxor("token", "orderId", "rawOrder")
+            .or("token", "orderId", "rawOrder")
         )
         .min(1)
         .required()
