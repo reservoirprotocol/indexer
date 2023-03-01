@@ -1,8 +1,7 @@
+/* eslint-disable no-unexpected-multiline */
+
 import { Contract } from "@ethersproject/contracts";
-import {
-  TransactionReceipt,
-  TransactionResponse,
-} from "@ethersproject/providers";
+import { TransactionReceipt, TransactionResponse } from "@ethersproject/providers";
 import { parseEther, parseUnits } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk/src";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
@@ -18,14 +17,7 @@ import {
   setupSeaportListings,
   setupSeaportOffers,
 } from "./helpers/seaport";
-import {
-  bn,
-  getChainId,
-  getRandomInteger,
-  getRandomFloat,
-  reset,
-  setupNFTs,
-} from "../../utils";
+import { bn, getChainId, getRandomInteger, getRandomFloat, reset, setupNFTs } from "../../utils";
 
 describe("[ReservoirV6_0_0] Various edge-cases", () => {
   const chainId = getChainId();
@@ -49,23 +41,21 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
 
     ({ erc721 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    balanceAssertModule = (await ethers
+      .then((factory) => factory.deploy());
+    balanceAssertModule = await ethers
       .getContractFactory("BalanceAssertModule", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportModule = (await ethers
+      .then((factory) => factory.deploy());
+    seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    seaportApprovalOrderZone = (await ethers
+      .then((factory) => factory.deploy(router.address, router.address));
+    seaportApprovalOrderZone = await ethers
       .getContractFactory("SeaportApprovalOrderZone", deployer)
-      .then((factory) => factory.deploy())) as any;
-    wethModule = (await ethers
+      .then((factory) => factory.deploy());
+    wethModule = await ethers
       .getContractFactory("WETHModule", deployer)
-      .then((factory) => factory.deploy(deployer.address))) as any;
+      .then((factory) => factory.deploy(deployer.address));
   });
 
   const getBalances = async (token: string) => {
@@ -136,8 +126,7 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
           {
             parameters: {
               ...listing.order!.params,
-              totalOriginalConsiderationItems:
-                listing.order!.params.consideration.length,
+              totalOriginalConsiderationItems: listing.order!.params.consideration.length,
             },
             numerator: 1,
             denominator: 1,
@@ -162,8 +151,7 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
           {
             parameters: {
               ...offer.order!.params,
-              totalOriginalConsiderationItems:
-                offer.order!.params.consideration.length,
+              totalOriginalConsiderationItems: offer.order!.params.consideration.length,
             },
             numerator: 1,
             denominator: 1,
@@ -185,44 +173,30 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
 
     // Fetch pre-state
 
-    const ethBalancesBefore = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
-    const wethBalancesBefore = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const wethBalancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
     });
 
     // Fetch post-state
 
-    const ethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
-    const wethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const wethBalancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
     // Checks
 
     // Alice got the ETH
-    expect(ethBalancesAfter.alice.sub(ethBalancesBefore.alice)).to.eq(
-      listing.price
-    );
+    expect(ethBalancesAfter.alice.sub(ethBalancesBefore.alice)).to.eq(listing.price);
 
     // Bob got the NFT
     expect(await erc721.ownerOf(offer.nft.id)).to.eq(bob.address);
 
     // Carol got the WETH
-    expect(wethBalancesAfter.carol.sub(wethBalancesBefore.carol)).to.eq(
-      offer.price
-    );
+    expect(wethBalancesAfter.carol.sub(wethBalancesBefore.carol)).to.eq(offer.price);
 
     // Router is stateless
     expect(ethBalancesAfter.router).to.eq(0);
@@ -260,8 +234,7 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
             {
               parameters: {
                 ...approval.orders![0].params,
-                totalOriginalConsiderationItems:
-                  approval.orders![0].params.consideration.length,
+                totalOriginalConsiderationItems: approval.orders![0].params.consideration.length,
               },
               signature: approval.orders![0].params.signature,
             },
@@ -269,8 +242,7 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
             {
               parameters: {
                 ...approval.orders![1].params,
-                totalOriginalConsiderationItems:
-                  approval.orders![1].params.consideration.length,
+                totalOriginalConsiderationItems: approval.orders![1].params.consideration.length,
               },
               signature: "0x",
             },
@@ -303,28 +275,20 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
     // order's offerer can be the relayer of the transaction
     await expect(
       router.connect(carol).execute(executions, {
-        value: executions
-          .map(({ value }) => value)
-          .reduce((a, b) => bn(a).add(b), bn(0)),
+        value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
       })
-    ).to.be.revertedWith(
-      "reverted with custom error 'UnsuccessfulExecution()'"
-    );
+    ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
     // Execute
 
     await router.connect(alice).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Checks
 
     // The Seaport module got the NFT
-    expect(await approval.nft.contract.ownerOf(approval.nft.id)).to.eq(
-      seaportModule.address
-    );
+    expect(await approval.nft.contract.ownerOf(approval.nft.id)).to.eq(seaportModule.address);
   });
 
   it("Fill offer for single token approval-less", async () => {
@@ -355,8 +319,7 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
           {
             parameters: {
               ...offer.order!.params,
-              totalOriginalConsiderationItems:
-                offer.order!.params.consideration.length,
+              totalOriginalConsiderationItems: offer.order!.params.consideration.length,
             },
             numerator: 1,
             denominator: 1,
@@ -377,9 +340,7 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
     // Execute
 
@@ -437,8 +398,7 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
           {
             parameters: {
               ...offer.order!.params,
-              totalOriginalConsiderationItems:
-                offer.order!.params.consideration.length,
+              totalOriginalConsiderationItems: offer.order!.params.consideration.length,
             },
             numerator: 1,
             denominator: 1,
@@ -465,12 +425,8 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
 
     // Fetch pre-state
 
-    const ethBalancesBefore = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
-    const wethBalancesBefore = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const wethBalancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
     // Execute
 
@@ -487,19 +443,13 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
 
     // Fetch post-state
 
-    const ethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
-    const wethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const wethBalancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
     // Checks
 
     // Bob got the payment in ETH, not WETH
-    expect(
-      ethBalancesAfter.bob.sub(ethBalancesBefore.bob).add(ethPaidOnGas)
-    ).to.eq(offer.price);
+    expect(ethBalancesAfter.bob.sub(ethBalancesBefore.bob).add(ethPaidOnGas)).to.eq(offer.price);
     expect(wethBalancesAfter.bob.sub(wethBalancesBefore.bob)).to.eq(0);
 
     // Alice got the NFT
@@ -532,19 +482,18 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
     await setupSeaportListings([listing]);
 
     // Transfer the NFT so that the order is not fillable
-    await erc721
-      .connect(alice)
-      .transferFrom(alice.address, carol.address, listing.nft.id);
+    await erc721.connect(alice).transferFrom(alice.address, carol.address, listing.nft.id);
 
     // Prepare executions
 
     const executions: ExecutionInfo[] = [
       {
         module: balanceAssertModule.address,
-        data: balanceAssertModule.interface.encodeFunctionData(
-          "assertERC721Owner",
-          [listing.nft.contract.address, listing.nft.id, alice.address]
-        ),
+        data: balanceAssertModule.interface.encodeFunctionData("assertERC721Owner", [
+          listing.nft.contract.address,
+          listing.nft.id,
+          alice.address,
+        ]),
         value: 0,
       },
       {
@@ -553,8 +502,7 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
           {
             parameters: {
               ...listing.order!.params,
-              totalOriginalConsiderationItems:
-                listing.order!.params.consideration.length,
+              totalOriginalConsiderationItems: listing.order!.params.consideration.length,
             },
             numerator: 1,
             denominator: 1,
@@ -577,25 +525,17 @@ describe("[ReservoirV6_0_0] Various edge-cases", () => {
 
     await expect(
       router.connect(alice).execute(executions, {
-        value: executions
-          .map(({ value }) => value)
-          .reduce((a, b) => bn(a).add(b), bn(0)),
+        value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
       })
-    ).to.be.revertedWith(
-      "reverted with custom error 'UnsuccessfulExecution()'"
-    );
+    ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
     // Transfer the NFT back so that the order is fillable again
-    await erc721
-      .connect(carol)
-      .transferFrom(carol.address, alice.address, listing.nft.id);
+    await erc721.connect(carol).transferFrom(carol.address, alice.address, listing.nft.id);
 
     // Execute
 
     await router.connect(bob).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
   });
 });

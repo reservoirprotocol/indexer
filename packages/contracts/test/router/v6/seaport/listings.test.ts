@@ -61,18 +61,14 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
       .then((factory) => factory.deploy())) as any;
     seaportModule = (await ethers
       .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-      wethModule = (await ethers
-        .getContractFactory("WETHModule", deployer)
-        .then((factory) => factory.deploy(deployer.address))) as any;
+      .then((factory) => factory.deploy(router.address, router.address))) as any;
+    wethModule = (await ethers
+      .getContractFactory("WETHModule", deployer)
+      .then((factory) => factory.deploy(deployer.address))) as any;
     uniswapV3Module = (await ethers
       .getContractFactory("UniswapV3Module", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    
+      .then((factory) => factory.deploy(router.address, router.address))) as any;
+
     // erc20
     permit2Module = (await ethers
       .getContractFactory("Permit2Module", deployer)
@@ -89,9 +85,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
         seaportModule: await ethers.provider.getBalance(seaportModule.address),
-        uniswapV3Module: await ethers.provider.getBalance(
-          uniswapV3Module.address
-        ),
+        uniswapV3Module: await ethers.provider.getBalance(uniswapV3Module.address),
       };
     } else {
       const contract = new Sdk.Common.Helpers.Erc20(ethers.provider, token);
@@ -131,8 +125,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
     const paymentToken = useUsdc
       ? Sdk.Common.Addresses.Usdc[chainId]
       : Sdk.Common.Addresses.Eth[chainId];
-    const parsePrice = (price: string) =>
-      useUsdc ? parseUnits(price, 6) : parseEther(price);
+    const parsePrice = (price: string) => (useUsdc ? parseUnits(price, 6) : parseEther(price));
 
     const listings: SeaportListing[] = [];
     const feesOnTop: BigNumber[] = [];
@@ -157,38 +150,31 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
 
     // Prepare executions
 
-    const totalPrice = bn(
-      listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0))
-    );
+    const totalPrice = bn(listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)));
     const executions: ExecutionInfo[] = [
       // 1. When filling USDC listings, swap ETH to USDC on Uniswap V3 (for testing purposes only)
       ...(useUsdc
         ? [
             {
               module: uniswapV3Module.address,
-              data: uniswapV3Module.interface.encodeFunctionData(
-                "ethToExactOutput",
-                [
-                  {
-                    tokenIn: Sdk.Common.Addresses.Weth[chainId],
-                    tokenOut: Sdk.Common.Addresses.Usdc[chainId],
-                    fee: 500,
-                    // Send USDC to the Seaport module
-                    recipient: seaportModule.address,
-                    amountOut: listings
-                      .map(({ price }, i) =>
-                        bn(price).add(chargeFees ? feesOnTop[i] : 0)
-                      )
-                      .reduce((a, b) => bn(a).add(b), bn(0))
-                      // Anything on top should be refunded
-                      .add(parsePrice("1000")),
-                    amountInMaximum: parseEther("100"),
-                    sqrtPriceLimitX96: 0,
-                  },
-                  // Refund to Carol
-                  carol.address,
-                ]
-              ),
+              data: uniswapV3Module.interface.encodeFunctionData("ethToExactOutput", [
+                {
+                  tokenIn: Sdk.Common.Addresses.Weth[chainId],
+                  tokenOut: Sdk.Common.Addresses.Usdc[chainId],
+                  fee: 500,
+                  // Send USDC to the Seaport module
+                  recipient: seaportModule.address,
+                  amountOut: listings
+                    .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
+                    .reduce((a, b) => bn(a).add(b), bn(0))
+                    // Anything on top should be refunded
+                    .add(parsePrice("1000")),
+                  amountInMaximum: parseEther("100"),
+                  sqrtPriceLimitX96: 0,
+                },
+                // Refund to Carol
+                carol.address,
+              ]),
               // Anything on top should be refunded
               value: parseEther("100"),
             },
@@ -205,8 +191,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
                   const order = {
                     parameters: {
                       ...listing.order!.params,
-                      totalOriginalConsiderationItems:
-                        listing.order!.params.consideration.length,
+                      totalOriginalConsiderationItems: listing.order!.params.consideration.length,
                     },
                     numerator: 1,
                     denominator: 1,
@@ -243,9 +228,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
               ? 0
               : totalPrice.add(
                   // Anything on top should be refunded
-                  feesOnTop
-                    .reduce((a, b) => bn(a).add(b), bn(0))
-                    .add(parseEther("0.1"))
+                  feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
                 ),
           }
         : {
@@ -256,8 +239,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
                 ...listings.map((listing) => ({
                   parameters: {
                     ...listing.order!.params,
-                    totalOriginalConsiderationItems:
-                      listing.order!.params.consideration.length,
+                    totalOriginalConsiderationItems: listing.order!.params.consideration.length,
                   },
                   numerator: 1,
                   denominator: 1,
@@ -284,9 +266,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
               ? 0
               : totalPrice.add(
                   // Anything on top should be refunded
-                  feesOnTop
-                    .reduce((a, b) => bn(a).add(b), bn(0))
-                    .add(parseEther("0.1"))
+                  feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
                 ),
           },
     ];
@@ -296,20 +276,12 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      listings.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && listings.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
       return;
     }
@@ -321,9 +293,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
@@ -335,20 +305,14 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
     // Alice got the payment
     expect(balancesAfter.alice.sub(balancesBefore.alice)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === alice.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === alice.address)
         .map(({ price }) => price)
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
     // Bob got the payment
     expect(balancesAfter.bob.sub(balancesBefore.bob)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === bob.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === bob.address)
         .map(({ price }) => price)
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
@@ -380,13 +344,9 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
         }
       } else {
         if (nft.kind === "erc721") {
-          expect(await nft.contract.ownerOf(nft.id)).to.eq(
-            listings[i].seller.address
-          );
+          expect(await nft.contract.ownerOf(nft.id)).to.eq(listings[i].seller.address);
         } else {
-          expect(
-            await nft.contract.balanceOf(listings[i].seller.address, nft.id)
-          ).to.eq(1);
+          expect(await nft.contract.balanceOf(listings[i].seller.address, nft.id)).to.eq(1);
         }
       }
     }
@@ -438,7 +398,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
         id: getRandomInteger(1, 10000),
       },
       paymentToken: Sdk.Common.Addresses.Eth[chainId],
-      price: parseEther('0.5'),
+      price: parseEther("0.5"),
     };
 
     const swapExecutions: ExecutionInfo[] = [
@@ -464,9 +424,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
 
     // Swap USDC
     await router.connect(bob).execute(swapExecutions, {
-      value: swapExecutions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b)),
+      value: swapExecutions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
     });
 
     const generatePermit2ModuleTransfer = async (
@@ -519,10 +477,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
     const erc20 = new Contract(Sdk.Common.Addresses.Usdc[chainId], ERC20ABI);
     await erc20
       .connect(bob)
-      .approve(
-        Sdk.Common.Addresses.Permit2[chainId],
-        ethers.constants.MaxInt256
-      );
+      .approve(Sdk.Common.Addresses.Permit2[chainId], ethers.constants.MaxInt256);
 
     const permitModuleTransfer = await generatePermit2ModuleTransfer(
       bob,
@@ -568,9 +523,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
       // 3. unwrap WETH to ETH
       {
         module: wethModule.address,
-        data: wethModule.interface.encodeFunctionData("unwrap", [
-          seaportModule.address,
-        ]),
+        data: wethModule.interface.encodeFunctionData("unwrap", [seaportModule.address]),
         // Anything on top should be refunded
         value: 0,
       },
@@ -581,8 +534,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
           {
             parameters: {
               ...listing.order!.params,
-              totalOriginalConsiderationItems:
-                listing.order!.params.consideration.length,
+              totalOriginalConsiderationItems: listing.order!.params.consideration.length,
             },
             numerator: 1,
             denominator: 1,
@@ -604,24 +556,18 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
-   
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+
     // Execute
 
     await router.connect(bob).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
     });
 
     // Fetch post-state
-  
+
     const balancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
-    const ethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
 
     // Checks
 
@@ -682,11 +628,9 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
 
     // Swap to USDC
     await router.connect(bob).execute(swapExecutions, {
-      value: swapExecutions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b)),
+      value: swapExecutions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
     });
-   
+
     const generatePermit2ModuleTransfer = async (
       signer: SignerWithAddress,
       to: string,
@@ -694,7 +638,6 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
       module: string,
       amount: string
     ) => {
-
       const permitBatch = {
         details: [
           {
@@ -738,10 +681,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
     const erc20 = new Contract(Sdk.Common.Addresses.Usdc[chainId], ERC20ABI);
     await erc20
       .connect(bob)
-      .approve(
-        Sdk.Common.Addresses.Permit2[chainId],
-        ethers.constants.MaxInt256
-      );
+      .approve(Sdk.Common.Addresses.Permit2[chainId], ethers.constants.MaxInt256);
 
     const permitModuleTransfer = await generatePermit2ModuleTransfer(
       bob,
@@ -775,8 +715,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
           {
             parameters: {
               ...listing.order!.params,
-              totalOriginalConsiderationItems:
-                listing.order!.params.consideration.length,
+              totalOriginalConsiderationItems: listing.order!.params.consideration.length,
             },
             numerator: 1,
             denominator: 1,
@@ -798,24 +737,18 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(
-      Sdk.Common.Addresses.Usdc[chainId]
-    );
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
 
     // Execute
 
     await router.connect(bob).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
     });
 
     // Fetch post-state
 
     const balancesAfter = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
-    const ethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
 
     // Checks
 
@@ -847,7 +780,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
         id: getRandomInteger(1, 10000),
       },
       paymentToken: Sdk.Common.Addresses.Weth[chainId],
-      price: parseEther('0.5'),
+      price: parseEther("0.5"),
     };
 
     const swapExecutions: ExecutionInfo[] = [
@@ -873,9 +806,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
 
     // Swap to USDC
     await router.connect(bob).execute(swapExecutions, {
-      value: swapExecutions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b)),
+      value: swapExecutions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
     });
 
     const generatePermit2ModuleTransfer = async (
@@ -928,10 +859,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
     const erc20 = new Contract(Sdk.Common.Addresses.Usdc[chainId], ERC20ABI);
     await erc20
       .connect(bob)
-      .approve(
-        Sdk.Common.Addresses.Permit2[chainId],
-        ethers.constants.MaxInt256
-      );
+      .approve(Sdk.Common.Addresses.Permit2[chainId], ethers.constants.MaxInt256);
 
     const permitModuleTransfer = await generatePermit2ModuleTransfer(
       bob,
@@ -981,8 +909,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
           {
             parameters: {
               ...listing.order!.params,
-              totalOriginalConsiderationItems:
-                listing.order!.params.consideration.length,
+              totalOriginalConsiderationItems: listing.order!.params.consideration.length,
             },
             numerator: 1,
             denominator: 1,
@@ -1004,24 +931,18 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
-   
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+
     // Execute
 
     await router.connect(bob).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
     });
 
     // Fetch post-state
 
     const balancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
-    const ethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
     // Checks
 
@@ -1089,8 +1010,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
           {
             parameters: {
               ...listing.order!.params,
-              totalOriginalConsiderationItems:
-                listing.order!.params.consideration.length,
+              totalOriginalConsiderationItems: listing.order!.params.consideration.length,
             },
             numerator: 1,
             denominator: 1,
@@ -1112,24 +1032,18 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(
-      Sdk.Common.Addresses.Usdc[chainId]
-    );
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
 
     // Execute
 
     await router.connect(bob).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
     });
 
     // Fetch post-state
 
     const balancesAfter = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
-    const ethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
 
     // Checks
 
@@ -1215,8 +1129,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
             {
               parameters: {
                 ...approval.orders![0].params,
-                totalOriginalConsiderationItems:
-                  approval.orders![0].params.consideration.length,
+                totalOriginalConsiderationItems: approval.orders![0].params.consideration.length,
               },
               signature: approval.orders![0].params.signature,
             },
@@ -1224,8 +1137,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
             {
               parameters: {
                 ...approval.orders![1].params,
-                totalOriginalConsiderationItems:
-                  approval.orders![1].params.consideration.length,
+                totalOriginalConsiderationItems: approval.orders![1].params.consideration.length,
               },
               signature: "0x",
             },
@@ -1257,8 +1169,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
           {
             parameters: {
               ...listing.order!.params,
-              totalOriginalConsiderationItems:
-                listing.order!.params.consideration.length,
+              totalOriginalConsiderationItems: listing.order!.params.consideration.length,
             },
             numerator: 1,
             denominator: 1,
@@ -1280,16 +1191,12 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(
-      Sdk.Common.Addresses.Usdc[chainId]
-    );
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
 
     // Execute
 
     await router.connect(bob).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
     });
 
     // Fetch post-state

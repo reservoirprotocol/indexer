@@ -101,6 +101,7 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
     .then((factory) => factory.deploy(deployer.address, router.address));
   Sdk.RouterV6.Addresses.ZeroExV4Module[chainId] = zeroExV4Module.address.toLowerCase();
 
+  // TODO: Deprecate UniswapV3Module (in favor of SwapModule)
   const uniswapV3Module = await ethers
     .getContractFactory("UniswapV3Module", deployer)
     .then((factory) => factory.deploy(deployer.address, router.address));
@@ -108,12 +109,10 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
 
   const swapModule = (await ethers
     .getContractFactory("SwapModule", deployer)
-    .then((factory) =>
-      factory.deploy(deployer.address, deployer.address)
-    )) as any;
-  
+    .then((factory) => factory.deploy(deployer.address, deployer.address))) as any;
   Sdk.RouterV6.Addresses.SwapModule[chainId] = swapModule.address.toLowerCase();
 
+  // TODO: Deprecate WETHModule (in favor of SwapModule)
   const wethModule = await ethers
     .getContractFactory("WETHModule", deployer)
     .then((factory) => factory.deploy(deployer.address));

@@ -1225,9 +1225,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
       await erc721.connect(seller).mint(tokenId1);
 
       // Approve the exchange
-      await erc721
-        .connect(seller)
-        .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+      await erc721.connect(seller).setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
 
       // Build sell order
       const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
@@ -1269,7 +1267,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
 
     const tx = await router.fillBidsTx(bids, seller.address, {
       source: "reservoir.market",
-      forcePermit: true
+      forcePermit: true,
     });
 
     // Trigger approvals
@@ -1306,30 +1304,17 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     const token1OwnerAfter = await erc721.ownerOf(tokenId1);
 
     expect(sellerWethBalanceAfter.sub(sellerWethBalanceBefore)).to.eq(
-      price1
-        .sub(price1.mul(fee1).div(10000))
+      price1.sub(price1.mul(fee1).div(10000))
     );
     expect(token1OwnerAfter).to.eq(buyer1.address);
 
     // Router is stateless (it shouldn't keep any funds)
-    expect(
-      await ethers.provider.getBalance(router.contracts.router.address)
-    ).to.eq(0);
-    expect(
-      await ethers.provider.getBalance(router.contracts.seaportModule.address)
-    ).to.eq(0);
-    expect(
-      await ethers.provider.getBalance(
-        router.contracts.seaportV14Module.address
-      )
-    ).to.eq(0);
+    expect(await ethers.provider.getBalance(router.contracts.router.address)).to.eq(0);
+    expect(await ethers.provider.getBalance(router.contracts.seaportModule.address)).to.eq(0);
+    expect(await ethers.provider.getBalance(router.contracts.seaportV14Module.address)).to.eq(0);
     expect(await weth.getBalance(router.contracts.router.address)).to.eq(0);
-    expect(await weth.getBalance(router.contracts.seaportModule.address)).to.eq(
-      0
-    );
-    expect(
-      await weth.getBalance(router.contracts.seaportV14Module.address)
-    ).to.eq(0);
+    expect(await weth.getBalance(router.contracts.seaportModule.address)).to.eq(0);
+    expect(await weth.getBalance(router.contracts.seaportV14Module.address)).to.eq(0);
   });
 
   it("Fill multiple cross-currency Seaport listings with USDC", async () => {
@@ -1459,7 +1444,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
       });
     }
 
-
     // Order 3: LooksRare
     const seller3 = bob;
     const tokenId3 = 3;
@@ -1471,10 +1455,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
       // Approve the transfer manager
       await erc721
         .connect(seller3)
-        .setApprovalForAll(
-          Sdk.LooksRare.Addresses.TransferManagerErc721[chainId],
-          true
-        );
+        .setApprovalForAll(Sdk.LooksRare.Addresses.TransferManagerErc721[chainId], true);
 
       const exchange = new Sdk.LooksRare.Exchange(chainId);
       const builder = new Sdk.LooksRare.Builders.SingleToken(chainId);
@@ -1504,7 +1485,6 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         currency: Sdk.Common.Addresses.Weth[chainId],
       });
     }
-
 
     // Order 4: Seaport ETH
     const seller4 = alice;
@@ -1554,10 +1534,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
       });
     }
 
-    const usdc = new Sdk.Common.Helpers.Erc20(
-      ethers.provider,
-      Sdk.Common.Addresses.Usdc[chainId]
-    );
+    const usdc = new Sdk.Common.Helpers.Erc20(ethers.provider, Sdk.Common.Addresses.Usdc[chainId]);
     const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
 
     const seller1EthBalanceBefore = await seller1.getBalance();
@@ -1640,6 +1617,5 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     expect(await usdc.getBalance(router.contracts.uniswapV3Module.address)).to.eq(0);
     expect(await ethers.provider.getBalance(router.contracts.permit2Module.address)).to.eq(0);
     expect(await usdc.getBalance(router.contracts.permit2Module.address)).to.eq(0);
-    expect(await weth.getBalance(router.contracts.wethModule.address)).to.eq(0);
   });
 });
