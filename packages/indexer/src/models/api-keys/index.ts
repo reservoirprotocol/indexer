@@ -215,19 +215,18 @@ export class ApiKeyManager {
 
     // Add request query or payload to Datadog trace
     try {
-      tracer
-        .scope()
-        .active()
-        ?.setTag(
-          "requestParams",
-          flat.flatten(
-            log.payload
-              ? { ...log.payload, ...log.params }
-              : log.query
-              ? { ...log.query, ...log.params }
-              : null
-          )
-        );
+      const requestParams: any = flat.flatten(
+        log.payload
+          ? { ...log.payload, ...log.params }
+          : log.query
+          ? { ...log.query, ...log.params }
+          : null
+      );
+      Object.keys(requestParams).forEach(
+        (key) => (requestParams[key] = String(requestParams[key]))
+      );
+
+      tracer.scope().active()?.setTag("requestParams", requestParams);
     } catch (error) {
       logger.warn("metrics", "Could not add payload to Datadog trace: " + error);
     }
