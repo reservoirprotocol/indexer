@@ -7,7 +7,7 @@ import {
   OpenSeaStreamClient,
   TraitOfferEventPayload,
 } from "@opensea/stream-js";
-import { ItemListedEventPayload } from "@opensea/stream-js/dist/types";
+import { ItemListedEventPayload, ItemMetadataUpdatePayload } from "@opensea/stream-js/dist/types";
 import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 
@@ -139,10 +139,11 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         },
         token_id: tokenId,
         name: event.payload.item.metadata.name ?? undefined,
-        description: event.payload.description ?? undefined,
+        description:
+          (event.payload.item.metadata as ItemMetadataUpdatePayload).description ?? undefined,
         image_url: event.payload.item.metadata.image_url ?? undefined,
         animation_url: event.payload.item.metadata.animation_url ?? undefined,
-        traits: event.payload.traits,
+        traits: (event.payload.item.metadata as ItemMetadataUpdatePayload).traits,
       };
 
       const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
