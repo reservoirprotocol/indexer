@@ -1,15 +1,15 @@
 import { BigNumberish } from "@ethersproject/bignumber";
 
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { concat, bn } from "@/common/utils";
-import { getEnhancedEventsFromTx, processEventsBatch } from "@/events-sync/handlers";
+import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import * as fallback from "@/events-sync/handlers/royalties/core";
-import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import { extractEventsBatches } from "@/events-sync/index";
 import * as es from "@/events-sync/storage";
 import { Royalty } from "@/utils/royalties";
+import { OrderKind } from "@/orderbook/orders";
 
 const registry = new Map<string, RoyaltyAdapter>();
+registry.set("fallback", fallback as RoyaltyAdapter);
 
 export type RoyaltyResult = {
   royaltyFeeBps: number;
@@ -17,11 +17,6 @@ export type RoyaltyResult = {
   royaltyFeeBreakdown: Royalty[];
   marketplaceFeeBreakdown: Royalty[];
   paidFullRoyalty: boolean;
-};
-
-export type TxEvent = {
-  events: EnhancedEvent[];
-  fillEvents: es.fills.Event[];
 };
 
 export type StateCache = {
@@ -36,61 +31,83 @@ export interface RoyaltyAdapter {
   ): Promise<RoyaltyResult | null>;
 }
 
-export async function extractOnChainData(enhancedEvents: EnhancedEvent[]) {
-  const allOnChainData: OnChainData[] = [];
+export type PartialFillEvent = {
+  orderKind: OrderKind;
+  contract: string;
+  tokenId: string;
+  currency: string;
+  price: string;
+  amount: string;
+  maker: string;
+  taker: string;
+  baseEventParams: {
+    txHash: string;
+  };
+};
 
-  const eventBatches = await extractEventsBatches(enhancedEvents, true);
-  for (const batch of eventBatches) {
-    const onChainData = await processEventsBatch(batch, true);
-    allOnChainData.push(onChainData);
-  }
+export const getFillEventsFromTx = async (txHash: string): Promise<PartialFillEvent[]> => {
+  const results = await idb.manyOrNone(
+    `
+      SELECT
+        fill_events_2.order_kind,
+        fill_events_2.contract,
+        fill_events_2.token_id,
+        fill_events_2.currency,
+        fill_events_2.price,
+        fill_events_2.amount,
+        fill_events_2.maker,
+        fill_events_2.taker
+      FROM fill_events_2
+      WHERE fill_events_2.tx_hash = $/txHash/
+    `,
+    {
+      txHash: toBuffer(txHash),
+    }
+  );
 
-  return allOnChainData;
-}
+  return (
+    results
+      .map((r) => ({
+        orderKind: r.order_kind,
+        contract: fromBuffer(r.contract),
+        tokenId: r.token_id,
+        currency: fromBuffer(r.currency),
+        price: r.price,
+        amount: r.amount,
+        maker: fromBuffer(r.maker),
+        taker: fromBuffer(r.taker),
+        baseEventParams: {
+          txHash,
+        },
+      }))
+      // Exclude mints
+      .filter((r) => r.orderKind !== "mint")
+  );
+};
+
+const checkFeeIsValid = (result: RoyaltyResult) =>
+  result.marketplaceFeeBps + result.royaltyFeeBps < 10000;
 
 const subFeeWithBps = (amount: BigNumberish, totalFeeBps: number) => {
   return bn(amount).sub(bn(amount).mul(totalFeeBps).div(10000)).toString();
 };
 
-export async function getFillEventsFromTx(txHash: string) {
-  const events = await getEnhancedEventsFromTx(txHash);
-  const allOnChainData = await extractOnChainData(events);
-
-  let fillEvents: es.fills.Event[] = [];
-  for (let i = 0; i < allOnChainData.length; i++) {
-    const data = allOnChainData[i];
-    const allEvents = concat(
-      data.fillEvents,
-      data.fillEventsPartial,
-      data.fillEventsOnChain
-    ).filter((e) => e.orderKind !== "mint");
-    fillEvents = [...fillEvents, ...allEvents];
-  }
-
-  return {
-    events,
-    fillEvents,
-  };
-}
-
-export const checkFeeIsValid = (result: RoyaltyResult) =>
-  result.marketplaceFeeBps + result.royaltyFeeBps < 10000;
-
 export const assignRoyaltiesToFillEvents = async (
   fillEvents: es.fills.Event[],
   enableCache = true
 ) => {
-  const excludeOrderKinds = ["mint"];
-
   const cache: StateCache = {
     royalties: new Map(),
   };
 
   for (let i = 0; i < fillEvents.length; i++) {
     const fillEvent = fillEvents[i];
-    if (excludeOrderKinds.includes(fillEvent.orderKind)) {
+
+    // Exclude mints
+    if (fillEvent.orderKind === "mint") {
       continue;
     }
+
     const royaltyAdapter = registry.get(fillEvent.orderKind) ?? registry.get("fallback");
     try {
       if (royaltyAdapter) {
@@ -98,9 +115,7 @@ export const assignRoyaltiesToFillEvents = async (
         if (result) {
           const isValid = checkFeeIsValid(result);
           if (!isValid) {
-            throw new Error(
-              `invalid royalties: marketplaceFeeBps=${result.marketplaceFeeBps}, royaltyFeeBps=${result.royaltyFeeBps}`
-            );
+            continue;
           }
 
           fillEvents[i].royaltyFeeBps = result.royaltyFeeBps;
@@ -118,10 +133,11 @@ export const assignRoyaltiesToFillEvents = async (
     } catch (error) {
       logger.error(
         "assign-royalties-to-fill-events",
-        `Failed to assign royalties to fill events: ${error} kind: ${fillEvent.orderKind}`
+        JSON.stringify({
+          error,
+          fillEvent,
+        })
       );
     }
   }
 };
-
-registry.set("fallback", fallback as RoyaltyAdapter);

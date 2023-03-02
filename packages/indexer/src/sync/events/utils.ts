@@ -1,6 +1,6 @@
 import { Interface } from "@ethersproject/abi";
 import { AddressZero } from "@ethersproject/constants";
-import { getTxTrace } from "@georgeroman/evm-tx-simulator";
+import { getTxTraces } from "@georgeroman/evm-tx-simulator";
 import { getSourceV1 } from "@reservoir0x/sdk/dist/utils";
 
 import { baseProvider } from "@/common/provider";
@@ -98,7 +98,9 @@ export const fetchTransaction = async (txHash: string) =>
 export const fetchTransactionTrace = async (txHash: string) =>
   getTransactionTrace(txHash)
     .catch(async () => {
-      const transactionTrace = await getTxTrace({ hash: txHash }, baseProvider);
+      const transactionTrace = await getTxTraces([{ hash: txHash }], baseProvider).then(
+        (traces) => traces[txHash]
+      );
 
       return saveTransactionTrace({
         hash: txHash,
