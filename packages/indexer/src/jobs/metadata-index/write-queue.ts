@@ -4,7 +4,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { getUnixTime } from "date-fns";
 import _ from "lodash";
 
-import { idb, redb } from "@/common/db";
+import { idb, ridb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
@@ -142,9 +142,9 @@ if (config.doBackgroundWork) {
         // Fetch all existing keys
         const addedTokenAttributes = [];
         const attributeIds = [];
-        const attributeKeysIds = await redb.manyOrNone(
+        const attributeKeysIds = await ridb.manyOrNone(
           `
-            SELECT key, id
+            SELECT key, id, info
             FROM attribute_keys
             WHERE collection_id = $/collection/
             AND key IN ('${_.join(
@@ -155,11 +155,18 @@ if (config.doBackgroundWork) {
           { collection }
         );
 
-        const attributeKeysIdsMap = new Map(_.map(attributeKeysIds, (a) => [a.key, a.id]));
+        const attributeKeysIdsMap = new Map(
+          _.map(attributeKeysIds, (a) => [a.key, { id: a.id, info: a.info }])
+        );
 
         // Token attributes
         for (const { key, value, kind, rank } of attributes) {
-          if (attributeKeysIdsMap.has(key) && kind == "number") {
+          if (
+            attributeKeysIdsMap.has(key) &&
+            kind == "number" &&
+            (attributeKeysIdsMap.get(key)?.info.min_range > value ||
+              attributeKeysIdsMap.get(key)?.info.max_range < value)
+          ) {
             // If number type try to update range as well and return the ID
             const infoUpdate = `
               CASE WHEN info IS NULL THEN 
@@ -184,7 +191,6 @@ if (config.doBackgroundWork) {
                 SET info = ${infoUpdate}
                 WHERE collection_id = $/collection/
                 AND key = $/key/
-                RETURNING id
               `,
               {
                 collection,
@@ -235,11 +241,11 @@ if (config.doBackgroundWork) {
             }
 
             // Add the new key and id to the map
-            attributeKeysIdsMap.set(key, attributeKeyResult.id);
+            attributeKeysIdsMap.set(key, { id: attributeKeyResult.id, info });
           }
 
           // Fetch the attribute from the database (will succeed in the common case)
-          let attributeResult = await redb.oneOrNone(
+          let attributeResult = await ridb.oneOrNone(
             `
               SELECT id, COALESCE(array_length(sample_images, 1), 0) AS "sample_images_length"
               FROM attributes
@@ -247,7 +253,7 @@ if (config.doBackgroundWork) {
               AND value = $/value/
             `,
             {
-              attributeKeyId: attributeKeysIdsMap.get(key),
+              attributeKeyId: attributeKeysIdsMap.get(key)?.id,
               value: String(value),
             }
           );
@@ -284,7 +290,7 @@ if (config.doBackgroundWork) {
                 RETURNING (SELECT x.id FROM "x"), "attribute_count"
               `,
               {
-                attributeKeyId: attributeKeysIdsMap.get(key),
+                attributeKeyId: attributeKeysIdsMap.get(key)?.id,
                 value: String(value),
                 collection,
                 kind,

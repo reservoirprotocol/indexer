@@ -29,6 +29,7 @@ export const getApuKeyRateLimits: RouteOptions = {
           method: Joi.string().allow(""),
           allowedRequests: Joi.number(),
           perSeconds: Joi.number(),
+          payload: Joi.object(),
         })
       ),
     }).label("getApiKeyRateLimitsResponse"),
@@ -49,6 +50,7 @@ export const getApuKeyRateLimits: RouteOptions = {
           method: rule.method,
           allowedRequests: rule.options.points,
           perSeconds: rule.options.duration,
+          payload: rule.payload,
         })),
       };
     } catch (error) {

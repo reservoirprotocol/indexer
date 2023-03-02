@@ -203,13 +203,15 @@ export const save = async (
       }
 
       // Check: order has a valid signature
-      try {
-        await order.checkSignature(baseProvider);
-      } catch {
-        return results.push({
-          id,
-          status: "invalid-signature",
-        });
+      if (!metadata.fromOnChain) {
+        try {
+          await order.checkSignature(baseProvider);
+        } catch {
+          return results.push({
+            id,
+            status: "invalid-signature",
+          });
+        }
       }
 
       // Check: order fillability

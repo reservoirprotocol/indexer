@@ -22,7 +22,7 @@
     "husky": "^7.0.4",
     "prettier": "^2.5.1",
     "standard-version": "^9.3.2",
-    "turbo": "latest"
+    "turbo": "^1.8.2"
   },
   "workspaces": [
     "packages/*"

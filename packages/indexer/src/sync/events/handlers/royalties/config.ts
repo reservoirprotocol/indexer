@@ -27,7 +27,10 @@ addPlatformAddress("looks-rare", ["0x5924a28caaf1cc016617874a2f0c3710d881f3c1"])
 addPlatformAddress("x2y2", [Sdk.X2Y2.Addresses.FeeManager[config.chainId]]);
 addPlatformAddress("foundation", ["0x67df244584b67e8c51b10ad610aaffa9a402fdb6"]);
 addPlatformAddress("infinity", [Sdk.Infinity.Addresses.Exchange[config.chainId]]);
-addPlatformAddress("sudoswap", ["0x4e2f98c96e2d595a83afa35888c4af58ac343e44"]);
+addPlatformAddress("sudoswap", [
+  "0x4e2f98c96e2d595a83afa35888c4af58ac343e44",
+  "0xb16c1342e617a5b6e4b631eb114483fdb289c0a4",
+]);
 
 // Exchange List
 allExchangeList.set("seaport", Sdk.Seaport.Addresses.Exchange[config.chainId]);

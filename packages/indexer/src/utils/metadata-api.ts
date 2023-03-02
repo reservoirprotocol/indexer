@@ -8,6 +8,7 @@ import slugify from "slugify";
 import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
+import { logger } from "@/common/logger";
 
 interface TokenMetadata {
   contract: string;
@@ -115,6 +116,40 @@ export class MetadataApi {
 
     const tokenMetadata: TokenMetadata[] = (data as any).metadata;
 
+    return tokenMetadata;
+  }
+
+  public static async parseTokenMetadata(
+    request: {
+      asset_contract: {
+        address: string;
+      };
+      token_id: string;
+      name?: string;
+      description?: string;
+      image_url?: string;
+      animation_url?: string;
+      traits: Array<{
+        trait_type: string;
+        value: string | number;
+      }>;
+    },
+    method = "opensea"
+  ): Promise<TokenMetadata | null> {
+    method = method === "" ? config.metadataIndexingMethod : method;
+
+    const url = `${
+      config.metadataApiBaseUrl
+    }/v4/${getNetworkName()}/metadata/token?method=${method}`;
+
+    let response;
+    try {
+      response = await axios.post(url, request);
+    } catch (error: any) {
+      logger.error("metadata-api", `parseTokenMetadata error: ${error.message}`);
+      return null;
+    }
+    const tokenMetadata: TokenMetadata = response.data;
     return tokenMetadata;
   }
 

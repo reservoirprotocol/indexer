@@ -37,7 +37,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       transport: WebSocket,
     },
     onError: async (error) => {
-      logger.warn("opensea-websocket", `network=${network}, error=${JSON.stringify(error)}`);
+      logger.warn("opensea-websocket", `network=${network}, error=${error}`);
     },
   });
 
@@ -109,6 +109,19 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       }
     }
   );
+
+  // client.onEvents("*", [EventType.ITEM_METADATA_UPDATED], async (event) => {
+  //   try {
+  //     await handleItemMetadataUpdatedEvent(event.payload as ItemMetadataUpdatePayload);
+  //   } catch (error) {
+  //     logger.error(
+  //       "opensea-websocket",
+  //       `network=${network}, event type: ${event.event_type}, event=${JSON.stringify(
+  //         event
+  //       )}, error=${error}`
+  //     );
+  //   }
+  // });
 }
 
 const saveEvent = async (event: BaseStreamMessage<unknown>) => {

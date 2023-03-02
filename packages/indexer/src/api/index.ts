@@ -92,7 +92,7 @@ export const start = async (): Promise<void> => {
   );
 
   // Getting rate limit instance will load rate limit rules into memory
-  await RateLimitRules.getInstance();
+  await RateLimitRules.getInstance(true);
 
   const apiDescription =
     "You are viewing the reference docs for the Reservoir API.\
@@ -148,7 +148,7 @@ export const start = async (): Promise<void> => {
     },
   ]);
 
-  server.ext("onPreAuth", async (request, reply) => {
+  server.ext("onPostAuth", async (request, reply) => {
     /* eslint-disable @typescript-eslint/no-explicit-any */
     if ((request as any).isInjected || request.route.path === "/livez") {
       return reply.continue;
@@ -160,11 +160,12 @@ export const start = async (): Promise<void> => {
 
     // Get the rule for the incoming request
     const rateLimitRules = await RateLimitRules.getInstance();
-    const rateLimitRule = rateLimitRules.getRule(
+    const rateLimitRule = rateLimitRules.getRateLimitObject(
       request.route.path,
       request.route.method,
       tier,
-      apiKey?.key
+      apiKey?.key,
+      new Map(Object.entries(_.merge(request.payload, request.query)))
     );
 
     // If matching rule was found

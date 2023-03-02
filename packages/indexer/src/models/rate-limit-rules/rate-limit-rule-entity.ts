@@ -4,12 +4,18 @@ export type RateLimitRuleUpdateParams = {
   tier?: number;
   options?: RateLimitRuleOptions;
   apiKey?: string;
+  payload?: RateLimitRulePayload;
 };
 
 export type RateLimitRuleOptions = {
   keyPrefix?: string | undefined;
   points?: number | undefined;
   duration?: number | undefined;
+};
+
+export type RateLimitRulePayload = {
+  key: string;
+  value: string;
 };
 
 export type RateLimitRuleEntityParams = {
@@ -19,6 +25,7 @@ export type RateLimitRuleEntityParams = {
   tier: number;
   api_key: string;
   options: RateLimitRuleOptions;
+  payload: RateLimitRulePayload[];
   created_at: string;
 };
 
@@ -29,6 +36,7 @@ export class RateLimitRuleEntity {
   tier: number;
   apiKey: string;
   options: RateLimitRuleOptions;
+  payload: RateLimitRulePayload[];
   createdAt: string;
 
   constructor(params: RateLimitRuleEntityParams) {
@@ -38,6 +46,7 @@ export class RateLimitRuleEntity {
     this.tier = params.tier;
     this.apiKey = params.api_key;
     this.options = params.options;
+    this.payload = params.payload;
     this.createdAt = params.created_at;
   }
 }

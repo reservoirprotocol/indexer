@@ -269,7 +269,7 @@ export class UserActivities {
     const query = `DELETE FROM user_activities
                    WHERE block_hash = $/blockHash/`;
 
-    return await idb.none(query, { blockHash });
+    return await idb.none(query, { blockHash: toBuffer(blockHash) });
   }
 
   public static async updateMissingCollectionId(

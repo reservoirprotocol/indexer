@@ -6,7 +6,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrderCriteria, JoiPrice, getJoiPriceObject } from "@/common/joi";
-import { buildContinuation, fromBuffer, splitContinuation, regex, toBuffer } from "@/common/utils";
+import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Orders } from "@/utils/orders";
 
@@ -110,9 +110,16 @@ export const getAsksEventsV3Options: RouteOptions = {
     const query = request.query as any;
 
     try {
+      // We default in the code so that these values don't appear in the docs
+      if (!query.startTimestamp) {
+        query.startTimestamp = 0;
+      }
+      if (!query.endTimestamp) {
+        query.endTimestamp = 9999999999;
+      }
+
       // TODO: Backfill order fields in the ask events
-      // const joinWithOrders = (query.startTimestamp ?? now()) < 1676554238;
-      const joinWithOrders = true;
+      const joinWithOrders = query.startTimestamp < 1677484338;
       const t = joinWithOrders ? "orders" : "order_events";
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery(
@@ -175,14 +182,6 @@ export const getAsksEventsV3Options: RouteOptions = {
             : ""
         }
       `;
-
-      // We default in the code so that these values don't appear in the docs
-      if (!query.startTimestamp) {
-        query.startTimestamp = 0;
-      }
-      if (!query.endTimestamp) {
-        query.endTimestamp = 9999999999;
-      }
 
       // Filters
       const conditions: string[] = [

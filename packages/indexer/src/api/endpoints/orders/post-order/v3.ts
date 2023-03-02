@@ -277,7 +277,7 @@ export const postOrderV3Options: RouteOptions = {
 
             if (
               collectionResult?.token_set_id?.startsWith("token") &&
-              collectionResult.new_royalties["opensea"]
+              collectionResult?.new_royalties?.["opensea"]
             ) {
               const osRoyaltyRecipients = collectionResult.new_royalties["opensea"].map((r: any) =>
                 r.recipient.toLowerCase()

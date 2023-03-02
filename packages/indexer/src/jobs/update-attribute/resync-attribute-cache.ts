@@ -23,7 +23,7 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job: Job) => {
       const { contract, tokenId } = job.data;
-      const tokenAttributes = await Tokens.getTokenAttributes(contract, tokenId, 5000);
+      const tokenAttributes = await Tokens.getTokenAttributes(contract, tokenId, 10000);
 
       // Recalculate the number of tokens on sale for each attribute
       for (const tokenAttribute of tokenAttributes) {

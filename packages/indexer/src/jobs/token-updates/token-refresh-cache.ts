@@ -27,6 +27,10 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { contract, tokenId, skipTopBidSimulation } = job.data;
 
+      if (contract === "0x4923917e9e288b95405e2c893d0ac46b895dda22") {
+        return;
+      }
+
       // Refresh the token floor sell and top bid
       await Tokens.recalculateTokenFloorSell(contract, tokenId);
       await Tokens.recalculateTokenTopBid(contract, tokenId);

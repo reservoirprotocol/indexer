@@ -24,7 +24,7 @@
     "@hapi/hapi": "^20.0.0",
     "@hapi/inert": "^6.0.4",
     "@hapi/vision": "^6.1.0",
-    "@opensea/stream-js": "^0.0.21-rc.1",
+    "@opensea/stream-js": "^0.0.23",
     "@poprank/rankings": "1.1.20",
     "@reservoir0x/sdk": "*",
     "@types/date-fns": "^2.6.0",
