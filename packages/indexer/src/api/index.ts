@@ -92,7 +92,7 @@ export const start = async (): Promise<void> => {
   );
 
   // Getting rate limit instance will load rate limit rules into memory
-  await RateLimitRules.getInstance();
+  await RateLimitRules.getInstance(true);
 
   const apiDescription =
     "You are viewing the reference docs for the Reservoir API.\

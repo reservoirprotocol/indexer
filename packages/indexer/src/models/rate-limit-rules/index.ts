@@ -94,10 +94,10 @@ export class RateLimitRules {
     }
   }
 
-  public static async getInstance() {
+  public static async getInstance(forceDbLoad = false) {
     if (!this.instance) {
       this.instance = new RateLimitRules();
-      await this.instance.loadData();
+      await this.instance.loadData(forceDbLoad);
     }
 
     return this.instance;

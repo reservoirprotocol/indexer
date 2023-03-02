@@ -101,7 +101,7 @@ export const getTokensV5Options: RouteOptions = {
         "Domain of the order source. Example `opensea.io` (Only listed tokens are returned when filtering by source)"
       ),
       nativeSource: Joi.string().description(
-        "Domain of the order source. Example `opensea.io`. For a native marketplace, return all tokens listed on this marketplace, even if better prices are available on other marketplaces."
+        "Domain of the order source. Example `www.apecoinmarketplace.com`. For a native marketplace, return all tokens listed on this marketplace, even if better prices are available on other marketplaces."
       ),
       minRarityRank: Joi.number()
         .integer()
