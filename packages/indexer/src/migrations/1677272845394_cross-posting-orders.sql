@@ -20,7 +20,7 @@ CREATE TABLE "cross_posting_orders" (
   "order_id" TEXT,
   "kind" "order_kind_t" NOT NULL,
   "orderbook" "cross_posting_order_orderbook_t" NOT NULL,
-  "source" TEXT NOT NULL,
+  "source" TEXT,
   "schema" JSONB,
   "status" "cross_posting_order_status_t" NOT NULL,
   "status_reason" TEXT,
