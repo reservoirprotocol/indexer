@@ -62,7 +62,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
         throw Boom.badRequest("Unknown order");
       }
 
-      if (query.softCancel) {
+      if (payload.softCancel) {
         // Check signature
         const signer = verifyMessage(arrayify(orderId), signature);
         if (signer.toLowerCase() !== fromBuffer(orderResult.maker)) {
