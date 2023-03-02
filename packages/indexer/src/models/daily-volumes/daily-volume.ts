@@ -233,18 +233,15 @@ export class DailyVolume {
     const lastDailyTimestamp = date.getTime() / 1000;
 
     const results = await ridb.manyOrNone(
-      `
-          SELECT t1.collection_id,
-             t1.volume,
+      `SELECT t1.collection_id,
+            t1.volume,
             t1.rank,
             t1.floor_sell_value,
             t1.volume_change
-			t1.sales_count,
-		    COALESCE(t2.sales_count, 0) AS sales_count_clean
-          FROM 
+          FROM
             (SELECT
               "collection_id",
-              sum("fe"."price") AS "volume",              
+              sum("fe"."price") AS "volume",
               RANK() OVER (ORDER BY SUM(price) DESC, "collection_id") "rank",
               min(fe.price) AS "floor_sell_value",
               (
@@ -253,33 +250,16 @@ export class DailyVolume {
                     WHERE daily_volumes.collection_id  = t.collection_id
                     ORDER BY daily_volumes.updated_at DESC LIMIT 1
               ) ) as "volume_change"
+
             FROM "fill_events_2" "fe"
               JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
               JOIN "collections" "c" ON "t"."collection_id" = "c"."id"
             WHERE
               "fe"."timestamp" >= $/lastDailyTimestamp/
               AND fe.price > 0
-              AND fe.is_primary IS NOT TRUE 
+              AND fe.is_primary IS NOT TRUE
               ${collectionId ? "AND collection_id = $/collectionId/" : ""}
-            GROUP BY "collection_id") t1
-          LEFT JOIN
-            (SELECT
-              "collection_id",
-              sum("fe"."price") AS "volume",              
-              RANK() OVER (ORDER BY SUM(price) DESC, "collection_id") "rank",
-              min(fe.price) AS "floor_sell_value"
-            FROM "fill_events_2" "fe"
-              JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
-              JOIN "collections" "c" ON "t"."collection_id" = "c"."id"
-            WHERE
-              "fe"."timestamp" >= $/lastDailyTimestamp/
-              AND fe.price > 0
-              AND fe.is_primary IS NOT TRUE 
-              AND coalesce(fe.wash_trading_score, 0) = 0
-              ${collectionId ? "AND collection_id = $/collectionId/" : ""}
-            GROUP BY "collection_id") t2
-          ON (t1.collection_id = t2.collection_id)
-        `,
+            GROUP BY "collection_id") t1`,
       {
         lastDailyTimestamp: lastDailyTimestamp,
         collectionId,
