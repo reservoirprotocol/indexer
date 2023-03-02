@@ -7,10 +7,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import {
-  SeaportERC721Approval,
-  setupSeaportERC721Approvals,
-} from "../helpers/seaport";
+import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport";
 import { LooksRareOffer, setupLooksRareOffers } from "../helpers/looks-rare";
 import {
   bn,
@@ -43,22 +40,18 @@ describe("[ReservoirV6_0_0] LooksRare offers", () => {
 
     ({ erc721 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportApprovalOrderZone = (await ethers
+      .then((factory) => factory.deploy());
+    seaportApprovalOrderZone = await ethers
       .getContractFactory("SeaportApprovalOrderZone", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportModule = (await ethers
+      .then((factory) => factory.deploy());
+    seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    looksRareModule = (await ethers
+      .then((factory) => factory.deploy(router.address, router.address));
+    looksRareModule = await ethers
       .getContractFactory("LooksRareModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -71,9 +64,7 @@ describe("[ReservoirV6_0_0] LooksRare offers", () => {
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
         seaportModule: await ethers.provider.getBalance(seaportModule.address),
-        looksRareModule: await ethers.provider.getBalance(
-          looksRareModule.address
-        ),
+        looksRareModule: await ethers.provider.getBalance(looksRareModule.address),
       };
     } else {
       const contract = new Sdk.Common.Helpers.Erc20(ethers.provider, token);
@@ -159,8 +150,7 @@ describe("[ReservoirV6_0_0] LooksRare offers", () => {
                 {
                   parameters: {
                     ...orders![0].params,
-                    totalOriginalConsiderationItems:
-                      orders![0].params.consideration.length,
+                    totalOriginalConsiderationItems: orders![0].params.consideration.length,
                   },
                   signature: orders![0].params.signature,
                 },
@@ -168,8 +158,7 @@ describe("[ReservoirV6_0_0] LooksRare offers", () => {
                 {
                   parameters: {
                     ...orders![1].params,
-                    totalOriginalConsiderationItems:
-                      orders![1].params.consideration.length,
+                    totalOriginalConsiderationItems: orders![1].params.consideration.length,
                   },
                   signature: "0x",
                 },
@@ -199,24 +188,21 @@ describe("[ReservoirV6_0_0] LooksRare offers", () => {
       // 2. Fill offers with the received NFTs
       ...offers.map((offer, i) => ({
         module: looksRareModule.address,
-        data: looksRareModule.interface.encodeFunctionData(
-          "acceptERC721Offer",
+        data: looksRareModule.interface.encodeFunctionData("acceptERC721Offer", [
+          offer.order!.buildMatching(looksRareModule.address),
+          offer.order!.params,
+          {
+            fillTo: carol.address,
+            refundTo: carol.address,
+            revertIfIncomplete,
+          },
           [
-            offer.order!.buildMatching(looksRareModule.address),
-            offer.order!.params,
-            {
-              fillTo: carol.address,
-              refundTo: carol.address,
-              revertIfIncomplete,
-            },
-            [
-              ...fees[i].map((amount) => ({
-                recipient: emilio.address,
-                amount,
-              })),
-            ],
-          ]
-        ),
+            ...fees[i].map((amount) => ({
+              recipient: emilio.address,
+              amount,
+            })),
+          ],
+        ]),
         value: 0,
       })),
     ];
@@ -226,36 +212,24 @@ describe("[ReservoirV6_0_0] LooksRare offers", () => {
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      offers.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && offers.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
       return;
     }
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
@@ -285,9 +259,7 @@ describe("[ReservoirV6_0_0] LooksRare offers", () => {
       expect(balancesAfter.emilio.sub(balancesBefore.emilio)).to.eq(
         offers
           .map((_, i) => (offers[i].isCancelled ? [] : fees[i]))
-          .map((executionFees) =>
-            executionFees.reduce((a, b) => bn(a).add(b), bn(0))
-          )
+          .map((executionFees) => executionFees.reduce((a, b) => bn(a).add(b), bn(0)))
           .reduce((a, b) => bn(a).add(b), bn(0))
       );
     }
@@ -309,10 +281,10 @@ describe("[ReservoirV6_0_0] LooksRare offers", () => {
 
   // Test various combinations for filling offers
 
-  for (let multiple of [false, true]) {
-    for (let partial of [false, true]) {
-      for (let chargeFees of [false, true]) {
-        for (let revertIfIncomplete of [false, true]) {
+  for (const multiple of [false, true]) {
+    for (const partial of [false, true]) {
+      for (const chargeFees of [false, true]) {
+        for (const revertIfIncomplete of [false, true]) {
           it(
             `${multiple ? "[multiple-orders]" : "[single-order]"}` +
               `${partial ? "[partial]" : "[full]"}` +

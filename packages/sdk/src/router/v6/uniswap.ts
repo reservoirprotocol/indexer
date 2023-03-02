@@ -167,7 +167,7 @@ export const generateSwapExecutions = async (
               amountInMaximum: params.params.amountInMaximum,
               sqrtPriceLimitX96: params.params.sqrtPriceLimitX96,
             },
-            recipients: options.transfers,
+            transfers: options.transfers,
           },
           options.refundTo,
         ]

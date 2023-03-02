@@ -24,7 +24,7 @@ import {
   SwapDetail,
 } from "./types";
 import { generateSwapExecutions } from "./uniswap";
-import { generateFTApprovalTxData, generateNFTApprovalTxData, isETH } from "./utils";
+import { generateFTApprovalTxData, generateNFTApprovalTxData, isETH, isWETH } from "./utils";
 import * as Sdk from "../../index";
 import { encodeForMatchOrders } from "../../rarible/utils";
 import { TxData, bn, generateSourceBytes, uniqBy } from "../../utils";
@@ -46,8 +46,6 @@ import SeaportModuleAbi from "./abis/SeaportModule.json";
 import SeaportV14ModuleAbi from "./abis/SeaportV14Module.json";
 import SudoswapModuleAbi from "./abis/SudoswapModule.json";
 import SwapModuleAbi from "./abis/SwapModule.json";
-import UniswapV3ModuleAbi from "./abis/UniswapV3Module.json";
-import WETHModuleAbi from "./abis/WETHModule.json";
 import X2Y2ModuleAbi from "./abis/X2Y2Module.json";
 import ZeroExV4ModuleAbi from "./abis/ZeroExV4Module.json";
 import ZoraModuleAbi from "./abis/ZoraModule.json";
@@ -106,16 +104,6 @@ export class Router {
       sudoswapModule: new Contract(
         Addresses.SudoswapModule[chainId] ?? AddressZero,
         SudoswapModuleAbi,
-        provider
-      ),
-      uniswapV3Module: new Contract(
-        Addresses.UniswapV3Module[chainId] ?? AddressZero,
-        UniswapV3ModuleAbi,
-        provider
-      ),
-      wethModule: new Contract(
-        Addresses.WETHModule[chainId] ?? AddressZero,
-        WETHModuleAbi,
         provider
       ),
       x2y2Module: new Contract(
@@ -597,8 +585,6 @@ export class Router {
       }
     }
 
-    const buyInETH = isETH(this.chainId, buyInCurrency);
-
     const getFees = (ownDetails: ListingFillDetails[]) => [
       // Global fees
       ...(options?.globalFees ?? [])
@@ -725,7 +711,7 @@ export class Router {
     let executions: ExecutionInfo[] = [];
     const success: boolean[] = details.map(() => false);
 
-    let swapDetails: SwapDetail[] = [];
+    const swapDetails: SwapDetail[] = [];
 
     // Handle Blur listings
     if (blurDetails.length) {
@@ -1865,9 +1851,6 @@ export class Router {
 
     // Handle any needed swaps
 
-    // First, filter out any irrelevant swaps
-    swapDetails = swapDetails.filter((s) => s.tokenIn !== s.tokenOut);
-
     const successfulSwapExecutions: ExecutionInfo[] = [];
     const unsuccessfulDependentExecutionIndexes: number[] = [];
     if (swapDetails.length) {
@@ -1875,13 +1858,20 @@ export class Router {
       const aggregatedSwapDetails = swapDetails.reduce((perPoolDetails, current) => {
         const { tokenOut, tokenIn } = current;
 
-        const normalizedInToken = isETH(this.chainId, tokenIn)
-          ? Sdk.Common.Addresses.Weth[this.chainId]
-          : tokenIn;
-        const normalizedOutToken = isETH(this.chainId, tokenOut)
-          ? Sdk.Common.Addresses.Weth[this.chainId]
-          : tokenOut;
-        const pool = `${normalizedInToken}:${normalizedOutToken}`;
+        let pool: string;
+        if (isETH(this.chainId, tokenIn) && isWETH(this.chainId, tokenOut)) {
+          pool = `${tokenIn}:${tokenOut}`;
+        } else if (isWETH(this.chainId, tokenIn) && isETH(this.chainId, tokenOut)) {
+          pool = `${tokenIn}:${tokenOut}`;
+        } else {
+          const normalizedTokenIn = isETH(this.chainId, tokenIn)
+            ? Sdk.Common.Addresses.Weth[this.chainId]
+            : tokenIn;
+          const normalizedTokenOut = isETH(this.chainId, tokenOut)
+            ? Sdk.Common.Addresses.Weth[this.chainId]
+            : tokenOut;
+          pool = `${normalizedTokenIn}:${normalizedTokenOut}`;
+        }
 
         if (!perPoolDetails[pool]) {
           perPoolDetails[pool] = [];
@@ -1893,8 +1883,8 @@ export class Router {
 
       // For each token pair, generate a swap execution
       for (const swapDetails of Object.values(aggregatedSwapDetails)) {
-        // All swap details for this pool will have the same out token
-        const { tokenOut: currency } = swapDetails[0];
+        // All swap details for this pool will have the same out and in tokens
+        const { tokenIn, tokenOut } = swapDetails[0];
 
         const transfers = swapDetails.map((s) => {
           return {
@@ -1910,40 +1900,60 @@ export class Router {
           .reduce((a, b) => a.add(b), bn(0));
 
         try {
-          const { executions: swapExecutions, amountIn } = await generateSwapExecutions(
-            this.chainId,
-            this.provider,
-            buyInCurrency,
-            currency,
-            totalAmountOut,
-            {
-              swapModule: this.contracts.swapModule,
-              transfers,
-              refundTo: relayer,
-            }
-          );
+          // Only generate a swap if the in token is different from the out token
+          let inAmount = totalAmountOut.toString();
+          if (tokenIn !== tokenOut) {
+            const { executions: swapExecutions, amountIn } = await generateSwapExecutions(
+              this.chainId,
+              this.provider,
+              tokenIn,
+              tokenOut,
+              totalAmountOut,
+              {
+                swapModule: this.contracts.swapModule,
+                transfers,
+                refundTo: relayer,
+              }
+            );
 
-          if (!buyInETH) {
+            successfulSwapExecutions.push(...swapExecutions);
+
+            // Update the in amount
+            inAmount = amountIn.toString();
+          }
+
+          if (!isETH(this.chainId, tokenIn)) {
             approvals.push({
-              currency: buyInCurrency,
+              currency: tokenIn,
               owner: relayer,
               operator: Sdk.Common.Addresses.Permit2[this.chainId],
               txData: generateFTApprovalTxData(
-                buyInCurrency,
+                tokenIn,
                 relayer,
                 Sdk.Common.Addresses.Permit2[this.chainId]
               ),
             });
 
-            permitItems.push({
-              from: relayer,
-              to: this.contracts.swapModule.address,
-              token: buyInCurrency,
-              amount: amountIn.toString(),
-            });
+            if (tokenIn !== tokenOut) {
+              // The swap module will take care of handling additional transfers
+              permitItems.push({
+                from: relayer,
+                to: this.contracts.swapModule.address,
+                token: tokenIn,
+                amount: inAmount,
+              });
+            } else {
+              // We need to split the permit items based on the individual transfers
+              permitItems.push(
+                ...transfers.map((t) => ({
+                  from: relayer,
+                  to: t.recipient,
+                  token: tokenIn,
+                  amount: t.amount.toString(),
+                }))
+              );
+            }
           }
-
-          successfulSwapExecutions.push(...swapExecutions);
         } catch {
           if (!options?.partial) {
             throw new Error("Could not generate swap execution");

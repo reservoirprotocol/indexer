@@ -424,7 +424,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
     }
   }
 
-  it.only("Permit2 - Fill ETH listing with USDC", async () => {
+  it("Permit2 - Fill ETH listing with USDC", async () => {
     // Setup
 
     // Maker: Alice
@@ -451,15 +451,15 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
               tokenOut: Sdk.Common.Addresses.Usdc[chainId],
               fee: 500,
               recipient: swapModule.address,
-              amountOut: bn(listing.price),
+              amountOut: parseUnits("10000", 6),
               amountInMaximum: parseEther("10"),
               sqrtPriceLimitX96: 0,
             },
             transfers: [
               {
                 recipient: bob.address,
-                amount: bn(listing.price),
-                isETH: false,
+                amount: parseUnits("10000", 6),
+                toETH: false,
               },
             ],
           },
@@ -482,7 +482,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
       bob,
       swapModule.address,
       Sdk.Common.Addresses.Usdc[chainId],
-      bn(listing.price).toString(),
+      parseUnits("10000", 6).toString(),
       permit2Module.address
     );
 
@@ -519,7 +519,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
               {
                 recipient: seaportModule.address,
                 amount: bn(listing.price),
-                isETH: true,
+                toETH: true,
               },
             ],
           },
@@ -563,6 +563,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
 
     await router.connect(bob).execute(executions, {
       value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
+      gasLimit: 3000000,
     });
 
     // Fetch post-state
@@ -622,7 +623,7 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
               {
                 recipient: bob.address,
                 amount: bn(listing.price),
-                isETH: false,
+                toETH: false,
               },
             ],
           },
@@ -724,453 +725,272 @@ describe("[ReservoirV6_0_0] Seaport listings", () => {
     expect(ethBalancesAfter.swapModule).to.eq(0);
   });
 
-  // it("Permit2 - Fill WETH listing with USDC", async () => {
-  //   // Setup
+  it("Permit2 - Fill WETH listing with USDC", async () => {
+    // Setup
 
-  //   // Maker: Alice
-  //   // Taker: Bob
-  //   const listing: SeaportListing = {
-  //     seller: alice,
-  //     nft: {
-  //       kind: "erc721",
-  //       contract: erc721,
-  //       id: getRandomInteger(1, 10000),
-  //     },
-  //     paymentToken: Sdk.Common.Addresses.Weth[chainId],
-  //     price: parseEther("0.5"),
-  //   };
+    // Maker: Alice
+    // Taker: Bob
+    const listing: SeaportListing = {
+      seller: alice,
+      nft: {
+        kind: "erc721",
+        contract: erc721,
+        id: getRandomInteger(1, 10000),
+      },
+      paymentToken: Sdk.Common.Addresses.Weth[chainId],
+      price: parseEther("0.5"),
+    };
 
-  //   const swapExecutions: ExecutionInfo[] = [
-  //     // 1. Swap ETH for USDC on UniswapV3, sending the USDC to the Seaport module
-  //     {
-  //       module: uniswapV3Module.address,
-  //       data: uniswapV3Module.interface.encodeFunctionData("ethToExactOutput", [
-  //         {
-  //           tokenIn: Sdk.Common.Addresses.Weth[chainId],
-  //           tokenOut: Sdk.Common.Addresses.Usdc[chainId],
-  //           fee: 500,
-  //           recipient: bob.address,
-  //           amountOut: parseUnits("10000", 6),
-  //           amountInMaximum: parseEther("10"),
-  //           sqrtPriceLimitX96: 0,
-  //         },
-  //         bob.address,
-  //       ]),
-  //       // Anything on top should be refunded
-  //       value: parseEther("10"),
-  //     },
-  //   ];
+    const swapExecutions: ExecutionInfo[] = [
+      // 1. Swap ETH for USDC (for testing purposes only)
+      {
+        module: swapModule.address,
+        data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
+          {
+            params: {
+              tokenIn: Sdk.Common.Addresses.Weth[chainId],
+              tokenOut: Sdk.Common.Addresses.Usdc[chainId],
+              fee: 500,
+              recipient: swapModule.address,
+              amountOut: parseUnits("10000", 6),
+              amountInMaximum: parseEther("10"),
+              sqrtPriceLimitX96: 0,
+            },
+            transfers: [
+              {
+                recipient: bob.address,
+                amount: parseUnits("10000", 6),
+                toETH: false,
+              },
+            ],
+          },
+          bob.address,
+        ]),
+        // Anything on top should be refunded
+        value: parseEther("10"),
+      },
+    ];
 
-  //   // Swap to USDC
-  //   await router.connect(bob).execute(swapExecutions, {
-  //     value: swapExecutions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
-  //   });
+    // Swap to USDC
+    await router.connect(bob).execute(swapExecutions, {
+      value: swapExecutions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
+    });
 
-  //   const generatePermit2ModuleTransfer = async (
-  //     signer: SignerWithAddress,
-  //     to: string,
-  //     token: string,
-  //     module: string,
-  //     amount: string
-  //   ) => {
-  //     const permitBatch = {
-  //       details: [
-  //         {
-  //           token,
-  //           amount,
-  //           expiration: Math.floor(new Date().getTime() / 1000) + 86400,
-  //           nonce: 0,
-  //         },
-  //       ],
-  //       spender: module,
-  //       sigDeadline: Math.floor(new Date().getTime() / 1000) + 86400,
-  //     };
+    const erc20 = new Sdk.Common.Helpers.Erc20(ethers.provider, Sdk.Common.Addresses.Usdc[chainId]);
+    await erc20.approve(bob, Sdk.Common.Addresses.Permit2[chainId]);
+    const permitModuleTransfer = await generatePermit2ModuleTransfer(
+      1,
+      bob,
+      swapModule.address,
+      Sdk.Common.Addresses.Usdc[chainId],
+      parseUnits("10000", 6).toString(),
+      permit2Module.address
+    );
 
-  //     const signatureData = AllowanceTransfer.getPermitData(
-  //       permitBatch,
-  //       Sdk.Common.Addresses.Permit2[chainId],
-  //       chainId
-  //     );
+    await setupSeaportListings([listing]);
 
-  //     const signature = await signer._signTypedData(
-  //       signatureData.domain,
-  //       signatureData.types,
-  //       signatureData.values
-  //     );
+    // Prepare executions
+    const executions: ExecutionInfo[] = [
+      // 1. Transfer with permit2
+      {
+        module: permit2Module.address,
+        data: permit2Module.interface.encodeFunctionData(`permitTransfer`, [
+          permitModuleTransfer.owner,
+          permitModuleTransfer.permit,
+          permitModuleTransfer.transferDetails,
+          permitModuleTransfer.signature,
+        ]),
+        value: 0,
+      },
+      // 2. Swap USDC > WETH
+      {
+        module: swapModule.address,
+        data: swapModule.interface.encodeFunctionData("erc20ToExactOutput", [
+          {
+            params: {
+              tokenIn: Sdk.Common.Addresses.Usdc[chainId],
+              tokenOut: Sdk.Common.Addresses.Weth[chainId],
+              fee: 500,
+              recipient: swapModule.address,
+              amountOut: bn(listing.price),
+              amountInMaximum: parseUnits("10000", 6),
+              sqrtPriceLimitX96: 0,
+            },
+            transfers: [
+              {
+                recipient: seaportModule.address,
+                amount: listing.price,
+                toETH: false,
+              },
+            ],
+          },
+          bob.address,
+        ]),
+        value: 0,
+      },
+      // 3. Fill WETH listing with the received funds
+      {
+        module: seaportModule.address,
+        data: seaportModule.interface.encodeFunctionData("acceptERC20Listing", [
+          {
+            parameters: {
+              ...listing.order!.params,
+              totalOriginalConsiderationItems: listing.order!.params.consideration.length,
+            },
+            numerator: 1,
+            denominator: 1,
+            signature: listing.order!.params.signature,
+            extraData: "0x",
+          },
+          {
+            fillTo: bob.address,
+            refundTo: bob.address,
+            revertIfIncomplete: true,
+            amount: listing.price,
+            token: listing.paymentToken!,
+          },
+          [],
+        ]),
+        value: 0,
+      },
+    ];
 
-  //     return {
-  //       permit: permitBatch,
-  //       owner: signer.address,
-  //       transferDetails: [
-  //         {
-  //           from: signer.address,
-  //           to,
-  //           amount,
-  //           token,
-  //         },
-  //       ],
-  //       signature,
-  //     };
-  //   };
+    // Fetch pre-state
 
-  //   const erc20 = new Contract(Sdk.Common.Addresses.Usdc[chainId], ERC20ABI);
-  //   await erc20
-  //     .connect(bob)
-  //     .approve(Sdk.Common.Addresses.Permit2[chainId], ethers.constants.MaxInt256);
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
-  //   const permitModuleTransfer = await generatePermit2ModuleTransfer(
-  //     bob,
-  //     uniswapV3Module.address,
-  //     Sdk.Common.Addresses.Usdc[chainId],
-  //     permit2Module.address,
-  //     parseUnits("10000", 6).toString()
-  //   );
+    // Execute
 
-  //   await setupSeaportListings([listing]);
+    await router.connect(bob).execute(executions, {
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
+    });
 
-  //   // Prepare executions
-  //   const executions: ExecutionInfo[] = [
-  //     // 1. Transfer with permit2
-  //     {
-  //       module: permit2Module.address,
-  //       data: permit2Module.interface.encodeFunctionData(`permitTransfer`, [
-  //         permitModuleTransfer.owner,
-  //         permitModuleTransfer.permit,
-  //         permitModuleTransfer.transferDetails,
-  //         permitModuleTransfer.signature,
-  //       ]),
-  //       value: 0,
-  //     },
-  //     // 2. Swap USDC > WETH
-  //     {
-  //       module: uniswapV3Module.address,
-  //       data: uniswapV3Module.interface.encodeFunctionData("erc20ToExactOutput", [
-  //         {
-  //           tokenIn: Sdk.Common.Addresses.Usdc[chainId],
-  //           tokenOut: Sdk.Common.Addresses.Weth[chainId],
-  //           fee: 500,
-  //           recipient: seaportModule.address,
-  //           amountOut: bn(listing.price),
-  //           amountInMaximum: parseUnits("10000", 6),
-  //           sqrtPriceLimitX96: 0,
-  //         },
-  //         bob.address,
-  //       ]),
-  //       // Anything on top should be refunded
-  //       value: 0,
-  //     },
-  //     // 3. Fill WETH listing with the received funds
-  //     {
-  //       module: seaportModule.address,
-  //       data: seaportModule.interface.encodeFunctionData("acceptERC20Listing", [
-  //         {
-  //           parameters: {
-  //             ...listing.order!.params,
-  //             totalOriginalConsiderationItems: listing.order!.params.consideration.length,
-  //           },
-  //           numerator: 1,
-  //           denominator: 1,
-  //           signature: listing.order!.params.signature,
-  //           extraData: "0x",
-  //         },
-  //         {
-  //           fillTo: bob.address,
-  //           refundTo: bob.address,
-  //           revertIfIncomplete: true,
-  //           amount: listing.price,
-  //           token: listing.paymentToken!,
-  //         },
-  //         [],
-  //       ]),
-  //       value: 0,
-  //     },
-  //   ];
+    // Fetch post-state
 
-  //   // Fetch pre-state
+    const balancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
-  //   const balancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+    // Checks
 
-  //   // Execute
+    // Alice got the USDC
+    expect(balancesAfter.alice.sub(balancesBefore.alice)).to.eq(listing.price);
 
-  //   await router.connect(bob).execute(executions, {
-  //     value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
-  //   });
+    // Bob got the NFT
+    expect(await erc721.ownerOf(listing.nft.id)).to.eq(bob.address);
 
-  //   // Fetch post-state
+    // Router is stateless
+    expect(balancesAfter.router).to.eq(0);
+    expect(balancesAfter.seaportModule).to.eq(0);
+    expect(balancesAfter.swapModule).to.eq(0);
+    expect(ethBalancesAfter.router).to.eq(0);
+    expect(ethBalancesAfter.seaportModule).to.eq(0);
+    expect(ethBalancesAfter.swapModule).to.eq(0);
+  });
 
-  //   const balancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
-  //   const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+  it("Swap - Fill USDC listing with ETH", async () => {
+    // Setup
 
-  //   // Checks
+    // Maker: Alice
+    // Taker: Bob
 
-  //   // Alice got the USDC
-  //   expect(balancesAfter.alice.sub(balancesBefore.alice)).to.eq(listing.price);
+    const listing: SeaportListing = {
+      seller: alice,
+      nft: {
+        kind: "erc721",
+        contract: erc721,
+        id: getRandomInteger(1, 10000),
+      },
+      paymentToken: Sdk.Common.Addresses.Usdc[chainId],
+      price: parseUnits(getRandomFloat(0.0001, 2).toFixed(6), 6),
+    };
+    await setupSeaportListings([listing]);
 
-  //   // Bob got the NFT
-  //   expect(await erc721.ownerOf(listing.nft.id)).to.eq(bob.address);
+    // Prepare executions
 
-  //   // Router is stateless
-  //   expect(balancesAfter.router).to.eq(0);
-  //   expect(balancesAfter.seaportModule).to.eq(0);
-  //   expect(balancesAfter.uniswapV3Module).to.eq(0);
-  //   expect(ethBalancesAfter.router).to.eq(0);
-  //   expect(ethBalancesAfter.seaportModule).to.eq(0);
-  //   expect(ethBalancesAfter.uniswapV3Module).to.eq(0);
-  // });
+    const executions: ExecutionInfo[] = [
+      // 1. Swap ETH for USDC, sending the USDC to the Seaport module
+      {
+        module: swapModule.address,
+        data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
+          {
+            params: {
+              tokenIn: Sdk.Common.Addresses.Weth[chainId],
+              tokenOut: Sdk.Common.Addresses.Usdc[chainId],
+              fee: 500,
+              recipient: swapModule.address,
+              amountOut: listing.price,
+              amountInMaximum: parseEther("10"),
+              sqrtPriceLimitX96: 0,
+            },
+            transfers: [
+              {
+                recipient: seaportModule.address,
+                amount: listing.price,
+                toETH: false,
+              },
+            ],
+          },
+          bob.address,
+        ]),
+        // Anything on top should be refunded
+        value: parseEther("10"),
+      },
+      // 2. Fill USDC listing with the received funds
+      {
+        module: seaportModule.address,
+        data: seaportModule.interface.encodeFunctionData("acceptERC20Listing", [
+          {
+            parameters: {
+              ...listing.order!.params,
+              totalOriginalConsiderationItems: listing.order!.params.consideration.length,
+            },
+            numerator: 1,
+            denominator: 1,
+            signature: listing.order!.params.signature,
+            extraData: "0x",
+          },
+          {
+            fillTo: bob.address,
+            refundTo: bob.address,
+            revertIfIncomplete: true,
+            amount: listing.price,
+            token: listing.paymentToken!,
+          },
+          [],
+        ]),
+        value: 0,
+      },
+    ];
 
-  // it("Fill USDC listing with ETH", async () => {
-  //   // Setup
+    // Fetch pre-state
 
-  //   // Maker: Alice
-  //   // Taker: Bob
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
 
-  //   const listing: SeaportListing = {
-  //     seller: alice,
-  //     nft: {
-  //       kind: "erc721",
-  //       contract: erc721,
-  //       id: getRandomInteger(1, 10000),
-  //     },
-  //     paymentToken: Sdk.Common.Addresses.Usdc[chainId],
-  //     price: parseUnits(getRandomFloat(0.0001, 2).toFixed(6), 6),
-  //   };
-  //   await setupSeaportListings([listing]);
+    // Execute
 
-  //   // Prepare executions
+    await router.connect(bob).execute(executions, {
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
+    });
 
-  //   const executions: ExecutionInfo[] = [
-  //     // 1. Swap ETH for USDC on UniswapV3, sending the USDC to the Seaport module
-  //     {
-  //       module: uniswapV3Module.address,
-  //       data: uniswapV3Module.interface.encodeFunctionData("ethToExactOutput", [
-  //         {
-  //           tokenIn: Sdk.Common.Addresses.Weth[chainId],
-  //           tokenOut: Sdk.Common.Addresses.Usdc[chainId],
-  //           fee: 500,
-  //           recipient: seaportModule.address,
-  //           amountOut: bn(listing.price).add(
-  //             // Anything on top should be refunded
-  //             parseUnits("500", 6)
-  //           ),
-  //           amountInMaximum: parseEther("10"),
-  //           sqrtPriceLimitX96: 0,
-  //         },
-  //         bob.address,
-  //       ]),
-  //       // Anything on top should be refunded
-  //       value: parseEther("10"),
-  //     },
-  //     // 2. Fill USDC listing with the received funds
-  //     {
-  //       module: seaportModule.address,
-  //       data: seaportModule.interface.encodeFunctionData("acceptERC20Listing", [
-  //         {
-  //           parameters: {
-  //             ...listing.order!.params,
-  //             totalOriginalConsiderationItems: listing.order!.params.consideration.length,
-  //           },
-  //           numerator: 1,
-  //           denominator: 1,
-  //           signature: listing.order!.params.signature,
-  //           extraData: "0x",
-  //         },
-  //         {
-  //           fillTo: bob.address,
-  //           refundTo: bob.address,
-  //           revertIfIncomplete: true,
-  //           amount: listing.price,
-  //           token: listing.paymentToken!,
-  //         },
-  //         [],
-  //       ]),
-  //       value: 0,
-  //     },
-  //   ];
+    // Fetch post-state
 
-  //   // Fetch pre-state
+    const balancesAfter = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
 
-  //   const balancesBefore = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
+    // Checks
 
-  //   // Execute
+    // Alice got the USDC
+    expect(balancesAfter.alice.sub(balancesBefore.alice)).to.eq(listing.price);
 
-  //   await router.connect(bob).execute(executions, {
-  //     value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
-  //   });
+    // Bob got the NFT
+    expect(await erc721.ownerOf(listing.nft.id)).to.eq(bob.address);
 
-  //   // Fetch post-state
-
-  //   const balancesAfter = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
-  //   const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
-
-  //   // Checks
-
-  //   // Alice got the USDC
-  //   expect(balancesAfter.alice.sub(balancesBefore.alice)).to.eq(listing.price);
-
-  //   // Bob got the NFT
-  //   expect(await erc721.ownerOf(listing.nft.id)).to.eq(bob.address);
-
-  //   // Router is stateless
-  //   expect(balancesAfter.router).to.eq(0);
-  //   expect(balancesAfter.seaportModule).to.eq(0);
-  //   expect(balancesAfter.uniswapV3Module).to.eq(0);
-  //   expect(ethBalancesAfter.router).to.eq(0);
-  //   expect(ethBalancesAfter.seaportModule).to.eq(0);
-  //   expect(ethBalancesAfter.uniswapV3Module).to.eq(0);
-  // });
-
-  // it("Fill USDC listing approval-less", async () => {
-  //   // Setup
-
-  //   // Maker: Alice
-  //   // Taker: Bob
-
-  //   const listing: SeaportListing = {
-  //     seller: alice,
-  //     nft: {
-  //       kind: "erc721",
-  //       contract: erc721,
-  //       id: getRandomInteger(1, 10000),
-  //     },
-  //     paymentToken: Sdk.Common.Addresses.Usdc[chainId],
-  //     price: parseUnits(getRandomFloat(0.0001, 2).toFixed(6), 6),
-  //   };
-  //   await setupSeaportListings([listing]);
-
-  //   // In order to avoid giving USDC approval to the router (remember,
-  //   // the router is supposed to be stateless), we do create a Seaport
-  //   // order which gives the funds to the router (eg. offer = USDC and
-  //   // consideration = USDC - with the router as a private recipient).
-  //   // This way, the USDC approval will be made on the Seaport conduit
-  //   // and the router stays stateless.
-
-  //   const approval: SeaportERC20Approval = {
-  //     giver: bob,
-  //     filler: seaportModule.address,
-  //     paymentToken: listing.paymentToken!,
-  //     amount: listing.price,
-  //     zone: seaportApprovalOrderZone.address,
-  //   };
-  //   await setupSeaportERC20Approvals([approval]);
-
-  //   // Prepare executions
-
-  //   const executions: ExecutionInfo[] = [
-  //     // 1. Swap ETH for USDC and send it to Bob (for testing purposes only)
-  //     {
-  //       module: uniswapV3Module.address,
-  //       data: uniswapV3Module.interface.encodeFunctionData("ethToExactOutput", [
-  //         {
-  //           tokenIn: Sdk.Common.Addresses.Weth[chainId],
-  //           tokenOut: Sdk.Common.Addresses.Usdc[chainId],
-  //           fee: 500,
-  //           recipient: bob.address,
-  //           amountOut: bn(listing.price).add(
-  //             // Anything on top should be refunded
-  //             parseUnits("100", 6)
-  //           ),
-  //           amountInMaximum: parseEther("10"),
-  //           sqrtPriceLimitX96: 0,
-  //         },
-  //         bob.address,
-  //       ]),
-  //       // Anything on top should be refunded
-  //       value: parseEther("10"),
-  //     },
-  //     // 2. Fill approval order, so that we avoid giving approval to the router
-  //     {
-  //       module: seaportModule.address,
-  //       data: seaportModule.interface.encodeFunctionData("matchOrders", [
-  //         [
-  //           // Regular order
-  //           {
-  //             parameters: {
-  //               ...approval.orders![0].params,
-  //               totalOriginalConsiderationItems: approval.orders![0].params.consideration.length,
-  //             },
-  //             signature: approval.orders![0].params.signature,
-  //           },
-  //           // Mirror order
-  //           {
-  //             parameters: {
-  //               ...approval.orders![1].params,
-  //               totalOriginalConsiderationItems: approval.orders![1].params.consideration.length,
-  //             },
-  //             signature: "0x",
-  //           },
-  //         ],
-  //         // Match the single offer item to the single consideration item
-  //         [
-  //           {
-  //             offerComponents: [
-  //               {
-  //                 orderIndex: 0,
-  //                 itemIndex: 0,
-  //               },
-  //             ],
-  //             considerationComponents: [
-  //               {
-  //                 orderIndex: 0,
-  //                 itemIndex: 0,
-  //               },
-  //             ],
-  //           },
-  //         ],
-  //       ]),
-  //       value: 0,
-  //     },
-  //     // 2. Fill USDC listing with the received funds
-  //     {
-  //       module: seaportModule.address,
-  //       data: seaportModule.interface.encodeFunctionData("acceptERC20Listing", [
-  //         {
-  //           parameters: {
-  //             ...listing.order!.params,
-  //             totalOriginalConsiderationItems: listing.order!.params.consideration.length,
-  //           },
-  //           numerator: 1,
-  //           denominator: 1,
-  //           signature: listing.order!.params.signature,
-  //           extraData: "0x",
-  //         },
-  //         {
-  //           fillTo: bob.address,
-  //           refundTo: bob.address,
-  //           revertIfIncomplete: true,
-  //           amount: listing.price,
-  //           token: listing.paymentToken!,
-  //         },
-  //         [],
-  //       ]),
-  //       value: 0,
-  //     },
-  //   ];
-
-  //   // Fetch pre-state
-
-  //   const balancesBefore = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
-
-  //   // Execute
-
-  //   await router.connect(bob).execute(executions, {
-  //     value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
-  //   });
-
-  //   // Fetch post-state
-
-  //   const balancesAfter = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
-
-  //   // Checks
-
-  //   // Alice got the USDC
-  //   expect(balancesAfter.alice.sub(balancesBefore.alice)).to.eq(listing.price);
-
-  //   // Bob got the NFT
-  //   expect(await erc721.ownerOf(listing.nft.id)).to.eq(bob.address);
-
-  //   // Router is stateless
-  //   expect(balancesAfter.router).to.eq(0);
-  //   expect(balancesAfter.seaportModule).to.eq(0);
-  //   expect(balancesAfter.uniswapV3Module).to.eq(0);
-  // });
+    // Router is stateless
+    expect(balancesAfter.router).to.eq(0);
+    expect(balancesAfter.seaportModule).to.eq(0);
+    expect(balancesAfter.swapModule).to.eq(0);
+    expect(ethBalancesAfter.router).to.eq(0);
+    expect(ethBalancesAfter.seaportModule).to.eq(0);
+    expect(ethBalancesAfter.swapModule).to.eq(0);
+  });
 });

@@ -7,10 +7,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import {
-  FoundationListing,
-  setupFoundationListings,
-} from "../helpers/foundation";
+import { FoundationListing, setupFoundationListings } from "../helpers/foundation";
 import {
   bn,
   getChainId,
@@ -40,14 +37,12 @@ describe("[ReservoirV6_0_0] Foundation listings", () => {
 
     ({ erc721 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    foundationModule = (await ethers
+      .then((factory) => factory.deploy());
+    foundationModule = await ethers
       .getContractFactory("FoundationModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -59,9 +54,7 @@ describe("[ReservoirV6_0_0] Foundation listings", () => {
         david: await ethers.provider.getBalance(david.address),
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
-        foundationModule: await ethers.provider.getBalance(
-          foundationModule.address
-        ),
+        foundationModule: await ethers.provider.getBalance(foundationModule.address),
       };
     } else {
       const contract = new Sdk.Common.Helpers.Erc20(ethers.provider, token);
@@ -115,72 +108,60 @@ describe("[ReservoirV6_0_0] Foundation listings", () => {
 
     // Prepare executions
 
-    const totalPrice = bn(
-      listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0))
-    );
+    const totalPrice = bn(listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)));
     const executions: ExecutionInfo[] = [
       // 1. Fill listings
       listingsCount > 1
         ? {
             module: foundationModule.address,
-            data: foundationModule.interface.encodeFunctionData(
-              "acceptETHListings",
+            data: foundationModule.interface.encodeFunctionData("acceptETHListings", [
+              listings.map((listing) => ({
+                token: listing.nft.contract.address,
+                tokenId: listing.nft.id,
+                price: listing.price,
+              })),
+              {
+                fillTo: carol.address,
+                refundTo: carol.address,
+                revertIfIncomplete,
+                amount: totalPrice,
+              },
               [
-                listings.map((listing) => ({
-                  token: listing.nft.contract.address,
-                  tokenId: listing.nft.id,
-                  price: listing.price,
+                ...feesOnTop.map((amount) => ({
+                  recipient: emilio.address,
+                  amount,
                 })),
-                {
-                  fillTo: carol.address,
-                  refundTo: carol.address,
-                  revertIfIncomplete,
-                  amount: totalPrice,
-                },
-                [
-                  ...feesOnTop.map((amount) => ({
-                    recipient: emilio.address,
-                    amount,
-                  })),
-                ],
-              ]
-            ),
+              ],
+            ]),
             value: totalPrice.add(
               // Anything on top should be refunded
-              feesOnTop
-                .reduce((a, b) => bn(a).add(b), bn(0))
-                .add(parseEther("0.1"))
+              feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
             ),
           }
         : {
             module: foundationModule.address,
-            data: foundationModule.interface.encodeFunctionData(
-              "acceptETHListing",
+            data: foundationModule.interface.encodeFunctionData("acceptETHListing", [
+              {
+                token: listings[0].nft.contract.address,
+                tokenId: listings[0].nft.id,
+                price: listings[0].price,
+              },
+              {
+                fillTo: carol.address,
+                refundTo: carol.address,
+                revertIfIncomplete,
+                amount: totalPrice,
+              },
               [
-                {
-                  token: listings[0].nft.contract.address,
-                  tokenId: listings[0].nft.id,
-                  price: listings[0].price,
-                },
-                {
-                  fillTo: carol.address,
-                  refundTo: carol.address,
-                  revertIfIncomplete,
-                  amount: totalPrice,
-                },
-                [
-                  ...feesOnTop.map((amount) => ({
-                    recipient: emilio.address,
-                    amount,
-                  })),
-                ],
-              ]
-            ),
+                ...feesOnTop.map((amount) => ({
+                  recipient: emilio.address,
+                  amount,
+                })),
+              ],
+            ]),
             value: totalPrice.add(
               // Anything on top should be refunded
-              feesOnTop
-                .reduce((a, b) => bn(a).add(b), bn(0))
-                .add(parseEther("0.1"))
+              feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
             ),
           },
     ];
@@ -190,20 +171,12 @@ describe("[ReservoirV6_0_0] Foundation listings", () => {
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      listings.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && listings.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
       return;
     }
@@ -215,9 +188,7 @@ describe("[ReservoirV6_0_0] Foundation listings", () => {
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
@@ -229,10 +200,7 @@ describe("[ReservoirV6_0_0] Foundation listings", () => {
     // Alice got the payment
     expect(balancesAfter.alice.sub(balancesBefore.alice)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === alice.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === alice.address)
         .map(({ price }) =>
           bn(price).sub(
             // Take into consideration the protocol fee
@@ -244,10 +212,7 @@ describe("[ReservoirV6_0_0] Foundation listings", () => {
     // Bob got the payment
     expect(balancesAfter.bob.sub(balancesBefore.bob)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === bob.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === bob.address)
         .map(({ price }) =>
           bn(price).sub(
             // Take into consideration the protocol fee
@@ -278,9 +243,7 @@ describe("[ReservoirV6_0_0] Foundation listings", () => {
       if (!listings[i].isCancelled) {
         expect(await erc721.ownerOf(listings[i].nft.id)).to.eq(carol.address);
       } else {
-        expect(await erc721.ownerOf(listings[i].nft.id)).to.eq(
-          listings[i].seller.address
-        );
+        expect(await erc721.ownerOf(listings[i].nft.id)).to.eq(listings[i].seller.address);
       }
     }
 
@@ -289,10 +252,10 @@ describe("[ReservoirV6_0_0] Foundation listings", () => {
     expect(balancesAfter.foundationModule).to.eq(0);
   };
 
-  for (let multiple of [false, true]) {
-    for (let partial of [false, true]) {
-      for (let chargeFees of [false, true]) {
-        for (let revertIfIncomplete of [false, true]) {
+  for (const multiple of [false, true]) {
+    for (const partial of [false, true]) {
+      for (const chargeFees of [false, true]) {
+        for (const revertIfIncomplete of [false, true]) {
           it(
             "[eth]" +
               `${multiple ? "[multiple-orders]" : "[single-order]"}` +
