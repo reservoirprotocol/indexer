@@ -47,7 +47,7 @@ if (config.doBackgroundWork) {
         },
       });
 
-      if (!skipTopBidSimulation) {
+      if (!skipTopBidSimulation && config.chainId === 1) {
         await inject({
           method: "POST",
           url: `/tokens/simulate-top-bid/v1`,
