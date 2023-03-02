@@ -253,7 +253,7 @@ const getRateLimiter = (orderbook: string) => {
 
 const postOrder = async (
   orderbook: string,
-  orderId: string,
+  orderId: string | null,
   orderData: PostOrderExternalParams["orderData"],
   orderbookApiKey: string
 ) => {
@@ -356,7 +356,7 @@ export type PostOrderExternalParams =
     }
   | {
       crossPostingOrderId: number;
-      orderId: string;
+      orderId: string | null;
       orderData: Sdk.X2Y2.Types.LocalOrder;
       orderbook: "x2y2";
       orderbookApiKey?: string;

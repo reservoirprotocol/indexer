@@ -489,7 +489,7 @@ export const postOrderV3Options: RouteOptions = {
 
           let crossPostingOrder;
 
-          const orderId = new Sdk.X2Y2.Order(config.chainId, order.data).params.itemHash;
+          const orderId = null;
 
           if (orderbook === "x2y2") {
             // We do not save the order directly since X2Y2 orders are not fillable

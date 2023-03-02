@@ -8,7 +8,7 @@ export enum CrossPostingOrderStatus {
 
 export type CrossPostingOrder = {
   id?: number;
-  orderId: string;
+  orderId: string | null;
   kind: string;
   orderbook: string;
   source: string;
