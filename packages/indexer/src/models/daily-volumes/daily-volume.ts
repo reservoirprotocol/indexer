@@ -272,13 +272,9 @@ export class DailyVolume {
       results.push({
         collection_id: -1,
         volume: 0,
-        volume_clean: 0,
         rank: -1,
-        rank_clean: -1,
         floor_sell_value: 0,
-        floor_sell_value_clean: 0,
-        sales_count: 0,
-        sales_count_clean: 0,
+        volume_change: 0,
       });
 
       const queries: PgPromiseQuery[] = [];
