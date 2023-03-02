@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import * as Addresses from "@reservoir0x/sdk/src/router/v6/addresses";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import hre, { ethers } from "hardhat";
 
@@ -45,10 +47,15 @@ export class DeploymentHelper {
 
 const main = async () => {
   const deploymentHelper = await DeploymentHelper.getInstance();
+  const chainId = await deploymentHelper.deployer.getChainId();
 
-  await deploymentHelper.deploy("Permit2Module", [deploymentHelper.deployer.address], {
-    verifyOnEtherscan: true,
-  });
+  // await deploymentHelper.deploy(
+  //   "SwapModule",
+  //   [deploymentHelper.deployer.address, Addresses.Router[chainId]],
+  //   {
+  //     verifyOnEtherscan: true,
+  //   }
+  // );
 };
 
 main()

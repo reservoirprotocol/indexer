@@ -12,24 +12,16 @@ export const Router: ChainIdToAddress = {
 
 // Utility modules
 
-export const WETHModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0xe2537569b2f5c320db0c5b2510728d8de0da28e0",
-  [Network.EthereumGoerli]: "0x5282b9af3f38d4a5d1bb707f5d3acbd951950074",
-  [Network.Polygon]: "0x9a98786764e579aa0fe00947f56d29d5cc601eaa",
-  [Network.Optimism]: "0x708a1e6fd3bb995788c26fbcb418f85b1e952df0",
-};
-
 export const Permit2Module: ChainIdToAddress = {
   [Network.Ethereum]: "0x482e4d362c8a2ea19e07b7234a14084a7d740b42",
   [Network.Polygon]: "0x5db9abb17333f6eb12386eda955d6fc779bd78f4",
   [Network.Optimism]: "0xc10d7937a42865d9355384b884f7d694c15e7781",
 };
 
-export const UniswapV3Module: ChainIdToAddress = {
-  [Network.Ethereum]: "0xe5ee6a6e8d57d1d315d1898c68ea1bc487b6ea92",
-  [Network.EthereumGoerli]: "0x6748fce2eabad140b36dc7300ad2eb31631410be",
-  [Network.Polygon]: "0x5f78d53122f88f3abbed88090e1648b5f9f824bd",
-  [Network.Optimism]: "0x9ebf2302ab53a2357dd4d802698aac361b956954",
+export const SwapModule: ChainIdToAddress = {
+  [Network.Ethereum]: "0x96fefdb0a543b3e30d8aaae865b7a48378d85382",
+  [Network.Polygon]: "0xd56789e9d7513fcafbf45a0e6333f381766092d2",
+  [Network.Optimism]: "0x3d2f5a97b70ee178bc0a7ad2068406e6d62c8b52",
 };
 
 // Exchange modules
@@ -90,5 +82,3 @@ export const NFTXModule: ChainIdToAddress = {
 export const RaribleModule: ChainIdToAddress = {
   [Network.Ethereum]: "0xa29d7914cd525dea9afad0dceec6f49404476486",
 };
-
-export const SwapModule: ChainIdToAddress = {};

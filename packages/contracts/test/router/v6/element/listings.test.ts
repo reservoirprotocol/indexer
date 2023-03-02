@@ -31,32 +31,23 @@ describe("[ReservoirV6_0_0] Element listings", () => {
   let erc1155: Contract;
   let erc721: Contract;
   let router: Contract;
-  let uniswapV3Module: Contract;
   let elementModule: Contract;
+  let swapModule: Contract;
 
   beforeEach(async () => {
     [deployer, alice, bob, carol, david, emilio] = await ethers.getSigners();
 
     ({ erc721, erc1155 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    await router.deployed();
-    
-    uniswapV3Module = (await ethers
-      .getContractFactory("UniswapV3Module", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    await uniswapV3Module.deployed();
-    
-    elementModule = (await ethers
+      .then((factory) => factory.deploy());
+    elementModule = await ethers
       .getContractFactory("ElementModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    await elementModule.deployed();
+      .then((factory) => factory.deploy(router.address, router.address));
+    swapModule = await ethers
+      .getContractFactory("SwapModule", deployer)
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -69,9 +60,7 @@ describe("[ReservoirV6_0_0] Element listings", () => {
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
         elementModule: await ethers.provider.getBalance(elementModule.address),
-        uniswapV3Module: await ethers.provider.getBalance(
-          uniswapV3Module.address
-        ),
+        swapModule: await ethers.provider.getBalance(swapModule.address),
       };
     } else {
       const contract = new Sdk.Common.Helpers.Erc20(ethers.provider, token);
@@ -83,7 +72,7 @@ describe("[ReservoirV6_0_0] Element listings", () => {
         emilio: await contract.getBalance(emilio.address),
         router: await contract.getBalance(router.address),
         elementModule: await contract.getBalance(elementModule.address),
-        uniswapV3Module: await contract.getBalance(uniswapV3Module.address),
+        swapModule: await contract.getBalance(swapModule.address),
       };
     }
   };
@@ -101,7 +90,7 @@ describe("[ReservoirV6_0_0] Element listings", () => {
     partial: boolean,
     // Number of listings to fill
     listingsCount: number,
-    useBatchSignedOrder: boolean,
+    useBatchSignedOrder: boolean
   ) => {
     // Setup
 
@@ -111,10 +100,9 @@ describe("[ReservoirV6_0_0] Element listings", () => {
     const paymentToken = useUsdc
       ? Sdk.Common.Addresses.Usdc[chainId]
       : Sdk.Common.Addresses.Eth[chainId];
-    const parsePrice = (price: string) =>
-      useUsdc ? parseUnits(price, 6) : parseEther(price);
+    const parsePrice = (price: string) => (useUsdc ? parseUnits(price, 6) : parseEther(price));
     const useERC721 = useBatchSignedOrder || getRandomBoolean();
-  
+
     const listings: ElementListing[] = [];
     const feesOnTop: BigNumber[] = [];
     for (let i = 0; i < listingsCount; i++) {
@@ -138,48 +126,48 @@ describe("[ReservoirV6_0_0] Element listings", () => {
       }
     }
     await setupElementListings(listings);
-  
+
     // Prepare executions
-  
-    const totalPrice = bn(
-      listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0))
-    );
+
+    const totalPrice = bn(listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)));
     const executions: ExecutionInfo[] = [];
-  
-    // 1. When filling USDC listings, swap ETH to USDC on Uniswap V3 (for testing purposes only)
+
+    // 1. When filling USDC listings, swap ETH to USDC and transfer to the module (to avoid giving a permit)
     if (useUsdc) {
       executions.push({
-        module: uniswapV3Module.address,
-        data: uniswapV3Module.interface.encodeFunctionData(
-          "ethToExactOutput",
-          [
-            {
+        module: swapModule.address,
+        data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
+          {
+            params: {
               tokenIn: Sdk.Common.Addresses.Weth[chainId],
               tokenOut: Sdk.Common.Addresses.Usdc[chainId],
               fee: 500,
-              // Send USDC to the Seaport module
-              recipient: elementModule.address,
+              recipient: swapModule.address,
               amountOut: listings
-                .map(({ price }, i) =>
-                  bn(price).add(chargeFees ? feesOnTop[i] : 0)
-                )
-                .reduce((a, b) => bn(a).add(b), bn(0))
-                // Anything on top should be refunded
-                .add(parsePrice("1000")),
+                .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
+                .reduce((a, b) => bn(a).add(b), bn(0)),
               amountInMaximum: parseEther("100"),
               sqrtPriceLimitX96: 0,
             },
-            // Refund to Carol
-            carol.address,
-          ]
-        ),
+            transfers: [
+              {
+                recipient: elementModule.address,
+                amount: listings
+                  .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
+                  .reduce((a, b) => bn(a).add(b), bn(0)),
+                toETH: false,
+              },
+            ],
+          },
+          // Refund to Carol
+          carol.address,
+        ]),
         // Anything on top should be refunded
         value: parseEther("100"),
       });
     }
-  
+
     // 2. Fill listings
-    let data;
     const listingParams = {
       fillTo: carol.address,
       refundTo: carol.address,
@@ -194,31 +182,25 @@ describe("[ReservoirV6_0_0] Element listings", () => {
         amount,
       })),
     ];
+
+    let data: string;
     if (useBatchSignedOrder) {
       if (listings.length > 1) {
         data = elementModule.interface.encodeFunctionData(
-          `accept${ useUsdc ? "ERC20" : "ETH" }ListingsERC721V2`,
-          [
-            listings.map((listing) => listing.order!.getRaw()),
-            listingParams,
-            fees,
-          ]
+          `accept${useUsdc ? "ERC20" : "ETH"}ListingsERC721V2`,
+          [listings.map((listing) => listing.order!.getRaw()), listingParams, fees]
         );
       } else {
         data = elementModule.interface.encodeFunctionData(
-          `accept${ useUsdc ? "ERC20" : "ETH" }ListingERC721V2`,
-          [
-            listings[0].order!.getRaw(),
-            listingParams,
-            fees,
-          ]
+          `accept${useUsdc ? "ERC20" : "ETH"}ListingERC721V2`,
+          [listings[0].order!.getRaw(), listingParams, fees]
         );
       }
     } else {
       const tokenKind = listings[0].nft.kind.toUpperCase();
       if (listings.length > 1) {
         data = elementModule.interface.encodeFunctionData(
-          `accept${ useUsdc ? "ERC20" : "ETH" }Listings${ tokenKind }`,
+          `accept${useUsdc ? "ERC20" : "ETH"}Listings${tokenKind}`,
           [
             listings.map((listing) => listing.order!.getRaw()),
             listings.map((listing) => listing.order!.getRaw()),
@@ -231,13 +213,11 @@ describe("[ReservoirV6_0_0] Element listings", () => {
         );
       } else {
         data = elementModule.interface.encodeFunctionData(
-          `accept${ useUsdc ? "ERC20" : "ETH" }Listing${ tokenKind }`,
+          `accept${useUsdc ? "ERC20" : "ETH"}Listing${tokenKind}`,
           [
             listings[0].order!.getRaw(),
             listings[0].order!.getRaw(),
-            tokenKind === "ERC1155"
-              ? listings[0].nft.amount ?? "1"
-              : undefined,
+            tokenKind === "ERC1155" ? listings[0].nft.amount ?? "1" : undefined,
             listingParams,
             fees,
           ].filter(Boolean)
@@ -247,73 +227,56 @@ describe("[ReservoirV6_0_0] Element listings", () => {
     executions.push({
       module: elementModule.address,
       data,
-      value: useUsdc ? 0
+      value: useUsdc
+        ? 0
         : totalPrice.add(
-          // Anything on top should be refunded
-          feesOnTop
-            .reduce((a, b) => bn(a).add(b), bn(0))
-            .add(parsePrice("0.1"))
-        )
-    })
-  
+            // Anything on top should be refunded
+            feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parsePrice("0.1"))
+          ),
+    });
+
     // Checks
-  
+
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      listings.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && listings.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
-    
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
+
       return;
     }
-  
+
     // Fetch pre-state
-  
+
     const balancesBefore = await getBalances(paymentToken);
-  
+
     // Execute
-  
+
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
-  
+
     // Fetch post-state
-  
+
     const balancesAfter = await getBalances(paymentToken);
-  
+
     // Checks
-  
+
     // Alice got the payment
     expect(balancesAfter.alice.sub(balancesBefore.alice)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === alice.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === alice.address)
         .map(({ price }) => price)
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
     // Bob got the payment
     expect(balancesAfter.bob.sub(balancesBefore.bob)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === bob.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === bob.address)
         .map(({ price }) => price)
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
@@ -333,7 +296,7 @@ describe("[ReservoirV6_0_0] Element listings", () => {
           .reduce((a, b) => bn(a).add(b), bn(0))
       );
     }
-  
+
     // Carol got the NFTs from all filled orders
     for (let i = 0; i < listings.length; i++) {
       const nft = listings[i].nft;
@@ -345,35 +308,31 @@ describe("[ReservoirV6_0_0] Element listings", () => {
         }
       } else {
         if (nft.kind === "erc721") {
-          expect(await nft.contract.ownerOf(nft.id)).to.eq(
-            listings[i].seller.address
-          );
+          expect(await nft.contract.ownerOf(nft.id)).to.eq(listings[i].seller.address);
         } else {
-          expect(
-            await nft.contract.balanceOf(listings[i].seller.address, nft.id)
-          ).to.eq(1);
+          expect(await nft.contract.balanceOf(listings[i].seller.address, nft.id)).to.eq(1);
         }
       }
     }
-  
+
     // Router is stateless
     expect(balancesAfter.router).to.eq(0);
     expect(balancesAfter.elementModule).to.eq(0);
   };
-  
-  for (let useUsdc of [false, true]) {
-    for (let multiple of [false, true]) {
-      for (let orderV2 of [false, true]) {
-        for (let partial of [false, true]) {
-          for (let chargeFees of [false, true]) {
-            for (let revertIfIncomplete of [false, true]) {
+
+  for (const useUsdc of [false, true]) {
+    for (const multiple of [false, true]) {
+      for (const orderV2 of [false, true]) {
+        for (const partial of [false, true]) {
+          for (const chargeFees of [false, true]) {
+            for (const revertIfIncomplete of [false, true]) {
               it(
                 `${useUsdc ? "[usdc]" : "[eth]"}` +
-                `${multiple ? "[multiple-orders]" : "[single-order]"}` +
-                `${orderV2 ? "[orderV2]" : ""}` +
-                `${partial ? "[partial]" : "[full]"}` +
-                `${chargeFees ? "[fees]" : "[no-fees]"}` +
-                `${revertIfIncomplete ? "[reverts]" : "[skip-reverts]"}`,
+                  `${multiple ? "[multiple-orders]" : "[single-order]"}` +
+                  `${orderV2 ? "[orderV2]" : ""}` +
+                  `${partial ? "[partial]" : "[full]"}` +
+                  `${chargeFees ? "[fees]" : "[no-fees]"}` +
+                  `${revertIfIncomplete ? "[reverts]" : "[skip-reverts]"}`,
                 async () =>
                   testAcceptListings(
                     useUsdc,
@@ -390,5 +349,4 @@ describe("[ReservoirV6_0_0] Element listings", () => {
       }
     }
   }
-  
 });

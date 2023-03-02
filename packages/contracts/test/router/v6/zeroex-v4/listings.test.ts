@@ -7,15 +7,11 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import {
-  SeaportERC20Approval,
-  setupSeaportERC20Approvals,
-} from "../helpers/seaport";
+import { SeaportERC20Approval, setupSeaportERC20Approvals } from "../helpers/seaport";
 import { ZeroExV4Listing, setupZeroExV4Listings } from "../helpers/zeroex-v4";
 import {
   bn,
   getChainId,
-  getCurrentTimestamp,
   getRandomBoolean,
   getRandomFloat,
   getRandomInteger,
@@ -38,7 +34,7 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
   let router: Contract;
   let seaportApprovalOrderZone: Contract;
   let seaportModule: Contract;
-  let uniswapV3Module: Contract;
+  let swapModule: Contract;
   let zeroExV4Module: Contract;
 
   beforeEach(async () => {
@@ -46,27 +42,21 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
 
     ({ erc721, erc1155 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportApprovalOrderZone = (await ethers
+      .then((factory) => factory.deploy());
+    seaportApprovalOrderZone = await ethers
       .getContractFactory("SeaportApprovalOrderZone", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportModule = (await ethers
+      .then((factory) => factory.deploy());
+    seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    uniswapV3Module = (await ethers
-      .getContractFactory("UniswapV3Module", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    zeroExV4Module = (await ethers
+      .then((factory) => factory.deploy(router.address, router.address));
+    swapModule = await ethers
+      .getContractFactory("SwapModule", deployer)
+      .then((factory) => factory.deploy(router.address, router.address));
+    zeroExV4Module = await ethers
       .getContractFactory("ZeroExV4Module", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -79,9 +69,8 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
         seaportModule: await ethers.provider.getBalance(seaportModule.address),
-        zeroExV4Module: await ethers.provider.getBalance(
-          zeroExV4Module.address
-        ),
+        zeroExV4Module: await ethers.provider.getBalance(zeroExV4Module.address),
+        swapModule: await ethers.provider.getBalance(swapModule.address),
       };
     } else {
       const contract = new Sdk.Common.Helpers.Erc20(ethers.provider, token);
@@ -94,6 +83,7 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
         router: await contract.getBalance(router.address),
         seaportModule: await ethers.provider.getBalance(seaportModule.address),
         zeroExV4Module: await contract.getBalance(zeroExV4Module.address),
+        swapModule: await contract.getBalance(swapModule.address),
       };
     }
   };
@@ -121,8 +111,7 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
     const paymentToken = useUsdc
       ? Sdk.Common.Addresses.Usdc[chainId]
       : Sdk.Common.Addresses.Eth[chainId];
-    const parsePrice = (price: string) =>
-      useUsdc ? parseUnits(price, 6) : parseEther(price);
+    const parsePrice = (price: string) => (useUsdc ? parseUnits(price, 6) : parseEther(price));
     const useERC1155 = getRandomBoolean();
 
     const listings: ZeroExV4Listing[] = [];
@@ -148,9 +137,7 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
     }
     await setupZeroExV4Listings(listings);
 
-    const totalPrice = bn(
-      listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0))
-    );
+    const totalPrice = bn(listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)));
 
     const approval: SeaportERC20Approval = {
       giver: carol,
@@ -171,32 +158,35 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
     const executions: ExecutionInfo[] = [
       ...(useUsdc
         ? [
-            // 1. When filling USDC listings, swap ETH to USDC on Uniswap V3 (for testing purposes only)
+            // 1. When filling USDC listings, swap ETH to USDC (for testing purposes only)
             {
-              module: uniswapV3Module.address,
-              data: uniswapV3Module.interface.encodeFunctionData(
-                "ethToExactOutput",
-                [
-                  {
+              module: swapModule.address,
+              data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
+                {
+                  params: {
                     tokenIn: Sdk.Common.Addresses.Weth[chainId],
                     tokenOut: Sdk.Common.Addresses.Usdc[chainId],
                     fee: 500,
-                    // Send USDC to the Carol
-                    recipient: carol.address,
+                    recipient: swapModule.address,
                     amountOut: listings
-                      .map(({ price }, i) =>
-                        bn(price).add(chargeFees ? feesOnTop[i] : 0)
-                      )
-                      .reduce((a, b) => bn(a).add(b), bn(0))
-                      // Anything on top should be refunded
-                      .add(parsePrice("1000")),
+                      .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
+                      .reduce((a, b) => bn(a).add(b), bn(0)),
                     amountInMaximum: parseEther("100"),
                     sqrtPriceLimitX96: 0,
                   },
-                  // Refund to Carol
-                  carol.address,
-                ]
-              ),
+                  transfers: [
+                    {
+                      recipient: carol.address,
+                      amount: listings
+                        .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
+                        .reduce((a, b) => bn(a).add(b), bn(0)),
+                      toETH: false,
+                    },
+                  ],
+                },
+                // Refund to Carol
+                carol.address,
+              ]),
               // Anything on top should be refunded
               value: parseEther("100"),
             },
@@ -278,9 +268,7 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
               ? 0
               : totalPrice.add(
                   // Anything on top should be refunded
-                  feesOnTop
-                    .reduce((a, b) => bn(a).add(b), bn(0))
-                    .add(parsePrice("0.1"))
+                  feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parsePrice("0.1"))
                 ),
           }
         : {
@@ -290,9 +278,7 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
               [
                 listings[0].order!.getRaw(),
                 listings[0].order!.getRaw(),
-                tokenKind === "ERC1155"
-                  ? listings[0].nft.amount ?? "1"
-                  : undefined,
+                tokenKind === "ERC1155" ? listings[0].nft.amount ?? "1" : undefined,
                 {
                   fillTo: carol.address,
                   refundTo: carol.address,
@@ -313,9 +299,7 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
               ? 0
               : totalPrice.add(
                   // Anything on top should be refunded
-                  feesOnTop
-                    .reduce((a, b) => bn(a).add(b), bn(0))
-                    .add(parsePrice("0.1"))
+                  feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parsePrice("0.1"))
                 ),
           },
     ];
@@ -325,20 +309,12 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      listings.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && listings.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
       return;
     }
@@ -350,9 +326,7 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
@@ -364,20 +338,14 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
     // Alice got the payment
     expect(balancesAfter.alice.sub(balancesBefore.alice)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === alice.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === alice.address)
         .map(({ price }) => price)
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
     // Bob got the payment
     expect(balancesAfter.bob.sub(balancesBefore.bob)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === bob.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === bob.address)
         .map(({ price }) => price)
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
@@ -409,13 +377,9 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
         }
       } else {
         if (nft.kind === "erc721") {
-          expect(await nft.contract.ownerOf(nft.id)).to.eq(
-            listings[i].seller.address
-          );
+          expect(await nft.contract.ownerOf(nft.id)).to.eq(listings[i].seller.address);
         } else {
-          expect(
-            await nft.contract.balanceOf(listings[i].seller.address, nft.id)
-          ).to.eq(1);
+          expect(await nft.contract.balanceOf(listings[i].seller.address, nft.id)).to.eq(1);
         }
       }
     }
@@ -423,13 +387,14 @@ describe("[ReservoirV6_0_0] ZeroExV4 listings", () => {
     // Router is stateless
     expect(balancesAfter.router).to.eq(0);
     expect(balancesAfter.zeroExV4Module).to.eq(0);
+    expect(balancesAfter.swapModule).to.eq(0);
   };
 
-  for (let useUsdc of [false, true]) {
-    for (let multiple of [false, true]) {
-      for (let partial of [false, true]) {
-        for (let chargeFees of [false, true]) {
-          for (let revertIfIncomplete of [false, true]) {
+  for (const useUsdc of [false, true]) {
+    for (const multiple of [false, true]) {
+      for (const partial of [false, true]) {
+        for (const chargeFees of [false, true]) {
+          for (const revertIfIncomplete of [false, true]) {
             it(
               `${useUsdc ? "[usdc]" : "[eth]"}` +
                 `${multiple ? "[multiple-orders]" : "[single-order]"}` +

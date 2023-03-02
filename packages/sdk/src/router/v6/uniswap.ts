@@ -34,8 +34,8 @@ const getToken = async (
 
 export type TransferDetail = {
   recipient: string;
-  toETH: boolean;
   amount: BigNumberish;
+  toETH: boolean;
 };
 
 export const generateSwapExecutions = async (
@@ -46,8 +46,6 @@ export const generateSwapExecutions = async (
   toTokenAmount: BigNumberish,
   options: {
     swapModule: Contract;
-    wethModule: Contract;
-    // recipient: string;
     transfers: TransferDetail[];
     refundTo: string;
   }
@@ -169,7 +167,7 @@ export const generateSwapExecutions = async (
               amountInMaximum: params.params.amountInMaximum,
               sqrtPriceLimitX96: params.params.sqrtPriceLimitX96,
             },
-            recipients: options.transfers,
+            transfers: options.transfers,
           },
           options.refundTo,
         ]

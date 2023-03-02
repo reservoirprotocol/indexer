@@ -176,18 +176,18 @@
                 "type": "address"
               },
               {
-                "internalType": "bool",
-                "name": "toETH",
-                "type": "bool"
-              },
-              {
                 "internalType": "uint256",
                 "name": "amount",
                 "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "toETH",
+                "type": "bool"
               }
             ],
             "internalType": "struct SwapModule.TransferDetail[]",
-            "name": "recipients",
+            "name": "transfers",
             "type": "tuple[]"
           }
         ],
@@ -260,18 +260,18 @@
                 "type": "address"
               },
               {
-                "internalType": "bool",
-                "name": "toETH",
-                "type": "bool"
-              },
-              {
                 "internalType": "uint256",
                 "name": "amount",
                 "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "toETH",
+                "type": "bool"
               }
             ],
             "internalType": "struct SwapModule.TransferDetail[]",
-            "name": "recipients",
+            "name": "transfers",
             "type": "tuple[]"
           }
         ],
@@ -375,14 +375,14 @@
             "type": "address"
           },
           {
-            "internalType": "bool",
-            "name": "toETH",
-            "type": "bool"
-          },
-          {
             "internalType": "uint256",
             "name": "amount",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "toETH",
+            "type": "bool"
           }
         ],
         "internalType": "struct SwapModule.TransferDetail[]",
@@ -405,14 +405,14 @@
             "type": "address"
           },
           {
-            "internalType": "bool",
-            "name": "toETH",
-            "type": "bool"
-          },
-          {
             "internalType": "uint256",
             "name": "amount",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "toETH",
+            "type": "bool"
           }
         ],
         "internalType": "struct SwapModule.TransferDetail[]",
