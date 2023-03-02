@@ -519,10 +519,6 @@ export class DailyVolume {
     }
 
     try {
-      if (!(await DailyVolume.calculateVolumeChange(0, useCleanValues))) {
-        return false;
-      }
-
       if (!(await DailyVolume.calculateVolumeChange(1, useCleanValues))) {
         return false;
       }
@@ -533,9 +529,6 @@ export class DailyVolume {
         return false;
       }
 
-      if (!(await DailyVolume.cacheFloorSalePrice(0, useCleanValues))) {
-        return false;
-      }
       if (!(await DailyVolume.cacheFloorSalePrice(1, useCleanValues))) {
         return false;
       }
