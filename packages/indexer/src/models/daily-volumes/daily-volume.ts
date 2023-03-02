@@ -224,37 +224,21 @@ export class DailyVolume {
 
   /**
    * update the 0 day values for the collections (day0_volume, day0_rank, etc)
-   * 0 day values is the current time - the last time we calculated the daily volumes
+   * 0 day values are the values since we calculated daily volumes last time
    *
    **/
   public static async update0Day(collectionId = "") {
-    // get the 0day timestamp, which is the last time we calculated the daily volumes minue the current time
-
-    const lastCalculated = await idb.oneOrNone<{ timestamp: number }>(
-      `
-        SELECT timestamp FROM daily_volumes WHERE collection_id = -1 ORDER BY timestamp DESC LIMIT 1
-      `
-    );
-
-    if (!lastCalculated) {
-      logger.error("daily-volumes", `Error while trying to fetch the last calculated timestamp`);
-      return false;
-    }
-
     const date = new Date();
-
-    const day0Timestamp = lastCalculated.timestamp / 1000;
-    const day0TimestampEnd = date.getTime() / 1000;
+    date.setUTCHours(0, 30, 0, 0);
+    const lastDailyTimestamp = date.getTime() / 1000;
 
     const results = await ridb.manyOrNone(
       `
           SELECT t1.collection_id,
-            t1.volume,
-            COALESCE(t2.volume, 0) AS volume_clean,
+             t1.volume,
             t1.rank,
-            COALESCE(t2.rank, -1) AS rank_clean,
             t1.floor_sell_value,
-		    COALESCE(t2.floor_sell_value, 0) AS floor_sell_value_clean,
+            t1.volume_change
 			t1.sales_count,
 		    COALESCE(t2.sales_count, 0) AS sales_count_clean
           FROM 
@@ -263,13 +247,17 @@ export class DailyVolume {
               sum("fe"."price") AS "volume",              
               RANK() OVER (ORDER BY SUM(price) DESC, "collection_id") "rank",
               min(fe.price) AS "floor_sell_value",
-              count(fe.price) AS "sales_count"
+              (
+                  SELECT sum("fe"."price") - (SELECT volume
+                    FROM daily_volumes
+                    WHERE daily_volumes.collection_id  = t.collection_id
+                    ORDER BY daily_volumes.updated_at DESC LIMIT 1
+              ) ) as "volume_change"
             FROM "fill_events_2" "fe"
               JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
               JOIN "collections" "c" ON "t"."collection_id" = "c"."id"
             WHERE
-              "fe"."timestamp" >= $/startTime/
-              AND "fe"."timestamp" < $/endTime/
+              "fe"."timestamp" >= $/lastDailyTimestamp/
               AND fe.price > 0
               AND fe.is_primary IS NOT TRUE 
               ${collectionId ? "AND collection_id = $/collectionId/" : ""}
@@ -279,14 +267,12 @@ export class DailyVolume {
               "collection_id",
               sum("fe"."price") AS "volume",              
               RANK() OVER (ORDER BY SUM(price) DESC, "collection_id") "rank",
-              min(fe.price) AS "floor_sell_value",
-              count(fe.price) AS "sales_count"
+              min(fe.price) AS "floor_sell_value"
             FROM "fill_events_2" "fe"
               JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
               JOIN "collections" "c" ON "t"."collection_id" = "c"."id"
             WHERE
-              "fe"."timestamp" >= $/startTime/
-              AND "fe"."timestamp" < $/endTime/
+              "fe"."timestamp" >= $/lastDailyTimestamp/
               AND fe.price > 0
               AND fe.is_primary IS NOT TRUE 
               AND coalesce(fe.wash_trading_score, 0) = 0
@@ -295,8 +281,7 @@ export class DailyVolume {
           ON (t1.collection_id = t2.collection_id)
         `,
       {
-        startTime: day0Timestamp,
-        endTime: day0TimestampEnd,
+        lastDailyTimestamp: lastDailyTimestamp,
         collectionId,
       }
     );
@@ -323,13 +308,9 @@ export class DailyVolume {
             UPDATE collections
             SET
               day0_volume = $/volume/,
-              day0_volume_clean = $/volume_clean/,
               day0_rank = $/rank/,
-              day0_rank_clean = $/rank_clean/,
               day0_floor_sell_value = $/floor_sell_value/,
-              day0_floor_sell_value_clean = $/floor_sell_value_clean/,
-              day0_sales_count = $/sales_count/,
-              day0_sales_count_clean = $/sales_count_clean/
+              day0_volume_change = $/volume_change/
             WHERE id = $/collection_id/
             `,
           values: values,
@@ -342,7 +323,7 @@ export class DailyVolume {
       } catch (error: any) {
         logger.error(
           "daily-volumes",
-          `Error while inserting/updating daily volumes. startTime=${day0Timestamp}, endTime=${day0TimestampEnd}`
+          `Error while inserting/updating daily volumes. collectionId=${collectionId}`
         );
 
         return false;
