@@ -11,6 +11,9 @@ alter table collections
 alter table collections
     add day0_volume numeric(78) default 0;
 
+-- CREATE INDEX "collections_day0_volume_index"
+--     ON "collections" ("day0_volume" DESC);
+
 -- Down Migration
 
 alter table daily_volumes
