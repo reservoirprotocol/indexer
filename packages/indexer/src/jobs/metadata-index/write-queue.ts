@@ -131,13 +131,15 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        await flagStatusUpdate.addToQueue([
-          {
-            contract,
-            tokenId,
-            isFlagged: Boolean(flagged),
-          },
-        ]);
+        if (flagged != undefined) {
+          await flagStatusUpdate.addToQueue([
+            {
+              contract,
+              tokenId,
+              isFlagged: Boolean(flagged),
+            },
+          ]);
+        }
 
         // Fetch all existing keys
         const addedTokenAttributes = [];

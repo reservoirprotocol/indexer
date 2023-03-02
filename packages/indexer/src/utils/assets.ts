@@ -1,7 +1,7 @@
 import _ from "lodash";
 import { encrypt } from "@/common/utils";
-import { getNetworkSettings } from "@/config/network";
 import { MergeRefs, ReqRefDefaults } from "@hapi/hapi";
+import { getNetworkSettings } from "@/config/network";
 
 export class Assets {
   public static getLocalAssetsLink(assets: string | string[]) {

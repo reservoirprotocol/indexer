@@ -134,7 +134,7 @@ export class MetadataApi {
         value: string | number;
       }>;
     },
-    method = "opensea"
+    method = ""
   ): Promise<TokenMetadata | null> {
     method = method === "" ? config.metadataIndexingMethod : method;
 

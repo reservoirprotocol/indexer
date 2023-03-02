@@ -52,7 +52,7 @@ export const postOrder = async (order: Sdk.X2Y2.Types.LocalOrder, apiKey: string
     if (error.response) {
       logger.error(
         "x2y2_orderbook_api",
-        `Failed to post order to X2Y2. order=${JSON.stringify(order)}, status: ${
+        `Failed to post order to X2Y2. order=${JSON.stringify(order)}, apiKey=${apiKey}, status: ${
           error.response.status
         }, data:${JSON.stringify(error.response.data)}`
       );
