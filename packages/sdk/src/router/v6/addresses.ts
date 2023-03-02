@@ -18,7 +18,11 @@ export const Permit2Module: ChainIdToAddress = {
   [Network.Optimism]: "0xc10d7937a42865d9355384b884f7d694c15e7781",
 };
 
-export const SwapModule: ChainIdToAddress = {};
+export const SwapModule: ChainIdToAddress = {
+  [Network.Ethereum]: "0x96fefdb0a543b3e30d8aaae865b7a48378d85382",
+  [Network.Polygon]: "0xd56789e9d7513fcafbf45a0e6333f381766092d2",
+  [Network.Optimism]: "0x3d2f5a97b70ee178bc0a7ad2068406e6d62c8b52",
+};
 
 // Exchange modules
 
