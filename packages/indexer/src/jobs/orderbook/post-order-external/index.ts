@@ -45,6 +45,8 @@ if (config.doBackgroundWork) {
       const { crossPostingOrderId, orderId, orderData, orderbook } =
         job.data as PostOrderExternalParams;
 
+      logger.info(QUEUE_NAME, `Start. jobData=${JSON.stringify(job.data)}`);
+
       if (![1, 4, 5].includes(config.chainId)) {
         throw new Error("Unsupported network");
       }
@@ -73,7 +75,6 @@ if (config.doBackgroundWork) {
 
       if (isRateLimited) {
         // If limit reached, reschedule job based on the limit expiration.
-
         logger.info(
           QUEUE_NAME,
           `Post Order Rate Limited. orderbook: ${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
@@ -85,10 +86,14 @@ if (config.doBackgroundWork) {
       } else {
         try {
           await postOrder(orderbook, orderId, orderData, orderbookApiKey);
-          await crossPostingOrdersModel.updateOrderStatus(
-            crossPostingOrderId,
-            CrossPostingOrderStatus.posted
-          );
+
+          //  TODO: Remove if after deployment.
+          if (crossPostingOrderId) {
+            await crossPostingOrdersModel.updateOrderStatus(
+              crossPostingOrderId,
+              CrossPostingOrderStatus.posted
+            );
+          }
 
           logger.info(
             QUEUE_NAME,
@@ -129,11 +134,14 @@ if (config.doBackgroundWork) {
               )}, retry: ${retry}, error: ${error}`
             );
 
-            await crossPostingOrdersModel.updateOrderStatus(
-              crossPostingOrderId,
-              CrossPostingOrderStatus.failed,
-              error.message
-            );
+            //  TODO: Remove if after deployment.
+            if (crossPostingOrderId) {
+              await crossPostingOrdersModel.updateOrderStatus(
+                crossPostingOrderId,
+                CrossPostingOrderStatus.failed,
+                error.message
+              );
+            }
 
             throw new Error("Post Order Failed - Invalid Order");
           } else if (retry < MAX_RETRIES) {
@@ -156,11 +164,14 @@ if (config.doBackgroundWork) {
               )}, retry: ${retry}, error: ${error}`
             );
 
-            await crossPostingOrdersModel.updateOrderStatus(
-              crossPostingOrderId,
-              CrossPostingOrderStatus.failed,
-              (error as any).message
-            );
+            //  TODO: Remove if after deployment.
+            if (crossPostingOrderId) {
+              await crossPostingOrdersModel.updateOrderStatus(
+                crossPostingOrderId,
+                CrossPostingOrderStatus.failed,
+                (error as any).message
+              );
+            }
 
             throw new Error("Post Order Failed - Max Retries Reached");
           }
