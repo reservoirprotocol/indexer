@@ -10,7 +10,7 @@ import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { getTransaction, saveTransaction, saveTransactions } from "@/models/transactions";
 import { getTransactionLogs, saveTransactionLogs } from "@/models/transaction-logs";
-import { getTransactionTrace, saveTransactionTrace } from "@/models/transaction-traces";
+import { getTransactionTraces, saveTransactionTraces } from "@/models/transaction-traces";
 import { OrderKind, getOrderSourceByOrderId, getOrderSourceByOrderKind } from "@/orderbook/orders";
 import { getRouters } from "@/utils/routers";
 
@@ -95,19 +95,35 @@ export const fetchTransaction = async (txHash: string) =>
     });
   });
 
-export const fetchTransactionTrace = async (txHash: string) =>
-  getTransactionTrace(txHash)
-    .catch(async () => {
-      const transactionTrace = await getTxTraces([{ hash: txHash }], baseProvider).then(
-        (traces) => traces[txHash]
-      );
+export const fetchTransactionTraces = async (txHashes: string[]) => {
+  const existingTraces = await getTransactionTraces(txHashes);
+  const existingTxHashes = Object.fromEntries(existingTraces.map(({ hash }) => [hash, true]));
 
-      return saveTransactionTrace({
-        hash: txHash,
-        calls: transactionTrace,
-      });
-    })
-    .catch(() => undefined);
+  const missingTxHashes = txHashes.filter((txHash) => !existingTxHashes[txHash]);
+  const missingTraces = Object.entries(
+    await getTxTraces(
+      missingTxHashes.map((hash) => ({ hash })),
+      baseProvider
+    )
+  ).map(([hash, calls]) => ({ hash, calls }));
+
+  await saveTransactionTraces(missingTraces);
+
+  return existingTraces.concat(missingTraces);
+};
+
+export const fetchTransactionTrace = async (txHash: string) => {
+  try {
+    const traces = await fetchTransactionTraces([txHash]);
+    if (!traces.length) {
+      return undefined;
+    }
+
+    return traces[0];
+  } catch {
+    return undefined;
+  }
+};
 
 export const fetchTransactionLogs = async (txHash: string) =>
   getTransactionLogs(txHash).catch(async () => {

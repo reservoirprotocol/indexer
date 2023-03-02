@@ -10,6 +10,7 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import * as es from "@/events-sync/storage";
+import { fetchTransactionTraces } from "@/events-sync/utils";
 
 const QUEUE_NAME = "backfill-sale-royalties";
 
@@ -78,6 +79,35 @@ if (config.doBackgroundWork) {
           batchIndex: r.batch_index,
         } as any,
       }));
+
+      const fillEventsPerTxHash: { [txHash: string]: es.fills.Event[] } = {};
+      for (const fe of fillEvents) {
+        if (!fillEventsPerTxHash[fe.baseEventParams.txHash]) {
+          fillEventsPerTxHash[fe.baseEventParams.txHash] = [];
+        }
+        fillEventsPerTxHash[fe.baseEventParams.txHash].push(fe);
+      }
+
+      // Prepare the caches for efficiency
+
+      for (const [txHash, fillEvents] of Object.entries(fillEventsPerTxHash)) {
+        await redis.set(
+          `get-fill-events-from-tx:${txHash}`,
+          JSON.stringify(fillEvents),
+          "EX",
+          10 * 60
+        );
+      }
+
+      const traces = await fetchTransactionTraces(Object.keys(fillEventsPerTxHash));
+      for (const trace of traces) {
+        await redis.set(
+          `fetch-transaction-trace:${trace.hash}`,
+          JSON.stringify(trace),
+          "EX",
+          10 * 60
+        );
+      }
 
       await assignRoyaltiesToFillEvents(fillEvents);
 
