@@ -366,48 +366,16 @@ export class DailyVolume {
     date.setUTCHours(0, 0, 0, 0);
 
     const dateTimestamp = date.getTime();
-    const day0Timestamp = dateTimestamp / 1000;
     const day1Timestamp = dateTimestamp / 1000 - 24 * 3600;
     const day7Timestamp = dateTimestamp / 1000 - 7 * 24 * 3600;
     const day30Timestamp = dateTimestamp / 1000 - 30 * 24 * 3600;
 
     const valuesPostfix = useCleanValues ? "_clean" : "";
 
-    let day0Results: any = [];
     let day1Results: any = [];
     let day7Results: any = [];
     let day30Results: any = [];
     let allTimeResults: any = [];
-
-    // Get the current day data
-    try {
-      day0Results = await redb.manyOrNone(
-        `
-          SELECT
-                  collection_id,
-                  rank${valuesPostfix} AS $1:name,
-                  volume${valuesPostfix} AS $2:name,
-                  floor_sell_value${valuesPostfix} as $3:name
-          FROM daily_volumes
-          WHERE timestamp = $4
-          AND collection_id != '-1'
-          ${collectionId ? `AND collection_id = $5` : ""}
-      `,
-        ["day0_rank", "day0_volume", "day0_floor_sell_value", day0Timestamp, collectionId]
-      );
-    } catch (error: any) {
-      logger.error(
-        "daily-volumes",
-        `Error while calculating current day volumes. dateTimestamp=${dateTimestamp}, day0Timestamp=${day0Timestamp}, error=${error}`
-      );
-    }
-
-    if (!collectionId && !day0Results.length) {
-      logger.error(
-        "daily-volumes",
-        `No results for current day volumes. dateTimestamp=${dateTimestamp}, day0Timestamp=${day0Timestamp}`
-      );
-    }
 
     // Get the previous day data
     try {
@@ -506,18 +474,12 @@ export class DailyVolume {
       return false;
     }
 
-    const mergedArr = this.mergeArrays(
-      day0Results,
-      day1Results,
-      day7Results,
-      day30Results,
-      allTimeResults
-    );
+    const mergedArr = this.mergeArrays(day1Results, day7Results, day30Results, allTimeResults);
 
     if (!mergedArr.length) {
       logger.error(
         "daily-volumes",
-        `No daily volumes found for 0, 1, 7 and 30 days. Should be impossible. dateTimestamp=${dateTimestamp}`
+        `No daily volumes found for 1, 7 and 30 days. Should be impossible. dateTimestamp=${dateTimestamp}`
       );
 
       return false;
@@ -531,8 +493,6 @@ export class DailyVolume {
           query: `
             UPDATE collections
             SET
-                day0_volume = $/day0_volume/,
-                ${collectionId ? "" : `day0_rank = $/day0_rank/,`}
                 day1_volume = $/day1_volume/,
                 ${collectionId ? "" : `day1_rank = $/day1_rank/,`}
                 day7_volume = $/day7_volume/,
@@ -598,7 +558,6 @@ export class DailyVolume {
       for (const row of mergedArr) {
         await redis
           .multi()
-          .zadd("collections_day0_rank", row.day0_rank, row.collection_id)
           .zadd("collections_day1_rank", row.day1_rank, row.collection_id)
           .zadd("collections_day7_rank", row.day7_rank, row.collection_id)
           .zadd("collections_day30_rank", row.day30_rank, row.collection_id)
@@ -796,14 +755,12 @@ export class DailyVolume {
   /**
    * Merge the individual arrays of day summaries together, make sure all fields exist for each collection_id
    *
-   * @param day0
    * @param day1
    * @param day7
    * @param day30
    */
-  public static mergeArrays(day0: any, day1: any, day7: any, day30: any, allTime: any) {
+  public static mergeArrays(day1: any, day7: any, day30: any, allTime: any) {
     const map = new Map();
-    day0.forEach((item: any) => map.set(item.collection_id, item));
     day1.forEach((item: any) => map.set(item.collection_id, item));
     day7.forEach((item: any) =>
       map.set(item.collection_id, { ...map.get(item.collection_id), ...item })
@@ -818,11 +775,6 @@ export class DailyVolume {
 
     for (let x = 0; x < mergedArr.length; x++) {
       const row = mergedArr[x];
-
-      if (!row["day0_volume"]) {
-        row["day0_volume"] = 0;
-        row["day0_rank"] = null;
-      }
 
       if (!row["day1_volume"]) {
         row["day1_volume"] = 0;
