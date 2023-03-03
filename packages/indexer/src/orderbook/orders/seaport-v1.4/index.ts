@@ -179,20 +179,22 @@ export const save = async (
       }
 
       // Check: order has a known zone
-      if (
-        ![
-          // No zone
-          AddressZero,
-          // Pausable zone
-          Sdk.SeaportV14.Addresses.PausableZone[config.chainId],
-          // Cancellation zone
-          Sdk.SeaportV14.Addresses.CancellationZone[config.chainId],
-        ].includes(order.params.zone)
-      ) {
-        return results.push({
-          id,
-          status: "unsupported-zone",
-        });
+      if (order.params.orderType > 1) {
+        if (
+          ![
+            // No zone
+            AddressZero,
+            // Pausable zone
+            Sdk.SeaportV14.Addresses.PausableZone[config.chainId],
+            // Cancellation zone
+            Sdk.SeaportV14.Addresses.CancellationZone[config.chainId],
+          ].includes(order.params.zone)
+        ) {
+          return results.push({
+            id,
+            status: "unsupported-zone",
+          });
+        }
       }
 
       // Check: order is valid

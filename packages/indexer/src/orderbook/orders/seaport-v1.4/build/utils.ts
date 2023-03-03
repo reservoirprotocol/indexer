@@ -70,11 +70,8 @@ export const getBuildInfo = async (
   // Use OpenSea's conduit for sharing approvals (where available)
   const conduitKey = Sdk.SeaportV14.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero;
 
-  // Use OpenSea's pausable zone when posting to OpenSea (where available)
-  let zone =
-    options.orderbook === "opensea"
-      ? Sdk.SeaportV14.Addresses.PausableZone[config.chainId] ?? AddressZero
-      : AddressZero;
+  // No zone by default
+  let zone = AddressZero;
   if (options.useOffChainCancellation) {
     zone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
   }

@@ -212,6 +212,11 @@ export const jobProcessor = async (job: Job) => {
         break;
       }
 
+      case "seaport-v1.4": {
+        result = await orders.seaportV14.save([info], relayToArweave, validateBidValue);
+        break;
+      }
+
       case "sudoswap": {
         result = await orders.sudoswap.save([info]);
         break;

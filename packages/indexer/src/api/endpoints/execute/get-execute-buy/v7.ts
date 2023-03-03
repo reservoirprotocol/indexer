@@ -54,6 +54,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   "looks-rare",
                   "zeroex-v4",
                   "seaport",
+                  "seaport-v1.4",
                   "x2y2",
                   "universe",
                   "rarible",

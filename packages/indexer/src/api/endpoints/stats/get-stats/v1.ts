@@ -295,6 +295,9 @@ export const getStatsV1Options: RouteOptions = {
           SELECT
             "c"."token_count",
             "c"."token_set_id",
+            "c"."top_buy_id",
+            "c"."top_buy_value",
+            "c"."top_buy_maker",
             (
               SELECT COUNT(*) FROM "tokens"
               WHERE "collection_id" = $/collection/
@@ -312,20 +315,14 @@ export const getStatsV1Options: RouteOptions = {
           JOIN "collections" "c"
             ON "x"."collection_id" = "c"."id"
           LEFT JOIN LATERAL (
-            SELECT
-              "ts"."top_buy_id",
-              "ts"."top_buy_value",
-              "ts"."top_buy_maker",
+            SELECT              
               date_part('epoch', lower("ob"."valid_between")) AS "top_buy_valid_from",
               coalesce(
                 nullif(date_part('epoch', upper("ob"."valid_between")), 'Infinity'),
                 0
               ) AS "top_buy_valid_until"
-            FROM "token_sets" "ts"
-            LEFT JOIN "orders" "ob"
-              ON "ts"."top_buy_id" = "ob"."id"
-            WHERE "ts"."id" = "c"."token_set_id"
-            ORDER BY "ts"."top_buy_value" DESC NULLS LAST
+            FROM "orders" "ob"
+            WHERE "ob"."id" = "c"."top_buy_id"
             LIMIT 1
           ) "y" ON TRUE
         `;

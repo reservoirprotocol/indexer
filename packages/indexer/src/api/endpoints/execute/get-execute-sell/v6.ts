@@ -43,6 +43,8 @@ export const getExecuteSellV6Options: RouteOptions = {
             "zeroex-v4",
             "seaport",
             "seaport-partial",
+            "seaport-v1.4",
+            "seaport-v1.4-partial",
             "x2y2",
             "universe",
             "infinity",
