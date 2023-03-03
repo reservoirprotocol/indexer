@@ -31,6 +31,8 @@ if (config.doBackgroundWork) {
     async (job) => {
       const { block } = job.data;
 
+      const time1 = performance.now();
+
       const blockRange = 10;
       const results = await redb.manyOrNone(
         `
@@ -80,6 +82,8 @@ if (config.doBackgroundWork) {
         } as any,
       }));
 
+      const time2 = performance.now();
+
       const fillEventsPerTxHash: { [txHash: string]: es.fills.Event[] } = {};
       for (const fe of fillEvents) {
         if (!fillEventsPerTxHash[fe.baseEventParams.txHash]) {
@@ -109,7 +113,11 @@ if (config.doBackgroundWork) {
         );
       }
 
+      const time3 = performance.now();
+
       await assignRoyaltiesToFillEvents(fillEvents);
+
+      const time4 = performance.now();
 
       const queries: PgPromiseQuery[] = fillEvents.map((event) => {
         return {
@@ -141,6 +149,18 @@ if (config.doBackgroundWork) {
       });
 
       await idb.none(pgp.helpers.concat(queries));
+
+      const time5 = performance.now();
+
+      logger.info(
+        "debug-performance",
+        JSON.stringify({
+          databaseFetch: (time2 - time1) / 1000,
+          traceFetch: (time3 - time2) / 1000,
+          royaltyDetection: (time4 - time3) / 1000,
+          update: (time5 - time4) / 1000,
+        })
+      );
 
       if (results.length >= 0) {
         const lastResult = results[results.length - 1];

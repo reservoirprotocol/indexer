@@ -1,4 +1,5 @@
 import { BigNumberish } from "@ethersproject/bignumber";
+import pLimit from "p-limit";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
@@ -100,44 +101,47 @@ export const assignRoyaltiesToFillEvents = async (
     royalties: new Map(),
   };
 
-  for (let i = 0; i < fillEvents.length; i++) {
-    const fillEvent = fillEvents[i];
+  const limit = pLimit(50);
+  await Promise.all(
+    fillEvents.map((fillEvent) =>
+      limit(async () => {
+        // Exclude mints
+        if (fillEvent.orderKind === "mint") {
+          return;
+        }
 
-    // Exclude mints
-    if (fillEvent.orderKind === "mint") {
-      continue;
-    }
+        const royaltyAdapter = registry.get(fillEvent.orderKind) ?? registry.get("fallback");
+        try {
+          if (royaltyAdapter) {
+            const result = await royaltyAdapter.extractRoyalties(fillEvent, cache, enableCache);
+            if (result) {
+              const isValid = checkFeeIsValid(result);
+              if (!isValid) {
+                return;
+              }
 
-    const royaltyAdapter = registry.get(fillEvent.orderKind) ?? registry.get("fallback");
-    try {
-      if (royaltyAdapter) {
-        const result = await royaltyAdapter.extractRoyalties(fillEvent, cache, enableCache);
-        if (result) {
-          const isValid = checkFeeIsValid(result);
-          if (!isValid) {
-            continue;
+              fillEvent.royaltyFeeBps = result.royaltyFeeBps;
+              fillEvent.marketplaceFeeBps = result.marketplaceFeeBps;
+              fillEvent.royaltyFeeBreakdown = result.royaltyFeeBreakdown;
+              fillEvent.marketplaceFeeBreakdown = result.marketplaceFeeBreakdown;
+              fillEvent.paidFullRoyalty = result.paidFullRoyalty;
+
+              fillEvent.netAmount = subFeeWithBps(
+                fillEvent.price,
+                result.royaltyFeeBps + result.marketplaceFeeBps
+              );
+            }
           }
-
-          fillEvents[i].royaltyFeeBps = result.royaltyFeeBps;
-          fillEvents[i].marketplaceFeeBps = result.marketplaceFeeBps;
-          fillEvents[i].royaltyFeeBreakdown = result.royaltyFeeBreakdown;
-          fillEvents[i].marketplaceFeeBreakdown = result.marketplaceFeeBreakdown;
-          fillEvents[i].paidFullRoyalty = result.paidFullRoyalty;
-
-          fillEvents[i].netAmount = subFeeWithBps(
-            fillEvents[i].price,
-            result.royaltyFeeBps + result.marketplaceFeeBps
+        } catch (error) {
+          logger.error(
+            "assign-royalties-to-fill-events",
+            JSON.stringify({
+              error,
+              fillEvent,
+            })
           );
         }
-      }
-    } catch (error) {
-      logger.error(
-        "assign-royalties-to-fill-events",
-        JSON.stringify({
-          error,
-          fillEvent,
-        })
-      );
-    }
-  }
+      })
+    )
+  );
 };
