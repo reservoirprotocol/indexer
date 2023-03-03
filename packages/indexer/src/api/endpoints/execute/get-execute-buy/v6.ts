@@ -303,7 +303,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           } else {
             const response = await inject({
               method: "POST",
-              url: `/order/v2`,
+              url: `/order/v3`,
               headers: {
                 "Content-Type": "application/json",
                 "X-Api-Key": request.headers["x-api-key"],

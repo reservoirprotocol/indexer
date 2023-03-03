@@ -695,7 +695,7 @@ export const save = async (
         needs_conversion: needsConversion,
         quantity_remaining: info.amount ?? "1",
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
-        nonce: order.params.counter,
+        nonce: bn(order.params.counter).toString(),
         source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
         contract: toBuffer(info.contract),

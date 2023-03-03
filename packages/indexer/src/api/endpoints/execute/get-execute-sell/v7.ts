@@ -400,6 +400,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 WHERE nft_balances.contract = $/contract/
                   AND nft_balances.token_id = $/tokenId/
                   AND nft_balances.amount >= $/quantity/
+                LIMIT 1
               `,
               {
                 contract: toBuffer(contract),

@@ -155,6 +155,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         customTokenAddresses: [
           "0x95784f7b5c8849b0104eaf5d13d6341d8cc40750",
           "0xc9cb0fee73f060db66d2693d92d75c825b1afdbf",
+          "0x87d598064c736dd0c712d329afcfaa0ccc1921a1",
         ],
         mintsAsSalesBlacklist: [
           // Uniswap V3: Positions NFT
