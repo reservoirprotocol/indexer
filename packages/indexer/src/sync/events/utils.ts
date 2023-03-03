@@ -100,16 +100,19 @@ export const fetchTransactionTraces = async (txHashes: string[]) => {
   const existingTxHashes = Object.fromEntries(existingTraces.map(({ hash }) => [hash, true]));
 
   const missingTxHashes = txHashes.filter((txHash) => !existingTxHashes[txHash]);
-  const missingTraces = Object.entries(
-    await getTxTraces(
-      missingTxHashes.map((hash) => ({ hash })),
-      baseProvider
-    )
-  ).map(([hash, calls]) => ({ hash, calls }));
+  if (missingTxHashes.length) {
+    const missingTraces = Object.entries(
+      await getTxTraces(
+        missingTxHashes.map((hash) => ({ hash })),
+        baseProvider
+      )
+    ).map(([hash, calls]) => ({ hash, calls }));
 
-  await saveTransactionTraces(missingTraces);
-
-  return existingTraces.concat(missingTraces);
+    await saveTransactionTraces(missingTraces);
+    return existingTraces.concat(missingTraces);
+  } else {
+    return existingTraces;
+  }
 };
 
 export const fetchTransactionTrace = async (txHash: string) => {
