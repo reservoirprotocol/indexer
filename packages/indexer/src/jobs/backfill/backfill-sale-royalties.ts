@@ -31,7 +31,7 @@ if (config.doBackgroundWork) {
     async (job) => {
       const { block } = job.data;
 
-      const blockRange = 20;
+      const blockRange = 10;
       const results = await redb.manyOrNone(
         `
           SELECT
