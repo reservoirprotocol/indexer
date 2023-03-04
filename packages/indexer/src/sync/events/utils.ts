@@ -2,6 +2,7 @@ import { Interface } from "@ethersproject/abi";
 import { AddressZero } from "@ethersproject/constants";
 import { getTxTraces } from "@georgeroman/evm-tx-simulator";
 import { getSourceV1 } from "@reservoir0x/sdk/dist/utils";
+import _ from "lodash";
 
 import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
@@ -96,19 +97,32 @@ export const fetchTransaction = async (txHash: string) =>
   });
 
 export const fetchTransactionTraces = async (txHashes: string[]) => {
+  // Some traces might already exist
   const existingTraces = await getTransactionTraces(txHashes);
   const existingTxHashes = Object.fromEntries(existingTraces.map(({ hash }) => [hash, true]));
 
+  // Only fetch those that don't yet exist
   const missingTxHashes = txHashes.filter((txHash) => !existingTxHashes[txHash]);
   if (missingTxHashes.length) {
-    const missingTraces = Object.entries(
-      await getTxTraces(
-        missingTxHashes.map((hash) => ({ hash })),
-        baseProvider
-      )
-    ).map(([hash, calls]) => ({ hash, calls }));
+    // For efficiency, fetch in multiple small batches
+    const batches = _.chunk(missingTxHashes, 10);
+    const missingTraces = (
+      await Promise.all(
+        batches.map(async (batch) => {
+          const missingTraces = Object.entries(
+            await getTxTraces(
+              batch.map((hash) => ({ hash })),
+              baseProvider
+            )
+          ).map(([hash, calls]) => ({ hash, calls }));
 
-    await saveTransactionTraces(missingTraces);
+          // Save the newly fetched traces
+          await saveTransactionTraces(missingTraces);
+          return missingTraces;
+        })
+      )
+    ).flat();
+
     return existingTraces.concat(missingTraces);
   } else {
     return existingTraces;

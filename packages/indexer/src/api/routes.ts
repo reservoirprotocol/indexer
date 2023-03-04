@@ -335,6 +335,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/{collection}/attributes/all/v3",
+    options: attributesEndpoints.getAttributesAllV3Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/collections/{collection}/attributes/static/v1",
     options: attributesEndpoints.getAttributesStaticV1Options,
   });

@@ -424,7 +424,6 @@ export const getTokensV5Options: RouteOptions = {
       sourceConditions.push(`o.fillability_status = 'fillable'`);
       sourceConditions.push(`o.approval_status = 'approved'`);
       sourceConditions.push(`o.source_id_int = $/nativeSource/`);
-      sourceConditions.push(`o.is_reservoir = TRUE`);
       sourceConditions.push(
         `o.taker = '\\x0000000000000000000000000000000000000000' OR o.taker IS NULL`
       );
