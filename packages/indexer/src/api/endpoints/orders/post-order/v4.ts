@@ -230,75 +230,7 @@ export const postOrderV4Options: RouteOptions = {
               }
             }
 
-            case "seaport": {
-              if (!["opensea", "reservoir"].includes(orderbook)) {
-                return results.push({ message: "unsupported-orderbook", orderIndex: i });
-              }
-
-              let crossPostingOrder;
-
-              const orderId = new Sdk.Seaport.Order(config.chainId, order.data).hash();
-
-              if (orderbook === "opensea") {
-                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-                  orderId,
-                  kind: order.kind,
-                  orderbook,
-                  source,
-                  schema,
-                  rawData: order.data,
-                } as crossPostingOrdersModel.CrossPostingOrder);
-
-                await postOrderExternal.addToQueue({
-                  crossPostingOrderId: crossPostingOrder.id,
-                  orderId,
-                  orderData: order.data,
-                  orderbook,
-                  orderbookApiKey,
-                });
-              } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
-                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-                  orderId,
-                  kind: order.kind,
-                  orderbook: "opensea",
-                  source,
-                  schema,
-                  rawData: order.data,
-                } as crossPostingOrdersModel.CrossPostingOrder);
-
-                await postOrderExternal.addToQueue({
-                  crossPostingOrderId: crossPostingOrder.id,
-                  orderId,
-                  orderData: order.data,
-                  orderbook: "opensea",
-                  orderbookApiKey: config.forwardOpenseaApiKey,
-                });
-              } else {
-                const [result] = await orders.seaport.save([
-                  {
-                    kind: "full",
-                    orderParams: order.data,
-                    isReservoir: orderbook === "reservoir",
-                    metadata: {
-                      schema,
-                      source,
-                    },
-                  },
-                ]);
-
-                if (!["success", "already-exists"].includes(result.status)) {
-                  return results.push({ message: result.status, orderIndex: i, orderId });
-                }
-              }
-
-              return results.push({
-                message: "success",
-                orderIndex: i,
-                orderId,
-                crossPostingOrderId: crossPostingOrder?.id,
-              });
-            }
-
+            case "seaport":
             case "seaport-v1.4": {
               if (!["opensea", "reservoir"].includes(orderbook)) {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
@@ -306,7 +238,10 @@ export const postOrderV4Options: RouteOptions = {
 
               let crossPostingOrder;
 
-              const orderId = new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
+              const orderId =
+                order.kind === "seaport"
+                  ? new Sdk.Seaport.Order(config.chainId, order.data).hash()
+                  : new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
 
               if (orderbook === "opensea") {
                 crossPostingOrder = await crossPostingOrdersModel.saveOrder({
@@ -343,17 +278,30 @@ export const postOrderV4Options: RouteOptions = {
                   orderbookApiKey: config.forwardOpenseaApiKey,
                 });
               } else {
-                const [result] = await orders.seaportV14.save([
-                  {
-                    kind: "full",
-                    orderParams: order.data,
-                    isReservoir: orderbook === "reservoir",
-                    metadata: {
-                      schema,
-                      source,
-                    },
-                  },
-                ]);
+                const [result] =
+                  order.kind === "seaport"
+                    ? await orders.seaport.save([
+                        {
+                          kind: "full",
+                          orderParams: order.data,
+                          isReservoir: true,
+                          metadata: {
+                            schema,
+                            source,
+                          },
+                        },
+                      ])
+                    : await orders.seaportV14.save([
+                        {
+                          kind: "full",
+                          orderParams: order.data,
+                          isReservoir: true,
+                          metadata: {
+                            schema,
+                            source,
+                          },
+                        },
+                      ]);
 
                 if (!["success", "already-exists"].includes(result.status)) {
                   return results.push({ message: result.status, orderIndex: i, orderId });
