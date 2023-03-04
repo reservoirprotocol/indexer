@@ -266,6 +266,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             // Skip any failed attempts to get the trace
             break;
           }
+
           const validateCalls = [];
           for (let index = 0; index < 100; index++) {
             const matchCall = searchForCall(
@@ -292,7 +293,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 allOrderParameters.push(inputData.orders[index].parameters);
               }
             } catch {
-              // Parse error
+              // Skip errors
             }
           }
         }
@@ -307,7 +308,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               counter,
             });
             order.params.signature = HashZero;
-            // Order hash match
+
             if (orderId === order.hash()) {
               onChainData.orders.push({
                 kind: "seaport",
@@ -319,11 +320,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                   },
                 },
               });
-              // Skip
-              break;
             }
-          } catch (error) {
-            // parse error
+          } catch {
+            // Skip errors
           }
         }
 
@@ -337,7 +336,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               counter,
             });
             order.params.signature = HashZero;
-            // Order hash match
+
             if (orderId === order.hash()) {
               onChainData.orders.push({
                 kind: "seaport-v1.4",
@@ -349,11 +348,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                   },
                 },
               });
-              // Skip
-              break;
             }
-          } catch (error) {
-            // parse error
+          } catch {
+            // Skip errors
           }
         }
 

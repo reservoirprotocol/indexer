@@ -20,6 +20,8 @@ export const offChainCheck = async (
     // of buy orders as well.
     onChainApprovalRecheck?: boolean;
     checkFilledOrCancelled?: boolean;
+    // TODO: We should listen to single-token approval changes as well
+    singleTokenERC721ApprovalCheck?: boolean;
   }
 ) => {
   const id = order.hash();
@@ -112,7 +114,19 @@ export const offChainCheck = async (
             ? new Sdk.Common.Helpers.Erc721(baseProvider, info.contract)
             : new Sdk.Common.Helpers.Erc1155(baseProvider, info.contract);
         if (!(await contract.isApproved(order.params.offerer, conduit))) {
-          hasApproval = false;
+          // In some edge-cases we might want to check single-token approvals
+          if (
+            options.singleTokenERC721ApprovalCheck &&
+            info.tokenKind === "erc721" &&
+            !(await (contract as Sdk.Common.Helpers.Erc721).isApprovedSingleToken(
+              info.tokenId!,
+              conduit
+            ))
+          ) {
+            hasApproval = false;
+          } else {
+            hasApproval = false;
+          }
         }
       } else {
         hasApproval = false;

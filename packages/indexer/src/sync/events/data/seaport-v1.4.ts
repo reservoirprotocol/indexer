@@ -88,7 +88,7 @@ export const orderValidated: EventData = {
           address token,
           uint256 identifierOrCriteria,
           uint256 startAmount,
-          uint256 endAmount,
+          uint256 endAmount
         )[] offer,
         (
           uint8 itemType,
@@ -96,7 +96,7 @@ export const orderValidated: EventData = {
           uint256 identifierOrCriteria,
           uint256 startAmount,
           uint256 endAmount,
-          address recipient,
+          address recipient
         )[] consideration,
         uint8 orderType,
         uint256 startTime,
@@ -105,7 +105,7 @@ export const orderValidated: EventData = {
         uint256 salt,
         bytes32 conduitKey,
         uint256 totalOriginalConsiderationItems
-      )
+      ) orderParameters
     )`,
   ]),
 };

@@ -45,7 +45,7 @@ if (config.doBackgroundWork) {
       try {
         // Fetch collection metadata
         const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, "", {
-          allowFallback: true,
+          allowFallback: !newCollection,
         });
 
         let tokenIdRange: string | null = null;

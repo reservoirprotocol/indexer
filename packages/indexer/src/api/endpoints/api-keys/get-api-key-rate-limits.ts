@@ -29,7 +29,7 @@ export const getApuKeyRateLimits: RouteOptions = {
           method: Joi.string().allow(""),
           allowedRequests: Joi.number(),
           perSeconds: Joi.number(),
-          payload: Joi.object(),
+          payload: Joi.array().items(Joi.object()),
         })
       ),
     }).label("getApiKeyRateLimitsResponse"),
@@ -42,7 +42,8 @@ export const getApuKeyRateLimits: RouteOptions = {
     const params = request.params as any;
 
     try {
-      const rules = await RateLimitRules.getApiKeyRateLimits(params.key);
+      let rules = await RateLimitRules.getApiKeyRateLimits(params.key);
+      rules = _.filter(rules, (rule) => rule.route !== "/livez");
 
       return {
         rateLimits: _.map(rules, (rule) => ({

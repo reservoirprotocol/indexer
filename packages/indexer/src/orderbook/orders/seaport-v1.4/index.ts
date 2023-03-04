@@ -2,6 +2,7 @@ import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import { OrderKind } from "@reservoir0x/sdk/dist/seaport-v1.4/types";
+import axios from "axios";
 import _ from "lodash";
 import pLimit from "p-limit";
 
@@ -177,19 +178,32 @@ export const save = async (
         });
       }
 
-      // Check: order has a known zone
-      if (
-        ![
-          // No zone
-          AddressZero,
-          // Pausable zone
-          Sdk.SeaportV14.Addresses.PausableZone[config.chainId],
-        ].includes(order.params.zone)
-      ) {
+      // Check: order is partially-fillable
+      const quantityRemaining = info.amount ?? "1";
+      if ([0, 2].includes(order.params.orderType) && bn(quantityRemaining).gt(1)) {
         return results.push({
           id,
-          status: "unsupported-zone",
+          status: "not-partially-fillable",
         });
+      }
+
+      // Check: order has a known zone
+      if (order.params.orderType > 1) {
+        if (
+          ![
+            // No zone
+            AddressZero,
+            // Pausable zone
+            Sdk.SeaportV14.Addresses.PausableZone[config.chainId],
+            // Cancellation zone
+            Sdk.SeaportV14.Addresses.CancellationZone[config.chainId],
+          ].includes(order.params.zone)
+        ) {
+          return results.push({
+            id,
+            status: "unsupported-zone",
+          });
+        }
       }
 
       // Check: order is valid
@@ -218,7 +232,10 @@ export const save = async (
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
       try {
-        await offChainCheck(order, { onChainApprovalRecheck: true });
+        await offChainCheck(order, {
+          onChainApprovalRecheck: true,
+          singleTokenERC721ApprovalCheck: metadata.fromOnChain,
+        });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         // Keep any orders that can potentially get valid in the future
@@ -642,6 +659,32 @@ export const save = async (
         }
       }
 
+      // Handle: off-chain cancellation via replacement
+      if (order.params.zone === Sdk.SeaportV14.Addresses.CancellationZone[config.chainId]) {
+        const replacedOrderResult = await idb.oneOrNone(
+          `
+            SELECT
+              orders.raw_data
+            FROM orders
+            WHERE orders.id = $/id/
+          `,
+          {
+            id: order.params.salt,
+          }
+        );
+        if (replacedOrderResult) {
+          await axios.post(
+            `https://seaport-oracle-${
+              config.chainId === 1 ? "mainnet" : "goerli"
+            }.up.railway.app/api/replacements`,
+            {
+              newOrders: [order.params],
+              replacedOrders: [replacedOrderResult.raw_data],
+            }
+          );
+        }
+      }
+
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
       const validTo = endTime
         ? `date_trunc('seconds', to_timestamp(${order.params.endTime}))`
@@ -662,9 +705,9 @@ export const save = async (
         currency_price: currencyPrice.toString(),
         currency_value: currencyValue.toString(),
         needs_conversion: needsConversion,
-        quantity_remaining: info.amount ?? "1",
+        quantity_remaining: quantityRemaining,
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
-        nonce: order.params.counter,
+        nonce: bn(order.params.counter).toString(),
         source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
         contract: toBuffer(info.contract),
@@ -710,7 +753,7 @@ export const save = async (
       }
     } catch (error) {
       logger.warn(
-        "orders-seaport-v1.4--save",
+        "orders-seaport-v1.4-save",
         `Failed to handle order (will retry). orderParams=${JSON.stringify(
           orderParams
         )}, metadata=${JSON.stringify(

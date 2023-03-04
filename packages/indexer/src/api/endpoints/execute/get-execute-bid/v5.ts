@@ -21,7 +21,7 @@ import * as seaportBuyAttribute from "@/orderbook/orders/seaport/build/buy/attri
 import * as seaportBuyToken from "@/orderbook/orders/seaport/build/buy/token";
 import * as seaportBuyCollection from "@/orderbook/orders/seaport/build/buy/collection";
 
-// Seaport v1.3
+// Seaport v1.4
 import * as seaportV14BuyAttribute from "@/orderbook/orders/seaport-v1.4/build/buy/attribute";
 import * as seaportV14BuyToken from "@/orderbook/orders/seaport-v1.4/build/buy/token";
 import * as seaportV14BuyCollection from "@/orderbook/orders/seaport-v1.4/build/buy/collection";
@@ -113,6 +113,16 @@ export const getExecuteBidV5Options: RouteOptions = {
             )
             .default("seaport-v1.4")
             .description("Exchange protocol used to create order. Example: `seaport`"),
+          options: Joi.object({
+            "seaport-v1.4": Joi.object({
+              useOffChainCancellation: Joi.boolean().required(),
+              replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                is: true,
+                then: Joi.optional(),
+                otherwise: Joi.forbidden(),
+              }),
+            }),
+          }).description("Additional options."),
           orderbook: Joi.string()
             .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow")
             .default("reservoir")
@@ -203,6 +213,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         attributeValue?: string;
         quantity?: number;
         weiPrice: string;
+        options?: any;
         orderKind: string;
         orderbook: string;
         orderbookApiKey?: string;
@@ -470,11 +481,19 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
+                const options = params.options?.[params.orderKind] as
+                  | {
+                      useOffChainCancellation?: boolean;
+                      replaceOrderId?: string;
+                    }
+                  | undefined;
+
                 let order: Sdk.SeaportV14.Order;
                 if (token) {
                   const [contract, tokenId] = token.split(":");
                   order = await seaportV14BuyToken.build({
                     ...params,
+                    ...options,
                     orderbook: params.orderbook as "reservoir" | "opensea",
                     maker,
                     contract,
@@ -484,6 +503,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 } else if (tokenSetId) {
                   order = await seaportV14BuyAttribute.build({
                     ...params,
+                    ...options,
                     orderbook: params.orderbook as "reservoir" | "opensea",
                     maker,
                     source,
@@ -491,6 +511,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 } else if (attribute) {
                   order = await seaportV14BuyAttribute.build({
                     ...params,
+                    ...options,
                     orderbook: params.orderbook as "reservoir" | "opensea",
                     maker,
                     collection: attribute.collection,
@@ -500,6 +521,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 } else if (collection) {
                   order = await seaportV14BuyCollection.build({
                     ...params,
+                    ...options,
                     orderbook: params.orderbook as "reservoir" | "opensea",
                     maker,
                     collection,

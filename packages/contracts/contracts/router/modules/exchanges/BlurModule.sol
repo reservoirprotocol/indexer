@@ -30,6 +30,10 @@ contract BlurModule is BaseExchangeModule {
 
   constructor(address owner, address router) BaseModule(owner) BaseExchangeModule(router) {}
 
+  // --- Fallback ---
+
+  receive() external payable {}
+
   // --- Single ETH listing ---
 
   function acceptETHListing(

@@ -15,7 +15,6 @@ import {
 import {
   bn,
   getChainId,
-  getCurrentTimestamp,
   getRandomBoolean,
   getRandomFloat,
   getRandomInteger,
@@ -44,22 +43,18 @@ describe("[ReservoirV6_0_0] Router executions with amount checks", () => {
 
     ({ erc721 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportApprovalOrderZone = (await ethers
+      .then((factory) => factory.deploy());
+    seaportApprovalOrderZone = await ethers
       .getContractFactory("SeaportApprovalOrderZone", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportModule = (await ethers
+      .then((factory) => factory.deploy());
+    seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    uniswapV3Module = (await ethers
+      .then((factory) => factory.deploy(router.address, router.address));
+    uniswapV3Module = await ethers
       .getContractFactory("UniswapV3Module", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -72,9 +67,7 @@ describe("[ReservoirV6_0_0] Router executions with amount checks", () => {
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
         seaportModule: await ethers.provider.getBalance(seaportModule.address),
-        uniswapV3Module: await ethers.provider.getBalance(
-          uniswapV3Module.address
-        ),
+        uniswapV3Module: await ethers.provider.getBalance(uniswapV3Module.address),
       };
     } else {
       const contract = new Sdk.Common.Helpers.Erc20(ethers.provider, token);
@@ -125,8 +118,7 @@ describe("[ReservoirV6_0_0] Router executions with amount checks", () => {
           {
             parameters: {
               ...listing.order!.params,
-              totalOriginalConsiderationItems:
-                listing.order!.params.consideration.length,
+              totalOriginalConsiderationItems: listing.order!.params.consideration.length,
             },
             numerator: 1,
             denominator: 1,
@@ -142,9 +134,7 @@ describe("[ReservoirV6_0_0] Router executions with amount checks", () => {
           },
           [],
         ]),
-        value: listings
-          .map(({ price }) => price)
-          .reduce((a, b) => bn(a).add(b), bn(0)),
+        value: listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)),
       })),
     ];
 
@@ -310,31 +300,27 @@ describe("[ReservoirV6_0_0] Router executions with amount checks", () => {
           },
           {
             module: seaportModule.address,
-            data: seaportModule.interface.encodeFunctionData(
-              "acceptERC20Listing",
-              [
-                {
-                  parameters: {
-                    ...listing.order!.params,
-                    totalOriginalConsiderationItems:
-                      listing.order!.params.consideration.length,
-                  },
-                  numerator: 1,
-                  denominator: 1,
-                  signature: listing.order!.params.signature,
-                  extraData: "0x",
+            data: seaportModule.interface.encodeFunctionData("acceptERC20Listing", [
+              {
+                parameters: {
+                  ...listing.order!.params,
+                  totalOriginalConsiderationItems: listing.order!.params.consideration.length,
                 },
-                {
-                  fillTo: carol.address,
-                  // As opposed to ETH payments, ERC20 should not be refunded to the router
-                  refundTo: carol.address,
-                  revertIfIncomplete: false,
-                  amount: listing.price,
-                  token: listing.paymentToken!,
-                },
-                [],
-              ]
-            ),
+                numerator: 1,
+                denominator: 1,
+                signature: listing.order!.params.signature,
+                extraData: "0x",
+              },
+              {
+                fillTo: carol.address,
+                // As opposed to ETH payments, ERC20 should not be refunded to the router
+                refundTo: carol.address,
+                revertIfIncomplete: false,
+                amount: listing.price,
+                token: listing.paymentToken!,
+              },
+              [],
+            ]),
             value: 0,
           },
         ])
@@ -343,9 +329,7 @@ describe("[ReservoirV6_0_0] Router executions with amount checks", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(
-      Sdk.Common.Addresses.Usdc[chainId]
-    );
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Usdc[chainId]);
 
     // Execute
 
@@ -359,9 +343,7 @@ describe("[ReservoirV6_0_0] Router executions with amount checks", () => {
         threshold: 2,
       },
       {
-        value: executions
-          .map(({ value }) => value)
-          .reduce((a, b) => bn(a).add(b), bn(0)),
+        value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
       }
     );
 

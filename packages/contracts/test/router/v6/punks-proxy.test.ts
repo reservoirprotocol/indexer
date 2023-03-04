@@ -24,13 +24,14 @@ describe("PunksProxy", () => {
     punks = new Contract(
       "0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb",
       new Interface(
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         require("../../../artifacts/contracts/interfaces/ICryptoPunksMarket.sol/ICryptoPunksMarket.json").abi
       ),
       ethers.provider
     );
-    punksProxy = (await ethers
+    punksProxy = await ethers
       .getContractFactory("PunksProxy", deployer)
-      .then((factory) => factory.deploy())) as any;
+      .then((factory) => factory.deploy());
   });
 
   afterEach(reset);
@@ -83,12 +84,9 @@ describe("PunksProxy", () => {
     // Checks
 
     // Filling will fail if the punks approval is not given
-    await expect(exchange.fillOrder(bob, order, order.buildMatching())).to.be
-      .reverted;
+    await expect(exchange.fillOrder(bob, order, order.buildMatching())).to.be.reverted;
 
-    await punks
-      .connect(alice)
-      .offerPunkForSaleToAddress(tokenId, 0, punksProxy.address);
+    await punks.connect(alice).offerPunkForSaleToAddress(tokenId, 0, punksProxy.address);
 
     // Fill listing
     await exchange.fillOrder(bob, order, order.buildMatching());
@@ -134,12 +132,9 @@ describe("PunksProxy", () => {
     // Checks
 
     // Filling will fail if the punks approval is not given
-    await expect(exchange.fillOrder(alice, order, order.buildMatching())).to.be
-      .reverted;
+    await expect(exchange.fillOrder(alice, order, order.buildMatching())).to.be.reverted;
 
-    await punks
-      .connect(alice)
-      .offerPunkForSaleToAddress(tokenId, 0, punksProxy.address);
+    await punks.connect(alice).offerPunkForSaleToAddress(tokenId, 0, punksProxy.address);
 
     // Fill offer
     await exchange.fillOrder(alice, order, order.buildMatching());

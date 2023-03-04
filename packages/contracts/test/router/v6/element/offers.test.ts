@@ -7,10 +7,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import {
-  SeaportERC721Approval,
-  setupSeaportERC721Approvals,
-} from "../helpers/seaport";
+import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport";
 import {
   bn,
   getChainId,
@@ -24,43 +21,39 @@ import { ElementOffer, setupElementOffers } from "../helpers/element";
 
 describe("[ReservoirV6_0_0] Element offers", () => {
   const chainId = getChainId();
-  
+
   let deployer: SignerWithAddress;
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
   let carol: SignerWithAddress;
   let david: SignerWithAddress;
   let emilio: SignerWithAddress;
-  
+
   let erc721: Contract;
   let router: Contract;
   let seaportApprovalOrderZone: Contract;
   let seaportModule: Contract;
   let elementModule: Contract;
-  
+
   beforeEach(async () => {
     [deployer, alice, bob, carol, david, emilio] = await ethers.getSigners();
-    
+
     ({ erc721 } = await setupNFTs(deployer));
-    
-    router = (await ethers
+
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportApprovalOrderZone = (await ethers
+      .then((factory) => factory.deploy());
+    seaportApprovalOrderZone = await ethers
       .getContractFactory("SeaportApprovalOrderZone", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportModule = (await ethers
+      .then((factory) => factory.deploy());
+    seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    elementModule = (await ethers
+      .then((factory) => factory.deploy(router.address, router.address));
+    elementModule = await ethers
       .getContractFactory("ElementModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
-  
+
   const getBalances = async (token: string) => {
     if (token === Sdk.Common.Addresses.Eth[chainId]) {
       return {
@@ -71,9 +64,7 @@ describe("[ReservoirV6_0_0] Element offers", () => {
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
         seaportModule: await ethers.provider.getBalance(seaportModule.address),
-        elementModule: await ethers.provider.getBalance(
-          elementModule.address
-        ),
+        elementModule: await ethers.provider.getBalance(elementModule.address),
       };
     } else {
       const contract = new Sdk.Common.Helpers.Erc20(ethers.provider, token);
@@ -89,9 +80,9 @@ describe("[ReservoirV6_0_0] Element offers", () => {
       };
     }
   };
-  
+
   afterEach(reset);
-  
+
   const testAcceptOffers = async (
     // Whether to charge fees on the received amount
     chargeFees: boolean,
@@ -103,10 +94,10 @@ describe("[ReservoirV6_0_0] Element offers", () => {
     offersCount: number
   ) => {
     // Setup
-    
+
     // Makers: Alice and Bob
     // Taker: Carol
-    
+
     const offers: ElementOffer[] = [];
     const fees: BigNumber[][] = [];
     for (let i = 0; i < offersCount; i++) {
@@ -127,7 +118,7 @@ describe("[ReservoirV6_0_0] Element offers", () => {
       }
     }
     await setupElementOffers(offers);
-    
+
     // In order to avoid giving NFT approvals to the router (remember,
     // the router is supposed to be stateless), we do create multiple
     // Seaport orders (we can also have a single aggregated order for
@@ -135,7 +126,7 @@ describe("[ReservoirV6_0_0] Element offers", () => {
     // (eg. offer = NFT and consideration = NFT - with the router as a
     // private recipient). This way, the NFT approvals will be made on
     // the Seaport conduit and the router stays stateless.
-    
+
     const approvals: SeaportERC721Approval[] = offers.map((offer) => ({
       giver: carol,
       filler: seaportModule.address,
@@ -143,11 +134,11 @@ describe("[ReservoirV6_0_0] Element offers", () => {
       nft: offer.nft,
       zone: seaportApprovalOrderZone.address,
     }));
-    
+
     await setupSeaportERC721Approvals(approvals);
-    
+
     // Prepare executions
-    
+
     const executions: ExecutionInfo[] = [
       // 1. Fill the approval orders, so that we avoid giving approval to the router
       {
@@ -160,8 +151,7 @@ describe("[ReservoirV6_0_0] Element offers", () => {
                 {
                   parameters: {
                     ...orders![0].params,
-                    totalOriginalConsiderationItems:
-                    orders![0].params.consideration.length,
+                    totalOriginalConsiderationItems: orders![0].params.consideration.length,
                   },
                   signature: orders![0].params.signature,
                 },
@@ -169,8 +159,7 @@ describe("[ReservoirV6_0_0] Element offers", () => {
                 {
                   parameters: {
                     ...orders![1].params,
-                    totalOriginalConsiderationItems:
-                    orders![1].params.consideration.length,
+                    totalOriginalConsiderationItems: orders![1].params.consideration.length,
                   },
                   signature: "0x",
                 },
@@ -219,50 +208,38 @@ describe("[ReservoirV6_0_0] Element offers", () => {
         value: 0,
       })),
     ];
-    
+
     // Checks
-    
+
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      offers.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && offers.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
-      
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
+
       return;
     }
-    
+
     // Fetch pre-state
-    
-    const balancesBefore = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
-    
+
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
+
     // Execute
-    
+
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
-    
+
     // Fetch post-state
-    
+
     const balancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
-    
+
     // Checks
-    
+
     // Carol got the payment
     expect(balancesAfter.carol.sub(balancesBefore.carol)).to.eq(
       offers
@@ -273,19 +250,17 @@ describe("[ReservoirV6_0_0] Element offers", () => {
         )
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
-    
+
     // Emilio got the fee payments
     if (chargeFees) {
       expect(balancesAfter.emilio.sub(balancesBefore.emilio)).to.eq(
         offers
           .map((_, i) => (offers[i].isCancelled ? [] : fees[i]))
-          .map((executionFees) =>
-            executionFees.reduce((a, b) => bn(a).add(b), bn(0))
-          )
+          .map((executionFees) => executionFees.reduce((a, b) => bn(a).add(b), bn(0)))
           .reduce((a, b) => bn(a).add(b), bn(0))
       );
     }
-    
+
     // Alice and Bob got the NFTs of the filled orders
     for (const { buyer, nft, isCancelled } of offers) {
       if (!isCancelled) {
@@ -294,24 +269,24 @@ describe("[ReservoirV6_0_0] Element offers", () => {
         expect(await nft.contract.ownerOf(nft.id)).to.eq(carol.address);
       }
     }
-    
+
     // Router is stateless
     expect(balancesAfter.router).to.eq(0);
     expect(balancesAfter.seaportModule).to.eq(0);
     expect(balancesAfter.elementModule).to.eq(0);
   };
-  
+
   // Test various combinations for filling offers
-  
-  for (let multiple of [false, true]) {
-    for (let partial of [false, true]) {
-      for (let chargeFees of [false, true]) {
-        for (let revertIfIncomplete of [false, true]) {
+
+  for (const multiple of [false, true]) {
+    for (const partial of [false, true]) {
+      for (const chargeFees of [false, true]) {
+        for (const revertIfIncomplete of [false, true]) {
           it(
             `${multiple ? "[multiple-orders]" : "[single-order]"}` +
-            `${partial ? "[partial]" : "[full]"}` +
-            `${chargeFees ? "[fees]" : "[no-fees]"}` +
-            `${revertIfIncomplete ? "[reverts]" : "[skip-reverts]"}`,
+              `${partial ? "[partial]" : "[full]"}` +
+              `${chargeFees ? "[fees]" : "[no-fees]"}` +
+              `${revertIfIncomplete ? "[reverts]" : "[skip-reverts]"}`,
             async () =>
               testAcceptOffers(
                 chargeFees,

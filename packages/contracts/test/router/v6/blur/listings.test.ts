@@ -28,30 +28,21 @@ describe("[ReservoirV6_0_0] Blur listings", () => {
   let david: SignerWithAddress;
   let emilio: SignerWithAddress;
 
-  let erc1155: Contract;
   let erc721: Contract;
   let router: Contract;
   let blurModule: Contract;
-  let seaportModule: Contract;
 
   beforeEach(async () => {
     [deployer, alice, bob, carol, david, emilio] = await ethers.getSigners();
 
-    ({ erc721, erc1155 } = await setupNFTs(deployer));
+    ({ erc721 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    blurModule = (await ethers
+      .then((factory) => factory.deploy());
+    blurModule = await ethers
       .getContractFactory("BlurModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    seaportModule = (await ethers
-      .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -118,9 +109,7 @@ describe("[ReservoirV6_0_0] Blur listings", () => {
     await setupBlurListings(listings);
 
     // Prepare executions
-    const totalPrice = bn(
-      listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0))
-    );
+    const totalPrice = bn(listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)));
 
     const executions: ExecutionInfo[] = [
       // 1. Fill listings
@@ -149,9 +138,7 @@ describe("[ReservoirV6_0_0] Blur listings", () => {
             ]),
             value: totalPrice.add(
               // Anything on top should be refunded
-              feesOnTop
-                .reduce((a, b) => bn(a).add(b), bn(0))
-                .add(parseEther("0.1"))
+              feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
             ),
           }
         : {
@@ -176,9 +163,7 @@ describe("[ReservoirV6_0_0] Blur listings", () => {
             ]),
             value: totalPrice.add(
               // Anything on top should be refunded
-              feesOnTop
-                .reduce((a, b) => bn(a).add(b), bn(0))
-                .add(parseEther("0.1"))
+              feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
             ),
           },
     ];
@@ -188,50 +173,33 @@ describe("[ReservoirV6_0_0] Blur listings", () => {
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      listings.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && listings.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
       return;
     }
 
     // Fetch pre-state
 
-    const ethBalancesBefore = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
+    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
 
     // Execute
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
 
-    const ethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
 
-    const wethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const wethBalancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
     const aliceOrderList = listings.filter(
-      ({ seller, isCancelled }) =>
-        !isCancelled && seller.address === alice.address
+      ({ seller, isCancelled }) => !isCancelled && seller.address === alice.address
     );
 
     const aliceOrderSum = aliceOrderList
@@ -239,8 +207,7 @@ describe("[ReservoirV6_0_0] Blur listings", () => {
       .reduce((a, b) => bn(a).add(b), bn(0));
 
     const bobOrderList = listings.filter(
-      ({ seller, isCancelled }) =>
-        !isCancelled && seller.address === bob.address
+      ({ seller, isCancelled }) => !isCancelled && seller.address === bob.address
     );
 
     const bobOrderSum = bobOrderList
@@ -286,13 +253,9 @@ describe("[ReservoirV6_0_0] Blur listings", () => {
         }
       } else {
         if (nft.kind === "erc721") {
-          expect(await nft.contract.ownerOf(nft.id)).to.eq(
-            listings[i].seller.address
-          );
+          expect(await nft.contract.ownerOf(nft.id)).to.eq(listings[i].seller.address);
         } else {
-          expect(
-            await nft.contract.balanceOf(listings[i].seller.address, nft.id)
-          ).to.eq(1);
+          expect(await nft.contract.balanceOf(listings[i].seller.address, nft.id)).to.eq(1);
         }
       }
     }
@@ -304,10 +267,10 @@ describe("[ReservoirV6_0_0] Blur listings", () => {
     expect(ethBalancesAfter.blurModule).to.eq(0);
   };
 
-  for (let multiple of [false, true]) {
-    for (let partial of [false, true]) {
-      for (let chargeFees of [false, true]) {
-        for (let revertIfIncomplete of [false, true]) {
+  for (const multiple of [false, true]) {
+    for (const partial of [false, true]) {
+      for (const chargeFees of [false, true]) {
+        for (const revertIfIncomplete of [false, true]) {
           it(
             "[eth]" +
               `${multiple ? "[multiple-orders]" : "[single-order]"}` +

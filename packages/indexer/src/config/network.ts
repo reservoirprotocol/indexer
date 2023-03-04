@@ -24,6 +24,9 @@ export const getNetworkName = () => {
     case 137:
       return "polygon";
 
+    case 42161:
+      return "arbitrum";
+
     default:
       return "unknown";
   }
@@ -39,6 +42,9 @@ export const getOpenseaNetworkName = () => {
 
     case 137:
       return "matic";
+
+    case 42161:
+      return "arbitrum";
 
     default:
       return "ethereum";
@@ -155,6 +161,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         customTokenAddresses: [
           "0x95784f7b5c8849b0104eaf5d13d6341d8cc40750",
           "0xc9cb0fee73f060db66d2693d92d75c825b1afdbf",
+          "0x87d598064c736dd0c712d329afcfaa0ccc1921a1",
         ],
         mintsAsSalesBlacklist: [
           // Uniswap V3: Positions NFT
@@ -341,8 +348,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         ...defaultNetworkSettings,
         metadataMintDelay: 180,
         enableWebSocket: true,
-        enableReorgCheck: true,
-        realtimeSyncFrequencySeconds: 10,
+        realtimeSyncFrequencySeconds: 15,
         realtimeSyncMaxBlockLag: 45,
         lastBlockLatency: 20,
         backfillBlockBatchSize: 60,
@@ -373,6 +379,39 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'MATIC',
                   18,
                   '{"coingeckoCurrencyId": "matic-network"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Arbitrum
+    case 42161: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        subDomain: "api-arbitrum",
+        coingecko: {
+          networkId: "arbitrum-one",
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

@@ -9,11 +9,11 @@ import { logger } from "@/common/logger";
 import { formatEth } from "@/common/utils";
 import { JoiAttributeValue } from "@/common/joi";
 
-const version = "v2";
+const version = "v3";
 
-export const getAttributesAllV2Options: RouteOptions = {
+export const getAttributesAllV3Options: RouteOptions = {
   description: "All attributes",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Attributes"],
   plugins: {
     "hapi-swagger": {
       order: 2,
@@ -41,7 +41,10 @@ export const getAttributesAllV2Options: RouteOptions = {
             Joi.object({
               value: JoiAttributeValue,
               count: Joi.number(),
-              floorAskPrice: Joi.number().unsafe().allow(null),
+              floorAskPrice: Joi.number()
+                .unsafe()
+                .allow(null)
+                .description("Returned only for attributes with less than 10k tokens"),
             })
           ),
         })
@@ -102,9 +105,10 @@ export const getAttributesAllV2Options: RouteOptions = {
               values: _.map(r.values, (value) => ({
                 count: value.count,
                 value: value.value,
-                floorAskPrice: value.floor_sell_value
-                  ? formatEth(value.floor_sell_value)
-                  : undefined,
+                floorAskPrice:
+                  value.floor_sell_value && value.count <= 10000
+                    ? formatEth(value.floor_sell_value)
+                    : undefined,
               })),
             };
           }

@@ -54,6 +54,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   "looks-rare",
                   "zeroex-v4",
                   "seaport",
+                  "seaport-v1.4",
                   "x2y2",
                   "universe",
                   "rarible",
@@ -329,7 +330,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           } else {
             const response = await inject({
               method: "POST",
-              url: `/order/v2`,
+              url: `/order/v3`,
               headers: {
                 "Content-Type": "application/json",
                 "X-Api-Key": request.headers["x-api-key"],

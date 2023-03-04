@@ -59,6 +59,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                   "looks-rare",
                   "zeroex-v4",
                   "seaport",
+                  "seaport-v1.4",
                   "x2y2",
                   "universe",
                   "rarible",
@@ -399,6 +400,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 WHERE nft_balances.contract = $/contract/
                   AND nft_balances.token_id = $/tokenId/
                   AND nft_balances.amount >= $/quantity/
+                LIMIT 1
               `,
               {
                 contract: toBuffer(contract),

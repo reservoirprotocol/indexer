@@ -1,48 +1,54 @@
 import { CallTrace } from "@georgeroman/evm-tx-simulator/dist/types";
 
-import { idb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
+import { idb, pgp } from "@/common/db";
+import { fromBuffer, toBuffer } from "@/common/utils";
 
 export type TransactionTrace = {
   hash: string;
   calls: CallTrace;
 };
 
-export const saveTransactionTrace = async (transactionTrace: TransactionTrace) => {
+export const saveTransactionTraces = async (transactionTraces: TransactionTrace[]) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const values: any[] = [];
+  const columns = new pgp.helpers.ColumnSet(["hash", { name: "calls", mod: ":json" }], {
+    table: "transaction_traces",
+  });
+
+  for (const { hash, calls } of transactionTraces) {
+    values.push({
+      hash: toBuffer(hash),
+      calls,
+    });
+  }
+
   await idb.none(
     `
       INSERT INTO transaction_traces (
         hash,
         calls
-      ) VALUES (
-        $/hash/,
-        $/calls:json/
-      )
+      ) VALUES ${pgp.helpers.values(values, columns)}
       ON CONFLICT DO NOTHING
-    `,
-    {
-      hash: toBuffer(transactionTrace.hash),
-      calls: transactionTrace.calls,
-    }
+    `
   );
 
-  return transactionTrace;
+  return transactionTraces;
 };
 
-export const getTransactionTrace = async (hash: string): Promise<TransactionTrace> => {
-  const result = await idb.oneOrNone(
+export const getTransactionTraces = async (hashes: string[]): Promise<TransactionTrace[]> => {
+  const result = await idb.manyOrNone(
     `
       SELECT
         transaction_traces.hash,
         transaction_traces.calls
       FROM transaction_traces
-      WHERE transaction_traces.hash = $/hash/
+      WHERE transaction_traces.hash IN ($/hashes:list/)
     `,
-    { hash: toBuffer(hash) }
+    { hashes: hashes.map(toBuffer) }
   );
 
-  return {
-    hash,
-    calls: result.calls,
-  };
+  return result.map((r) => ({
+    hash: fromBuffer(r.hash),
+    calls: r.calls,
+  }));
 };

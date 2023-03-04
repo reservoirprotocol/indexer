@@ -42,6 +42,8 @@ export const getExecuteSellV6Options: RouteOptions = {
             "zeroex-v4",
             "seaport",
             "seaport-partial",
+            "seaport-v1.4",
+            "seaport-v1.4-partial",
             "x2y2",
             "universe",
             "infinity",
@@ -331,6 +333,7 @@ export const getExecuteSellV6Options: RouteOptions = {
             WHERE nft_balances.contract = $/contract/
               AND nft_balances.token_id = $/tokenId/
               AND nft_balances.amount >= $/quantity/
+            LIMIT 1
           `,
           {
             contract: toBuffer(contract),

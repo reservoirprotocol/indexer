@@ -146,6 +146,9 @@ export type GenericOrder =
       order: Sdk.Flow.Order;
     };
 
+// Listings
+
+// Basic details for filling listings
 export type ListingFillDetails = {
   contractKind: "erc721" | "erc1155";
   contract: string;
@@ -157,6 +160,19 @@ export type ListingFillDetails = {
 };
 export type ListingDetails = GenericOrder & ListingFillDetails;
 
+// For keeping track of each listing's position in the original array
+export type ListingDetailsExtracted = {
+  originalIndex: number;
+} & ListingDetails;
+
+// For supporting filling listings having different underlying currencies
+export type PerCurrencyListingDetailsExtracted = {
+  [currency: string]: ListingDetailsExtracted[];
+};
+
+// Bids
+
+// Basic details for filling bids
 export type BidFillDetails = {
   contractKind: "erc721" | "erc1155";
   contract: string;
@@ -172,12 +188,18 @@ export type BidFillDetails = {
 };
 export type BidDetails = GenericOrder & BidFillDetails;
 
-// For keeping track of each listing's position in the original array
-export type ListingDetailsExtracted = {
-  originalIndex: number;
-} & ListingDetails;
+// Swaps
 
-// For supporting filling listings having different underlying currencies
-export type PerCurrencyDetails = {
-  [currency: string]: ListingDetailsExtracted[];
+export type PerPoolSwapDetails = {
+  [pool: string]: SwapDetail[];
+};
+
+export type SwapDetail = {
+  tokenIn: string;
+  tokenOut: string;
+  tokenOutAmount: BigNumberish;
+  recipient: string;
+  refundTo: string;
+  details: ListingDetailsExtracted[];
+  executionIndex: number;
 };

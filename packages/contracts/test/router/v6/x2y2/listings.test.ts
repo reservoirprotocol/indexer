@@ -9,13 +9,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import {
-  bn,
-  getChainId,
-  getRandomFloat,
-  getRandomInteger,
-  reset,
-} from "../../../utils";
+import { bn, getChainId, getRandomFloat, getRandomInteger, reset } from "../../../utils";
 
 describe("[ReservoirV6_0_0] X2Y2 listings", () => {
   const chainId = getChainId();
@@ -33,14 +27,12 @@ describe("[ReservoirV6_0_0] X2Y2 listings", () => {
   beforeEach(async () => {
     [deployer, alice, bob, carol, david, emilio] = await ethers.getSigners();
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    x2y2Module = (await ethers
+      .then((factory) => factory.deploy());
+    x2y2Module = await ethers
       .getContractFactory("X2Y2Module", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -82,21 +74,19 @@ describe("[ReservoirV6_0_0] X2Y2 listings", () => {
     // Fee recipient: Emilio
 
     const x2y2Interface = new Interface(
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       require("../../../../artifacts/contracts/interfaces/IX2Y2.sol/IX2Y2.json").abi
     );
 
-    const orders = await axios.get(
-      "https://api.x2y2.org/api/orders?status=open",
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "X-Api-Key": String(process.env.X2Y2_API_KEY),
-        },
-      }
-    );
+    const orders = await axios.get("https://api.x2y2.org/api/orders?status=open", {
+      headers: {
+        "Content-Type": "application/json",
+        "X-Api-Key": String(process.env.X2Y2_API_KEY),
+      },
+    });
 
     const listings: Sdk.X2Y2.Order[] = [];
-    const inputs: any[] = [];
+    const inputs: object[] = [];
     const feesOnTop: BigNumber[] = [];
     for (let i = 0; i < listingsCount; i++) {
       const orderData = orders.data.data[i];
@@ -154,9 +144,7 @@ describe("[ReservoirV6_0_0] X2Y2 listings", () => {
     // Prepare executions
 
     const totalPrice = bn(
-      listings
-        .map(({ params }) => params.price)
-        .reduce((a, b) => bn(a).add(b), bn(0))
+      listings.map(({ params }) => params.price).reduce((a, b) => bn(a).add(b), bn(0))
     );
     const executions: ExecutionInfo[] = [
       // 1. Fill listings
@@ -180,9 +168,7 @@ describe("[ReservoirV6_0_0] X2Y2 listings", () => {
             ]),
             value: totalPrice.add(
               // Anything on top should be refunded
-              feesOnTop
-                .reduce((a, b) => bn(a).add(b), bn(0))
-                .add(parseEther("0.1"))
+              feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
             ),
           }
         : {
@@ -204,9 +190,7 @@ describe("[ReservoirV6_0_0] X2Y2 listings", () => {
             ]),
             value: totalPrice.add(
               // Anything on top should be refunded
-              feesOnTop
-                .reduce((a, b) => bn(a).add(b), bn(0))
-                .add(parseEther("0.1"))
+              feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
             ),
           },
     ];
@@ -214,9 +198,7 @@ describe("[ReservoirV6_0_0] X2Y2 listings", () => {
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
@@ -240,14 +222,13 @@ describe("[ReservoirV6_0_0] X2Y2 listings", () => {
     expect(balancesAfter.x2y2Module).to.eq(0);
   };
 
-  for (let multiple of [false, true]) {
-    for (let chargeFees of [false, true]) {
+  for (const multiple of [false, true]) {
+    for (const chargeFees of [false, true]) {
       it(
         "[eth]" +
           `${multiple ? "[multiple-orders]" : "[single-order]"}` +
           `${chargeFees ? "[fees]" : "[no-fees]"}`,
-        async () =>
-          testAcceptListings(chargeFees, multiple ? getRandomInteger(2, 4) : 1)
+        async () => testAcceptListings(chargeFees, multiple ? getRandomInteger(2, 4) : 1)
       );
     }
   }
