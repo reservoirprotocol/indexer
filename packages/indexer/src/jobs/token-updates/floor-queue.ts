@@ -36,11 +36,6 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { kind, tokenSetId, txHash, txTimestamp } = job.data as FloorAskInfo;
 
-      logger.info(
-        QUEUE_NAME,
-        `Start. tokenSetId=${tokenSetId}, jobData=${JSON.stringify(job.data)}`
-      );
-
       try {
         // Atomically update the cache and trigger an api event if needed
         const sellOrderResult = await idb.oneOrNone(
@@ -175,13 +170,6 @@ if (config.doBackgroundWork) {
             txHash: txHash ? toBuffer(txHash) : null,
             txTimestamp: txTimestamp || null,
           }
-        );
-
-        logger.info(
-          QUEUE_NAME,
-          `Result. tokenSetId=${tokenSetId}, jobData=${JSON.stringify(
-            job.data
-          )}, sellOrderResult=${JSON.stringify(sellOrderResult)}`
         );
 
         if (sellOrderResult) {
