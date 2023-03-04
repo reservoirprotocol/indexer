@@ -183,14 +183,18 @@ export const postOrderV3Options: RouteOptions = {
           }
         }
 
-        case "seaport": {
+        case "seaport":
+        case "seaport-v1.4": {
           if (!["opensea", "reservoir"].includes(orderbook)) {
             throw new Error("Unknown orderbook");
           }
 
           let crossPostingOrder;
 
-          const orderId = new Sdk.Seaport.Order(config.chainId, order.data).hash();
+          const orderId =
+            order.kind === "seaport"
+              ? new Sdk.Seaport.Order(config.chainId, order.data).hash()
+              : new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
 
           if (orderbook === "opensea") {
             crossPostingOrder = await crossPostingOrdersModel.saveOrder({
@@ -239,17 +243,30 @@ export const postOrderV3Options: RouteOptions = {
               });
             }
           } else {
-            const [result] = await orders.seaport.save([
-              {
-                kind: "full",
-                orderParams: order.data,
-                isReservoir: orderbook === "reservoir",
-                metadata: {
-                  schema,
-                  source,
-                },
-              },
-            ]);
+            const [result] =
+              order.kind === "seaport"
+                ? await orders.seaport.save([
+                    {
+                      kind: "full",
+                      orderParams: order.data,
+                      isReservoir: true,
+                      metadata: {
+                        schema,
+                        source,
+                      },
+                    },
+                  ])
+                : await orders.seaportV14.save([
+                    {
+                      kind: "full",
+                      orderParams: order.data,
+                      isReservoir: true,
+                      metadata: {
+                        schema,
+                        source,
+                      },
+                    },
+                  ]);
 
             if (!["success", "already-exists"].includes(result.status)) {
               const error = Boom.badRequest(result.status);
@@ -316,147 +333,6 @@ export const postOrderV3Options: RouteOptions = {
           }
 
           return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder?.id };
-        }
-
-        case "seaport-v1.4": {
-          if (!["opensea", "reservoir"].includes(orderbook)) {
-            throw new Error("Unknown orderbook");
-          }
-
-          const orderInfo: orders.seaportV14.OrderInfo = {
-            kind: "full",
-            orderParams: order.data,
-            isReservoir: orderbook === "reservoir",
-            metadata: {
-              schema,
-              source: orderbook === "reservoir" ? source : undefined,
-              target: orderbook,
-            },
-          };
-
-          const [result] = await orders.seaportV14.save([orderInfo]);
-
-          logger.info(
-            `post-order-${version}-handler`,
-            JSON.stringify({
-              forward: false,
-              originalOrderbook: orderbook,
-              orderbook,
-              data: order.data,
-              orderId: result.id,
-              status: result.status,
-            })
-          );
-
-          if (orderbook === "opensea") {
-            await postOrderExternal.addToQueue(result.id, order.data, orderbook, orderbookApiKey);
-
-            logger.info(
-              `post-order-${version}-handler`,
-              `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}, orderId: ${
-                result.id
-              }`
-            );
-          } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
-            const orderResult = await idb.oneOrNone(
-              `
-                SELECT
-                  orders.token_set_id
-                FROM orders
-                WHERE orders.id = $/id/
-              `,
-              { id: result.id }
-            );
-            if (orderResult?.token_set_id?.startsWith("token")) {
-              await postOrderExternal.addToQueue(
-                result.id,
-                order.data,
-                "opensea",
-                config.forwardOpenseaApiKey
-              );
-
-              logger.info(
-                `post-order-${version}-handler`,
-                JSON.stringify({
-                  forward: true,
-                  originalOrderbook: orderbook,
-                  orderbook: "opensea",
-                  data: order.data,
-                  orderId: result.id,
-                })
-              );
-            }
-          } else {
-            const collectionResult = await idb.oneOrNone(
-              `
-                SELECT
-                  collections.new_royalties,
-                  orders.token_set_id
-                FROM orders
-                JOIN token_sets_tokens
-                  ON orders.token_set_id = token_sets_tokens.token_set_id
-                JOIN tokens
-                  ON tokens.contract = token_sets_tokens.contract
-                  AND tokens.token_id = token_sets_tokens.token_id
-                JOIN collections
-                  ON tokens.collection_id = collections.id
-                WHERE orders.id = $/id/
-                LIMIT 1
-              `,
-              { id: result.id }
-            );
-
-            if (
-              collectionResult?.token_set_id?.startsWith("token") &&
-              collectionResult?.new_royalties?.["opensea"]
-            ) {
-              const osRoyaltyRecipients = collectionResult.new_royalties["opensea"].map((r: any) =>
-                r.recipient.toLowerCase()
-              );
-              const maker = order.data.offerer.toLowerCase();
-              const consideration = order.data.consideration;
-
-              let hasMarketplaceFee = false;
-              for (const c of consideration) {
-                const recipient = c.recipient.toLowerCase();
-                if (recipient !== maker && !osRoyaltyRecipients.includes(recipient)) {
-                  hasMarketplaceFee = true;
-                }
-              }
-
-              if (!hasMarketplaceFee) {
-                await postOrderExternal.addToQueue(
-                  result.id,
-                  order.data,
-                  "opensea",
-                  config.openSeaApiKey
-                );
-
-                logger.info(
-                  `post-order-${version}-handler`,
-                  JSON.stringify({
-                    forward: false,
-                    originalOrderbook: orderbook,
-                    orderbook: "opensea",
-                    data: order.data,
-                    orderId: result.id,
-                  })
-                );
-              }
-            }
-          }
-
-          if (result.status === "already-exists") {
-            return { message: "Success", orderId: result.id };
-          }
-
-          if (result.status !== "success") {
-            const error = Boom.badRequest(result.status);
-            error.output.payload.orderId = result.id;
-            throw error;
-          }
-
-          return { message: "Success", orderId: result.id };
         }
 
         case "seaport-forward": {
@@ -556,7 +432,7 @@ export const postOrderV3Options: RouteOptions = {
               {
                 kind: "full",
                 orderParams: order.data,
-                isReservoir: orderbook === "reservoir",
+                isReservoir: true,
                 metadata: {
                   schema,
                   source,

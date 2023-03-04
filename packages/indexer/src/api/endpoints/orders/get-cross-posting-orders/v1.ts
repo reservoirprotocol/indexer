@@ -5,7 +5,7 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { buildContinuation, regex, splitContinuation } from "@/common/utils";
+import { regex } from "@/common/utils";
 
 const version = "v1";
 
@@ -24,7 +24,7 @@ export const getCrossPostingOrdersV1Options: RouteOptions = {
         "id(s) to search for."
       ),
       continuation: Joi.string()
-        .pattern(regex.base64)
+        .pattern(regex.number)
         .description("Use continuation token to request next offset of items."),
       limit: Joi.number()
         .integer()
@@ -39,14 +39,15 @@ export const getCrossPostingOrdersV1Options: RouteOptions = {
       orders: Joi.array().items(
         Joi.object({
           id: Joi.number().required(),
+          orderId: Joi.string().required().allow(null),
           orderbook: Joi.string().required(),
           status: Joi.string().required(),
-          statusReason: Joi.string().allow(null, ""),
+          statusReason: Joi.string().required().allow(null, ""),
           createdAt: Joi.string().required(),
           updatedAt: Joi.string().required(),
         })
       ),
-      continuation: Joi.string().pattern(regex.base64).allow(null),
+      continuation: Joi.string().pattern(regex.number).allow(null),
     }).label(`getCrossPostingOrders${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(
@@ -63,6 +64,7 @@ export const getCrossPostingOrdersV1Options: RouteOptions = {
       let baseQuery = `
         SELECT
           cross_posting_orders.id,
+          cross_posting_orders.order_id,
           cross_posting_orders.orderbook,
           cross_posting_orders.status,
           cross_posting_orders.status_reason,
@@ -83,14 +85,9 @@ export const getCrossPostingOrdersV1Options: RouteOptions = {
       }
 
       if (query.continuation) {
-        const [createdAt, id] = splitContinuation(
-          query.continuation,
-          /^\d+(.\d+)?_0x[a-f0-9]{64}$/
-        );
-        (query as any).createdAt = createdAt;
-        (query as any).id = id;
+        (query as any).continuationId = query.continuation;
 
-        conditions.push(`(created_at, id) < (to_timestamp($/createdAt/), $/id/)`);
+        conditions.push(`id < $/continuationId/`);
       }
 
       if (conditions.length) {
@@ -98,7 +95,7 @@ export const getCrossPostingOrdersV1Options: RouteOptions = {
       }
 
       // Sorting
-      baseQuery += ` ORDER BY created_at DESC, id DESC`;
+      baseQuery += ` ORDER BY id DESC`;
 
       // Pagination
       baseQuery += ` LIMIT $/limit/`;
@@ -108,14 +105,13 @@ export const getCrossPostingOrdersV1Options: RouteOptions = {
       let continuation = null;
 
       if (rawResult.length === query.limit) {
-        continuation = buildContinuation(
-          rawResult[rawResult.length - 1].created_at + "_" + rawResult[rawResult.length - 1].id
-        );
+        continuation = rawResult[rawResult.length - 1].id;
       }
 
       const result = rawResult.map(async (r) => {
         return {
           id: Number(r.id),
+          orderId: r.order_id,
           orderbook: r.orderbook,
           status: r.status,
           statusReason: r.status_reason,
