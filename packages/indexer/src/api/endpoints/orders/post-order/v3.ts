@@ -96,19 +96,23 @@ export const postOrderV3Options: RouteOptions = {
 
       const signature = query.signature ?? order.data.signature;
       if (signature) {
-        const { v, r, s } = splitSignature(signature);
+        try {
+          const { v, r, s } = splitSignature(signature);
 
-        // If the signature is provided via query parameters, use it
-        order.data = {
-          ...order.data,
-          // To cover everything:
-          // - orders requiring a single signature field
-          // - orders requiring split signature fields
-          signature,
-          v,
-          r,
-          s,
-        };
+          // If the signature is provided via query parameters, use it
+          order.data = {
+            ...order.data,
+            // To cover everything:
+            // - orders requiring a single signature field
+            // - orders requiring split signature fields
+            signature,
+            v,
+            r,
+            s,
+          };
+        } catch {
+          // Skip errors
+        }
       }
 
       let schema: any;

@@ -55,6 +55,7 @@ if (config.doBackgroundWork) {
           FROM fill_events_2
           WHERE fill_events_2.block < $/block/
             AND fill_events_2.block >= $/block/ - $/blockRange/
+            AND fill_events_2.order_kind != 'mint'
           ORDER BY fill_events_2.block DESC
         `,
         {
