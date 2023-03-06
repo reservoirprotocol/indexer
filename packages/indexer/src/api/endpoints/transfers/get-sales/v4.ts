@@ -49,9 +49,6 @@ export const getSalesV4Options: RouteOptions = {
       attributes: Joi.object()
         .unknown()
         .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
-      sortBy: Joi.string()
-        .valid("time_asc", "time_desc", "price_asc", "price_desc")
-        .default("time_desc"),
       txHash: Joi.string()
         .lowercase()
         .pattern(regex.bytes32)
@@ -227,21 +224,6 @@ export const getSalesV4Options: RouteOptions = {
       query.endTimestamp = 9999999999;
     }
 
-    let queryOrderBy = "";
-    if (query.sortBy) {
-      if (query.sortBy === "time_asc") {
-        queryOrderBy =
-          "ORDER BY fill_events_2.timestamp ASC, fill_events_2.log_index ASC, fill_events_2.batch_index ASC";
-      } else if (query.sortBy === "time_desc") {
-        queryOrderBy =
-          "ORDER BY fill_events_2.timestamp DESC, fill_events_2.log_index DESC, fill_events_2.batch_index DESC";
-      } else if (query.sortBy === "price_asc") {
-        queryOrderBy = "ORDER BY fill_events_2.price ASC";
-      } else if (query.sortBy === "price_desc") {
-        queryOrderBy = "ORDER BY fill_events_2.price DESC";
-      }
-    }
-
     const timestampFilter = `
       AND (fill_events_2.timestamp >= $/startTimestamp/ AND
       fill_events_2.timestamp <= $/endTimestamp/)
@@ -300,8 +282,10 @@ export const getSalesV4Options: RouteOptions = {
             ${tokenFilter}
             ${paginationFilter}
             ${timestampFilter}
-      
-            ${queryOrderBy}
+          ORDER BY
+            fill_events_2.timestamp DESC,
+            fill_events_2.log_index DESC,
+            fill_events_2.batch_index DESC
           LIMIT $/limit/
         ) AS fill_events_2_data
         ${
