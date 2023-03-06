@@ -9,6 +9,7 @@ import { getNetworkSettings } from "@/config/network";
 import { syncEvents } from "@/events-sync/index";
 import * as eventsSyncBackfill from "@/jobs/events-sync/backfill-queue";
 import tracer from "@/common/tracer";
+import _ from "lodash";
 
 const QUEUE_NAME = "events-sync-realtime";
 
@@ -31,8 +32,8 @@ if (config.doBackgroundWork) {
     async () => {
       await tracer.trace("processEvent", { resource: "eventsSyncRealtime" }, async () => {
         try {
-          // On polygon prevent multiple syncs at the same time
-          if (config.chainId === 137 && !(await acquireLock(QUEUE_NAME, 300))) {
+          // On some chains prevent multiple syncs at the same time
+          if (_.includes([137, 42161], config.chainId) && !(await acquireLock(QUEUE_NAME, 300))) {
             return;
           }
 

@@ -29,7 +29,7 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
-      const { block } = job.data;
+      const { fromBlock, toBlock, currentBlock } = job.data;
 
       const time1 = performance.now();
 
@@ -59,7 +59,7 @@ if (config.doBackgroundWork) {
           ORDER BY fill_events_2.block DESC
         `,
         {
-          block,
+          block: currentBlock,
           blockRange,
         }
       );
@@ -95,24 +95,18 @@ if (config.doBackgroundWork) {
 
       // Prepare the caches for efficiency
 
-      for (const [txHash, fillEvents] of Object.entries(fillEventsPerTxHash)) {
-        await redis.set(
-          `get-fill-events-from-tx:${txHash}`,
-          JSON.stringify(fillEvents),
-          "EX",
-          10 * 60
-        );
-      }
+      await Promise.all(
+        Object.entries(fillEventsPerTxHash).map(async ([txHash, fillEvents]) =>
+          redis.set(`get-fill-events-from-tx:${txHash}`, JSON.stringify(fillEvents), "EX", 10 * 60)
+        )
+      );
 
       const traces = await fetchTransactionTraces(Object.keys(fillEventsPerTxHash));
-      for (const trace of traces) {
-        await redis.set(
-          `fetch-transaction-trace:${trace.hash}`,
-          JSON.stringify(trace),
-          "EX",
-          10 * 60
-        );
-      }
+      await Promise.all(
+        Object.values(traces).map(async (trace) =>
+          redis.set(`fetch-transaction-trace:${trace.hash}`, JSON.stringify(trace), "EX", 10 * 60)
+        )
+      );
 
       const time3 = performance.now();
 
@@ -149,7 +143,9 @@ if (config.doBackgroundWork) {
         };
       });
 
-      await idb.none(pgp.helpers.concat(queries));
+      if (queries.length) {
+        await idb.none(pgp.helpers.concat(queries));
+      }
 
       const time5 = performance.now();
 
@@ -163,14 +159,12 @@ if (config.doBackgroundWork) {
         })
       );
 
-      if (results.length >= 0) {
-        const lastResult = results[results.length - 1];
-        await addToQueue(lastResult.block);
-      } else if (block > 7000000) {
-        await addToQueue(block - blockRange);
+      const nextBlock = currentBlock - blockRange;
+      if (nextBlock > fromBlock) {
+        await addToQueue(fromBlock, toBlock, nextBlock);
       }
     },
-    { connection: redis.duplicate(), concurrency: 1 }
+    { connection: redis.duplicate(), concurrency: 10 }
   );
 
   worker.on("error", (error) => {
@@ -179,9 +173,37 @@ if (config.doBackgroundWork) {
 
   if (config.chainId === 1) {
     redlock
-      .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
+      .acquire([`${QUEUE_NAME}-lock-1`], 60 * 60 * 24 * 30 * 1000)
       .then(async () => {
-        await addToQueue(16698570);
+        await addToQueue(16500000, 16600000, 16552722);
+        await addToQueue(16400000, 16500000, 16500001);
+        await addToQueue(16300000, 16400000, 16400001);
+        await addToQueue(16200000, 16300000, 16300001);
+        await addToQueue(16100000, 16200000, 16200001);
+        await addToQueue(16000000, 16100000, 16100001);
+        await addToQueue(15900000, 16000000, 16000001);
+        await addToQueue(15800000, 15900000, 15900001);
+        await addToQueue(15700000, 15800000, 15800001);
+        await addToQueue(15600000, 15700000, 15700001);
+        await addToQueue(15500000, 15600000, 15600001);
+      })
+      .catch(() => {
+        // Skip on any errors
+      });
+
+    redlock
+      .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
+      .then(async () => {
+        await addToQueue(15400000, 15500000, 15500001);
+        await addToQueue(15300000, 15400000, 15400001);
+        await addToQueue(15200000, 15300000, 15300001);
+        await addToQueue(15100000, 15200000, 15200001);
+        await addToQueue(15000000, 15100000, 15100001);
+        await addToQueue(14900000, 15000000, 15000001);
+        await addToQueue(14800000, 14900000, 14900001);
+        await addToQueue(14700000, 14800000, 14800001);
+        await addToQueue(14600000, 14700000, 14700001);
+        await addToQueue(14500000, 14600000, 14600001);
       })
       .catch(() => {
         // Skip on any errors
@@ -189,6 +211,10 @@ if (config.doBackgroundWork) {
   }
 }
 
-export const addToQueue = async (block: number) => {
-  await queue.add(randomUUID(), { block }, { jobId: `${block}` });
+export const addToQueue = async (fromBlock: number, toBlock: number, currentBlock: number) => {
+  await queue.add(
+    randomUUID(),
+    { fromBlock, toBlock, currentBlock },
+    { jobId: `${fromBlock}-${toBlock}-${currentBlock}` }
+  );
 };
