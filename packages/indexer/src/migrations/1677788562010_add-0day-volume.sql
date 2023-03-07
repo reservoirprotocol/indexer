@@ -1,15 +1,15 @@
 -- Up Migration
 alter table collections
-    add day0_volume_change double precision;
+    ADD COLUMN day0_volume_change double precision;
 
 alter table collections
-    add day0_floor_sell_value numeric(78) default NULL::numeric;
+    ADD COLUMN day0_floor_sell_value numeric(78) default NULL::numeric;
 
 alter table collections
-    add day0_rank int;
+    ADD COLUMN day0_rank int;
 
 alter table collections
-    add day0_volume numeric(78) default 0;
+    ADD COLUMN day0_volume numeric(78) default 0;
 
 -- CREATE INDEX "collections_day0_volume_index"
 --     ON "collections" ("day0_volume" DESC);
