@@ -265,17 +265,7 @@ export const postOrderV4Options: RouteOptions = {
                   orderbookApiKey,
                 });
               } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
-                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-                  orderId,
-                  kind: order.kind,
-                  orderbook: "opensea",
-                  source,
-                  schema,
-                  rawData: order.data,
-                } as crossPostingOrdersModel.CrossPostingOrder);
-
                 await postOrderExternal.addToQueue({
-                  crossPostingOrderId: crossPostingOrder.id,
                   orderId,
                   orderData: order.data,
                   orderbook: "opensea",

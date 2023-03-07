@@ -229,17 +229,7 @@ export const postOrderV3Options: RouteOptions = {
             );
 
             if (orderResult?.token_set_id?.startsWith("token")) {
-              crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-                orderId,
-                kind: order.kind,
-                orderbook: "opensea",
-                source,
-                schema,
-                rawData: order.data,
-              } as crossPostingOrdersModel.CrossPostingOrder);
-
               await postOrderExternal.addToQueue({
-                crossPostingOrderId: crossPostingOrder.id,
                 orderId,
                 orderData: order.data,
                 orderbook: "opensea",
@@ -316,17 +306,7 @@ export const postOrderV3Options: RouteOptions = {
               }
 
               if (!hasMarketplaceFee) {
-                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-                  orderId,
-                  kind: order.kind,
-                  orderbook: "opensea",
-                  source,
-                  schema,
-                  rawData: order.data,
-                } as crossPostingOrdersModel.CrossPostingOrder);
-
                 await postOrderExternal.addToQueue({
-                  crossPostingOrderId: crossPostingOrder.id,
                   orderId,
                   orderData: order.data,
                   orderbook: "opensea",

@@ -87,7 +87,6 @@ if (config.doBackgroundWork) {
         try {
           await postOrder(orderbook, orderId, orderData, orderbookApiKey);
 
-          //  TODO: Remove if after deployment.
           if (crossPostingOrderId) {
             await crossPostingOrdersModel.updateOrderStatus(
               crossPostingOrderId,
@@ -134,7 +133,6 @@ if (config.doBackgroundWork) {
               )}, retry: ${retry}, error: ${error}`
             );
 
-            //  TODO: Remove if after deployment.
             if (crossPostingOrderId) {
               await crossPostingOrdersModel.updateOrderStatus(
                 crossPostingOrderId,
@@ -164,7 +162,6 @@ if (config.doBackgroundWork) {
               )}, retry: ${retry}, error: ${error}`
             );
 
-            //  TODO: Remove if after deployment.
             if (crossPostingOrderId) {
               await crossPostingOrdersModel.updateOrderStatus(
                 crossPostingOrderId,
@@ -339,7 +336,7 @@ const postOrder = async (
 
 export type PostOrderExternalParams =
   | {
-      crossPostingOrderId: number;
+      crossPostingOrderId?: number;
       orderId: string;
       orderData: Sdk.Seaport.Types.OrderComponents;
       orderbook: "opensea";
