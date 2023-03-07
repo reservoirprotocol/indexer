@@ -268,15 +268,6 @@ export class DailyVolume {
 
     // If we have results, we can now insert them into the daily_volumes table and update collections
     if (results.length) {
-      // Add a row for this day, that will mark that this day has already been calculated
-      results.push({
-        collection_id: -1,
-        volume: 0,
-        rank: -1,
-        floor_sell_value: 0,
-        volume_change: 0,
-      });
-
       const queries: PgPromiseQuery[] = [];
       results.forEach((values: any) => {
         queries.push({
