@@ -198,28 +198,33 @@ export const getCollectionsV5Options: RouteOptions = {
             validUntil: Joi.number().unsafe().allow(null),
           }).optional(),
           rank: Joi.object({
+            "0day": Joi.number().unsafe().allow(null),
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
           }),
           volume: Joi.object({
+            "0day": Joi.number().unsafe().allow(null),
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
           }),
           volumeChange: {
+            "0day": Joi.number().unsafe().allow(null),
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
           },
           floorSale: {
+            "0day": Joi.number().unsafe().allow(null),
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
           },
           floorSaleChange: {
+            "0day": Joi.number().unsafe().allow(null),
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
