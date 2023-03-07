@@ -45,10 +45,6 @@ if (config.doBackgroundWork) {
       const limit = 1000;
       let refreshTokens: RefreshTokens[] = [];
 
-      if (data.collection === "0x4923917e9e288b95405e2c893d0ac46b895dda22") {
-        return;
-      }
-
       if (kind === "full-collection-by-slug") {
         // Add the collections slugs to the list
         const pendingRefreshTokensBySlug = new PendingRefreshTokensBySlug();

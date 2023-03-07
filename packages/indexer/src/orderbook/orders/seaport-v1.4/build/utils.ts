@@ -52,7 +52,8 @@ export const getBuildInfo = async (
       SELECT
         contracts.kind,
         collections.royalties,
-        collections.new_royalties
+        collections.new_royalties,
+        collections.contract
       FROM collections
       JOIN contracts
         ON collections.contract = contracts.address

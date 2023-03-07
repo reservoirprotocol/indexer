@@ -138,29 +138,33 @@ export const postOrderV4Options: RouteOptions = {
 
           const signature = query.signature ?? order.data.signature;
           if (signature) {
-            const { v, r, s } = splitSignature(signature);
+            try {
+              const { v, r, s } = splitSignature(signature);
 
-            if (bulkData?.kind === "seaport-v1.4") {
-              // Encode the merkle proof of inclusion together with the signature
-              order.data.signature = new Sdk.SeaportV14.Exchange(
-                config.chainId
-              ).encodeBulkOrderProofAndSignature(
-                bulkData.data.orderIndex,
-                bulkData.data.merkleProof,
-                signature
-              );
-            } else {
-              // If the signature is provided via query parameters, use it
-              order.data = {
-                ...order.data,
-                // To cover everything:
-                // - orders requiring a single signature field
-                // - orders requiring split signature fields
-                signature,
-                v,
-                r,
-                s,
-              };
+              if (bulkData?.kind === "seaport-v1.4") {
+                // Encode the merkle proof of inclusion together with the signature
+                order.data.signature = new Sdk.SeaportV14.Exchange(
+                  config.chainId
+                ).encodeBulkOrderProofAndSignature(
+                  bulkData.data.orderIndex,
+                  bulkData.data.merkleProof,
+                  signature
+                );
+              } else {
+                // If the signature is provided via query parameters, use it
+                order.data = {
+                  ...order.data,
+                  // To cover everything:
+                  // - orders requiring a single signature field
+                  // - orders requiring split signature fields
+                  signature,
+                  v,
+                  r,
+                  s,
+                };
+              }
+            } catch {
+              // Skip errors
             }
           }
 

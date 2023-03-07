@@ -507,7 +507,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 kind: result.token_kind,
                 contract,
                 tokenId,
-                quantity: availableQuantity,
+                quantity: Math.min(item.quantity, availableQuantity),
               }
             );
           }

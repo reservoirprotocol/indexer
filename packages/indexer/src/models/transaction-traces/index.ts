@@ -36,6 +36,10 @@ export const saveTransactionTraces = async (transactionTraces: TransactionTrace[
 };
 
 export const getTransactionTraces = async (hashes: string[]): Promise<TransactionTrace[]> => {
+  if (!hashes.length) {
+    return [];
+  }
+
   const result = await idb.manyOrNone(
     `
       SELECT

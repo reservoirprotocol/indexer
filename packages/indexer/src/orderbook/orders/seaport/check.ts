@@ -41,7 +41,7 @@ export const offChainCheck = async (
 
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
-    const cancelled = await commonHelpers.isOrderCancelled(id);
+    const cancelled = await commonHelpers.isOrderCancelled(id, "seaport");
 
     if (cancelled) {
       throw new Error("cancelled");
@@ -168,7 +168,7 @@ export const offChainCheckPartial = async (
 
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
-    const cancelled = await commonHelpers.isOrderCancelled(id);
+    const cancelled = await commonHelpers.isOrderCancelled(id, "seaport");
     if (cancelled) {
       throw new Error("cancelled");
     }
