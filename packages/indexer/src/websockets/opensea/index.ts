@@ -59,7 +59,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     async (event) => {
       try {
         if (await isDuplicateEvent(event)) {
-          logger.debug(
+          logger.info(
             "opensea-websocket",
             `Duplicate event. network=${network}, event=${JSON.stringify(event)}`
           );
@@ -116,6 +116,15 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
   client.onItemMetadataUpdated("*", async (event) => {
     try {
       if (getSupportedChainName() != event.payload.item.chain.name) {
+        return;
+      }
+
+      if (await isDuplicateEvent(event)) {
+        logger.info(
+          "opensea-websocket-item-metadata-update-event",
+          `Duplicate event. network=${network}, event=${JSON.stringify(event)}`
+        );
+
         return;
       }
 
@@ -183,7 +192,16 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
 
 export const getEventHash = (event: BaseStreamMessage<unknown>): string => {
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  return generateHash(event.event_type, (event.payload as any).order_hash);
+  switch (event.event_type) {
+    case EventType.ITEM_METADATA_UPDATED:
+      return generateHash(
+        event.event_type,
+        (event.payload as any).item.nft_id,
+        (event.payload as any).sent_at
+      );
+    default:
+      return generateHash(event.event_type, (event.payload as any).order_hash);
+  }
 };
 
 export const isDuplicateEvent = async (event: BaseStreamMessage<unknown>): Promise<boolean> => {
