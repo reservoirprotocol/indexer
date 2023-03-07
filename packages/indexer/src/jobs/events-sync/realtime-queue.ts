@@ -96,7 +96,7 @@ if (config.doBackgroundWork) {
   );
 
   worker.on("completed", async () => {
-    if (config.chainId === 137) {
+    if (_.includes([137, 42161], config.chainId)) {
       await releaseLock(QUEUE_NAME);
     }
   });

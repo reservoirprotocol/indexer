@@ -50,6 +50,8 @@ export async function getBidInfoByOrderId(orderId: string) {
   } else if (tokenSetByOrderIdResult.id.startsWith("range:")) {
     const collection = await Collections.getByTokenSetId(tokenSetByOrderIdResult.id);
     collectionId = collection?.id;
+  } else if (tokenSetByOrderIdResult.id.startsWith("dynamic:")) {
+    [, , collectionId] = tokenSetByOrderIdResult.id.split(":");
   } else {
     [, collectionId] = tokenSetByOrderIdResult.id.split(":");
   }

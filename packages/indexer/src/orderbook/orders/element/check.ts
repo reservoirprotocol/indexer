@@ -37,7 +37,7 @@ export const offChainCheck = async (
     kind === "erc721" ? "1" : (order.params as Sdk.Element.Types.BaseOrder).nftAmount!;
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
-    const cancelled = await commonHelpers.isOrderCancelled(id);
+    const cancelled = await commonHelpers.isOrderCancelled(id, `element-${kind}`);
     if (cancelled) {
       throw new Error("cancelled");
     }
