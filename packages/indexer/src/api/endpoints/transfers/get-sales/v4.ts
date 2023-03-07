@@ -49,9 +49,14 @@ export const getSalesV4Options: RouteOptions = {
       attributes: Joi.object()
         .unknown()
         .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
-      sortBy: Joi.string()
-        .valid("time_asc", "time_desc", "price_asc", "price_desc")
-        .default("time_desc"),
+      orderBy: Joi.string()
+        .valid("price", "time")
+        .description("Order the items are returned in the response."),
+      sortDirection: Joi.string()
+        .lowercase()
+        .valid("asc", "desc")
+        .default("desc")
+        .description("Order the items are returned in the response."),
       txHash: Joi.string()
         .lowercase()
         .pattern(regex.bytes32)
@@ -227,19 +232,16 @@ export const getSalesV4Options: RouteOptions = {
       query.endTimestamp = 9999999999;
     }
 
-    let queryOrderBy = "";
-    if (query.sortBy) {
-      if (query.sortBy === "time_asc") {
-        queryOrderBy =
-          "ORDER BY fill_events_2.timestamp ASC, fill_events_2.log_index ASC, fill_events_2.batch_index ASC";
-      } else if (query.sortBy === "time_desc") {
-        queryOrderBy =
-          "ORDER BY fill_events_2.timestamp DESC, fill_events_2.log_index DESC, fill_events_2.batch_index DESC";
-      } else if (query.sortBy === "price_asc") {
-        queryOrderBy = "ORDER BY fill_events_2.price ASC";
-      } else if (query.sortBy === "price_desc") {
-        queryOrderBy = "ORDER BY fill_events_2.price DESC";
-      }
+    let orderDirection = "DESC";
+    if (query.sortDirection === "asc") {
+      orderDirection = "ASC";
+    }
+
+    // Default to ordering by time
+    let queryOrderBy = `ORDER BY fill_events_2.timestamp ${orderDirection}, fill_events_2.log_index ${orderDirection}, fill_events_2.batch_index ${orderDirection}`;
+
+    if (query.sortBy && query.sortBy === "price") {
+      queryOrderBy = `ORDER BY fill_events_2.price ${orderDirection}`;
     }
 
     const timestampFilter = `
