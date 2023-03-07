@@ -65,11 +65,7 @@ export class ApiKeyManager {
     }
 
     if (created) {
-      const sanitizedValues = values;
-      sanitizedValues.app_name.replace("@", "@ ");
-      sanitizedValues.website.replace("@", "@ ");
-
-      await ApiKeyManager.notifyApiKeyCreated(sanitizedValues);
+      await ApiKeyManager.notifyApiKeyCreated(values);
     }
 
     return {
@@ -291,29 +287,29 @@ export class ApiKeyManager {
             {
               type: "section",
               text: {
-                type: "mrkdwn",
-                text: `*Key:* ${values.key}`,
+                type: "plain_text",
+                text: `Key: ${values.key}`,
+              },
+            },
+            {
+              type: "section",
+              text: {
+                type: "plain_text",
+                text: `AppName: ${values.app_name}`,
+              },
+            },
+            {
+              type: "section",
+              text: {
+                type: "plain_text",
+                text: `Website: ${values.website}`,
               },
             },
             {
               type: "section",
               text: {
                 type: "mrkdwn",
-                text: `*AppName:* ${values.app_name}`,
-              },
-            },
-            {
-              type: "section",
-              text: {
-                type: "mrkdwn",
-                text: `*Website:* ${values.website}`,
-              },
-            },
-            {
-              type: "section",
-              text: {
-                type: "mrkdwn",
-                text: `*Email:* ${values.email}`,
+                text: `Email: ${values.email}`,
               },
             },
           ],
