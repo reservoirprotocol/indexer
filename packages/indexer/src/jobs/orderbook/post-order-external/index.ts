@@ -140,8 +140,6 @@ if (config.doBackgroundWork) {
                 error.message
               );
             }
-
-            throw new Error("Post Order Failed - Invalid Order");
           } else if (retry < MAX_RETRIES) {
             // If we got an unknown error from the api, reschedule job based on fixed delay.
             logger.info(
@@ -169,8 +167,6 @@ if (config.doBackgroundWork) {
                 (error as any).message
               );
             }
-
-            throw new Error("Post Order Failed - Max Retries Reached");
           }
         }
       }
