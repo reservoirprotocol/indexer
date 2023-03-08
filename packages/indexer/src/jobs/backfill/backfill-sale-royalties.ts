@@ -11,6 +11,7 @@ import { config } from "@/config/index";
 import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import * as es from "@/events-sync/storage";
 import { fetchTransactionTraces } from "@/events-sync/utils";
+import * as blockCheckQueue from "@/jobs/events-sync/block-check-queue";
 
 const QUEUE_NAME = "backfill-sale-royalties";
 
@@ -42,6 +43,8 @@ if (config.doBackgroundWork) {
         `
           SELECT
             fill_events_2.tx_hash,
+            fill_events_2.block,
+            fill_events_2.block_hash,
             fill_events_2.log_index,
             fill_events_2.batch_index,
             fill_events_2.block,
@@ -84,17 +87,38 @@ if (config.doBackgroundWork) {
           txHash: fromBuffer(r.tx_hash),
           logIndex: r.log_index,
           batchIndex: r.batch_index,
+          block: r.block,
+          blockHash: fromBuffer(r.block_hash),
         } as any,
       }));
 
       const time2 = performance.now();
 
       const fillEventsPerTxHash: { [txHash: string]: es.fills.Event[] } = {};
+      const blockToBlockHash: { [block: number]: Set<string> } = {};
       for (const fe of fillEvents) {
         if (!fillEventsPerTxHash[fe.baseEventParams.txHash]) {
           fillEventsPerTxHash[fe.baseEventParams.txHash] = [];
         }
         fillEventsPerTxHash[fe.baseEventParams.txHash].push(fe);
+
+        if (!blockToBlockHash[fe.baseEventParams.block]) {
+          blockToBlockHash[fe.baseEventParams.block] = new Set<string>();
+        }
+        blockToBlockHash[fe.baseEventParams.block].add(fe.baseEventParams.blockHash);
+      }
+
+      // Fix any orhpaned blocks along the way
+      for (const [block, blockHashes] of Object.entries(blockToBlockHash)) {
+        if (blockHashes.size > 1) {
+          await blockCheckQueue.addBulk(
+            [...blockHashes.values()].map((blockHash) => ({
+              block: Number(block),
+              blockHash,
+              delay: 0,
+            }))
+          );
+        }
       }
 
       // Prepare the caches for efficiency

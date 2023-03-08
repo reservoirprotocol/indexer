@@ -28,6 +28,7 @@ export const postOrdersV1Options: RouteOptions = {
           kind: Joi.string()
             .lowercase()
             .valid(
+              "blur",
               "looks-rare",
               "zeroex-v4",
               "x2y2",
