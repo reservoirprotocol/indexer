@@ -73,6 +73,7 @@ export const postOrdersV1Options: RouteOptions = {
             kind: "full",
             orderParams: data,
             metadata: {},
+            isOpenSea: true,
           },
           relayToArweave: true,
           validateBidValue: true,

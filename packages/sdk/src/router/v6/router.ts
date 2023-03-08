@@ -401,7 +401,7 @@ export class Router {
           try {
             const order = detail.order as Sdk.Seaport.Types.PartialOrder;
             const result = await axios.get(
-              `https://order-fetcher.vercel.app/api/listing?orderHash=${order.id}&contract=${order.contract}&tokenId=${order.tokenId}&taker=${taker}&chainId=${this.chainId}`
+              `https://order-fetcher.vercel.app/api/listing?orderHash=${order.id}&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.1`
             );
 
             const fullOrder = new Sdk.Seaport.Order(this.chainId, result.data.order);
@@ -428,7 +428,7 @@ export class Router {
           try {
             const order = detail.order as Sdk.SeaportV14.Types.PartialOrder;
             const result = await axios.get(
-              `https://order-fetcher.vercel.app/api/listing?orderHash=${order.id}&contract=${order.contract}&tokenId=${order.tokenId}&taker=${taker}&chainId=${this.chainId}`
+              `https://order-fetcher.vercel.app/api/listing?orderHash=${order.id}&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.4`
             );
 
             const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);

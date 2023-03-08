@@ -90,6 +90,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
                 metadata: {
                   originatedAt: event.sent_at,
                 },
+                isOpenSea: true,
                 openSeaOrderParams,
               },
               relayToArweave: eventType === EventType.ITEM_LISTED,
