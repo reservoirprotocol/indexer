@@ -252,7 +252,10 @@ export class Order {
         provider
       );
 
-      const isApprovedForAll = await nftContract.isApprovedForAll(this.params.maker);
+      const isApprovedForAll = await nftContract.isApprovedForAll(
+        this.params.maker,
+        Addresses.Exchange[this.chainId]
+      );
 
       if (!isApprovedForAll) {
         const approvedAddress = await nftContract.getApproved(this.params.make.assetType.tokenId);

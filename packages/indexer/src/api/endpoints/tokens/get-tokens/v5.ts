@@ -161,6 +161,11 @@ export const getTokensV5Options: RouteOptions = {
       includeDynamicPricing: Joi.boolean()
         .default(false)
         .description("If true, dynamic pricing data will be returned in the response."),
+      includeRoyaltiesPaid: Joi.boolean()
+        .default(false)
+        .description(
+          "If true, a boolean indicating whether royalties were paid on a token's last sale will be returned in the response."
+        ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -253,6 +258,7 @@ export const getTokensV5Options: RouteOptions = {
                 )
                 .allow(null),
             }).optional(),
+            royaltiesPaid: Joi.boolean().default(false).optional(),
           }),
         })
       ),
@@ -401,6 +407,25 @@ export const getTokensV5Options: RouteOptions = {
       `;
     }
 
+    let includeRoyaltiesPaidQuery = "";
+    let selectIncludeRoyaltiesPaid = "";
+    if (query.includeRoyaltiesPaid) {
+      selectIncludeRoyaltiesPaid = ", r.*";
+      includeRoyaltiesPaidQuery = `
+      LEFT JOIN LATERAL (
+        SELECT
+          CASE WHEN f.royalty_fee_breakdown IS NOT NULL THEN true
+          WHEN o.fee_breakdown IS NULL THEN false 
+          WHEN 'royalty' IN (SELECT jsonb_array_elements(o.fee_breakdown)->>'kind') THEN true
+          ELSE false END AS royalties_paid
+        FROM fill_events_2 f
+        LEFT JOIN orders o ON f.order_id = o.id
+        WHERE f.contract = t.contract AND f.token_id = t.token_id
+        ORDER BY timestamp DESC LIMIT 1
+      ) r ON TRUE
+      `;
+    }
+
     let sourceQuery = "";
     if (query.nativeSource) {
       const sources = await Sources.getInstance();
@@ -424,7 +449,6 @@ export const getTokensV5Options: RouteOptions = {
       sourceConditions.push(`o.fillability_status = 'fillable'`);
       sourceConditions.push(`o.approval_status = 'approved'`);
       sourceConditions.push(`o.source_id_int = $/nativeSource/`);
-      sourceConditions.push(`o.is_reservoir = TRUE`);
       sourceConditions.push(
         `o.taker = '\\x0000000000000000000000000000000000000000' OR o.taker IS NULL`
       );
@@ -518,11 +542,13 @@ export const getTokensV5Options: RouteOptions = {
           ${selectTopBid}
           ${selectIncludeQuantity}
           ${selectIncludeDynamicPricing}
+          ${selectIncludeRoyaltiesPaid}
         FROM tokens t
         ${topBidQuery}
         ${sourceQuery}
         ${includeQuantityQuery}
         ${includeDynamicPricingQuery}
+        ${includeRoyaltiesPaidQuery}
         JOIN collections c ON t.collection_id = c.id
         JOIN contracts con ON t.contract = con.address
       `;
@@ -1114,6 +1140,7 @@ export const getTokensV5Options: RouteOptions = {
                   feeBreakdown: feeBreakdown,
                 }
               : undefined,
+            royaltiesPaid: query.includeRoyaltiesPaid ? r.royalties_paid : undefined,
           },
         };
       });

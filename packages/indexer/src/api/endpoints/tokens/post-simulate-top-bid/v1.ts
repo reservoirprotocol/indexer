@@ -91,10 +91,10 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         }
       );
       if (!ownerResult) {
-        throw Boom.internal("Could not get token owner");
+        throw Boom.badRequest("Could not get token owner");
       }
       if (ownerResult && ownerResult.acquired_at >= now() - 3 * 3600) {
-        throw Boom.internal("Taker acquired token too recently");
+        throw Boom.badRequest("Taker acquired token too recently");
       }
 
       const owner = fromBuffer(ownerResult.owner);

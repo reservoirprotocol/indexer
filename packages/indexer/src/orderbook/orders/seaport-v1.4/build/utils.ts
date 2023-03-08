@@ -14,6 +14,8 @@ export interface BaseOrderBuildOptions {
   contract?: string;
   weiPrice: string;
   orderbook: "opensea" | "reservoir";
+  useOffChainCancellation?: boolean;
+  replaceOrderId?: string;
   orderType?: Sdk.SeaportV14.Types.OrderType;
   currency?: string;
   quantity?: number;
@@ -50,7 +52,8 @@ export const getBuildInfo = async (
       SELECT
         contracts.kind,
         collections.royalties,
-        collections.new_royalties
+        collections.new_royalties,
+        collections.contract
       FROM collections
       JOIN contracts
         ON collections.contract = contracts.address
@@ -64,6 +67,25 @@ export const getBuildInfo = async (
   }
 
   const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+
+  // Use OpenSea's conduit for sharing approvals (where available)
+  const conduitKey = Sdk.SeaportV14.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero;
+
+  // No zone by default
+  let zone = AddressZero;
+  if (options.useOffChainCancellation) {
+    zone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
+  }
+
+  const source = options.orderbook === "opensea" ? "opensea.io" : options.source;
+
+  // Generate the salt
+  let salt = source
+    ? padSourceToSalt(source, options.salt ?? getRandomBytes(16).toString())
+    : undefined;
+  if (options.replaceOrderId) {
+    salt = options.replaceOrderId;
+  }
 
   const buildParams: BaseBuildParams = {
     offerer: options.maker,
@@ -79,18 +101,11 @@ export const getBuildInfo = async (
       ? Sdk.Common.Addresses.Weth[config.chainId]
       : Sdk.Common.Addresses.Eth[config.chainId],
     fees: [],
-    // Use OpenSea's pausable zone when posting to OpenSea
-    zone:
-      options.orderbook === "opensea"
-        ? Sdk.SeaportV14.Addresses.PausableZone[config.chainId] ?? AddressZero
-        : AddressZero,
-    // Use OpenSea's conduit for sharing approvals (where available)
-    conduitKey: Sdk.SeaportV14.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero,
+    zone,
+    conduitKey,
+    salt,
     startTime: options.listingTime || now() - 1 * 60,
     endTime: options.expirationTime || now() + 6 * 30 * 24 * 3600,
-    salt: options.source
-      ? padSourceToSalt(options.source, options.salt ?? getRandomBytes(16).toString())
-      : undefined,
     counter: (await exchange.getCounter(baseProvider, options.maker)).toString(),
     orderType: options.orderType,
   };

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import * as Sdk from "@reservoir0x/sdk";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import * as crypto from "crypto";
@@ -19,6 +21,8 @@ import {
 } from "@/jobs/orderbook/post-order-external/api/errors";
 import { redb } from "@/common/db";
 import { RateLimiterRedis, RateLimiterRes } from "rate-limiter-flexible";
+import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
+import { CrossPostingOrderStatus } from "@/models/cross-posting-orders";
 
 const QUEUE_NAME = "orderbook-post-order-external-queue";
 const MAX_RETRIES = 5;
@@ -27,7 +31,7 @@ export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
     removeOnComplete: 1000,
-    removeOnFail: 10000,
+    removeOnFail: 1000,
     timeout: 60000,
   },
 });
@@ -38,8 +42,10 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { orderId, orderData, orderbook, retry } = job.data as PostOrderExternalParams;
-      let orderbookApiKey = job.data.orderbookApiKey;
+      const { crossPostingOrderId, orderId, orderData, orderbook } =
+        job.data as PostOrderExternalParams;
+
+      logger.info(QUEUE_NAME, `Start. jobData=${JSON.stringify(job.data)}`);
 
       if (![1, 4, 5].includes(config.chainId)) {
         throw new Error("Unsupported network");
@@ -49,7 +55,13 @@ if (config.doBackgroundWork) {
         throw new Error("Unsupported orderbook");
       }
 
-      orderbookApiKey = orderbookApiKey || getOrderbookDefaultApiKey(orderbook);
+      // TODO: Remove after deployment
+      if (job.data.orderbookApiKey === null) {
+        delete job.data.orderbookApiKey;
+      }
+
+      const orderbookApiKey = job.data.orderbookApiKey ?? getOrderbookDefaultApiKey(orderbook);
+      const retry = job.data.retry ?? 0;
 
       let isRateLimited = false;
       let rateLimitExpiration = 0;
@@ -68,30 +80,28 @@ if (config.doBackgroundWork) {
 
       if (isRateLimited) {
         // If limit reached, reschedule job based on the limit expiration.
-
         logger.info(
           QUEUE_NAME,
-          `Post Order Rate Limited. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+          `Post Order Rate Limited. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
           )}, rateLimitExpiration: ${rateLimitExpiration}, retry: ${retry}`
         );
 
-        await addToQueue(
-          orderId,
-          orderData,
-          orderbook,
-          orderbookApiKey,
-          retry,
-          rateLimitExpiration,
-          true
-        );
+        await addToQueue(job.data, rateLimitExpiration, true);
       } else {
         try {
           await postOrder(orderbook, orderId, orderData, orderbookApiKey);
 
+          if (crossPostingOrderId) {
+            await crossPostingOrdersModel.updateOrderStatus(
+              crossPostingOrderId,
+              CrossPostingOrderStatus.posted
+            );
+          }
+
           logger.info(
             QUEUE_NAME,
-            `Post Order Success. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+            `Post Order Success. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
               orderData
             )}, retry: ${retry}`
           );
@@ -105,17 +115,17 @@ if (config.doBackgroundWork) {
             } catch (error) {
               logger.error(
                 QUEUE_NAME,
-                `Unable to set expiration. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+                `Unable to set expiration. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                   orderData
                 )}, retry: ${retry}, delay=${delay}, error: ${error}`
               );
             }
 
-            await addToQueue(orderId, orderData, orderbook, orderbookApiKey, retry, delay, true);
+            await addToQueue(job.data, delay, true);
 
             logger.info(
               QUEUE_NAME,
-              `Post Order Throttled. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+              `Post Order Throttled. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
               )}, delay: ${delay}, retry: ${retry}`
             );
@@ -123,39 +133,45 @@ if (config.doBackgroundWork) {
             // If the order is invalid, fail the job.
             logger.error(
               QUEUE_NAME,
-              `Post Order Failed - Invalid Order. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+              `Post Order Failed - Invalid Order. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
               )}, retry: ${retry}, error: ${error}`
             );
 
-            throw new Error("Post Order Failed - Invalid Order");
+            if (crossPostingOrderId) {
+              await crossPostingOrdersModel.updateOrderStatus(
+                crossPostingOrderId,
+                CrossPostingOrderStatus.failed,
+                error.message
+              );
+            }
           } else if (retry < MAX_RETRIES) {
             // If we got an unknown error from the api, reschedule job based on fixed delay.
             logger.info(
               QUEUE_NAME,
-              `Post Order Failed - Retrying. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+              `Post Order Failed - Retrying. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
               )}, retry: ${retry}`
             );
 
-            await addToQueue(
-              orderId,
-              orderData,
-              orderbook,
-              orderbookApiKey,
-              ++job.data.retry,
-              1000,
-              true
-            );
+            job.data.retry = retry + 1;
+
+            await addToQueue(job.data, 1000, true);
           } else {
             logger.error(
               QUEUE_NAME,
-              `Post Order Failed - Max Retries Reached. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+              `Post Order Failed - Max Retries Reached. orderbook${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
               )}, retry: ${retry}, error: ${error}`
             );
 
-            throw new Error("Post Order Failed - Max Retries Reached");
+            if (crossPostingOrderId) {
+              await crossPostingOrdersModel.updateOrderStatus(
+                crossPostingOrderId,
+                CrossPostingOrderStatus.failed,
+                (error as any).message
+              );
+            }
           }
         }
       }
@@ -235,7 +251,7 @@ const getRateLimiter = (orderbook: string) => {
 
 const postOrder = async (
   orderbook: string,
-  orderId: string,
+  orderId: string | null,
   orderData: PostOrderExternalParams["orderData"],
   orderbookApiKey: string
 ) => {
@@ -248,7 +264,7 @@ const postOrder = async (
 
       logger.info(
         QUEUE_NAME,
-        `Post Order Seaport. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+        `Post Order Seaport. orderbook=${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
           orderData
         )}, side=${order.getInfo()?.side}, kind=${order.params.kind}`
       );
@@ -321,66 +337,61 @@ const postOrder = async (
 
 export type PostOrderExternalParams =
   | {
+      crossPostingOrderId?: number;
       orderId: string;
       orderData: Sdk.Seaport.Types.OrderComponents;
       orderbook: "opensea";
-      orderbookApiKey: string;
-      retry: number;
+      orderbookApiKey?: string | null;
+      retry?: number;
     }
   | {
+      crossPostingOrderId: number;
       orderId: string;
       orderData: Sdk.LooksRare.Types.MakerOrderParams;
       orderbook: "looks-rare";
-      orderbookApiKey: string;
-      retry: number;
+      orderbookApiKey?: string | null;
+      retry?: number;
     }
   | {
-      orderId: string;
+      crossPostingOrderId: number;
+      orderId: string | null;
       orderData: Sdk.X2Y2.Types.LocalOrder;
       orderbook: "x2y2";
-      orderbookApiKey: string;
-      retry: number;
+      orderbookApiKey?: string | null;
+      retry?: number;
     }
   | {
+      crossPostingOrderId: number;
       orderId: string;
       orderData: Sdk.Universe.Types.Order;
       orderbook: "universe";
-      retry: number;
+      orderbookApiKey?: string | null;
+      retry?: number;
     }
   | {
+      crossPostingOrderId: number;
       orderId: string;
       orderData: Sdk.Infinity.Types.OrderInput;
       orderbook: "infinity";
-      retry: number;
+      orderbookApiKey?: string | null;
+      retry?: number;
     }
   | {
+      crossPostingOrderId: number;
       orderId: string;
       orderData: Sdk.Flow.Types.OrderInput;
       orderbook: "flow";
-      retry: number;
+      orderbookApiKey?: string | null;
+      retry?: number;
     };
 
 export const addToQueue = async (
-  orderId: string | null,
-  orderData: PostOrderExternalParams["orderData"],
-  orderbook: string,
-  orderbookApiKey: string | null,
-  retry = 0,
+  postOrderExternalParams: PostOrderExternalParams,
   delay = 0,
   prioritized = false
 ) => {
-  await queue.add(
-    crypto.randomUUID(),
-    {
-      orderId,
-      orderData,
-      orderbook,
-      orderbookApiKey,
-      retry,
-    },
-    {
-      delay,
-      priority: prioritized ? 1 : undefined,
-    }
-  );
+  await queue.add(crypto.randomUUID(), postOrderExternalParams, {
+    delay,
+    priority: prioritized ? 1 : undefined,
+  });
 };

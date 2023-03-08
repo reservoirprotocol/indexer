@@ -9,10 +9,7 @@ import { expect } from "chai";
 import { ethers, network } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import {
-  SeaportERC721Approval,
-  setupSeaportERC721Approvals,
-} from "../helpers/seaport";
+import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport";
 import { bn, getChainId, getRandomFloat, reset } from "../../../utils";
 
 // WARNING! These tests are flaky!
@@ -34,22 +31,18 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
   beforeEach(async () => {
     [deployer, alice, bob, carol, david, emilio] = await ethers.getSigners();
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportApprovalOrderZone = (await ethers
+      .then((factory) => factory.deploy());
+    seaportApprovalOrderZone = await ethers
       .getContractFactory("SeaportApprovalOrderZone", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportModule = (await ethers
+      .then((factory) => factory.deploy());
+    seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    x2y2Module = (await ethers
+      .then((factory) => factory.deploy(router.address, router.address));
+    x2y2Module = await ethers
       .getContractFactory("X2Y2Module", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -93,6 +86,7 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
     // Fee recipient: Emilio
 
     const x2y2Interface = new Interface(
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       require("../../../../artifacts/contracts/interfaces/IX2Y2.sol/IX2Y2.json").abi
     );
 
@@ -105,6 +99,7 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
       })
       .then((data) =>
         data.data.data.filter(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (order: any) =>
             // For ease of accessing the token id we only test with single token offers
             !order.is_collection_offer && order.contract.erc_type === 0
@@ -112,7 +107,7 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
       );
 
     const offers: Sdk.X2Y2.Order[] = [];
-    const inputs: any[] = [];
+    const inputs: object[] = [];
     const fees: BigNumber[][] = [];
     for (let i = 0; i < offersCount; i++) {
       const orderData = orders[i];
@@ -180,10 +175,7 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
 
     await Promise.all(
       offers.map(async (offer) => {
-        const contract = new Sdk.Common.Helpers.Erc721(
-          ethers.provider,
-          offer.params.nft.token
-        );
+        const contract = new Sdk.Common.Helpers.Erc721(ethers.provider, offer.params.nft.token);
         const owner = await contract.getOwner(offer.params.nft.tokenId!);
 
         await network.provider.request({
@@ -203,10 +195,7 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
       receiver: x2y2Module.address,
       nft: {
         kind: "erc721",
-        contract: new Sdk.Common.Helpers.Erc721(
-          ethers.provider,
-          offer.params.nft.token
-        ).contract,
+        contract: new Sdk.Common.Helpers.Erc721(ethers.provider, offer.params.nft.token).contract,
         id: Number(offer.params.nft.tokenId!),
       },
       zone: seaportApprovalOrderZone.address,
@@ -227,8 +216,7 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
                 {
                   parameters: {
                     ...orders![0].params,
-                    totalOriginalConsiderationItems:
-                      orders![0].params.consideration.length,
+                    totalOriginalConsiderationItems: orders![0].params.consideration.length,
                   },
                   signature: orders![0].params.signature,
                 },
@@ -236,8 +224,7 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
                 {
                   parameters: {
                     ...orders![1].params,
-                    totalOriginalConsiderationItems:
-                      orders![1].params.consideration.length,
+                    totalOriginalConsiderationItems: orders![1].params.consideration.length,
                   },
                   signature: "0x",
                 },
@@ -287,16 +274,12 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
@@ -314,9 +297,7 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
               // Take into consideration the protocol fee
               bn(offer.params.price).mul(50).div(10000)
             )
-            .sub(
-              bn(offer.params.price).mul(offer.params.royalty_fee).div(1000000)
-            )
+            .sub(bn(offer.params.price).mul(offer.params.royalty_fee).div(1000000))
             .sub(fees[i].reduce((a, b) => bn(a).add(b), bn(0)))
         )
         .reduce((a, b) => bn(a).add(b), bn(0))
@@ -327,9 +308,7 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
       expect(balancesAfter.emilio.sub(balancesBefore.emilio)).to.eq(
         offers
           .map((_, i) => fees[i])
-          .map((executionFees) =>
-            executionFees.reduce((a, b) => bn(a).add(b), bn(0))
-          )
+          .map((executionFees) => executionFees.reduce((a, b) => bn(a).add(b), bn(0)))
           .reduce((a, b) => bn(a).add(b), bn(0))
       );
     }
@@ -349,8 +328,8 @@ describe("[ReservoirV6_0_0] X2Y2 offers", () => {
     expect(balancesAfter.x2y2Module).to.eq(0);
   };
 
-  for (let multiple of [false, true]) {
-    for (let chargeFees of [false, true]) {
+  for (const multiple of [false, true]) {
+    for (const chargeFees of [false, true]) {
       it(
         "[eth]" +
           `${multiple ? "[multiple-orders]" : "[single-order]"}` +

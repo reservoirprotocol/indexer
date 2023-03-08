@@ -19,3 +19,4 @@ import "@/jobs/order-updates/by-maker-bundle-queue";
 import "@/jobs/order-updates/cron/dynamic-orders-queue";
 import "@/jobs/order-updates/cron/erc20-orders-queue";
 import "@/jobs/order-updates/cron/expired-orders-queue";
+import "@/jobs/order-updates/cron/oracle-orders-queue";

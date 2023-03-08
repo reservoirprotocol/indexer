@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import _ from "lodash";
 import { idb, pgp, redb } from "@/common/db";
 import { splitContinuation, toBuffer } from "@/common/utils";
@@ -70,14 +72,23 @@ export class Activities {
     return await idb.none(query, { blockHash: toBuffer(blockHash) });
   }
 
-  public static async getActivities(
-    continuation: null | string = null,
+  public static async getActivities({
+    continuation = null,
     limit = 20,
     byEventTimestamp = false,
     includeMetadata = true,
     sortDirection = "asc",
-    includeCriteria = false
-  ) {
+    includeCriteria = false,
+    contract = undefined,
+  }: {
+    continuation: null | string;
+    limit: number;
+    byEventTimestamp?: boolean;
+    includeMetadata?: boolean;
+    sortDirection?: string;
+    includeCriteria?: boolean;
+    contract?: string;
+  }) {
     let eventTimestamp;
     let id;
     let metadataQuery = "";
@@ -203,11 +214,19 @@ export class Activities {
             ${metadataQuery}
             `;
 
+    const conditions: string[] = [];
+    if (contract) {
+      conditions.push(`activities.contract = $/contract/`);
+    }
+
     if (byEventTimestamp) {
       if (!_.isNull(continuation) && continuation !== "null") {
         const sign = sortDirection == "desc" ? "<" : ">";
         [eventTimestamp, id] = splitContinuation(continuation, /^(\d+)_(\d+)$/);
-        baseQuery += ` WHERE (event_timestamp, id) ${sign} ($/eventTimestamp/, $/id/)`;
+        conditions.push(`(event_timestamp, id) ${sign} ($/eventTimestamp/, $/id/)`);
+      }
+      if (conditions.length) {
+        baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
 
       baseQuery += ` ORDER BY event_timestamp ${sortDirection}, id ${sortDirection}`;
@@ -215,7 +234,10 @@ export class Activities {
       if (!_.isNull(continuation) && continuation !== "null") {
         id = continuation;
         const sign = sortDirection == "desc" ? "<" : ">";
-        baseQuery += ` WHERE id ${sign} $/id/`;
+        conditions.push(`id ${sign} $/id/`);
+      }
+      if (conditions.length) {
+        baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
 
       baseQuery += ` ORDER BY id ${sortDirection}`;
@@ -227,6 +249,7 @@ export class Activities {
       limit,
       id,
       eventTimestamp,
+      contract: contract ? toBuffer(contract) : undefined,
     });
 
     if (activities) {
@@ -262,6 +285,7 @@ export class Activities {
     collectionsSetId = "",
     createdBefore: null | string = null,
     types: string[] = [],
+    attributes: { key: string; value: string }[] = [],
     limit = 50,
     sortBy = "eventTimestamp",
     includeMetadata = true,
@@ -275,25 +299,25 @@ export class Activities {
     let nullsLast = "";
 
     if (!_.isNull(createdBefore)) {
-      continuation = `AND ${sortByColumn} < $/createdBefore/`;
+      continuation = `AND activities.${sortByColumn} < $/createdBefore/`;
     }
 
     if (!_.isEmpty(types)) {
-      typesFilter = `AND type IN ('$/types:raw/')`;
+      typesFilter = `AND activities.type IN ('$/types:raw/')`;
     }
 
     if (collectionsSetId) {
       nullsLast = "NULLS LAST";
-      collectionFilter = `WHERE collection_id IN (select collection_id
+      collectionFilter = `WHERE activities.collection_id IN (select collection_id
             FROM collections_sets_collections
             WHERE collections_set_id = $/collectionsSetId/
          )`;
     } else if (community) {
       collectionFilter =
-        "WHERE collection_id IN (SELECT id FROM collections WHERE community = $/community/)";
+        "WHERE activities.collection_id IN (SELECT id FROM collections WHERE community = $/community/)";
     } else if (collectionId) {
       nullsLast = "NULLS LAST";
-      collectionFilter = "WHERE collection_id = $/collectionId/";
+      collectionFilter = "WHERE activities.collection_id = $/collectionId/";
     }
 
     if (!collectionFilter) {
@@ -415,10 +439,32 @@ export class Activities {
              ) o ON TRUE`;
     }
 
+    let attributesQuery = "";
+    if (attributes) {
+      const attributesArray: { key: string; value: any }[] = [];
+      Object.entries(attributes).forEach(([key, value]) => attributesArray.push({ key, value }));
+      for (let i = 0; i < attributesArray.length; i++) {
+        const multipleSelection = Array.isArray(attributesArray[i].value);
+
+        attributesQuery += `
+            INNER JOIN token_attributes ta${i}
+              ON activities.contract = ta${i}.contract
+              AND activities.token_id = ta${i}.token_id
+              AND ta${i}.key = '${attributesArray[i].key}'
+              AND ta${i}.value ${
+          multipleSelection
+            ? `IN (${attributesArray[i].value.map((v: any) => `'${v}'`).join(",")})`
+            : `= '${attributesArray[i].value}'`
+        }
+          `;
+      }
+    }
+
     const activities: ActivitiesEntityParams[] | null = await redb.manyOrNone(
       `SELECT *
              FROM activities
              ${metadataQuery}
+             ${attributesQuery}
              ${collectionFilter}
              ${continuation}
              ${typesFilter}

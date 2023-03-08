@@ -132,7 +132,7 @@ export const getMarketplaces: RouteOptions = {
           break;
         }
         case 5: {
-          listableOrderbooks = ["reservoir", "opensea", "looks-rare"];
+          listableOrderbooks = ["reservoir", "opensea", "looks-rare", "x2y2"];
           break;
         }
         case 137: {

@@ -18,7 +18,7 @@
     "@bull-board/hapi": "4.0.1",
     "@commitlint/cli": "^16.2.1",
     "@commitlint/config-conventional": "^16.2.1",
-    "@georgeroman/evm-tx-simulator": "^0.0.15",
+    "@georgeroman/evm-tx-simulator": "^0.0.16",
     "@hapi/basic": "^6.0.0",
     "@hapi/boom": "^9.1.4",
     "@hapi/hapi": "^20.0.0",
@@ -28,6 +28,7 @@
     "@poprank/rankings": "1.1.20",
     "@reservoir0x/sdk": "*",
     "@types/date-fns": "^2.6.0",
+    "@types/flat": "^5.0.2",
     "@types/hapi__basic": "^5.1.2",
     "@types/hapi__hapi": "^20.0.9",
     "@types/hapi__inert": "^5.2.3",
@@ -51,6 +52,7 @@
     "eslint": "^8.10.0",
     "eslint-config-prettier": "^8.5.0",
     "ethers": "^5.7.2",
+    "flat": "^5.0.2",
     "graphql": "^16.3.0",
     "graphql-request": "^4.0.0",
     "hapi-pulse": "^3.0.0",
@@ -81,7 +83,8 @@
     "typescript": "^4.6.4",
     "uuid-by-string": "^3.0.7",
     "winston": "^3.3.3",
-    "ws": "^8.10.0"
+    "ws": "^8.10.0",
+    "yargs-parser": "21.1.1"
   },
   "devDependencies": {
     "tsconfig-paths": "^4.1.0"

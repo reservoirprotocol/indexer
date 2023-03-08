@@ -8,10 +8,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import {
-  SeaportERC721Approval,
-  setupSeaportERC721Approvals,
-} from "../helpers/seaport";
+import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport";
 import { RaribleListing, setupRaribleOffers } from "../helpers/rarible";
 import {
   bn,
@@ -44,22 +41,18 @@ describe("[ReservoirV6_0_0] Rarible offers", () => {
 
     ({ erc721 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportApprovalOrderZone = (await ethers
+      .then((factory) => factory.deploy());
+    seaportApprovalOrderZone = await ethers
       .getContractFactory("SeaportApprovalOrderZone", deployer)
-      .then((factory) => factory.deploy())) as any;
-    seaportModule = (await ethers
+      .then((factory) => factory.deploy());
+    seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
-    raribleModule = (await ethers
+      .then((factory) => factory.deploy(router.address, router.address));
+    raribleModule = await ethers
       .getContractFactory("RaribleModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -164,8 +157,7 @@ describe("[ReservoirV6_0_0] Rarible offers", () => {
                 {
                   parameters: {
                     ...orders![0].params,
-                    totalOriginalConsiderationItems:
-                      orders![0].params.consideration.length,
+                    totalOriginalConsiderationItems: orders![0].params.consideration.length,
                   },
                   signature: orders![0].params.signature,
                 },
@@ -173,8 +165,7 @@ describe("[ReservoirV6_0_0] Rarible offers", () => {
                 {
                   parameters: {
                     ...orders![1].params,
-                    totalOriginalConsiderationItems:
-                      orders![1].params.consideration.length,
+                    totalOriginalConsiderationItems: orders![1].params.consideration.length,
                   },
                   signature: "0x",
                 },
@@ -235,36 +226,24 @@ describe("[ReservoirV6_0_0] Rarible offers", () => {
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      offers.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && offers.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
       return;
     }
 
     // Fetch pre-state
 
-    const balancesBefore = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const balancesBefore = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
@@ -280,11 +259,7 @@ describe("[ReservoirV6_0_0] Rarible offers", () => {
           offer.isCancelled
             ? bn(0)
             : bn(offer.price)
-                .sub(
-                  offer.fees
-                    ?.map(({ amount }) => bn(amount))
-                    .reduce((a, b) => a.add(b)) ?? 0
-                )
+                .sub(offer.fees?.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b)) ?? 0)
                 .sub(fees[i].reduce((a, b) => bn(a).add(b), bn(0)))
         )
         .reduce((a, b) => bn(a).add(b), bn(0))
@@ -295,9 +270,7 @@ describe("[ReservoirV6_0_0] Rarible offers", () => {
       expect(balancesAfter.emilio.sub(balancesBefore.emilio)).to.eq(
         offers
           .map((_, i) => fees[i])
-          .map((executionFees) =>
-            executionFees.reduce((a, b) => bn(a).add(b), bn(0))
-          )
+          .map((executionFees) => executionFees.reduce((a, b) => bn(a).add(b), bn(0)))
           .reduce((a, b) => bn(a).add(b), bn(0))
       );
     }
@@ -319,10 +292,10 @@ describe("[ReservoirV6_0_0] Rarible offers", () => {
 
   // Test various combinations for filling offers
 
-  for (let multiple of [false, true]) {
-    for (let partial of [false, true]) {
-      for (let chargeFees of [false, true]) {
-        for (let revertIfIncomplete of [false, true]) {
+  for (const multiple of [false, true]) {
+    for (const partial of [false, true]) {
+      for (const chargeFees of [false, true]) {
+        for (const revertIfIncomplete of [false, true]) {
           it(
             `${multiple ? "[multiple-orders]" : "[single-order]"}` +
               `${partial ? "[partial]" : "[full]"}` +

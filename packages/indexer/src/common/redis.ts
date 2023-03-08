@@ -19,6 +19,11 @@ export const redisSubscriber = new Redis(config.redisUrl, {
   enableReadyCheck: false,
 });
 
+export const redisWebsocketPublisher = new Redis(config.redisWebsocketUrl, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
+
 export const rateLimitRedis = new Redis(config.rateLimitRedisUrl, {
   maxRetriesPerRequest: 1,
   enableReadyCheck: false,

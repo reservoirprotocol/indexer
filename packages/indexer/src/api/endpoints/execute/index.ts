@@ -18,4 +18,5 @@ export * from "@/api/endpoints/execute/get-execute-sell/v4";
 export * from "@/api/endpoints/execute/get-execute-sell/v5";
 export * from "@/api/endpoints/execute/get-execute-sell/v6";
 export * from "@/api/endpoints/execute/get-execute-sell/v7";
+export * from "@/api/endpoints/execute/post-cancel-signature/v1";
 export * from "@/api/endpoints/execute/post-permit-signature/v1";

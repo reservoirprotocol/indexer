@@ -62,6 +62,14 @@ export const getUserCollectionsV2Options: RouteOptions = {
         .max(100)
         .default(20)
         .description("Amount of items returned in response."),
+      sortBy: Joi.string()
+        .valid("allTimeVolume", "1DayVolume", "7DayVolume", "30DayVolume")
+        .default("allTimeVolume")
+        .description("Order the items are returned in the response. Defaults to allTimeVolume"),
+      sortDirection: Joi.string()
+        .valid("asc", "desc")
+        .default("desc")
+        .description("Order the items are returned in the response."),
     }),
   },
   response: {
@@ -140,15 +148,15 @@ export const getUserCollectionsV2Options: RouteOptions = {
             SELECT 1 AS owner_liquid_count
             FROM "orders" "o"
             JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
-            WHERE "tst"."contract" = nft_balances."contract"
-            AND "tst"."token_id" = nft_balances."token_id"
+            WHERE "tst"."contract" = nbsample."contract"
+            AND "tst"."token_id" = nbsample."token_id"
             AND "o"."side" = 'buy'
             AND "o"."fillability_status" = 'fillable'
             AND "o"."approval_status" = 'approved'
             AND EXISTS(
               SELECT FROM "nft_balances" "nb"
-                WHERE "nb"."contract" = nft_balances."contract"
-                AND "nb"."token_id" = nft_balances."token_id"
+                WHERE "nb"."contract" = nbsample."contract"
+                AND "nb"."token_id" = nbsample."token_id"
                 AND "nb"."amount" > 0
                 AND "nb"."owner" != "o"."maker"
             )
@@ -159,6 +167,13 @@ export const getUserCollectionsV2Options: RouteOptions = {
 
     try {
       let baseQuery = `
+        WITH nbsample as (SELECT contract, token_id, "owner", amount
+            FROM nft_balances
+            WHERE "owner" = $/user/
+              AND amount > 0
+            ORDER BY last_token_appraisal_value DESC NULLS LAST
+            LIMIT 10000
+        )
         SELECT  collections.id,
                 collections.slug,
                 collections.name,
@@ -194,18 +209,18 @@ export const getUserCollectionsV2Options: RouteOptions = {
                 collections.day1_floor_sell_value,
                 collections.day7_floor_sell_value,
                 collections.day30_floor_sell_value,
-                SUM(COALESCE(nft_balances.amount, 0)) AS owner_token_count,
+                SUM(COALESCE(nbsample.amount, 0)) AS owner_token_count,
                 ${selectLiquidCount}
                 SUM(CASE WHEN tokens.floor_sell_value IS NULL THEN 0 ELSE 1 END) AS owner_on_sale_count
-        FROM nft_balances 
-        JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id
+        FROM nbsample 
+        JOIN tokens ON nbsample.contract = tokens.contract AND nbsample.token_id = tokens.token_id
         ${liquidCount}
         JOIN collections ON tokens.collection_id = collections.id
       `;
 
       // Filters
       (params as any).user = toBuffer(params.user);
-      const conditions: string[] = [`nft_balances.owner = $/user/`, `nft_balances.amount > 0`];
+      const conditions: string[] = [];
 
       if (query.community) {
         conditions.push(`collections.community = $/community/`);
@@ -229,10 +244,29 @@ export const getUserCollectionsV2Options: RouteOptions = {
       }
 
       // Grouping
-      baseQuery += ` GROUP BY collections.id, nft_balances.owner`;
+      baseQuery += ` GROUP BY collections.id, nbsample.owner`;
 
+      const sortDirection = query.sortDirection === "asc" ? "ASC" : "DESC";
       // Sorting
-      baseQuery += ` ORDER BY collections.all_time_volume DESC`;
+      switch (query.sortBy) {
+        case "allTimeVolume":
+        default: {
+          baseQuery += ` ORDER BY collections.all_time_volume ${sortDirection}`;
+          break;
+        }
+        case "1DayVolume": {
+          baseQuery += ` ORDER BY collections.day1_volume ${sortDirection}`;
+          break;
+        }
+        case "7DayVolume": {
+          baseQuery += ` ORDER BY collections.day7_volume ${sortDirection}`;
+          break;
+        }
+        case "30DayVolume": {
+          baseQuery += ` ORDER BY collections.day30_volume ${sortDirection}`;
+          break;
+        }
+      }
 
       // Pagination
       baseQuery += ` OFFSET $/offset/`;

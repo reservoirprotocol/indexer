@@ -34,6 +34,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
         ),
     }),
     query: Joi.object({
+      tokenId: Joi.string().description("Filter to a particular token-id. Example: `1`"),
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
@@ -118,9 +119,14 @@ export const getAttributesExploreV4Options: RouteOptions = {
     const params = request.params as any;
     const conditions: string[] = [];
     let selectQuery =
-      "SELECT attributes.id, kind, floor_sell_value, token_count, on_sale_count, key, value, sample_images, recent_floor_values_info.*";
+      "SELECT attributes.id, kind, floor_sell_value, token_count, on_sale_count, attributes.key, attributes.value, sample_images, recent_floor_values_info.*";
 
     conditions.push(`attributes.collection_id = $/collection/`);
+
+    let tokenFilterQuery = "";
+    if (query.tokenId) {
+      tokenFilterQuery = `INNER JOIN token_attributes ta ON attributes.id = ta.attribute_id AND ta.token_id = $/tokenId/`;
+    }
 
     if (query.attributeKey) {
       conditions.push(`attributes.key = $/attributeKey/`);
@@ -198,6 +204,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
       let attributesQuery = `
             ${selectQuery}
             FROM attributes
+            ${tokenFilterQuery}
              ${topBidQuery}
             JOIN LATERAL (
                 ${tokensInfoQuery}

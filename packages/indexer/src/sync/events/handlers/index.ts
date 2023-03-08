@@ -1,14 +1,11 @@
-import { Log } from "@ethersproject/abstract-provider";
-
 import { logger } from "@/common/logger";
-import { EventKind, getEventData } from "@/events-sync/data";
+import { EventKind } from "@/events-sync/data";
 import {
   EnhancedEvent,
   OnChainData,
   initOnChainData,
   processOnChainData,
 } from "@/events-sync/handlers/utils";
-import * as utils from "@/events-sync/utils";
 
 import * as erc20 from "@/events-sync/handlers/erc20";
 import * as erc721 from "@/events-sync/handlers/erc721";
@@ -117,52 +114,4 @@ export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: bo
   }
 
   return onChainData;
-};
-
-export const getEventParams = (log: Log, timestamp: number) => {
-  const address = log.address.toLowerCase() as string;
-  const block = log.blockNumber as number;
-  const blockHash = log.blockHash.toLowerCase() as string;
-  const txHash = log.transactionHash.toLowerCase() as string;
-  const txIndex = log.transactionIndex as number;
-  const logIndex = log.logIndex as number;
-
-  return {
-    address,
-    txHash,
-    txIndex,
-    block,
-    blockHash,
-    logIndex,
-    timestamp,
-    batchIndex: 1,
-  };
-};
-
-export const getEnhancedEventsFromTx = async (txHash: string) => {
-  const enhancedEvents: EnhancedEvent[] = [];
-
-  const availableEventData = getEventData();
-  const tx = await utils.fetchTransaction(txHash);
-  const { logs } = await utils.fetchTransactionLogs(txHash);
-
-  for (let i = 0; i < logs.length; i++) {
-    const log = logs[i];
-    const eventData = availableEventData.find(
-      ({ addresses, topic, numTopics }) =>
-        log.topics[0] === topic &&
-        log.topics.length === numTopics &&
-        (addresses ? addresses[log.address.toLowerCase()] : true)
-    );
-    if (eventData) {
-      enhancedEvents.push({
-        kind: eventData.kind,
-        subKind: eventData.subKind,
-        baseEventParams: getEventParams(log, tx.blockTimestamp),
-        log,
-      });
-    }
-  }
-
-  return enhancedEvents;
 };

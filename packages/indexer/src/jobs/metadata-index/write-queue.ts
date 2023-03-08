@@ -131,13 +131,15 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        await flagStatusUpdate.addToQueue([
-          {
-            contract,
-            tokenId,
-            isFlagged: Boolean(flagged),
-          },
-        ]);
+        if (flagged != undefined) {
+          await flagStatusUpdate.addToQueue([
+            {
+              contract,
+              tokenId,
+              isFlagged: Boolean(flagged),
+            },
+          ]);
+        }
 
         // Fetch all existing keys
         const addedTokenAttributes = [];
@@ -164,7 +166,8 @@ if (config.doBackgroundWork) {
           if (
             attributeKeysIdsMap.has(key) &&
             kind == "number" &&
-            (attributeKeysIdsMap.get(key)?.info.min_range > value ||
+            (_.isNull(attributeKeysIdsMap.get(key)?.info) ||
+              attributeKeysIdsMap.get(key)?.info.min_range > value ||
               attributeKeysIdsMap.get(key)?.info.max_range < value)
           ) {
             // If number type try to update range as well and return the ID

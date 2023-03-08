@@ -231,7 +231,7 @@ export const getTokensFloorAskV4Options: RouteOptions = {
                 .reduce((a, b) => a.add(b), bn(0))
             : bn(0);
 
-          if (r.dynamic && r.order_kind === "seaport") {
+          if (r.dynamic && r.order_kind === "seaport" && r.raw_data) {
             const order = new Sdk.Seaport.Order(config.chainId, r.raw_data);
 
             // Dutch auction

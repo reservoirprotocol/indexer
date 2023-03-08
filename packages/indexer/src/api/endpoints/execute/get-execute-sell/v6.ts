@@ -16,6 +16,7 @@ import { generateBidDetailsV6 } from "@/orderbook/orders";
 import { getNftApproval } from "@/orderbook/orders/common/helpers";
 import { getCurrency } from "@/utils/currencies";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
+import { keepAllTraces } from "@/common/tracer";
 
 const version = "v6";
 
@@ -42,6 +43,8 @@ export const getExecuteSellV6Options: RouteOptions = {
             "zeroex-v4",
             "seaport",
             "seaport-partial",
+            "seaport-v1.4",
+            "seaport-v1.4-partial",
             "x2y2",
             "universe",
             "infinity",
@@ -138,6 +141,9 @@ export const getExecuteSellV6Options: RouteOptions = {
 
     let path: any;
     try {
+      // Override Datadog trace sampling to keep all
+      keepAllTraces();
+
       let orderResult: any;
 
       const [contract, tokenId] = payload.token.split(":");
@@ -331,6 +337,7 @@ export const getExecuteSellV6Options: RouteOptions = {
             WHERE nft_balances.contract = $/contract/
               AND nft_balances.token_id = $/tokenId/
               AND nft_balances.amount >= $/quantity/
+            LIMIT 1
           `,
           {
             contract: toBuffer(contract),
