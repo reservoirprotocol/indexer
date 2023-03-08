@@ -133,6 +133,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
 
       // Atomically insert the transfer events and update balances
       nftTransferQueries.push(`
+        BEGIN;
         WITH "x" AS (
           INSERT INTO "nft_transfer_events" (
             "address",
@@ -184,7 +185,8 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         ON CONFLICT ("contract", "token_id", "owner") DO
         UPDATE SET 
           "amount" = "nft_balances"."amount" + "excluded"."amount", 
-          "acquired_at" = COALESCE(GREATEST("excluded"."acquired_at", "nft_balances"."acquired_at"), "nft_balances"."acquired_at")
+          "acquired_at" = COALESCE(GREATEST("excluded"."acquired_at", "nft_balances"."acquired_at"), "nft_balances"."acquired_at");
+        COMMIT;
       `);
 
       await insertQueries(nftTransferQueries, backfill);
