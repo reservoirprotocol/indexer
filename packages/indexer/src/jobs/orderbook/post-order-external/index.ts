@@ -55,6 +55,11 @@ if (config.doBackgroundWork) {
         throw new Error("Unsupported orderbook");
       }
 
+      // TODO: Remove after deployment
+      if (job.data.orderbookApiKey === null) {
+        delete job.data.orderbookApiKey;
+      }
+
       const orderbookApiKey = job.data.orderbookApiKey ?? getOrderbookDefaultApiKey(orderbook);
       const retry = job.data.retry ?? 0;
 
@@ -77,7 +82,7 @@ if (config.doBackgroundWork) {
         // If limit reached, reschedule job based on the limit expiration.
         logger.info(
           QUEUE_NAME,
-          `Post Order Rate Limited. orderbook: ${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+          `Post Order Rate Limited. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
           )}, rateLimitExpiration: ${rateLimitExpiration}, retry: ${retry}`
         );
@@ -96,7 +101,7 @@ if (config.doBackgroundWork) {
 
           logger.info(
             QUEUE_NAME,
-            `Post Order Success. orderbook: ${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+            `Post Order Success. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
               orderData
             )}, retry: ${retry}`
           );
@@ -110,7 +115,7 @@ if (config.doBackgroundWork) {
             } catch (error) {
               logger.error(
                 QUEUE_NAME,
-                `Unable to set expiration. orderbook: ${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+                `Unable to set expiration. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                   orderData
                 )}, retry: ${retry}, delay=${delay}, error: ${error}`
               );
@@ -120,7 +125,7 @@ if (config.doBackgroundWork) {
 
             logger.info(
               QUEUE_NAME,
-              `Post Order Throttled. orderbook: ${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+              `Post Order Throttled. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
               )}, delay: ${delay}, retry: ${retry}`
             );
@@ -128,7 +133,7 @@ if (config.doBackgroundWork) {
             // If the order is invalid, fail the job.
             logger.error(
               QUEUE_NAME,
-              `Post Order Failed - Invalid Order. orderbook: ${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+              `Post Order Failed - Invalid Order. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
               )}, retry: ${retry}, error: ${error}`
             );
@@ -140,13 +145,11 @@ if (config.doBackgroundWork) {
                 error.message
               );
             }
-
-            throw new Error("Post Order Failed - Invalid Order");
           } else if (retry < MAX_RETRIES) {
             // If we got an unknown error from the api, reschedule job based on fixed delay.
             logger.info(
               QUEUE_NAME,
-              `Post Order Failed - Retrying. orderbook: ${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+              `Post Order Failed - Retrying. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
               )}, retry: ${retry}`
             );
@@ -157,7 +160,7 @@ if (config.doBackgroundWork) {
           } else {
             logger.error(
               QUEUE_NAME,
-              `Post Order Failed - Max Retries Reached. orderbook: ${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+              `Post Order Failed - Max Retries Reached. orderbook${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
               )}, retry: ${retry}, error: ${error}`
             );
@@ -169,8 +172,6 @@ if (config.doBackgroundWork) {
                 (error as any).message
               );
             }
-
-            throw new Error("Post Order Failed - Max Retries Reached");
           }
         }
       }
@@ -263,7 +264,7 @@ const postOrder = async (
 
       logger.info(
         QUEUE_NAME,
-        `Post Order Seaport. orderbook: ${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+        `Post Order Seaport. orderbook=${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
           orderData
         )}, side=${order.getInfo()?.side}, kind=${order.params.kind}`
       );
@@ -340,7 +341,7 @@ export type PostOrderExternalParams =
       orderId: string;
       orderData: Sdk.Seaport.Types.OrderComponents;
       orderbook: "opensea";
-      orderbookApiKey?: string;
+      orderbookApiKey?: string | null;
       retry?: number;
     }
   | {
@@ -348,7 +349,7 @@ export type PostOrderExternalParams =
       orderId: string;
       orderData: Sdk.LooksRare.Types.MakerOrderParams;
       orderbook: "looks-rare";
-      orderbookApiKey?: string;
+      orderbookApiKey?: string | null;
       retry?: number;
     }
   | {
@@ -356,7 +357,7 @@ export type PostOrderExternalParams =
       orderId: string | null;
       orderData: Sdk.X2Y2.Types.LocalOrder;
       orderbook: "x2y2";
-      orderbookApiKey?: string;
+      orderbookApiKey?: string | null;
       retry?: number;
     }
   | {
@@ -364,7 +365,7 @@ export type PostOrderExternalParams =
       orderId: string;
       orderData: Sdk.Universe.Types.Order;
       orderbook: "universe";
-      orderbookApiKey?: string;
+      orderbookApiKey?: string | null;
       retry?: number;
     }
   | {
@@ -372,7 +373,7 @@ export type PostOrderExternalParams =
       orderId: string;
       orderData: Sdk.Infinity.Types.OrderInput;
       orderbook: "infinity";
-      orderbookApiKey?: string;
+      orderbookApiKey?: string | null;
       retry?: number;
     }
   | {
@@ -380,7 +381,7 @@ export type PostOrderExternalParams =
       orderId: string;
       orderData: Sdk.Flow.Types.OrderInput;
       orderbook: "flow";
-      orderbookApiKey?: string;
+      orderbookApiKey?: string | null;
       retry?: number;
     };
 
