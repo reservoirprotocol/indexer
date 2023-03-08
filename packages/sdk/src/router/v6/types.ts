@@ -154,6 +154,8 @@ export type ListingFillDetails = {
   contract: string;
   tokenId: string;
   currency: string;
+  price: string;
+  source?: string;
   // Relevant for partially-fillable orders
   amount?: number | string;
   fees?: Fee[];

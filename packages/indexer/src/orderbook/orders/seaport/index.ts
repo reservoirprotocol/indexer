@@ -34,6 +34,7 @@ export type OrderInfo =
       orderParams: Sdk.Seaport.Types.OrderComponents;
       metadata: OrderMetadata;
       isReservoir?: boolean;
+      isOpenSea?: boolean;
       openSeaOrderParams?: PartialOrderComponents;
     }
   | {
@@ -86,6 +87,7 @@ export const save = async (
     orderParams: Sdk.Seaport.Types.OrderComponents,
     metadata: OrderMetadata,
     isReservoir?: boolean,
+    isOpenSea?: boolean,
     openSeaOrderParams?: PartialOrderComponents
   ) => {
     try {
@@ -209,8 +211,11 @@ export const save = async (
         });
       }
 
-      // Check: order has a valid signature (or was validated on-chain)
-      if (!metadata.fromOnChain) {
+      // Check: order has a valid signature
+      if (!metadata.fromOnChain || !(isOpenSea && !order.params.signature)) {
+        // Skip if:
+        // - the order was validated on-chain
+        // - the order is coming from OpenSea and it doesn't have a signature
         try {
           await order.checkSignature(baseProvider);
         } catch {
@@ -620,6 +625,12 @@ export const save = async (
             `Bid value validation - error. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}, error=${error}`
           );
         }
+      }
+
+      if (isOpenSea && !order.params.signature) {
+        // Mark the order as being partial in order to force filling through the order-fetcher service
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (order.params as any).partial = true;
       }
 
       const validFrom = `date_trunc('seconds', to_timestamp(${startTime}))`;
@@ -1147,6 +1158,7 @@ export const save = async (
                 orderInfo.orderParams as Sdk.Seaport.Types.OrderComponents,
                 orderInfo.metadata,
                 orderInfo.isReservoir,
+                orderInfo.isOpenSea,
                 orderInfo.openSeaOrderParams
               )
             )

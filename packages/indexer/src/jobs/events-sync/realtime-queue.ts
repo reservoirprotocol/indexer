@@ -29,11 +29,14 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
-    async () => {
+    async (job) => {
+      job.data.releaseLock = true;
+
       await tracer.trace("processEvent", { resource: "eventsSyncRealtime" }, async () => {
         try {
           // On some chains prevent multiple syncs at the same time
           if (_.includes([137, 42161], config.chainId) && !(await acquireLock(QUEUE_NAME, 300))) {
+            job.data.releaseLock = false;
             return;
           }
 
@@ -95,8 +98,8 @@ if (config.doBackgroundWork) {
     { connection: redis.duplicate(), concurrency: 5 }
   );
 
-  worker.on("completed", async () => {
-    if (_.includes([137, 42161], config.chainId)) {
+  worker.on("completed", async (job) => {
+    if (_.includes([137, 42161], config.chainId) && job.data.releaseLock) {
       await releaseLock(QUEUE_NAME);
     }
   });

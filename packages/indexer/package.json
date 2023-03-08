@@ -82,7 +82,7 @@
     "uuid-by-string": "^3.0.7",
     "winston": "^3.3.3",
     "ws": "^8.10.0",
-    "yargs-parser": "^21.1.1"
+    "yargs-parser": "21.1.1"
   },
   "devDependencies": {
     "tsconfig-paths": "^4.1.0"

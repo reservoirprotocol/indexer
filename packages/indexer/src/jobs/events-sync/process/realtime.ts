@@ -57,10 +57,11 @@ if (config.doBackgroundWork && (config.chainId === 137 ? config.doProcessRealtim
   });
 }
 
-export const addToQueue = async (batches: EventsBatch[]) =>
+export const addToQueue = async (batches: EventsBatch[], prioritized?: boolean) =>
   queue.addBulk(
     batches.map((batch) => ({
       name: batch.id,
       data: { batch },
+      opts: { priority: prioritized ? 1 : undefined },
     }))
   );
