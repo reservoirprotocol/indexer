@@ -22,6 +22,10 @@ import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
 import * as seaportSellToken from "@/orderbook/orders/seaport/build/sell/token";
 import * as seaportCheck from "@/orderbook/orders/seaport/check";
 
+// Seaport v1.4
+import * as seaportV14SellToken from "@/orderbook/orders/seaport-v1.4/build/sell/token";
+import * as seaportV14Check from "@/orderbook/orders/seaport-v1.4/check";
+
 // X2Y2
 import * as x2y2SellToken from "@/orderbook/orders/x2y2/build/sell/token";
 import * as x2y2Check from "@/orderbook/orders/x2y2/check";
@@ -47,10 +51,10 @@ const version = "v4";
 export const getExecuteListV4Options: RouteOptions = {
   description: "Create ask (listing)",
   notes: "Generate a listing and submit it to multiple marketplaces",
-  tags: ["api", "Orderbook"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 11,
+      deprecated: true,
     },
   },
   validate: {
@@ -91,14 +95,15 @@ export const getExecuteListV4Options: RouteOptions = {
               "looks-rare",
               "zeroex-v4",
               "seaport",
+              "seaport-v1.4",
               "seaport-forward",
               "x2y2",
               "universe",
               "infinity",
               "flow"
             )
-            .default("seaport")
-            .description("Exchange protocol used to create order. Example: `seaport`"),
+            .default("seaport-v1.4")
+            .description("Exchange protocol used to create order. Example: `seaport-v1.4`"),
           orderbook: Joi.string()
             .valid("opensea", "looks-rare", "reservoir", "x2y2", "universe", "infinity", "flow")
             .default("reservoir")
@@ -491,6 +496,86 @@ export const getExecuteListV4Options: RouteOptions = {
                   }
 
                   const exchange = new Sdk.Seaport.Exchange(config.chainId);
+                  const info = order.getInfo()!;
+
+                  const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";
+                  approvalTx = (
+                    kind === "erc721"
+                      ? new Sdk.Common.Helpers.Erc721(baseProvider, info.contract)
+                      : new Sdk.Common.Helpers.Erc1155(baseProvider, info.contract)
+                  ).approveTransaction(maker, exchange.deriveConduit(order.params.conduitKey));
+
+                  break;
+                }
+              }
+            }
+
+            steps[0].items.push({
+              status: approvalTx ? "incomplete" : "complete",
+              data: approvalTx,
+              orderIndex: i,
+            });
+            steps[1].items.push({
+              status: "incomplete",
+              data: {
+                sign: order.getSignatureData(),
+                post: {
+                  endpoint: "/order/v3",
+                  method: "POST",
+                  body: {
+                    order: {
+                      kind: params.orderKind,
+                      data: {
+                        ...order.params,
+                      },
+                    },
+                    orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
+                    source,
+                  },
+                },
+              },
+              orderIndex: i,
+            });
+
+            // Go on with the next listing
+            continue;
+          }
+
+          case "seaport-v1.4": {
+            if (!["reservoir", "opensea"].includes(params.orderbook)) {
+              throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
+            }
+
+            const order = await seaportV14SellToken.build({
+              ...params,
+              maker,
+              contract,
+              tokenId,
+              source,
+            });
+            if (!order) {
+              throw Boom.internal("Failed to generate order");
+            }
+
+            // Will be set if an approval is needed before listing
+            let approvalTx: TxData | undefined;
+
+            // Check the order's fillability
+            try {
+              await seaportV14Check.offChainCheck(order, { onChainApprovalRecheck: true });
+            } catch (error: any) {
+              switch (error.message) {
+                case "no-balance-no-approval":
+                case "no-balance": {
+                  // We cannot do anything if the user doesn't own the listed token
+                  throw Boom.badData("Maker does not own the listed token");
+                }
+
+                case "no-approval": {
+                  // Generate an approval transaction
+
+                  const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
                   const info = order.getInfo()!;
 
                   const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";
