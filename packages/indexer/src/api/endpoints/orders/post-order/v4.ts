@@ -14,6 +14,7 @@ import * as orders from "@/orderbook/orders";
 
 import * as postOrderExternal from "@/jobs/orderbook/post-order-external";
 import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
+import { idb } from "@/common/db";
 
 const version = "v4";
 
@@ -299,6 +300,53 @@ export const postOrderV4Options: RouteOptions = {
 
                 if (!["success", "already-exists"].includes(result.status)) {
                   return results.push({ message: result.status, orderIndex: i, orderId });
+                }
+
+                const collectionResult = await idb.oneOrNone(
+                  `
+                SELECT
+                  collections.new_royalties,
+                  orders.token_set_id
+                FROM orders
+                JOIN token_sets_tokens
+                  ON orders.token_set_id = token_sets_tokens.token_set_id
+                JOIN tokens
+                  ON tokens.contract = token_sets_tokens.contract
+                  AND tokens.token_id = token_sets_tokens.token_id
+                JOIN collections
+                  ON tokens.collection_id = collections.id
+                WHERE orders.id = $/id/
+                LIMIT 1
+              `,
+                  { id: orderId }
+                );
+
+                if (
+                  collectionResult?.token_set_id?.startsWith("token") &&
+                  collectionResult?.new_royalties?.["opensea"]
+                ) {
+                  const osRoyaltyRecipients = collectionResult.new_royalties["opensea"].map(
+                    (r: any) => r.recipient.toLowerCase()
+                  );
+                  const maker = order.data.offerer.toLowerCase();
+                  const consideration = order.data.consideration;
+
+                  let hasMarketplaceFee = false;
+                  for (const c of consideration) {
+                    const recipient = c.recipient.toLowerCase();
+                    if (recipient !== maker && !osRoyaltyRecipients.includes(recipient)) {
+                      hasMarketplaceFee = true;
+                    }
+                  }
+
+                  if (!hasMarketplaceFee) {
+                    await postOrderExternal.addToQueue({
+                      orderId,
+                      orderData: order.data,
+                      orderbook: "opensea",
+                      orderbookApiKey: config.openSeaApiKey,
+                    });
+                  }
                 }
               }
 

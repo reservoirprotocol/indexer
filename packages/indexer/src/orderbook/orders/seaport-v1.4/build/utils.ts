@@ -77,9 +77,11 @@ export const getBuildInfo = async (
     zone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
   }
 
+  const source = options.orderbook === "opensea" ? "opensea.io" : options.source;
+
   // Generate the salt
-  let salt = options.source
-    ? padSourceToSalt(options.source, options.salt ?? getRandomBytes(16).toString())
+  let salt = source
+    ? padSourceToSalt(source, options.salt ?? getRandomBytes(16).toString())
     : undefined;
   if (options.replaceOrderId) {
     salt = options.replaceOrderId;
