@@ -735,7 +735,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
           }
 
           let conduit: string;
-          if (listings.every((d) => d.kind === "seaport")) {
+          if (
+            listings.every((d) => d.kind === "seaport") ||
+            listings.every((d) => d.kind === "seaport-v1.4")
+          ) {
             // TODO: Have a default conduit for each exchange per chain
             conduit =
               config.chainId === 1
