@@ -50,10 +50,10 @@ export const postOrder = async (order: Sdk.Seaport.Order, apiKey: string) => {
     .catch((error) => {
       if (error.response) {
         logger.error(
-          "opensea_orderbook_api",
+          "opensea-orderbook-api",
           `Failed to post order to OpenSea. order=${JSON.stringify(
             order
-          )}, apiKey=${apiKey}, status: ${error.response.status}, data:${JSON.stringify(
+          )}, apiKey=${apiKey}, status=${error.response.status}, data=${JSON.stringify(
             error.response.data
           )}`
         );
