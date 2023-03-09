@@ -42,7 +42,7 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { crossPostingOrderId, orderId, orderData, orderbook } =
+      const { crossPostingOrderId, orderId, orderData, orderbook, collectionId } =
         job.data as PostOrderExternalParams;
 
       logger.info(QUEUE_NAME, `Start. jobData=${JSON.stringify(job.data)}`);
@@ -90,7 +90,14 @@ if (config.doBackgroundWork) {
         await addToQueue(job.data, rateLimitExpiration, true);
       } else {
         try {
-          await postOrder(orderbook, orderId, orderData, orderbookApiKey);
+          await postOrder(orderbook, orderId, orderData, orderbookApiKey, collectionId);
+
+          if (crossPostingOrderId) {
+            await crossPostingOrdersModel.updateOrderStatus(
+              crossPostingOrderId,
+              CrossPostingOrderStatus.posted
+            );
+          }
 
           if (crossPostingOrderId) {
             await crossPostingOrdersModel.updateOrderStatus(
@@ -253,7 +260,8 @@ const postOrder = async (
   orderbook: string,
   orderId: string | null,
   orderData: PostOrderExternalParams["orderData"],
-  orderbookApiKey: string
+  orderbookApiKey: string,
+  collectionId?: string
 ) => {
   switch (orderbook) {
     case "opensea": {
@@ -264,7 +272,7 @@ const postOrder = async (
 
       logger.info(
         QUEUE_NAME,
-        `Post Order Seaport. orderbook=${orderbook}, orderId=${orderId}, orderData=${JSON.stringify(
+        `Post Order Seaport. orderbook=${orderbook}, orderId=${orderId}, collectionId=${collectionId}, orderData=${JSON.stringify(
           orderData
         )}, side=${order.getInfo()?.side}, kind=${order.params.kind}`
       );
@@ -276,18 +284,12 @@ const postOrder = async (
         const { collectionSlug } = await redb.oneOrNone(
           `
                 SELECT c.slug AS "collectionSlug"
-                FROM orders o
-                JOIN token_sets ts
-                  ON o.token_set_id = ts.id
-                JOIN collections c   
-                  ON c.id = ts.collection_id  
-                WHERE o.id = $/orderId/
-                AND ts.collection_id IS NOT NULL
-                AND ts.attribute_id IS NULL
+                FROM collections c
+                WHERE c.id = $/collectionId/
                 LIMIT 1
             `,
           {
-            orderId: orderId,
+            collectionId,
           }
         );
 
@@ -343,6 +345,7 @@ export type PostOrderExternalParams =
       orderbook: "opensea";
       orderbookApiKey?: string | null;
       retry?: number;
+      collectionId?: string;
     }
   | {
       crossPostingOrderId: number;
@@ -351,6 +354,7 @@ export type PostOrderExternalParams =
       orderbook: "looks-rare";
       orderbookApiKey?: string | null;
       retry?: number;
+      collectionId?: string;
     }
   | {
       crossPostingOrderId: number;
@@ -359,6 +363,7 @@ export type PostOrderExternalParams =
       orderbook: "x2y2";
       orderbookApiKey?: string | null;
       retry?: number;
+      collectionId?: string;
     }
   | {
       crossPostingOrderId: number;
@@ -367,6 +372,7 @@ export type PostOrderExternalParams =
       orderbook: "universe";
       orderbookApiKey?: string | null;
       retry?: number;
+      collectionId?: string;
     }
   | {
       crossPostingOrderId: number;
@@ -375,6 +381,7 @@ export type PostOrderExternalParams =
       orderbook: "infinity";
       orderbookApiKey?: string | null;
       retry?: number;
+      collectionId?: string;
     }
   | {
       crossPostingOrderId: number;
@@ -383,6 +390,7 @@ export type PostOrderExternalParams =
       orderbook: "flow";
       orderbookApiKey?: string | null;
       retry?: number;
+      collectionId?: string;
     };
 
 export const addToQueue = async (

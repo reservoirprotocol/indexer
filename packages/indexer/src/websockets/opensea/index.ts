@@ -273,7 +273,7 @@ export const parseProtocolData = (payload: unknown): ProtocolData | undefined =>
         offerer: protocolData.parameters.offerer,
         counter: `${protocolData.parameters.counter}`,
         orderType: protocolData.parameters.orderType,
-        signature: protocolData.signature,
+        signature: protocolData.signature || undefined,
       });
 
       return {
