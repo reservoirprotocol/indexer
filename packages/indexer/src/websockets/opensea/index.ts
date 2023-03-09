@@ -147,6 +147,9 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
         asset_contract: {
           address: contract,
         },
+        collection: {
+          slug: event.payload.collection.slug,
+        },
         token_id: tokenId,
         name: event.payload.item.metadata.name ?? undefined,
         description:
