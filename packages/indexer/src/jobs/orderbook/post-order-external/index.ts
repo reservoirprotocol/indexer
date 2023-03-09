@@ -99,6 +99,13 @@ if (config.doBackgroundWork) {
             );
           }
 
+          if (crossPostingOrderId) {
+            await crossPostingOrdersModel.updateOrderStatus(
+              crossPostingOrderId,
+              CrossPostingOrderStatus.posted
+            );
+          }
+
           logger.info(
             QUEUE_NAME,
             `Post Order Success. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(

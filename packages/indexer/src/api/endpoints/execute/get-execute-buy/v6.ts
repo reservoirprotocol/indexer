@@ -517,6 +517,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
                       ? " AND orders.currency = $/currency/"
                       : ""
                   }
+                  ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
                 ORDER BY
                   ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
                   ${
@@ -659,6 +660,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
       const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
+        orderFetcherApiKey: config.orderFetcherApiKey,
       });
       const { txs, success } = await router.fillListingsTx(
         listingDetails,
@@ -716,7 +718,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
         const listings = listingDetails.filter((_, i) => tx.orderIndexes.includes(i));
 
         // Check that the taker has enough funds to fill all requested tokens
-        const totalPrice = subPath.map(({ rawQuote }) => bn(rawQuote)).reduce((a, b) => a.add(b));
+        const totalPrice = subPath
+          .map(({ rawQuote }) => bn(rawQuote))
+          .reduce((a, b) => a.add(b), bn(0));
         if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
           const balance = await baseProvider.getBalance(txSender);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {

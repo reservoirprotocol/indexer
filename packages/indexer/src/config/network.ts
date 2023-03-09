@@ -79,6 +79,7 @@ type NetworkSettings = {
   washTradingWhitelistedAddresses: string[];
   washTradingBlacklistedAddresses: string[];
   customTokenAddresses: string[];
+  nonSimulatableContracts: string[];
   mintsAsSalesBlacklist: string[];
   mintAddresses: string[];
   multiCollectionContracts: string[];
@@ -105,6 +106,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     washTradingWhitelistedAddresses: [],
     washTradingBlacklistedAddresses: [],
     customTokenAddresses: [],
+    nonSimulatableContracts: [],
     multiCollectionContracts: [],
     mintsAsSalesBlacklist: [],
     mintAddresses: [AddressZero],
@@ -158,6 +160,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
           "0x32d4be5ee74376e08038d652d4dc26e62c67f436",
         ],
+        nonSimulatableContracts: ["0x4d04bba7f5ea45ac59769a1095762467b1157cc4"],
         customTokenAddresses: [
           "0x95784f7b5c8849b0104eaf5d13d6341d8cc40750",
           "0xc9cb0fee73f060db66d2693d92d75c825b1afdbf",
