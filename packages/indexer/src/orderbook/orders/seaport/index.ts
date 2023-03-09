@@ -217,7 +217,9 @@ export const save = async (
       }
 
       // Check: order has a valid signature
-      if (!metadata.fromOnChain || !(isOpenSea && !order.params.signature)) {
+      if (metadata.fromOnChain || (isOpenSea && !order.params.signature)) {
+        // Skip
+      } else {
         // Skip if:
         // - the order was validated on-chain
         // - the order is coming from OpenSea and it doesn't have a signature
