@@ -52,7 +52,7 @@ export const getExecuteBidV5Options: RouteOptions = {
   description: "Create bids (offers)",
   notes: "Generate bids and submit them to multiple marketplaces",
   timeout: { server: 60000 },
-  tags: ["api", "x-experimental"],
+  tags: ["api", "Orderbook"],
   plugins: {
     "hapi-swagger": {
       order: 11,
@@ -112,7 +112,7 @@ export const getExecuteBidV5Options: RouteOptions = {
               "flow"
             )
             .default("seaport-v1.4")
-            .description("Exchange protocol used to create order. Example: `seaport`"),
+            .description("Exchange protocol used to create order. Example: `seaport-v1.4`"),
           options: Joi.object({
             "seaport-v1.4": Joi.object({
               useOffChainCancellation: Joi.boolean().required(),

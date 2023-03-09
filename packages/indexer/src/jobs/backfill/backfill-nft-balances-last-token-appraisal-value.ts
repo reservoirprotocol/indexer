@@ -75,29 +75,33 @@ if (config.doBackgroundWork) {
         }
       );
 
-      let nextCursor;
+      job.data.nextCursor = null;
 
       if (tokens.length == limit) {
         const lastToken = _.last(tokens);
 
-        nextCursor = {
+        job.data.nextCursor = {
           owner: fromBuffer(lastToken.owner),
           contract: fromBuffer(lastToken.contract),
           tokenId: lastToken.token_id,
         };
-
-        await addToQueue(nextCursor);
       }
 
       logger.info(
         QUEUE_NAME,
         `Processed ${tokens.length} records.  limit=${limit}, cursor=${JSON.stringify(
           cursor
-        )}, nextCursor=${JSON.stringify(nextCursor)}`
+        )}, nextCursor=${JSON.stringify(job.data.nextCursor)}`
       );
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
+
+  worker.on("completed", async (job) => {
+    if (job.data.nextCursor) {
+      await addToQueue(job.data.nextCursor);
+    }
+  });
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
@@ -122,5 +126,5 @@ export type CursorInfo = {
 };
 
 export const addToQueue = async (cursor?: CursorInfo) => {
-  await queue.add(randomUUID(), { cursor }, { delay: 1000 });
+  await queue.add(randomUUID(), { cursor });
 };

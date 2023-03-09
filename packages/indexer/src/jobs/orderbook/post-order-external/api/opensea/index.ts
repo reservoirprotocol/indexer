@@ -14,7 +14,7 @@ import { getOpenseaNetworkName, getOpenseaSubDomain } from "@/config/network";
 export const RATE_LIMIT_REQUEST_COUNT = 2;
 export const RATE_LIMIT_INTERVAL = 1;
 
-export const postOrder = async (order: Sdk.Seaport.Order, apiKey: string) => {
+export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => {
   const url = `https://${getOpenseaSubDomain()}.opensea.io/v2/orders/${getOpenseaNetworkName()}/seaport/${
     order.getInfo()?.side === "sell" ? "listings" : "offers"
   }`;
@@ -33,6 +33,7 @@ export const postOrder = async (order: Sdk.Seaport.Order, apiKey: string) => {
           totalOriginalConsiderationItems: order.params.consideration.length,
         },
         signature: order.params.signature!,
+        protocol_address: Sdk.SeaportV14.Addresses.Exchange[config.chainId],
       }),
       {
         headers:
@@ -124,7 +125,7 @@ export const buildCollectionOffer = async (
 };
 
 export const postCollectionOffer = async (
-  order: Sdk.Seaport.Order,
+  order: Sdk.SeaportV14.Order,
   collectionSlug: string,
   apiKey: string
 ) => {
@@ -141,6 +142,7 @@ export const postCollectionOffer = async (
         totalOriginalConsiderationItems: order.params.consideration.length,
       },
       signature: order.params.signature!,
+      protocol_address: Sdk.SeaportV14.Addresses.Exchange[config.chainId],
     },
   });
 
