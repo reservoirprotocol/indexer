@@ -111,6 +111,9 @@ export const postSimulateOrderV1Options: RouteOptions = {
       if (getNetworkSettings().whitelistedCurrencies.has(fromBuffer(orderResult.currency))) {
         return { message: "Order not simulatable" };
       }
+      if (getNetworkSettings().nonSimulatableContracts.includes(fromBuffer(orderResult.contract))) {
+        return { message: "Associated contract is not simulatable" };
+      }
 
       const contractResult = await redb.one(
         `

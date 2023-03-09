@@ -75,6 +75,10 @@ export const postSimulateFloorV1Options: RouteOptions = {
 
       const [contract, tokenId] = token.split(":");
 
+      if (getNetworkSettings().nonSimulatableContracts.includes(contract)) {
+        return { message: "Associated contract is not simulatable" };
+      }
+
       const response = await inject({
         method: "POST",
         // Latest V5 router API is V4

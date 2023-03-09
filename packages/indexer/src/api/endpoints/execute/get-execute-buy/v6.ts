@@ -722,7 +722,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
         const listings = listingDetails.filter((_, i) => tx.orderIndexes.includes(i));
 
         // Check that the taker has enough funds to fill all requested tokens
-        const totalPrice = subPath.map(({ rawQuote }) => bn(rawQuote)).reduce((a, b) => a.add(b));
+        const totalPrice = subPath
+          .map(({ rawQuote }) => bn(rawQuote))
+          .reduce((a, b) => a.add(b), bn(0));
         if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
           const balance = await baseProvider.getBalance(txSender);
           if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {

@@ -73,6 +73,10 @@ export const postSimulateTopBidV1Options: RouteOptions = {
 
       const [contract, tokenId] = token.split(":");
 
+      if (getNetworkSettings().nonSimulatableContracts.includes(contract)) {
+        return { message: "Associated contract is not simulatable" };
+      }
+
       // Fetch the token's owner
       const ownerResult = await idb.oneOrNone(
         `

@@ -211,6 +211,11 @@ export const save = async (
         });
       }
 
+      // Make sure no zero signatures are allowed
+      if (order.params.signature && /^0x0+$/g.test(order.params.signature)) {
+        order.params.signature = undefined;
+      }
+
       // Check: order has a valid signature
       if (!metadata.fromOnChain || !(isOpenSea && !order.params.signature)) {
         // Skip if:
