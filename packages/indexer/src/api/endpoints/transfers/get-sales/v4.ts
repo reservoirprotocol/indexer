@@ -232,7 +232,6 @@ export const getSalesV4Options: RouteOptions = {
       query.endTimestamp = 9999999999;
     }
 
-
     let orderDirection = "DESC";
     if (query.sortDirection === "asc") {
       orderDirection = "ASC";
@@ -241,9 +240,10 @@ export const getSalesV4Options: RouteOptions = {
     // Default to ordering by time
     let queryOrderBy = `ORDER BY fill_events_2.timestamp ${orderDirection}, fill_events_2.log_index ${orderDirection}, fill_events_2.batch_index ${orderDirection}`;
 
-    if (query.sortBy && query.sortBy === "price") {
+    if (query.orderBy && query.orderBy === "price") {
       queryOrderBy = `ORDER BY fill_events_2.price ${orderDirection}`;
     }
+
     const timestampFilter = `
       AND (fill_events_2.timestamp >= $/startTimestamp/ AND
       fill_events_2.timestamp <= $/endTimestamp/)
@@ -302,10 +302,8 @@ export const getSalesV4Options: RouteOptions = {
             ${tokenFilter}
             ${paginationFilter}
             ${timestampFilter}
-          ORDER BY
-            fill_events_2.timestamp DESC,
-            fill_events_2.log_index DESC,
-            fill_events_2.batch_index DESC
+      
+            ${queryOrderBy}
           LIMIT $/limit/
         ) AS fill_events_2_data
         ${
