@@ -284,7 +284,8 @@ const postOrder = async (
         const { collectionSlug } = await redb.oneOrNone(
           `
                 SELECT c.slug AS "collectionSlug"
-                WHERE o.id = $/collectionId/
+                FROM collections c
+                WHERE c.id = $/collectionId/
                 LIMIT 1
             `,
           {
