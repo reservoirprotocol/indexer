@@ -59,7 +59,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     async (event) => {
       try {
         if (await isDuplicateEvent(event)) {
-          logger.info(
+          logger.debug(
             "opensea-websocket",
             `Duplicate event. network=${network}, event=${JSON.stringify(event)}`
           );
@@ -121,7 +121,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       }
 
       if (await isDuplicateEvent(event)) {
-        logger.info(
+        logger.debug(
           "opensea-websocket-item-metadata-update-event",
           `Duplicate event. network=${network}, event=${JSON.stringify(event)}`
         );

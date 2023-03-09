@@ -131,7 +131,7 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        if (flagged != undefined) {
+        if (flagged != null) {
           await flagStatusUpdate.addToQueue([
             {
               contract,
