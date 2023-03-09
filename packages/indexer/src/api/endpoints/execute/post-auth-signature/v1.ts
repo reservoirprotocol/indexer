@@ -49,16 +49,20 @@ export const postAuthSignatureV1Options: RouteOptions = {
             throw Boom.badRequest("Auth challenge does not exist");
           }
 
-          const recoveredSigner = verifyMessage(authChallenge.message, query.signature);
-          if (recoveredSigner.toLowerCase() !== authChallenge.walletAddress.toLowerCase()) {
+          const recoveredSigner = verifyMessage(
+            authChallenge.message,
+            query.signature
+          ).toLowerCase();
+          if (recoveredSigner !== authChallenge.walletAddress.toLowerCase()) {
             throw Boom.badRequest("Invalid auth challenge signature");
           }
 
           const accessToken = await axios
             .get(
-              `https://order-fetcher.vercel.app/api/blur-auth?authChallenge=${JSON.stringify(
-                authChallenge
-              )}`,
+              `https://order-fetcher.vercel.app/api/blur-auth?authChallenge=${JSON.stringify({
+                ...authChallenge,
+                signature: query.signature,
+              })}`,
               {
                 headers: {
                   "X-Api-Key": config.orderFetcherApiKey,
