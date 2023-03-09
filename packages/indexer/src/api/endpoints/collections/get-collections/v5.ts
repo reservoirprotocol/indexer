@@ -198,28 +198,33 @@ export const getCollectionsV5Options: RouteOptions = {
             validUntil: Joi.number().unsafe().allow(null),
           }).optional(),
           rank: Joi.object({
+            "0day": Joi.number().unsafe().allow(null),
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
           }),
           volume: Joi.object({
+            "0day": Joi.number().unsafe().allow(null),
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
           }),
           volumeChange: {
+            "0day": Joi.number().unsafe().allow(null),
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
           },
           floorSale: {
+            "0day": Joi.number().unsafe().allow(null),
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
           },
           floorSaleChange: {
+            "0day": Joi.number().unsafe().allow(null),
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
@@ -404,6 +409,8 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.contract,
           collections.token_id_range,
           collections.token_set_id,
+          collections.day0_rank,
+          collections.day0_volume,
           collections.day1_rank,
           collections.day1_volume,
           collections.day7_rank,
@@ -412,9 +419,11 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.day30_volume,
           collections.all_time_rank,
           collections.all_time_volume,
+          collections.day0_volume_change,
           collections.day1_volume_change,
           collections.day7_volume_change,
           collections.day30_volume_change,
+          collections.day0_floor_sell_value,
           collections.day1_floor_sell_value,
           collections.day7_floor_sell_value,
           collections.day30_floor_sell_value,
@@ -484,6 +493,17 @@ export const getCollectionsV5Options: RouteOptions = {
 
       let orderBy = "";
       switch (query.sortBy) {
+        case "0DayVolume": {
+          if (query.continuation) {
+            conditions.push(
+              `(collections.day0_volume, collections.id) < ($/contParam/, $/contId/)`
+            );
+          }
+          orderBy = ` ORDER BY collections.day0_volume DESC, collections.id DESC`;
+
+          break;
+        }
+
         case "1DayVolume": {
           if (query.continuation) {
             conditions.push(
@@ -702,28 +722,36 @@ export const getCollectionsV5Options: RouteOptions = {
                 }
               : undefined,
             rank: {
+              "0day": r.day0_rank,
               "1day": r.day1_rank,
               "7day": r.day7_rank,
               "30day": r.day30_rank,
               allTime: r.all_time_rank,
             },
             volume: {
+              "0day": r.day0_volume ? formatEth(r.day0_volume) : null,
               "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
               "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
               "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
               allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
             },
             volumeChange: {
+              "0day": r.day0_volume_change,
               "1day": r.day1_volume_change,
               "7day": r.day7_volume_change,
               "30day": r.day30_volume_change,
             },
             floorSale: {
+              "0day": r.day0_floor_sell_value ? formatEth(r.day0_floor_sell_value) : null,
               "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
               "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
               "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
             },
             floorSaleChange: {
+              // TODO: Check if this is correct
+              "0day": Number(r.day0_floor_sell_value)
+                ? Number(r.floor_sell_value) / Number(r.day0_floor_sell_value)
+                : null,
               "1day": Number(r.day1_floor_sell_value)
                 ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
                 : null,

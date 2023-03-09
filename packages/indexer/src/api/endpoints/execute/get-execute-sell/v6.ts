@@ -16,6 +16,7 @@ import { generateBidDetailsV6 } from "@/orderbook/orders";
 import { getNftApproval } from "@/orderbook/orders/common/helpers";
 import { getCurrency } from "@/utils/currencies";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
+import { keepAllTraces } from "@/common/tracer";
 
 const version = "v6";
 
@@ -140,6 +141,9 @@ export const getExecuteSellV6Options: RouteOptions = {
 
     let path: any;
     try {
+      // Override Datadog trace sampling to keep all
+      keepAllTraces();
+
       let orderResult: any;
 
       const [contract, tokenId] = payload.token.split(":");

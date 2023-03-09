@@ -4,7 +4,7 @@ import { fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import _ from "lodash";
 import { config } from "@/config/index";
-import { redis } from "@/common/redis";
+import { redis, redisWebsocketPublisher } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Sources } from "@/models/sources";
 import { getJoiPriceObject } from "@/common/joi";
@@ -101,6 +101,25 @@ export class NewTopBidWebsocketEvent {
         },
         owners: ownersChunk,
       });
+    }
+
+    try {
+      // eslint-disable-next-line no-console
+      console.log("new-top-bid-websocket-event", `Triggering event. orderId=${data.orderId}`);
+      await Promise.all(
+        payloads.map((payload) =>
+          redisWebsocketPublisher.publish(
+            "new-top-bid",
+            JSON.stringify({
+              channel: "new_top_bid",
+              data: payload,
+            })
+          )
+        )
+      );
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.log(e);
     }
 
     const server = new Pusher.default({

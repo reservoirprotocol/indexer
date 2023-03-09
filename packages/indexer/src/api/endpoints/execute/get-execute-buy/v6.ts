@@ -19,6 +19,7 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as nftx from "@/orderbook/orders/nftx";
 import { getCurrency } from "@/utils/currencies";
+import { keepAllTraces } from "@/common/tracer";
 
 const version = "v6";
 
@@ -166,6 +167,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
     const payload = request.payload as any;
 
     try {
+      // Override Datadog trace sampling to keep all
+      keepAllTraces();
+
       // Handle fees on top
       const feesOnTop: {
         recipient: string;
@@ -260,6 +264,8 @@ export const getExecuteBuyV6Options: RouteOptions = {
               id: order.id,
               kind: order.kind,
               currency: order.currency,
+              price: order.price,
+              source: path[path.length - 1].source ?? undefined,
               rawData: order.rawData,
               // TODO: We don't support ERC20 fees because of potential direct filling which
               // does not work with fees on top. We'll need to integrate permits in order to
@@ -658,7 +664,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
       });
-      const { txData, success } = await router.fillListingsTx(
+      const { txs, success } = await router.fillListingsTx(
         listingDetails,
         payload.taker,
         buyInCurrency,
@@ -709,66 +715,74 @@ export const getExecuteBuyV6Options: RouteOptions = {
       const relayer = payload.relayer;
       const txSender = relayer ?? taker;
 
-      // Check that the taker has enough funds to fill all requested tokens
-      const totalPrice = path.map(({ rawQuote }) => bn(rawQuote)).reduce((a, b) => a.add(b));
-      if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
-        const balance = await baseProvider.getBalance(txSender);
-        if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
-          throw Boom.badData("Balance too low to proceed with transaction");
-        }
-      } else {
-        const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, buyInCurrency);
+      for (const tx of txs) {
+        const subPath = path.filter((_, i) => tx.orderIndexes.includes(i));
+        const listings = listingDetails.filter((_, i) => tx.orderIndexes.includes(i));
 
-        const balance = await erc20.getBalance(txSender);
-        if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
-          throw Boom.badData("Balance too low to proceed with transaction");
-        }
-
-        let conduit: string;
-        if (listingDetails.every((d) => d.kind === "seaport")) {
-          // TODO: Have a default conduit for each exchange per chain
-          conduit =
-            config.chainId === 1
-              ? // Use OpenSea's conduit for sharing approvals
-                "0x1e0049783f008a0085193e00003d00cd54003c71"
-              : Sdk.Seaport.Addresses.Exchange[config.chainId];
-        } else if (listingDetails.every((d) => d.kind === "universe")) {
-          conduit = Sdk.Universe.Addresses.Exchange[config.chainId];
-        } else if (listingDetails.every((d) => d.kind === "rarible")) {
-          conduit = Sdk.Rarible.Addresses.Exchange[config.chainId];
+        // Check that the taker has enough funds to fill all requested tokens
+        const totalPrice = subPath.map(({ rawQuote }) => bn(rawQuote)).reduce((a, b) => a.add(b));
+        if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
+          const balance = await baseProvider.getBalance(txSender);
+          if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
+            throw Boom.badData("Balance too low to proceed with transaction");
+          }
         } else {
-          throw new Error("Only Seaport, Universe and Rarible ERC20 listings are supported");
+          const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, buyInCurrency);
+
+          const balance = await erc20.getBalance(txSender);
+          if (!payload.skipBalanceCheck && bn(balance).lt(totalPrice)) {
+            throw Boom.badData("Balance too low to proceed with transaction");
+          }
+
+          let conduit: string;
+          if (
+            listings.every((d) => d.kind === "seaport") ||
+            listings.every((d) => d.kind === "seaport-v1.4")
+          ) {
+            // TODO: Have a default conduit for each exchange per chain
+            conduit =
+              config.chainId === 1
+                ? // Use OpenSea's conduit for sharing approvals
+                  "0x1e0049783f008a0085193e00003d00cd54003c71"
+                : Sdk.Seaport.Addresses.Exchange[config.chainId];
+          } else if (listings.every((d) => d.kind === "universe")) {
+            conduit = Sdk.Universe.Addresses.Exchange[config.chainId];
+          } else if (listings.every((d) => d.kind === "rarible")) {
+            conduit = Sdk.Rarible.Addresses.Exchange[config.chainId];
+          } else {
+            throw new Error("Only Seaport, Universe and Rarible ERC20 listings are supported");
+          }
+
+          const allowance = await erc20.getAllowance(txSender, conduit);
+          if (bn(allowance).lt(totalPrice)) {
+            const tx = erc20.approveTransaction(txSender, conduit);
+            steps[0].items.push({
+              status: "incomplete",
+              data: {
+                ...tx,
+                from: txSender,
+                maxFeePerGas: payload.maxFeePerGas
+                  ? bn(payload.maxFeePerGas).toHexString()
+                  : undefined,
+                maxPriorityFeePerGas: payload.maxPriorityFeePerGas
+                  ? bn(payload.maxPriorityFeePerGas).toHexString()
+                  : undefined,
+              },
+            });
+          }
         }
 
-        const allowance = await erc20.getAllowance(txSender, conduit);
-        if (bn(allowance).lt(totalPrice)) {
-          const tx = erc20.approveTransaction(txSender, conduit);
-          steps[0].items.push({
-            status: "incomplete",
-            data: {
-              ...tx,
-              from: txSender,
-              maxFeePerGas: payload.maxFeePerGas
-                ? bn(payload.maxFeePerGas).toHexString()
-                : undefined,
-              maxPriorityFeePerGas: payload.maxPriorityFeePerGas
-                ? bn(payload.maxPriorityFeePerGas).toHexString()
-                : undefined,
-            },
-          });
-        }
+        steps[1].items.push({
+          status: "incomplete",
+          data: {
+            ...tx.txData,
+            maxFeePerGas: payload.maxFeePerGas ? bn(payload.maxFeePerGas).toHexString() : undefined,
+            maxPriorityFeePerGas: payload.maxPriorityFeePerGas
+              ? bn(payload.maxPriorityFeePerGas).toHexString()
+              : undefined,
+          },
+        });
       }
-
-      steps[1].items.push({
-        status: "incomplete",
-        data: {
-          ...txData,
-          maxFeePerGas: payload.maxFeePerGas ? bn(payload.maxFeePerGas).toHexString() : undefined,
-          maxPriorityFeePerGas: payload.maxPriorityFeePerGas
-            ? bn(payload.maxPriorityFeePerGas).toHexString()
-            : undefined,
-        },
-      });
 
       return {
         steps,

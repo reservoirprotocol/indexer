@@ -62,6 +62,14 @@ export const getUserCollectionsV2Options: RouteOptions = {
         .max(100)
         .default(20)
         .description("Amount of items returned in response."),
+      sortBy: Joi.string()
+        .valid("allTimeVolume", "1DayVolume", "7DayVolume", "30DayVolume")
+        .default("allTimeVolume")
+        .description("Order the items are returned in the response. Defaults to allTimeVolume"),
+      sortDirection: Joi.string()
+        .valid("asc", "desc")
+        .default("desc")
+        .description("Order the items are returned in the response."),
     }),
   },
   response: {
@@ -238,8 +246,27 @@ export const getUserCollectionsV2Options: RouteOptions = {
       // Grouping
       baseQuery += ` GROUP BY collections.id, nbsample.owner`;
 
+      const sortDirection = query.sortDirection === "asc" ? "ASC" : "DESC";
       // Sorting
-      baseQuery += ` ORDER BY collections.all_time_volume DESC`;
+      switch (query.sortBy) {
+        case "allTimeVolume":
+        default: {
+          baseQuery += ` ORDER BY collections.all_time_volume ${sortDirection}`;
+          break;
+        }
+        case "1DayVolume": {
+          baseQuery += ` ORDER BY collections.day1_volume ${sortDirection}`;
+          break;
+        }
+        case "7DayVolume": {
+          baseQuery += ` ORDER BY collections.day7_volume ${sortDirection}`;
+          break;
+        }
+        case "30DayVolume": {
+          baseQuery += ` ORDER BY collections.day30_volume ${sortDirection}`;
+          break;
+        }
+      }
 
       // Pagination
       baseQuery += ` OFFSET $/offset/`;

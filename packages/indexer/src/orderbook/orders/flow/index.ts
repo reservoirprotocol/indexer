@@ -185,7 +185,7 @@ export const save = async (orderInfos: OrderInfo[], relayToArweave?: boolean) =>
       const side = order.isSellOrder ? "sell" : "buy";
 
       // Handle: fees
-      const FEE_BPS = 250;
+      const FEE_BPS = 50;
       const feeBreakdown = [
         {
           kind: "marketplace",

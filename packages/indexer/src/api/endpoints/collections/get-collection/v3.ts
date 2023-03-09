@@ -151,6 +151,8 @@ export const getCollectionV3Options: RouteOptions = {
           "c"."contract",
           "c"."token_id_range",
           "c"."token_set_id",
+          "c"."day0_rank",
+          "c"."day0_volume",
           "c"."day1_rank",
           "c"."day1_volume",
           "c"."day7_rank",
@@ -159,9 +161,11 @@ export const getCollectionV3Options: RouteOptions = {
           "c"."day30_volume",
           "c"."all_time_rank",
           "c"."all_time_volume",
+          "c"."day0_volume_change",
           "c"."day1_volume_change",
           "c"."day7_volume_change",
           "c"."day30_volume_change",
+          "c"."day0_floor_sell_value",
           "c"."day1_floor_sell_value",
           "c"."day7_floor_sell_value",
           "c"."day30_floor_sell_value",               
@@ -307,28 +311,35 @@ export const getCollectionV3Options: RouteOptions = {
                   }
                 : undefined,
               rank: {
+                "0day": r.day0_rank,
                 "1day": r.day1_rank,
                 "7day": r.day7_rank,
                 "30day": r.day30_rank,
                 allTime: r.all_time_rank,
               },
               volume: {
+                "0day": r.day0_volume ? formatEth(r.day0_volume) : null,
                 "1day": r.day1_volume ? formatEth(r.day1_volume) : null,
                 "7day": r.day7_volume ? formatEth(r.day7_volume) : null,
                 "30day": r.day30_volume ? formatEth(r.day30_volume) : null,
                 allTime: r.all_time_volume ? formatEth(r.all_time_volume) : null,
               },
               volumeChange: {
+                "0day": r.day0_volume_change,
                 "1day": r.day1_volume_change,
                 "7day": r.day7_volume_change,
                 "30day": r.day30_volume_change,
               },
               floorSale: {
+                "0day": r.day0_floor_sell_value ? formatEth(r.day0_floor_sell_value) : null,
                 "1day": r.day1_floor_sell_value ? formatEth(r.day1_floor_sell_value) : null,
                 "7day": r.day7_floor_sell_value ? formatEth(r.day7_floor_sell_value) : null,
                 "30day": r.day30_floor_sell_value ? formatEth(r.day30_floor_sell_value) : null,
               },
               floorSaleChange: {
+                "0day": Number(r.day0_floor_sell_value)
+                  ? Number(r.floor_sell_value) / Number(r.day0_floor_sell_value)
+                  : null,
                 "1day": Number(r.day1_floor_sell_value)
                   ? Number(r.floor_sell_value) / Number(r.day1_floor_sell_value)
                   : null,
