@@ -133,7 +133,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       const token = await Tokens.getByContractAndTokenId(contract, tokenId);
 
       if (!token) {
-        logger.warn(
+        logger.debug(
           "opensea-websocket-item-metadata-update-event",
           `Token was not found. contract=${contract}, tokenId=${tokenId}, event=${JSON.stringify(
             event
