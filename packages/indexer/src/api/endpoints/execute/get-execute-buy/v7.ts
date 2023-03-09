@@ -4,6 +4,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import * as Permit2 from "@reservoir0x/sdk/dist/router/v6/permits/permit2";
 import { ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
+import axios from "axios";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -17,6 +18,7 @@ import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
+import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import * as onChainData from "@/utils/on-chain-data";
 import { getPermitId, getPermit, savePermit } from "@/utils/permits/ft";
@@ -442,6 +444,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 AND orders.fillability_status = 'fillable'
                 AND orders.approval_status = 'approved'
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
               ORDER BY
                 ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
                 ${
@@ -545,34 +548,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
       }
 
-      const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
-        x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
-        cbApiKey: config.cbApiKey,
-      });
-      const { txs, success } = await router.fillListingsTx(
-        listingDetails,
-        payload.taker,
-        buyInCurrency,
-        {
-          source: payload.source,
-          partial: payload.partial,
-          forceRouter: payload.forceRouter,
-          relayer: payload.relayer,
-          globalFees: feesOnTop,
-          // TODO: Move this defaulting to the core SDK
-          directFillingData: {
-            conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId],
-          },
-        }
-      );
-
-      // Filter out any non-fillable orders from the path
-      path = path.filter((_, i) => success[i]);
-
-      if (!path.length) {
-        throw Boom.badRequest("No available orders");
-      }
-
       if (payload.onlyPath) {
         return { path };
       }
@@ -588,6 +563,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           data?: object;
         }[];
       }[] = [
+        {
+          id: "auth",
+          action: "Sign auth",
+          description: "Some marketplaces require signing an auth message before filling",
+          kind: "signature",
+          items: [],
+        },
         {
           id: "currency-approval",
           action: "Approve exchange contract",
@@ -610,6 +592,93 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: [],
         },
       ];
+
+      // Handle Blur authentication
+      let blurAuth: string | undefined;
+      if (path.some((p) => p.source === "blur.io")) {
+        const blurAuthId = b.getAuthId(payload.taker);
+
+        blurAuth = await b
+          .getAuth(blurAuthId)
+          .then((auth) => (auth ? auth.accessToken : undefined));
+        if (!blurAuth) {
+          const blurAuthChallengeId = b.getAuthChallengeId(payload.taker);
+
+          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+          if (!blurAuthChallenge) {
+            blurAuthChallenge = (await axios
+              .get(
+                `https://order-fetcher.vercel.app/api/blur-auth-challenge?taker=${payload.taker}`
+              )
+              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+
+            await b.saveAuthChallenge(
+              blurAuthChallengeId,
+              blurAuthChallenge,
+              // Give a 1 minute buffer for the auth challenge to expire
+              Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+            );
+          }
+
+          steps[0].items.push({
+            status: "incomplete",
+            data: {
+              sign: {
+                signatureKind: "eip191",
+                message: blurAuthChallenge.message,
+              },
+              post: {
+                endpoint: "/execute/auth-signature/v1",
+                method: "POST",
+                body: {
+                  kind: "blur",
+                  id: blurAuthChallengeId,
+                },
+              },
+            },
+          });
+
+          // Force the client to poll
+          steps[1].items.push({
+            status: "incomplete",
+          });
+
+          // Return an early since any next steps are dependent on the Blur auth
+          return {
+            steps,
+            path,
+          };
+        }
+      }
+
+      const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
+        x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
+        cbApiKey: config.cbApiKey,
+      });
+      const { txs, success } = await router.fillListingsTx(
+        listingDetails,
+        payload.taker,
+        buyInCurrency,
+        {
+          source: payload.source,
+          partial: payload.partial,
+          forceRouter: payload.forceRouter,
+          relayer: payload.relayer,
+          globalFees: feesOnTop,
+          // TODO: Move this defaulting to the core SDK
+          directFillingData: {
+            conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId],
+          },
+          blurAuth,
+        }
+      );
+
+      // Filter out any non-fillable orders from the path
+      path = path.filter((_, i) => success[i]);
+
+      if (!path.length) {
+        throw Boom.badRequest("No available orders");
+      }
 
       // Custom gas settings
       const maxFeePerGas = payload.maxFeePerGas
@@ -641,7 +710,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
           const isApproved = bn(approvedAmount).gte(amountToApprove);
           if (!isApproved) {
-            steps[0].items.push({
+            steps[1].items.push({
               status: "incomplete",
               data: {
                 ...approval.txData,
@@ -678,7 +747,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
               cachedPermit = permit;
             }
 
-            steps[1].items.push({
+            steps[2].items.push({
               status: "incomplete",
               data: {
                 sign: permitHandler.getSignatureData(cachedPermit.details.data),
@@ -724,7 +793,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           }
         }
 
-        steps[2].items.push({
+        steps[3].items.push({
           status: "incomplete",
           data:
             // Do not return the final step unless all permits have a signature attached

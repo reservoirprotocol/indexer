@@ -155,6 +155,8 @@ export class Router {
       directFillingData?: any;
       // Wallet used for relaying the fill transaction
       relayer?: string;
+      // Needed for filling Blur orders
+      blurAuth?: string;
     }
   ): Promise<{
     txs: {
@@ -507,11 +509,11 @@ export class Router {
     // Generate calldata for the above Blur-compatible listings
     if (blurCompatibleListings.length) {
       try {
-        let blurUrl = `https://order-fetcher.vercel.app/api/listing?`;
+        let blurUrl = `https://order-fetcher.vercel.app/api/blur-listing?`;
         for (const d of blurCompatibleListings) {
-          blurUrl += `contracts[]=${d.contract}&tokensIds[]=${d.tokenId}&prices[]=${d.price}&`;
+          blurUrl += `contracts=${d.contract}&tokenIds=${d.tokenId}&prices=${d.price}&`;
         }
-        blurUrl = blurUrl.slice(0, -1);
+        blurUrl += `taker=${taker}&authToken=${options?.blurAuth}`;
 
         // We'll have one transaction per contract
         const result: {
@@ -547,7 +549,12 @@ export class Router {
             txs.push({
               approvals: [],
               permits: [],
-              txData: data,
+              txData: {
+                from: data.from,
+                to: data.to,
+                data: data.data,
+                value: data.value,
+              },
               orderIndexes: [],
             });
           }
@@ -560,14 +567,14 @@ export class Router {
     }
 
     // Check if we still have any Blur listings for which we didn't properly generate calldata
-    if (details.find((d) => d.source === "blur.io")) {
+    if (details.find((d, i) => d.source === "blur.io" && !success[i])) {
       if (!options?.partial) {
         throw new Error("Could not generate fill data");
       }
     }
 
     // Return early if all listings were covered by Blur
-    if (!details.length) {
+    if (details.every((_, i) => success[i])) {
       return {
         txs,
         success,
@@ -2071,43 +2078,45 @@ export class Router {
     // Filter out any executions that depend on failed swaps
     executions = executions.filter((_, i) => !unsuccessfulDependentExecutionIndexes.includes(i));
 
-    if (!executions.length) {
-      throw new Error("No executions to handle");
+    if (executions.length) {
+      // Prepend any swap executions
+      executions = [...successfulSwapExecutions, ...executions];
+
+      txs.push({
+        approvals,
+        permits: await (async (): Promise<FTPermit[]> => {
+          return permitItems.length
+            ? [
+                {
+                  currencies: permitItems.map((i) => i.token),
+                  details: {
+                    kind: "permit2",
+                    data: await new UniswapPermit.Handler(this.chainId, this.provider).generate(
+                      permitItems
+                    ),
+                  },
+                },
+              ]
+            : [];
+        })(),
+        txData: {
+          from: relayer,
+          to: this.contracts.router.address,
+          data:
+            this.contracts.router.interface.encodeFunctionData("execute", [executions]) +
+            generateSourceBytes(options?.source),
+          value: executions
+            .map((e) => bn(e.value))
+            .reduce((a, b) => a.add(b))
+            .toHexString(),
+        },
+        orderIndexes,
+      });
     }
 
-    // Prepend any swap executions
-    executions = [...successfulSwapExecutions, ...executions];
-
-    txs.push({
-      approvals,
-      permits: await (async (): Promise<FTPermit[]> => {
-        return permitItems.length
-          ? [
-              {
-                currencies: permitItems.map((i) => i.token),
-                details: {
-                  kind: "permit2",
-                  data: await new UniswapPermit.Handler(this.chainId, this.provider).generate(
-                    permitItems
-                  ),
-                },
-              },
-            ]
-          : [];
-      })(),
-      txData: {
-        from: relayer,
-        to: this.contracts.router.address,
-        data:
-          this.contracts.router.interface.encodeFunctionData("execute", [executions]) +
-          generateSourceBytes(options?.source),
-        value: executions
-          .map((e) => bn(e.value))
-          .reduce((a, b) => a.add(b))
-          .toHexString(),
-      },
-      orderIndexes,
-    });
+    if (!txs.length) {
+      throw new Error("No transactions could be generated");
+    }
 
     return {
       txs,
@@ -2137,39 +2146,6 @@ export class Router {
 
     // CASE 1
     // Handle exchanges which don't have a router module implemented by filling directly
-
-    // TODO: Add Blur router module
-    if (details.some(({ kind }) => kind === "blur")) {
-      if (details.length > 1) {
-        throw new Error("Blur multi-selling is not supported");
-      } else {
-        const detail = details[0];
-
-        // Approve Blur's ExecutionDelegate contract
-        const approval = {
-          contract: detail.contract,
-          owner: taker,
-          operator: Sdk.Blur.Addresses.ExecutionDelegate[this.chainId],
-          txData: generateNFTApprovalTxData(
-            detail.contract,
-            taker,
-            Sdk.Blur.Addresses.ExecutionDelegate[this.chainId]
-          ),
-        };
-
-        const order = detail.order as Sdk.Blur.Order;
-        const exchange = new Sdk.Blur.Exchange(this.chainId);
-        const matchOrder = order.buildMatching({
-          trader: taker,
-        });
-        return {
-          txData: exchange.fillOrderTx(taker, order, matchOrder),
-          success: [true],
-          approvals: [approval],
-          permits: [],
-        };
-      }
-    }
 
     // TODO: Add Universe router module
     if (details.some(({ kind }) => kind === "universe")) {

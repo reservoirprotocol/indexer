@@ -521,6 +521,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
                       ? " AND orders.currency = $/currency/"
                       : ""
                   }
+                  ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
                 ORDER BY
                   ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
                   ${
