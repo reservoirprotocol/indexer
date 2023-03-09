@@ -6,6 +6,7 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { now } from "@/common/utils";
+import { config } from "@/config/index";
 import * as b from "@/utils/auth/blur";
 
 const version = "v1";
@@ -57,7 +58,12 @@ export const postAuthSignatureV1Options: RouteOptions = {
             .get(
               `https://order-fetcher.vercel.app/api/blur-auth?authChallenge=${JSON.stringify(
                 authChallenge
-              )}`
+              )}`,
+              {
+                headers: {
+                  "X-Api-Key": config.orderFetcherApiKey,
+                },
+              }
             )
             .then((response) => response.data.accessToken);
 

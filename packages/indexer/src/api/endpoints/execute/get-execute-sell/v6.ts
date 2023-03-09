@@ -391,6 +391,7 @@ export const getExecuteSellV6Options: RouteOptions = {
       const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
+        orderFetcherApiKey: config.orderFetcherApiKey,
       });
       const { txData } = await router.fillBidsTx([bidDetails!], payload.taker, {
         source: payload.source,

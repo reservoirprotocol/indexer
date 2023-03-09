@@ -52,6 +52,7 @@ import ZoraModuleAbi from "./abis/ZoraModule.json";
 type SetupOptions = {
   x2y2ApiKey?: string;
   cbApiKey?: string;
+  orderFetcherApiKey?: string;
 };
 
 export class Router {
@@ -427,7 +428,12 @@ export class Router {
           try {
             const order = detail.order as Sdk.Seaport.Types.PartialOrder;
             const result = await axios.get(
-              `https://order-fetcher.vercel.app/api/listing?orderHash=${order.id}&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.1`
+              `https://order-fetcher.vercel.app/api/listing?orderHash=${order.id}&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.1`,
+              {
+                headers: {
+                  "X-Api-Key": this.options?.orderFetcherApiKey,
+                },
+              }
             );
 
             // Override the details
@@ -454,7 +460,12 @@ export class Router {
           try {
             const order = detail.order as Sdk.SeaportV14.Types.PartialOrder;
             const result = await axios.get(
-              `https://order-fetcher.vercel.app/api/listing?orderHash=${order.id}&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.4`
+              `https://order-fetcher.vercel.app/api/listing?orderHash=${order.id}&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.4`,
+              {
+                headers: {
+                  "X-Api-Key": this.options?.orderFetcherApiKey,
+                },
+              }
             );
 
             // Override the details
@@ -524,7 +535,13 @@ export class Router {
             value: string;
             path: { contract: string; tokenId: string }[];
           };
-        } = await axios.get(blurUrl).then((response) => response.data.calldata);
+        } = await axios
+          .get(blurUrl, {
+            headers: {
+              "X-Api-Key": this.options?.orderFetcherApiKey,
+            },
+          })
+          .then((response) => response.data.calldata);
 
         for (const data of Object.values(result)) {
           const successfulBlurCompatibleListings: ListingDetailsExtracted[] = [];
@@ -2410,7 +2427,12 @@ export class Router {
               `https://order-fetcher.vercel.app/api/offer?orderHash=${order.id}&contract=${
                 order.contract
               }&tokenId=${order.tokenId}&taker=${detail.owner ?? taker}&chainId=${this.chainId}` +
-                (order.unitPrice ? `&unitPrice=${order.unitPrice}` : "")
+                (order.unitPrice ? `&unitPrice=${order.unitPrice}` : ""),
+              {
+                headers: {
+                  "X-Api-Key": this.options?.orderFetcherApiKey,
+                },
+              }
             );
 
             const fullOrder = new Sdk.Seaport.Order(this.chainId, result.data.order);
@@ -2507,7 +2529,12 @@ export class Router {
               `https://order-fetcher.vercel.app/api/offer?orderHash=${order.id}&contract=${
                 order.contract
               }&tokenId=${order.tokenId}&taker=${detail.owner ?? taker}&chainId=${this.chainId}` +
-                (order.unitPrice ? `&unitPrice=${order.unitPrice}` : "")
+                (order.unitPrice ? `&unitPrice=${order.unitPrice}` : ""),
+              {
+                headers: {
+                  "X-Api-Key": this.options?.orderFetcherApiKey,
+                },
+              }
             );
 
             const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
