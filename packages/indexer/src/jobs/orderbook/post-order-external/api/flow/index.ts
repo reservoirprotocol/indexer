@@ -38,10 +38,10 @@ export async function postOrders(
   } catch (err: any) {
     if (err?.response) {
       logger.error(
-        "flow_orderbook_api",
-        `Failed to post order to Flow. order=${JSON.stringify(order)}, status: ${
+        "flow-orderbook-api",
+        `Failed to post order to Flow. order=${JSON.stringify(order)}, status=${
           err?.response?.status
-        }, data:${JSON.stringify(err?.response?.data)}`
+        }, data=${JSON.stringify(err?.response?.data)}`
       );
 
       handleErrorResponse(err.response);

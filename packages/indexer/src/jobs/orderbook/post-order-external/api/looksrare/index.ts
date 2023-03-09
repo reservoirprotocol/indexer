@@ -55,10 +55,12 @@ export const postOrder = async (order: Sdk.LooksRare.Order, apiKey: string) => {
     .catch((error) => {
       if (error.response) {
         logger.error(
-          "looksrare_orderbook_api",
-          `Failed to post order to LooksRare. order=${JSON.stringify(lrOrder)}, status: ${
-            error.response.status
-          }, data:${JSON.stringify(error.response.data)}`
+          "looksrare-orderbook-api",
+          `Failed to post order to LooksRare. order=${JSON.stringify(
+            lrOrder
+          )}, apiKey=${apiKey}, status=${error.response.status}, data=${JSON.stringify(
+            error.response.data
+          )}`
         );
 
         switch (error.response.status) {
@@ -70,7 +72,11 @@ export const postOrder = async (order: Sdk.LooksRare.Order, apiKey: string) => {
           }
           case 400:
           case 401:
-            throw new InvalidRequestError("Request was rejected by LooksRare");
+            throw new InvalidRequestError(
+              `Request was rejected by LooksRare. error=${JSON.stringify(
+                error.response.data.message
+              )}`
+            );
         }
       }
 

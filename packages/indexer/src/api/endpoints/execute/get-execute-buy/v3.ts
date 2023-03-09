@@ -345,6 +345,7 @@ export const getExecuteBuyV3Options: RouteOptions = {
 
       const router = new Sdk.RouterV5.Router(config.chainId, baseProvider, {
         x2y2ApiKey: config.x2y2ApiKey,
+        orderFetcherApiKey: config.orderFetcherApiKey,
       });
       const tx = await router.fillListingsTx(listingDetails, query.taker, {
         source: query.source,

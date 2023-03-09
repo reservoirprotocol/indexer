@@ -1,4 +1,3 @@
-import { formatEther } from "@ethersproject/units";
 import { getStateChange, getPayments, searchForCall } from "@georgeroman/evm-tx-simulator";
 import { Payment } from "@georgeroman/evm-tx-simulator/dist/types";
 import * as Sdk from "@reservoir0x/sdk";
@@ -6,7 +5,11 @@ import * as Sdk from "@reservoir0x/sdk";
 import { redis } from "@/common/redis";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
-import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
+import {
+  PartialFillEvent,
+  StateCache,
+  getFillEventsFromTx,
+} from "@/events-sync/handlers/royalties";
 import {
   platformFeeRecipientsRegistry,
   allPlatformFeeRecipients,
@@ -16,9 +19,8 @@ import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { TransactionTrace } from "@/models/transaction-traces";
 import { Royalty, getRoyalties } from "@/utils/royalties";
-import { StateCache } from "@/events-sync/handlers/royalties";
 
-function findPayment(payments: Payment[], fillEvent: es.fills.Event) {
+function findPayment(payments: Payment[], fillEvent: PartialFillEvent) {
   return payments.find((payment) => {
     const matchTokenId = payment.token.includes(`${fillEvent.contract}:${fillEvent.tokenId}`);
     const macthERC20 =
@@ -39,53 +41,52 @@ export async function extractRoyalties(
   const { txHash } = fillEvent.baseEventParams;
   const { tokenId, contract, price, currency } = fillEvent;
 
-  const cacheKeyEvents = `get-fill-events-from-tx:${txHash}`;
+  // Fetch the current transaction's trace
+  let txTrace: TransactionTrace | undefined;
   const cacheKeyTrace = `fetch-transaction-trace:${txHash}`;
-
-  let txTrace = null;
   if (useCache) {
     const result = await redis.get(cacheKeyTrace);
     if (result) {
       txTrace = JSON.parse(result) as TransactionTrace;
     }
   }
-
   if (!txTrace) {
     txTrace = await utils.fetchTransactionTrace(txHash);
     if (useCache) {
       await redis.set(cacheKeyTrace, JSON.stringify(txTrace), "EX", 10 * 60);
     }
   }
-
   if (!txTrace) {
     return null;
   }
 
-  let fillEvents = null;
+  // Fetch the current transaction's sales
+  let fillEvents: PartialFillEvent[] | undefined;
+  const cacheKeyEvents = `get-fill-events-from-tx:${txHash}`;
   if (useCache) {
     const result = await redis.get(cacheKeyEvents);
     if (result) {
-      fillEvents = JSON.parse(result) as es.fills.Event[];
+      fillEvents = JSON.parse(result) as PartialFillEvent[];
     }
   }
-
   if (!fillEvents) {
-    const data = await getFillEventsFromTx(txHash);
-    fillEvents = data.fillEvents;
-    if (useCache) await redis.set(cacheKeyEvents, JSON.stringify(fillEvents), "EX", 10 * 60);
+    fillEvents = await getFillEventsFromTx(txHash);
+    if (useCache) {
+      await redis.set(cacheKeyEvents, JSON.stringify(fillEvents), "EX", 10 * 60);
+    }
   }
 
   // Get all related royaltly settings from the same transaction
   const allRoyaltiesDefinition = await Promise.all(
-    fillEvents.map(async (_) => {
-      const cacheKey = `${_.contract}:${_.tokenId}`;
+    fillEvents.map(async (f) => {
+      const cacheKey = `${f.contract}:${f.tokenId}`;
       let royalties = cache.royalties.get(cacheKey);
       if (!royalties) {
-        royalties = await getRoyalties(_.contract, _.tokenId);
+        royalties = await getRoyalties(f.contract, f.tokenId);
         cache.royalties.set(cacheKey, royalties);
       }
       return {
-        ..._,
+        ...f,
         royalties,
       };
     })
@@ -96,7 +97,7 @@ export async function extractRoyalties(
   });
 
   let traceToAnalyze = txTrace.calls;
-  let usingExhcnageCall = false;
+  let usingExchangeCall = false;
 
   const exchangeAddress = allExchangeList.get(fillEvent.orderKind);
   if (exchangeAddress) {
@@ -119,7 +120,7 @@ export async function extractRoyalties(
 
     if (allExchangeCalls.length === 1) {
       traceToAnalyze = allExchangeCalls[0];
-      usingExhcnageCall = true;
+      usingExchangeCall = true;
     } else {
       // If there has multiple exchange calls, we need based on payments
       // to find the related with current `fillEvent` one.
@@ -131,7 +132,7 @@ export async function extractRoyalties(
         if (matchPayment) {
           // Found token transfers inside this exchange call
           traceToAnalyze = exchangeCall;
-          usingExhcnageCall = true;
+          usingExchangeCall = true;
           break;
         }
       }
@@ -157,7 +158,7 @@ export async function extractRoyalties(
     fillEvents?.filter((currentEvent) => {
       const macthSameCollection =
         currentEvent.contract === contract && currentEvent.currency === fillEvent.currency;
-      if (usingExhcnageCall) {
+      if (usingExchangeCall) {
         const matchData = findPayment(tracePayments, currentEvent);
         return macthSameCollection && matchData;
       } else {
@@ -170,7 +171,7 @@ export async function extractRoyalties(
       const matchOrderKind =
         currentEvent.orderKind === fillEvent.orderKind &&
         currentEvent.currency === fillEvent.currency;
-      if (usingExhcnageCall) {
+      if (usingExchangeCall) {
         const matchPayment = findPayment(tracePayments, currentEvent);
         return matchOrderKind && matchPayment;
       } else {
@@ -214,26 +215,6 @@ export async function extractRoyalties(
 
   // BPS < 30%
   const threshold = 3000;
-  let sameCollectionSales = 0;
-  let totalTransfers = 0;
-
-  // Tracking same collection sales
-  for (const address in state) {
-    const { tokenBalanceState } = state[address];
-    for (const stateId in tokenBalanceState) {
-      const changeValue = tokenBalanceState[stateId];
-      const nftTransfer = stateId.startsWith(`erc721:`) || stateId.startsWith(`erc1155:`);
-      const isNFTState =
-        stateId.startsWith(`erc721:${contract}`) || stateId.startsWith(`erc1155:${contract}`);
-      const notIncrease = changeValue.startsWith("-");
-      if (isNFTState && !notIncrease) {
-        sameCollectionSales++;
-      }
-      if (nftTransfer && !notIncrease) {
-        totalTransfers++;
-      }
-    }
-  }
 
   const platformFeeRecipients: string[] =
     platformFeeRecipientsRegistry.get(fillEvent.orderKind) ?? [];
@@ -304,26 +285,11 @@ export async function extractRoyalties(
 
   const paidFullRoyalty = creatorRoyaltyFeeBps >= creatorBps;
 
-  const result = {
-    txHash,
-    sale: {
-      tokenId,
-      contract,
-      currency,
-      amount: fillEvent.amount,
-      orderKind: fillEvent.orderKind,
-      price: formatEther(price),
-    },
-    totalTransfers,
+  return {
     royaltyFeeBps,
     marketplaceFeeBps: getTotalRoyaltyBps(marketplaceFeeBreakdown),
     royaltyFeeBreakdown,
     marketplaceFeeBreakdown,
-    sameCollectionSales,
-    protocolFillEvents: protocolFillEvents.length,
-    totalFills: fillEvents.length,
     paidFullRoyalty,
   };
-
-  return result;
 }

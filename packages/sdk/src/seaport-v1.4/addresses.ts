@@ -42,8 +42,14 @@ export const OpenseaConduit: ChainIdToAddress = {
 
 // Zones
 
-export const PausableZone: ChainIdToAddress = {};
+export const PausableZone: ChainIdToAddress = {
+  [Network.Ethereum]: "0x004c00500000ad104d7dbd00e3ae0a5c00560c00",
+  [Network.Polygon]: "0x004c00500000ad104d7dbd00e3ae0a5c00560c00",
+};
 
 export const ApprovalOrderZone: ChainIdToAddress = {};
 
-export const CancelXZone: ChainIdToAddress = {};
+export const CancellationZone: ChainIdToAddress = {
+  [Network.Ethereum]: "0xe1066481cc3b038badd0c68dfa5c8f163c3ff192",
+  [Network.EthereumGoerli]: "0x49b91d1d7b9896d28d370b75b92c2c78c1ac984a",
+};

@@ -186,6 +186,8 @@ export const generateListingDetailsV6 = (
     id: string;
     kind: OrderKind;
     currency: string;
+    price: string;
+    source?: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rawData: any;
     fees?: Sdk.RouterV6.Types.Fee[];
@@ -202,11 +204,21 @@ export const generateListingDetailsV6 = (
     contract: token.contract,
     tokenId: token.tokenId,
     currency: order.currency,
+    price: order.price,
+    source: order.source,
     amount: token.amount ?? 1,
     fees: order.fees ?? [],
   };
 
   switch (order.kind) {
+    case "blur": {
+      return {
+        kind: "blur",
+        ...common,
+        order: new Sdk.Blur.Order(config.chainId, order.rawData),
+      };
+    }
+
     case "cryptopunks": {
       return {
         kind: "cryptopunks",

@@ -90,6 +90,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
                 metadata: {
                   originatedAt: event.sent_at,
                 },
+                isOpenSea: true,
                 openSeaOrderParams,
               },
               relayToArweave: eventType === EventType.ITEM_LISTED,
@@ -272,7 +273,7 @@ export const parseProtocolData = (payload: unknown): ProtocolData | undefined =>
         offerer: protocolData.parameters.offerer,
         counter: `${protocolData.parameters.counter}`,
         orderType: protocolData.parameters.orderType,
-        signature: protocolData.signature,
+        signature: protocolData.signature || undefined,
       });
 
       return {

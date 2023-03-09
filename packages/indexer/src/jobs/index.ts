@@ -42,6 +42,7 @@ import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties"
 import * as backfillTokensWithMissingCollection from "@/jobs/backfill/backfill-tokens-with-missing-collection";
 import * as backfillUpdateMissingMetadata from "@/jobs/backfill/backfill-update-missing-metadata";
 import * as backfillTokensLastFlagUpdate from "@/jobs/backfill/backfill-tokens-last-flag-update";
+import * as backfillNftBalancesLastTokenAppraisalValue from "@/jobs/backfill/backfill-nft-balances-last-token-appraisal-value";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -100,6 +101,7 @@ import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle
 import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-queue";
 import * as erc20OrdersCron from "@/jobs/order-updates/cron/erc20-orders-queue";
 import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-queue";
+import * as oracleOrdersCron from "@/jobs/order-updates/cron/oracle-orders-queue";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
@@ -133,6 +135,7 @@ export const gracefulShutdownJobWorkers = [
   dynamicOrdersCron.worker,
   erc20OrdersCron.worker,
   expiredOrdersCron.worker,
+  oracleOrdersCron.worker,
   tokenUpdatesFloorAsk.worker,
   tokenUpdatesNormalizedFloorAsk.worker,
 ];
@@ -153,6 +156,7 @@ export const allJobQueues = [
   backfillTokensWithMissingCollection.queue,
   backfillUpdateMissingMetadata.queue,
   backfillTokensLastFlagUpdate.queue,
+  backfillNftBalancesLastTokenAppraisalValue.queue,
 
   currencies.queue,
 
@@ -212,6 +216,7 @@ export const allJobQueues = [
   dynamicOrdersCron.queue,
   erc20OrdersCron.queue,
   expiredOrdersCron.queue,
+  oracleOrdersCron.queue,
 
   orderbookOrders.queue,
   orderbookPostOrderExternal.queue,

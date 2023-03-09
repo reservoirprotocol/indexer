@@ -5,17 +5,22 @@ export enum TradeDirection {
   SELL,
 }
 
+export enum SignatureVersion {
+  SINGLE,
+  BULK,
+}
+
 export type BaseOrder = {
   kind?: OrderKind;
-  side: TradeDirection;
   trader: string;
-  collection: string;
+  side: TradeDirection;
   matchingPolicy: string;
+  collection: string;
   tokenId: string;
   amount: string;
   paymentToken: string;
-  nonce: string;
   price: string;
+  nonce: string;
   listingTime: string;
   expirationTime: string;
   fees: {
@@ -25,20 +30,8 @@ export type BaseOrder = {
   salt: string;
   extraParams: string;
   extraSignature: string;
-
-  signatureVersion?: number;
-  blockNumber: number;
+  signatureVersion: SignatureVersion;
   v?: number;
   r?: string;
   s?: string;
-};
-
-export type OrderInput = {
-  order: BaseOrder;
-  v?: number;
-  r?: string;
-  s?: string;
-  extraSignature: string;
-  signatureVersion: number;
-  blockNumber: number;
 };

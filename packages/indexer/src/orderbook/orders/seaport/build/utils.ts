@@ -67,6 +67,7 @@ export const getBuildInfo = async (
   }
 
   const exchange = new Sdk.Seaport.Exchange(config.chainId);
+  const source = options.orderbook === "opensea" ? "opensea.io" : options.source;
 
   const buildParams: BaseBuildParams = {
     offerer: options.maker,
@@ -91,8 +92,8 @@ export const getBuildInfo = async (
     conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero,
     startTime: options.listingTime || now() - 1 * 60,
     endTime: options.expirationTime || now() + 6 * 30 * 24 * 3600,
-    salt: options.source
-      ? padSourceToSalt(options.source, options.salt ?? getRandomBytes(16).toString())
+    salt: source
+      ? padSourceToSalt(source, options.salt ?? getRandomBytes(16).toString())
       : undefined,
     counter: (await exchange.getCounter(baseProvider, options.maker)).toString(),
     orderType: options.orderType,

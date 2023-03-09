@@ -388,6 +388,9 @@ export const getStatsV2Options: RouteOptions = {
           SELECT
             "c"."token_count",
             "c"."token_set_id",
+            "c"."top_buy_id",
+            "c"."top_buy_value",
+            "c"."top_buy_maker",
             (
               SELECT COUNT(*) FROM "tokens"
               WHERE "collection_id" = $/collection/
@@ -411,9 +414,6 @@ export const getStatsV2Options: RouteOptions = {
             ON "x"."collection_id" = "c"."id"
           LEFT JOIN LATERAL (
             SELECT
-              "ts"."top_buy_id",
-              "ts"."top_buy_value",
-              "ts"."top_buy_maker",
               date_part('epoch', lower("ob"."valid_between")) AS "top_buy_valid_from",
               coalesce(
                 nullif(date_part('epoch', upper("ob"."valid_between")), 'Infinity'),
@@ -423,11 +423,8 @@ export const getStatsV2Options: RouteOptions = {
               ob.currency AS top_buy_currency,
               coalesce(ob.currency_price, ob.price) AS top_buy_currency_price,
               coalesce(ob.currency_value, ob.value) AS top_buy_currency_value
-            FROM "token_sets" "ts"
-            LEFT JOIN "orders" "ob"
-              ON "ts"."top_buy_id" = "ob"."id"
-            WHERE "ts"."id" = "c"."token_set_id"
-            ORDER BY "ts"."top_buy_value" DESC NULLS LAST
+            FROM "orders" "ob"
+            WHERE "ob"."id" = "c"."top_buy_id"
             LIMIT 1
           ) "y" ON TRUE
         `;

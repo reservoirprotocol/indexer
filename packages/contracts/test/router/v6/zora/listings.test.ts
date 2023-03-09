@@ -37,14 +37,12 @@ describe("[ReservoirV6_0_0] Zora listings", () => {
 
     ({ erc721 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    zoraModule = (await ethers
+      .then((factory) => factory.deploy());
+    zoraModule = await ethers
       .getContractFactory("ZoraModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -110,9 +108,7 @@ describe("[ReservoirV6_0_0] Zora listings", () => {
 
     // Prepare executions
 
-    const totalPrice = bn(
-      listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0))
-    );
+    const totalPrice = bn(listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)));
     const executions: ExecutionInfo[] = [
       // 1. Fill listings
       listingsCount > 1
@@ -122,8 +118,7 @@ describe("[ReservoirV6_0_0] Zora listings", () => {
               listings.map((listing) => ({
                 collection: listing.nft.contract.address,
                 tokenId: listing.nft.id,
-                currency:
-                  listing.paymentToken ?? Sdk.Common.Addresses.Eth[chainId],
+                currency: listing.paymentToken ?? Sdk.Common.Addresses.Eth[chainId],
                 amount: listing.price,
                 finder: listing.seller.address,
               })),
@@ -142,9 +137,7 @@ describe("[ReservoirV6_0_0] Zora listings", () => {
             ]),
             value: totalPrice.add(
               // Anything on top should be refunded
-              feesOnTop
-                .reduce((a, b) => bn(a).add(b), bn(0))
-                .add(parseEther("0.1"))
+              feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
             ),
           }
         : {
@@ -153,8 +146,7 @@ describe("[ReservoirV6_0_0] Zora listings", () => {
               {
                 collection: listings[0].nft.contract.address,
                 tokenId: listings[0].nft.id,
-                currency:
-                  listings[0].paymentToken ?? Sdk.Common.Addresses.Eth[chainId],
+                currency: listings[0].paymentToken ?? Sdk.Common.Addresses.Eth[chainId],
                 amount: listings[0].price,
                 finder: listings[0].seller.address,
               },
@@ -173,9 +165,7 @@ describe("[ReservoirV6_0_0] Zora listings", () => {
             ]),
             value: totalPrice.add(
               // Anything on top should be refunded
-              feesOnTop
-                .reduce((a, b) => bn(a).add(b), bn(0))
-                .add(parseEther("0.1"))
+              feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parseEther("0.1"))
             ),
           },
     ];
@@ -185,20 +175,12 @@ describe("[ReservoirV6_0_0] Zora listings", () => {
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      listings.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && listings.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
       return;
     }
@@ -210,9 +192,7 @@ describe("[ReservoirV6_0_0] Zora listings", () => {
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
@@ -224,20 +204,14 @@ describe("[ReservoirV6_0_0] Zora listings", () => {
     // Alice got the payment
     expect(balancesAfter.alice.sub(balancesBefore.alice)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === alice.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === alice.address)
         .map(({ price }) => bn(price))
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
     // Bob got the payment
     expect(balancesAfter.bob.sub(balancesBefore.bob)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === bob.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === bob.address)
         .map(({ price }) => bn(price))
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
@@ -263,9 +237,7 @@ describe("[ReservoirV6_0_0] Zora listings", () => {
       if (!listings[i].isCancelled) {
         expect(await erc721.ownerOf(listings[i].nft.id)).to.eq(carol.address);
       } else {
-        expect(await erc721.ownerOf(listings[i].nft.id)).to.eq(
-          listings[i].seller.address
-        );
+        expect(await erc721.ownerOf(listings[i].nft.id)).to.eq(listings[i].seller.address);
       }
     }
 
@@ -274,10 +246,10 @@ describe("[ReservoirV6_0_0] Zora listings", () => {
     expect(balancesAfter.zoraModule).to.eq(0);
   };
 
-  for (let multiple of [false, true]) {
-    for (let partial of [false, true]) {
-      for (let chargeFees of [false, true]) {
-        for (let revertIfIncomplete of [false, true]) {
+  for (const multiple of [false, true]) {
+    for (const partial of [false, true]) {
+      for (const chargeFees of [false, true]) {
+        for (const revertIfIncomplete of [false, true]) {
           it(
             "[eth]" +
               `${multiple ? "[multiple-orders]" : "[single-order]"}` +

@@ -38,4 +38,8 @@ export class Erc721 {
   public async isApproved(owner: string, operator: string): Promise<boolean> {
     return this.contract.isApprovedForAll(owner, operator);
   }
+
+  public async isApprovedSingleToken(tokenId: string, operator: string): Promise<boolean> {
+    return this.contract.getApproved(tokenId).then((a: string) => a.toLowerCase() === operator);
+  }
 }

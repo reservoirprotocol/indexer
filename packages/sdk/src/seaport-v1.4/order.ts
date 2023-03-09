@@ -83,7 +83,7 @@ export class Order {
         // https://github.com/ProjectOpenSea/seaport/blob/4f2210b59aefa119769a154a12e55d9b77ca64eb/reference/lib/ReferenceVerifiers.sol#L146-L220
         const proofAndSignature = this.params.signature!;
 
-        const signatureLength = proofAndSignature.length % 2 === 0 ? 130 : 128;
+        const signatureLength = actualSignatureLength % 2 === 0 ? 130 : 128;
         const signature = proofAndSignature.slice(0, signatureLength + 2);
 
         const key = bn(

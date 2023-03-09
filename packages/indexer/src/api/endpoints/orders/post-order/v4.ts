@@ -7,13 +7,14 @@ import * as Sdk from "@reservoir0x/sdk";
 
 import Joi from "joi";
 
-import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orders from "@/orderbook/orders";
 
 import * as postOrderExternal from "@/jobs/orderbook/post-order-external";
+import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
+import { idb } from "@/common/db";
 
 const version = "v4";
 
@@ -104,20 +105,25 @@ export const postOrderV4Options: RouteOptions = {
         };
       }[];
 
-      // Only Seaport v1.3 supports bulk orders
+      // Only Seaport v1.4 supports bulk orders
       if (items.length > 1) {
         if (!items.every((item) => item.order.kind === "seaport-v1.4")) {
-          throw Boom.badRequest("Bulk orders are only supported on Seaport v1.3");
+          throw Boom.badRequest("Bulk orders are only supported on Seaport v1.4");
         }
       }
 
-      const results: { message: string; orderIndex: number; orderId?: string }[] = [];
+      const results: {
+        message: string;
+        orderIndex: number;
+        orderId?: string;
+        crossPostingOrderId?: number;
+      }[] = [];
       await Promise.all(
         items.map(async (item, i) => {
           const source = payload.source;
           const order = item.order;
           const orderbook = item.orderbook;
-          const orderbookApiKey = item.orderbookApiKey ?? null;
+          const orderbookApiKey = item.orderbookApiKey;
           const bulkData = item.bulkData;
 
           // We'll always have only one of the below cases:
@@ -133,29 +139,33 @@ export const postOrderV4Options: RouteOptions = {
 
           const signature = query.signature ?? order.data.signature;
           if (signature) {
-            const { v, r, s } = splitSignature(signature);
+            try {
+              const { v, r, s } = splitSignature(signature);
 
-            if (bulkData?.kind === "seaport-v1.4") {
-              // Encode the merkle proof of inclusion together with the signature
-              order.data.signature = new Sdk.SeaportV14.Exchange(
-                config.chainId
-              ).encodeBulkOrderProofAndSignature(
-                bulkData.data.orderIndex,
-                bulkData.data.merkleProof,
-                signature
-              );
-            } else {
-              // If the signature is provided via query parameters, use it
-              order.data = {
-                ...order.data,
-                // To cover everything:
-                // - orders requiring a single signature field
-                // - orders requiring split signature fields
-                signature,
-                v,
-                r,
-                s,
-              };
+              if (bulkData?.kind === "seaport-v1.4") {
+                // Encode the merkle proof of inclusion together with the signature
+                order.data.signature = new Sdk.SeaportV14.Exchange(
+                  config.chainId
+                ).encodeBulkOrderProofAndSignature(
+                  bulkData.data.orderIndex,
+                  bulkData.data.merkleProof,
+                  signature
+                );
+              } else {
+                // If the signature is provided via query parameters, use it
+                order.data = {
+                  ...order.data,
+                  // To cover everything:
+                  // - orders requiring a single signature field
+                  // - orders requiring split signature fields
+                  signature,
+                  v,
+                  r,
+                  s,
+                };
+              }
+            } catch {
+              // Skip errors
             }
           }
 
@@ -225,146 +235,129 @@ export const postOrderV4Options: RouteOptions = {
               }
             }
 
-            case "seaport": {
-              if (!["opensea", "reservoir"].includes(orderbook)) {
-                return results.push({ message: "unsupported-orderbook", orderIndex: i });
-              }
-
-              const orderInfo: orders.seaport.OrderInfo = {
-                kind: "full",
-                orderParams: order.data,
-                isReservoir: orderbook === "reservoir",
-                metadata: {
-                  schema,
-                  source: orderbook === "reservoir" ? source : undefined,
-                  target: orderbook,
-                },
-              };
-
-              const [result] = await orders.seaport.save([orderInfo]);
-
-              if (result.status === "already-exists") {
-                return results.push({ message: "success", orderIndex: i, orderId: result.id });
-              } else if (result.status !== "success") {
-                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
-              }
-
-              if (orderbook === "opensea") {
-                await postOrderExternal.addToQueue(
-                  result.id,
-                  order.data,
-                  orderbook,
-                  orderbookApiKey
-                );
-
-                logger.info(
-                  `post-order-${version}-handler`,
-                  `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}, orderId: ${
-                    result.id
-                  }`
-                );
-              } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
-                const orderResult = await idb.oneOrNone(
-                  `
-                    SELECT
-                      orders.token_set_id
-                    FROM orders
-                    WHERE orders.id = $/id/
-                  `,
-                  { id: result.id }
-                );
-                if (orderResult?.token_set_id?.startsWith("token")) {
-                  await postOrderExternal.addToQueue(
-                    result.id,
-                    order.data,
-                    "opensea",
-                    config.forwardOpenseaApiKey
-                  );
-
-                  logger.info(
-                    `post-order-${version}-handler`,
-                    JSON.stringify({
-                      forward: true,
-                      orderbook: "opensea",
-                      data: order.data,
-                      orderId: result.id,
-                    })
-                  );
-                }
-              }
-
-              return results.push({ message: "success", orderIndex: i, orderId: result.id });
-            }
-
+            case "seaport":
             case "seaport-v1.4": {
               if (!["opensea", "reservoir"].includes(orderbook)) {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
-              const orderInfo: orders.seaportV14.OrderInfo = {
-                kind: "full",
-                orderParams: order.data,
-                isReservoir: orderbook === "reservoir",
-                metadata: {
-                  schema,
-                  source: orderbook === "reservoir" ? source : undefined,
-                  target: orderbook,
-                },
-              };
+              let crossPostingOrder;
 
-              const [result] = await orders.seaportV14.save([orderInfo]);
-
-              if (result.status === "already-exists") {
-                return results.push({ message: "success", orderIndex: i, orderId: result.id });
-              } else if (result.status !== "success") {
-                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
-              }
+              const orderId =
+                order.kind === "seaport"
+                  ? new Sdk.Seaport.Order(config.chainId, order.data).hash()
+                  : new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
 
               if (orderbook === "opensea") {
-                await postOrderExternal.addToQueue(
-                  result.id,
-                  order.data,
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
+                  kind: order.kind,
                   orderbook,
-                  orderbookApiKey
-                );
+                  source,
+                  schema,
+                  rawData: order.data,
+                } as crossPostingOrdersModel.CrossPostingOrder);
 
-                logger.info(
-                  `post-order-${version}-handler`,
-                  `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}, orderId: ${
-                    result.id
-                  }`
-                );
+                await postOrderExternal.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: order.data,
+                  orderbook,
+                  orderbookApiKey,
+                  collectionId: collection,
+                });
               } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
-                const orderResult = await idb.oneOrNone(
-                  `
-                    SELECT
-                      orders.token_set_id
-                    FROM orders
-                    WHERE orders.id = $/id/
-                  `,
-                  { id: result.id }
-                );
-                if (orderResult?.token_set_id?.startsWith("token")) {
-                  await postOrderExternal.addToQueue(
-                    result.id,
-                    order.data,
-                    "opensea",
-                    config.forwardOpenseaApiKey
-                  );
+                await postOrderExternal.addToQueue({
+                  orderId,
+                  orderData: order.data,
+                  orderbook: "opensea",
+                  orderbookApiKey: config.forwardOpenseaApiKey,
+                });
+              } else {
+                const [result] =
+                  order.kind === "seaport"
+                    ? await orders.seaport.save([
+                        {
+                          kind: "full",
+                          orderParams: order.data,
+                          isReservoir: true,
+                          metadata: {
+                            schema,
+                            source,
+                          },
+                        },
+                      ])
+                    : await orders.seaportV14.save([
+                        {
+                          kind: "full",
+                          orderParams: order.data,
+                          isReservoir: true,
+                          metadata: {
+                            schema,
+                            source,
+                          },
+                        },
+                      ]);
 
-                  logger.info(
-                    `post-order-${version}-handler`,
-                    JSON.stringify({
-                      forward: true,
-                      orderbook: "opensea",
-                      data: order.data,
-                      orderId: result.id,
-                    })
+                if (!["success", "already-exists"].includes(result.status)) {
+                  return results.push({ message: result.status, orderIndex: i, orderId });
+                }
+
+                const collectionResult = await idb.oneOrNone(
+                  `
+                SELECT
+                  collections.new_royalties,
+                  orders.token_set_id
+                FROM orders
+                JOIN token_sets_tokens
+                  ON orders.token_set_id = token_sets_tokens.token_set_id
+                JOIN tokens
+                  ON tokens.contract = token_sets_tokens.contract
+                  AND tokens.token_id = token_sets_tokens.token_id
+                JOIN collections
+                  ON tokens.collection_id = collections.id
+                WHERE orders.id = $/id/
+                LIMIT 1
+              `,
+                  { id: orderId }
+                );
+
+                if (
+                  collectionResult?.token_set_id?.startsWith("token") &&
+                  collectionResult?.new_royalties?.["opensea"]
+                ) {
+                  const osRoyaltyRecipients = collectionResult.new_royalties["opensea"].map(
+                    (r: any) => r.recipient.toLowerCase()
                   );
+                  const maker = order.data.offerer.toLowerCase();
+                  const consideration = order.data.consideration;
+
+                  let hasMarketplaceFee = false;
+                  for (const c of consideration) {
+                    const recipient = c.recipient.toLowerCase();
+                    if (recipient !== maker && !osRoyaltyRecipients.includes(recipient)) {
+                      hasMarketplaceFee = true;
+                    }
+                  }
+
+                  if (!hasMarketplaceFee) {
+                    await postOrderExternal.addToQueue({
+                      orderId,
+                      orderData: order.data,
+                      orderbook: "opensea",
+                      orderbookApiKey: config.openSeaApiKey,
+                      collectionId: collection,
+                    });
+                  }
                 }
               }
 
-              return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder?.id,
+              });
             }
 
             case "looks-rare": {
@@ -372,39 +365,50 @@ export const postOrderV4Options: RouteOptions = {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
-              const orderInfo: orders.looksRare.OrderInfo = {
-                orderParams: order.data,
-                metadata: {
-                  schema,
-                  source: orderbook === "reservoir" ? source : undefined,
-                },
-              };
+              let crossPostingOrder;
 
-              const [result] = await orders.looksRare.save([orderInfo]);
-
-              if (result.status === "already-exists") {
-                return results.push({ message: "success", orderIndex: i, orderId: result.id });
-              } else if (result.status !== "success") {
-                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
-              }
+              const orderId = new Sdk.LooksRare.Order(config.chainId, order.data).hash();
 
               if (orderbook === "looks-rare") {
-                await postOrderExternal.addToQueue(
-                  result.id,
-                  order.data,
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
+                  kind: order.kind,
                   orderbook,
-                  orderbookApiKey
-                );
+                  source,
+                  schema,
+                  rawData: order.data,
+                } as crossPostingOrdersModel.CrossPostingOrder);
 
-                logger.info(
-                  `post-order-${version}-handler`,
-                  `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}, orderId: ${
-                    result.id
-                  }`
-                );
+                await postOrderExternal.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: order.data,
+                  orderbook,
+                  orderbookApiKey,
+                  collectionId: collection,
+                });
+              } else {
+                const [result] = await orders.looksRare.save([
+                  {
+                    orderParams: order.data,
+                    metadata: {
+                      schema,
+                      source,
+                    },
+                  },
+                ]);
+
+                if (!["success", "already-exists"].includes(result.status)) {
+                  return results.push({ message: result.status, orderIndex: i, orderId });
+                }
               }
 
-              return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder?.id,
+              });
             }
 
             case "x2y2": {
@@ -412,39 +416,53 @@ export const postOrderV4Options: RouteOptions = {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
+              let crossPostingOrder;
+
+              const orderId = new Sdk.X2Y2.Order(config.chainId, order.data).params.itemHash;
+
               if (orderbook === "x2y2") {
                 // We do not save the order directly since X2Y2 orders are not fillable
                 // unless their backend has processed them first. So we just need to be
                 // patient until the relayer acknowledges the order (via X2Y2's server)
                 // before us being able to ingest it.
-                await postOrderExternal.addToQueue(null, order.data, orderbook, orderbookApiKey);
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
+                  kind: order.kind,
+                  orderbook,
+                  source,
+                  schema,
+                  rawData: order.data,
+                } as crossPostingOrdersModel.CrossPostingOrder);
 
-                logger.info(
-                  `post-order-${version}-handler`,
-                  `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}`
-                );
-
-                return results.push({ message: "success", orderIndex: i });
+                await postOrderExternal.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: order.data,
+                  orderbook,
+                  orderbookApiKey,
+                  collectionId: collection,
+                });
               } else {
-                const orderInfo: orders.x2y2.OrderInfo = {
-                  orderParams: order.data,
-                  metadata: {
-                    schema,
+                const [result] = await orders.x2y2.save([
+                  {
+                    orderParams: order.data,
+                    metadata: {
+                      schema,
+                    },
                   },
-                };
+                ]);
 
-                const [result] = await orders.x2y2.save([orderInfo]);
-
-                if (["already-exists", "success"].includes(result.status)) {
-                  return results.push({ message: "success", orderIndex: i, orderId: result.id });
-                } else {
-                  return results.push({
-                    message: result.status,
-                    orderIndex: i,
-                    orderId: result.id,
-                  });
+                if (!["success", "already-exists"].includes(result.status)) {
+                  return results.push({ message: result.status, orderIndex: i, orderId });
                 }
               }
+
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder?.id,
+              });
             }
 
             case "universe": {
@@ -452,39 +470,32 @@ export const postOrderV4Options: RouteOptions = {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
-              const orderInfo: orders.universe.OrderInfo = {
-                orderParams: order.data,
-                metadata: {
-                  schema,
-                  source: orderbook === "universe" ? source : undefined,
-                },
-              };
+              const orderId = new Sdk.Universe.Order(config.chainId, order.data).hashOrderKey();
 
-              const [result] = await orders.universe.save([orderInfo]);
+              const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                orderId,
+                kind: order.kind,
+                orderbook,
+                source,
+                schema,
+                rawData: order.data,
+              } as crossPostingOrdersModel.CrossPostingOrder);
 
-              if (result.status === "already-exists") {
-                return results.push({ message: "success", orderIndex: i, orderId: result.id });
-              } else if (result.status !== "success") {
-                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
-              }
+              await postOrderExternal.addToQueue({
+                crossPostingOrderId: crossPostingOrder.id,
+                orderId,
+                orderData: order.data,
+                orderbook: "universe",
+                orderbookApiKey,
+                collectionId: collection,
+              });
 
-              if (orderbook === "universe") {
-                await postOrderExternal.addToQueue(
-                  result.id,
-                  order.data,
-                  orderbook,
-                  orderbookApiKey
-                );
-
-                logger.info(
-                  `post-order-${version}-handler`,
-                  `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}, orderId: ${
-                    result.id
-                  }`
-                );
-              }
-
-              return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder.id,
+              });
             }
 
             case "infinity": {
@@ -492,39 +503,32 @@ export const postOrderV4Options: RouteOptions = {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
-              const orderInfo: orders.infinity.OrderInfo = {
-                orderParams: order.data,
-                metadata: {
-                  schema,
-                  source: orderbook === "infinity" ? source : undefined,
-                },
-              };
+              const orderId = new Sdk.Infinity.Order(config.chainId, order.data).hash();
 
-              const [result] = await orders.infinity.save([orderInfo]);
+              const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                orderId,
+                kind: order.kind,
+                orderbook,
+                source,
+                schema,
+                rawData: order.data,
+              } as crossPostingOrdersModel.CrossPostingOrder);
 
-              if (result.status === "already-exists") {
-                return results.push({ message: "success", orderIndex: i, orderId: result.id });
-              } else if (result.status !== "success") {
-                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
-              }
+              await postOrderExternal.addToQueue({
+                crossPostingOrderId: crossPostingOrder.id,
+                orderId,
+                orderData: order.data,
+                orderbook: "infinity",
+                orderbookApiKey,
+                collectionId: collection,
+              });
 
-              if (orderbook === "infinity") {
-                await postOrderExternal.addToQueue(
-                  result.id,
-                  order.data,
-                  orderbook,
-                  orderbookApiKey
-                );
-
-                logger.info(
-                  `post-order-${version}-handler`,
-                  `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}, orderId: ${
-                    result.id
-                  }`
-                );
-              }
-
-              return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder.id,
+              });
             }
 
             case "flow": {
@@ -532,39 +536,32 @@ export const postOrderV4Options: RouteOptions = {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
-              const orderInfo: orders.flow.OrderInfo = {
-                orderParams: order.data,
-                metadata: {
-                  schema,
-                  source: orderbook === "flow" ? source : undefined,
-                },
-              };
+              const orderId = new Sdk.Flow.Order(config.chainId, order.data).hash();
 
-              const [result] = await orders.flow.save([orderInfo]);
+              const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                orderId,
+                kind: order.kind,
+                orderbook,
+                source,
+                schema,
+                rawData: order.data,
+              } as crossPostingOrdersModel.CrossPostingOrder);
 
-              if (result.status === "already-exists") {
-                return results.push({ message: "success", orderIndex: i, orderId: result.id });
-              } else if (result.status !== "success") {
-                return results.push({ message: result.status, orderIndex: i, orderId: result.id });
-              }
+              await postOrderExternal.addToQueue({
+                crossPostingOrderId: crossPostingOrder.id,
+                orderId,
+                orderData: order.data,
+                orderbook: "flow",
+                orderbookApiKey,
+                collectionId: collection,
+              });
 
-              if (orderbook === "flow") {
-                await postOrderExternal.addToQueue(
-                  result.id,
-                  order.data,
-                  orderbook,
-                  orderbookApiKey
-                );
-
-                logger.info(
-                  `post-order-${version}-handler`,
-                  `orderbook: ${orderbook}, orderData: ${JSON.stringify(order.data)}, orderId: ${
-                    result.id
-                  }`
-                );
-              }
-
-              return results.push({ message: "success", orderIndex: i, orderId: result.id });
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
+                crossPostingOrderId: crossPostingOrder.id,
+              });
             }
           }
         })

@@ -28,10 +28,10 @@ export const postOrder = async (order: Sdk.Universe.Order) => {
     .catch((error) => {
       if (error.response) {
         logger.error(
-          "universe_orderbook_api",
-          `Failed to post order to Universe. order=${JSON.stringify(order)}, status: ${
+          "universe-orderbook-api",
+          `Failed to post order to Universe. order=${JSON.stringify(order)}, status=${
             error.response.status
-          }, data:${JSON.stringify(error.response.data)}`
+          }, data=${JSON.stringify(error.response.data)}`
         );
 
         switch (error.response.status) {

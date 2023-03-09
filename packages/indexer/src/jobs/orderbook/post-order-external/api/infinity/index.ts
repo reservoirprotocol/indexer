@@ -38,10 +38,10 @@ export async function postOrders(
   } catch (err: any) {
     if (err?.response) {
       logger.error(
-        "infinity_orderbook_api",
-        `Failed to post order to Infinity. order=${JSON.stringify(order)}, status: ${
+        "infinity-orderbook-api",
+        `Failed to post order to Infinity. order=${JSON.stringify(order)}, status=${
           err?.response?.status
-        }, data:${JSON.stringify(err?.response?.data)}`
+        }, data=${JSON.stringify(err?.response?.data)}`
       );
 
       handleErrorResponse(err.response);

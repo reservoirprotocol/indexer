@@ -7,7 +7,12 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import * as Helpers from "../helpers/seaport-v1.4";
+import {
+  SeaportERC721Approval,
+  SeaportOffer,
+  setupSeaportERC721Approvals,
+  setupSeaportOffers,
+} from "../helpers/seaport";
 import {
   bn,
   getChainId,
@@ -30,9 +35,8 @@ describe("[ReservoirV6_0_0] SeaportV14 offers", () => {
 
   let erc721: Contract;
   let router: Contract;
-  let seaportV14ApprovalOrderZone: Contract;
-  let seaportV14Module: Contract;
-  let uniswapV3Module: Contract;
+  let seaportApprovalOrderZone: Contract;
+  let seaportModule: Contract;
 
   beforeEach(async () => {
     [deployer, alice, bob, carol, david, emilio] = await ethers.getSigners();
@@ -42,15 +46,12 @@ describe("[ReservoirV6_0_0] SeaportV14 offers", () => {
     router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
       .then((factory) => factory.deploy());
-    seaportV14ApprovalOrderZone = await ethers
-      .getContractFactory("SeaportV14ApprovalOrderZone", deployer)
+    seaportApprovalOrderZone = await ethers
+      .getContractFactory("SeaportApprovalOrderZone", deployer)
       .then((factory) => factory.deploy());
-    seaportV14Module = await ethers
-      .getContractFactory("SeaportV14Module", deployer)
-      .then((factory) => factory.deploy(router.address, router.address));
-    uniswapV3Module = await ethers
-      .getContractFactory("UniswapV3Module", deployer)
-      .then((factory) => factory.deploy(router.address, router.address));
+    seaportModule = await ethers
+      .getContractFactory("SeaportModule", deployer)
+      .then((factory) => factory.deploy(deployer.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -62,8 +63,7 @@ describe("[ReservoirV6_0_0] SeaportV14 offers", () => {
         david: await ethers.provider.getBalance(david.address),
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
-        seaportV14Module: await ethers.provider.getBalance(seaportV14Module.address),
-        uniswapV3Module: await ethers.provider.getBalance(uniswapV3Module.address),
+        seaportModule: await ethers.provider.getBalance(seaportModule.address),
       };
     } else {
       const contract = new Sdk.Common.Helpers.Erc20(ethers.provider, token);
@@ -74,8 +74,7 @@ describe("[ReservoirV6_0_0] SeaportV14 offers", () => {
         david: await contract.getBalance(david.address),
         emilio: await contract.getBalance(emilio.address),
         router: await contract.getBalance(router.address),
-        seaportV14Module: await contract.getBalance(seaportV14Module.address),
-        uniswapV3Module: await contract.getBalance(uniswapV3Module.address),
+        seaportModule: await contract.getBalance(seaportModule.address),
       };
     }
   };
@@ -97,7 +96,7 @@ describe("[ReservoirV6_0_0] SeaportV14 offers", () => {
     // Makers: Alice and Bob
     // Taker: Carol
 
-    const offers: Helpers.Offer[] = [];
+    const offers: SeaportOffer[] = [];
     const fees: BigNumber[][] = [];
     for (let i = 0; i < offersCount; i++) {
       offers.push({
@@ -122,7 +121,7 @@ describe("[ReservoirV6_0_0] SeaportV14 offers", () => {
         fees.push([]);
       }
     }
-    await Helpers.setupOffers(offers);
+    await setupSeaportOffers(offers);
 
     // In order to avoid giving NFT approvals to the router (remember,
     // the router is supposed to be stateless), we do create multiple
@@ -132,49 +131,67 @@ describe("[ReservoirV6_0_0] SeaportV14 offers", () => {
     // private recipient). This way, the NFT approvals will be made on
     // the Seaport conduit and the router stays stateless.
 
-    const approvals: Helpers.ERC721Approval[] = offers.map((offer) => ({
+    const approvals: SeaportERC721Approval[] = offers.map((offer) => ({
       giver: carol,
-      filler: seaportV14Module.address,
+      filler: seaportModule.address,
       nft: offer.nft,
-      zone: seaportV14ApprovalOrderZone.address,
+      zone: seaportApprovalOrderZone.address,
     }));
-    await Helpers.setupERC721Approvals(approvals);
+    await setupSeaportERC721Approvals(approvals);
 
     // Prepare executions
 
     const executions: ExecutionInfo[] = [
       // 1. Fill the approval orders, so that we avoid giving approval to the router
       {
-        module: seaportV14Module.address,
-        data: seaportV14Module.interface.encodeFunctionData("matchOrders", [
-          approvals.map(({ order }) => ({
-            parameters: {
-              ...order!.params,
-              totalOriginalConsiderationItems: order!.params.consideration.length,
-            },
-            signature: order!.params.signature,
-          })),
-          approvals.map((_, i) => ({
-            offerComponents: [
-              {
-                orderIndex: i,
-                itemIndex: 0,
-              },
-            ],
-            considerationComponents: [
-              {
-                orderIndex: i,
-                itemIndex: 0,
-              },
-            ],
-          })),
+        module: seaportModule.address,
+        data: seaportModule.interface.encodeFunctionData("matchOrders", [
+          [
+            ...approvals
+              .map(({ orders }) => [
+                // Regular order
+                {
+                  parameters: {
+                    ...orders![0].params,
+                    totalOriginalConsiderationItems: orders![0].params.consideration.length,
+                  },
+                  signature: orders![0].params.signature,
+                },
+                // Mirror order
+                {
+                  parameters: {
+                    ...orders![1].params,
+                    totalOriginalConsiderationItems: orders![1].params.consideration.length,
+                  },
+                  signature: "0x",
+                },
+              ])
+              .flat(),
+          ],
+          // For each regular order, match the single offer item to the single consideration item
+          [
+            ...approvals.map((_, i) => ({
+              offerComponents: [
+                {
+                  orderIndex: i * 2,
+                  itemIndex: 0,
+                },
+              ],
+              considerationComponents: [
+                {
+                  orderIndex: i * 2,
+                  itemIndex: 0,
+                },
+              ],
+            })),
+          ],
         ]),
         value: 0,
       },
       // 2. Fill offers with the received NFTs
       ...offers.map((offer, i) => ({
-        module: seaportV14Module.address,
-        data: seaportV14Module.interface.encodeFunctionData("acceptERC721Offer", [
+        module: seaportModule.address,
+        data: seaportModule.interface.encodeFunctionData("acceptERC721Offer", [
           {
             parameters: {
               ...offer.order!.params,
@@ -267,13 +284,12 @@ describe("[ReservoirV6_0_0] SeaportV14 offers", () => {
 
     // Router is stateless
     expect(balancesAfter.router).to.eq(0);
-    expect(balancesAfter.seaportV14Module).to.eq(0);
-    expect(balancesAfter.uniswapV3Module).to.eq(0);
+    expect(balancesAfter.seaportModule).to.eq(0);
   };
 
   // Test various combinations for filling offers
 
-  for (const multiple of [true]) {
+  for (const multiple of [false, true]) {
     for (const partial of [false, true]) {
       for (const chargeFees of [false, true]) {
         for (const revertIfIncomplete of [false, true]) {

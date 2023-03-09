@@ -18,7 +18,7 @@ export const queue = new Queue(QUEUE_NAME, {
       type: "exponential",
       delay: 10000,
     },
-    removeOnComplete: true,
+    removeOnComplete: 5,
     removeOnFail: 10000,
     timeout: 120000,
   },
@@ -45,7 +45,7 @@ if (config.doBackgroundWork && config.doEventsSyncBackfill) {
           } for ${_.round(delay / 1000)}s`
         );
 
-        job.opts.attempts = _.toInteger(job.opts.attempts) + 2;
+        job.opts.attempts = _.toInteger(job.opts.attempts) + 1;
         await addToQueue(fromBlock, toBlock, _.merge(job.opts, job.data, { delay }));
         return;
       }
