@@ -201,6 +201,7 @@ export const postOrderV2Options: RouteOptions = {
               orderData: order.data,
               orderbook,
               orderbookApiKey,
+              collectionId: collection,
             });
           } else {
             const orderInfo: orders.seaport.OrderInfo = {
@@ -287,6 +288,7 @@ export const postOrderV2Options: RouteOptions = {
               orderData: order.data,
               orderbook,
               orderbookApiKey,
+              collectionId: collection,
             });
           } else {
             const orderInfo: orders.looksRare.OrderInfo = {

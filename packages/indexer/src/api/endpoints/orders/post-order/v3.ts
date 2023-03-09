@@ -216,6 +216,7 @@ export const postOrderV3Options: RouteOptions = {
               orderData: order.data,
               orderbook,
               orderbookApiKey,
+              collectionId: collection,
             });
           } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
             const orderResult = await idb.oneOrNone(
@@ -311,6 +312,7 @@ export const postOrderV3Options: RouteOptions = {
                   orderData: order.data,
                   orderbook: "opensea",
                   orderbookApiKey: config.openSeaApiKey,
+                  collectionId: collection,
                 });
               }
             }
@@ -410,6 +412,7 @@ export const postOrderV3Options: RouteOptions = {
               orderData: order.data,
               orderbook,
               orderbookApiKey,
+              collectionId: collection,
             });
           } else {
             const [result] = await orders.seaport.save([
@@ -462,6 +465,7 @@ export const postOrderV3Options: RouteOptions = {
               orderData: order.data,
               orderbook,
               orderbookApiKey,
+              collectionId: collection,
             });
           } else {
             const orderInfo: orders.looksRare.OrderInfo = {
@@ -513,6 +517,7 @@ export const postOrderV3Options: RouteOptions = {
               orderData: order.data,
               orderbook,
               orderbookApiKey,
+              collectionId: collection,
             });
           } else {
             const [result] = await orders.x2y2.save([
@@ -556,6 +561,7 @@ export const postOrderV3Options: RouteOptions = {
             orderData: order.data,
             orderbook,
             orderbookApiKey,
+            collectionId: collection,
           });
 
           return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder.id };
@@ -583,6 +589,7 @@ export const postOrderV3Options: RouteOptions = {
             orderData: order.data,
             orderbook,
             orderbookApiKey,
+            collectionId: collection,
           });
 
           return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder.id };
@@ -610,6 +617,7 @@ export const postOrderV3Options: RouteOptions = {
             orderData: order.data,
             orderbook,
             orderbookApiKey,
+            collectionId: collection,
           });
 
           return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder.id };

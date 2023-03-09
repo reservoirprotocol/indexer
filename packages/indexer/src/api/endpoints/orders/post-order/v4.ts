@@ -264,6 +264,7 @@ export const postOrderV4Options: RouteOptions = {
                   orderData: order.data,
                   orderbook,
                   orderbookApiKey,
+                  collectionId: collection,
                 });
               } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
                 await postOrderExternal.addToQueue({
@@ -345,6 +346,7 @@ export const postOrderV4Options: RouteOptions = {
                       orderData: order.data,
                       orderbook: "opensea",
                       orderbookApiKey: config.openSeaApiKey,
+                      collectionId: collection,
                     });
                   }
                 }
@@ -383,6 +385,7 @@ export const postOrderV4Options: RouteOptions = {
                   orderData: order.data,
                   orderbook,
                   orderbookApiKey,
+                  collectionId: collection,
                 });
               } else {
                 const [result] = await orders.looksRare.save([
@@ -437,6 +440,7 @@ export const postOrderV4Options: RouteOptions = {
                   orderData: order.data,
                   orderbook,
                   orderbookApiKey,
+                  collectionId: collection,
                 });
               } else {
                 const [result] = await orders.x2y2.save([
@@ -483,6 +487,7 @@ export const postOrderV4Options: RouteOptions = {
                 orderData: order.data,
                 orderbook: "universe",
                 orderbookApiKey,
+                collectionId: collection,
               });
 
               return results.push({
@@ -515,6 +520,7 @@ export const postOrderV4Options: RouteOptions = {
                 orderData: order.data,
                 orderbook: "infinity",
                 orderbookApiKey,
+                collectionId: collection,
               });
 
               return results.push({
@@ -547,6 +553,7 @@ export const postOrderV4Options: RouteOptions = {
                 orderData: order.data,
                 orderbook: "flow",
                 orderbookApiKey,
+                collectionId: collection,
               });
 
               return results.push({
