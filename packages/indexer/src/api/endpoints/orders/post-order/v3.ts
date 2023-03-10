@@ -72,10 +72,12 @@ export const postOrderV3Options: RouteOptions = {
   response: {
     schema: Joi.object({
       message: Joi.string(),
-      orderId: Joi.string(),
-      crossPostingOrderId: Joi.string().description(
-        "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
-      ),
+      orderId: Joi.string().optional(),
+      crossPostingOrderId: Joi.string()
+        .optional()
+        .description(
+          "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
+        ),
     }).label(`getActivity${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`get-activity-${version}-handler`, `Wrong response schema: ${error}`);

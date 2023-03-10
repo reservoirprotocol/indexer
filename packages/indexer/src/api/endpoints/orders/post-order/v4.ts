@@ -83,11 +83,13 @@ export const postOrderV4Options: RouteOptions = {
       results: Joi.array().items(
         Joi.object({
           message: Joi.string(),
-          orderId: Joi.string(),
+          orderId: Joi.string().optional(),
           orderIndex: Joi.number(),
-          crossPostingOrderId: Joi.string().description(
-            "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
-          ),
+          crossPostingOrderId: Joi.string()
+            .optional()
+            .description(
+              "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
+            ),
         })
       ),
     }).label(`getActivity${version.toUpperCase()}Response`),
