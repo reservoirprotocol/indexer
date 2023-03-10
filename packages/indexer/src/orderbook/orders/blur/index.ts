@@ -107,7 +107,10 @@ export const save = async (
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
       try {
-        await offChainCheck(order, { onChainApprovalRecheck: true });
+        await offChainCheck(order, metadata.originatedAt, {
+          onChainApprovalRecheck: true,
+          checkFilledOrCancelled: true,
+        });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         // Keep any orders that can potentially get valid in the future
@@ -169,7 +172,7 @@ export const save = async (
       // Handle: currency
       const currency = order.params.paymentToken;
 
-      const validFrom = `date_trunc('seconds', to_timestamp(0))`;
+      const validFrom = `date_trunc('seconds', to_timestamp(${order.params.listingTime}))`;
       const validTo = `date_trunc('seconds', to_timestamp(${expirationTime}))`;
       orderValues.push({
         id,
@@ -202,6 +205,7 @@ export const save = async (
         missing_royalties: null,
         normalized_value: null,
         currency_normalized_value: null,
+        originated_at: metadata.originatedAt ?? null,
       });
 
       const unfillable =
@@ -258,6 +262,7 @@ export const save = async (
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        "originated_at",
       ],
       {
         table: "orders",

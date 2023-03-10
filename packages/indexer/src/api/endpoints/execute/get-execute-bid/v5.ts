@@ -309,6 +309,11 @@ export const getExecuteBidV5Options: RouteOptions = {
           const attributeKey = params.attributeKey;
           const attributeValue = params.attributeValue;
 
+          // Force usage of seaport-v1.4
+          if (params.orderKind === "seaport") {
+            params.orderKind = "seaport-v1.4";
+          }
+
           // Only single-contract token sets are biddable
           if (tokenSetId && tokenSetId.startsWith("list") && tokenSetId.split(":").length !== 3) {
             return errors.push({
@@ -1128,7 +1133,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         const orders = bulkOrders["seaport-v1.4"];
         if (orders.length === 1) {
           const order = new Sdk.SeaportV14.Order(config.chainId, orders[0].order.data);
-          steps[1].items.push({
+          steps[2].items.push({
             status: "incomplete",
             data: {
               sign: order.getSignatureData(),

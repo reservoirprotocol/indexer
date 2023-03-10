@@ -817,7 +817,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       return {
-        steps,
+        steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         path,
       };
     } catch (error) {
