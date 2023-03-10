@@ -27,6 +27,7 @@ import * as royalties from "@/utils/royalties";
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
+import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
 
 export type OrderInfo =
   | {
@@ -218,11 +219,10 @@ export const save = async (
 
       // Check: order has a valid signature
       if (metadata.fromOnChain || (isOpenSea && !order.params.signature)) {
-        // Skip
-      } else {
         // Skip if:
         // - the order was validated on-chain
         // - the order is coming from OpenSea and it doesn't have a signature
+      } else {
         try {
           await order.checkSignature(baseProvider);
         } catch {
@@ -440,13 +440,13 @@ export const save = async (
       let openSeaRoyalties: royalties.Royalty[];
 
       if (order.params.kind === "single-token") {
-        openSeaRoyalties = await royalties.getRoyalties(info.contract, info.tokenId);
+        openSeaRoyalties = await royalties.getRoyalties(info.contract, info.tokenId, "", true);
       } else {
-        openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId);
+        openSeaRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "", true);
       }
 
       let feeBps = 0;
-      let marketplaceFeeFound = false;
+      let knownFee = false;
       const feeBreakdown = info.fees.map(({ recipient, amount }) => {
         const bps = price.eq(0)
           ? 0
@@ -459,15 +459,16 @@ export const save = async (
         feeBps += bps;
 
         // First check for opensea hardcoded recipients
-        const kind: "marketplace" | "royalty" = openSeaFeeRecipients.includes(recipient)
+        const kind: "marketplace" | "royalty" = allPlatformFeeRecipients.has(
+          recipient.toLowerCase()
+        )
           ? "marketplace"
-          : openSeaRoyalties.map(({ recipient }) => recipient).includes(recipient.toLowerCase()) // Check for locally stored royalties
-          ? "royalty"
-          : marketplaceFeeFound || bps > 250 // If bps is higher than 250 or we already found marketplace fee assume it is royalty otherwise marketplace fee
-          ? "royalty"
-          : "marketplace";
+          : "royalty";
 
-        marketplaceFeeFound = kind === "marketplace" || marketplaceFeeFound;
+        // Check for unknown fees
+        knownFee =
+          knownFee ||
+          !openSeaRoyalties.map(({ recipient }) => recipient).includes(recipient.toLowerCase()); // Check for locally stored royalties
 
         return {
           kind,
@@ -475,6 +476,11 @@ export const save = async (
           bps,
         };
       });
+
+      // If unknown address was found
+      if (!_.isEmpty(openSeaRoyalties) && !knownFee) {
+        logger.info("orders-seaport-save", `Unknown Fee for order ${id}`);
+      }
 
       if (feeBps > 10000) {
         return results.push({

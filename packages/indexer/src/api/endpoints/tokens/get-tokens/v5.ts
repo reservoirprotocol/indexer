@@ -87,7 +87,7 @@ export const getTokensV5Options: RouteOptions = {
       tokenSetId: Joi.string()
         .lowercase()
         .description(
-          "Filter to a particular token set. `Example: token:0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270:129000685`"
+          "Filter to a particular token set. Example: `token:CONTRACT:TOKEN_ID` representing a single token within contract, `contract:CONTRACT` representing a whole contract, `range:CONTRACT:START_TOKEN_ID:END_TOKEN_ID` representing a continuous token id range within a contract and `list:CONTRACT:TOKEN_IDS_HASH` representing a list of token ids within a contract."
         )
         .when("flagStatus", {
           is: Joi.exist(),

@@ -15,6 +15,7 @@ import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
 import * as seaportCheck from "@/orderbook/orders/seaport/check";
 import * as x2y2Check from "@/orderbook/orders/x2y2/check";
 import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
+import * as blurCheck from "@/orderbook/orders/blur/check";
 
 const QUEUE_NAME = "order-fixes";
 
@@ -50,7 +51,8 @@ if (config.doBackgroundWork) {
                   orders.side,
                   orders.token_set_id,
                   orders.kind,
-                  orders.raw_data
+                  orders.raw_data,
+                  orders.originated_at
                 FROM orders
                 WHERE orders.id = $/id/
                   AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
@@ -92,10 +94,37 @@ if (config.doBackgroundWork) {
                   break;
                 }
 
+                case "blur": {
+                  const order = new Sdk.Blur.Order(config.chainId, result.raw_data);
+                  try {
+                    await blurCheck.offChainCheck(order, result.originated_at, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
+                    }
+                  }
+                  break;
+                }
+
                 case "x2y2": {
                   const order = new Sdk.X2Y2.Order(config.chainId, result.raw_data);
                   try {
-                    await x2y2Check.offChainCheck(order, {
+                    await x2y2Check.offChainCheck(order, result.originated_at, {
                       onChainApprovalRecheck: true,
                       checkFilledOrCancelled: true,
                     });

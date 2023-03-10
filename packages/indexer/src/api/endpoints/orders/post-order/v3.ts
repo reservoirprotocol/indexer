@@ -21,7 +21,7 @@ const version = "v3";
 
 export const postOrderV3Options: RouteOptions = {
   description: "Submit signed order",
-  tags: ["api", "Orderbook"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 5,

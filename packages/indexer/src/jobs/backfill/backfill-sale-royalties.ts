@@ -201,15 +201,16 @@ if (config.doBackgroundWork) {
 
   if (config.chainId === 1) {
     redlock
-      .acquire([`${QUEUE_NAME}-lock-4`], 60 * 60 * 24 * 30 * 1000)
+      .acquire([`${QUEUE_NAME}-lock-5`], 60 * 60 * 24 * 30 * 1000)
       .then(async () => {
-        await addToQueue(15400000, 15500000, 15500002);
-        await addToQueue(15300000, 15400000, 15400002);
-        await addToQueue(15200000, 15300000, 15300002);
-        await addToQueue(15100000, 15200000, 15200002);
-        await addToQueue(15000000, 15100000, 15100002);
-        await addToQueue(14900000, 15000000, 15000002);
-        await addToQueue(14800000, 14900000, 14900002);
+        await addToQueue(14700000, 14800000, 14800001);
+        await addToQueue(14600000, 14700000, 14700001);
+        await addToQueue(14500000, 14600000, 14600001);
+        await addToQueue(14400000, 14500000, 14500001);
+        await addToQueue(14300000, 14400000, 14400001);
+        await addToQueue(14200000, 14300000, 14300001);
+        await addToQueue(14100000, 14200000, 14200001);
+        await addToQueue(14000000, 14100000, 14100001);
       })
       .catch(() => {
         // Skip on any errors

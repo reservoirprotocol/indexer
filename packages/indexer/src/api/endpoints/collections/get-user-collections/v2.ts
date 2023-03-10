@@ -62,6 +62,14 @@ export const getUserCollectionsV2Options: RouteOptions = {
         .max(100)
         .default(20)
         .description("Amount of items returned in response."),
+      sortBy: Joi.string()
+        .valid("allTimeVolume", "1DayVolume", "7DayVolume", "30DayVolume")
+        .default("allTimeVolume")
+        .description("Order the items are returned in the response. Defaults to allTimeVolume"),
+      sortDirection: Joi.string()
+        .valid("asc", "desc")
+        .default("desc")
+        .description("Order the items are returned in the response."),
     }),
   },
   response: {
@@ -71,12 +79,14 @@ export const getUserCollectionsV2Options: RouteOptions = {
           collection: Joi.object({
             id: Joi.string(),
             slug: Joi.string().allow("", null),
+            createdAt: Joi.string(),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
             banner: Joi.string().allow("", null),
             discordUrl: Joi.string().allow("", null),
             externalUrl: Joi.string().allow("", null),
             twitterUsername: Joi.string().allow("", null),
+            openseaVerificationStatus: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
             sampleImages: Joi.array().items(Joi.string().allow("", null)),
             tokenCount: Joi.string(),
@@ -175,6 +185,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
                 (collections.metadata ->> 'description')::TEXT AS "description",
                 (collections.metadata ->> 'externalUrl')::TEXT AS "external_url",
                 (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
+                (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
                 collections.contract,
                 collections.token_set_id,
                 collections.token_count,
@@ -202,6 +213,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
                 collections.day7_floor_sell_value,
                 collections.day30_floor_sell_value,
                 SUM(COALESCE(nbsample.amount, 0)) AS owner_token_count,
+                collections.created_at,
                 ${selectLiquidCount}
                 SUM(CASE WHEN tokens.floor_sell_value IS NULL THEN 0 ELSE 1 END) AS owner_on_sale_count
         FROM nbsample 
@@ -238,8 +250,27 @@ export const getUserCollectionsV2Options: RouteOptions = {
       // Grouping
       baseQuery += ` GROUP BY collections.id, nbsample.owner`;
 
+      const sortDirection = query.sortDirection === "asc" ? "ASC" : "DESC";
       // Sorting
-      baseQuery += ` ORDER BY collections.all_time_volume DESC`;
+      switch (query.sortBy) {
+        case "allTimeVolume":
+        default: {
+          baseQuery += ` ORDER BY collections.all_time_volume ${sortDirection}`;
+          break;
+        }
+        case "1DayVolume": {
+          baseQuery += ` ORDER BY collections.day1_volume ${sortDirection}`;
+          break;
+        }
+        case "7DayVolume": {
+          baseQuery += ` ORDER BY collections.day7_volume ${sortDirection}`;
+          break;
+        }
+        case "30DayVolume": {
+          baseQuery += ` ORDER BY collections.day30_volume ${sortDirection}`;
+          break;
+        }
+      }
 
       // Pagination
       baseQuery += ` OFFSET $/offset/`;
@@ -287,6 +318,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
           collection: {
             id: r.id,
             slug: r.slug,
+            createdAt: new Date(r.created_at).toISOString(),
             name: r.name,
             image:
               Assets.getLocalAssetsLink(r.image) ||
@@ -295,6 +327,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
             discordUrl: r.discord_url,
             externalUrl: r.external_url,
             twitterUsername: r.twitter_username,
+            openseaVerificationStatus: r.opensea_verification_status,
             description: r.description,
             sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
             tokenCount: String(r.token_count),

@@ -43,6 +43,7 @@ export const postOrdersV1Options: RouteOptions = {
             )
             .required(),
           data: Joi.object().required(),
+          originatedAt: Joi.string(),
         })
       ),
     }),
@@ -67,13 +68,15 @@ export const postOrdersV1Options: RouteOptions = {
       logger.info(`post-orders-${version}-handler`, `Got ${orders.length} orders`);
 
       const orderInfos: orderbookOrders.GenericOrderInfo[] = [];
-      for (const { kind, data } of orders) {
+      for (const { kind, data, originatedAt } of orders) {
         orderInfos.push({
           kind,
           info: {
             kind: "full",
             orderParams: data,
-            metadata: {},
+            metadata: {
+              originatedAt,
+            },
             isOpenSea: true,
           },
           relayToArweave: true,

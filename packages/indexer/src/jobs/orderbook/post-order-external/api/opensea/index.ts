@@ -14,25 +14,6 @@ import { getOpenseaNetworkName, getOpenseaSubDomain } from "@/config/network";
 export const RATE_LIMIT_REQUEST_COUNT = 2;
 export const RATE_LIMIT_INTERVAL = 1;
 
-const getProtocolVersion = (order: Sdk.SeaportV14.Order) => {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sdkOrder = new Sdk.Seaport.Order(config.chainId, order.params as any);
-    sdkOrder.checkSignature();
-    return "v1.1";
-  } catch {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sdkOrder = new Sdk.SeaportV14.Order(config.chainId, order.params as any);
-      sdkOrder.checkSignature();
-      return "v1.4";
-    } catch {
-      // Skip errors
-    }
-  }
-  return "v1.4";
-};
-
 export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => {
   const url = `https://${getOpenseaSubDomain()}.opensea.io/v2/orders/${getOpenseaNetworkName()}/seaport/${
     order.getInfo()?.side === "sell" ? "listings" : "offers"
@@ -52,10 +33,7 @@ export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => 
           totalOriginalConsiderationItems: order.params.consideration.length,
         },
         signature: order.params.signature!,
-        protocol_address:
-          getProtocolVersion(order) === "v1.4"
-            ? Sdk.SeaportV14.Addresses.Exchange[config.chainId]
-            : Sdk.Seaport.Addresses.Exchange[config.chainId],
+        protocol_address: Sdk.SeaportV14.Addresses.Exchange[config.chainId],
       }),
       {
         headers:
@@ -164,10 +142,7 @@ export const postCollectionOffer = async (
         totalOriginalConsiderationItems: order.params.consideration.length,
       },
       signature: order.params.signature!,
-      protocol_address:
-        getProtocolVersion(order) === "v1.4"
-          ? Sdk.SeaportV14.Addresses.Exchange[config.chainId]
-          : Sdk.Seaport.Addresses.Exchange[config.chainId],
+      protocol_address: Sdk.SeaportV14.Addresses.Exchange[config.chainId],
     },
   });
 

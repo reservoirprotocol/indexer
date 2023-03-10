@@ -355,14 +355,16 @@ if (config.doBackgroundWork) {
             // Filter any orders that didn't change status
             const values = fillabilityStatuses
               .filter(({ old_status, new_status }) => old_status !== new_status)
+              // TODO: Is the below filtering needed anymore?
               // Exclude escrowed orders
               .filter(({ kind }) => kind !== "foundation" && kind !== "cryptopunks")
               // When a token gets transferred, X2Y2 will off-chain cancel all the
               // orders from the initial owner, so that if they ever get the token
               // back in their wallet no order will get reactivated (they are able
               // to do that by having their backend refuse to sign on such orders).
+              // Same applies to Blur orders.
               .map((data) =>
-                data.kind === "x2y2" && data.new_status === "no-balance"
+                ["blur", "x2y2"].includes(data.kind) && data.new_status === "no-balance"
                   ? { ...data, new_status: "cancelled" }
                   : data
               )
@@ -454,6 +456,7 @@ if (config.doBackgroundWork) {
             // Filter any orders that didn't change status
             const values = approvalStatuses
               .filter(({ old_status, new_status }) => old_status !== new_status)
+              // TODO: Is the below filtering needed anymore?
               // Exclude escrowed orders
               .filter(({ kind }) => kind !== "foundation" && kind !== "cryptopunks")
               .map(({ id, new_status, expiration }) => ({
@@ -488,8 +491,10 @@ if (config.doBackgroundWork) {
                 // When an approval gets revoked, X2Y2 will off-chain cancel all the
                 // orders from the same owner, so that if they ever re-approve, none
                 // of these orders will get reactivated (they are able to do that by
-                // having their backend refuse to sign on such orders).
-                ({ kind, new_status }) => kind === "x2y2" && new_status === "no-approval"
+                // having their backend refuse to sign on such orders). Same applies
+                // to Blur orders.
+                ({ kind, new_status }) =>
+                  ["blur", "x2y2"].includes(kind) && new_status === "no-approval"
               )
               .map(({ id, expiration }) => ({
                 id,

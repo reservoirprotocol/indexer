@@ -134,7 +134,7 @@ export class MetadataApi {
         value: string | number;
       }>;
     },
-    method = "opensea"
+    method = ""
   ): Promise<TokenMetadata | null> {
     method = method === "" ? config.metadataIndexingMethod : method;
 
@@ -146,7 +146,12 @@ export class MetadataApi {
     try {
       response = await axios.post(url, request);
     } catch (error: any) {
-      logger.error("metadata-api", `parseTokenMetadata error: ${error.message}`);
+      logger.error(
+        "metadata-api",
+        `parseTokenMetadata error. url=${url}, request=${JSON.stringify(request)}, error=${
+          error.message
+        }`
+      );
       return null;
     }
     const tokenMetadata: TokenMetadata = response.data;

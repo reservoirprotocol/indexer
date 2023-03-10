@@ -81,7 +81,11 @@ export const getExecuteBidV5Options: RouteOptions = {
             .description(
               "Bid on a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
             ),
-          tokenSetId: Joi.string().lowercase().description("Bid on a particular token set."),
+          tokenSetId: Joi.string()
+            .lowercase()
+            .description(
+              "Bid on a particular token set. Example: `token:CONTRACT:TOKEN_ID` representing a single token within contract, `contract:CONTRACT` representing a whole contract, `range:CONTRACT:START_TOKEN_ID:END_TOKEN_ID` representing a continuous token id range within a contract and `list:CONTRACT:TOKEN_IDS_HASH` representing a list of token ids within a contract."
+            ),
           collection: Joi.string()
             .lowercase()
             .description(
@@ -130,9 +134,9 @@ export const getExecuteBidV5Options: RouteOptions = {
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
           automatedRoyalties: Joi.boolean()
             .default(true)
-            .description("If true, royalties will be automatically included."),
+            .description("If true, royalty amounts and recipients will be set automatically."),
           royaltyBps: Joi.number().description(
-            "The royalty percentage to pay. Only relevant when using automated royalties."
+            "Set a maximum amount of royalties to pay, rather than the full amount. Only relevant when using automated royalties. Note: OpenSea does not support values below 50 bps."
           ),
           fees: Joi.array()
             .items(Joi.string().pattern(regex.fee))
@@ -305,6 +309,7 @@ export const getExecuteBidV5Options: RouteOptions = {
           const attributeKey = params.attributeKey;
           const attributeValue = params.attributeValue;
 
+          // Force usage of seaport-v1.4
           if (params.orderKind === "seaport") {
             params.orderKind = "seaport-v1.4";
           }
@@ -382,7 +387,7 @@ export const getExecuteBidV5Options: RouteOptions = {
 
             switch (params.orderKind) {
               case "seaport": {
-                if (!["reservoir", "opensea"].includes(params.orderbook)) {
+                if (!["reservoir"].includes(params.orderbook)) {
                   return errors.push({
                     message: "Unsupported orderbook",
                     orderIndex: i,
@@ -483,6 +488,17 @@ export const getExecuteBidV5Options: RouteOptions = {
                     message: "Unsupported orderbook",
                     orderIndex: i,
                   });
+                }
+
+                // OpenSea expects a royalty of at least 0.5%
+                if (
+                  params.orderbook === "opensea" &&
+                  params.royaltyBps !== undefined &&
+                  Number(params.royaltyBps) < 50
+                ) {
+                  throw Boom.badRequest(
+                    "Royalties should be at least 0.5% when posting to OpenSea"
+                  );
                 }
 
                 const options = params.options?.[params.orderKind] as
@@ -1117,7 +1133,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         const orders = bulkOrders["seaport-v1.4"];
         if (orders.length === 1) {
           const order = new Sdk.SeaportV14.Order(config.chainId, orders[0].order.data);
-          steps[1].items.push({
+          steps[2].items.push({
             status: "incomplete",
             data: {
               sign: order.getSignatureData(),

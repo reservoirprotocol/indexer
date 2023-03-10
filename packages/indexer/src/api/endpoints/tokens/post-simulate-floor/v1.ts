@@ -73,7 +73,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
       const token = payload.token;
       const router = payload.router;
 
-      const [contract, tokenId] = token.split(":");
+      const [contract] = token.split(":");
 
       if (getNetworkSettings().nonSimulatableContracts.includes(contract)) {
         return { message: "Associated contract is not simulatable" };
@@ -96,36 +96,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
       });
 
       if (JSON.parse(response.payload).statusCode === 500) {
-        const floorAsk = await idb.oneOrNone(
-          `
-            SELECT
-              tokens.floor_sell_id,
-              orders.currency
-            FROM tokens
-            LEFT JOIN orders
-              ON tokens.floor_sell_id = orders.id
-            WHERE tokens.contract = $/contract/
-              AND tokens.token_id = $/tokenId/
-              AND orders.kind IN ('seaport', 'x2y2', 'zeroex-v4-erc721', 'zeroex-v4-erc1155')
-          `,
-          {
-            contract: toBuffer(contract),
-            tokenId,
-          }
-        );
-
-        // If the "/execute/buy" API failed, most of the time it's because of
-        // failing to generate the fill signature for X2Y2 orders since their
-        // backend sees that particular order as unfillable (usually it's off
-        // chain cancelled). In those cases, we cancel the floor ask order. A
-        // similar reasoning goes for Seaport orders (partial ones which miss
-        // the raw data) and Coinbase NFT orders (no signature).
-        if (floorAsk?.floor_sell_id) {
-          if (!getNetworkSettings().whitelistedCurrencies.has(fromBuffer(floorAsk.currency))) {
-            await invalidateOrder(floorAsk.floor_sell_id);
-            return { message: "Floor order is not fillable (got invalidated)" };
-          }
-        }
+        return { message: "Simulation failed" };
       }
 
       if (response.payload.includes("No available orders")) {
@@ -178,7 +149,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
         );
 
         if (
-          ["nftx", "sudoswap", "universe"].includes(orderResult.kind) ||
+          ["blur", "nftx", "sudoswap", "universe"].includes(orderResult.kind) ||
           getNetworkSettings().whitelistedCurrencies.has(fromBuffer(orderResult.currency))
         ) {
           return { message: "Order not simulatable" };

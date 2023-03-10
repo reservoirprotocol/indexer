@@ -21,13 +21,13 @@ const version = "v6";
 
 export const getExecuteSellV6Options: RouteOptions = {
   description: "Sell tokens (accept bids)",
-  tags: ["api", "Router"],
+  tags: ["api", "x-deprecated"],
   timeout: {
     server: 20 * 1000,
   },
   plugins: {
     "hapi-swagger": {
-      order: 10,
+      deprecated: true,
     },
   },
   validate: {

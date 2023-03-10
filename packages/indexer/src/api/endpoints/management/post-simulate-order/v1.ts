@@ -105,7 +105,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
       if (!orderResult?.side || !orderResult?.contract) {
         throw Boom.badRequest("Could not find order");
       }
-      if (["nftx", "sudoswap", "universe"].includes(orderResult.kind)) {
+      if (["blur", "nftx", "sudoswap", "universe"].includes(orderResult.kind)) {
         return { message: "Order not simulatable" };
       }
       if (getNetworkSettings().whitelistedCurrencies.has(fromBuffer(orderResult.currency))) {
@@ -145,20 +145,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
         });
 
         if (JSON.parse(response.payload).statusCode === 500) {
-          // If the "/execute/buy" API failed, most of the time it's because of
-          // failing to generate the fill signature for X2Y2 orders since their
-          // backend sees that particular order as unfillable (usually it's off
-          // chain cancelled). In those cases, we cancel that relevant order. A
-          // similar reasoning goes for Seaport orders (partial ones which miss
-          // the raw data) and Coinbase NFT orders (no signature).
-
-          // active -> inactive
-          const needRevalidation =
-            orderResult.fillability_status === "fillable" &&
-            orderResult.approval_status === "approved";
-          await logAndRevalidateOrder(id, "inactive", { revalidate: needRevalidation });
-
-          return { message: "Order is not fillable" };
+          return { message: "Simulation failed" };
         }
 
         if (response.payload.includes("No available orders")) {
@@ -253,20 +240,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
         });
 
         if (JSON.parse(response.payload).statusCode === 500) {
-          // If the "/execute/sell" API failed most of the time it's because of
-          // failing to generate the fill signature for X2Y2 orders since their
-          // backend sees that particular order as unfillable (usually it's off
-          // chain cancelled). In those cases, we cancel the floor ask order. A
-          // similar reasoning goes for Seaport orders (partial ones which miss
-          // the raw data) and Coinbase NFT orders (no signature).
-
-          // active -> inactive
-          const needRevalidation =
-            orderResult.fillability_status === "fillable" &&
-            orderResult.approval_status === "approved";
-          await logAndRevalidateOrder(id, "inactive", { revalidate: needRevalidation });
-
-          return { message: "Order is not fillable" };
+          return { message: "Simulation failed" };
         }
 
         if (response.payload.includes("No available orders")) {
