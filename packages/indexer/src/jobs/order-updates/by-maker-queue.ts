@@ -355,6 +355,7 @@ if (config.doBackgroundWork) {
             // Filter any orders that didn't change status
             const values = fillabilityStatuses
               .filter(({ old_status, new_status }) => old_status !== new_status)
+              // TODO: Is the below filtering needed anymore?
               // Exclude escrowed orders
               .filter(({ kind }) => kind !== "foundation" && kind !== "cryptopunks")
               // When a token gets transferred, X2Y2 will off-chain cancel all the
@@ -455,6 +456,7 @@ if (config.doBackgroundWork) {
             // Filter any orders that didn't change status
             const values = approvalStatuses
               .filter(({ old_status, new_status }) => old_status !== new_status)
+              // TODO: Is the below filtering needed anymore?
               // Exclude escrowed orders
               .filter(({ kind }) => kind !== "foundation" && kind !== "cryptopunks")
               .map(({ id, new_status, expiration }) => ({
