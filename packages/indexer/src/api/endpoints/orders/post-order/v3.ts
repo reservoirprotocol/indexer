@@ -69,6 +69,19 @@ export const postOrderV3Options: RouteOptions = {
       isNonFlagged: Joi.boolean(),
     }).oxor("tokenSetId", "collection", "attribute"),
   },
+  response: {
+    schema: Joi.object({
+      message: Joi.string(),
+      orderId: Joi.string(),
+      crossPostingOrderId: Joi.string().description(
+        "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
+      ),
+    }).label(`getActivity${version.toUpperCase()}Response`),
+    failAction: (_request, _h, error) => {
+      logger.error(`get-activity-${version}-handler`, `Wrong response schema: ${error}`);
+      throw error;
+    },
+  },
   handler: async (request: Request) => {
     if (config.disableOrders) {
       throw Boom.badRequest("Order posting is disabled");
