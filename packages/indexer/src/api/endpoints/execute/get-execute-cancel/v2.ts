@@ -156,6 +156,16 @@ export const getExecuteCancelV2Options: RouteOptions = {
           break;
         }
 
+        case "seaport-v1.4": {
+          const order = new Sdk.SeaportV14.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+
+          cancelTx = exchange.cancelOrderTx(maker, order);
+          orderSide = order.getInfo()!.side;
+
+          break;
+        }
+
         case "looks-rare": {
           const order = new Sdk.LooksRare.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.LooksRare.Exchange(config.chainId);

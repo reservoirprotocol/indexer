@@ -228,7 +228,7 @@ export const getExecuteBidV4Options: RouteOptions = {
           items: [],
         },
         {
-          id: "weth-wrapping", // todo in v5 change this to currency-wrapping
+          id: "weth-wrapping",
           action: `Wrapping ${currency}`,
           description: `We'll ask your approval for converting ${currency} to ${wrappedCurrency}. Gas fee required.`,
           kind: "transaction",
@@ -259,6 +259,11 @@ export const getExecuteBidV4Options: RouteOptions = {
         const tokenSetId = params.tokenSetId;
         const attributeKey = params.attributeKey;
         const attributeValue = params.attributeValue;
+
+        // Force usage of seaport-v1.4
+        if (params.orderKind === "seaport") {
+          params.orderKind = "seaport-v1.4";
+        }
 
         if (tokenSetId && tokenSetId.startsWith("list") && tokenSetId.split(":").length !== 3) {
           throw Boom.badRequest(`Token set ${tokenSetId} is not biddable`);
@@ -304,8 +309,8 @@ export const getExecuteBidV4Options: RouteOptions = {
 
         switch (params.orderKind) {
           case "seaport": {
-            if (!["reservoir", "opensea"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
+            if (!["reservoir"].includes(params.orderbook)) {
+              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
             }
 
             let order: Sdk.Seaport.Order;
@@ -404,6 +409,15 @@ export const getExecuteBidV4Options: RouteOptions = {
           case "seaport-v1.4": {
             if (!["reservoir", "opensea"].includes(params.orderbook)) {
               throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
+            }
+
+            // OpenSea expects a royalty of at least 0.5%
+            if (
+              params.orderbook === "opensea" &&
+              params.royaltyBps !== undefined &&
+              Number(params.royaltyBps) < 50
+            ) {
+              throw Boom.badRequest("Royalties should be at least 0.5% when posting to OpenSea");
             }
 
             let order: Sdk.SeaportV14.Order;

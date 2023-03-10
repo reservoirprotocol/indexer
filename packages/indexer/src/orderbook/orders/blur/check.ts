@@ -8,6 +8,7 @@ import * as onChainData from "@/utils/on-chain-data";
 
 export const offChainCheck = async (
   order: Sdk.Blur.Order,
+  originatedAt?: string,
   options?: {
     // Some NFTs pre-approve common exchanges so that users don't
     // spend gas approving them. In such cases we will be missing
@@ -40,6 +41,20 @@ export const offChainCheck = async (
     const quantityFilled = await commonHelpers.getQuantityFilled(id);
     if (quantityFilled.gte(order.params.amount ?? 1)) {
       throw new Error("filled");
+    }
+
+    if (order.params.side === Sdk.Blur.Types.TradeDirection.SELL && originatedAt) {
+      // Check: order is not off-chain cancelled
+      const offChainCancelled = await commonHelpers.isListingOffChainCancelled(
+        "blur",
+        order.params.trader,
+        order.params.collection,
+        order.params.tokenId,
+        originatedAt
+      );
+      if (offChainCancelled) {
+        throw new Error("cancelled");
+      }
     }
   }
 
