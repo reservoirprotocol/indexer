@@ -161,13 +161,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
       const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
 
-      logger.info(
-        "opensea-websocket-item-metadata-update-event",
-        `Metadata parsed. contract=${contract}, tokenId=${tokenId}, event=${JSON.stringify(
-          event
-        )}, metadata=${JSON.stringify(metadata)}, parsedMetadata=${JSON.stringify(parsedMetadata)}`
-      );
-
       if (parsedMetadata) {
         await metadataIndexWrite.addToQueue([parsedMetadata]);
       }
