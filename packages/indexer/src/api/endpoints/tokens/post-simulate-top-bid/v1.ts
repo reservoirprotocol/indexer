@@ -167,7 +167,7 @@ export const postSimulateTopBidV1Options: RouteOptions = {
           .then((r) => fromBuffer(r.currency));
 
         if (
-          !["sudoswap.xyz", "nftx.io"].includes(pathItem.source) &&
+          !["blur.io", "sudoswap.xyz", "nftx.io"].includes(pathItem.source) &&
           !getNetworkSettings().whitelistedCurrencies.has(orderCurrency)
         ) {
           await invalidateOrder(pathItem.orderId, callTrace, parsedPayload);
