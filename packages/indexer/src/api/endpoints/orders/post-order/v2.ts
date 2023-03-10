@@ -64,9 +64,9 @@ export const postOrderV2Options: RouteOptions = {
         .description(
           "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
         ),
-    }).label(`getActivity${version.toUpperCase()}Response`),
+    }).label(`postOrder${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`get-activity-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(`post-order-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },

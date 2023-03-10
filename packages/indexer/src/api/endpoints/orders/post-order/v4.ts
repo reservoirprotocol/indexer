@@ -92,9 +92,9 @@ export const postOrderV4Options: RouteOptions = {
             ),
         })
       ),
-    }).label(`getActivity${version.toUpperCase()}Response`),
+    }).label(`postOrder${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
-      logger.error(`get-activity-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(`post-order-${version}-handler`, `Wrong response schema: ${error}`);
       throw error;
     },
   },
