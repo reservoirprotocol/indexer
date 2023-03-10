@@ -27,7 +27,7 @@ const version = "v7";
 
 export const getExecuteBuyV7Options: RouteOptions = {
   description: "Buy tokens (fill listings)",
-  tags: ["api", "Router", "x-experimental"],
+  tags: ["api", "Router"],
   timeout: {
     server: 20 * 1000,
   },

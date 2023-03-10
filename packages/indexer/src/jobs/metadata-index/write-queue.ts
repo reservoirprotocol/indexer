@@ -89,7 +89,11 @@ if (config.doBackgroundWork) {
         }
 
         // If the new collection ID is different from the collection ID currently stored
-        if (result.collection_id != collection) {
+        if (
+          result.collection_id !=
+            "0x495f947276749ce646f68ac8c248420045cb7b5e:opensea-os-shared-storefront-collection" &&
+          result.collection_id != collection
+        ) {
           logger.info(
             QUEUE_NAME,
             `New collection ${collection} for contract=${contract}, tokenId=${tokenId}, old collection=${result.collection_id}`
@@ -131,7 +135,7 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        if (flagged != undefined) {
+        if (flagged != null) {
           await flagStatusUpdate.addToQueue([
             {
               contract,

@@ -121,7 +121,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       }
 
       if (await isDuplicateEvent(event)) {
-        logger.info(
+        logger.debug(
           "opensea-websocket-item-metadata-update-event",
           `Duplicate event. network=${network}, event=${JSON.stringify(event)}`
         );
@@ -133,7 +133,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       const token = await Tokens.getByContractAndTokenId(contract, tokenId);
 
       if (!token) {
-        logger.warn(
+        logger.debug(
           "opensea-websocket-item-metadata-update-event",
           `Token was not found. contract=${contract}, tokenId=${tokenId}, event=${JSON.stringify(
             event
@@ -146,6 +146,9 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       const metadata = {
         asset_contract: {
           address: contract,
+        },
+        collection: {
+          slug: event.payload.collection.slug,
         },
         token_id: tokenId,
         name: event.payload.item.metadata.name ?? undefined,

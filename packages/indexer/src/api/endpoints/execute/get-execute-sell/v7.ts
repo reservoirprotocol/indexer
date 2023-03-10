@@ -26,7 +26,7 @@ const version = "v7";
 
 export const getExecuteSellV7Options: RouteOptions = {
   description: "Sell tokens (accept bids)",
-  tags: ["api", "x-experimental"],
+  tags: ["api", "Router"],
   timeout: {
     server: 20 * 1000,
   },

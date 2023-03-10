@@ -206,10 +206,6 @@ export const getExecuteListV4Options: RouteOptions = {
         const params = payload.params[i];
         const [contract, tokenId] = params.token.split(":");
 
-        if (params.orderKind === "seaport") {
-          params.orderKind = "seaport-v1.4";
-        }
-
         // For now, ERC20 listings are only supported on Seaport
         if (
           params.orderKind !== "seaport" &&
@@ -452,8 +448,8 @@ export const getExecuteListV4Options: RouteOptions = {
 
           case "seaport":
           case "seaport-forward": {
-            if (!["reservoir", "opensea"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
+            if (!["reservoir"].includes(params.orderbook)) {
+              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
             }
 
             const isForward = params.orderKind === "seaport-forward";
@@ -549,6 +545,15 @@ export const getExecuteListV4Options: RouteOptions = {
           case "seaport-v1.4": {
             if (!["reservoir", "opensea"].includes(params.orderbook)) {
               throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
+            }
+
+            // OpenSea expects a royalty of at least 0.5%
+            if (
+              params.orderbook === "opensea" &&
+              params.royaltyBps !== undefined &&
+              Number(params.royaltyBps) < 50
+            ) {
+              throw Boom.badRequest("Royalties should be at least 0.5% when posting to OpenSea");
             }
 
             const order = await seaportV14SellToken.build({

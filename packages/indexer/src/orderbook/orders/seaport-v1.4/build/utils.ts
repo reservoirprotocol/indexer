@@ -134,13 +134,15 @@ export const getBuildInfo = async (
           royaltyBpsToPay -= bps;
           totalBps += bps;
 
-          const fee = bn(bps).mul(options.weiPrice).div(10000).toString();
-          buildParams.fees!.push({
-            recipient: r.recipient,
-            amount: fee,
-          });
+          const fee = bn(bps).mul(options.weiPrice).div(10000);
+          if (fee.gt(0)) {
+            buildParams.fees!.push({
+              recipient: r.recipient,
+              amount: fee.toString(),
+            });
 
-          totalFees = totalFees.add(fee);
+            totalFees = totalFees.add(fee);
+          }
         }
       }
     }
@@ -167,12 +169,14 @@ export const getBuildInfo = async (
   if (options.fee && options.feeRecipient) {
     for (let i = 0; i < options.fee.length; i++) {
       if (Number(options.fee[i]) > 0) {
-        const fee = bn(options.fee[i]).mul(options.weiPrice).div(10000).toString();
-        buildParams.fees!.push({
-          recipient: options.feeRecipient[i],
-          amount: fee,
-        });
-        totalFees = totalFees.add(fee);
+        const fee = bn(options.fee[i]).mul(options.weiPrice).div(10000);
+        if (fee.gt(0)) {
+          buildParams.fees!.push({
+            recipient: options.feeRecipient[i],
+            amount: fee.toString(),
+          });
+          totalFees = totalFees.add(fee);
+        }
       }
     }
   }
