@@ -78,26 +78,26 @@ export const postOrderV4Options: RouteOptions = {
       source: Joi.string().pattern(regex.domain).description("The source domain"),
     }),
   },
-  response: {
-    schema: Joi.object({
-      results: Joi.array().items(
-        Joi.object({
-          message: Joi.string(),
-          orderId: Joi.string().optional(),
-          orderIndex: Joi.number(),
-          crossPostingOrderId: Joi.string()
-            .optional()
-            .description(
-              "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
-            ),
-        })
-      ),
-    }).label(`postOrder${version.toUpperCase()}Response`),
-    failAction: (_request, _h, error) => {
-      logger.error(`post-order-${version}-handler`, `Wrong response schema: ${error}`);
-      throw error;
-    },
-  },
+  // response: {
+  //   schema: Joi.object({
+  //     results: Joi.array().items(
+  //       Joi.object({
+  //         message: Joi.string(),
+  //         orderId: Joi.string().optional(),
+  //         orderIndex: Joi.number(),
+  //         crossPostingOrderId: Joi.string()
+  //           .optional()
+  //           .description(
+  //             "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
+  //           ),
+  //       })
+  //     ),
+  //   }).label(`postOrder${version.toUpperCase()}Response`),
+  //   failAction: (_request, _h, error) => {
+  //     logger.error(`post-order-${version}-handler`, `Wrong response schema: ${error}`);
+  //     throw error;
+  //   },
+  // },
   handler: async (request: Request) => {
     if (config.disableOrders) {
       throw Boom.badRequest("Order posting is disabled");
