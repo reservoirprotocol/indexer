@@ -394,7 +394,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         enableWebSocket: false,
-        realtimeSyncMaxBlockLag: 125,
+        realtimeSyncMaxBlockLag: 128,
         realtimeSyncFrequencySeconds: 10,
         lastBlockLatency: 10,
         subDomain: "api-arbitrum",

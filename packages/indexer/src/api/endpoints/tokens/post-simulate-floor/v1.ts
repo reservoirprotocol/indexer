@@ -48,6 +48,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
 
     const payload = request.payload as any;
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const invalidateOrder = async (orderId: string, callTrace?: CallTrace, payload?: any) => {
       logger.error(
         `post-simulate-floor-${version}-handler`,
@@ -123,6 +124,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
 
       const pathItem = parsedPayload.path[0];
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { result: success, callTrace } = await ensureBuyTxSucceeds(
         genericTaker,
         {
