@@ -70,7 +70,10 @@ export const build = async (options: BuildOrderOptions) => {
       }
     }
 
-    return builder.build(buildInfo.params);
+    const order = builder.build(buildInfo.params);
+    utils.filterZeroAmounts(order);
+
+    return order;
   } else {
     // Use a token-list builder
     const builder: BaseBuilder = new Sdk.SeaportV14.Builders.TokenList(config.chainId);
@@ -140,6 +143,9 @@ export const build = async (options: BuildOrderOptions) => {
       (buildInfo.params as any).merkleRoot = cachedMerkleRoot;
     }
 
-    return builder.build(buildInfo.params);
+    const order = builder.build(buildInfo.params);
+    utils.filterZeroAmounts(order);
+
+    return order;
   }
 };

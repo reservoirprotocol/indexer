@@ -763,6 +763,10 @@ export const getExecuteBuyV6Options: RouteOptions = {
             steps,
             path,
           };
+        } else {
+          steps[0].items.push({
+            status: "complete",
+          });
         }
       }
 
