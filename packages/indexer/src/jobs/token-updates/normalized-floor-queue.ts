@@ -35,6 +35,12 @@ if (config.doBackgroundWork) {
       const { kind, tokenSetId, txHash, txTimestamp } = job.data as FloorAskInfo;
 
       try {
+        // TODO: Right now we filter out Blur orders since those don't yet
+        // support royalty normalization. A better approach to handling it
+        // would be to set the normalized fields to `null` for every order
+        // which doesn't support royalty normalization and then filter out
+        // such `null` fields in various normalized events/caches.
+
         // Atomically update the cache and trigger an api event if needed
         const sellOrderResult = await idb.oneOrNone(
           `
@@ -77,6 +83,7 @@ if (config.doBackgroundWork) {
                   AND orders.fillability_status = 'fillable'
                   AND orders.approval_status = 'approved'
                   AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                  AND orders.kind != 'blur'
                 ORDER BY COALESCE(orders.normalized_value, orders.value), orders.value, orders.fee_bps, orders.id
                 LIMIT 1
               ) y ON TRUE

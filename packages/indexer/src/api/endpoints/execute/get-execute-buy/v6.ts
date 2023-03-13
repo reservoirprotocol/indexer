@@ -5,19 +5,21 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
+import axios from "axios";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { bn, formatPrice, fromBuffer, regex, toBuffer } from "@/common/utils";
+import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as nftx from "@/orderbook/orders/nftx";
+import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { keepAllTraces } from "@/common/tracer";
 
@@ -134,7 +136,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           id: Joi.string().required(),
           action: Joi.string().required(),
           description: Joi.string().required(),
-          kind: Joi.string().valid("transaction").required(),
+          kind: Joi.string().valid("signature", "transaction").required(),
           items: Joi.array()
             .items(
               Joi.object({
@@ -410,6 +412,12 @@ export const getExecuteBuyV6Options: RouteOptions = {
           const [contract, tokenId] = token.split(":");
 
           if (payload.quantity === 1) {
+            // TODO: Right now we filter out Blur orders since those don't yet
+            // support royalty normalization. A better approach to handling it
+            // would be to set the normalized fields to `null` for every order
+            // which doesn't support royalty normalization and then filter out
+            // such `null` fields in various normalized events/caches.
+
             // Filling a quantity of 1 implies getting the best listing for that token
             const bestOrderResult = await idb.oneOrNone(
               `
@@ -437,6 +445,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
                       ? " AND orders.currency = $/currency/"
                       : ""
                   }
+                  ${payload.normalizeRoyalties ? " AND orders.kind != 'blur'" : ""}
                 ORDER BY
                   ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
                   ${
@@ -521,7 +530,6 @@ export const getExecuteBuyV6Options: RouteOptions = {
                       ? " AND orders.currency = $/currency/"
                       : ""
                   }
-                  ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
                 ORDER BY
                   ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
                   ${
@@ -661,6 +669,103 @@ export const getExecuteBuyV6Options: RouteOptions = {
         }
       }
 
+      // Set up generic filling steps
+      const steps: {
+        id: string;
+        action: string;
+        description: string;
+        kind: string;
+        items: {
+          status: string;
+          data?: any;
+        }[];
+      }[] = [
+        {
+          id: "auth",
+          action: "Sign auth",
+          description: "Some marketplaces require signing an auth message before filling",
+          kind: "signature",
+          items: [],
+        },
+        {
+          id: "currency-approval",
+          action: "Approve exchange contract",
+          description: "A one-time setup transaction to enable trading",
+          kind: "transaction",
+          items: [],
+        },
+        {
+          id: "sale",
+          action: "Confirm transaction in your wallet",
+          description: "To purchase this item you must confirm the transaction and pay the gas fee",
+          kind: "transaction",
+          items: [],
+        },
+      ];
+
+      // Handle Blur authentication
+      let blurAuth: string | undefined;
+      if (path.some((p) => p.source === "blur.io")) {
+        const blurAuthId = b.getAuthId(payload.taker);
+
+        blurAuth = await b
+          .getAuth(blurAuthId)
+          .then((auth) => (auth ? auth.accessToken : undefined));
+        if (!blurAuth) {
+          const blurAuthChallengeId = b.getAuthChallengeId(payload.taker);
+
+          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+          if (!blurAuthChallenge) {
+            blurAuthChallenge = (await axios
+              .get(
+                `https://order-fetcher.vercel.app/api/blur-auth-challenge?taker=${payload.taker}`,
+                {
+                  headers: {
+                    "X-Api-Key": config.orderFetcherApiKey,
+                  },
+                }
+              )
+              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+
+            await b.saveAuthChallenge(
+              blurAuthChallengeId,
+              blurAuthChallenge,
+              // Give a 1 minute buffer for the auth challenge to expire
+              Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+            );
+          }
+
+          steps[0].items.push({
+            status: "incomplete",
+            data: {
+              sign: {
+                signatureKind: "eip191",
+                message: blurAuthChallenge.message,
+              },
+              post: {
+                endpoint: "/execute/auth-signature/v1",
+                method: "POST",
+                body: {
+                  kind: "blur",
+                  id: blurAuthChallengeId,
+                },
+              },
+            },
+          });
+
+          // Force the client to poll
+          steps[1].items.push({
+            status: "incomplete",
+          });
+
+          // Return an early since any next steps are dependent on the Blur auth
+          return {
+            steps,
+            path,
+          };
+        }
+      }
+
       const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
@@ -683,35 +788,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
                 : undefined,
           },
           relayer: payload.relayer,
+          blurAuth,
         }
       );
-
-      // Set up generic filling steps
-      const steps: {
-        id: string;
-        action: string;
-        description: string;
-        kind: string;
-        items: {
-          status: string;
-          data?: any;
-        }[];
-      }[] = [
-        {
-          id: "currency-approval",
-          action: "Approve exchange contract",
-          description: "A one-time setup transaction to enable trading",
-          kind: "transaction",
-          items: [],
-        },
-        {
-          id: "sale",
-          action: "Confirm transaction in your wallet",
-          description: "To purchase this item you must confirm the transaction and pay the gas fee",
-          kind: "transaction",
-          items: [],
-        },
-      ];
 
       const taker = payload.taker;
       const relayer = payload.relayer;
@@ -760,7 +839,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           const allowance = await erc20.getAllowance(txSender, conduit);
           if (bn(allowance).lt(totalPrice)) {
             const tx = erc20.approveTransaction(txSender, conduit);
-            steps[0].items.push({
+            steps[1].items.push({
               status: "incomplete",
               data: {
                 ...tx,
@@ -776,7 +855,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           }
         }
 
-        steps[1].items.push({
+        steps[2].items.push({
           status: "incomplete",
           data: {
             ...tx.txData,
@@ -789,7 +868,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
       }
 
       return {
-        steps,
+        steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         // Remove any unsuccessfully handled listings from the path
         path: path.filter((_, i) => success[i]),
       };

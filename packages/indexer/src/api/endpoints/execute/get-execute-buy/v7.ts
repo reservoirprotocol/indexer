@@ -420,6 +420,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
         if (item.token) {
           const [contract, tokenId] = item.token.split(":");
 
+          // TODO: Right now we filter out Blur orders since those don't yet
+          // support royalty normalization. A better approach to handling it
+          // would be to set the normalized fields to `null` for every order
+          // which doesn't support royalty normalization and then filter out
+          // such `null` fields in various normalized events/caches.
+
           // Fetch all matching orders sorted by price
           const orderResults = await idb.manyOrNone(
             `
@@ -444,7 +450,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 AND orders.fillability_status = 'fillable'
                 AND orders.approval_status = 'approved'
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
+                ${payload.normalizeRoyalties ? " AND orders.kind != 'blur'" : ""}
               ORDER BY
                 ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
                 ${

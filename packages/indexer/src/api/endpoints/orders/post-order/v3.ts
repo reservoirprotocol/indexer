@@ -69,19 +69,21 @@ export const postOrderV3Options: RouteOptions = {
       isNonFlagged: Joi.boolean(),
     }).oxor("tokenSetId", "collection", "attribute"),
   },
-  response: {
-    schema: Joi.object({
-      message: Joi.string(),
-      orderId: Joi.string(),
-      crossPostingOrderId: Joi.string().description(
-        "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
-      ),
-    }).label(`getActivity${version.toUpperCase()}Response`),
-    failAction: (_request, _h, error) => {
-      logger.error(`get-activity-${version}-handler`, `Wrong response schema: ${error}`);
-      throw error;
-    },
-  },
+  // response: {
+  //   schema: Joi.object({
+  //     message: Joi.string(),
+  //     orderId: Joi.string().optional(),
+  //     crossPostingOrderId: Joi.string()
+  //       .optional()
+  //       .description(
+  //         "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
+  //       ),
+  //   }).label(`postOrder${version.toUpperCase()}Response`),
+  //   failAction: (_request, _h, error) => {
+  //     logger.error(`post-order-${version}-handler`, `Wrong response schema: ${error}`);
+  //     throw error;
+  //   },
+  // },
   handler: async (request: Request) => {
     if (config.disableOrders) {
       throw Boom.badRequest("Order posting is disabled");
@@ -231,26 +233,7 @@ export const postOrderV3Options: RouteOptions = {
               orderbookApiKey,
               collectionId: collection,
             });
-          } else if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
-            const orderResult = await idb.oneOrNone(
-              `
-                SELECT
-                  orders.token_set_id
-                FROM orders
-                WHERE orders.id = $/id/
-              `,
-              { id: orderId }
-            );
-
-            if (orderResult?.token_set_id?.startsWith("token")) {
-              await postOrderExternal.addToQueue({
-                orderId,
-                orderData: order.data,
-                orderbook: "opensea",
-                orderbookApiKey: config.forwardOpenseaApiKey,
-              });
-            }
-          } else {
+          } else if (orderbook === "reservoir") {
             const [result] =
               order.kind === "seaport"
                 ? await orders.seaport.save([
@@ -282,51 +265,72 @@ export const postOrderV3Options: RouteOptions = {
               throw error;
             }
 
-            const collectionResult = await idb.oneOrNone(
-              `
-                SELECT
-                  collections.new_royalties,
-                  orders.token_set_id
-                FROM orders
-                JOIN token_sets_tokens
-                  ON orders.token_set_id = token_sets_tokens.token_set_id
-                JOIN tokens
-                  ON tokens.contract = token_sets_tokens.contract
-                  AND tokens.token_id = token_sets_tokens.token_id
-                JOIN collections
-                  ON tokens.collection_id = collections.id
-                WHERE orders.id = $/id/
-                LIMIT 1
-              `,
-              { id: orderId }
-            );
-
-            if (
-              collectionResult?.token_set_id?.startsWith("token") &&
-              collectionResult?.new_royalties?.["opensea"]
-            ) {
-              const osRoyaltyRecipients = collectionResult.new_royalties["opensea"].map((r: any) =>
-                r.recipient.toLowerCase()
+            if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
+              const orderResult = await idb.oneOrNone(
+                `
+                  SELECT
+                    orders.token_set_id
+                  FROM orders
+                  WHERE orders.id = $/id/
+                `,
+                { id: orderId }
               );
-              const maker = order.data.offerer.toLowerCase();
-              const consideration = order.data.consideration;
 
-              let hasMarketplaceFee = false;
-              for (const c of consideration) {
-                const recipient = c.recipient.toLowerCase();
-                if (recipient !== maker && !osRoyaltyRecipients.includes(recipient)) {
-                  hasMarketplaceFee = true;
-                }
-              }
-
-              if (!hasMarketplaceFee) {
+              if (orderResult?.token_set_id?.startsWith("token")) {
                 await postOrderExternal.addToQueue({
                   orderId,
                   orderData: order.data,
                   orderbook: "opensea",
-                  orderbookApiKey: config.openSeaApiKey,
-                  collectionId: collection,
+                  orderbookApiKey: config.forwardOpenseaApiKey,
                 });
+              }
+            } else {
+              const collectionResult = await idb.oneOrNone(
+                `
+                  SELECT
+                    collections.new_royalties,
+                    orders.token_set_id
+                  FROM orders
+                  JOIN token_sets_tokens
+                    ON orders.token_set_id = token_sets_tokens.token_set_id
+                  JOIN tokens
+                    ON tokens.contract = token_sets_tokens.contract
+                    AND tokens.token_id = token_sets_tokens.token_id
+                  JOIN collections
+                    ON tokens.collection_id = collections.id
+                  WHERE orders.id = $/id/
+                  LIMIT 1
+                `,
+                { id: orderId }
+              );
+
+              if (
+                collectionResult?.token_set_id?.startsWith("token") &&
+                collectionResult?.new_royalties?.["opensea"]
+              ) {
+                const osRoyaltyRecipients = collectionResult.new_royalties["opensea"].map(
+                  (r: any) => r.recipient.toLowerCase()
+                );
+                const maker = order.data.offerer.toLowerCase();
+                const consideration = order.data.consideration;
+
+                let hasMarketplaceFee = false;
+                for (const c of consideration) {
+                  const recipient = c.recipient.toLowerCase();
+                  if (recipient !== maker && !osRoyaltyRecipients.includes(recipient)) {
+                    hasMarketplaceFee = true;
+                  }
+                }
+
+                if (!hasMarketplaceFee) {
+                  await postOrderExternal.addToQueue({
+                    orderId,
+                    orderData: order.data,
+                    orderbook: "opensea",
+                    orderbookApiKey: config.openSeaApiKey,
+                    collectionId: collection,
+                  });
+                }
               }
             }
           }

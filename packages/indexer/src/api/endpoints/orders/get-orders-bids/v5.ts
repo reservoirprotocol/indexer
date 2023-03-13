@@ -292,7 +292,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       }
 
       if (query.collection && !query.attribute) {
-        baseQuery += ` JOIN token_sets ON token_sets.id = orders.token_set_id`;
+        baseQuery += ` JOIN token_sets ON token_sets.id = orders.token_set_id AND token_sets.schema_hash = orders.token_set_schema_hash`;
         conditions.push(`token_sets.attribute_id IS NULL`);
         conditions.push(`token_sets.collection_id = $/collection/`);
       }
@@ -316,7 +316,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
 
         (query as any).attributeIds = attributeIds;
 
-        baseQuery += ` JOIN token_sets ON token_sets.id = orders.token_set_id`;
+        baseQuery += ` JOIN token_sets ON token_sets.id = orders.token_set_id AND token_sets.schema_hash = orders.token_set_schema_hash`;
         conditions.push(`token_sets.attribute_id IN ($/attributeIds:csv/)`);
       }
 

@@ -76,7 +76,9 @@ export const postAuthSignatureV1Options: RouteOptions = {
             authId,
             { accessToken },
             // Give a 1 minute buffer for the auth to expire
-            Math.floor(new Date(authChallenge.expiresOn).getTime() / 1000) - now() - 60
+            Number(JSON.parse(Buffer.from(accessToken.split(".")[1], "base64").toString()).exp) -
+              now() -
+              60
           );
 
           break;
