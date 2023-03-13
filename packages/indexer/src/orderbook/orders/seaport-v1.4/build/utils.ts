@@ -42,6 +42,15 @@ export const padSourceToSalt = (source: string, salt: string) => {
   return bn(`0x${sourceHash}${saltHex}`).toString();
 };
 
+export const filterZeroAmounts = (order: Sdk.SeaportV14.Order) => {
+  order.params.consideration = order.params.consideration.filter(
+    (c) => !(c.startAmount === "0" && c.endAmount === "0")
+  );
+  order.params.offer = order.params.offer.filter(
+    (o) => !(o.startAmount === "0" && o.endAmount === "0")
+  );
+};
+
 export const getBuildInfo = async (
   options: BaseOrderBuildOptions,
   collection: string,
