@@ -20,7 +20,7 @@ export const getSourcesListingsV1Options: RouteOptions = {
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 9,
+      deprecated: true,
     },
   },
   validate: {

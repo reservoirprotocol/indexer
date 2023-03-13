@@ -571,7 +571,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }[] = [
         {
           id: "auth",
-          action: "Sign auth",
+          action: "Sign in to Blur",
           description: "Some marketplaces require signing an auth message before filling",
           kind: "signature",
           items: [],

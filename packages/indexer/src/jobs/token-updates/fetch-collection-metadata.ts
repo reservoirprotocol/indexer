@@ -167,6 +167,13 @@ if (config.doBackgroundWork) {
           collection.openseaRoyalties as royalties.Royalty[] | undefined
         );
         await royalties.refreshDefaultRoyalties(collection.id);
+
+        // Refresh marketplace fees
+        await royalties.updateMarketplaceFeeSpec(
+          collection.id,
+          "opensea",
+          collection.openseaFees as royalties.Royalty[] | undefined
+        );
       } catch (error) {
         logger.error(
           QUEUE_NAME,

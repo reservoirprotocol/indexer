@@ -63,11 +63,6 @@ if (config.doBackgroundWork) {
               floorSellValue: price,
               sellUpdatedAt: new Date().toISOString(),
             });
-
-            logger.debug(
-              QUEUE_NAME,
-              `Old price=${tokenAttribute.floorSellValue}, New price=${price}, key=${tokenAttribute.key}, value=${tokenAttribute.value}, id=${tokenAttribute.attributeId}`
-            );
           }
         }
       }
