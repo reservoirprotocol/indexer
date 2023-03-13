@@ -122,6 +122,11 @@ export const postSimulateFloorV1Options: RouteOptions = {
         return { message: "Nothing to simulate" };
       }
 
+      const saleData = parsedPayload.steps[2].items[0]?.data;
+      if (!saleData) {
+        return { message: "Nothing to simulate" };
+      }
+
       const pathItem = parsedPayload.path[0];
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -133,8 +138,7 @@ export const postSimulateFloorV1Options: RouteOptions = {
           tokenId: pathItem.tokenId as string,
           amount: pathItem.quantity as string,
         },
-        // Step 0 is the approval transaction
-        parsedPayload.steps[1].items[0].data
+        saleData
       );
       if (success) {
         return { message: "Floor order is fillable" };
