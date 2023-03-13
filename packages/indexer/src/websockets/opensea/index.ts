@@ -59,18 +59,13 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     async (event) => {
       try {
         if (await isDuplicateEvent(event)) {
-          logger.debug(
-            "opensea-websocket",
-            `Duplicate event. network=${network}, event=${JSON.stringify(event)}`
-          );
-
           return;
         }
 
-        logger.debug(
-          "opensea-websocket",
-          `Processing event. network=${network}, event=${JSON.stringify(event)}`
-        );
+        // logger.debug(
+        //   "opensea-websocket",
+        //   `Processing event. network=${network}, event=${JSON.stringify(event)}`
+        // );
 
         await saveEvent(event);
 
@@ -121,11 +116,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       }
 
       if (await isDuplicateEvent(event)) {
-        logger.debug(
-          "opensea-websocket-item-metadata-update-event",
-          `Duplicate event. network=${network}, event=${JSON.stringify(event)}`
-        );
-
         return;
       }
 
@@ -133,13 +123,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       const token = await Tokens.getByContractAndTokenId(contract, tokenId);
 
       if (!token) {
-        logger.debug(
-          "opensea-websocket-item-metadata-update-event",
-          `Token was not found. contract=${contract}, tokenId=${tokenId}, event=${JSON.stringify(
-            event
-          )}`
-        );
-
         return;
       }
 
