@@ -87,13 +87,6 @@ export const tryGetCollectionOpenseaFees = async (
         .then(async (response) => {
           openseaFees = response.data.collection.fees.opensea_fees;
           isSuccess = true;
-
-          logger.info(
-            "getCollectionOpenseaFees",
-            `api success. contract=${contract}, tokenId=${tokenId}, response=${JSON.stringify(
-              response
-            )}, openseaFees=${JSON.stringify(openseaFees)}`
-          );
         })
         .catch((error) => {
           logger.info(
