@@ -206,7 +206,7 @@ export const getCollectionOpenseaFees = async (
       "getCollectionOpenseaFees",
       `From db. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
         openseaMarketplaceFees
-      )}, openseaFees=${JSON.stringify(openseaFees)}`
+      )}, openseaFees=${JSON.stringify(Object.entries(openseaFees))}`
     );
   } else {
     const tokenId = await Tokens.getSingleToken(collection);
@@ -225,9 +225,9 @@ export const getCollectionOpenseaFees = async (
         "getCollectionOpenseaFees",
         `From api. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
           openseaMarketplaceFees
-        )}, openseaFees=${JSON.stringify(openseaFees)}, marketplaceFees=${JSON.stringify(
-          marketplaceFees
-        )}`
+        )}, openseaFees=${JSON.stringify(
+          Object.entries(openseaFees)
+        )}, marketplaceFees=${JSON.stringify(marketplaceFees)}`
       );
 
       await royalties.updateMarketplaceFeeSpec(collection, "opensea", marketplaceFees as Royalty[]);
@@ -236,7 +236,7 @@ export const getCollectionOpenseaFees = async (
         "getCollectionOpenseaFees",
         `Fallback. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
           openseaMarketplaceFees
-        )}, openseaFees=${JSON.stringify(openseaFees)}`
+        )}, openseaFees=${JSON.stringify(Object.entries(openseaFees))}`
       );
 
       openseaFees.set("0x0000a26b00c1f0df003000390027140000faa719", 50 - totalBps);
