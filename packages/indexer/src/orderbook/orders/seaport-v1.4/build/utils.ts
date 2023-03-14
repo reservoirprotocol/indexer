@@ -62,7 +62,10 @@ export const getBuildInfo = async (
         contracts.kind,
         collections.royalties,
         collections.new_royalties,
-        collections.contract
+        collections.marketplace_fees,
+        collections.contract,
+        collections.token_id_range,
+        collections.community
       FROM collections
       JOIN contracts
         ON collections.contract = contracts.address
@@ -163,13 +166,14 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
-    const openseaFees = await getCollectionOpenseaFees(
+    const openseaMarketplaceFees = await getCollectionOpenseaFees(
       collection,
       fromBuffer(collectionResult.contract),
-      totalBps
+      totalBps,
+      collectionResult.marketplace_fees?.opensea
     );
 
-    for (const [feeRecipient, feeBps] of Object.entries(openseaFees)) {
+    for (const [feeRecipient, feeBps] of Object.entries(openseaMarketplaceFees)) {
       options.fee.push(feeBps);
       options.feeRecipient.push(feeRecipient);
     }

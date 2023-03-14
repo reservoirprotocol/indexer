@@ -26,11 +26,6 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { contract, tokenId, community } = job.data;
 
-      logger.info(
-        QUEUE_NAME,
-        `Refresh collection metadata start. contract=${contract}, tokenId=${tokenId}, community=${community}`
-      );
-
       if (await acquireLock(QUEUE_NAME, 1)) {
         logger.info(
           QUEUE_NAME,

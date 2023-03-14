@@ -9,7 +9,8 @@ import { bn, fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { tryGetCollectionOpenseaFees } from "@/utils/opensea";
 import { Tokens } from "@/models/tokens";
-import { redis } from "@/common/redis";
+import * as royalties from "@/utils/royalties";
+import { logger } from "@/common/logger";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -141,13 +142,14 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
-    const openseaFees = await getCollectionOpenseaFees(
+    const openseaMarketplaceFees = await getCollectionOpenseaFees(
       collection,
       fromBuffer(collectionResult.contract),
-      totalBps
+      totalBps,
+      collectionResult.marketplace_fees?.opensea
     );
 
-    for (const [feeRecipient, feeBps] of Object.entries(openseaFees)) {
+    for (const [feeRecipient, feeBps] of Object.entries(openseaMarketplaceFees)) {
       options.fee.push(feeBps);
       options.feeRecipient.push(feeRecipient);
     }
@@ -184,27 +186,54 @@ export const getBuildInfo = async (
 export const getCollectionOpenseaFees = async (
   collection: string,
   contract: string,
-  totalBps: number
+  totalBps: number,
+  openseaMarketplaceFees?: { bps: number; recipient: string }[]
 ) => {
   let openseaFees = new Map<string, number>();
 
-  const cachedCollectionOpenseaFees = await redis.get(`collection-opensea-fees:${collection}`);
+  if (openseaMarketplaceFees != null) {
+    openseaFees = new Map(openseaMarketplaceFees.map((i) => [i.recipient, i.bps]));
 
-  if (cachedCollectionOpenseaFees) {
-    openseaFees = JSON.parse(cachedCollectionOpenseaFees);
+    logger.info(
+      "getCollectionOpenseaFees",
+      `From db. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
+        openseaMarketplaceFees
+      )}, openseaFees=${JSON.stringify(openseaFees)}`
+    );
   } else {
     const tokenId = await Tokens.getSingleToken(collection);
     const tryGetCollectionOpenseaFeesResult = await tryGetCollectionOpenseaFees(contract, tokenId);
 
     if (tryGetCollectionOpenseaFeesResult.isSuccess) {
       openseaFees = tryGetCollectionOpenseaFeesResult.openseaFees;
-      await redis.set(
-        `collection-opensea-fees:${collection}`,
-        JSON.stringify(openseaFees),
-        "EX",
-        3600
+
+      const marketplaceFees: royalties.Royalty[] = [];
+
+      logger.info(
+        "getCollectionOpenseaFees",
+        `From api. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
+          openseaMarketplaceFees
+        )}, openseaFees=${JSON.stringify(openseaFees)}, marketplaceFees=${JSON.stringify(
+          marketplaceFees
+        )}`
       );
+
+      openseaFees.forEach((bps: number, recipient: string) => {
+        marketplaceFees.push({
+          recipient,
+          bps,
+        });
+      });
+
+      await royalties.updateMarketplaceFeeSpec(collection, "opensea", marketplaceFees);
     } else if (totalBps < 50) {
+      logger.info(
+        "getCollectionOpenseaFees",
+        `Fallback. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
+          openseaMarketplaceFees
+        )}, openseaFees=${JSON.stringify(openseaFees)}`
+      );
+
       openseaFees.set("0x0000a26b00c1f0df003000390027140000faa719", 50 - totalBps);
     }
   }
