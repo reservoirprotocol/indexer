@@ -193,7 +193,9 @@ export const getCollectionOpenseaFees = async (
   let openseaFees = new Map<string, number>();
 
   if (openseaMarketplaceFees != null) {
-    openseaFees = new Map(openseaMarketplaceFees.map((i) => [i.recipient, i.bps]));
+    for (const openseaMarketplaceFee of openseaMarketplaceFees) {
+      openseaFees.set(openseaMarketplaceFee.recipient, openseaMarketplaceFee.bps);
+    }
 
     logger.info(
       "getCollectionOpenseaFees",
