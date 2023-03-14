@@ -208,9 +208,11 @@ export const getCollectionOpenseaFees = async (
     if (tryGetCollectionOpenseaFeesResult.isSuccess) {
       openseaFees = tryGetCollectionOpenseaFeesResult.openseaFees;
 
-      const marketplaceFees = Array.from(openseaFees, function (item) {
-        return { recipient: item[0], bps: item[1] };
-      });
+      const marketplaceFees = [];
+
+      for (const [feeRecipient, feeBps] of Object.entries(openseaFees)) {
+        marketplaceFees.push({ recipient: feeRecipient, bps: feeBps });
+      }
 
       logger.info(
         "getCollectionOpenseaFees",
