@@ -194,6 +194,11 @@ export const getCollectionOpenseaFees = async (
 
   if (openseaMarketplaceFees != null) {
     for (const openseaMarketplaceFee of openseaMarketplaceFees) {
+      logger.info(
+        "getCollectionOpenseaFees",
+        `From openseaMarketplaceFee. collection=${collection}, recipient=${openseaMarketplaceFee.recipient}, bps=${openseaMarketplaceFee.bps}`
+      );
+
       openseaFees.set(openseaMarketplaceFee.recipient, openseaMarketplaceFee.bps);
     }
 
