@@ -270,7 +270,10 @@ export const updateMarketplaceFeeSpec = async (
 
   if (currentMarketplaceFees) {
     // Always keep the latest royalty per spec
-    if (!_.isEqual(currentMarketplaceFees.marketplace_fees[spec], marketplaceFees)) {
+    if (
+      !_.isEqual(currentMarketplaceFees.marketplace_fees[spec], marketplaceFees) ||
+      !(spec in currentMarketplaceFees.marketplace_fees)
+    ) {
       currentMarketplaceFees.marketplace_fees[spec] = marketplaceFees;
 
       await idb.none(
