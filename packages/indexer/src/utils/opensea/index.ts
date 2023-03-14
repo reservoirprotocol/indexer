@@ -2,6 +2,7 @@ import axios from "axios";
 
 import { config } from "@/config/index";
 import * as flagStatusUpdate from "@/jobs/flag-status/update";
+import { logger } from "@/common/logger";
 
 export const tryGetTokensSuspiciousStatus = async (tokens: string[], timeout = 5000) => {
   const tokenToSuspicious = new Map<string, boolean>();
@@ -86,13 +87,30 @@ export const tryGetCollectionOpenseaFees = async (
         .then(async (response) => {
           openseaFees = response.data.collection.fees.opensea_fees;
           isSuccess = true;
+
+          logger.info(
+            "getCollectionOpenseaFees",
+            `api success. contract=${contract}, tokenId=${tokenId}, response=${JSON.stringify(
+              response
+            )}, openseaFees=${JSON.stringify(openseaFees)}`
+          );
         })
-        .catch(() => {
-          // Skip errors
+        .catch((error) => {
+          logger.info(
+            "getCollectionOpenseaFees",
+            `api error. contract=${contract}, tokenId=${tokenId}, error=${error}`
+          );
         });
     })(),
     new Promise((resolve) => setTimeout(resolve, timeout)),
   ]);
+
+  logger.info(
+    "getCollectionOpenseaFees",
+    `api result. contract=${contract}, tokenId=${tokenId}, isSuccess=${isSuccess}, openseaFees=${JSON.stringify(
+      openseaFees
+    )}`
+  );
 
   return { openseaFees, isSuccess };
 };
