@@ -150,7 +150,7 @@ export const getBuildInfo = async (
       collectionResult.marketplace_fees?.opensea
     );
 
-    for (const [feeRecipient, feeBps] of Object.entries(openseaMarketplaceFees)) {
+    for (const [feeRecipient, feeBps] of openseaMarketplaceFees) {
       options.fee.push(feeBps);
       options.feeRecipient.push(feeRecipient);
     }
@@ -190,7 +190,7 @@ export const getCollectionOpenseaFees = async (
   totalBps: number,
   openseaMarketplaceFees?: { bps: number; recipient: string }[]
 ) => {
-  let openseaFees = new Map<string, number>();
+  let openseaFees: Map<string, number> = new Map();
 
   if (openseaMarketplaceFees != null) {
     for (const openseaMarketplaceFee of openseaMarketplaceFees) {
@@ -206,7 +206,7 @@ export const getCollectionOpenseaFees = async (
       "getCollectionOpenseaFees",
       `From db. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
         openseaMarketplaceFees
-      )}, openseaFees=${JSON.stringify(Object.entries(openseaFees))}`
+      )}, openseaFees=${JSON.stringify(Array.from(openseaFees.entries()))}`
     );
   } else {
     const tokenId = await Tokens.getSingleToken(collection);
