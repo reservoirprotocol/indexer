@@ -11,6 +11,7 @@ import { tryGetCollectionOpenseaFees } from "@/utils/opensea";
 import { Tokens } from "@/models/tokens";
 import * as royalties from "@/utils/royalties";
 import { logger } from "@/common/logger";
+import { Royalty } from "@/utils/royalties";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -207,7 +208,9 @@ export const getCollectionOpenseaFees = async (
     if (tryGetCollectionOpenseaFeesResult.isSuccess) {
       openseaFees = tryGetCollectionOpenseaFeesResult.openseaFees;
 
-      const marketplaceFees: royalties.Royalty[] = [];
+      const marketplaceFees = Array.from(openseaFees, function (item) {
+        return { recipient: item[0], bps: item[1] };
+      });
 
       logger.info(
         "getCollectionOpenseaFees",
@@ -218,14 +221,7 @@ export const getCollectionOpenseaFees = async (
         )}`
       );
 
-      openseaFees.forEach((bps: number, recipient: string) => {
-        marketplaceFees.push({
-          recipient,
-          bps,
-        });
-      });
-
-      await royalties.updateMarketplaceFeeSpec(collection, "opensea", marketplaceFees);
+      await royalties.updateMarketplaceFeeSpec(collection, "opensea", marketplaceFees as Royalty[]);
     } else if (totalBps < 50) {
       logger.info(
         "getCollectionOpenseaFees",
