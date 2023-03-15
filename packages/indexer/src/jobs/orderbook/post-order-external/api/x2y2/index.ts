@@ -15,7 +15,7 @@ export const postOrder = async (order: Sdk.X2Y2.Types.LocalOrder, apiKey: string
 
   // Skip posting orders that already expired
   if (order.deadline <= now()) {
-    return;
+    throw new InvalidRequestError("Order is expired");
   }
 
   // When lowering the price of an existing listing, X2Y2 requires

@@ -69,7 +69,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
         ),
       contracts: Joi.alternatives().try(
         Joi.array()
-          .max(50)
+          .max(80)
           .items(Joi.string().lowercase().pattern(regex.address))
           .description(
             "Filter to an array of contracts. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"

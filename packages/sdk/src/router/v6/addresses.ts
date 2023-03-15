@@ -13,9 +13,9 @@ export const Router: ChainIdToAddress = {
 // Utility modules
 
 export const Permit2Module: ChainIdToAddress = {
-  [Network.Ethereum]: "0x482e4d362c8a2ea19e07b7234a14084a7d740b42",
-  [Network.Polygon]: "0x5db9abb17333f6eb12386eda955d6fc779bd78f4",
-  [Network.Optimism]: "0xc10d7937a42865d9355384b884f7d694c15e7781",
+  [Network.Ethereum]: "0xcf94f92dbb2e49d311b6cbc0c57eac4453f6692b",
+  [Network.Polygon]: "0x1f9cefbd982de43be11f24c671e0504b31e36414",
+  [Network.Optimism]: "0xd1e2c361542e98dc526a79b04d93553828af2613",
 };
 
 export const SwapModule: ChainIdToAddress = {

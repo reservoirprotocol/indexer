@@ -95,6 +95,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId1.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Eth[chainId],
+        price: price1.toString(),
       });
     }
 
@@ -138,6 +139,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId2.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Eth[chainId],
+        price: price2.toString(),
       });
     }
 
@@ -188,6 +190,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         amount: amount3,
         order: sellOrder,
         currency: Sdk.Common.Addresses.Eth[chainId],
+        price: price3.toString(),
       });
     }
 
@@ -213,15 +216,12 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
 
     const router = new Sdk.RouterV6.Router(chainId, ethers.provider);
 
-    const { txData } = await router.fillListingsTx(
-      listings,
-      buyer.address,
-      Sdk.Common.Addresses.Eth[chainId],
-      {
-        source: "reservoir.market",
-        globalFees: feesOnTop,
-      }
-    );
+    const {
+      txs: [{ txData }],
+    } = await router.fillListingsTx(listings, buyer.address, Sdk.Common.Addresses.Eth[chainId], {
+      source: "reservoir.market",
+      globalFees: feesOnTop,
+    });
     await buyer.sendTransaction(txData);
 
     const feeRecipientEthBalanceAfter = await feeRecipient.getBalance();
@@ -309,6 +309,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId1.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Eth[chainId],
+        price: price1.toString(),
       });
 
       listings.push({
@@ -318,6 +319,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId1.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Eth[chainId],
+        price: price1.toString(),
       });
     }
 
@@ -344,7 +346,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
       }
     );
 
-    await expect(buyer.sendTransaction(nonPartialTx.txData)).to.be.revertedWith(
+    await expect(buyer.sendTransaction(nonPartialTx.txs[0].txData)).to.be.revertedWith(
       "reverted with custom error 'UnsuccessfulExecution()'"
     );
 
@@ -358,7 +360,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         partial: true,
       }
     );
-    await buyer.sendTransaction(partialTx.txData);
+    await buyer.sendTransaction(partialTx.txs[0].txData);
 
     const feeRecipientEthBalanceAfter = await feeRecipient.getBalance();
     const seller1EthBalanceAfter = await seller1.getBalance();
@@ -430,6 +432,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId1.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Eth[chainId],
+        price: price1.toString(),
       });
     }
 
@@ -478,6 +481,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId2.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Eth[chainId],
+        price: price2.toString(),
       });
     }
 
@@ -526,6 +530,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId3.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Eth[chainId],
+        price: price3.toString(),
       });
     }
 
@@ -549,7 +554,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         source: "reservoir.market",
       }
     );
-    await buyer.sendTransaction(tx.txData);
+    await buyer.sendTransaction(tx.txs[0].txData);
 
     const seller1EthBalanceAfter = await seller1.getBalance();
     const seller2EthBalanceAfter = await seller2.getBalance();
@@ -626,6 +631,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId1.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Eth[chainId],
+        price: price1.toString(),
       });
     }
 
@@ -674,6 +680,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId2.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Usdc[chainId],
+        price: price2.toString(),
       });
     }
 
@@ -722,6 +729,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId3.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Weth[chainId],
+        price: price3.toString(),
       });
     }
 
@@ -750,7 +758,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
       }
     );
 
-    await buyer.sendTransaction(tx.txData);
+    await buyer.sendTransaction(tx.txs[0].txData);
 
     const seller1EthBalanceAfter = await seller1.getBalance();
     const seller2UsdcBalanceAfter = await usdc.getBalance(seller2.address);
@@ -870,6 +878,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId1.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Eth[chainId],
+        price: price1.toString(),
       });
     }
 
@@ -918,6 +927,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId2.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Usdc[chainId],
+        price: price2.toString(),
       });
     }
 
@@ -960,6 +970,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId3.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Weth[chainId],
+        price: price3.toString(),
       });
     }
 
@@ -1008,6 +1019,7 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
         tokenId: tokenId4.toString(),
         order: sellOrder,
         currency: Sdk.Common.Addresses.Weth[chainId],
+        price: price4.toString(),
       });
     }
 
@@ -1032,14 +1044,14 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     );
 
     // Trigger approvals
-    for (const approval of tx.approvals) {
+    for (const approval of tx.txs[0].approvals) {
       await buyer.sendTransaction(approval.txData);
     }
 
     const permitHandler = new UniswapPermit.Handler(chainId, ethers.provider);
 
     // Sign permits
-    for (const permit of tx.permits) {
+    for (const permit of tx.txs[0].permits) {
       // Override permit expiration time
       const now = await getCurrentTimestamp(ethers.provider);
       permit.details.data.permitBatch.sigDeadline = now + 60;
@@ -1057,8 +1069,8 @@ describe("[ReservoirV6_0_0] Filling listings and bids via the SDK", () => {
     }
 
     const txData = permitHandler.attachToRouterExecution(
-      tx.txData,
-      tx.permits.map((p) => p.details.data)
+      tx.txs[0].txData,
+      tx.txs[0].permits.map((p) => p.details.data)
     );
 
     await buyer.sendTransaction(txData);
