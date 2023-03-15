@@ -173,7 +173,7 @@ export const getBuildInfo = async (
       collectionResult.marketplace_fees?.opensea
     );
 
-    for (const [feeRecipient, feeBps] of openseaFees.entries()) {
+    for (const [feeRecipient, feeBps] of Object.entries(openseaFees)) {
       options.fee.push(feeBps);
       options.feeRecipient.push(feeRecipient);
     }

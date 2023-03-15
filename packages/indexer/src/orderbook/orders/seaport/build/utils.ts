@@ -143,14 +143,14 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
-    const openseaMarketplaceFees = await getCollectionOpenseaFees(
+    const openseaFees = await getCollectionOpenseaFees(
       collection,
       fromBuffer(collectionResult.contract),
       totalBps,
       collectionResult.marketplace_fees?.opensea
     );
 
-    for (const [feeRecipient, feeBps] of openseaMarketplaceFees) {
+    for (const [feeRecipient, feeBps] of Object.entries(openseaFees)) {
       options.fee.push(feeBps);
       options.feeRecipient.push(feeRecipient);
     }
@@ -190,7 +190,7 @@ export const getCollectionOpenseaFees = async (
   totalBps: number,
   openseaMarketplaceFees?: { bps: number; recipient: string }[]
 ) => {
-  let openseaFees: Map<string, number> = new Map();
+  let openseaFees: { [recipient: string]: number } = {};
 
   if (openseaMarketplaceFees != null) {
     for (const openseaMarketplaceFee of openseaMarketplaceFees) {
@@ -199,14 +199,14 @@ export const getCollectionOpenseaFees = async (
         `From openseaMarketplaceFee. collection=${collection}, recipient=${openseaMarketplaceFee.recipient}, bps=${openseaMarketplaceFee.bps}`
       );
 
-      openseaFees.set(openseaMarketplaceFee.recipient, openseaMarketplaceFee.bps);
+      openseaFees[openseaMarketplaceFee.recipient] = openseaMarketplaceFee.bps;
     }
 
     logger.info(
       "getCollectionOpenseaFees",
       `From db. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
         openseaMarketplaceFees
-      )}, openseaFees=${JSON.stringify(Array.from(openseaFees.entries()))}`
+      )}, openseaFees=${JSON.stringify(Array.from(Object.entries(openseaFees)))}`
     );
   } else {
     const tokenId = await Tokens.getSingleToken(collection);
@@ -232,14 +232,7 @@ export const getCollectionOpenseaFees = async (
 
       await royalties.updateMarketplaceFeeSpec(collection, "opensea", marketplaceFees as Royalty[]);
     } else if (totalBps < 50) {
-      logger.info(
-        "getCollectionOpenseaFees",
-        `Fallback. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
-          openseaMarketplaceFees
-        )}, openseaFees=${JSON.stringify(Object.entries(openseaFees))}`
-      );
-
-      openseaFees.set("0x0000a26b00c1f0df003000390027140000faa719", 50 - totalBps);
+      openseaFees["0x0000a26b00c1f0df003000390027140000faa719"] = 50 - totalBps;
     }
   }
 
