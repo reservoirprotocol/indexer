@@ -7,7 +7,14 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiPrice, getJoiPriceObject } from "@/common/joi";
+import {
+  JoiPrice,
+  getJoiPriceObject,
+  feeInfoIsValid,
+  JoiFeeBreakdown,
+  getFeeValue,
+  getFeeBreakdown,
+} from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
@@ -116,13 +123,7 @@ export const getSalesV4Options: RouteOptions = {
           royaltyFeeBps: Joi.number(),
           marketplaceFeeBps: Joi.number(),
           paidFullRoyalty: Joi.boolean(),
-          feeBreakdown: Joi.array().items(
-            Joi.object({
-              kind: Joi.string(),
-              bps: Joi.number(),
-              recipient: Joi.string(),
-            })
-          ),
+          feeBreakdown: Joi.array().items(JoiFeeBreakdown),
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
@@ -350,7 +351,7 @@ export const getSalesV4Options: RouteOptions = {
         const fillSource =
           r.fill_source_id !== null ? sources.get(Number(r.fill_source_id)) : undefined;
 
-        const feeInfoIsValid = (r.royalty_fee_bps ?? 0) + (r.marketplace_fee_bps ?? 0) < 10000;
+        const saleFeeInfoIsValid = feeInfoIsValid(r.royalty_fee_bps, r.marketplace_fee_bps);
 
         return {
           id: crypto
@@ -398,30 +399,14 @@ export const getSalesV4Options: RouteOptions = {
             (r.royalty_fee_bps ?? 0) + (r.marketplace_fee_bps ?? 0)
           ),
           washTradingScore: r.wash_trading_score,
-          royaltyFeeBps:
-            r.royalty_fee_bps !== null && feeInfoIsValid ? r.royalty_fee_bps : undefined,
-          marketplaceFeeBps:
-            r.marketplace_fee_bps !== null && feeInfoIsValid ? r.marketplace_fee_bps : undefined,
-          paidFullRoyalty:
-            r.paid_full_royalty !== null && feeInfoIsValid ? r.paid_full_royalty : undefined,
-          feeBreakdown:
-            (r.royalty_fee_breakdown !== null || r.marketplace_fee_breakdown !== null) &&
-            feeInfoIsValid
-              ? [].concat(
-                  (r.royalty_fee_breakdown ?? []).map((detail: any) => {
-                    return {
-                      kind: "royalty",
-                      ...detail,
-                    };
-                  }),
-                  (r.marketplace_fee_breakdown ?? []).map((detail: any) => {
-                    return {
-                      kind: "marketplace",
-                      ...detail,
-                    };
-                  })
-                )
-              : undefined,
+          royaltyFeeBps: getFeeValue(r.royalty_fee_bps, saleFeeInfoIsValid),
+          marketplaceFeeBps: getFeeValue(r.marketplace_fee_bps, saleFeeInfoIsValid),
+          paidFullRoyalty: getFeeValue(r.paid_full_royalty, saleFeeInfoIsValid),
+          feeBreakdown: getFeeBreakdown(
+            r.royalty_fee_breakdown,
+            r.marketplace_fee_breakdown,
+            saleFeeInfoIsValid
+          ),
         };
       });
 

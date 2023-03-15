@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { BigNumberish } from "@ethersproject/bignumber";
 import Joi from "joi";
 
@@ -185,3 +187,123 @@ export const JoiOrderCriteria = Joi.alternatives(
     kind: "custom",
   })
 );
+
+// --- Sales ---
+
+export const JoiFeeBreakdown = Joi.object({
+  kind: Joi.string(),
+  bps: Joi.number(),
+  recipient: Joi.string(),
+});
+
+export const JoiSale = Joi.object({
+  price: JoiPrice,
+  timestamp: Joi.number(),
+  royaltyFeeBps: Joi.number().optional(),
+  marketplaceFeeBps: Joi.number().optional(),
+  paidFullRoyalty: Joi.boolean().optional(),
+  feeBreakdown: Joi.array().items(JoiFeeBreakdown).optional(),
+});
+
+export const feeInfoIsValid = (
+  royaltyFeeBps: number | undefined,
+  marketplaceFeeBps: number | undefined
+) => {
+  return (royaltyFeeBps ?? 0) + (marketplaceFeeBps ?? 0) < 10000;
+};
+
+export const getFeeValue = (feeValue: any, validFees: boolean) => {
+  return feeValue !== null && validFees ? feeValue : undefined;
+};
+
+export const getFeeBreakdown = (
+  royaltyFeeBreakdown: any,
+  marketplaceFeeBreakdown: any,
+  validFees: boolean
+) => {
+  return (royaltyFeeBreakdown !== null || marketplaceFeeBreakdown !== null) && validFees
+    ? [].concat(
+        (royaltyFeeBreakdown ?? []).map((detail: any) => {
+          return {
+            kind: "royalty",
+            ...detail,
+          };
+        }),
+        (marketplaceFeeBreakdown ?? []).map((detail: any) => {
+          return {
+            kind: "marketplace",
+            ...detail,
+          };
+        })
+      )
+    : undefined;
+};
+
+export const getJoiLastSaleObject = async (
+  prices: {
+    gross: {
+      amount: string;
+      nativeAmount?: string;
+      usdAmount?: string;
+    };
+    net?: {
+      amount: string;
+      nativeAmount?: string;
+      usdAmount?: string;
+    };
+  },
+  fees: {
+    totalFeeBps?: number;
+    royaltyFeeBps?: number;
+    marketplaceFeeBps?: number;
+    paidFullRoyalty?: boolean;
+    royaltyFeeBreakdown?: any;
+    marketplaceFeeBreakdown?: any;
+  },
+  currencyAddress: string,
+  timestamp: number
+) => {
+  const currency = await getCurrency(currencyAddress);
+  const lastSaleFeeInfoIsValid = feeInfoIsValid(fees.royaltyFeeBps, fees.marketplaceFeeBps);
+  return {
+    price: {
+      currency: {
+        contract: currency.contract,
+        name: currency.name,
+        symbol: currency.symbol,
+        decimals: currency.decimals,
+      },
+      amount: await getJoiAmountObject(
+        currency,
+        prices.gross.amount,
+        prices.gross.nativeAmount,
+        prices.gross.usdAmount
+      ),
+      netAmount: prices.net
+        ? await getJoiAmountObject(
+            currency,
+            prices.net.amount,
+            prices.net.nativeAmount,
+            prices.net.usdAmount
+          )
+        : fees.totalFeeBps && fees.totalFeeBps < 10000
+        ? await getJoiAmountObject(
+            currency,
+            prices.gross.amount,
+            prices.gross.nativeAmount,
+            prices.gross.usdAmount,
+            fees.totalFeeBps
+          )
+        : undefined,
+    },
+    timestamp: timestamp,
+    royaltyFeeBps: getFeeValue(fees.royaltyFeeBps, lastSaleFeeInfoIsValid),
+    marketplaceFeeBps: getFeeValue(fees.marketplaceFeeBps, lastSaleFeeInfoIsValid),
+    paidFullRoyalty: getFeeValue(fees.paidFullRoyalty, lastSaleFeeInfoIsValid),
+    feeBreakdown: getFeeBreakdown(
+      fees.royaltyFeeBreakdown,
+      fees.marketplaceFeeBreakdown,
+      lastSaleFeeInfoIsValid
+    ),
+  };
+};
