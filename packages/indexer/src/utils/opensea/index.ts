@@ -62,7 +62,7 @@ export const tryGetCollectionOpenseaFees = async (
   tokenId: string,
   timeout = 5000
 ) => {
-  let openseaFees = new Map<string, number>();
+  let openseaFees: { [recipient: string]: number } = {};
   let isSuccess = false;
 
   await Promise.race([

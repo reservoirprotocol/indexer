@@ -8,6 +8,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { getCollectionOpenseaFees } from "@/orderbook/orders/seaport/build/utils";
+import { logger } from "@/common/logger";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -55,7 +56,6 @@ export const getBuildInfo = async (
         collections.new_royalties,
         collections.marketplace_fees,
         collections.contract,
-        collections.token_id_range,
         collections.community
       FROM collections
       JOIN contracts
@@ -157,12 +157,29 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
-    const openseaMarketplaceFees = await getCollectionOpenseaFees(
-      collection,
-      fromBuffer(collectionResult.contract),
-      totalBps,
-      collectionResult.marketplace_fees?.opensea
-    );
+    let openseaMarketplaceFees = collectionResult.marketplace_fees?.opensea;
+
+    if (collectionResult.marketplace_fees?.opensea == null) {
+      openseaMarketplaceFees = await getCollectionOpenseaFees(
+        collection,
+        fromBuffer(collectionResult.contract),
+        totalBps
+      );
+
+      logger.info(
+        "getCollectionOpenseaFees",
+        `From api. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
+          openseaMarketplaceFees
+        )}`
+      );
+    } else {
+      logger.info(
+        "getCollectionOpenseaFees",
+        `From db. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
+          openseaMarketplaceFees
+        )}`
+      );
+    }
 
     for (const [feeRecipient, feeBps] of openseaMarketplaceFees) {
       options.fee.push(feeBps);
