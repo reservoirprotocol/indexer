@@ -33,15 +33,18 @@ export class DeploymentHelper {
     if (options?.verifyOnEtherscan) {
       // Wait for the deployment tx to get propagated
       await new Promise((resolve) => setTimeout(resolve, 90 * 1000));
-
-      await hre.run("verify:verify", {
-        address: contract.address,
-        constructorArguments: args,
-      });
-      console.log(`"${contractName}" successfully verified on Etherscan`);
+      await this.verify(contractName, contract.address, args);
     }
 
     return contract;
+  }
+
+  public async verify(contractName: string, contractAddress: string, args: any[]) {
+    await hre.run("verify:verify", {
+      address: contractAddress,
+      constructorArguments: args,
+    });
+    console.log(`"${contractName}" successfully verified on Etherscan`);
   }
 }
 
@@ -49,13 +52,10 @@ const main = async () => {
   const deploymentHelper = await DeploymentHelper.getInstance();
   const chainId = await deploymentHelper.deployer.getChainId();
 
-  // await deploymentHelper.deploy(
-  //   "SwapModule",
-  //   [deploymentHelper.deployer.address, Addresses.Router[chainId]],
-  //   {
-  //     verifyOnEtherscan: true,
-  //   }
-  // );
+  const args = [deploymentHelper.deployer.address];
+  // await deploymentHelper.deploy("Permit2Module", args, {
+  //   verifyOnEtherscan: true,
+  // });
 };
 
 main()
