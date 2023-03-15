@@ -157,7 +157,8 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
-    let openseaMarketplaceFees = collectionResult.marketplace_fees?.opensea;
+    let openseaMarketplaceFees: { bps: number; recipient: string }[] =
+      collectionResult.marketplace_fees?.opensea;
 
     if (collectionResult.marketplace_fees?.opensea == null) {
       openseaMarketplaceFees = await getCollectionOpenseaFees(
@@ -181,9 +182,9 @@ export const getBuildInfo = async (
       );
     }
 
-    for (const [feeRecipient, feeBps] of openseaMarketplaceFees) {
-      options.fee.push(feeBps);
-      options.feeRecipient.push(feeRecipient);
+    for (const openseaMarketplaceFee of openseaMarketplaceFees) {
+      options.fee.push(openseaMarketplaceFee.bps);
+      options.feeRecipient.push(openseaMarketplaceFee.recipient);
     }
   }
 
