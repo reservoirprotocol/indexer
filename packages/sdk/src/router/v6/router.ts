@@ -428,7 +428,11 @@ export class Router {
           try {
             const order = detail.order as Sdk.Seaport.Types.PartialOrder;
             const result = await axios.get(
-              `https://order-fetcher.vercel.app/api/listing?orderHash=${order.id}&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.1`,
+              `https://order-fetcher.vercel.app/api/listing?contract=${detail.contract}&tokenId=${
+                detail.tokenId
+              }${order.unitPrice ? `&unitPrice=${order.unitPrice}` : ""}&orderHash=${
+                order.id
+              }&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.1`,
               {
                 headers: {
                   "X-Api-Key": this.options?.orderFetcherApiKey,
@@ -460,7 +464,11 @@ export class Router {
           try {
             const order = detail.order as Sdk.SeaportV14.Types.PartialOrder;
             const result = await axios.get(
-              `https://order-fetcher.vercel.app/api/listing?orderHash=${order.id}&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.4`,
+              `https://order-fetcher.vercel.app/api/listing?contract=${detail.contract}&tokenId=${
+                detail.tokenId
+              }${order.unitPrice ? `&unitPrice=${order.unitPrice}` : ""}&orderHash=${
+                order.id
+              }&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.4`,
               {
                 headers: {
                   "X-Api-Key": this.options?.orderFetcherApiKey,
@@ -569,7 +577,7 @@ export class Router {
               txData: {
                 from: data.from,
                 to: data.to,
-                data: data.data,
+                data: data.data + generateSourceBytes(options?.source),
                 value: data.value,
               },
               orderIndexes: [],

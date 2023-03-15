@@ -128,7 +128,7 @@ export const getSearchCollectionsV1Options: RouteOptions = {
                     allTimeVolume,
                     currentTime
                   )
-                ).nativePrice
+                ).currencyPrice
               : null;
 
             floorAskPrice = floorAskPrice
@@ -139,7 +139,7 @@ export const getSearchCollectionsV1Options: RouteOptions = {
                     floorAskPrice,
                     currentTime
                   )
-                ).nativePrice
+                ).currencyPrice
               : null;
           }
 

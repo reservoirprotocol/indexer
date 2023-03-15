@@ -28,7 +28,8 @@ export interface RoyaltyAdapter {
   extractRoyalties(
     fillEvent: es.fills.Event,
     cache: StateCache,
-    useCache?: boolean
+    useCache?: boolean,
+    forceOnChain?: boolean
   ): Promise<RoyaltyResult | null>;
 }
 
@@ -95,7 +96,8 @@ const subFeeWithBps = (amount: BigNumberish, totalFeeBps: number) => {
 
 export const assignRoyaltiesToFillEvents = async (
   fillEvents: es.fills.Event[],
-  enableCache = true
+  enableCache = true,
+  forceOnChain = false
 ) => {
   const cache: StateCache = {
     royalties: new Map(),
@@ -113,7 +115,12 @@ export const assignRoyaltiesToFillEvents = async (
         const royaltyAdapter = registry.get(fillEvent.orderKind) ?? registry.get("fallback");
         try {
           if (royaltyAdapter) {
-            const result = await royaltyAdapter.extractRoyalties(fillEvent, cache, enableCache);
+            const result = await royaltyAdapter.extractRoyalties(
+              fillEvent,
+              cache,
+              enableCache,
+              forceOnChain
+            );
             if (result) {
               const isValid = checkFeeIsValid(result);
               if (!isValid) {

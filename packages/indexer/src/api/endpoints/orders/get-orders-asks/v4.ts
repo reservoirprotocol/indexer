@@ -66,7 +66,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .description("Filter to a particular collection set."),
       contracts: Joi.alternatives()
         .try(
-          Joi.array().max(50).items(Joi.string().lowercase().pattern(regex.address)),
+          Joi.array().max(80).items(Joi.string().lowercase().pattern(regex.address)),
           Joi.string().lowercase().pattern(regex.address)
         )
         .description(

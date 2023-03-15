@@ -22,6 +22,7 @@ import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import * as onChainData from "@/utils/on-chain-data";
 import { getPermitId, getPermit, savePermit } from "@/utils/permits/ft";
+import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
 
@@ -157,6 +158,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           currency: Joi.string().lowercase().pattern(regex.address),
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
+          buyInQuote: Joi.number().unsafe(),
+          buyInRawQuote: Joi.string().pattern(regex.number),
         })
       ),
     }).label(`getExecuteBuy${version.toUpperCase()}Response`),
@@ -191,6 +194,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         currency: string;
         quote: number;
         rawQuote: string;
+        buyInQuote?: number;
+        buyInRawQuote?: string;
       }[] = [];
 
       // Keep track of dynamically-priced orders (eg. from pools like Sudoswap and NFTX)
@@ -358,6 +363,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           const result = await idb.oneOrNone(
             `
               SELECT
+                orders.id,
                 orders.kind,
                 contracts.kind AS token_kind,
                 coalesce(orders.currency_price, orders.price) AS price,
@@ -551,6 +557,30 @@ export const getExecuteBuyV7Options: RouteOptions = {
         } else {
           // If multiple different-currency orders are to get filled, we use the native currency
           buyInCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+        }
+      }
+
+      // Add the quotes in the "buy-in" currency to the path items
+      for (const item of path) {
+        if (item.currency !== buyInCurrency) {
+          const buyInPrices = await getUSDAndCurrencyPrices(
+            item.currency,
+            buyInCurrency,
+            item.rawQuote,
+            now(),
+            {
+              acceptStalePrice: true,
+            }
+          );
+
+          if (buyInPrices.currencyPrice) {
+            item.buyInQuote = formatPrice(
+              buyInPrices.currencyPrice,
+              (await getCurrency(item.currency)).decimals,
+              true
+            );
+            item.buyInRawQuote = buyInPrices.currencyPrice;
+          }
         }
       }
 

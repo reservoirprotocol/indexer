@@ -111,6 +111,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
   client.onItemMetadataUpdated("*", async (event) => {
     try {
+      return;
+
       if (getSupportedChainName() != event.payload.item.chain.name) {
         return;
       }
@@ -145,6 +147,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
 
       if (parsedMetadata) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         await metadataIndexWrite.addToQueue([parsedMetadata]);
       }
     } catch (error) {

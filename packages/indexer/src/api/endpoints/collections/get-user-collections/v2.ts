@@ -280,16 +280,6 @@ export const getUserCollectionsV2Options: RouteOptions = {
       if (query.includeTopBid) {
         topBidQuery = `LEFT JOIN LATERAL (
           SELECT
-            token_sets.top_buy_value,
-            token_sets.top_buy_maker
-          FROM token_sets
-          WHERE token_sets.id = x.token_set_id
-          ORDER BY token_sets.top_buy_value DESC
-          LIMIT 1
-        ) y ON TRUE`;
-
-        topBidQuery = `LEFT JOIN LATERAL (
-          SELECT
             ts.top_buy_id,
             ts.top_buy_value,
             o.source_id_int AS top_buy_source_id_int,

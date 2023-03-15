@@ -197,14 +197,6 @@ export type USDAndNativePrices = {
   nativePrice?: string;
 };
 
-/**
- * Will return USD and price in the native currency of the current chain
- *
- * @param currencyAddress
- * @param price
- * @param timestamp
- * @param options
- */
 export const getUSDAndNativePrices = async (
   currencyAddress: string,
   price: string,
@@ -267,27 +259,23 @@ export const getUSDAndNativePrices = async (
   return { usdPrice, nativePrice };
 };
 
-/**
- * Convert between currencies
- *
- * @param fromCurrencyAddress
- * @param toCurrency
- * @param price
- * @param timestamp
- * @param options
- */
+export type USDAndCurrencyPrices = {
+  usdPrice?: string;
+  currencyPrice?: string;
+};
+
 export const getUSDAndCurrencyPrices = async (
   fromCurrencyAddress: string,
-  toCurrency: string,
+  toCurrencyAddress: string,
   price: string,
   timestamp: number,
   options?: {
     onlyUSD?: boolean;
     acceptStalePrice?: boolean;
   }
-): Promise<USDAndNativePrices> => {
+): Promise<USDAndCurrencyPrices> => {
   let usdPrice: string | undefined;
-  let nativePrice: string | undefined;
+  let currencyPrice: string | undefined;
 
   // Only try to get pricing data if the network supports it
   if (getNetworkSettings().coingecko?.networkId) {
@@ -301,27 +289,30 @@ export const getUSDAndCurrencyPrices = async (
     let toCurrencyUSDPrice: Price | undefined;
     if (!options?.onlyUSD) {
       toCurrencyUSDPrice = await getAvailableUSDPrice(
-        toCurrency,
+        toCurrencyAddress,
         timestamp,
         options?.acceptStalePrice
       );
     }
 
-    const currency = await getCurrency(fromCurrencyAddress);
+    const fromCurrency = await getCurrency(fromCurrencyAddress);
+    const toCurrency = await getCurrency(toCurrencyAddress);
 
-    if (currency.decimals && fromCurrencyUSDPrice) {
-      const currencyUnit = bn(10).pow(currency.decimals);
-      usdPrice = bn(price).mul(fromCurrencyUSDPrice.value).div(currencyUnit).toString();
+    if (fromCurrency.decimals && fromCurrencyUSDPrice) {
+      const fromCurrencyUnit = bn(10).pow(fromCurrency.decimals!);
+      const toCurrencyUnit = bn(10).pow(toCurrency.decimals!);
+
+      usdPrice = bn(price).mul(fromCurrencyUSDPrice.value).div(fromCurrencyUnit).toString();
       if (toCurrencyUSDPrice) {
-        nativePrice = bn(price)
+        currencyPrice = bn(price)
           .mul(fromCurrencyUSDPrice.value)
-          .mul(NATIVE_UNIT)
+          .mul(toCurrencyUnit)
           .div(toCurrencyUSDPrice.value)
-          .div(currencyUnit)
+          .div(fromCurrencyUnit)
           .toString();
       }
     }
   }
 
-  return { usdPrice, nativePrice };
+  return { usdPrice, currencyPrice };
 };

@@ -32,6 +32,8 @@ addPlatformAddress("sudoswap", [
   "0xb16c1342e617a5b6e4b631eb114483fdb289c0a4",
 ]);
 
+addPlatformAddress("bend-dao", ["0xf3ab1d58ce6b9e0d42b8958c918649305e1b1d26"]);
+
 // Exchange List
 allExchangeList.set("seaport", Sdk.Seaport.Addresses.Exchange[config.chainId]);
 allExchangeList.set("seaport-v1.4", Sdk.SeaportV14.Addresses.Exchange[config.chainId]);
