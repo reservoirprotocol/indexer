@@ -62,10 +62,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           return;
         }
 
-        // logger.debug(
-        //   "opensea-websocket",
-        //   `Processing event. network=${network}, event=${JSON.stringify(event)}`
-        // );
+        logger.debug(
+          "opensea-websocket",
+          `Processing event. network=${network}, event=${JSON.stringify(event)}`
+        );
 
         await saveEvent(event);
 
