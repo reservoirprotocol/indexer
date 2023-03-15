@@ -81,6 +81,10 @@ export const getUserTokensV6Options: RouteOptions = {
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
+      sortBy: Joi.string()
+        .valid("acquiredAt", "lastAppraisalValue")
+        .default("acquiredAt")
+        .description("Order the items are returned in the response."),
       sortDirection: Joi.string()
         .lowercase()
         .valid("asc", "desc")
@@ -134,6 +138,7 @@ export const getUserTokensV6Options: RouteOptions = {
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
             }).optional(),
+            lastAppraisalValue: Joi.number().unsafe().allow(null),
           }),
           ownership: Joi.object({
             tokenCount: Joi.string(),
@@ -363,7 +368,7 @@ export const getUserTokensV6Options: RouteOptions = {
 
     try {
       let baseQuery = `
-        SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at,
+        SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
                t.name, t.image, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
                t.rarity_score, t.last_sell_value, t.last_buy_value, t.last_sell_timestamp, t.last_buy_timestamp,
@@ -380,7 +385,7 @@ export const getUserTokensV6Options: RouteOptions = {
                     END
                ) AS on_sale_count
         FROM (
-            SELECT amount AS token_count, token_id, contract, acquired_at
+            SELECT amount AS token_count, token_id, contract, acquired_at, last_token_appraisal_value
             FROM nft_balances
             WHERE owner = $/user/
               AND ${
@@ -403,42 +408,72 @@ export const getUserTokensV6Options: RouteOptions = {
       const conditions: string[] = [];
 
       if (query.continuation) {
-        const [acquiredAt, collectionId, tokenId] = splitContinuation(
+        const [acquiredAtOrLastAppraisalValue, collectionId, tokenId] = splitContinuation(
           query.continuation,
           /^[0-9]+_[A-Za-z0-9:-]+_[0-9]+$/
         );
 
-        (query as any).acquiredAt = acquiredAt;
+        (query as any).acquiredAtOrLastAppraisalValue = acquiredAtOrLastAppraisalValue;
         (query as any).collectionId = collectionId;
         (query as any).tokenId = tokenId;
+
         query.sortDirection = query.sortDirection || "desc";
-        const sign = query.sortDirection == "desc" ? "<" : ">";
-        conditions.push(
-          `(acquired_at, b.token_id) ${sign} (to_timestamp($/acquiredAt/), $/tokenId/)`
-        );
+
+        if (query.sortBy === "acquiredAt") {
+          conditions.push(
+            `(acquired_at, b.token_id) ${
+              query.sortDirection == "desc" ? "<" : ">"
+            } (to_timestamp($/acquiredAtOrLastAppraisalValue/), $/tokenId/)`
+          );
+        } else {
+          conditions.push(
+            `(last_token_appraisal_value, b.token_id) ${
+              query.sortDirection == "desc" ? "<" : ">"
+            } ($/acquiredAtOrLastAppraisalValue/, $/tokenId/)`
+          );
+        }
       }
 
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
 
-      baseQuery += `
+      // Sorting
+      if (query.sortBy === "acquiredAt") {
+        baseQuery += `
         ORDER BY
           acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
         LIMIT $/limit/
       `;
+      } else {
+        baseQuery += `
+        ORDER BY
+          last_token_appraisal_value ${query.sortDirection} NULLS LAST, b.token_id ${query.sortDirection}
+        LIMIT $/limit/
+      `;
+      }
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
 
       let continuation = null;
       if (userTokens.length === query.limit) {
-        continuation = buildContinuation(
-          _.toInteger(userTokens[userTokens.length - 1].acquired_at) +
-            "_" +
-            userTokens[userTokens.length - 1].collection_id +
-            "_" +
-            userTokens[userTokens.length - 1].token_id
-        );
+        if (query.sortBy === "acquiredAt") {
+          continuation = buildContinuation(
+            _.toInteger(userTokens[userTokens.length - 1].acquired_at) +
+              "_" +
+              userTokens[userTokens.length - 1].collection_id +
+              "_" +
+              userTokens[userTokens.length - 1].token_id
+          );
+        } else {
+          continuation = buildContinuation(
+            _.toInteger(userTokens[userTokens.length - 1].last_token_appraisal_value) +
+              "_" +
+              userTokens[userTokens.length - 1].collection_id +
+              "_" +
+              userTokens[userTokens.length - 1].token_id
+          );
+        }
       }
 
       const sources = await Sources.getInstance();
@@ -504,6 +539,9 @@ export const getUserTokensV6Options: RouteOptions = {
                     : null,
                 }
               : undefined,
+            lastAppraisalValue: r.last_token_appraisal_value
+              ? formatEth(r.last_token_appraisal_value)
+              : null,
           },
           ownership: {
             tokenCount: String(r.token_count),
