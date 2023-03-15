@@ -19,20 +19,24 @@ import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { TransactionTrace } from "@/models/transaction-traces";
 import { Royalty, getRoyalties } from "@/utils/royalties";
+import { getFillEventsFromTxOnChain } from "./utils";
 
 function findPayment(payments: Payment[], fillEvent: PartialFillEvent) {
-  return payments.find((payment) => {
-    const matchTokenId = payment.token.includes(`${fillEvent.contract}:${fillEvent.tokenId}`);
-    const macthERC20 =
-      payment.token.includes(fillEvent.contract) && payment.amount.includes(fillEvent.tokenId);
-    return matchTokenId || macthERC20;
-  });
+  return payments.find((payment) => paymentIsMatch(payment, fillEvent));
+}
+
+function paymentIsMatch(payment: Payment, fillEvent: PartialFillEvent) {
+  const matchTokenId = payment.token.includes(`${fillEvent.contract}:${fillEvent.tokenId}`);
+  const macthERC20 =
+    payment.token.includes(fillEvent.contract) && payment.amount.includes(fillEvent.tokenId);
+  return matchTokenId || macthERC20;
 }
 
 export async function extractRoyalties(
   fillEvent: es.fills.Event,
   cache: StateCache,
-  useCache?: boolean
+  useCache?: boolean,
+  forceOnChain?: boolean
 ) {
   const creatorRoyaltyFeeBreakdown: Royalty[] = [];
   const marketplaceFeeBreakdown: Royalty[] = [];
@@ -69,11 +73,17 @@ export async function extractRoyalties(
       fillEvents = JSON.parse(result) as PartialFillEvent[];
     }
   }
+
   if (!fillEvents) {
     fillEvents = await getFillEventsFromTx(txHash);
     if (useCache) {
       await redis.set(cacheKeyEvents, JSON.stringify(fillEvents), "EX", 10 * 60);
     }
+  }
+
+  // Fallback
+  if (forceOnChain) {
+    fillEvents = (await getFillEventsFromTxOnChain(txHash)).fillEvents;
   }
 
   // Get all related royaltly settings from the same transaction
@@ -91,10 +101,6 @@ export async function extractRoyalties(
       };
     })
   );
-
-  const otherRoyaltiesDefinition = allRoyaltiesDefinition.filter((c) => {
-    return c.contract != contract && c.tokenId != tokenId;
-  });
 
   let traceToAnalyze = txTrace.calls;
   let usingExchangeCall = false;
@@ -149,6 +155,7 @@ export async function extractRoyalties(
 
   shouldExcludeAddressList.add(Sdk.Common.Addresses.Weth[config.chainId]);
   shouldExcludeAddressList.add(Sdk.Common.Addresses.Eth[config.chainId]);
+  shouldExcludeAddressList.add(Sdk.BendDao.Addresses.BendWETH[config.chainId]);
 
   const tracePayments = getPayments(traceToAnalyze);
 
@@ -179,6 +186,47 @@ export async function extractRoyalties(
       }
     }) || [];
 
+  const platformFeeRecipients: string[] =
+    platformFeeRecipientsRegistry.get(fillEvent.orderKind) ?? [];
+
+  // Split by platform fee
+  const chunkedPayments: Payment[][] = [[]];
+  const protocolFillEventsByOrder = protocolFillEvents
+    .map((event) => {
+      return {
+        event,
+        index: tracePayments.findIndex((c) => paymentIsMatch(c, event)),
+      };
+    })
+    .sort((a, b) => a.index - b.index);
+
+  const usingDelimitByFee = false;
+
+  // if (protocolFillEvents.length > 1 && ["seaport", "seaport-v1.4"].includes(fillEvent.orderKind)) {
+  //   tracePayments.reduce((total, item) => {
+  //     if (platformFeeRecipients.includes(item.to)) {
+  //       total.push([]);
+  //     }
+  //     total[total.length - 1].push(item);
+  //     return total;
+  //   }, chunkedPayments);
+  //   usingDelimitByFee = true;
+  // }
+
+  const protocolFillEventsWithPayments = protocolFillEventsByOrder.map((item, index) => {
+    return {
+      ...item,
+      payments: chunkedPayments[index],
+    };
+  });
+
+  const currentFillEventWithPayments = protocolFillEventsWithPayments.find(
+    (c) =>
+      c.event.tokenId === fillEvent.tokenId &&
+      c.event.contract === fillEvent.contract &&
+      c.event.price === fillEvent.price
+  );
+
   // For same token only count once
   const idTrackers = new Set();
   const protocolRelatedAmount = protocolFillEvents
@@ -205,8 +253,35 @@ export async function extractRoyalties(
 
   const state = getStateChange(traceToAnalyze);
 
+  // Flatten by recipient
+  const recipientRelatedDefinitions: {
+    recipient: string;
+    bps: number;
+    contract: string;
+    tokenId: string;
+  }[] = [];
+
+  allRoyaltiesDefinition.reduce((all, config) => {
+    if (config.royalties) {
+      config.royalties.forEach(({ recipient, bps }) => {
+        const inSameCall = protocolFillEvents.find(
+          (c) => c.contract === config.contract && c.tokenId === config.tokenId
+        );
+        if (inSameCall) {
+          all.push({
+            recipient,
+            bps,
+            contract: config.contract,
+            tokenId: config.tokenId,
+          });
+        }
+      });
+    }
+    return all;
+  }, recipientRelatedDefinitions);
+
   const matchDefinition = allRoyaltiesDefinition.find(
-    (_) => _.contract === contract && _.tokenId === tokenId
+    (_) => _.contract === contract && _.tokenId === tokenId && _.royalties
   );
   const royalties = matchDefinition ? matchDefinition.royalties : [];
 
@@ -215,9 +290,6 @@ export async function extractRoyalties(
 
   // BPS < 30%
   const threshold = 3000;
-
-  const platformFeeRecipients: string[] =
-    platformFeeRecipientsRegistry.get(fillEvent.orderKind) ?? [];
 
   for (const address in state) {
     const { tokenBalanceState } = state[address];
@@ -245,7 +317,31 @@ export async function extractRoyalties(
         curRoyalties.bps = bn(balanceChange).mul(10000).div(protocolRelatedAmount).toNumber();
         marketplaceFeeBreakdown.push(curRoyalties);
       } else {
-        const bps = bn(balanceChange).mul(10000).div(collectionRelatedAmount).toNumber();
+        // For multiple sales in one tx, we need delimit by fee payment, and
+        // only process the related payments address
+        if (usingDelimitByFee) {
+          const isInsidePayments = currentFillEventWithPayments?.payments.find(
+            (c) => c.to == address || c.from == address
+          );
+          if (!isInsidePayments) {
+            // Skip if not in the range of payments
+            continue;
+          }
+        }
+
+        let bps: number;
+
+        // For different collection with same fee recipient
+        const shareSameRecepient =
+          recipientRelatedDefinitions.filter((c) => c.recipient === address).length ===
+          protocolFillEvents.length;
+
+        if (shareSameRecepient) {
+          bps = bn(balanceChange).mul(10000).div(protocolRelatedAmount).toNumber();
+        } else {
+          bps = bn(balanceChange).mul(10000).div(collectionRelatedAmount).toNumber();
+        }
+
         if (royaltyRecipients.includes(address)) {
           // For multiple same collection sales in one tx
           curRoyalties.bps = bps;
@@ -258,12 +354,8 @@ export async function extractRoyalties(
           !shouldExcludeAddressList.has(address) &&
           !allPlatformFeeRecipients.has(address);
 
-        const notInOtherDef = !otherRoyaltiesDefinition.find((_) =>
-          _.royalties.find((c) => c.recipient === address)
-        );
-
         const isAMM = ["sudoswap", "nftx"].includes(fillEvent.orderKind);
-        if (isEligible && notInOtherDef && !isAMM) {
+        if (isEligible && !isAMM) {
           curRoyalties.bps = bps;
           royaltyFeeBreakdown.push(curRoyalties);
         }

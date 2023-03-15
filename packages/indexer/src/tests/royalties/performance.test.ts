@@ -3,7 +3,8 @@ dotEnvConfig();
 
 import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties/index";
 import { getRoyalties } from "@/utils/royalties";
-import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
+import { getFillEventsFromTx } from "@/events-sync/handlers/royalties/utils";
+import { jest, describe, it } from "@jest/globals";
 
 jest.setTimeout(1000 * 1000);
 

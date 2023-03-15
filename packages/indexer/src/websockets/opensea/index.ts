@@ -62,10 +62,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           return;
         }
 
-        // logger.debug(
-        //   "opensea-websocket",
-        //   `Processing event. network=${network}, event=${JSON.stringify(event)}`
-        // );
+        logger.debug(
+          "opensea-websocket",
+          `Processing event. network=${network}, event=${JSON.stringify(event)}`
+        );
 
         await saveEvent(event);
 
@@ -122,7 +122,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       const [, contract, tokenId] = event.payload.item.nft_id.split("/");
       const token = await Tokens.getByContractAndTokenId(contract, tokenId);
 
-      if (!token) {
+      if (!token || token.metadataIndexed) {
         return;
       }
 

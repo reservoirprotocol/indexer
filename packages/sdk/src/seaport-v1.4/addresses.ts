@@ -50,6 +50,6 @@ export const PausableZone: ChainIdToAddress = {
 export const ApprovalOrderZone: ChainIdToAddress = {};
 
 export const CancellationZone: ChainIdToAddress = {
-  [Network.Ethereum]: "0xe1066481cc3b038badd0c68dfa5c8f163c3ff192",
+  [Network.Ethereum]: "0xaa0e012d35cf7d6ecb6c2bf861e71248501d3226",
   [Network.EthereumGoerli]: "0x49b91d1d7b9896d28d370b75b92c2c78c1ac984a",
 };

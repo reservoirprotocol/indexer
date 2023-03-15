@@ -253,6 +253,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/resync-sale-royalties",
+    options: adminEndpoints.postResyncSaleRoyalties,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/sync-arweave",
     options: adminEndpoints.postSyncArweaveOptions,
   });
