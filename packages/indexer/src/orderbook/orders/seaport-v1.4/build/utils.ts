@@ -9,6 +9,9 @@ import { bn, fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { getCollectionOpenseaFees } from "@/orderbook/orders/seaport/build/utils";
 import { logger } from "@/common/logger";
+import { redis } from "@/common/redis";
+import { Tokens } from "@/models/tokens";
+import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -157,6 +160,7 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
+    // Get opensea marketplace fees
     let openseaMarketplaceFees: { bps: number; recipient: string }[] =
       collectionResult.marketplace_fees?.opensea;
 
@@ -185,6 +189,36 @@ export const getBuildInfo = async (
     for (const openseaMarketplaceFee of openseaMarketplaceFees) {
       options.fee.push(openseaMarketplaceFee.bps);
       options.feeRecipient.push(openseaMarketplaceFee.recipient);
+    }
+
+    // Refresh opensea fees
+    if (
+      (await redis.set(
+        `refresh-collection-opensea-fees:${collection}`,
+        now(),
+        "EX",
+        3600,
+        "NX"
+      )) === "OK"
+    ) {
+      logger.info(
+        "getCollectionOpenseaFees",
+        `refresh fees. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
+          openseaMarketplaceFees
+        )}`
+      );
+
+      try {
+        const tokenId = await Tokens.getSingleToken(collectionResult.id);
+
+        await collectionUpdatesMetadata.addToQueue(
+          collectionResult.contract,
+          tokenId,
+          collectionResult.community
+        );
+      } catch {
+        // Skip errors
+      }
     }
   }
 
