@@ -318,9 +318,10 @@ export const getNetworkSettings = (): NetworkSettings => {
         enableWebSocket: false,
         enableReorgCheck: false,
         realtimeSyncFrequencySeconds: 5,
-        realtimeSyncMaxBlockLag: 20,
-        lastBlockLatency: 5,
-        backfillBlockBatchSize: 512,
+        realtimeSyncMaxBlockLag: 32,
+        lastBlockLatency: 15,
+        backfillBlockBatchSize: 60,
+        reorgCheckFrequency: [30],
         subDomain: "api-optimism",
         coingecko: {
           networkId: "optimistic-ethereum",
@@ -398,7 +399,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         enableWebSocket: false,
-        realtimeSyncMaxBlockLag: 35,
+        realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 10,
         subDomain: "api-arbitrum",

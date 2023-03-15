@@ -62,10 +62,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           return;
         }
 
-        // logger.debug(
-        //   "opensea-websocket",
-        //   `Processing event. network=${network}, event=${JSON.stringify(event)}`
-        // );
+        logger.debug(
+          "opensea-websocket",
+          `Processing event. network=${network}, event=${JSON.stringify(event)}`
+        );
 
         await saveEvent(event);
 
@@ -111,8 +111,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
   client.onItemMetadataUpdated("*", async (event) => {
     try {
-      return;
-
       if (getSupportedChainName() != event.payload.item.chain.name) {
         return;
       }
@@ -124,7 +122,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       const [, contract, tokenId] = event.payload.item.nft_id.split("/");
       const token = await Tokens.getByContractAndTokenId(contract, tokenId);
 
-      if (!token) {
+      if (!token || token.metadataIndexed) {
         return;
       }
 
@@ -147,8 +145,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
 
       if (parsedMetadata) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
         await metadataIndexWrite.addToQueue([parsedMetadata]);
       }
     } catch (error) {

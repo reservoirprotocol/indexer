@@ -576,7 +576,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           if (buyInPrices.currencyPrice) {
             item.buyInQuote = formatPrice(
               buyInPrices.currencyPrice,
-              (await getCurrency(item.currency)).decimals,
+              (await getCurrency(buyInCurrency)).decimals,
               true
             );
             item.buyInRawQuote = buyInPrices.currencyPrice;
