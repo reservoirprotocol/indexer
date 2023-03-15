@@ -12,6 +12,8 @@ import { Tokens } from "@/models/tokens";
 import * as marketplaceFees from "@/utils/marketplace_fees";
 import { logger } from "@/common/logger";
 import { MarketPlaceFee } from "@/utils/marketplace_fees";
+import { redis } from "@/common/redis";
+import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -171,6 +173,36 @@ export const getBuildInfo = async (
     for (const openseaMarketplaceFee of openseaMarketplaceFees) {
       options.fee.push(openseaMarketplaceFee.bps);
       options.feeRecipient.push(openseaMarketplaceFee.recipient);
+    }
+
+    // Refresh opensea fees
+    if (
+      (await redis.set(
+        `refresh-collection-opensea-fees:${collection}`,
+        now(),
+        "EX",
+        3600,
+        "NX"
+      )) === "OK"
+    ) {
+      logger.info(
+        "getCollectionOpenseaFees",
+        `refresh fees. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
+          openseaMarketplaceFees
+        )}`
+      );
+
+      try {
+        const tokenId = await Tokens.getSingleToken(collectionResult.id);
+
+        await collectionUpdatesMetadata.addToQueue(
+          collectionResult.contract,
+          tokenId,
+          collectionResult.community
+        );
+      } catch {
+        // Skip errors
+      }
     }
   }
 

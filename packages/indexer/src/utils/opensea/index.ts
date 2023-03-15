@@ -88,11 +88,8 @@ export const tryGetCollectionOpenseaFees = async (
           openseaFees = response.data.collection.fees.opensea_fees;
           isSuccess = true;
         })
-        .catch((error) => {
-          logger.info(
-            "getCollectionOpenseaFees",
-            `api error. contract=${contract}, tokenId=${tokenId}, error=${error}`
-          );
+        .catch(() => {
+          // Skip errors
         });
     })(),
     new Promise((resolve) => setTimeout(resolve, timeout)),
