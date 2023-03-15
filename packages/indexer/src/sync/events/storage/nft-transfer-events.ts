@@ -255,13 +255,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         `);
       }
 
-      if (config.chainId === 137) {
-        for (const query of _.chunk(queries, 100)) {
-          await insertQueries(query, backfill);
-        }
-      } else {
-        await insertQueries(queries, backfill);
-      }
+      await insertQueries(queries, backfill);
     }
   }
 };
