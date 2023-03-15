@@ -21,7 +21,7 @@ export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => 
 
   // Skip posting orders that already expired
   if (order.params.endTime <= now()) {
-    return;
+    throw new InvalidRequestError("Order is expired");
   }
 
   await axios

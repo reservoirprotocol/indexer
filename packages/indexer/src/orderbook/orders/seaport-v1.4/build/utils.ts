@@ -166,14 +166,14 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
-    const openseaMarketplaceFees = await getCollectionOpenseaFees(
+    const openseaFees = await getCollectionOpenseaFees(
       collection,
       fromBuffer(collectionResult.contract),
       totalBps,
       collectionResult.marketplace_fees?.opensea
     );
 
-    for (const [feeRecipient, feeBps] of openseaMarketplaceFees) {
+    for (const [feeRecipient, feeBps] of openseaFees.entries()) {
       options.fee.push(feeBps);
       options.feeRecipient.push(feeRecipient);
     }
