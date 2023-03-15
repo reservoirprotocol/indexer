@@ -13,6 +13,7 @@ import {
 import { Tokens } from "@/models/tokens";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
+import * as marketplaceFees from "@/utils/marketplace_fees";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -114,7 +115,7 @@ export class Collections {
     await royalties.refreshDefaultRoyalties(collection.id);
 
     // Refresh marketplace fees
-    await royalties.updateMarketplaceFeeSpec(
+    await marketplaceFees.updateMarketplaceFeeSpec(
       collection.id,
       "opensea",
       collection.openseaFees as royalties.Royalty[] | undefined
