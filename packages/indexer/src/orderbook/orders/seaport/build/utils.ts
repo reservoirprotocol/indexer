@@ -143,7 +143,8 @@ export const getBuildInfo = async (
       options.feeRecipient = [];
     }
 
-    let openseaMarketplaceFees = collectionResult.marketplace_fees?.opensea;
+    let openseaMarketplaceFees: { bps: number; recipient: string }[] =
+      collectionResult.marketplace_fees?.opensea;
 
     if (collectionResult.marketplace_fees?.opensea == null) {
       openseaMarketplaceFees = await getCollectionOpenseaFees(
@@ -167,9 +168,9 @@ export const getBuildInfo = async (
       );
     }
 
-    for (const [feeRecipient, feeBps] of openseaMarketplaceFees) {
-      options.fee.push(feeBps);
-      options.feeRecipient.push(feeRecipient);
+    for (const openseaMarketplaceFee of openseaMarketplaceFees) {
+      options.fee.push(openseaMarketplaceFee.bps);
+      options.feeRecipient.push(openseaMarketplaceFee.recipient);
     }
   }
 
@@ -206,15 +207,13 @@ export const getCollectionOpenseaFees = async (
   contract: string,
   totalBps: number
 ) => {
-  let openseaFees: { [recipient: string]: number } = {};
+  const openseaMarketplaceFees: MarketPlaceFee[] = [];
 
   const tokenId = await Tokens.getSingleToken(collection);
   const tryGetCollectionOpenseaFeesResult = await tryGetCollectionOpenseaFees(contract, tokenId);
 
   if (tryGetCollectionOpenseaFeesResult.isSuccess) {
-    openseaFees = tryGetCollectionOpenseaFeesResult.openseaFees;
-
-    const openseaMarketplaceFees = [];
+    const openseaFees = tryGetCollectionOpenseaFeesResult.openseaFees;
 
     for (const [feeRecipient, feeBps] of Object.entries(openseaFees)) {
       openseaMarketplaceFees.push({ recipient: feeRecipient, bps: feeBps });
@@ -226,8 +225,11 @@ export const getCollectionOpenseaFees = async (
       openseaMarketplaceFees as MarketPlaceFee[]
     );
   } else if (totalBps < 50) {
-    openseaFees["0x0000a26b00c1f0df003000390027140000faa719"] = 50 - totalBps;
+    openseaMarketplaceFees.push({
+      recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+      bps: 50 - totalBps,
+    });
   }
 
-  return openseaFees;
+  return openseaMarketplaceFees;
 };
