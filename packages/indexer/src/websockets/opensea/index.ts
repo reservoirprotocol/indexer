@@ -111,6 +111,8 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
   client.onItemMetadataUpdated("*", async (event) => {
     try {
+      return;
+
       if (getSupportedChainName() != event.payload.item.chain.name) {
         return;
       }
