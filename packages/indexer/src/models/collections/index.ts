@@ -97,7 +97,7 @@ export class Collections {
           )}, collectionResult=${JSON.stringify(collectionResult)}`
         );
 
-        return;
+        throw new Error("Invalid collection metadata");
       }
     }
 
