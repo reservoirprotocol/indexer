@@ -258,6 +258,7 @@ export class DailyVolume {
               "fe"."timestamp" >= $/lastDailyTimestamp/
               AND fe.price > 0
               AND fe.is_primary IS NOT TRUE
+              AND coalesce(fe.wash_trading_score, 0) = 0
               ${collectionId ? "AND collection_id = $/collectionId/" : ""}
             GROUP BY "collection_id") t1`,
       {
