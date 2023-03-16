@@ -55,7 +55,9 @@ export const getSalesV4Options: RouteOptions = {
         ),
       attributes: Joi.object()
         .unknown()
-        .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
+        .description(
+          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/sales/v4?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/sales/v4?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`"
+        ),
       orderBy: Joi.string()
         .valid("price", "time")
         .description("Order the items are returned in the response."),

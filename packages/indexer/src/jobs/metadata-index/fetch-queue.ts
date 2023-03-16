@@ -46,6 +46,8 @@ if (config.doBackgroundWork) {
       let refreshTokens: RefreshTokens[] = [];
 
       if (kind === "full-collection-by-slug") {
+        logger.info(QUEUE_NAME, `Full collection by slug. data=${JSON.stringify(data)}`);
+
         // Add the collections slugs to the list
         const pendingRefreshTokensBySlug = new PendingRefreshTokensBySlug();
         await pendingRefreshTokensBySlug.add(
@@ -63,6 +65,8 @@ if (config.doBackgroundWork) {
         return;
       }
       if (kind === "full-collection") {
+        logger.info(QUEUE_NAME, `Full collection. data=${JSON.stringify(data)}`);
+
         // Get batch of tokens for the collection
         const [contract, tokenId] = data.continuation
           ? data.continuation.split(":")

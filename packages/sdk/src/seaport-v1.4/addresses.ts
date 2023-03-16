@@ -47,7 +47,12 @@ export const PausableZone: ChainIdToAddress = {
   [Network.Polygon]: "0x004c00500000ad104d7dbd00e3ae0a5c00560c00",
 };
 
-export const ApprovalOrderZone: ChainIdToAddress = {};
+export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
+  [Network.Ethereum]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.EthereumGoerli]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Polygon]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Optimism]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+};
 
 export const CancellationZone: ChainIdToAddress = {
   [Network.Ethereum]: "0xaa0e012d35cf7d6ecb6c2bf861e71248501d3226",

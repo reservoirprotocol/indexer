@@ -164,6 +164,12 @@ export type GenericOrderInfo =
       info: orders.nftx.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
+    }
+  | {
+      kind: "superrare";
+      info: orders.superrare.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
     };
 
 export const jobProcessor = async (job: Job) => {
@@ -259,6 +265,11 @@ export const jobProcessor = async (job: Job) => {
 
       case "nftx": {
         result = await orders.nftx.save([info]);
+        break;
+      }
+
+      case "superrare": {
+        result = await orders.superrare.save([info]);
         break;
       }
     }

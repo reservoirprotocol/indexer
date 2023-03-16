@@ -198,7 +198,14 @@ export const save = async (
             Sdk.SeaportV14.Addresses.PausableZone[config.chainId],
             // Cancellation zone
             Sdk.SeaportV14.Addresses.CancellationZone[config.chainId],
-          ].includes(order.params.zone)
+          ].includes(order.params.zone) &&
+          !(
+            // Protected offers zone
+            (
+              Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId] ===
+                order.params.zone && info.side === "buy"
+            )
+          )
         ) {
           return results.push({
             id,

@@ -7,6 +7,7 @@ import { redb } from "@/common/db";
 import { bn, fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as utils from "@/orderbook/orders/zeroex-v4/build/utils";
+import { Tokens } from "@/models/tokens";
 
 interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
   collection: string;
@@ -69,25 +70,11 @@ export const build = async (options: BuildOrderOptions) => {
 
     return builder.build(buildInfo.params);
   } else {
-    const excludeFlaggedTokens = options.excludeFlaggedTokens
-      ? "AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
-      : "";
-
-    // Fetch all non-flagged tokens from the collection
-    const tokens = await redb.manyOrNone(
-      `
-        SELECT
-          tokens.token_id
-        FROM tokens
-        WHERE tokens.collection_id = $/collection/
-        ${excludeFlaggedTokens}
-      `,
-      {
-        collection: options.collection,
-      }
+    const tokenIds = await Tokens.getTokenIdsInCollection(
+      options.collection,
+      "",
+      options.excludeFlaggedTokens
     );
-
-    const tokenIds = tokens.map(({ token_id }) => token_id);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (buildInfo.params as any).tokenIds = tokenIds;

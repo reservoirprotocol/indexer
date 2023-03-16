@@ -8,6 +8,7 @@ import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as utils from "@/orderbook/orders/forward/build/utils";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
+import { Tokens } from "@/models/tokens";
 
 interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
   collection: string;
@@ -87,23 +88,14 @@ export const build = async (options: BuildOrderOptions) => {
       // Attempt 3 (final - will definitely work): compute the token set id (can be computationally-expensive)
 
       // Fetch all relevant tokens from the collection
-      const tokens = await redb.manyOrNone(
-        `
-          SELECT
-            tokens.token_id
-          FROM tokens
-          WHERE tokens.collection_id = $/collection/
-          ${
-            options.excludeFlaggedTokens
-              ? "AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
-              : ""
-          }
-        `,
-        { collection: options.collection }
+      const tokenIds = await Tokens.getTokenIdsInCollection(
+        options.collection,
+        "",
+        options.excludeFlaggedTokens
       );
 
       // Also cache the computation for one hour
-      cachedMerkleRoot = generateMerkleTree(tokens.map(({ token_id }) => token_id)).getHexRoot();
+      cachedMerkleRoot = generateMerkleTree(tokenIds).getHexRoot();
       await redis.set(schemaHash, cachedMerkleRoot, "ex", 3600);
     }
 

@@ -418,6 +418,38 @@ export class Router {
       }
     }
 
+    // TODO: Add SuperRare router module
+    if (details.some(({ kind }) => kind === "superrare")) {
+      if (options?.relayer) {
+        throw new Error("Relayer not supported");
+      }
+
+      if (details.length > 1) {
+        throw new Error("SuperRare sweeping is not supported");
+      } else {
+        if (options?.globalFees?.length) {
+          throw new Error("Fees not supported");
+        }
+
+        const detail = details[0];
+
+        const order = detail.order as Sdk.SuperRare.Order;
+        const exchange = new Sdk.SuperRare.Exchange(this.chainId);
+
+        return {
+          txs: [
+            {
+              approvals: [],
+              permits: [],
+              txData: exchange.fillOrderTx(taker, order, options),
+              orderIndexes: [0],
+            },
+          ],
+          success: [true],
+        };
+      }
+    }
+
     // Handle partial seaport orders:
     // - fetch the full order data for each partial order (concurrently)
     // - remove any partial order from the details
@@ -2160,6 +2192,8 @@ export class Router {
       partial?: boolean;
       // Force using permit
       forcePermit?: boolean;
+      // Needed for filling some OpenSea orders
+      openseaAuth?: string;
     }
   ): Promise<{
     txData: TxData;
@@ -2435,7 +2469,8 @@ export class Router {
               `https://order-fetcher.vercel.app/api/offer?orderHash=${order.id}&contract=${
                 order.contract
               }&tokenId=${order.tokenId}&taker=${detail.owner ?? taker}&chainId=${this.chainId}` +
-                (order.unitPrice ? `&unitPrice=${order.unitPrice}` : ""),
+                (order.unitPrice ? `&unitPrice=${order.unitPrice}` : "") +
+                (options?.openseaAuth ? `&authorization=${options.openseaAuth}` : ""),
               {
                 headers: {
                   "X-Api-Key": this.options?.orderFetcherApiKey,
@@ -2444,8 +2479,6 @@ export class Router {
             );
 
             const fullOrder = new Sdk.Seaport.Order(this.chainId, result.data.order);
-
-            const exchange = new Sdk.Seaport.Exchange(this.chainId);
             executions.push({
               module: module.address,
               data: module.interface.encodeFunctionData(
@@ -2459,7 +2492,7 @@ export class Router {
                     numerator: detail.amount ?? 1,
                     denominator: fullOrder.getInfo()!.amount,
                     signature: fullOrder.params.signature,
-                    extraData: await exchange.getExtraData(fullOrder),
+                    extraData: result.data.extraData,
                   },
                   result.data.criteriaResolvers ?? [],
                   {
@@ -2537,7 +2570,8 @@ export class Router {
               `https://order-fetcher.vercel.app/api/offer?orderHash=${order.id}&contract=${
                 order.contract
               }&tokenId=${order.tokenId}&taker=${detail.owner ?? taker}&chainId=${this.chainId}` +
-                (order.unitPrice ? `&unitPrice=${order.unitPrice}` : ""),
+                (order.unitPrice ? `&unitPrice=${order.unitPrice}` : "") +
+                (options?.openseaAuth ? `&authorization=${options.openseaAuth}` : ""),
               {
                 headers: {
                   "X-Api-Key": this.options?.orderFetcherApiKey,
@@ -2546,8 +2580,6 @@ export class Router {
             );
 
             const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
-
-            const exchange = new Sdk.SeaportV14.Exchange(this.chainId);
             executions.push({
               module: module.address,
               data: module.interface.encodeFunctionData(
@@ -2561,10 +2593,7 @@ export class Router {
                     numerator: detail.amount ?? 1,
                     denominator: fullOrder.getInfo()!.amount,
                     signature: fullOrder.params.signature,
-                    extraData: await exchange.getExtraData(fullOrder, {
-                      amount: detail.amount ?? "1",
-                      criteriaResolvers: result.data.criteriaResolvers,
-                    }),
+                    extraData: result.data.extraData,
                   },
                   result.data.criteriaResolvers ?? [],
                   {
