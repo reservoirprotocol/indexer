@@ -29,11 +29,11 @@ export const postOrder = async (order: Sdk.LooksRare.Order, apiKey: string) => {
 
   // Skip posting orders that already expired
   if (lrOrder.endTime <= now()) {
-    return;
+    throw new InvalidRequestError("Order is expired");
   }
   // Skip posting orders with the listing time far in the past
   if (lrOrder.startTime <= now() - 5 * 60) {
-    return;
+    throw new InvalidRequestError("Order has listing time more than 5 minutes in the past");
   }
 
   await axios

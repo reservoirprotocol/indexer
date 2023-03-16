@@ -192,6 +192,15 @@ const getAvailableUSDPrice = async (
   return USD_PRICE_MEMORY_CACHE.get(key);
 };
 
+const isTestnetCurrency = (currencyAddress: string) =>
+  config.chainId === 5 &&
+  [
+    Sdk.Common.Addresses.Eth[config.chainId],
+    Sdk.Common.Addresses.Weth[config.chainId],
+    "0x07865c6e87b9f70255377e024ace6630c1eaa37f",
+    "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
+  ].includes(currencyAddress);
+
 export type USDAndNativePrices = {
   usdPrice?: string;
   nativePrice?: string;
@@ -209,14 +218,7 @@ export const getUSDAndNativePrices = async (
   let usdPrice: string | undefined;
   let nativePrice: string | undefined;
 
-  // Only try to get pricing data if the network supports it
-  const force =
-    config.chainId === 5 &&
-    [
-      "0x07865c6e87b9f70255377e024ace6630c1eaa37f",
-      "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
-    ].includes(currencyAddress);
-  if (getNetworkSettings().coingecko?.networkId || force) {
+  if (getNetworkSettings().coingecko?.networkId || isTestnetCurrency(currencyAddress)) {
     const currencyUSDPrice = await getAvailableUSDPrice(
       currencyAddress,
       timestamp,
@@ -278,7 +280,10 @@ export const getUSDAndCurrencyPrices = async (
   let currencyPrice: string | undefined;
 
   // Only try to get pricing data if the network supports it
-  if (getNetworkSettings().coingecko?.networkId) {
+  if (
+    getNetworkSettings().coingecko?.networkId ||
+    (isTestnetCurrency(fromCurrencyAddress) && isTestnetCurrency(toCurrencyAddress))
+  ) {
     // Get the FROM currency price
     const fromCurrencyUSDPrice = await getAvailableUSDPrice(
       fromCurrencyAddress,

@@ -186,7 +186,7 @@ export const getCollectionOpenseaFees = async (
   contract: string,
   totalBps: number
 ) => {
-  let openseaFees = new Map<string, number>();
+  let openseaFees: { [recipient: string]: number } = {};
 
   const cachedCollectionOpenseaFees = await redis.get(`collection-opensea-fees:${collection}`);
 
@@ -205,7 +205,7 @@ export const getCollectionOpenseaFees = async (
         3600
       );
     } else if (totalBps < 50) {
-      openseaFees.set("0x0000a26b00c1f0df003000390027140000faa719", 50 - totalBps);
+      openseaFees["0x0000a26b00c1f0df003000390027140000faa719"] = 50 - totalBps;
     }
   }
 

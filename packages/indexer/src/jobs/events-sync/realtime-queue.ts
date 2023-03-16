@@ -30,7 +30,10 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+if (
+  config.doBackgroundWork &&
+  (_.includes([137, 42161, 10], config.chainId) ? config.doProcessRealtime : true)
+) {
   const worker = new Worker(
     QUEUE_NAME,
     async () => {
@@ -61,8 +64,8 @@ if (config.doBackgroundWork) {
           const fromBlock = Math.max(localBlock, headBlock - maxBlocks + 1);
           await syncEvents(fromBlock, headBlock);
 
-          // Send any remaining blocks to the backfill queue
-          if (localBlock < fromBlock) {
+          // Send any missing blocks to the backfill queue
+          if (localBlock + getNetworkSettings().lastBlockLatency < fromBlock) {
             logger.info(
               QUEUE_NAME,
               `Out of sync: local block ${localBlock} and upstream block ${fromBlock} total missing ${
@@ -84,9 +87,9 @@ if (config.doBackgroundWork) {
 
           logger.info(
             QUEUE_NAME,
-            `Events realtime syncing block range [${fromBlock}, ${headBlock}] time ${
-              (now() - startTime) / 1000
-            }s`
+            `Events realtime syncing block range [${fromBlock}, ${headBlock}] total blocks ${
+              headBlock - fromBlock
+            } time ${(now() - startTime) / 1000}s`
           );
         } catch (error) {
           logger.error(QUEUE_NAME, `Events realtime syncing failed: ${error}`);
@@ -103,12 +106,13 @@ if (config.doBackgroundWork) {
 
   // Monitor the job as bullmq has bugs and job might be stuck and needs to be manually removed
   cron.schedule(`*/${getNetworkSettings().realtimeSyncFrequencySeconds} * * * * *`, async () => {
-    if (_.includes([137, 42161], config.chainId)) {
+    if (_.includes([137, 42161, 10], config.chainId)) {
       const job = await queue.getJob(`${config.chainId}`);
+
       if (job && (await job.isFailed())) {
         logger.info(QUEUE_NAME, `removing failed job ${job.timestamp} now = ${now()}`);
         await job.remove();
-      } else if (job && job.timestamp < now() - 180 * 1000) {
+      } else if (job && _.toInteger(job.timestamp) < now() - 180 * 1000) {
         logger.info(QUEUE_NAME, `removing stale job ${job.timestamp} now = ${now()}`);
         await job.remove();
       }
@@ -118,7 +122,7 @@ if (config.doBackgroundWork) {
 
 export const addToQueue = async () => {
   let jobId;
-  if (_.includes([137, 42161], config.chainId)) {
+  if (_.includes([137, 42161, 10], config.chainId)) {
     jobId = `${config.chainId}`;
   }
 

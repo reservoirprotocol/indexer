@@ -6,6 +6,7 @@ import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { EventsBatch, processEventsBatch } from "@/events-sync/handlers";
 import cron from "node-cron";
+import _ from "lodash";
 
 const QUEUE_NAME = "events-sync-process-realtime";
 
@@ -25,7 +26,10 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate(), maxStalledCount: 10 });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && (config.chainId === 137 ? config.doProcessRealtime : true)) {
+if (
+  config.doBackgroundWork &&
+  (_.includes([137, 42161, 10], config.chainId) ? config.doProcessRealtime : true)
+) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
