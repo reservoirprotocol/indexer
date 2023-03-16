@@ -14,7 +14,6 @@ import { Tokens } from "@/models/tokens";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
 import { logger } from "@/common/logger";
-import { QUEUE_NAME } from "@/jobs/collection-updates/metadata-queue";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -92,7 +91,7 @@ export class Collections {
 
       if (collectionResult?.metadata != null) {
         logger.error(
-          QUEUE_NAME,
+          "updateCollectionCache",
           `InvalidUpdateCollectionCache. contract=${contract}, tokenId=${tokenId}, community=${community}, collection=${JSON.stringify(
             collection
           )}, collectionResult=${JSON.stringify(collectionResult)}`
