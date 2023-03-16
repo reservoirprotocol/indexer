@@ -7,14 +7,7 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import {
-  JoiPrice,
-  getJoiPriceObject,
-  feeInfoIsValid,
-  JoiFeeBreakdown,
-  getFeeValue,
-  getFeeBreakdown,
-} from "@/common/joi";
+import { JoiPrice, JoiFeeBreakdown, getJoiSaleObject } from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
@@ -353,8 +346,6 @@ export const getSalesV4Options: RouteOptions = {
         const fillSource =
           r.fill_source_id !== null ? sources.get(Number(r.fill_source_id)) : undefined;
 
-        const saleFeeInfoIsValid = feeInfoIsValid(r.royalty_fee_bps, r.marketplace_fee_bps);
-
         return {
           id: crypto
             .createHash("sha256")
@@ -388,8 +379,7 @@ export const getSalesV4Options: RouteOptions = {
           txHash: fromBuffer(r.tx_hash),
           logIndex: r.log_index,
           batchIndex: r.batch_index,
-          timestamp: r.timestamp,
-          price: await getJoiPriceObject(
+          ...(await getJoiSaleObject(
             {
               gross: {
                 amount: r.currency_price ?? r.price,
@@ -397,18 +387,18 @@ export const getSalesV4Options: RouteOptions = {
                 usdAmount: r.usd_price,
               },
             },
+            {
+              royaltyFeeBps: r.royalty_fee_bps,
+              marketplaceFeeBps: r.marketplace_fee_bps,
+              totalFeeBps: (r.royalty_fee_bps ?? 0) + (r.marketplace_fee_bps ?? 0),
+              paidFullRoyalty: r.paid_full_royalty,
+              royaltyFeeBreakdown: r.royalty_fee_breakdown,
+              marketplaceFeeBreakdown: r.marketplace_fee_breakdown,
+            },
             fromBuffer(r.currency),
-            (r.royalty_fee_bps ?? 0) + (r.marketplace_fee_bps ?? 0)
-          ),
-          washTradingScore: r.wash_trading_score,
-          royaltyFeeBps: getFeeValue(r.royalty_fee_bps, saleFeeInfoIsValid),
-          marketplaceFeeBps: getFeeValue(r.marketplace_fee_bps, saleFeeInfoIsValid),
-          paidFullRoyalty: getFeeValue(r.paid_full_royalty, saleFeeInfoIsValid),
-          feeBreakdown: getFeeBreakdown(
-            r.royalty_fee_breakdown,
-            r.marketplace_fee_breakdown,
-            saleFeeInfoIsValid
-          ),
+            r.timestamp,
+            r.wash_trading_score
+          )),
         };
       });
 

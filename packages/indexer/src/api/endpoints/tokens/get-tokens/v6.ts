@@ -7,7 +7,13 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getJoiPriceObject, getJoiLastSaleObject, JoiAttributeValue, JoiPrice } from "@/common/joi";
+import {
+  getJoiPriceObject,
+  getJoiSaleObject,
+  JoiAttributeValue,
+  JoiPrice,
+  JoiSale,
+} from "@/common/joi";
 import {
   bn,
   buildContinuation,
@@ -202,20 +208,7 @@ export const getTokensV6Options: RouteOptions = {
               image: Joi.string().allow("", null),
               slug: Joi.string().allow("", null),
             }),
-            lastSale: Joi.object({
-              price: JoiPrice.allow(null),
-              timestamp: Joi.number().unsafe().allow(null),
-              royaltyFeeBps: Joi.number(),
-              marketplaceFeeBps: Joi.number(),
-              paidFullRoyalty: Joi.boolean(),
-              feeBreakdown: Joi.array().items(
-                Joi.object({
-                  kind: Joi.string(),
-                  bps: Joi.number(),
-                  recipient: Joi.string(),
-                })
-              ),
-            }).optional(),
+            lastSale: JoiSale.optional(),
             owner: Joi.string().allow(null),
             attributes: Joi.array()
               .items(
@@ -428,7 +421,8 @@ export const getTokensV6Options: RouteOptions = {
           fe.royalty_fee_bps AS last_sale_royalty_fee_bps,
           fe.paid_full_royalty AS last_sale_paid_full_royalty,
           fe.royalty_fee_breakdown AS last_sale_royalty_fee_breakdown,
-          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown  
+          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown,
+          fe.wash_trading_score AS last_sale_wash_trading_score
         FROM fill_events_2 fe
         WHERE fe.contract = t.contract AND fe.token_id = t.token_id
         ORDER BY timestamp DESC LIMIT 1
@@ -1051,7 +1045,7 @@ export const getTokensV6Options: RouteOptions = {
             },
             lastSale:
               query.includeLastSale && r.last_sale_currency
-                ? await getJoiLastSaleObject(
+                ? await getJoiSaleObject(
                     {
                       gross: {
                         amount: r.last_sale_currency_price ?? r.last_sale_price,
@@ -1062,12 +1056,15 @@ export const getTokensV6Options: RouteOptions = {
                     {
                       royaltyFeeBps: r.last_sale_royalty_fee_bps,
                       marketplaceFeeBps: r.last_sale_marketplace_fee_bps,
+                      totalFeeBps:
+                        (r.last_sale_royalty_fee_bps ?? 0) + (r.last_sale_marketplace_fee_bps ?? 0),
                       paidFullRoyalty: r.last_sale_paid_full_royalty,
                       royaltyFeeBreakdown: r.last_sale_royalty_fee_breakdown,
                       marketplaceFeeBreakdown: r.last_sale_marketplace_fee_breakdown,
                     },
                     fromBuffer(r.last_sale_currency),
-                    r.last_sale_timestamp
+                    r.last_sale_timestamp,
+                    r.last_sale_wash_trading_score
                   )
                 : undefined,
             owner: r.owner ? fromBuffer(r.owner) : null,

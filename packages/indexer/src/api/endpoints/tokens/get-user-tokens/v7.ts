@@ -16,7 +16,7 @@ import {
 import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
-import { getJoiPriceObject, getJoiLastSaleObject, JoiPrice } from "@/common/joi";
+import { getJoiPriceObject, getJoiSaleObject, JoiPrice, JoiSale } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
 
@@ -81,6 +81,10 @@ export const getUserTokensV7Options: RouteOptions = {
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
+      sortBy: Joi.string()
+        .valid("acquiredAt", "lastAppraisalValue")
+        .default("acquiredAt")
+        .description("Order the items are returned in the response."),
       sortDirection: Joi.string()
         .lowercase()
         .valid("asc", "desc")
@@ -128,24 +132,12 @@ export const getUserTokensV7Options: RouteOptions = {
               imageUrl: Joi.string().allow(null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
-            lastSale: Joi.object({
-              price: JoiPrice.allow(null),
-              timestamp: Joi.number().unsafe().allow(null),
-              royaltyFeeBps: Joi.number(),
-              marketplaceFeeBps: Joi.number(),
-              paidFullRoyalty: Joi.boolean(),
-              feeBreakdown: Joi.array().items(
-                Joi.object({
-                  kind: Joi.string(),
-                  bps: Joi.number(),
-                  recipient: Joi.string(),
-                })
-              ),
-            }).optional(),
+            lastSale: JoiSale.optional(),
             topBid: Joi.object({
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
             }).optional(),
+            lastAppraisalValue: Joi.number().unsafe().allow(null),
           }),
           ownership: Joi.object({
             tokenCount: Joi.string(),
@@ -309,7 +301,8 @@ export const getUserTokensV7Options: RouteOptions = {
           fe.royalty_fee_bps AS last_sale_royalty_fee_bps,
           fe.paid_full_royalty AS last_sale_paid_full_royalty,
           fe.royalty_fee_breakdown AS last_sale_royalty_fee_breakdown,
-          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown 
+          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown,
+          fe.wash_trading_score AS last_sale_wash_trading_score
         FROM fill_events_2 fe
         WHERE fe.contract = t.contract AND fe.token_id = t.token_id
         ORDER BY timestamp DESC LIMIT 1
@@ -406,7 +399,7 @@ export const getUserTokensV7Options: RouteOptions = {
 
     try {
       let baseQuery = `
-        SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at,
+        SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
                t.name, t.image, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
                t.rarity_score, ${selectLastSale}
@@ -423,7 +416,7 @@ export const getUserTokensV7Options: RouteOptions = {
                     END
                ) AS on_sale_count
         FROM (
-            SELECT amount AS token_count, token_id, contract, acquired_at
+            SELECT amount AS token_count, token_id, contract, acquired_at, last_token_appraisal_value
             FROM nft_balances
             WHERE owner = $/user/
               AND ${
@@ -446,42 +439,70 @@ export const getUserTokensV7Options: RouteOptions = {
       const conditions: string[] = [];
 
       if (query.continuation) {
-        const [acquiredAt, collectionId, tokenId] = splitContinuation(
+        const [acquiredAtOrLastAppraisalValue, collectionId, tokenId] = splitContinuation(
           query.continuation,
           /^[0-9]+_[A-Za-z0-9:-]+_[0-9]+$/
         );
 
-        (query as any).acquiredAt = acquiredAt;
+        (query as any).acquiredAtOrLastAppraisalValue = acquiredAtOrLastAppraisalValue;
         (query as any).collectionId = collectionId;
         (query as any).tokenId = tokenId;
         query.sortDirection = query.sortDirection || "desc";
-        const sign = query.sortDirection == "desc" ? "<" : ">";
-        conditions.push(
-          `(acquired_at, b.token_id) ${sign} (to_timestamp($/acquiredAt/), $/tokenId/)`
-        );
+        if (query.sortBy === "acquiredAt") {
+          conditions.push(
+            `(acquired_at, b.token_id) ${
+              query.sortDirection == "desc" ? "<" : ">"
+            } (to_timestamp($/acquiredAtOrLastAppraisalValue/), $/tokenId/)`
+          );
+        } else {
+          conditions.push(
+            `(last_token_appraisal_value, b.token_id) ${
+              query.sortDirection == "desc" ? "<" : ">"
+            } ($/acquiredAtOrLastAppraisalValue/, $/tokenId/)`
+          );
+        }
       }
 
       if (conditions.length) {
         baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
       }
 
-      baseQuery += `
+      // Sorting
+      if (query.sortBy === "acquiredAt") {
+        baseQuery += `
         ORDER BY
           acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
         LIMIT $/limit/
       `;
+      } else {
+        baseQuery += `
+        ORDER BY
+          last_token_appraisal_value ${query.sortDirection} NULLS LAST, b.token_id ${query.sortDirection}
+        LIMIT $/limit/
+      `;
+      }
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
 
       let continuation = null;
       if (userTokens.length === query.limit) {
-        continuation = buildContinuation(
-          _.toInteger(userTokens[userTokens.length - 1].acquired_at) +
-            "_" +
-            userTokens[userTokens.length - 1].collection_id +
-            "_" +
-            userTokens[userTokens.length - 1].token_id
-        );
+        if (query.sortBy === "acquiredAt") {
+          continuation = buildContinuation(
+            _.toInteger(userTokens[userTokens.length - 1].acquired_at) +
+              "_" +
+              userTokens[userTokens.length - 1].collection_id +
+              "_" +
+              userTokens[userTokens.length - 1].token_id
+          );
+        } else {
+          continuation = buildContinuation(
+            _.toInteger(userTokens[userTokens.length - 1].last_token_appraisal_value) +
+              "_" +
+              userTokens[userTokens.length - 1].collection_id +
+              "_" +
+              userTokens[userTokens.length - 1].token_id
+          );
+        }
       }
 
       const sources = await Sources.getInstance();
@@ -523,7 +544,7 @@ export const getUserTokensV7Options: RouteOptions = {
             },
             lastSale:
               query.includeLastSale && r.last_sale_currency
-                ? await getJoiLastSaleObject(
+                ? await getJoiSaleObject(
                     {
                       gross: {
                         amount: r.last_sale_currency_price ?? r.last_sale_price,
@@ -534,12 +555,15 @@ export const getUserTokensV7Options: RouteOptions = {
                     {
                       royaltyFeeBps: r.last_sale_royalty_fee_bps,
                       marketplaceFeeBps: r.last_sale_marketplace_fee_bps,
+                      totalFeeBps:
+                        (r.last_sale_royalty_fee_bps ?? 0) + (r.last_sale_marketplace_fee_bps ?? 0),
                       paidFullRoyalty: r.last_sale_paid_full_royalty,
                       royaltyFeeBreakdown: r.last_sale_royalty_fee_breakdown,
                       marketplaceFeeBreakdown: r.last_sale_marketplace_fee_breakdown,
                     },
                     fromBuffer(r.last_sale_currency),
-                    r.last_sale_timestamp
+                    r.last_sale_timestamp,
+                    r.last_sale_wash_trading_score
                   )
                 : undefined,
             topBid: query.includeTopBid
@@ -562,6 +586,9 @@ export const getUserTokensV7Options: RouteOptions = {
                     : null,
                 }
               : undefined,
+            lastAppraisalValue: r.last_token_appraisal_value
+              ? formatEth(r.last_token_appraisal_value)
+              : null,
           },
           ownership: {
             tokenCount: String(r.token_count),

@@ -197,8 +197,9 @@ export const JoiFeeBreakdown = Joi.object({
 });
 
 export const JoiSale = Joi.object({
-  price: JoiPrice,
   timestamp: Joi.number(),
+  price: JoiPrice,
+  washTradingScore: Joi.number().optional(),
   royaltyFeeBps: Joi.number().optional(),
   marketplaceFeeBps: Joi.number().optional(),
   paidFullRoyalty: Joi.boolean().optional(),
@@ -239,7 +240,7 @@ export const getFeeBreakdown = (
     : undefined;
 };
 
-export const getJoiLastSaleObject = async (
+export const getJoiSaleObject = async (
   prices: {
     gross: {
       amount: string;
@@ -261,11 +262,13 @@ export const getJoiLastSaleObject = async (
     marketplaceFeeBreakdown?: any;
   },
   currencyAddress: string,
-  timestamp: number
+  timestamp: number,
+  washTradingScore?: number
 ) => {
   const currency = await getCurrency(currencyAddress);
   const lastSaleFeeInfoIsValid = feeInfoIsValid(fees.royaltyFeeBps, fees.marketplaceFeeBps);
   return {
+    timestamp: timestamp,
     price: {
       currency: {
         contract: currency.contract,
@@ -296,7 +299,7 @@ export const getJoiLastSaleObject = async (
           )
         : undefined,
     },
-    timestamp: timestamp,
+    washTradingScore: washTradingScore,
     royaltyFeeBps: getFeeValue(fees.royaltyFeeBps, lastSaleFeeInfoIsValid),
     marketplaceFeeBps: getFeeValue(fees.marketplaceFeeBps, lastSaleFeeInfoIsValid),
     paidFullRoyalty: getFeeValue(fees.paidFullRoyalty, lastSaleFeeInfoIsValid),
