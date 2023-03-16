@@ -24,6 +24,9 @@ export const getNetworkName = () => {
     case 137:
       return "polygon";
 
+    case 42161:
+      return "arbitrum";
+
     default:
       return "unknown";
   }
@@ -39,6 +42,9 @@ export const getOpenseaNetworkName = () => {
 
     case 137:
       return "matic";
+
+    case 42161:
+      return "arbitrum";
 
     default:
       return "ethereum";
@@ -73,6 +79,7 @@ type NetworkSettings = {
   washTradingWhitelistedAddresses: string[];
   washTradingBlacklistedAddresses: string[];
   customTokenAddresses: string[];
+  nonSimulatableContracts: string[];
   mintsAsSalesBlacklist: string[];
   mintAddresses: string[];
   multiCollectionContracts: string[];
@@ -99,6 +106,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     washTradingWhitelistedAddresses: [],
     washTradingBlacklistedAddresses: [],
     customTokenAddresses: [],
+    nonSimulatableContracts: [],
     multiCollectionContracts: [],
     mintsAsSalesBlacklist: [],
     mintAddresses: [AddressZero],
@@ -152,9 +160,14 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
           "0x32d4be5ee74376e08038d652d4dc26e62c67f436",
         ],
+        nonSimulatableContracts: [
+          "0x4d04bba7f5ea45ac59769a1095762467b1157cc4",
+          "0x36e73e5e0aaacf4f9c4e67a32b87e8a4273484a5",
+        ],
         customTokenAddresses: [
           "0x95784f7b5c8849b0104eaf5d13d6341d8cc40750",
           "0xc9cb0fee73f060db66d2693d92d75c825b1afdbf",
+          "0x87d598064c736dd0c712d329afcfaa0ccc1921a1",
         ],
         mintsAsSalesBlacklist: [
           // Uniswap V3: Positions NFT
@@ -304,9 +317,11 @@ export const getNetworkSettings = (): NetworkSettings => {
         ...defaultNetworkSettings,
         enableWebSocket: false,
         enableReorgCheck: false,
-        realtimeSyncFrequencySeconds: 10,
-        realtimeSyncMaxBlockLag: 128,
-        backfillBlockBatchSize: 512,
+        realtimeSyncFrequencySeconds: 5,
+        realtimeSyncMaxBlockLag: 32,
+        lastBlockLatency: 15,
+        backfillBlockBatchSize: 60,
+        reorgCheckFrequency: [30],
         subDomain: "api-optimism",
         coingecko: {
           networkId: "optimistic-ethereum",
@@ -341,10 +356,9 @@ export const getNetworkSettings = (): NetworkSettings => {
         ...defaultNetworkSettings,
         metadataMintDelay: 180,
         enableWebSocket: true,
-        enableReorgCheck: true,
-        realtimeSyncFrequencySeconds: 10,
-        realtimeSyncMaxBlockLag: 45,
-        lastBlockLatency: 20,
+        realtimeSyncFrequencySeconds: 5,
+        realtimeSyncMaxBlockLag: 32,
+        lastBlockLatency: 5,
         backfillBlockBatchSize: 60,
         reorgCheckFrequency: [30],
         subDomain: "api-polygon",
@@ -373,6 +387,42 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'MATIC',
                   18,
                   '{"coingeckoCurrencyId": "matic-network"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Arbitrum
+    case 42161: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 10,
+        subDomain: "api-arbitrum",
+        coingecko: {
+          networkId: "arbitrum-one",
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

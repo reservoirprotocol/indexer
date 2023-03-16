@@ -361,8 +361,11 @@ export const syncEvents = async (
 
     // Process the retrieved events asynchronously
     const eventsBatches = await extractEventsBatches(enhancedEvents, backfill);
-    const eventsSyncProcess = backfill ? eventsSyncBackfillProcess : eventsSyncRealtimeProcess;
-    await eventsSyncProcess.addToQueue(eventsBatches);
+    if (backfill) {
+      await eventsSyncBackfillProcess.addToQueue(eventsBatches);
+    } else {
+      await eventsSyncRealtimeProcess.addToQueue(eventsBatches, true);
+    }
 
     // Make sure to recheck the ingested blocks with a delay in order to undo any reorgs
     const ns = getNetworkSettings();

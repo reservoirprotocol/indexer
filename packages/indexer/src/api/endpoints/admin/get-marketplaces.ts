@@ -59,7 +59,7 @@ export const getMarketplaces: RouteOptions = {
         },
         feeBps: 0,
         orderbook: "reservoir",
-        orderKind: "seaport",
+        orderKind: "seaport-v1.4",
         listingEnabled: true,
       },
       {
@@ -73,7 +73,7 @@ export const getMarketplaces: RouteOptions = {
         },
         feeBps: 0.025,
         orderbook: "opensea",
-        orderKind: "seaport",
+        orderKind: "seaport-v1.4",
         listingEnabled: false,
       },
       {
@@ -132,7 +132,7 @@ export const getMarketplaces: RouteOptions = {
           break;
         }
         case 5: {
-          listableOrderbooks = ["reservoir", "opensea", "looks-rare"];
+          listableOrderbooks = ["reservoir", "opensea", "looks-rare", "x2y2"];
           break;
         }
         case 137: {

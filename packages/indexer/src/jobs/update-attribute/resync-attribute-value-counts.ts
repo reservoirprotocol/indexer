@@ -29,21 +29,11 @@ if (config.doBackgroundWork) {
         const attribute = await Attributes.getAttributeByCollectionKeyValue(collection, key, value);
         if (attribute) {
           await Attributes.delete(attribute.id);
-
-          logger.debug(
-            QUEUE_NAME,
-            `Deleted from collection=${collection}, key=${key}, value=${value} attributeId=${attribute.id}`
-          );
         }
       } else {
         await Attributes.update(attributeValueCount.attributeId, {
           tokenCount: attributeValueCount.count,
         });
-
-        logger.debug(
-          QUEUE_NAME,
-          `Updated collection=${collection}, key=${key}, value=${value} attributeId=${attributeValueCount.attributeId}, count=${attributeValueCount.count}`
-        );
       }
     },
     {

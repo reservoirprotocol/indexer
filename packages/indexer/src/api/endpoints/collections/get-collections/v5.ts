@@ -246,6 +246,7 @@ export const getCollectionsV5Options: RouteOptions = {
               })
             )
             .optional(),
+          contractKind: Joi.string().allow("", null),
         })
       ),
     }).label(`getCollections${version.toUpperCase()}Response`),
@@ -442,7 +443,10 @@ export const getCollectionsV5Options: RouteOptions = {
             FROM tokens
             WHERE tokens.collection_id = collections.id
             LIMIT 4
-          ) AS sample_images
+          ) AS sample_images,
+          (
+            SELECT kind FROM contracts WHERE contracts.address = collections.contract
+          )  as contract_kind
         FROM collections
       `;
 
@@ -775,6 +779,7 @@ export const getCollectionsV5Options: RouteOptions = {
                   count: Number(attribute.count),
                 }))
               : undefined,
+            contractKind: r.contract_kind,
           };
         })
       );

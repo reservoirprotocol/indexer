@@ -60,7 +60,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
     const ownerTo = `${event.to}:${contractId}:${event.tokenId}`;
 
     // Once we already update an owner create new array in order to split the update queries later
-    if (_.size(transferValues) >= 50 || uniqueOwners.has(ownerFrom) || uniqueOwners.has(ownerTo)) {
+    if (uniqueOwners.has(ownerFrom) || uniqueOwners.has(ownerTo)) {
       uniqueOwnersTransferValues.push(transferValues);
       transferValues = [];
       uniqueOwners.clear();
@@ -106,8 +106,9 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
     }
   }
 
+  // Add the last batch of transfer values
   if (transferValues.length) {
-    uniqueOwnersTransferValues.push(transferValues); // Add the last batch of transfer values
+    uniqueOwnersTransferValues.push(transferValues);
   }
 
   if (uniqueOwnersTransferValues.length) {

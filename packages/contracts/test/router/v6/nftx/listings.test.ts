@@ -37,14 +37,12 @@ describe("[ReservoirV6_0_0] NFTX listings", () => {
 
     ({ erc721 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    nftxModule = (await ethers
+      .then((factory) => factory.deploy());
+    nftxModule = await ethers
       .getContractFactory("NFTXModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -90,7 +88,7 @@ describe("[ReservoirV6_0_0] NFTX listings", () => {
     // Taker: Carol
     // Fee recipient: Emilio
 
-    let listings: NFTXListing[] = [];
+    const listings: NFTXListing[] = [];
     const feesOnTop: BigNumber[] = [];
     for (let i = 0; i < listingsCount; i++) {
       listings.push({
@@ -152,20 +150,12 @@ describe("[ReservoirV6_0_0] NFTX listings", () => {
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      listings.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && listings.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
       return;
     }
@@ -190,29 +180,22 @@ describe("[ReservoirV6_0_0] NFTX listings", () => {
     //   return balances;
     // };
 
-    const ethBalancesBefore = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
+    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
 
     // const pairBalancesBefore = await getPairBalances();
 
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
 
-    const ethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
 
     const aliceOrderList = listings.filter(
-      ({ seller, isCancelled }) =>
-        !isCancelled && seller.address === alice.address
+      ({ seller, isCancelled }) => !isCancelled && seller.address === alice.address
     );
 
     const aliceOrderSum = aliceOrderList
@@ -220,8 +203,7 @@ describe("[ReservoirV6_0_0] NFTX listings", () => {
       .reduce((a, b) => bn(a).add(b), bn(0));
 
     const bobOrderList = listings.filter(
-      ({ seller, isCancelled }) =>
-        !isCancelled && seller.address === bob.address
+      ({ seller, isCancelled }) => !isCancelled && seller.address === bob.address
     );
 
     const bobOrderSum = bobOrderList
@@ -234,8 +216,7 @@ describe("[ReservoirV6_0_0] NFTX listings", () => {
 
     const orderSum = aliceOrderSum.add(bobOrderSum);
     const diffPercent =
-      (parseFloat(formatEther(orderSum.sub(carloSpend))) /
-        parseFloat(formatEther(carloSpend))) *
+      (parseFloat(formatEther(orderSum.sub(carloSpend))) / parseFloat(formatEther(carloSpend))) *
       100;
 
     // Check Carol balance
@@ -299,10 +280,10 @@ describe("[ReservoirV6_0_0] NFTX listings", () => {
     expect(ethBalancesAfter.nftxModule).to.eq(0);
   };
 
-  for (let multiple of [false, true]) {
-    for (let partial of [false, true]) {
-      for (let chargeFees of [false, true]) {
-        for (let revertIfIncomplete of [true, false]) {
+  for (const multiple of [false, true]) {
+    for (const partial of [false, true]) {
+      for (const chargeFees of [false, true]) {
+        for (const revertIfIncomplete of [true, false]) {
           const testName =
             "[eth]" +
             `${multiple ? "[multiple-orders]" : "[single-order]"}` +

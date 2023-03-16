@@ -1,3 +1,4 @@
+import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
@@ -7,12 +8,11 @@ import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
+import { Sources } from "@/models/sources";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/blur/check";
 import * as tokenSet from "@/orderbook/token-sets";
-import { Sources } from "@/models/sources";
-import { AddressZero } from "@ethersproject/constants";
 
 export type OrderInfo = {
   orderParams: Sdk.Blur.Types.BaseOrder;
@@ -43,8 +43,6 @@ export const save = async (
       const order = new Sdk.Blur.Order(config.chainId, orderParams);
       const id = order.hash();
 
-      const expirationTime = order.params.expirationTime;
-
       // Check: order doesn't already exist
       const orderExists = await idb.oneOrNone(`SELECT 1 FROM orders WHERE orders.id = $/id/`, {
         id,
@@ -66,6 +64,7 @@ export const save = async (
       }
 
       const currentTime = now();
+      const expirationTime = order.params.expirationTime;
 
       // Check: order is not expired
       if (currentTime >= Number(expirationTime)) {
@@ -75,14 +74,11 @@ export const save = async (
         });
       }
 
-      // Check: buy order has Weth as payment token
-      if (
-        order.params.side === Sdk.Blur.Types.TradeDirection.BUY &&
-        order.params.paymentToken !== Sdk.Common.Addresses.Weth[config.chainId]
-      ) {
+      // Check: order is not a bid
+      if (order.params.side === Sdk.Blur.Types.TradeDirection.BUY) {
         return results.push({
           id,
-          status: "unsupported-payment-token",
+          status: "unsupported-side",
         });
       }
 
@@ -94,16 +90,6 @@ export const save = async (
         return results.push({
           id,
           status: "unsupported-payment-token",
-        });
-      }
-
-      // Check: order is valid
-      try {
-        order.checkValidity();
-      } catch {
-        return results.push({
-          id,
-          status: "invalid",
         });
       }
 
@@ -121,7 +107,10 @@ export const save = async (
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
       try {
-        await offChainCheck(order, { onChainApprovalRecheck: true });
+        await offChainCheck(order, metadata.originatedAt, {
+          onChainApprovalRecheck: true,
+          checkFilledOrCancelled: true,
+        });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         // Keep any orders that can potentially get valid in the future
@@ -159,22 +148,21 @@ export const save = async (
         });
       }
 
-      // Handle: fees
-      const side = order.params.side === Sdk.Blur.Types.TradeDirection.BUY ? "buy" : "sell";
-
       // Handle: price and value
       const price = bn(order.params.price);
 
       // Handle: source
       const sources = await Sources.getInstance();
-      const source = metadata.source ? await sources.getOrInsert(metadata.source) : undefined;
+      let source = await sources.getOrInsert("blur.io");
+      if (metadata.source) {
+        source = await sources.getOrInsert(metadata.source);
+      }
 
       // Handle: native Reservoir orders
       const isReservoir = false;
 
+      // Handle: fees
       const feeBps = order.params.fees.reduce((total, { rate }) => total + rate, 0);
-
-      // Handle: fee breakdown
       const feeBreakdown = order.params.fees.map(({ recipient, rate }) => ({
         kind: "royalty",
         recipient,
@@ -184,12 +172,12 @@ export const save = async (
       // Handle: currency
       const currency = order.params.paymentToken;
 
-      const validFrom = `date_trunc('seconds', to_timestamp(0))`;
+      const validFrom = `date_trunc('seconds', to_timestamp(${order.params.listingTime}))`;
       const validTo = `date_trunc('seconds', to_timestamp(${expirationTime}))`;
       orderValues.push({
         id,
         kind: `blur`,
-        side,
+        side: "sell",
         fillability_status: fillabilityStatus,
         approval_status: approvalStatus,
         token_set_id: tokenSetId,
@@ -217,6 +205,7 @@ export const save = async (
         missing_royalties: null,
         normalized_value: null,
         currency_normalized_value: null,
+        originated_at: metadata.originatedAt ?? null,
       });
 
       const unfillable =
@@ -273,6 +262,7 @@ export const save = async (
         "dynamic",
         "raw_data",
         { name: "expiration", mod: ":raw" },
+        "originated_at",
       ],
       {
         table: "orders",

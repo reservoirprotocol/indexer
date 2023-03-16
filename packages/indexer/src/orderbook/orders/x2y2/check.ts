@@ -8,6 +8,7 @@ import * as onChainData from "@/utils/on-chain-data";
 
 export const offChainCheck = async (
   order: Sdk.X2Y2.Order,
+  originatedAt?: string,
   options?: {
     // Some NFTs pre-approve common exchanges so that users don't
     // spend gas approving them. In such cases we will be missing
@@ -30,7 +31,7 @@ export const offChainCheck = async (
 
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
-    const cancelled = await commonHelpers.isOrderCancelled(id);
+    const cancelled = await commonHelpers.isOrderCancelled(id, "x2y2");
     if (cancelled) {
       throw new Error("cancelled");
     }
@@ -39,6 +40,20 @@ export const offChainCheck = async (
     const quantityFilled = await commonHelpers.getQuantityFilled(id);
     if (quantityFilled.gte(1)) {
       throw new Error("filled");
+    }
+
+    if (order.params.type === "sell" && originatedAt) {
+      // Check: order is not off-chain cancelled
+      const offChainCancelled = await commonHelpers.isListingOffChainCancelled(
+        "x2y2",
+        order.params.maker,
+        order.params.nft.token,
+        order.params.nft.tokenId!,
+        originatedAt
+      );
+      if (offChainCancelled) {
+        throw new Error("cancelled");
+      }
     }
   }
 

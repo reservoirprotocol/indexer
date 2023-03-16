@@ -677,7 +677,7 @@
           { "internalType": "bytes", "name": "extraData", "type": "bytes" }
         ],
         "internalType": "struct AdvancedOrder",
-        "name": "",
+        "name": "advancedOrder",
         "type": "tuple"
       },
       {
@@ -701,7 +701,7 @@
           }
         ],
         "internalType": "struct CriteriaResolver[]",
-        "name": "",
+        "name": "criteriaResolvers",
         "type": "tuple[]"
       },
       {
@@ -1754,7 +1754,7 @@
           { "internalType": "bytes", "name": "extraData", "type": "bytes" }
         ],
         "internalType": "struct AdvancedOrder[]",
-        "name": "",
+        "name": "advancedOrders",
         "type": "tuple[]"
       },
       {
@@ -1778,7 +1778,7 @@
           }
         ],
         "internalType": "struct CriteriaResolver[]",
-        "name": "",
+        "name": "criteriaResolvers",
         "type": "tuple[]"
       },
       {
@@ -1819,7 +1819,7 @@
           }
         ],
         "internalType": "struct Fulfillment[]",
-        "name": "",
+        "name": "fulfillments",
         "type": "tuple[]"
       },
       { "internalType": "address", "name": "recipient", "type": "address" }

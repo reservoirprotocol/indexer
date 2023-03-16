@@ -186,6 +186,7 @@ export type EventSubKind =
   | "superrare-sold"
   | "superrare-accept-offer"
   | "superrare-auction-settled"
+  | "superrare-set-sale-price"
   | "zeroex-v2-fill";
 
 export type EventData = {
@@ -309,6 +310,7 @@ const allEventData = [
   superrare.listingSold,
   superrare.offerAccept,
   superrare.auctionSettled,
+  superrare.setSalePrice,
   zeroExV2.fill,
 ];
 

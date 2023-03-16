@@ -4,6 +4,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import * as Permit2 from "@reservoir0x/sdk/dist/router/v6/permits/permit2";
 import { ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
+import axios from "axios";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -17,15 +18,17 @@ import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
+import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import * as onChainData from "@/utils/on-chain-data";
 import { getPermitId, getPermit, savePermit } from "@/utils/permits/ft";
+import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
 
 export const getExecuteBuyV7Options: RouteOptions = {
   description: "Buy tokens (fill listings)",
-  tags: ["api", "Router", "x-experimental"],
+  tags: ["api", "Router"],
   timeout: {
     server: 20 * 1000,
   },
@@ -54,6 +57,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   "looks-rare",
                   "zeroex-v4",
                   "seaport",
+                  "seaport-v1.4",
                   "x2y2",
                   "universe",
                   "rarible",
@@ -154,6 +158,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           currency: Joi.string().lowercase().pattern(regex.address),
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
+          buyInQuote: Joi.number().unsafe(),
+          buyInRawQuote: Joi.string().pattern(regex.number),
         })
       ),
     }).label(`getExecuteBuy${version.toUpperCase()}Response`),
@@ -188,6 +194,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         currency: string;
         quote: number;
         rawQuote: string;
+        buyInQuote?: number;
+        buyInRawQuote?: string;
       }[] = [];
 
       // Keep track of dynamically-priced orders (eg. from pools like Sudoswap and NFTX)
@@ -287,6 +295,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
               id: order.id,
               kind: order.kind,
               currency: order.currency,
+              price: order.price,
+              source: path[path.length - 1].source ?? undefined,
               rawData: order.rawData,
               fees: feesOnTop,
             },
@@ -329,7 +339,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           } else {
             const response = await inject({
               method: "POST",
-              url: `/order/v2`,
+              url: `/order/v3`,
               headers: {
                 "Content-Type": "application/json",
                 "X-Api-Key": request.headers["x-api-key"],
@@ -353,6 +363,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           const result = await idb.oneOrNone(
             `
               SELECT
+                orders.id,
                 orders.kind,
                 contracts.kind AS token_kind,
                 coalesce(orders.currency_price, orders.price) AS price,
@@ -415,6 +426,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
         if (item.token) {
           const [contract, tokenId] = item.token.split(":");
 
+          // TODO: Right now we filter out Blur orders since those don't yet
+          // support royalty normalization. A better approach to handling it
+          // would be to set the normalized fields to `null` for every order
+          // which doesn't support royalty normalization and then filter out
+          // such `null` fields in various normalized events/caches.
+
           // Fetch all matching orders sorted by price
           const orderResults = await idb.manyOrNone(
             `
@@ -439,6 +456,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 AND orders.fillability_status = 'fillable'
                 AND orders.approval_status = 'approved'
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                ${payload.normalizeRoyalties ? " AND orders.kind != 'blur'" : ""}
               ORDER BY
                 ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
                 ${
@@ -506,7 +524,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 kind: result.token_kind,
                 contract,
                 tokenId,
-                quantity: availableQuantity,
+                quantity: Math.min(item.quantity, availableQuantity),
               }
             );
           }
@@ -542,32 +560,28 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
       }
 
-      const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
-        x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
-        cbApiKey: config.cbApiKey,
-      });
-      const { txData, success, approvals, permits } = await router.fillListingsTx(
-        listingDetails,
-        payload.taker,
-        buyInCurrency,
-        {
-          source: payload.source,
-          partial: payload.partial,
-          forceRouter: payload.forceRouter,
-          relayer: payload.relayer,
-          globalFees: feesOnTop,
-          // TODO: Move this defaulting to the core SDK
-          directFillingData: {
-            conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId],
-          },
+      // Add the quotes in the "buy-in" currency to the path items
+      for (const item of path) {
+        if (item.currency !== buyInCurrency) {
+          const buyInPrices = await getUSDAndCurrencyPrices(
+            item.currency,
+            buyInCurrency,
+            item.rawQuote,
+            now(),
+            {
+              acceptStalePrice: true,
+            }
+          );
+
+          if (buyInPrices.currencyPrice) {
+            item.buyInQuote = formatPrice(
+              buyInPrices.currencyPrice,
+              (await getCurrency(buyInCurrency)).decimals,
+              true
+            );
+            item.buyInRawQuote = buyInPrices.currencyPrice;
+          }
         }
-      );
-
-      // Filter out any non-fillable orders from the path
-      path = path.filter((_, i) => success[i]);
-
-      if (!path.length) {
-        throw Boom.badRequest("No available orders");
       }
 
       if (payload.onlyPath) {
@@ -585,6 +599,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           data?: object;
         }[];
       }[] = [
+        {
+          id: "auth",
+          action: "Sign in to Blur",
+          description: "Some marketplaces require signing an auth message before filling",
+          kind: "signature",
+          items: [],
+        },
         {
           id: "currency-approval",
           action: "Approve exchange contract",
@@ -608,6 +629,103 @@ export const getExecuteBuyV7Options: RouteOptions = {
         },
       ];
 
+      // Handle Blur authentication
+      let blurAuth: string | undefined;
+      if (path.some((p) => p.source === "blur.io")) {
+        const blurAuthId = b.getAuthId(payload.taker);
+
+        blurAuth = await b
+          .getAuth(blurAuthId)
+          .then((auth) => (auth ? auth.accessToken : undefined));
+        if (!blurAuth) {
+          const blurAuthChallengeId = b.getAuthChallengeId(payload.taker);
+
+          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+          if (!blurAuthChallenge) {
+            blurAuthChallenge = (await axios
+              .get(
+                `https://order-fetcher.vercel.app/api/blur-auth-challenge?taker=${payload.taker}`,
+                {
+                  headers: {
+                    "X-Api-Key": config.orderFetcherApiKey,
+                  },
+                }
+              )
+              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+
+            await b.saveAuthChallenge(
+              blurAuthChallengeId,
+              blurAuthChallenge,
+              // Give a 1 minute buffer for the auth challenge to expire
+              Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+            );
+          }
+
+          steps[0].items.push({
+            status: "incomplete",
+            data: {
+              sign: {
+                signatureKind: "eip191",
+                message: blurAuthChallenge.message,
+              },
+              post: {
+                endpoint: "/execute/auth-signature/v1",
+                method: "POST",
+                body: {
+                  kind: "blur",
+                  id: blurAuthChallengeId,
+                },
+              },
+            },
+          });
+
+          // Force the client to poll
+          steps[1].items.push({
+            status: "incomplete",
+          });
+
+          // Return an early since any next steps are dependent on the Blur auth
+          return {
+            steps,
+            path,
+          };
+        } else {
+          steps[0].items.push({
+            status: "complete",
+          });
+        }
+      }
+
+      const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
+        x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
+        cbApiKey: config.cbApiKey,
+        orderFetcherApiKey: config.orderFetcherApiKey,
+      });
+      const { txs, success } = await router.fillListingsTx(
+        listingDetails,
+        payload.taker,
+        buyInCurrency,
+        {
+          source: payload.source,
+          partial: payload.partial,
+          forceRouter: payload.forceRouter,
+          relayer: payload.relayer,
+          globalFees: feesOnTop,
+          // TODO: Move this defaulting to the core SDK
+          directFillingData: {
+            conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId],
+          },
+          blurAuth,
+        }
+      );
+
+      // Filter out any non-fillable orders from the path
+      path = path.filter((_, i) => success[i]);
+
+      if (!path.length) {
+        throw Boom.badRequest("No available orders");
+      }
+
       // Custom gas settings
       const maxFeePerGas = payload.maxFeePerGas
         ? bn(payload.maxFeePerGas).toHexString()
@@ -616,126 +734,130 @@ export const getExecuteBuyV7Options: RouteOptions = {
         ? bn(payload.maxPriorityFeePerGas).toHexString()
         : undefined;
 
-      for (const approval of approvals) {
-        const approvedAmount = await onChainData
-          .fetchAndUpdateFtApproval(approval.currency, approval.owner, approval.operator, true)
-          .then((a) => a.value);
+      for (const { txData, approvals, permits, orderIndexes } of txs) {
+        const subPath = path.filter((_, i) => orderIndexes.includes(i));
 
-        const amountToApprove = permits.length
-          ? permits
-              .map((p) =>
-                p.details.data.transferDetails.filter(({ token }) => token === approval.currency)
-              )
-              .flat()
-              .reduce((total, { amount }) => total.add(amount), bn(0))
-          : path
-              .filter((p) => p.currency === approval.currency)
-              .map(({ rawQuote }) => bn(rawQuote))
-              .reduce((total, amount) => total.add(amount), bn(0));
+        for (const approval of approvals) {
+          const approvedAmount = await onChainData
+            .fetchAndUpdateFtApproval(approval.currency, approval.owner, approval.operator, true)
+            .then((a) => a.value);
 
-        const isApproved = bn(approvedAmount).gte(amountToApprove);
-        if (!isApproved) {
-          steps[0].items.push({
-            status: "incomplete",
-            data: {
-              ...approval.txData,
-              maxFeePerGas,
-              maxPriorityFeePerGas,
-            },
-          });
-        }
-      }
+          const amountToApprove = permits.length
+            ? permits
+                .map((p) =>
+                  p.details.data.transferDetails.filter(({ token }) => token === approval.currency)
+                )
+                .flat()
+                .reduce((total, { amount }) => total.add(amount), bn(0))
+            : subPath
+                .filter((p) => p.currency === approval.currency)
+                .map(({ rawQuote }) => bn(rawQuote))
+                .reduce((total, amount) => total.add(amount), bn(0));
 
-      const permitHandler = new Permit2.Handler(config.chainId, baseProvider);
-      if (permits.length) {
-        for (const permit of permits) {
-          const id = getPermitId(request.payload as object, permit.currencies);
-
-          let cachedPermit = await getPermit(id);
-          if (cachedPermit) {
-            // Always use the cached permit details
-            permit.details = cachedPermit.details;
-
-            // If the cached permit has a signature attached to it, we can skip it
-            const hasSignature = (permit.details.data as Permit2.Data).signature;
-            if (hasSignature) {
-              continue;
-            }
-          } else {
-            // Cache the permit if it's the first time we encounter it
-            await savePermit(
-              id,
-              permit,
-              // Give a 1 minute buffer for the permit to expire
-              parseInt(permit.details.data.permitBatch.sigDeadline.toString()) - now() - 60
-            );
-            cachedPermit = permit;
-          }
-
-          steps[1].items.push({
-            status: "incomplete",
-            data: {
-              sign: permitHandler.getSignatureData(cachedPermit.details.data),
-              post: {
-                endpoint: "/execute/permit-signature/v1",
-                method: "POST",
-                body: {
-                  kind: "ft-permit",
-                  id,
-                },
-              },
-            },
-          });
-        }
-      }
-
-      // Get the total price to be paid in the buy-in currency:
-      // - orders already denominated in the buy-in currency
-      // - permit amounts (which will be denominated in the buy-in currency)
-      const totalBuyInCurrencyPrice = path
-        .filter(({ currency }) => currency === buyInCurrency)
-        .map(({ rawQuote }) => bn(rawQuote))
-        .reduce((a, b) => a.add(b), bn(0))
-        .add(
-          permits
-            .map((p) => p.details.data.transferDetails.map((d) => bn(d.amount)))
-            .flat()
-            .reduce((a, b) => a.add(b), bn(0))
-        );
-
-      // Check that the transaction sender has enough funds to fill all requested tokens
-      const txSender = payload.relayer ?? payload.taker;
-      if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
-        const balance = await baseProvider.getBalance(txSender);
-        if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
-          throw Boom.badData("Balance too low to proceed with transaction");
-        }
-      } else {
-        const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, buyInCurrency);
-        const balance = await erc20.getBalance(txSender);
-        if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
-          throw Boom.badData("Balance too low to proceed with transaction");
-        }
-      }
-
-      steps[2].items.push({
-        status: "incomplete",
-        data:
-          // Do not return the final step unless all permits have a signature attached
-          steps[1].items.length === 0
-            ? {
-                ...permitHandler.attachToRouterExecution(
-                  txData,
-                  permits.map((p) => p.details.data)
-                ),
+          const isApproved = bn(approvedAmount).gte(amountToApprove);
+          if (!isApproved) {
+            steps[1].items.push({
+              status: "incomplete",
+              data: {
+                ...approval.txData,
                 maxFeePerGas,
                 maxPriorityFeePerGas,
+              },
+            });
+          }
+        }
+
+        const permitHandler = new Permit2.Handler(config.chainId, baseProvider);
+        if (permits.length) {
+          for (const permit of permits) {
+            const id = getPermitId(request.payload as object, permit.currencies);
+
+            let cachedPermit = await getPermit(id);
+            if (cachedPermit) {
+              // Always use the cached permit details
+              permit.details = cachedPermit.details;
+
+              // If the cached permit has a signature attached to it, we can skip it
+              const hasSignature = (permit.details.data as Permit2.Data).signature;
+              if (hasSignature) {
+                continue;
               }
-            : undefined,
-      });
+            } else {
+              // Cache the permit if it's the first time we encounter it
+              await savePermit(
+                id,
+                permit,
+                // Give a 1 minute buffer for the permit to expire
+                parseInt(permit.details.data.permitBatch.sigDeadline.toString()) - now() - 60
+              );
+              cachedPermit = permit;
+            }
+
+            steps[2].items.push({
+              status: "incomplete",
+              data: {
+                sign: permitHandler.getSignatureData(cachedPermit.details.data),
+                post: {
+                  endpoint: "/execute/permit-signature/v1",
+                  method: "POST",
+                  body: {
+                    kind: "ft-permit",
+                    id,
+                  },
+                },
+              },
+            });
+          }
+        }
+
+        // Get the total price to be paid in the buy-in currency:
+        // - orders already denominated in the buy-in currency
+        // - permit amounts (which will be denominated in the buy-in currency)
+        const totalBuyInCurrencyPrice = subPath
+          .filter(({ currency }) => currency === buyInCurrency)
+          .map(({ rawQuote }) => bn(rawQuote))
+          .reduce((a, b) => a.add(b), bn(0))
+          .add(
+            permits
+              .map((p) => p.details.data.transferDetails.map((d) => bn(d.amount)))
+              .flat()
+              .reduce((a, b) => a.add(b), bn(0))
+          );
+
+        // Check that the transaction sender has enough funds to fill all requested tokens
+        const txSender = payload.relayer ?? payload.taker;
+        if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
+          const balance = await baseProvider.getBalance(txSender);
+          if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
+            throw Boom.badData("Balance too low to proceed with transaction");
+          }
+        } else {
+          const erc20 = new Sdk.Common.Helpers.Erc20(baseProvider, buyInCurrency);
+          const balance = await erc20.getBalance(txSender);
+          if (!payload.skipBalanceCheck && bn(balance).lt(totalBuyInCurrencyPrice)) {
+            throw Boom.badData("Balance too low to proceed with transaction");
+          }
+        }
+
+        steps[3].items.push({
+          status: "incomplete",
+          data:
+            // Do not return the final step unless all permits have a signature attached
+            steps[1].items.length === 0
+              ? {
+                  ...permitHandler.attachToRouterExecution(
+                    txData,
+                    permits.map((p) => p.details.data)
+                  ),
+                  maxFeePerGas,
+                  maxPriorityFeePerGas,
+                }
+              : undefined,
+        });
+      }
 
       return {
-        steps,
+        steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         path,
       };
     } catch (error) {

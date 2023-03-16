@@ -3,7 +3,8 @@ dotEnvConfig();
 
 import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import { getRoyalties } from "@/utils/royalties";
-import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
+import { getFillEventsFromTx } from "@/events-sync/handlers/royalties/utils";
+import { jest, describe, it, expect } from "@jest/globals";
 
 jest.setTimeout(1000 * 1000);
 
@@ -36,7 +37,7 @@ describe("Royalties - LooksRare", () => {
     });
 
     const { fillEvents } = await getFillEventsFromTx(txHash);
-    await assignRoyaltiesToFillEvents(fillEvents, false);
+    await assignRoyaltiesToFillEvents(fillEvents, false, true);
 
     for (let index = 0; index < fillEvents.length; index++) {
       const fillEvent = fillEvents[index];
