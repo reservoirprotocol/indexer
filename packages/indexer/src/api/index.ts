@@ -169,7 +169,7 @@ export const start = async (): Promise<void> => {
         request.route.method,
         tier,
         apiKey?.key,
-        new Map(Object.entries(_.merge(request.payload, request.query)))
+        new Map(Object.entries(_.merge(request.payload, request.query, request.params)))
       );
     } catch (error) {
       if (error instanceof BlockedRouteError) {
