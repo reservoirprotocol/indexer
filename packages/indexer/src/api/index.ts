@@ -179,7 +179,12 @@ export const start = async (): Promise<void> => {
           message: `Request to ${request.route.path} is currently suspended`,
         };
 
-        return reply.response(blockedRouteResponse).type("application/json").code(429).takeover();
+        return reply
+          .response(blockedRouteResponse)
+          .type("application/json")
+          .code(429)
+          .header("tier", `${tier}`)
+          .takeover();
       }
     }
 
@@ -242,6 +247,7 @@ export const start = async (): Promise<void> => {
             .response(tooManyRequestsResponse)
             .type("application/json")
             .code(429)
+            .header("tier", `${tier}`)
             .takeover();
         } else {
           logger.warn("rate-limiter", `Rate limit error ${error}`);

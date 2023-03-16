@@ -62,6 +62,7 @@ export const getSearchCollectionsV1Options: RouteOptions = {
           contract: Joi.string(),
           image: Joi.string().allow("", null),
           name: Joi.string().allow("", null),
+          tokenCount: Joi.number().unsafe().allow(null),
           allTimeVolume: Joi.number().unsafe().allow(null),
           floorAskPrice: Joi.number().unsafe().allow(null),
           openseaVerificationStatus: Joi.string().allow("", null),
@@ -101,8 +102,15 @@ export const getSearchCollectionsV1Options: RouteOptions = {
     }
 
     const baseQuery = `
-            SELECT id, name, contract, (metadata ->> 'imageUrl')::TEXT AS image, all_time_volume, floor_sell_value,
-                   (metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status
+            SELECT 
+              id, 
+              name, 
+              contract, 
+              (metadata ->> 'imageUrl')::TEXT AS image, 
+              token_count, 
+              all_time_volume, 
+              floor_sell_value,
+              (metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status
             FROM collections
             ${whereClause}
             ORDER BY all_time_volume DESC
@@ -148,6 +156,7 @@ export const getSearchCollectionsV1Options: RouteOptions = {
             name: collection.name,
             contract: fromBuffer(collection.contract),
             image: Assets.getLocalAssetsLink(collection.image),
+            tokenCount: collection.token_count,
             allTimeVolume: allTimeVolume ? formatEth(allTimeVolume) : null,
             floorAskPrice: floorAskPrice ? formatEth(floorAskPrice) : null,
             openseaVerificationStatus: collection.opensea_verification_status,
