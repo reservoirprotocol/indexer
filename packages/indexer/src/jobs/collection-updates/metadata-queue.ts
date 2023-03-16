@@ -44,11 +44,6 @@ if (config.doBackgroundWork) {
           );
         }
       } else {
-        logger.info(
-          QUEUE_NAME,
-          `Refresh collection metadata - delayed. contract=${contract}, tokenId=${tokenId}, community=${community}`
-        );
-
         job.data.addToQueue = true;
       }
     },
