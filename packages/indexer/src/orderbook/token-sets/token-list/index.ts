@@ -4,6 +4,7 @@ import { PgPromiseQuery, idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
+import { Tokens } from "@/models/tokens";
 
 export type TokenSet = {
   id: string;
@@ -76,6 +77,8 @@ const isValid = async (tokenSet: TokenSet) => {
       }
 
       let tokens: { token_id: string; contract: Buffer }[] | undefined;
+      let tokenIds: string[] | undefined;
+
       if (tokenSet.schema.kind === "attribute") {
         // TODO: Add support for multiple attributes
         if (tokenSet.schema.data.attributes.length !== 1) {
@@ -123,21 +126,11 @@ const isValid = async (tokenSet: TokenSet) => {
           }
         );
       } else if (tokenSet.schema.kind.startsWith("collection")) {
-        tokens = await redb.manyOrNone(
-          `
-            SELECT
-              tokens.token_id
-            FROM tokens
-            WHERE tokens.collection_id = $/collection/
-              ${
-                tokenSet.schema.kind === "collection-non-flagged"
-                  ? " AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
-                  : ""
-              }
-          `,
-          {
-            collection: tokenSet.schema.data.collection,
-          }
+        const nonFlaggedOnly = tokenSet.schema.kind === "collection-non-flagged";
+        tokenIds = await Tokens.getTokenIdsInCollection(
+          tokenSet.schema.data.collection,
+          "",
+          nonFlaggedOnly
         );
       }
 
@@ -151,7 +144,10 @@ const isValid = async (tokenSet: TokenSet) => {
         : // Assume the collection id always starts with the contract
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (tokenSet.schema.data as any).collection.slice(0, 42);
-      const tokenIds = tokens.map(({ token_id }) => token_id);
+
+      if (!tokenIds) {
+        tokenIds = tokens.map(({ token_id }) => token_id);
+      }
 
       // Generate the token set id corresponding to the passed schema
       const merkleTree = Common.Helpers.generateMerkleTree(tokenIds);

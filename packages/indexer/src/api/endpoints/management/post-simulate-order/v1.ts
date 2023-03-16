@@ -256,6 +256,11 @@ export const postSimulateOrderV1Options: RouteOptions = {
           return { message: "Nothing to simulate" };
         }
 
+        const saleData = parsedPayload.steps[2].items[0]?.data;
+        if (!saleData) {
+          return { message: "Nothing to simulate" };
+        }
+
         const pathItem = parsedPayload.path[0];
 
         const { result: success, callTrace } = await ensureSellTxSucceeds(
@@ -266,8 +271,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
             tokenId: pathItem.tokenId as string,
             amount: pathItem.quantity as string,
           },
-          // Step 0 is the approval transaction
-          parsedPayload.steps[1].items[0].data
+          saleData
         );
         if (success) {
           // active -> inactive

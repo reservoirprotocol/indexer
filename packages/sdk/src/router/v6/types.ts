@@ -144,6 +144,10 @@ export type GenericOrder =
   | {
       kind: "flow";
       order: Sdk.Flow.Order;
+    }
+  | {
+      kind: "superrare";
+      order: Sdk.SuperRare.Order;
     };
 
 // Listings

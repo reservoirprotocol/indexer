@@ -3,6 +3,7 @@
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import axios from "axios";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -14,6 +15,7 @@ import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { generateBidDetailsV6 } from "@/orderbook/orders";
 import { getNftApproval } from "@/orderbook/orders/common/helpers";
+import * as o from "@/utils/auth/opensea";
 import { getCurrency } from "@/utils/currencies";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
@@ -106,7 +108,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           id: Joi.string().required(),
           action: Joi.string().required(),
           description: Joi.string().required(),
-          kind: Joi.string().valid("transaction").required(),
+          kind: Joi.string().valid("signature", "transaction").required(),
           items: Joi.array()
             .items(
               Joi.object({
@@ -138,7 +140,7 @@ export const getExecuteSellV6Options: RouteOptions = {
   handler: async (request: Request) => {
     const payload = request.payload as any;
 
-    let path: any;
+    let path: any[] = [];
     try {
       let orderResult: any;
 
@@ -324,7 +326,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       // Partial Seaport orders require knowing the owner
       let owner: string | undefined;
-      if (["seaport", "seaport-v1.4"].includes(orderResult.kind)) {
+      if (["seaport-partial", "seaport-v1.4-partial"].includes(orderResult.kind)) {
         const ownerResult = await idb.oneOrNone(
           `
             SELECT
@@ -384,15 +386,6 @@ export const getExecuteSellV6Options: RouteOptions = {
         return { path };
       }
 
-      const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
-        x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
-        cbApiKey: config.cbApiKey,
-        orderFetcherApiKey: config.orderFetcherApiKey,
-      });
-      const { txData } = await router.fillBidsTx([bidDetails!], payload.taker, {
-        source: payload.source,
-      });
-
       // Set up generic filling steps
       const steps: {
         id: string;
@@ -404,6 +397,13 @@ export const getExecuteSellV6Options: RouteOptions = {
           data?: any;
         }[];
       }[] = [
+        {
+          id: "auth",
+          action: "Sign in to OpenSea",
+          description: "Some marketplaces require signing an auth message before filling",
+          kind: "signature",
+          items: [],
+        },
         {
           id: "nft-approval",
           action: "Approve NFT contract",
@@ -420,6 +420,138 @@ export const getExecuteSellV6Options: RouteOptions = {
           items: [],
         },
       ];
+
+      // Handle OpenSea authentication
+      let openseaAuth: string | undefined;
+      if (
+        path.some(
+          (p) =>
+            p.source === "opensea.io" &&
+            // Authentication is only needed for protected offers
+            orderResult?.raw_data?.zone ===
+              Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId]
+        )
+      ) {
+        // Ensure the taker owns the NFTs to get sold
+        const takerIsOwner = await idb.oneOrNone(
+          `
+            SELECT
+              1
+            FROM nft_balances
+            WHERE nft_balances.contract = $/contract/
+              AND nft_balances.token_id = $/tokenId/
+              AND nft_balances.amount >= $/quantity/
+              AND nft_balances.owner = $/owner/
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(contract),
+            tokenId,
+            quantity: payload.quantity ?? 1,
+            owner: toBuffer(payload.taker),
+          }
+        );
+        if (!takerIsOwner) {
+          throw Boom.badRequest("Taker is not the owner of the token to sell");
+        }
+
+        const openseaAuthId = o.getAuthId(payload.taker);
+
+        openseaAuth = await o
+          .getAuth(openseaAuthId)
+          .then((auth) => (auth ? auth.authorization : undefined));
+        if (!openseaAuth) {
+          const openseaAuthChallengeId = o.getAuthChallengeId(payload.taker);
+
+          let openseaAuthChallenge = await o.getAuthChallenge(openseaAuthChallengeId);
+          if (!openseaAuthChallenge) {
+            openseaAuthChallenge = (await axios
+              .get(
+                `https://order-fetcher.vercel.app/api/opensea-auth-challenge?taker=${payload.taker}`,
+                {
+                  headers: {
+                    "X-Api-Key": config.orderFetcherApiKey,
+                  },
+                }
+              )
+              .then((response) => response.data.authChallenge)) as o.AuthChallenge;
+
+            await o.saveAuthChallenge(
+              openseaAuthChallengeId,
+              openseaAuthChallenge,
+              // Give a 1 minute buffer for the auth challenge to expire
+              24 * 59 * 60
+            );
+          }
+
+          steps[0].items.push({
+            status: "incomplete",
+            data: {
+              sign: {
+                signatureKind: "eip191",
+                message: openseaAuthChallenge.loginMessage,
+              },
+              post: {
+                endpoint: "/execute/auth-signature/v1",
+                method: "POST",
+                body: {
+                  kind: "opensea",
+                  id: openseaAuthChallengeId,
+                },
+              },
+            },
+          });
+
+          // Force the client to poll
+          steps[1].items.push({
+            status: "incomplete",
+          });
+
+          // Return an early since any next steps are dependent on the Blur auth
+          return {
+            steps,
+            path,
+          };
+        } else {
+          steps[0].items.push({
+            status: "complete",
+          });
+        }
+      }
+
+      const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {
+        x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
+        cbApiKey: config.cbApiKey,
+        orderFetcherApiKey: config.orderFetcherApiKey,
+      });
+      const { txData, approvals } = await router.fillBidsTx([bidDetails!], payload.taker, {
+        source: payload.source,
+        openseaAuth,
+      });
+
+      // Direct filling on OpenSea might require an approval
+      if (txData.to === Sdk.SeaportV14.Addresses.Exchange[config.chainId]) {
+        const isApproved = await getNftApproval(
+          bidDetails.contract,
+          payload.taker,
+          Sdk.SeaportV14.Addresses.OpenseaConduit[config.chainId]
+        );
+
+        if (!isApproved) {
+          steps[1].items.push({
+            status: "incomplete",
+            data: {
+              ...approvals[0].txData,
+              maxFeePerGas: payload.maxFeePerGas
+                ? bn(payload.maxFeePerGas).toHexString()
+                : undefined,
+              maxPriorityFeePerGas: payload.maxPriorityFeePerGas
+                ? bn(payload.maxPriorityFeePerGas).toHexString()
+                : undefined,
+            },
+          });
+        }
+      }
 
       // Forward / Rarible bids are to be filled directly (because we have no modules for them yet)
       if (bidDetails.kind === "forward") {
@@ -440,7 +572,7 @@ export const getExecuteSellV6Options: RouteOptions = {
                   bidDetails.contract
                 ).approveTransaction(payload.taker, Sdk.Forward.Addresses.Exchange[config.chainId]);
 
-          steps[0].items.push({
+          steps[1].items.push({
             status: "incomplete",
             data: {
               ...approveTx,
@@ -477,7 +609,7 @@ export const getExecuteSellV6Options: RouteOptions = {
                   Sdk.Infinity.Addresses.Exchange[config.chainId]
                 );
 
-          steps[0].items.push({
+          steps[1].items.push({
             status: "incomplete",
             data: {
               ...approveTx,
@@ -511,7 +643,7 @@ export const getExecuteSellV6Options: RouteOptions = {
                   bidDetails.contract
                 ).approveTransaction(payload.taker, Sdk.Flow.Addresses.Exchange[config.chainId]);
 
-          steps[0].items.push({
+          steps[1].items.push({
             status: "incomplete",
             data: {
               ...approveTx,
@@ -547,7 +679,7 @@ export const getExecuteSellV6Options: RouteOptions = {
                   Sdk.Rarible.Addresses.NFTTransferProxy[config.chainId]
                 );
 
-          steps[0].items.push({
+          steps[1].items.push({
             status: "incomplete",
             data: {
               ...approveTx,
@@ -562,7 +694,7 @@ export const getExecuteSellV6Options: RouteOptions = {
         }
       }
 
-      steps[1].items.push({
+      steps[2].items.push({
         status: "incomplete",
         data: {
           ...txData,
@@ -574,7 +706,7 @@ export const getExecuteSellV6Options: RouteOptions = {
       });
 
       return {
-        steps,
+        steps: openseaAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         path,
       };
     } catch (error) {

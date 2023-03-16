@@ -21,7 +21,7 @@ export type RoyaltyResult = {
 };
 
 export type StateCache = {
-  royalties: Map<string, Royalty[]>;
+  royalties: Map<string, Royalty[][]>;
 };
 
 export interface RoyaltyAdapter {

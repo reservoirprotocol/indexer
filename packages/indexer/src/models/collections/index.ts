@@ -14,6 +14,7 @@ import { Tokens } from "@/models/tokens";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace_fees";
+import { logger } from "@/common/logger";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -85,6 +86,21 @@ export class Collections {
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
     const tokenCount = await Tokens.countTokensInCollection(collection.id);
+
+    if (collection.metadata == null) {
+      const collectionResult = await Collections.getById(collection.id);
+
+      if (collectionResult?.metadata != null) {
+        logger.error(
+          "updateCollectionCache",
+          `InvalidUpdateCollectionCache. contract=${contract}, tokenId=${tokenId}, community=${community}, collection=${JSON.stringify(
+            collection
+          )}, collectionResult=${JSON.stringify(collectionResult)}`
+        );
+
+        throw new Error("Invalid collection metadata");
+      }
+    }
 
     const query = `
       UPDATE collections SET
