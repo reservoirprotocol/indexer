@@ -240,7 +240,7 @@ export const start = async (): Promise<void> => {
           const tooManyRequestsResponse = {
             statusCode: 429,
             error: "Too Many Requests",
-            message: `Max ${rateLimitRule.points} requests in ${rateLimitRule.duration}s reached`,
+            message: `Max ${rateLimitRule.points} requests in ${rateLimitRule.duration}s reached. Please register for an API key by creating a free account at https://dashboard.reservoir.tools to increase your rate limit.`,
           };
 
           return reply
