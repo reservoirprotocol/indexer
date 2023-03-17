@@ -4,12 +4,15 @@ import { BaseBuilder } from "@reservoir0x/sdk/dist/seaport-v1.4/builders/base";
 
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
-import { fromBuffer } from "@/common/utils";
+import { bn, fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as utils from "@/orderbook/orders/seaport-v1.4/build/utils";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
 import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 import { Tokens } from "@/models/tokens";
+import * as tokenSet from "@/orderbook/token-sets";
+import { TokenSet } from "@/orderbook/token-sets/token-list";
+import { logger } from "@/common/logger";
 
 interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
   collection: string;
@@ -126,6 +129,30 @@ export const build = async (options: BuildOrderOptions) => {
         // Also cache the computation for one hour
         cachedMerkleRoot = generateMerkleTree(tokenIds).getHexRoot();
         await redis.set(schemaHash, cachedMerkleRoot, "EX", 3600);
+
+        if (options.orderbook === "reservoir" && collectionResult.token_set_id == null) {
+          const contract = fromBuffer(collectionResult.contract);
+          const tokenSetId = `list:${contract}:${bn(cachedMerkleRoot).toHexString()}`;
+
+          const ts = await tokenSet.tokenList.save([
+            {
+              id: tokenSetId,
+              schema,
+              schemaHash,
+              items: {
+                contract,
+                tokenIds,
+              },
+            } as TokenSet,
+          ]);
+
+          logger.info(
+            "seaport-build-buy-collection",
+            `TokenList. tokenSetId=${tokenSetId}, schemaHash=${schemaHash}, schema=${JSON.stringify(
+              schema
+            )}, ts=${JSON.stringify(ts)}`
+          );
+        }
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
