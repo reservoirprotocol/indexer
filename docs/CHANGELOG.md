@@ -1,3 +1,11 @@
+## [5.263.1](https://github.com/reservoirprotocol/indexer/compare/v5.263.0...v5.263.1) (2023-03-17)
+
+
+### Bug Fixes
+
+* continue standardization of JoiSale object ([80eaa5d](https://github.com/reservoirprotocol/indexer/commit/80eaa5dabf01e2e6222ef3a3c35d01f3c6781d9c))
+* fully abstract sales response as JoiSale ([dc1ab26](https://github.com/reservoirprotocol/indexer/commit/dc1ab267a52d52f53cbb7f3762bbe4d5ce533356))
+
 # [5.263.0](https://github.com/reservoirprotocol/indexer/compare/v5.262.1...v5.263.0) (2023-03-17)
 
 
