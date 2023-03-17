@@ -50,6 +50,11 @@ export type TokenSet = {
 const isValid = async (tokenSet: TokenSet) => {
   try {
     if (!tokenSet.items && !tokenSet.schema) {
+      logger.info(
+        "seaport-token-set-save",
+        `no associated items or schema. tokenSet=${JSON.stringify(tokenSet)}`
+      );
+
       // In case we have no associated items or schema, we just skip the token set
       return false;
     }
@@ -62,6 +67,11 @@ const isValid = async (tokenSet: TokenSet) => {
 
       // Make sure the passed tokens match the token set id
       if (itemsId !== tokenSet.id) {
+        logger.info(
+          "seaport-token-set-save",
+          `Items check failed. tokenSet=${JSON.stringify(tokenSet)}, itemsId=${itemsId}`
+        );
+
         return false;
       }
     }
@@ -73,6 +83,11 @@ const isValid = async (tokenSet: TokenSet) => {
       // Validate the schema against the schema hash
       const schemaHash = generateSchemaHash(tokenSet.schema);
       if (schemaHash !== tokenSet.schemaHash) {
+        logger.info(
+          "seaport-token-set-save",
+          `schema check failed. tokenSet=${JSON.stringify(tokenSet)}, schemaHash=${schemaHash}`
+        );
+
         return false;
       }
 
@@ -135,6 +150,8 @@ const isValid = async (tokenSet: TokenSet) => {
       }
 
       if (!tokens || !tokens.length) {
+        logger.info("seaport-token-set-save", `No tokens. tokenSet=${JSON.stringify(tokenSet)}`);
+
         return false;
       }
 
@@ -155,6 +172,11 @@ const isValid = async (tokenSet: TokenSet) => {
 
       // Make sure the passed schema matches the token set id
       if (schemaId !== tokenSet.id) {
+        logger.info(
+          "seaport-token-set-save",
+          `schemaId check fail. tokenSet=${JSON.stringify(tokenSet)}, schemaId=${schemaId}`
+        );
+
         return false;
       }
 
@@ -165,6 +187,13 @@ const isValid = async (tokenSet: TokenSet) => {
     }
 
     if (!itemsId && !schemaId) {
+      logger.info(
+        "seaport-token-set-save",
+        `valid items or schema check fail. tokenSet=${JSON.stringify(
+          tokenSet
+        )}, itemsId=${itemsId}, schemaId=${schemaId}`
+      );
+
       // Skip if we couldn't detect any valid items or schema
       return false;
     }
@@ -196,6 +225,8 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
       // If the token set already exists, we can simply skip any other further actions
       valid.add(tokenSet);
     } else if (!tokenSetExists && !(await isValid(tokenSet))) {
+      logger.info("seaport-token-set-save", `TokenList. tokenSet=${JSON.stringify(tokenSet)}`);
+
       continue;
     }
 
