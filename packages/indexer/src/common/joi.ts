@@ -3,9 +3,12 @@
 import { BigNumberish } from "@ethersproject/bignumber";
 import Joi from "joi";
 
-import { bn, formatEth, formatPrice, formatUsd, now, regex } from "@/common/utils";
+import { bn, formatEth, formatPrice, formatUsd, fromBuffer, now, regex } from "@/common/utils";
 import { Currency, getCurrency } from "@/utils/currencies";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import { Sources } from "@/models/sources";
+import crypto from "crypto";
+import { Assets } from "@/utils/assets";
 
 // --- Prices ---
 
@@ -197,6 +200,30 @@ export const JoiFeeBreakdown = Joi.object({
 });
 
 export const JoiSale = Joi.object({
+  id: Joi.string(),
+  saleId: Joi.string(),
+  token: Joi.object({
+    contract: Joi.string().lowercase().pattern(regex.address),
+    tokenId: Joi.string().pattern(regex.number),
+    name: Joi.string().allow("", null),
+    image: Joi.string().allow("", null),
+    collection: Joi.object({
+      id: Joi.string().allow(null),
+      name: Joi.string().allow("", null),
+    }),
+  }).optional(),
+  orderSource: Joi.string().allow("", null).optional(),
+  orderSide: Joi.string().valid("ask", "bid").optional(),
+  orderKind: Joi.string().optional(),
+  orderId: Joi.string().allow(null).optional(),
+  from: Joi.string().lowercase().pattern(regex.address).optional(),
+  to: Joi.string().lowercase().pattern(regex.address).optional(),
+  amount: Joi.string().optional(),
+  fillSource: Joi.string().allow(null).optional(),
+  block: Joi.number().optional(),
+  txHash: Joi.string().lowercase().pattern(regex.bytes32).optional(),
+  logIndex: Joi.number().optional(),
+  batchIndex: Joi.number().optional(),
   timestamp: Joi.number(),
   price: JoiPrice,
   washTradingScore: Joi.number().optional(),
@@ -240,7 +267,7 @@ export const getFeeBreakdown = (
     : undefined;
 };
 
-export const getJoiSaleObject = async (
+export const getJoiSaleObject = async (sale: {
   prices: {
     gross: {
       amount: string;
@@ -252,23 +279,95 @@ export const getJoiSaleObject = async (
       nativeAmount?: string;
       usdAmount?: string;
     };
-  },
+  };
   fees: {
-    totalFeeBps?: number;
     royaltyFeeBps?: number;
     marketplaceFeeBps?: number;
     paidFullRoyalty?: boolean;
     royaltyFeeBreakdown?: any;
     marketplaceFeeBreakdown?: any;
-  },
-  currencyAddress: string,
-  timestamp: number,
-  washTradingScore?: number
-) => {
-  const currency = await getCurrency(currencyAddress);
-  const lastSaleFeeInfoIsValid = feeInfoIsValid(fees.royaltyFeeBps, fees.marketplaceFeeBps);
+  };
+  currencyAddress: Buffer;
+  timestamp: number;
+  contract?: Buffer;
+  tokenId?: string;
+  name?: string;
+  image?: string;
+  collectionId?: string;
+  collectionName?: string;
+  washTradingScore?: number;
+  orderId?: string;
+  orderSourceId?: number;
+  orderSide?: string;
+  orderKind?: string;
+  maker?: Buffer;
+  taker?: Buffer;
+  amount?: number;
+  fillSourceId?: number;
+  block?: number;
+  txHash?: Buffer;
+  logIndex?: number;
+  batchIndex?: number;
+}) => {
+  const currency = await getCurrency(fromBuffer(sale.currencyAddress));
+  const lastSaleFeeInfoIsValid = feeInfoIsValid(
+    sale.fees.royaltyFeeBps,
+    sale.fees.marketplaceFeeBps
+  );
+  const sources = await Sources.getInstance();
+  const orderSource =
+    sale.orderSourceId !== null ? sources.get(Number(sale.orderSourceId)) : undefined;
+  const fillSource =
+    sale.fillSourceId !== null ? sources.get(Number(sale.fillSourceId)) : undefined;
+  const totalFeeBps = (sale.fees.royaltyFeeBps ?? 0) + (sale.fees.marketplaceFeeBps ?? 0);
+
   return {
-    timestamp: timestamp,
+    id:
+      sale.txHash &&
+      crypto
+        .createHash("sha256")
+        .update(`${fromBuffer(sale.txHash)}${sale.logIndex}${sale.batchIndex}`)
+        .digest("hex"),
+    saleId:
+      sale.txHash &&
+      crypto
+        .createHash("sha256")
+        .update(
+          `${fromBuffer(sale.txHash)}${sale.maker}${sale.taker}${sale.contract}${sale.tokenId}${
+            sale.prices.gross.nativeAmount
+          }`
+        )
+        .digest("hex"),
+    token: sale.contract &&
+      sale.tokenId && {
+        contract: fromBuffer(sale.contract),
+        tokenId: sale.tokenId,
+        name: sale.name ?? null,
+        image: sale.image ? Assets.getLocalAssetsLink(sale.image) : null,
+        collection: {
+          id: sale.collectionId ?? null,
+          name: sale.collectionName ?? null,
+        },
+      },
+    orderId: sale.orderId,
+    orderSource: sale.orderSourceId && (orderSource?.domain ?? null),
+    orderSide: sale.orderSide && (sale.orderSide === "sell" ? "ask" : "bid"),
+    orderKind: sale.orderKind,
+    from:
+      sale.maker &&
+      sale.taker &&
+      (sale.orderSide === "sell" ? fromBuffer(sale.maker) : fromBuffer(sale.taker)),
+    to:
+      sale.maker &&
+      sale.taker &&
+      (sale.orderSide === "sell" ? fromBuffer(sale.taker) : fromBuffer(sale.maker)),
+    amount: sale.amount,
+    fillSource: sale.fillSourceId && (fillSource?.domain ?? orderSource?.domain ?? null),
+    block: sale.block,
+    txHash: sale.txHash && fromBuffer(sale.txHash),
+    logIndex: sale.logIndex,
+    batchIndex: sale.batchIndex,
+    timestamp: sale.timestamp,
     price: {
       currency: {
         contract: currency.contract,
@@ -278,34 +377,34 @@ export const getJoiSaleObject = async (
       },
       amount: await getJoiAmountObject(
         currency,
-        prices.gross.amount,
-        prices.gross.nativeAmount,
-        prices.gross.usdAmount
+        sale.prices.gross.amount,
+        sale.prices.gross.nativeAmount,
+        sale.prices.gross.usdAmount
       ),
-      netAmount: prices.net
+      netAmount: sale.prices.net
         ? await getJoiAmountObject(
             currency,
-            prices.net.amount,
-            prices.net.nativeAmount,
-            prices.net.usdAmount
+            sale.prices.net.amount,
+            sale.prices.net.nativeAmount,
+            sale.prices.net.usdAmount
           )
-        : fees.totalFeeBps && fees.totalFeeBps < 10000
+        : totalFeeBps && totalFeeBps < 10000
         ? await getJoiAmountObject(
             currency,
-            prices.gross.amount,
-            prices.gross.nativeAmount,
-            prices.gross.usdAmount,
-            fees.totalFeeBps
+            sale.prices.gross.amount,
+            sale.prices.gross.nativeAmount,
+            sale.prices.gross.usdAmount,
+            totalFeeBps
           )
         : undefined,
     },
-    washTradingScore: washTradingScore,
-    royaltyFeeBps: getFeeValue(fees.royaltyFeeBps, lastSaleFeeInfoIsValid),
-    marketplaceFeeBps: getFeeValue(fees.marketplaceFeeBps, lastSaleFeeInfoIsValid),
-    paidFullRoyalty: getFeeValue(fees.paidFullRoyalty, lastSaleFeeInfoIsValid),
+    washTradingScore: sale.washTradingScore,
+    royaltyFeeBps: getFeeValue(sale.fees.royaltyFeeBps, lastSaleFeeInfoIsValid),
+    marketplaceFeeBps: getFeeValue(sale.fees.marketplaceFeeBps, lastSaleFeeInfoIsValid),
+    paidFullRoyalty: getFeeValue(sale.fees.paidFullRoyalty, lastSaleFeeInfoIsValid),
     feeBreakdown: getFeeBreakdown(
-      fees.royaltyFeeBreakdown,
-      fees.marketplaceFeeBreakdown,
+      sale.fees.royaltyFeeBreakdown,
+      sale.fees.marketplaceFeeBreakdown,
       lastSaleFeeInfoIsValid
     ),
   };

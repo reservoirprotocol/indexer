@@ -421,8 +421,7 @@ export const getTokensV6Options: RouteOptions = {
           fe.royalty_fee_bps AS last_sale_royalty_fee_bps,
           fe.paid_full_royalty AS last_sale_paid_full_royalty,
           fe.royalty_fee_breakdown AS last_sale_royalty_fee_breakdown,
-          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown,
-          fe.wash_trading_score AS last_sale_wash_trading_score
+          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown
         FROM fill_events_2 fe
         WHERE fe.contract = t.contract AND fe.token_id = t.token_id
         ORDER BY timestamp DESC LIMIT 1
@@ -1045,27 +1044,24 @@ export const getTokensV6Options: RouteOptions = {
             },
             lastSale:
               query.includeLastSale && r.last_sale_currency
-                ? await getJoiSaleObject(
-                    {
+                ? await getJoiSaleObject({
+                    prices: {
                       gross: {
                         amount: r.last_sale_currency_price ?? r.last_sale_price,
                         nativeAmount: r.last_sale_price,
                         usdAmount: r.last_sale_usd_price,
                       },
                     },
-                    {
+                    fees: {
                       royaltyFeeBps: r.last_sale_royalty_fee_bps,
                       marketplaceFeeBps: r.last_sale_marketplace_fee_bps,
-                      totalFeeBps:
-                        (r.last_sale_royalty_fee_bps ?? 0) + (r.last_sale_marketplace_fee_bps ?? 0),
                       paidFullRoyalty: r.last_sale_paid_full_royalty,
                       royaltyFeeBreakdown: r.last_sale_royalty_fee_breakdown,
                       marketplaceFeeBreakdown: r.last_sale_marketplace_fee_breakdown,
                     },
-                    fromBuffer(r.last_sale_currency),
-                    r.last_sale_timestamp,
-                    r.last_sale_wash_trading_score
-                  )
+                    currencyAddress: r.last_sale_currency,
+                    timestamp: r.last_sale_timestamp,
+                  })
                 : undefined,
             owner: r.owner ? fromBuffer(r.owner) : null,
             attributes: query.includeAttributes
