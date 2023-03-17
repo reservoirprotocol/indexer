@@ -260,6 +260,21 @@ export const getExecuteBuyV6Options: RouteOptions = {
           rawQuote: totalPrice.toString(),
         });
 
+        const flaggedResult = await idb.oneOrNone(
+          `
+            SELECT
+              tokens.is_flagged
+            FROM tokens
+            WHERE tokens.contract = $/contract/
+              AND tokens.token_id = $/tokenId/
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(token.contract),
+            tokenId: token.tokenId,
+          }
+        );
+
         listingDetails.push(
           generateListingDetailsV6(
             {
@@ -279,6 +294,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               contract: token.contract,
               tokenId: token.tokenId,
               amount: token.quantity,
+              isFlagged: Boolean(flaggedResult.is_flagged),
             }
           )
         );

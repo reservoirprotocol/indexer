@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 
 import { PgPromiseQuery, idb, pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
@@ -34,42 +34,81 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
-      const { fromBlock, toBlock, currentBlock } = job.data;
+      const details = job.data as Details;
 
       const time1 = performance.now();
 
       const blockRange = 10;
-      const results = await redb.manyOrNone(
-        `
-          SELECT
-            fill_events_2.tx_hash,
-            fill_events_2.block,
-            fill_events_2.block_hash,
-            fill_events_2.log_index,
-            fill_events_2.batch_index,
-            fill_events_2.block,
-            fill_events_2.order_kind,
-            fill_events_2.order_id,
-            fill_events_2.order_side,
-            fill_events_2.maker,
-            fill_events_2.taker,
-            fill_events_2.price,
-            fill_events_2.contract,
-            fill_events_2.token_id,
-            fill_events_2.amount,
-            fill_events_2.currency,
-            fill_events_2.currency_price
-          FROM fill_events_2
-          WHERE fill_events_2.block < $/block/
-            AND fill_events_2.block >= $/block/ - $/blockRange/
-            AND fill_events_2.order_kind != 'mint'
-          ORDER BY fill_events_2.block DESC
-        `,
-        {
-          block: currentBlock,
-          blockRange,
-        }
-      );
+      const timestampRange = 300;
+
+      let results: any[];
+      if (details.kind === "all") {
+        results = await redb.manyOrNone(
+          `
+            SELECT
+              fill_events_2.tx_hash,
+              fill_events_2.block,
+              fill_events_2.block_hash,
+              fill_events_2.log_index,
+              fill_events_2.batch_index,
+              fill_events_2.block,
+              fill_events_2.order_kind,
+              fill_events_2.order_id,
+              fill_events_2.order_side,
+              fill_events_2.maker,
+              fill_events_2.taker,
+              fill_events_2.price,
+              fill_events_2.contract,
+              fill_events_2.token_id,
+              fill_events_2.amount,
+              fill_events_2.currency,
+              fill_events_2.currency_price
+            FROM fill_events_2
+            WHERE fill_events_2.block <= $/block/
+              AND fill_events_2.block > $/block/ - $/blockRange/
+              AND fill_events_2.order_kind != 'mint'
+            ORDER BY fill_events_2.block DESC
+          `,
+          {
+            block: details.data.toBlock,
+            blockRange,
+          }
+        );
+      } else {
+        results = await redb.manyOrNone(
+          `
+            SELECT
+              fill_events_2.tx_hash,
+              fill_events_2.block,
+              fill_events_2.block_hash,
+              fill_events_2.log_index,
+              fill_events_2.batch_index,
+              fill_events_2.block,
+              fill_events_2.order_kind,
+              fill_events_2.order_id,
+              fill_events_2.order_side,
+              fill_events_2.maker,
+              fill_events_2.taker,
+              fill_events_2.price,
+              fill_events_2.contract,
+              fill_events_2.token_id,
+              fill_events_2.amount,
+              fill_events_2.currency,
+              fill_events_2.currency_price
+            FROM fill_events_2
+            WHERE fill_events_2.contract = $/contract/
+              AND fill_events_2.timestamp <= $/timestamp/
+              AND fill_events_2.timestamp > $/timestamp/ - $/timestampRange/
+              AND fill_events_2.order_kind != 'mint'
+            ORDER BY fill_events_2.timestamp DESC
+          `,
+          {
+            contract: toBuffer(details.data.contract),
+            timestamp: details.data.toTimestamp,
+            timestampRange,
+          }
+        );
+      }
 
       const fillEvents: es.fills.Event[] = results.map((r) => ({
         orderKind: r.order_kind,
@@ -187,9 +226,26 @@ if (config.doBackgroundWork) {
         })
       );
 
-      const nextBlock = currentBlock - blockRange;
-      if (nextBlock > fromBlock) {
-        await addToQueue(fromBlock, toBlock, nextBlock);
+      if (details.kind === "all") {
+        const nextBlock = details.data.toBlock - blockRange;
+        if (nextBlock >= details.data.fromBlock) {
+          await addToQueue({
+            kind: "all",
+            data: { fromBlock: details.data.fromBlock, toBlock: nextBlock },
+          });
+        }
+      } else {
+        const nextTimestamp = details.data.toTimestamp - timestampRange;
+        if (nextTimestamp >= details.data.fromTimestamp) {
+          await addToQueue({
+            kind: "contract",
+            data: {
+              contract: details.data.contract,
+              fromTimestamp: details.data.fromTimestamp,
+              toTimestamp: nextTimestamp,
+            },
+          });
+        }
       }
     },
     { connection: redis.duplicate(), concurrency: 10 }
@@ -198,30 +254,25 @@ if (config.doBackgroundWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  if (config.chainId === 1) {
-    redlock
-      .acquire([`${QUEUE_NAME}-lock-5`], 60 * 60 * 24 * 30 * 1000)
-      .then(async () => {
-        await addToQueue(14700000, 14800000, 14800001);
-        await addToQueue(14600000, 14700000, 14700001);
-        await addToQueue(14500000, 14600000, 14600001);
-        await addToQueue(14400000, 14500000, 14500001);
-        await addToQueue(14300000, 14400000, 14400001);
-        await addToQueue(14200000, 14300000, 14300001);
-        await addToQueue(14100000, 14200000, 14200001);
-        await addToQueue(14000000, 14100000, 14100001);
-      })
-      .catch(() => {
-        // Skip on any errors
-      });
-  }
 }
 
-export const addToQueue = async (fromBlock: number, toBlock: number, currentBlock: number) => {
-  await queue.add(
-    randomUUID(),
-    { fromBlock, toBlock, currentBlock },
-    { jobId: `${fromBlock}-${toBlock}-${currentBlock}` }
-  );
+type Details =
+  | {
+      kind: "all";
+      data: {
+        fromBlock: number;
+        toBlock: number;
+      };
+    }
+  | {
+      kind: "contract";
+      data: {
+        contract: string;
+        fromTimestamp: number;
+        toTimestamp: number;
+      };
+    };
+
+export const addToQueue = async (details: Details) => {
+  await queue.add(randomUUID(), details, { jobId: JSON.stringify(details) });
 };

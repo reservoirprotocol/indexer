@@ -160,6 +160,7 @@ export type ListingFillDetails = {
   currency: string;
   price: string;
   source?: string;
+  isFlagged?: boolean;
   // Relevant for partially-fillable orders
   amount?: number | string;
   fees?: Fee[];

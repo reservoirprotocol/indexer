@@ -199,6 +199,7 @@ export const generateListingDetailsV6 = (
     contract: string;
     tokenId: string;
     amount?: number;
+    isFlagged?: boolean;
   }
 ): SdkTypesV6.ListingDetails => {
   const common = {
@@ -208,6 +209,7 @@ export const generateListingDetailsV6 = (
     currency: order.currency,
     price: order.price,
     source: order.source,
+    isFlagged: token.isFlagged,
     amount: token.amount ?? 1,
     fees: order.fees ?? [],
   };

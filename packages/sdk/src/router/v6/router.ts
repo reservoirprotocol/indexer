@@ -450,6 +450,120 @@ export class Router {
       }
     }
 
+    const txs: {
+      approvals: FTApproval[];
+      permits: FTPermit[];
+      txData: TxData;
+      orderIndexes: number[];
+    }[] = [];
+    const success: boolean[] = details.map(() => false);
+
+    // Filling Blur listings is extremely tricky since they explicitly designed
+    // their contracts so that it is not possible to fill indirectly (eg. via a
+    // router contract). Given these restriction, we might need to use multiple
+    // transactions: one for BLUR / OS / LR / X2Y2 orders (what Blur supports),
+    // and another one for the rest of the orders (which Blur doesn't support).
+    // For orders that Blur supports we use the calldata fetched from their API
+    // while for the others we generate the calldata by ourselves. This is only
+    // relevant if the orders to fill include a Blur order.
+
+    // Extract any Blur-compatible listings
+    const blurCompatibleListings: ListingDetailsExtracted[] = [];
+    if (details.find((d) => d.source === "blur.io")) {
+      for (let i = 0; i < details.length; i++) {
+        const detail = details[i];
+        if (
+          detail.contractKind === "erc721" &&
+          ["blur.io", "opensea.io", "looksrare.org", "x2y2.io"].includes(detail.source!)
+        ) {
+          blurCompatibleListings.push({ ...detail, originalIndex: i });
+        }
+      }
+    }
+
+    // Generate calldata for the above Blur-compatible listings
+    if (blurCompatibleListings.length) {
+      try {
+        let blurUrl = `https://order-fetcher.vercel.app/api/blur-listing?`;
+        for (const d of blurCompatibleListings) {
+          blurUrl += `contracts=${d.contract}&tokenIds=${d.tokenId}&prices=${
+            d.price
+          }&flaggedStatuses=${d.isFlagged ? "true" : "false"}&`;
+        }
+        blurUrl += `taker=${taker}&authToken=${options?.blurAuth}`;
+
+        // We'll have one transaction per contract
+        const result: {
+          [contract: string]: {
+            from: string;
+            to: string;
+            data: string;
+            value: string;
+            path: { contract: string; tokenId: string }[];
+          };
+        } = await axios
+          .get(blurUrl, {
+            headers: {
+              "X-Api-Key": this.options?.orderFetcherApiKey,
+            },
+          })
+          .then((response) => response.data.calldata);
+
+        for (const data of Object.values(result)) {
+          const successfulBlurCompatibleListings: ListingDetailsExtracted[] = [];
+          for (const { contract, tokenId } of data.path) {
+            const listing = blurCompatibleListings.find(
+              (d) => d.contract === contract && d.tokenId === tokenId
+            );
+            if (listing) {
+              successfulBlurCompatibleListings.push(listing);
+            }
+          }
+
+          // If we have at least one Blur listing, we should go ahead with the calldata returned by Blur
+          if (successfulBlurCompatibleListings.find((d) => d.source === "blur.io")) {
+            // Mark the orders handled by Blur as successful
+            const orderIndexes: number[] = [];
+            for (const d of successfulBlurCompatibleListings) {
+              success[d.originalIndex] = true;
+              orderIndexes.push(d.originalIndex);
+            }
+
+            txs.push({
+              approvals: [],
+              permits: [],
+              txData: {
+                from: data.from,
+                to: data.to,
+                data: data.data + generateSourceBytes(options?.source),
+                value: data.value,
+              },
+              orderIndexes: [],
+            });
+          }
+        }
+      } catch {
+        if (!options?.partial) {
+          throw new Error("Could not generate fill data");
+        }
+      }
+    }
+
+    // Check if we still have any Blur listings for which we didn't properly generate calldata
+    if (details.find((d, i) => d.source === "blur.io" && !success[i])) {
+      if (!options?.partial) {
+        throw new Error("Could not generate fill data");
+      }
+    }
+
+    // Return early if all listings were covered by Blur
+    if (details.every((_, i) => success[i])) {
+      return {
+        txs,
+        success,
+      };
+    }
+
     // Handle partial seaport orders:
     // - fetch the full order data for each partial order (concurrently)
     // - remove any partial order from the details
@@ -525,118 +639,6 @@ export class Router {
         }
       })
     );
-
-    const txs: {
-      approvals: FTApproval[];
-      permits: FTPermit[];
-      txData: TxData;
-      orderIndexes: number[];
-    }[] = [];
-    const success: boolean[] = details.map(() => false);
-
-    // Filling Blur listings is extremely tricky since they explicitly designed
-    // their contracts so that it is not possible to fill indirectly (eg. via a
-    // router contract). Given these restriction, we might need to use multiple
-    // transactions: one for BLUR / OS / LR / X2Y2 orders (what Blur supports),
-    // and another one for the rest of the orders (which Blur doesn't support).
-    // For orders that Blur supports we use the calldata fetched from their API
-    // while for the others we generate the calldata by ourselves. This is only
-    // relevant if the orders to fill include a Blur order.
-
-    // Extract any Blur-compatible listings
-    const blurCompatibleListings: ListingDetailsExtracted[] = [];
-    if (details.find((d) => d.source === "blur.io")) {
-      for (let i = 0; i < details.length; i++) {
-        const detail = details[i];
-        if (
-          detail.contractKind === "erc721" &&
-          ["blur.io", "opensea.io", "looksrare.org", "x2y2.io"].includes(detail.source!)
-        ) {
-          blurCompatibleListings.push({ ...detail, originalIndex: i });
-        }
-      }
-    }
-
-    // Generate calldata for the above Blur-compatible listings
-    if (blurCompatibleListings.length) {
-      try {
-        let blurUrl = `https://order-fetcher.vercel.app/api/blur-listing?`;
-        for (const d of blurCompatibleListings) {
-          blurUrl += `contracts=${d.contract}&tokenIds=${d.tokenId}&prices=${d.price}&`;
-        }
-        blurUrl += `taker=${taker}&authToken=${options?.blurAuth}`;
-
-        // We'll have one transaction per contract
-        const result: {
-          [contract: string]: {
-            from: string;
-            to: string;
-            data: string;
-            value: string;
-            path: { contract: string; tokenId: string }[];
-          };
-        } = await axios
-          .get(blurUrl, {
-            headers: {
-              "X-Api-Key": this.options?.orderFetcherApiKey,
-            },
-          })
-          .then((response) => response.data.calldata);
-
-        for (const data of Object.values(result)) {
-          const successfulBlurCompatibleListings: ListingDetailsExtracted[] = [];
-          for (const { contract, tokenId } of data.path) {
-            const listing = blurCompatibleListings.find(
-              (d) => d.contract === contract && d.tokenId === tokenId
-            );
-            if (listing) {
-              successfulBlurCompatibleListings.push(listing);
-            }
-          }
-
-          // If we have at least one Blur listing, we should go ahead with the calldata returned by Blur
-          if (successfulBlurCompatibleListings.find((d) => d.source === "blur.io")) {
-            // Mark the orders handled by Blur as successful
-            const orderIndexes: number[] = [];
-            for (const d of successfulBlurCompatibleListings) {
-              success[d.originalIndex] = true;
-              orderIndexes.push(d.originalIndex);
-            }
-
-            txs.push({
-              approvals: [],
-              permits: [],
-              txData: {
-                from: data.from,
-                to: data.to,
-                data: data.data + generateSourceBytes(options?.source),
-                value: data.value,
-              },
-              orderIndexes: [],
-            });
-          }
-        }
-      } catch {
-        if (!options?.partial) {
-          throw new Error("Could not generate fill data");
-        }
-      }
-    }
-
-    // Check if we still have any Blur listings for which we didn't properly generate calldata
-    if (details.find((d, i) => d.source === "blur.io" && !success[i])) {
-      if (!options?.partial) {
-        throw new Error("Could not generate fill data");
-      }
-    }
-
-    // Return early if all listings were covered by Blur
-    if (details.every((_, i) => success[i])) {
-      return {
-        txs,
-        success,
-      };
-    }
 
     const relayer = options?.relayer ?? taker;
 

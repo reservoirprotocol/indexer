@@ -1,12 +1,13 @@
+import { Log } from "@ethersproject/abstract-provider";
+
+import { concat } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
 import { processEventsBatch } from "@/events-sync/handlers";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
-import * as utils from "@/events-sync/utils";
-import { extractEventsBatches } from "@/events-sync/index";
-import { concat } from "@/common/utils";
-import * as es from "@/events-sync/storage";
-import { Log } from "@ethersproject/abstract-provider";
 import { PartialFillEvent } from "@/events-sync/handlers/royalties";
+import { extractEventsBatches } from "@/events-sync/index";
+import * as utils from "@/events-sync/utils";
+import * as es from "@/events-sync/storage";
 
 export const getEventParams = (log: Log, timestamp: number) => {
   const address = log.address.toLowerCase() as string;
