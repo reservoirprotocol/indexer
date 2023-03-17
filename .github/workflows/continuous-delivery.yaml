@@ -1,0 +1,113 @@
+name: Continuous Delivery
+
+on:
+  push:
+    branches: [main, development]
+
+env:
+  NODE_VERSION: "18.x"
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    outputs:
+      version: ${{ steps.semantic.outputs.new_release_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: "yarn install"
+
+      - name: Get Release Versions
+        uses: cycjimmy/semantic-release-action@v3
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.DEVOPSBOT_TOKEN }}
+
+      - name: Set up Docker Buildx
+        if: steps.semantic.outputs.new_release_version != ''
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to GitHub Container Registry
+        if: steps.semantic.outputs.new_release_version != ''
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        if: steps.semantic.outputs.new_release_version != ''
+        uses: docker/build-push-action@v3
+        with:
+          push: true
+          tags: |
+            ghcr.io/reservoirprotocol/indexer:latest
+            ghcr.io/reservoirprotocol/indexer:${{ steps.semantic.outputs.new_release_version }}
+            ghcr.io/reservoirprotocol/indexer:${{ github.sha }}
+          build-args: |
+            VERSION=${{ steps.semantic.outputs.new_release_version }}
+
+      - name: Publish github release
+        if: steps.semantic.outputs.new_release_version != ''
+        uses: cycjimmy/semantic-release-action@v3
+
+  # deploy-dev:
+  #   name: Deploy Dev Env
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 15
+  #   needs: [build]
+  #   environment: dev
+  #   if: needs.build.outputs.version != ''
+  #   steps:
+  #     - name: Checkout repository k8s-configs
+  #       uses: actions/checkout@v3
+  #       with:
+  #         repository: unevenlabs/k8s-configs
+  #         token: ${{ secrets.publish_token }}
+  #         path: k8s-configs
+
+  #     - name: Deploy to Dev Environment
+  #       working-directory: k8s-configs
+  #       run: |
+  #         ./utils/version_update.sh \
+  #           ./dev/platform/indexer.yaml \
+  #           ${{ needs.build.outputs.version }} \
+  #           indexer
+
+  # deploy-prod:
+  #   name: Deploy Prod Env
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 15
+  #   needs: [build]
+  #   environment: prod
+  #   if: needs.build.outputs.version != ''
+  #   steps:
+  #     - name: Checkout repository k8s-configs
+  #       uses: actions/checkout@v3
+  #       with:
+  #         repository: unevenlabs/k8s-configs
+  #         token: ${{ secrets.publish_token }}
+  #         path: k8s-configs
+
+  #     - name: Deploy to Prod Environment
+  #       working-directory: k8s-configs
+  #       run: |
+  #         ./utils/version_update.sh \
+  #           ./prod/platform/indexer.yaml \
+  #           ${{ needs.build.outputs.version }} \
+  #           indexer

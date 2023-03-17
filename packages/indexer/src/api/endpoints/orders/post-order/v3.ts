@@ -509,8 +509,7 @@ export const postOrderV3Options: RouteOptions = {
           }
 
           let crossPostingOrder;
-
-          const orderId = null;
+          let orderId = null;
 
           if (orderbook === "x2y2") {
             // We do not save the order directly since X2Y2 orders are not fillable
@@ -543,6 +542,8 @@ export const postOrderV3Options: RouteOptions = {
                 },
               },
             ]);
+
+            orderId = result.id;
 
             if (!["success", "already-exists"].includes(result.status)) {
               const error = Boom.badRequest(result.status);
