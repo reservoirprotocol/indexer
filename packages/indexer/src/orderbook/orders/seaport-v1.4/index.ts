@@ -401,13 +401,20 @@ export const save = async (
             if (merkleRoot) {
               tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
 
-              await tokenSet.tokenList.save([
+              const ts = await tokenSet.tokenList.save([
                 {
                   id: tokenSetId,
                   schemaHash,
                   schema: metadata.schema,
                 },
               ]);
+
+              logger.info(
+                "orders-seaport-v1.4-save",
+                `TokenList. orderId=${id}, tokenSetId=${tokenSetId}, schemaHash=${schemaHash}, metadata=${JSON.stringify(
+                  metadata
+                )}, ts=${JSON.stringify(ts)}`
+              );
             }
 
             break;
