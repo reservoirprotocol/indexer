@@ -92,7 +92,6 @@ const isValid = async (tokenSet: TokenSet) => {
       }
 
       let tokens: { token_id: string; contract: Buffer }[] | undefined;
-      let tokenIds: string[] | undefined;
 
       if (tokenSet.schema.kind === "attribute") {
         // TODO: Add support for multiple attributes
@@ -142,7 +141,13 @@ const isValid = async (tokenSet: TokenSet) => {
         );
       } else if (tokenSet.schema.kind.startsWith("collection")) {
         const nonFlaggedOnly = tokenSet.schema.kind === "collection-non-flagged";
-        tokenIds = await Tokens.getTokenIdsInCollection(
+
+        logger.info(
+          "seaport-token-set-save",
+          `Get tokens. tokenSet=${JSON.stringify(tokenSet)}, nonFlaggedOnly=${nonFlaggedOnly}`
+        );
+
+        tokens = await Tokens.getTokensInCollection(
           tokenSet.schema.data.collection,
           "",
           nonFlaggedOnly
@@ -150,7 +155,10 @@ const isValid = async (tokenSet: TokenSet) => {
       }
 
       if (!tokens || !tokens.length) {
-        logger.info("seaport-token-set-save", `No tokens. tokenSet=${JSON.stringify(tokenSet)}`);
+        logger.info(
+          "seaport-token-set-save",
+          `No tokens. tokenSet=${JSON.stringify(tokenSet)}, tokens=${tokens?.length}`
+        );
 
         return false;
       }
@@ -162,9 +170,7 @@ const isValid = async (tokenSet: TokenSet) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (tokenSet.schema.data as any).collection.slice(0, 42);
 
-      if (!tokenIds) {
-        tokenIds = tokens.map(({ token_id }) => token_id);
-      }
+      const tokenIds = tokens.map(({ token_id }) => token_id);
 
       // Generate the token set id corresponding to the passed schema
       const merkleTree = Common.Helpers.generateMerkleTree(tokenIds);

@@ -224,6 +224,58 @@ export class Tokens {
     return tokenIds;
   }
 
+  public static async getTokensInCollection(
+    collectionId: string,
+    contract = "",
+    nonFlaggedOnly = false,
+    readReplica = true
+  ) {
+    const dbInstance = readReplica ? redb : idb;
+    const limit = 10000;
+    let checkForMore = true;
+    let continuation = "";
+    let tokens: { token_id: string; contract: Buffer }[] = [];
+    let flagFilter = "";
+    let contractFilter = "";
+
+    if (nonFlaggedOnly) {
+      flagFilter = "AND (is_flagged = 0 OR is_flagged IS NULL)";
+    }
+
+    if (contract) {
+      contractFilter = "AND contract = $/contract/";
+    }
+
+    while (checkForMore) {
+      const query = `
+        SELECT contract, token_id
+        FROM tokens
+        WHERE collection_id = $/collectionId/
+        ${contractFilter}
+        ${flagFilter}
+        ${continuation}
+        ORDER BY token_id ASC
+        LIMIT ${limit}
+      `;
+
+      const result = await dbInstance.manyOrNone(query, {
+        contract: toBuffer(contract),
+        collectionId,
+      });
+
+      if (!_.isEmpty(result)) {
+        tokens = _.concat(tokens, result);
+        continuation = `AND token_id > ${_.last(result).token_id}`;
+      }
+
+      if (limit > _.size(result)) {
+        checkForMore = false;
+      }
+    }
+
+    return tokens;
+  }
+
   /**
    * Return the lowest sell price and number of tokens on sale for the given attribute
    * @param collection
