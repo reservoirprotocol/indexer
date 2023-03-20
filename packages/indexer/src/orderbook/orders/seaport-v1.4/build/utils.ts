@@ -209,7 +209,7 @@ export const getBuildInfo = async (
       );
 
       try {
-        const tokenId = await Tokens.getSingleToken(collectionResult.id);
+        const tokenId = await Tokens.getSingleToken(collection);
 
         await collectionUpdatesMetadata.addToQueue(
           fromBuffer(collectionResult.contract),

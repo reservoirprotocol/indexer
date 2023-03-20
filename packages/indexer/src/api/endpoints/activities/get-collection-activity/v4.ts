@@ -134,6 +134,7 @@ export const getCollectionActivityV4Options: RouteOptions = {
         query.collectionsSetId,
         query.continuation,
         query.types,
+        [],
         query.limit,
         query.sortBy,
         query.includeMetadata

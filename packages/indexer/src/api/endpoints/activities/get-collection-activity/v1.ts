@@ -102,6 +102,7 @@ export const getCollectionActivityV1Options: RouteOptions = {
         "",
         query.continuation,
         query.types,
+        [],
         query.limit
       );
 

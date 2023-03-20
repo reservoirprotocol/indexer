@@ -16,18 +16,13 @@ import {
 import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
-import {
-  getJoiDynamicPricingObject,
-  getJoiPriceObject,
-  JoiDynamicPrice,
-  JoiPrice,
-} from "@/common/joi";
+import { getJoiPriceObject, getJoiSaleObject, JoiPrice, JoiSale } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
 
-const version = "v6";
+const version = "v7";
 
-export const getUserTokensV6Options: RouteOptions = {
+export const getUserTokensV7Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 60000,
@@ -107,9 +102,11 @@ export const getUserTokensV6Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
-      includeDynamicPricing: Joi.boolean()
+      includeLastSale: Joi.boolean()
         .default(false)
-        .description("If true, dynamic pricing data will be returned in the response."),
+        .description(
+          "If true, last sale data including royalties paid will be returned in the response."
+        ),
       useNonFlaggedFloorAsk: Joi.boolean()
         .default(false)
         .description("If true, will return the collection non flagged floor ask."),
@@ -125,14 +122,7 @@ export const getUserTokensV6Options: RouteOptions = {
             kind: Joi.string(),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
-            lastBuy: {
-              value: Joi.number().unsafe().allow(null),
-              timestamp: Joi.number().unsafe().allow(null),
-            },
-            lastSell: {
-              value: Joi.number().unsafe().allow(null),
-              timestamp: Joi.number().unsafe().allow(null),
-            },
+
             rarityScore: Joi.number().allow(null),
             rarityRank: Joi.number().allow(null),
             media: Joi.string().allow(null),
@@ -142,6 +132,7 @@ export const getUserTokensV6Options: RouteOptions = {
               imageUrl: Joi.string().allow(null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
+            lastSale: JoiSale.optional(),
             topBid: Joi.object({
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
@@ -157,7 +148,6 @@ export const getUserTokensV6Options: RouteOptions = {
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
-              dynamicPricing: JoiDynamicPrice.allow(null),
               source: Joi.object().allow(null),
             },
             acquiredAt: Joi.string().allow(null),
@@ -266,7 +256,7 @@ export const getUserTokensV6Options: RouteOptions = {
       (query as any).tokensFilter = _.join(tokensFilter, ",");
     }
 
-    let selectFloorData: string;
+    let selectFloorData;
 
     if (query.normalizeRoyalties) {
       selectFloorData = `
@@ -292,21 +282,31 @@ export const getUserTokensV6Options: RouteOptions = {
     `;
     }
 
-    let includeDynamicPricingQuery = "";
-    let selectIncludeDynamicPricing = "";
-    if (query.includeDynamicPricing) {
-      selectIncludeDynamicPricing = ", d.*";
-      includeDynamicPricingQuery = `
+    let selectLastSale = "";
+    let includeRoyaltyBreakdownQuery = "";
+    let selectRoyaltyBreakdown = "";
+    if (query.includeLastSale) {
+      selectLastSale = `last_sale_timestamp, last_sale_currency, last_sale_currency_price, last_sale_price, last_sale_usd_price, last_sale_marketplace_fee_bps, last_sale_royalty_fee_bps,
+      last_sale_paid_full_royalty, last_sale_royalty_fee_breakdown, last_sale_marketplace_fee_breakdown,`;
+      selectRoyaltyBreakdown = ", r.*";
+      includeRoyaltyBreakdownQuery = `
         LEFT JOIN LATERAL (
-          SELECT
-            o.kind AS floor_sell_order_kind,
-            o.dynamic AS floor_sell_dynamic,
-            o.raw_data AS floor_sell_raw_data,
-            o.missing_royalties AS floor_sell_missing_royalties
-          FROM orders o
-          WHERE o.id = t.floor_sell_id
-        ) d ON TRUE
-      `;
+        SELECT
+          fe.timestamp AS last_sale_timestamp,          
+          fe.currency AS last_sale_currency,
+          fe.currency_price AS last_sale_currency_price,            
+          fe.price AS last_sale_price,    
+          fe.usd_price AS last_sale_usd_price,
+          fe.marketplace_fee_bps AS last_sale_marketplace_fee_bps,
+          fe.royalty_fee_bps AS last_sale_royalty_fee_bps,
+          fe.paid_full_royalty AS last_sale_paid_full_royalty,
+          fe.royalty_fee_breakdown AS last_sale_royalty_fee_breakdown,
+          fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown
+        FROM fill_events_2 fe
+        WHERE fe.contract = t.contract AND fe.token_id = t.token_id
+        ORDER BY timestamp DESC LIMIT 1
+        ) r ON TRUE
+        `;
     }
 
     let tokensJoin = `
@@ -319,10 +319,10 @@ export const getUserTokensV6Options: RouteOptions = {
           t.rarity_rank,
           t.collection_id,
           t.rarity_score,
-          t.last_buy_value,
-          t.last_buy_timestamp,
           t.last_sell_value,
+          t.last_buy_value,
           t.last_sell_timestamp,
+          t.last_buy_timestamp,
           null AS top_bid_id,
           null AS top_bid_price,
           null AS top_bid_value,
@@ -330,7 +330,9 @@ export const getUserTokensV6Options: RouteOptions = {
           null AS top_bid_currency_price,
           null AS top_bid_currency_value,
           ${selectFloorData}
+          ${selectRoyaltyBreakdown}
         FROM tokens t
+        ${includeRoyaltyBreakdownQuery}
         WHERE b.token_id = t.token_id
         AND b.contract = t.contract
         AND ${
@@ -355,7 +357,9 @@ export const getUserTokensV6Options: RouteOptions = {
             t.last_sell_timestamp,
             t.last_buy_timestamp,
             ${selectFloorData}
+            ${selectRoyaltyBreakdown}
           FROM tokens t
+          ${includeRoyaltyBreakdownQuery}
           WHERE b.token_id = t.token_id
           AND b.contract = t.contract
           AND ${
@@ -397,7 +401,7 @@ export const getUserTokensV6Options: RouteOptions = {
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
                t.name, t.image, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
-               t.rarity_score, t.last_sell_value, t.last_buy_value, t.last_sell_timestamp, t.last_buy_timestamp,
+               t.rarity_score, ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                c.name as collection_name, con.kind, c.metadata, ${
                  query.useNonFlaggedFloorAsk
@@ -410,7 +414,6 @@ export const getUserTokensV6Options: RouteOptions = {
                     ELSE 0
                     END
                ) AS on_sale_count
-               ${selectIncludeDynamicPricing}
         FROM (
             SELECT amount AS token_count, token_id, contract, acquired_at, last_token_appraisal_value
             FROM nft_balances
@@ -428,7 +431,6 @@ export const getUserTokensV6Options: RouteOptions = {
               AND amount > 0
           ) AS b
           ${tokensJoin}
-          ${includeDynamicPricingQuery}
           JOIN collections c ON c.id = t.collection_id
           JOIN contracts con ON b.contract = con.address
       `;
@@ -444,9 +446,7 @@ export const getUserTokensV6Options: RouteOptions = {
         (query as any).acquiredAtOrLastAppraisalValue = acquiredAtOrLastAppraisalValue;
         (query as any).collectionId = collectionId;
         (query as any).tokenId = tokenId;
-
         query.sortDirection = query.sortDirection || "desc";
-
         if (query.sortBy === "acquiredAt") {
           conditions.push(
             `(acquired_at, b.token_id) ${
@@ -529,14 +529,7 @@ export const getUserTokensV6Options: RouteOptions = {
             kind: r.kind,
             name: r.name,
             image: r.image,
-            lastBuy: {
-              value: r.last_buy_value ? formatEth(r.last_buy_value) : null,
-              timestamp: r.last_buy_timestamp,
-            },
-            lastSell: {
-              value: r.last_sell_value ? formatEth(r.last_sell_value) : null,
-              timestamp: r.last_sell_timestamp,
-            },
+
             rarityScore: r.rarity_score,
             rarityRank: r.rarity_rank,
             media: r.media,
@@ -548,6 +541,27 @@ export const getUserTokensV6Options: RouteOptions = {
                 ? formatEth(r.collection_floor_sell_value)
                 : null,
             },
+            lastSale:
+              query.includeLastSale && r.last_sale_currency
+                ? await getJoiSaleObject({
+                    prices: {
+                      gross: {
+                        amount: r.last_sale_currency_price ?? r.last_sale_price,
+                        nativeAmount: r.last_sale_price,
+                        usdAmount: r.last_sale_usd_price,
+                      },
+                    },
+                    fees: {
+                      royaltyFeeBps: r.last_sale_royalty_fee_bps,
+                      marketplaceFeeBps: r.last_sale_marketplace_fee_bps,
+                      paidFullRoyalty: r.last_sale_paid_full_royalty,
+                      royaltyFeeBreakdown: r.last_sale_royalty_fee_breakdown,
+                      marketplaceFeeBreakdown: r.last_sale_marketplace_fee_breakdown,
+                    },
+                    currencyAddress: r.last_sale_currency,
+                    timestamp: r.last_sale_timestamp,
+                  })
+                : undefined,
             topBid: query.includeTopBid
               ? {
                   id: r.top_bid_id,
@@ -591,16 +605,6 @@ export const getUserTokensV6Options: RouteOptions = {
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
-              dynamicPricing: query.includeDynamicPricing
-                ? await getJoiDynamicPricingObject(
-                    r.floor_sell_dynamic,
-                    r.floor_sell_order_kind,
-                    query.normalizeRoyalties,
-                    r.floor_sell_raw_data,
-                    r.floor_sell_currency ? fromBuffer(r.floor_sell_currency) : undefined,
-                    r.floor_sell_missing_royalties ? r.floor_sell_missing_royalties : undefined
-                  )
-                : null,
               source: {
                 id: floorSellSource?.address,
                 domain: floorSellSource?.domain,

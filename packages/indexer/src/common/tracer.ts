@@ -8,6 +8,7 @@ if (process.env.DATADOG_AGENT_URL) {
     profiling: true,
     logInjection: true,
     runtimeMetrics: true,
+    clientIpEnabled: true,
     service,
     url: process.env.DATADOG_AGENT_URL,
   });
