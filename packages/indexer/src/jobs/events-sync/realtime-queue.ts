@@ -112,7 +112,7 @@ if (
       if (job && (await job.isFailed())) {
         logger.info(QUEUE_NAME, `removing failed job ${job.timestamp} now = ${now()}`);
         await job.remove();
-      } else if (job && _.toInteger(job.timestamp) < now() - 180 * 1000) {
+      } else if (job && _.toInteger(job.timestamp) < now() - 45 * 1000) {
         logger.info(QUEUE_NAME, `removing stale job ${job.timestamp} now = ${now()}`);
         await job.remove();
       }

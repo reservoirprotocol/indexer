@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { StaticJsonRpcProvider } from "@ethersproject/providers";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
@@ -39,7 +40,7 @@ if (config.doBackgroundWork) {
       const time1 = performance.now();
 
       const blockRange = 10;
-      const timestampRange = 300;
+      const timestampRange = 1000;
 
       let results: any[];
       if (details.kind === "all") {
@@ -168,7 +169,12 @@ if (config.doBackgroundWork) {
         )
       );
 
-      const traces = await fetchTransactionTraces(Object.keys(fillEventsPerTxHash));
+      const traces = await fetchTransactionTraces(
+        Object.keys(fillEventsPerTxHash),
+        process.env.BACKFILL_HTTP_NETWORK_URL
+          ? new StaticJsonRpcProvider(process.env.BACKFILL_HTTP_NETWORK_URL, config.chainId)
+          : undefined
+      );
       await Promise.all(
         Object.values(traces).map(async (trace) =>
           redis.set(`fetch-transaction-trace:${trace.hash}`, JSON.stringify(trace), "EX", 10 * 60)

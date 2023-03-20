@@ -1,5 +1,6 @@
 import { Interface } from "@ethersproject/abi";
 import { AddressZero } from "@ethersproject/constants";
+import { JsonRpcProvider } from "@ethersproject/providers";
 import { getTxTraces } from "@georgeroman/evm-tx-simulator";
 import { getSourceV1 } from "@reservoir0x/sdk/dist/utils";
 import _ from "lodash";
@@ -96,7 +97,7 @@ export const fetchTransaction = async (txHash: string) =>
     });
   });
 
-export const fetchTransactionTraces = async (txHashes: string[]) => {
+export const fetchTransactionTraces = async (txHashes: string[], provider?: JsonRpcProvider) => {
   // Some traces might already exist
   const existingTraces = await getTransactionTraces(txHashes);
   const existingTxHashes = Object.fromEntries(existingTraces.map(({ hash }) => [hash, true]));
@@ -112,7 +113,7 @@ export const fetchTransactionTraces = async (txHashes: string[]) => {
           const missingTraces = Object.entries(
             await getTxTraces(
               batch.map((hash) => ({ hash })),
-              baseProvider
+              provider ?? baseProvider
             )
           ).map(([hash, calls]) => ({ hash, calls }));
 

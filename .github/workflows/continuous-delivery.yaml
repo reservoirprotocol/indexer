@@ -72,7 +72,7 @@ jobs:
   #   timeout-minutes: 15
   #   needs: [build]
   #   environment: dev
-  #   if: needs.build.outputs.version != ''
+  #   if: github.ref == 'refs/heads/development' || needs.build.outputs.version != ''
   #   steps:
   #     - name: Checkout repository k8s-configs
   #       uses: actions/checkout@v3
@@ -85,29 +85,29 @@ jobs:
   #       working-directory: k8s-configs
   #       run: |
   #         ./utils/version_update.sh \
-  #           ./dev/platform/indexer.yaml \
+  #           ./dev/platform/indexer-worker.yaml \
   #           ${{ needs.build.outputs.version }} \
-  #           indexer
+  #           indexer-worker
 
-  # deploy-prod:
-  #   name: Deploy Prod Env
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 15
-  #   needs: [build]
-  #   environment: prod
-  #   if: needs.build.outputs.version != ''
-  #   steps:
-  #     - name: Checkout repository k8s-configs
-  #       uses: actions/checkout@v3
-  #       with:
-  #         repository: unevenlabs/k8s-configs
-  #         token: ${{ secrets.publish_token }}
-  #         path: k8s-configs
+  deploy-prod:
+    name: Deploy Prod Env
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+    environment: prod
+    if: github.ref == 'refs/heads/main' || needs.build.outputs.version != ''
+    steps:
+      - name: Checkout repository k8s-configs
+        uses: actions/checkout@v3
+        with:
+          repository: unevenlabs/k8s-configs
+          token: ${{ secrets.publish_token }}
+          path: k8s-configs
 
-  #     - name: Deploy to Prod Environment
-  #       working-directory: k8s-configs
-  #       run: |
-  #         ./utils/version_update.sh \
-  #           ./prod/platform/indexer.yaml \
-  #           ${{ needs.build.outputs.version }} \
-  #           indexer
+      - name: Deploy to Prod Environment
+        working-directory: k8s-configs
+        run: |
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker.yaml \
+            ${{ needs.build.outputs.version }} \
+            indexer-worker

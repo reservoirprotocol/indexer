@@ -353,6 +353,34 @@ export class Exchange {
     };
   }
 
+  public async cancelOrders(maker: Signer, orders: Order[]): Promise<TransactionResponse> {
+    const tx = this.cancelOrdersTx(await maker.getAddress(), orders);
+    return maker.sendTransaction(tx);
+  }
+
+  public cancelOrdersTx(maker: string, orders: Order[]): TxData {
+    return {
+      from: maker,
+      to: this.contract.address,
+      data: this.contract.interface.encodeFunctionData("cancel", [
+        orders.map((order) => order.params),
+      ]),
+    };
+  }
+
+  public async cancelAllOrders(maker: Signer): Promise<TransactionResponse> {
+    const tx = this.cancelAllOrdersTx(await maker.getAddress());
+    return maker.sendTransaction(tx);
+  }
+
+  public cancelAllOrdersTx(maker: string): TxData {
+    return {
+      from: maker,
+      to: this.contract.address,
+      data: this.contract.interface.encodeFunctionData("incrementCounter", []),
+    };
+  }
+
   // --- Bulk sign orders ---
 
   public getBulkSignatureDataWithProofs(orders: Order[]) {

@@ -66,7 +66,7 @@ export const setupSeaportListings = async (listings: SeaportListing[]) => {
     // Cancel the order if requested
     if (listing.isCancelled) {
       const exchange = new Sdk.Seaport.Exchange(chainId);
-      await exchange.cancelOrder(seller, order);
+      await exchange.cancelOrders(seller, [order]);
     }
   }
 };
@@ -125,7 +125,7 @@ export const setupSeaportOffers = async (offers: SeaportOffer[]) => {
     // Cancel the order if requested
     if (offer.isCancelled) {
       const exchange = new Sdk.Seaport.Exchange(chainId);
-      await exchange.cancelOrder(buyer, order);
+      await exchange.cancelOrders(buyer, [order]);
     }
   }
 };

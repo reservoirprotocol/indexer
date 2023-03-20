@@ -124,6 +124,70 @@ export const buildCollectionOffer = async (
   );
 };
 
+export const buildTraitOffer = async (
+  offerer: string,
+  quantity: number,
+  collectionSlug: string,
+  traitType: string,
+  traitValue: string,
+  apiKey = ""
+) => {
+  const url = `https://${getOpenseaSubDomain()}.opensea.io/v2/offers/build`;
+
+  return (
+    axios
+      .post(
+        url,
+        JSON.stringify({
+          offerer,
+          quantity,
+          criteria: {
+            collection: {
+              slug: collectionSlug,
+            },
+            trait: {
+              type: traitType,
+              value: traitValue,
+            },
+          },
+        }),
+        {
+          headers:
+            config.chainId === 1
+              ? {
+                  "Content-Type": "application/json",
+                  "X-Api-Key": apiKey || config.openSeaApiKey,
+                }
+              : {
+                  "Content-Type": "application/json",
+                  // The request will fail if passing the API key on Rinkeby
+                },
+        }
+      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((response) => response.data as any)
+      .catch((error) => {
+        logger.error(
+          "opensea_orderbook_api",
+          `Build OpenSea trait offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, traitType=${traitType}, traitValue=${traitValue}, error=${error}`
+        );
+
+        if (error.response) {
+          logger.error(
+            "opensea_orderbook_api",
+            `Failed to build OpenSea trait offer. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, traitType=${traitType}, traitValue=${traitValue}, status: ${
+              error.response.status
+            }, data:${JSON.stringify(error.response.data)}`
+          );
+
+          handleErrorResponse(error.response);
+        }
+
+        throw new Error(`Failed to build OpenSea trait offer`);
+      })
+  );
+};
+
 export const postCollectionOffer = async (
   order: Sdk.SeaportV14.Order,
   collectionSlug: string,
@@ -170,7 +234,72 @@ export const postCollectionOffer = async (
       if (error.response) {
         logger.error(
           "opensea-orderbook-api",
-          `Failed to post offer to OpenSea. order=${JSON.stringify(
+          `Failed to post collection offer to OpenSea. order=${JSON.stringify(
+            order
+          )}, collectionSlug=${collectionSlug}, url=${url}, data=${data}, status=${
+            error.response.status
+          }, data=${JSON.stringify(error.response.data)}`
+        );
+
+        handleErrorResponse(error.response);
+      }
+
+      throw new Error(`Failed to post offer to OpenSea`);
+    });
+};
+
+export const postTraitOffer = async (
+  order: Sdk.SeaportV14.Order,
+  collectionSlug: string,
+  attribute: { key: string; value: string },
+  apiKey: string
+) => {
+  const url = `https://${getOpenseaSubDomain()}.opensea.io/v2/offers`;
+  const data = JSON.stringify({
+    criteria: {
+      collection: {
+        slug: collectionSlug,
+      },
+      trait: {
+        type: attribute.key,
+        value: attribute.value,
+      },
+    },
+    protocol_data: {
+      parameters: {
+        ...order.params,
+        totalOriginalConsiderationItems: order.params.consideration.length,
+      },
+      signature: order.params.signature!,
+      protocol_address: Sdk.SeaportV14.Addresses.Exchange[config.chainId],
+    },
+  });
+
+  await axios
+    .post(url, data, {
+      headers:
+        config.chainId === 1
+          ? {
+              "Content-Type": "application/json",
+              "X-Api-Key": apiKey || config.openSeaApiKey,
+            }
+          : {
+              "Content-Type": "application/json",
+              // The request will fail if passing the API key on Rinkeby
+            },
+    })
+    .catch((error) => {
+      logger.error(
+        "opensea-orderbook-api",
+        `Post OpenSea trait offer error. order=${JSON.stringify(
+          order
+        )}, collectionSlug=${collectionSlug}, url=${url}, data=${data}, error=${error}`
+      );
+
+      if (error.response) {
+        logger.error(
+          "opensea-orderbook-api",
+          `Failed to post trait offer to OpenSea. order=${JSON.stringify(
             order
           )}, collectionSlug=${collectionSlug}, url=${url}, data=${data}, status=${
             error.response.status

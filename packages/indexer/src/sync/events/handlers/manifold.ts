@@ -60,7 +60,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         const state = getStateChange(txTrace.calls);
 
-        const tokenKey = Object.keys(state[baseEventParams.address].tokenBalanceState)[0];
+        const tokenKeys = Object.keys(state[baseEventParams.address].tokenBalanceState).filter(
+          (t) => t.startsWith("erc721") || t.startsWith("erc1155")
+        );
+        if (!tokenKeys.length) {
+          break;
+        }
+
+        const tokenKey = tokenKeys[0];
         const [, tokenContract, tokenId] = tokenKey.split(":");
 
         const purchasedAmount = bn(state[baseEventParams.address].tokenBalanceState[tokenKey])
@@ -76,6 +83,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // We assume the maker is the address that got paid the largest amount of tokens.
         // In case of 50 / 50 splits, the maker will be the first address which got paid.
         let maxPayout: BigNumber | undefined;
+
         const payoutAddresses = Object.keys(state).filter(
           (address) => address !== baseEventParams.address
         );

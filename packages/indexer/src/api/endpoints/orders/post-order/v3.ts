@@ -227,9 +227,9 @@ export const postOrderV3Options: RouteOptions = {
               crossPostingOrderId: crossPostingOrder.id,
               orderId,
               orderData: order.data,
+              orderSchema: schema,
               orderbook,
               orderbookApiKey,
-              collectionId: collection,
             });
           } else if (orderbook === "reservoir") {
             const [result] =
@@ -278,6 +278,7 @@ export const postOrderV3Options: RouteOptions = {
                 await postOrderExternal.addToQueue({
                   orderId,
                   orderData: order.data,
+                  orderSchema: schema,
                   orderbook: "opensea",
                   orderbookApiKey: config.forwardOpenseaApiKey,
                 });
@@ -324,9 +325,9 @@ export const postOrderV3Options: RouteOptions = {
                   await postOrderExternal.addToQueue({
                     orderId,
                     orderData: order.data,
+                    orderSchema: schema,
                     orderbook: "opensea",
                     orderbookApiKey: config.openSeaApiKey,
-                    collectionId: collection,
                   });
                 }
               }
@@ -425,9 +426,9 @@ export const postOrderV3Options: RouteOptions = {
               crossPostingOrderId: crossPostingOrder.id,
               orderId,
               orderData: order.data,
+              orderSchema: schema,
               orderbook,
               orderbookApiKey,
-              collectionId: collection,
             });
           } else {
             const [result] = await orders.seaport.save([
@@ -478,9 +479,9 @@ export const postOrderV3Options: RouteOptions = {
               crossPostingOrderId: crossPostingOrder.id,
               orderId,
               orderData: order.data,
+              orderSchema: schema,
               orderbook,
               orderbookApiKey,
-              collectionId: collection,
             });
           } else {
             const orderInfo: orders.looksRare.OrderInfo = {
@@ -529,9 +530,9 @@ export const postOrderV3Options: RouteOptions = {
               crossPostingOrderId: crossPostingOrder.id,
               orderId,
               orderData: order.data,
+              orderSchema: schema,
               orderbook,
               orderbookApiKey,
-              collectionId: collection,
             });
           } else {
             const [result] = await orders.x2y2.save([
@@ -575,9 +576,9 @@ export const postOrderV3Options: RouteOptions = {
             crossPostingOrderId: crossPostingOrder.id,
             orderId,
             orderData: order.data,
+            orderSchema: schema,
             orderbook,
             orderbookApiKey,
-            collectionId: collection,
           });
 
           return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder.id };
@@ -603,9 +604,9 @@ export const postOrderV3Options: RouteOptions = {
             crossPostingOrderId: crossPostingOrder.id,
             orderId,
             orderData: order.data,
+            orderSchema: schema,
             orderbook,
             orderbookApiKey,
-            collectionId: collection,
           });
 
           return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder.id };
@@ -631,9 +632,9 @@ export const postOrderV3Options: RouteOptions = {
             crossPostingOrderId: crossPostingOrder.id,
             orderId,
             orderData: order.data,
+            orderSchema: schema,
             orderbook,
             orderbookApiKey,
-            collectionId: collection,
           });
 
           return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder.id };

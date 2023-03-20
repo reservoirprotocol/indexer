@@ -191,6 +191,7 @@ export type BidFillDetails = {
   extraArgs?: any;
   // Relevant for partial Seaport orders
   owner?: string;
+  isProtected?: boolean;
   fees?: Fee[];
 };
 export type BidDetails = GenericOrder & BidFillDetails;

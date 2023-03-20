@@ -26,8 +26,10 @@ export * as superrare from "@/orderbook/orders/superrare";
 import * as Sdk from "@reservoir0x/sdk";
 import * as SdkTypesV5 from "@reservoir0x/sdk/dist/router/v5/types";
 import * as SdkTypesV6 from "@reservoir0x/sdk/dist/router/v6/types";
+import { AxiosError } from "axios";
 
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
@@ -180,6 +182,13 @@ export const getOrderSourceByOrderKind = async (
   }
 
   // In case nothing matched, return `undefined` by default
+};
+
+export const routerOnUpstreamError = async (kind: string, error: AxiosError<any>, data: any) => {
+  logger.warn(
+    "router-on-upstream-error",
+    JSON.stringify({ kind, status: error.response?.status, error: error.response?.data, data })
+  );
 };
 
 // Support for filling listings
@@ -408,6 +417,7 @@ export const generateBidDetailsV6 = async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rawData: any;
     fees?: Sdk.RouterV6.Types.Fee[];
+    isProtected?: boolean;
   },
   token: {
     kind: "erc721" | "erc1155";
@@ -423,6 +433,7 @@ export const generateBidDetailsV6 = async (
     tokenId: token.tokenId,
     amount: token.amount ?? 1,
     owner: token.owner,
+    isProtected: order.isProtected,
     fees: order.fees ?? [],
   };
 

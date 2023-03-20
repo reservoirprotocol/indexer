@@ -8,9 +8,14 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiPrice, getJoiPriceObject, JoiOrderCriteria } from "@/common/joi";
 import {
-  bn,
+  JoiPrice,
+  getJoiPriceObject,
+  JoiOrderCriteria,
+  JoiDynamicPrice,
+  getJoiDynamicPricingObject,
+} from "@/common/joi";
+import {
   buildContinuation,
   fromBuffer,
   getNetAmount,
@@ -148,10 +153,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           validUntil: Joi.number().required(),
           quantityFilled: Joi.number().unsafe(),
           quantityRemaining: Joi.number().unsafe(),
-          dynamicPricing: Joi.object({
-            kind: Joi.string().valid("dutch", "pool"),
-            data: Joi.object(),
-          }),
+          dynamicPricing: JoiDynamicPrice.allow(null),
           criteria: JoiOrderCriteria.allow(null),
           status: Joi.string(),
           source: Joi.object().allow(null),
@@ -501,79 +503,6 @@ export const getOrdersAsksV4Options: RouteOptions = {
           source = sources.get(Number(r.source_id_int));
         }
 
-        // Use default currencies for backwards compatibility with entries
-        // that don't have the currencies cached in the tokens table
-        const floorAskCurrency = r.currency
-          ? fromBuffer(r.currency)
-          : Sdk.Common.Addresses.Eth[config.chainId];
-
-        let dynamicPricing = undefined;
-        if (query.includeDynamicPricing) {
-          // Add missing royalties on top of the raw prices
-          const missingRoyalties = query.normalizeRoyalties
-            ? ((r.missing_royalties ?? []) as any[])
-                .map((mr: any) => bn(mr.amount))
-                .reduce((a, b) => a.add(b), bn(0))
-            : bn(0);
-
-          if (r.dynamic && r.kind === "seaport") {
-            const order = new Sdk.Seaport.Order(config.chainId, r.raw_data);
-
-            // Dutch auction
-            dynamicPricing = {
-              kind: "dutch",
-              data: {
-                price: {
-                  start: await getJoiPriceObject(
-                    {
-                      gross: {
-                        amount: bn(order.getMatchingPrice(order.params.startTime))
-                          .add(missingRoyalties)
-                          .toString(),
-                      },
-                    },
-                    floorAskCurrency
-                  ),
-                  end: await getJoiPriceObject(
-                    {
-                      gross: {
-                        amount: bn(order.getMatchingPrice(order.params.endTime))
-                          .add(missingRoyalties)
-                          .toString(),
-                      },
-                    },
-                    floorAskCurrency
-                  ),
-                },
-                time: {
-                  start: order.params.startTime,
-                  end: order.params.endTime,
-                },
-              },
-            };
-          } else if (r.kind === "sudoswap") {
-            // Pool orders
-            dynamicPricing = {
-              kind: "pool",
-              data: {
-                pool: r.raw_data.pair,
-                prices: await Promise.all(
-                  (r.raw_data.extra.prices as string[]).map((price) =>
-                    getJoiPriceObject(
-                      {
-                        gross: {
-                          amount: bn(price).add(missingRoyalties).toString(),
-                        },
-                      },
-                      floorAskCurrency
-                    )
-                  )
-                ),
-              },
-            };
-          }
-        }
-
         return {
           id: r.id,
           kind: r.kind,
@@ -607,7 +536,16 @@ export const getOrdersAsksV4Options: RouteOptions = {
           validUntil: Number(r.valid_until),
           quantityFilled: Number(r.quantity_filled),
           quantityRemaining: Number(r.quantity_remaining),
-          dynamicPricing,
+          dynamicPricing: query.includeDynamicPricing
+            ? await getJoiDynamicPricingObject(
+                r.dynamic,
+                r.kind,
+                query.normalizeRoyalties,
+                r.raw_data,
+                r.currency ? fromBuffer(r.currency) : undefined,
+                r.missing_royalties ? r.missing_royalties : undefined
+              )
+            : null,
           criteria: r.criteria,
           source: {
             id: source?.address,

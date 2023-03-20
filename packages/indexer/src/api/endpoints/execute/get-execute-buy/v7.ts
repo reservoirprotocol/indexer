@@ -14,7 +14,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
-import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
+import { OrderKind, generateListingDetailsV6, routerOnUpstreamError } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
@@ -732,6 +732,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId],
           },
           blurAuth,
+          onUpstreamError: routerOnUpstreamError,
         }
       );
 
