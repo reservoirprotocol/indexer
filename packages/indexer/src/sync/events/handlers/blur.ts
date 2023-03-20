@@ -24,11 +24,11 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
     switch (subKind) {
       case "blur-orders-matched": {
         const { args } = eventData.abi.parseLog(log);
-        let maker = args.maker.toLowerCase();
-        let taker = args.taker.toLowerCase();
         const sell = args.sell;
         const sellHash = args.sellHash.toLowerCase();
         const buyHash = args.buyHash.toLowerCase();
+        let maker = args.maker.toLowerCase();
+        let taker = args.taker.toLowerCase();
 
         const txHash = baseEventParams.txHash;
 
@@ -40,22 +40,23 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         const exchange = new Sdk.Blur.Exchange(config.chainId);
         const exchangeAddress = exchange.contract.address;
-        const executeSigHash = "0x9a1fc3a7";
-        const _executeSigHash = "0xe04d94ae";
-        let isDelegateCall = false;
+
+        const executeSigHash1 = "0x9a1fc3a7";
+        const executeSigHash2 = "0xe04d94ae";
 
         const tradeRank = trades.order.get(`${txHash}-${exchangeAddress}`) ?? 0;
         const executeCallTraceCall = searchForCall(
           txTrace.calls,
-          { to: exchangeAddress, type: "CALL", sigHashes: [executeSigHash] },
+          { to: exchangeAddress, type: "CALL", sigHashes: [executeSigHash1] },
           tradeRank
         );
         const executeCallTraceDelegate = searchForCall(
           txTrace.calls,
-          { to: exchangeAddress, type: "DELEGATECALL", sigHashes: [_executeSigHash] },
+          { to: exchangeAddress, type: "DELEGATECALL", sigHashes: [executeSigHash2] },
           tradeRank
         );
 
+        let isDelegateCall = false;
         if (!executeCallTraceCall && executeCallTraceDelegate) {
           isDelegateCall = true;
         }
@@ -176,6 +177,19 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           orderKind: "blur",
           orderId,
           baseEventParams,
+        });
+
+        onChainData.orderInfos.push({
+          context: `cancelled-${orderId}`,
+          id: orderId,
+          trigger: {
+            kind: "cancel",
+            txHash: baseEventParams.txHash,
+            txTimestamp: baseEventParams.timestamp,
+            logIndex: baseEventParams.logIndex,
+            batchIndex: baseEventParams.batchIndex,
+            blockHash: baseEventParams.blockHash,
+          },
         });
 
         break;

@@ -122,27 +122,15 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           await idb.none(
             `
               UPDATE orders SET
-                fillability_status = $/fillability_status/,
-                maker = $/maker/,
-                price = $/price/,
-                currency_price = $/price/,
-                value = $/price/,
-                currency_value = $/price/,
-                valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
-                expiration = 'Infinity',
+                fillability_status = $/fillabilityStatus/,
+                expiration = to_timestamp(${orderParams.txTimestamp}),
                 updated_at = now(),
-                taker = $/taker/,
-                raw_data = $/orderParams:json/,
                 block_number = $/blockNumber/,
                 log_index = $/logIndex/
               WHERE orders.id = $/id/
             `,
             {
-              fillability_status: "cancelled",
-              maker: toBuffer(orderParams.maker),
-              taker: toBuffer(AddressZero),
-              price: orderParams.currency,
-              orderParams,
+              fillabilityStatus: "cancelled",
               id,
               blockNumber: orderParams.txBlock,
               logIndex: orderParams.logIndex,
@@ -159,6 +147,61 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           });
         }
       }
+
+      // Handle: fees
+      const treasury = Sdk.SuperRare.Addresses.Treasury[config.chainId];
+
+      const hasSecondarySales = await idb.oneOrNone(
+        `
+          SELECT 1 FROM fill_events_2
+          WHERE fill_events_2.contract = $/contract/
+            AND fill_events_2.token_id = $/tokenId/
+            AND fill_events_2.order_kind != 'mint'
+          LIMIT 1
+        `,
+        {
+          contract: toBuffer(order.params.contract),
+          tokenId: order.params.tokenId,
+        }
+      );
+
+      // The marketplace fee is always 3%
+      const feeBreakdown = [
+        {
+          kind: "marketplace",
+          recipient: treasury,
+          bps: 300,
+        },
+      ];
+
+      if (!hasSecondarySales) {
+        // The marketplace gets a 15% commission on the first sale
+        feeBreakdown.push({
+          kind: "marketplace",
+          recipient: treasury,
+          bps: 1500,
+        });
+      } else {
+        const onChainRoyalties = await royalties.getRoyalties(
+          order.params.contract,
+          order.params.tokenId,
+          "onchain"
+        );
+        if (onChainRoyalties.length) {
+          // On secondary sales the creator gets a 10% royalty
+          feeBreakdown.push({
+            kind: "royalty",
+            recipient: onChainRoyalties[0].recipient,
+            bps: 1000,
+          });
+        }
+      }
+
+      const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
+
+      // The 3% marketplace fee is added on top of the price
+      const price = bn(order.params.price).add(bn(order.params.price).mul(3).div(100)).toString();
+      const value = price;
 
       if (orderResult) {
         // Decide whether the current trigger is the latest one
@@ -182,20 +225,25 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 maker = $/maker/,
                 price = $/price/,
                 currency_price = $/price/,
-                value = $/price/,
-                currency_value = $/price/,
+                value = $/value/,
+                currency_value = $/value/,
                 valid_between = tstzrange(date_trunc('seconds', to_timestamp(${orderParams.txTimestamp})), 'Infinity', '[]'),
                 expiration = 'Infinity',
                 updated_at = now(),
                 raw_data = $/orderParams:json/,
+                fee_breakdown = $/feeBreakdown:json/,
+                fee_bps = $/feeBps/,
                 block_number = $/blockNumber/,
                 log_index = $/logIndex/
               WHERE orders.id = $/id/
             `,
             {
               maker: toBuffer(orderParams.maker),
-              price: orderParams.price,
+              price,
+              value,
               orderParams,
+              feeBreakdown,
+              feeBps,
               id,
               blockNumber: orderParams.txBlock,
               logIndex: orderParams.logIndex,
@@ -238,38 +286,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         source = await sources.getOrInsert(metadata.source);
       }
 
-      // Handle: fees
-      const treasury = "0x860a80d33e85e97888f1f0c75c6e5bbd60b48da9";
-      let feeBreakdown = [
-        // SuperRare get 15% commission on first sale, after that the creator has 10% royalties
-        {
-          kind: "marketplace",
-          recipient: treasury,
-          bps: 1500,
-        },
-      ];
-
-      // Handle: royalties
-      const onChainRoyalties = await royalties.getRoyalties(
-        order.params.contract,
-        order.params.tokenId,
-        "onchain"
-      );
-
-      if (!onChainRoyalties.length) {
-        feeBreakdown = [];
-      }
-
-      const feeBps = feeBreakdown.map(({ bps }) => bps).reduce((a, b) => Number(a) + Number(b), 0);
-
-      // Buyer pays 3% on all purchases
-      const price = bn(order.params.price).add(bn(order.params.price).mul(3).div(100)).toString();
-
       const validFrom = `date_trunc('seconds', to_timestamp(${orderParams.txTimestamp}))`;
       const validTo = `'Infinity'`;
       orderValues.push({
         id,
-        kind: `superrare`,
+        kind: "superrare",
         side: "sell",
         fillability_status: "fillable",
         approval_status: "approved",
@@ -278,10 +299,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         maker: toBuffer(orderParams.maker),
         taker: toBuffer(AddressZero),
         price,
-        value: orderParams.price.toString(),
+        value,
         currency: toBuffer(Sdk.Common.Addresses.Eth[config.chainId]),
-        currency_price: orderParams.price.toString(),
-        currency_value: orderParams.price.toString(),
+        currency_price: price,
+        currency_value: value,
         needs_conversion: null,
         quantity_remaining: "1",
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,

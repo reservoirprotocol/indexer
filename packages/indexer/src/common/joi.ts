@@ -1,9 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { BigNumberish } from "@ethersproject/bignumber";
+import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
 import { bn, formatEth, formatPrice, formatUsd, now, regex } from "@/common/utils";
 import { Currency, getCurrency } from "@/utils/currencies";
 import { getUSDAndNativePrices } from "@/utils/prices";
+import { config } from "@/config/index";
 
 // --- Prices ---
 
@@ -26,6 +30,29 @@ export const JoiPrice = Joi.object({
   amount: JoiPriceAmount,
   netAmount: JoiPriceAmount.optional(),
 });
+
+export const JoiDynamicPrice = Joi.alternatives(
+  Joi.object({
+    kind: "dutch",
+    data: Joi.object({
+      price: Joi.object({
+        start: JoiPrice,
+        end: JoiPrice,
+      }),
+      time: Joi.object({
+        start: Joi.number(),
+        end: Joi.number(),
+      }),
+    }),
+  }),
+  Joi.object({
+    kind: "pool",
+    data: Joi.object({
+      pool: Joi.string(),
+      prices: Joi.array().items(JoiPrice),
+    }),
+  })
+);
 
 const subFeeWithBps = (amount: BigNumberish, totalFeeBps: number) => {
   return bn(amount).sub(bn(amount).mul(totalFeeBps).div(10000)).toString();
@@ -185,3 +212,104 @@ export const JoiOrderCriteria = Joi.alternatives(
     kind: "custom",
   })
 );
+
+export const getJoiDynamicPricingObject = async (
+  dynamic: boolean,
+  kind: string,
+  normalizeRoyalties: boolean,
+  raw_data:
+    | Sdk.SeaportV14.Types.OrderComponents
+    | Sdk.Sudoswap.OrderParams
+    | Sdk.Nftx.Types.OrderParams,
+  currency?: string,
+  missing_royalties?: []
+) => {
+  const floorAskCurrency = currency ? currency : Sdk.Common.Addresses.Eth[config.chainId];
+
+  // Add missing royalties on top of the raw prices
+  const missingRoyalties = normalizeRoyalties
+    ? ((missing_royalties ?? []) as any[])
+        .map((mr: any) => bn(mr.amount))
+        .reduce((a, b) => a.add(b), bn(0))
+    : bn(0);
+
+  if (dynamic && (kind === "seaport" || kind === "seaport-v1.4")) {
+    const order = new Sdk.SeaportV14.Order(
+      config.chainId,
+      raw_data as Sdk.SeaportV14.Types.OrderComponents
+    );
+
+    // Dutch auction
+    return {
+      kind: "dutch",
+      data: {
+        price: {
+          start: await getJoiPriceObject(
+            {
+              gross: {
+                amount: bn(order.getMatchingPrice(order.params.startTime))
+                  .add(missingRoyalties)
+                  .toString(),
+              },
+            },
+            floorAskCurrency
+          ),
+          end: await getJoiPriceObject(
+            {
+              gross: {
+                amount: bn(order.getMatchingPrice(order.params.endTime))
+                  .add(missingRoyalties)
+                  .toString(),
+              },
+            },
+            floorAskCurrency
+          ),
+        },
+        time: {
+          start: order.params.startTime,
+          end: order.params.endTime,
+        },
+      },
+    };
+  } else if (kind === "sudoswap") {
+    // Pool orders
+    return {
+      kind: "pool",
+      data: {
+        pool: (raw_data as Sdk.Sudoswap.OrderParams).pair,
+        prices: await Promise.all(
+          ((raw_data as Sdk.Sudoswap.OrderParams).extra.prices as string[]).map((price) =>
+            getJoiPriceObject(
+              {
+                gross: {
+                  amount: bn(price).add(missingRoyalties).toString(),
+                },
+              },
+              floorAskCurrency
+            )
+          )
+        ),
+      },
+    };
+  } else if (kind === "nftx") {
+    // Pool orders
+    return {
+      kind: "pool",
+      data: {
+        pool: (raw_data as Sdk.Nftx.Types.OrderParams).pool,
+        prices: await Promise.all(
+          ((raw_data as Sdk.Nftx.Types.OrderParams).extra.prices as string[]).map((price) =>
+            getJoiPriceObject(
+              {
+                gross: {
+                  amount: bn(price).add(missingRoyalties).toString(),
+                },
+              },
+              floorAskCurrency
+            )
+          )
+        ),
+      },
+    };
+  }
+};

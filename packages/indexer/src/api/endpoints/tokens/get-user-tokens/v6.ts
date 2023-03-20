@@ -16,7 +16,12 @@ import {
 import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import {
+  getJoiDynamicPricingObject,
+  getJoiPriceObject,
+  JoiDynamicPrice,
+  JoiPrice,
+} from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
 
@@ -102,6 +107,9 @@ export const getUserTokensV6Options: RouteOptions = {
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
+      includeDynamicPricing: Joi.boolean()
+        .default(false)
+        .description("If true, dynamic pricing data will be returned in the response."),
       useNonFlaggedFloorAsk: Joi.boolean()
         .default(false)
         .description("If true, will return the collection non flagged floor ask."),
@@ -149,6 +157,7 @@ export const getUserTokensV6Options: RouteOptions = {
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
+              dynamicPricing: JoiDynamicPrice.allow(null),
               source: Joi.object().allow(null),
             },
             acquiredAt: Joi.string().allow(null),
@@ -257,7 +266,7 @@ export const getUserTokensV6Options: RouteOptions = {
       (query as any).tokensFilter = _.join(tokensFilter, ",");
     }
 
-    let selectFloorData;
+    let selectFloorData: string;
 
     if (query.normalizeRoyalties) {
       selectFloorData = `
@@ -281,6 +290,23 @@ export const getUserTokensV6Options: RouteOptions = {
       t.floor_sell_currency,
       t.floor_sell_currency_value
     `;
+    }
+
+    let includeDynamicPricingQuery = "";
+    let selectIncludeDynamicPricing = "";
+    if (query.includeDynamicPricing) {
+      selectIncludeDynamicPricing = ", d.*";
+      includeDynamicPricingQuery = `
+        LEFT JOIN LATERAL (
+          SELECT
+            o.kind AS floor_sell_order_kind,
+            o.dynamic AS floor_sell_dynamic,
+            o.raw_data AS floor_sell_raw_data,
+            o.missing_royalties AS floor_sell_missing_royalties
+          FROM orders o
+          WHERE o.id = t.floor_sell_id
+        ) d ON TRUE
+      `;
     }
 
     let tokensJoin = `
@@ -384,6 +410,7 @@ export const getUserTokensV6Options: RouteOptions = {
                     ELSE 0
                     END
                ) AS on_sale_count
+               ${selectIncludeDynamicPricing}
         FROM (
             SELECT amount AS token_count, token_id, contract, acquired_at, last_token_appraisal_value
             FROM nft_balances
@@ -401,6 +428,7 @@ export const getUserTokensV6Options: RouteOptions = {
               AND amount > 0
           ) AS b
           ${tokensJoin}
+          ${includeDynamicPricingQuery}
           JOIN collections c ON c.id = t.collection_id
           JOIN contracts con ON b.contract = con.address
       `;
@@ -493,6 +521,7 @@ export const getUserTokensV6Options: RouteOptions = {
           ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
           : undefined;
         const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
+
         return {
           token: {
             contract: contract,
@@ -562,6 +591,16 @@ export const getUserTokensV6Options: RouteOptions = {
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
+              dynamicPricing: query.includeDynamicPricing
+                ? await getJoiDynamicPricingObject(
+                    r.floor_sell_dynamic,
+                    r.floor_sell_order_kind,
+                    query.normalizeRoyalties,
+                    r.floor_sell_raw_data,
+                    r.floor_sell_currency ? fromBuffer(r.floor_sell_currency) : undefined,
+                    r.floor_sell_missing_royalties ? r.floor_sell_missing_royalties : undefined
+                  )
+                : null,
               source: {
                 id: floorSellSource?.address,
                 domain: floorSellSource?.domain,

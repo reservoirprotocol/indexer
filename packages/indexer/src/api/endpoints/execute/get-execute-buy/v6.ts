@@ -15,7 +15,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
-import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
+import { OrderKind, generateListingDetailsV6, routerOnUpstreamError } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as nftx from "@/orderbook/orders/nftx";
@@ -256,6 +256,21 @@ export const getExecuteBuyV6Options: RouteOptions = {
           rawQuote: totalPrice.toString(),
         });
 
+        const flaggedResult = await idb.oneOrNone(
+          `
+            SELECT
+              tokens.is_flagged
+            FROM tokens
+            WHERE tokens.contract = $/contract/
+              AND tokens.token_id = $/tokenId/
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(token.contract),
+            tokenId: token.tokenId,
+          }
+        );
+
         listingDetails.push(
           generateListingDetailsV6(
             {
@@ -275,6 +290,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               contract: token.contract,
               tokenId: token.tokenId,
               amount: token.quantity,
+              isFlagged: Boolean(flaggedResult.is_flagged),
             }
           )
         );
@@ -789,6 +805,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
           },
           relayer: payload.relayer,
           blurAuth,
+          onUpstreamError: routerOnUpstreamError,
         }
       );
 

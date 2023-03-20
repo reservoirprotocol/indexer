@@ -8,7 +8,13 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiPrice, getJoiPriceObject, JoiOrderCriteria } from "@/common/joi";
+import {
+  JoiPrice,
+  getJoiPriceObject,
+  JoiOrderCriteria,
+  JoiDynamicPrice,
+  getJoiDynamicPricingObject,
+} from "@/common/joi";
 import {
   buildContinuation,
   fromBuffer,
@@ -98,6 +104,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
+      includeDynamicPricing: Joi.boolean()
+        .default(false)
+        .description("If true, dynamic pricing data will be returned in the response."),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),
@@ -144,6 +153,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           validUntil: Joi.number().required(),
           quantityFilled: Joi.number().unsafe(),
           quantityRemaining: Joi.number().unsafe(),
+          dynamicPricing: JoiDynamicPrice.allow(null),
           criteria: JoiOrderCriteria.allow(null),
           status: Joi.string(),
           source: Joi.object().allow(null),
@@ -229,7 +239,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           ) AS status,
           orders.updated_at,
           (${criteriaBuildQuery}) AS criteria
-          ${query.includeRawData ? ", orders.raw_data" : ""}
+          ${query.includeRawData || query.includeDynamicPricing ? ", orders.raw_data" : ""}
         FROM orders
       `;
 
@@ -514,6 +524,16 @@ export const getOrdersAsksV4Options: RouteOptions = {
           validUntil: Number(r.valid_until),
           quantityFilled: Number(r.quantity_filled),
           quantityRemaining: Number(r.quantity_remaining),
+          dynamicPricing: query.includeDynamicPricing
+            ? await getJoiDynamicPricingObject(
+                r.dynamic,
+                r.kind,
+                query.normalizeRoyalties,
+                r.raw_data,
+                r.currency ? fromBuffer(r.currency) : undefined,
+                r.missing_royalties ? r.missing_royalties : undefined
+              )
+            : null,
           criteria: r.criteria,
           source: {
             id: source?.address,
@@ -526,7 +546,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
-          isDynamic: Boolean(r.dynamic),
+          isDynamic: Boolean(r.dynamic || r.kind === "sudoswap"),
           createdAt: new Date(r.created_at * 1000).toISOString(),
           updatedAt: new Date(r.updated_at).toISOString(),
           rawData: query.includeRawData ? r.raw_data : undefined,

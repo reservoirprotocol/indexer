@@ -160,6 +160,7 @@ export type ListingFillDetails = {
   currency: string;
   price: string;
   source?: string;
+  isFlagged?: boolean;
   // Relevant for partially-fillable orders
   amount?: number | string;
   fees?: Fee[];
@@ -190,6 +191,7 @@ export type BidFillDetails = {
   extraArgs?: any;
   // Relevant for partial Seaport orders
   owner?: string;
+  isProtected?: boolean;
   fees?: Fee[];
 };
 export type BidDetails = GenericOrder & BidFillDetails;

@@ -13,8 +13,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
-import { OrderKind } from "@/orderbook/orders";
-import { generateListingDetailsV6 } from "@/orderbook/orders";
+import { OrderKind, generateListingDetailsV6, routerOnUpstreamError } from "@/orderbook/orders";
 import { getCurrency } from "@/utils/currencies";
 
 const version = "v5";
@@ -543,6 +542,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
                 ? "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000"
                 : undefined,
           },
+          onUpstreamError: routerOnUpstreamError,
         }
       );
 
