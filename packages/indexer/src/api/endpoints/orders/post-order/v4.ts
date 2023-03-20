@@ -280,9 +280,9 @@ export const postOrderV4Options: RouteOptions = {
                   crossPostingOrderId: crossPostingOrder.id,
                   orderId,
                   orderData: order.data,
+                  orderSchema: schema,
                   orderbook,
                   orderbookApiKey,
-                  collectionId: collection,
                 });
               } else if (orderbook === "reservoir") {
                 const [result] =
@@ -329,6 +329,7 @@ export const postOrderV4Options: RouteOptions = {
                     await postOrderExternal.addToQueue({
                       orderId,
                       orderData: order.data,
+                      orderSchema: schema,
                       orderbook: "opensea",
                       orderbookApiKey: config.forwardOpenseaApiKey,
                     });
@@ -375,9 +376,9 @@ export const postOrderV4Options: RouteOptions = {
                       await postOrderExternal.addToQueue({
                         orderId,
                         orderData: order.data,
+                        orderSchema: schema,
                         orderbook: "opensea",
                         orderbookApiKey: config.openSeaApiKey,
-                        collectionId: collection,
                       });
                     }
                   }
@@ -415,9 +416,9 @@ export const postOrderV4Options: RouteOptions = {
                   crossPostingOrderId: crossPostingOrder.id,
                   orderId,
                   orderData: order.data,
+                  orderSchema: schema,
                   orderbook,
                   orderbookApiKey,
-                  collectionId: collection,
                 });
               } else {
                 const [result] = await orders.looksRare.save([
@@ -470,9 +471,9 @@ export const postOrderV4Options: RouteOptions = {
                   crossPostingOrderId: crossPostingOrder.id,
                   orderId,
                   orderData: order.data,
+                  orderSchema: schema,
                   orderbook,
                   orderbookApiKey,
-                  collectionId: collection,
                 });
               } else {
                 const [result] = await orders.x2y2.save([
@@ -517,9 +518,9 @@ export const postOrderV4Options: RouteOptions = {
                 crossPostingOrderId: crossPostingOrder.id,
                 orderId,
                 orderData: order.data,
+                orderSchema: schema,
                 orderbook: "universe",
                 orderbookApiKey,
-                collectionId: collection,
               });
 
               return results.push({
@@ -550,9 +551,9 @@ export const postOrderV4Options: RouteOptions = {
                 crossPostingOrderId: crossPostingOrder.id,
                 orderId,
                 orderData: order.data,
+                orderSchema: schema,
                 orderbook: "infinity",
                 orderbookApiKey,
-                collectionId: collection,
               });
 
               return results.push({
@@ -583,9 +584,9 @@ export const postOrderV4Options: RouteOptions = {
                 crossPostingOrderId: crossPostingOrder.id,
                 orderId,
                 orderData: order.data,
+                orderSchema: schema,
                 orderbook: "flow",
                 orderbookApiKey,
-                collectionId: collection,
               });
 
               return results.push({
