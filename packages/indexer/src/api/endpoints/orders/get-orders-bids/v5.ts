@@ -34,11 +34,13 @@ export const getOrdersBidsV5Options: RouteOptions = {
       ids: Joi.alternatives(Joi.array().items(Joi.string()), Joi.string()).description(
         "Order id(s) to search for (only fillable and approved orders will be returned)"
       ),
-      token: Joi.string()
-        .lowercase()
-        .pattern(regex.token)
+      tokens: Joi.alternatives()
+        .try(
+          Joi.array().items(Joi.string().lowercase().pattern(regex.token)),
+          Joi.string().lowercase().pattern(regex.address)
+        )
         .description(
-          "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+          "Filter to an array of tokens. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
       tokenSetId: Joi.string()
         .lowercase()
@@ -279,16 +281,27 @@ export const getOrdersBidsV5Options: RouteOptions = {
         conditions.push(`orders.token_set_id = $/tokenSetId/`);
       }
 
-      if (query.token) {
+      if (query.tokens) {
         baseQuery += ` JOIN token_sets_tokens ON token_sets_tokens.token_set_id = orders.token_set_id`;
 
-        const [contract, tokenId] = query.token.split(":");
+        if(!_.isArray(query.tokens)) {
+            query.tokens = [query.tokens];
+        }
 
-        (query as any).tokenContract = toBuffer(contract);
-        (query as any).tokenId = tokenId;
+        (query as any).tokenContracts = [];
+        (query as any).tokenIds = [];
 
-        conditions.push(`token_sets_tokens.contract = $/tokenContract/`);
-        conditions.push(`token_sets_tokens.token_id = $/tokenId/`);
+        query.tokens.map((t: string) => {
+          const [contract, tokenId] = t.split(":");
+
+          query.tokenContracts.push(contract);
+          query.tokenIds.push(tokenId);
+        });
+
+        (query as any).tokenContractsFilter = query.contracts.map(toBuffer);
+
+        conditions.push(`token_sets_tokens.contract IN ($/tokenContractsFilter:list/)`);
+        conditions.push(`token_sets_tokens.token_id IN ($/tokenId:list/)`);
       }
 
       if (query.collection && !query.attribute) {
@@ -487,9 +500,6 @@ export const getOrdersBidsV5Options: RouteOptions = {
 
         if (r.token_set_id?.startsWith("token")) {
           const [, contract, tokenId] = r.token_set_id.split(":");
-          source = sources.get(Number(r.source_id_int), contract, tokenId);
-        } else if (query.token) {
-          const [contract, tokenId] = query.token.split(":");
           source = sources.get(Number(r.source_id_int), contract, tokenId);
         } else {
           source = sources.get(Number(r.source_id_int));
