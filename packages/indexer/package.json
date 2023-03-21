@@ -1,6 +1,6 @@
 {
   "name": "@reservoir0x/indexer",
-  "version": "5.277.1",
+  "version": "5.277.2",
   "description": "Reservoir Protocol Indexer",
   "license": "MIT",
   "private": true,

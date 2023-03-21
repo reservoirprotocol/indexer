@@ -1,3 +1,11 @@
+## [5.277.2](https://github.com/reservoirprotocol/indexer/compare/v5.277.1...v5.277.2) (2023-03-21)
+
+
+### Bug Fixes
+
+* delete 0day volumne file ([88f8324](https://github.com/reservoirprotocol/indexer/commit/88f832422f80f7ba35112e2a1167cc97235cd080))
+* remove 0day ([498b761](https://github.com/reservoirprotocol/indexer/commit/498b761b5ed9f79c10d794d08b4277f922dc81a5))
+
 ## [5.277.1](https://github.com/reservoirprotocol/indexer/compare/v5.277.0...v5.277.1) (2023-03-21)
 
 
