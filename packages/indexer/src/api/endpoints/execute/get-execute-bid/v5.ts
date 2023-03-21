@@ -21,7 +21,7 @@ import * as seaportBuyAttribute from "@/orderbook/orders/seaport/build/buy/attri
 import * as seaportBuyToken from "@/orderbook/orders/seaport/build/buy/token";
 import * as seaportBuyCollection from "@/orderbook/orders/seaport/build/buy/collection";
 
-// Seaport v1.3
+// Seaport v1.4
 import * as seaportV14BuyAttribute from "@/orderbook/orders/seaport-v1.4/build/buy/attribute";
 import * as seaportV14BuyToken from "@/orderbook/orders/seaport-v1.4/build/buy/token";
 import * as seaportV14BuyCollection from "@/orderbook/orders/seaport-v1.4/build/buy/collection";
@@ -52,7 +52,7 @@ export const getExecuteBidV5Options: RouteOptions = {
   description: "Create bids (offers)",
   notes: "Generate bids and submit them to multiple marketplaces",
   timeout: { server: 60000 },
-  tags: ["api", "x-experimental"],
+  tags: ["api", "Orderbook"],
   plugins: {
     "hapi-swagger": {
       order: 11,
@@ -81,7 +81,11 @@ export const getExecuteBidV5Options: RouteOptions = {
             .description(
               "Bid on a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
             ),
-          tokenSetId: Joi.string().lowercase().description("Bid on a particular token set."),
+          tokenSetId: Joi.string()
+            .lowercase()
+            .description(
+              "Bid on a particular token set. Example: `token:CONTRACT:TOKEN_ID` representing a single token within contract, `contract:CONTRACT` representing a whole contract, `range:CONTRACT:START_TOKEN_ID:END_TOKEN_ID` representing a continuous token id range within a contract and `list:CONTRACT:TOKEN_IDS_HASH` representing a list of token ids within a contract."
+            ),
           collection: Joi.string()
             .lowercase()
             .description(
@@ -112,7 +116,17 @@ export const getExecuteBidV5Options: RouteOptions = {
               "flow"
             )
             .default("seaport-v1.4")
-            .description("Exchange protocol used to create order. Example: `seaport`"),
+            .description("Exchange protocol used to create order. Example: `seaport-v1.4`"),
+          options: Joi.object({
+            "seaport-v1.4": Joi.object({
+              useOffChainCancellation: Joi.boolean().required(),
+              replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                is: true,
+                then: Joi.optional(),
+                otherwise: Joi.forbidden(),
+              }),
+            }),
+          }).description("Additional options."),
           orderbook: Joi.string()
             .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow")
             .default("reservoir")
@@ -120,9 +134,9 @@ export const getExecuteBidV5Options: RouteOptions = {
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
           automatedRoyalties: Joi.boolean()
             .default(true)
-            .description("If true, royalties will be automatically included."),
+            .description("If true, royalty amounts and recipients will be set automatically."),
           royaltyBps: Joi.number().description(
-            "The royalty percentage to pay. Only relevant when using automated royalties."
+            "Set a maximum amount of royalties to pay, rather than the full amount. Only relevant when using automated royalties. Note: OpenSea does not support values below 50 bps."
           ),
           fees: Joi.array()
             .items(Joi.string().pattern(regex.fee))
@@ -203,6 +217,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         attributeValue?: string;
         quantity?: number;
         weiPrice: string;
+        options?: any;
         orderKind: string;
         orderbook: string;
         orderbookApiKey?: string;
@@ -294,6 +309,11 @@ export const getExecuteBidV5Options: RouteOptions = {
           const attributeKey = params.attributeKey;
           const attributeValue = params.attributeValue;
 
+          // Force usage of seaport-v1.4
+          if (params.orderKind === "seaport") {
+            params.orderKind = "seaport-v1.4";
+          }
+
           // Only single-contract token sets are biddable
           if (tokenSetId && tokenSetId.startsWith("list") && tokenSetId.split(":").length !== 3) {
             return errors.push({
@@ -367,7 +387,7 @@ export const getExecuteBidV5Options: RouteOptions = {
 
             switch (params.orderKind) {
               case "seaport": {
-                if (!["reservoir", "opensea"].includes(params.orderbook)) {
+                if (!["reservoir"].includes(params.orderbook)) {
                   return errors.push({
                     message: "Unsupported orderbook",
                     orderIndex: i,
@@ -470,11 +490,30 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
+                // OpenSea expects a royalty of at least 0.5%
+                if (
+                  params.orderbook === "opensea" &&
+                  params.royaltyBps !== undefined &&
+                  Number(params.royaltyBps) < 50
+                ) {
+                  throw Boom.badRequest(
+                    "Royalties should be at least 0.5% when posting to OpenSea"
+                  );
+                }
+
+                const options = params.options?.[params.orderKind] as
+                  | {
+                      useOffChainCancellation?: boolean;
+                      replaceOrderId?: string;
+                    }
+                  | undefined;
+
                 let order: Sdk.SeaportV14.Order;
                 if (token) {
                   const [contract, tokenId] = token.split(":");
                   order = await seaportV14BuyToken.build({
                     ...params,
+                    ...options,
                     orderbook: params.orderbook as "reservoir" | "opensea",
                     maker,
                     contract,
@@ -484,6 +523,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 } else if (tokenSetId) {
                   order = await seaportV14BuyAttribute.build({
                     ...params,
+                    ...options,
                     orderbook: params.orderbook as "reservoir" | "opensea",
                     maker,
                     source,
@@ -491,6 +531,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 } else if (attribute) {
                   order = await seaportV14BuyAttribute.build({
                     ...params,
+                    ...options,
                     orderbook: params.orderbook as "reservoir" | "opensea",
                     maker,
                     collection: attribute.collection,
@@ -500,6 +541,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 } else if (collection) {
                   order = await seaportV14BuyCollection.build({
                     ...params,
+                    ...options,
                     orderbook: params.orderbook as "reservoir" | "opensea",
                     maker,
                     collection,
@@ -1089,7 +1131,35 @@ export const getExecuteBidV5Options: RouteOptions = {
         const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
 
         const orders = bulkOrders["seaport-v1.4"];
-        if (orders.length) {
+        if (orders.length === 1) {
+          const order = new Sdk.SeaportV14.Order(config.chainId, orders[0].order.data);
+          steps[2].items.push({
+            status: "incomplete",
+            data: {
+              sign: order.getSignatureData(),
+              post: {
+                endpoint: "/order/v3",
+                method: "POST",
+                body: {
+                  order: {
+                    kind: "seaport-v1.4",
+                    data: {
+                      ...order.params,
+                    },
+                  },
+                  tokenSetId: orders[0].tokenSetId,
+                  attribute: orders[0].attribute,
+                  collection: orders[0].collection,
+                  isNonFlagged: orders[0].isNonFlagged,
+                  orderbook: orders[0].orderbook,
+                  orderbookApiKey: orders[0].orderbookApiKey,
+                  source,
+                },
+              },
+            },
+            orderIndexes: [orders[0].orderIndex],
+          });
+        } else if (orders.length > 1) {
           const { signatureData, proofs } = exchange.getBulkSignatureDataWithProofs(
             orders.map((o) => new Sdk.SeaportV14.Order(config.chainId, o.order.data))
           );

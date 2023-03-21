@@ -192,19 +192,20 @@ const getAvailableUSDPrice = async (
   return USD_PRICE_MEMORY_CACHE.get(key);
 };
 
+const isTestnetCurrency = (currencyAddress: string) =>
+  config.chainId === 5 &&
+  [
+    Sdk.Common.Addresses.Eth[config.chainId],
+    Sdk.Common.Addresses.Weth[config.chainId],
+    "0x07865c6e87b9f70255377e024ace6630c1eaa37f",
+    "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
+  ].includes(currencyAddress);
+
 export type USDAndNativePrices = {
   usdPrice?: string;
   nativePrice?: string;
 };
 
-/**
- * Will return USD and price in the native currency of the current chain
- *
- * @param currencyAddress
- * @param price
- * @param timestamp
- * @param options
- */
 export const getUSDAndNativePrices = async (
   currencyAddress: string,
   price: string,
@@ -217,14 +218,7 @@ export const getUSDAndNativePrices = async (
   let usdPrice: string | undefined;
   let nativePrice: string | undefined;
 
-  // Only try to get pricing data if the network supports it
-  const force =
-    config.chainId === 5 &&
-    [
-      "0x07865c6e87b9f70255377e024ace6630c1eaa37f",
-      "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
-    ].includes(currencyAddress);
-  if (getNetworkSettings().coingecko?.networkId || force) {
+  if (getNetworkSettings().coingecko?.networkId || isTestnetCurrency(currencyAddress)) {
     const currencyUSDPrice = await getAvailableUSDPrice(
       currencyAddress,
       timestamp,
@@ -267,30 +261,29 @@ export const getUSDAndNativePrices = async (
   return { usdPrice, nativePrice };
 };
 
-/**
- * Convert between currencies
- *
- * @param fromCurrencyAddress
- * @param toCurrency
- * @param price
- * @param timestamp
- * @param options
- */
+export type USDAndCurrencyPrices = {
+  usdPrice?: string;
+  currencyPrice?: string;
+};
+
 export const getUSDAndCurrencyPrices = async (
   fromCurrencyAddress: string,
-  toCurrency: string,
+  toCurrencyAddress: string,
   price: string,
   timestamp: number,
   options?: {
     onlyUSD?: boolean;
     acceptStalePrice?: boolean;
   }
-): Promise<USDAndNativePrices> => {
+): Promise<USDAndCurrencyPrices> => {
   let usdPrice: string | undefined;
-  let nativePrice: string | undefined;
+  let currencyPrice: string | undefined;
 
   // Only try to get pricing data if the network supports it
-  if (getNetworkSettings().coingecko?.networkId) {
+  if (
+    getNetworkSettings().coingecko?.networkId ||
+    (isTestnetCurrency(fromCurrencyAddress) && isTestnetCurrency(toCurrencyAddress))
+  ) {
     // Get the FROM currency price
     const fromCurrencyUSDPrice = await getAvailableUSDPrice(
       fromCurrencyAddress,
@@ -301,27 +294,30 @@ export const getUSDAndCurrencyPrices = async (
     let toCurrencyUSDPrice: Price | undefined;
     if (!options?.onlyUSD) {
       toCurrencyUSDPrice = await getAvailableUSDPrice(
-        toCurrency,
+        toCurrencyAddress,
         timestamp,
         options?.acceptStalePrice
       );
     }
 
-    const currency = await getCurrency(fromCurrencyAddress);
+    const fromCurrency = await getCurrency(fromCurrencyAddress);
+    const toCurrency = await getCurrency(toCurrencyAddress);
 
-    if (currency.decimals && fromCurrencyUSDPrice) {
-      const currencyUnit = bn(10).pow(currency.decimals);
-      usdPrice = bn(price).mul(fromCurrencyUSDPrice.value).div(currencyUnit).toString();
+    if (fromCurrency.decimals && fromCurrencyUSDPrice) {
+      const fromCurrencyUnit = bn(10).pow(fromCurrency.decimals!);
+      const toCurrencyUnit = bn(10).pow(toCurrency.decimals!);
+
+      usdPrice = bn(price).mul(fromCurrencyUSDPrice.value).div(fromCurrencyUnit).toString();
       if (toCurrencyUSDPrice) {
-        nativePrice = bn(price)
+        currencyPrice = bn(price)
           .mul(fromCurrencyUSDPrice.value)
-          .mul(NATIVE_UNIT)
+          .mul(toCurrencyUnit)
           .div(toCurrencyUSDPrice.value)
-          .div(currencyUnit)
+          .div(fromCurrencyUnit)
           .toString();
       }
     }
   }
 
-  return { usdPrice, nativePrice };
+  return { usdPrice, currencyPrice };
 };

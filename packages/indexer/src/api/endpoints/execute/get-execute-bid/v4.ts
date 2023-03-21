@@ -22,6 +22,11 @@ import * as seaportBuyAttribute from "@/orderbook/orders/seaport/build/buy/attri
 import * as seaportBuyToken from "@/orderbook/orders/seaport/build/buy/token";
 import * as seaportBuyCollection from "@/orderbook/orders/seaport/build/buy/collection";
 
+// Seaport v1.4
+import * as seaportV14BuyAttribute from "@/orderbook/orders/seaport-v1.4/build/buy/attribute";
+import * as seaportV14BuyToken from "@/orderbook/orders/seaport-v1.4/build/buy/token";
+import * as seaportV14BuyCollection from "@/orderbook/orders/seaport-v1.4/build/buy/collection";
+
 // X2Y2
 import * as x2y2BuyCollection from "@/orderbook/orders/x2y2/build/buy/collection";
 import * as x2y2BuyToken from "@/orderbook/orders/x2y2/build/buy/token";
@@ -53,10 +58,10 @@ export const getExecuteBidV4Options: RouteOptions = {
   description: "Create bid (offer)",
   notes: "Generate a bid and submit it to multiple marketplaces",
   timeout: { server: 60000 },
-  tags: ["api", "Orderbook"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 11,
+      deprecated: true,
     },
   },
   validate: {
@@ -105,6 +110,7 @@ export const getExecuteBidV4Options: RouteOptions = {
             .valid(
               "zeroex-v4",
               "seaport",
+              "seaport-v1.4",
               "looks-rare",
               "x2y2",
               "universe",
@@ -112,8 +118,8 @@ export const getExecuteBidV4Options: RouteOptions = {
               "infinity",
               "flow"
             )
-            .default("seaport")
-            .description("Exchange protocol used to create order. Example: `seaport`"),
+            .default("seaport-v1.4")
+            .description("Exchange protocol used to create order. Example: `seaport-v1.4`"),
           orderbook: Joi.string()
             .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow")
             .default("reservoir")
@@ -222,7 +228,7 @@ export const getExecuteBidV4Options: RouteOptions = {
           items: [],
         },
         {
-          id: "weth-wrapping", // todo in v5 change this to currency-wrapping
+          id: "weth-wrapping",
           action: `Wrapping ${currency}`,
           description: `We'll ask your approval for converting ${currency} to ${wrappedCurrency}. Gas fee required.`,
           kind: "transaction",
@@ -253,6 +259,11 @@ export const getExecuteBidV4Options: RouteOptions = {
         const tokenSetId = params.tokenSetId;
         const attributeKey = params.attributeKey;
         const attributeValue = params.attributeValue;
+
+        // Force usage of seaport-v1.4
+        if (params.orderKind === "seaport") {
+          params.orderKind = "seaport-v1.4";
+        }
 
         if (tokenSetId && tokenSetId.startsWith("list") && tokenSetId.split(":").length !== 3) {
           throw Boom.badRequest(`Token set ${tokenSetId} is not biddable`);
@@ -298,8 +309,8 @@ export const getExecuteBidV4Options: RouteOptions = {
 
         switch (params.orderKind) {
           case "seaport": {
-            if (!["reservoir", "opensea"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
+            if (!["reservoir"].includes(params.orderbook)) {
+              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
             }
 
             let order: Sdk.Seaport.Order;
@@ -366,6 +377,113 @@ export const getExecuteBidV4Options: RouteOptions = {
                   body: {
                     order: {
                       kind: "seaport",
+                      data: {
+                        ...order.params,
+                      },
+                    },
+                    tokenSetId,
+                    attribute:
+                      collection && attributeKey && attributeValue
+                        ? {
+                            collection,
+                            key: attributeKey,
+                            value: attributeValue,
+                          }
+                        : undefined,
+                    collection:
+                      collection && !attributeKey && !attributeValue ? collection : undefined,
+                    isNonFlagged: params.excludeFlaggedTokens,
+                    orderbook: params.orderbook,
+                    orderbookApiKey: params.orderbookApiKey,
+                    source,
+                  },
+                },
+              },
+              orderIndex: i,
+            });
+
+            // Go on with the next bid
+            continue;
+          }
+
+          case "seaport-v1.4": {
+            if (!["reservoir", "opensea"].includes(params.orderbook)) {
+              throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
+            }
+
+            // OpenSea expects a royalty of at least 0.5%
+            if (
+              params.orderbook === "opensea" &&
+              params.royaltyBps !== undefined &&
+              Number(params.royaltyBps) < 50
+            ) {
+              throw Boom.badRequest("Royalties should be at least 0.5% when posting to OpenSea");
+            }
+
+            let order: Sdk.SeaportV14.Order;
+            if (token) {
+              const [contract, tokenId] = token.split(":");
+              order = await seaportV14BuyToken.build({
+                ...params,
+                maker,
+                contract,
+                tokenId,
+                source,
+              });
+            } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
+              order = await seaportV14BuyAttribute.build({
+                ...params,
+                maker,
+                collection,
+                attributes: [
+                  {
+                    key: attributeKey,
+                    value: attributeValue,
+                  },
+                ],
+                source,
+              });
+            } else if (collection) {
+              order = await seaportV14BuyCollection.build({
+                ...params,
+                maker,
+                collection,
+                source,
+              });
+            } else {
+              throw Boom.internal("Wrong metadata");
+            }
+
+            const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+            const conduit = exchange.deriveConduit(order.params.conduitKey);
+
+            // Check the maker's approval
+            let approvalTx: TxData | undefined;
+            const currencyApproval = await currency.getAllowance(maker, conduit);
+            if (bn(currencyApproval).lt(order.getMatchingPrice())) {
+              approvalTx = currency.approveTransaction(maker, conduit);
+            }
+
+            steps[1].items.push({
+              status: !wrapEthTx ? "complete" : "incomplete",
+              data: wrapEthTx,
+              orderIndex: i,
+            });
+            steps[2].items.push({
+              status: !approvalTx ? "complete" : "incomplete",
+              data: approvalTx,
+              orderIndex: i,
+            });
+            steps[3].items.push({
+              status: "incomplete",
+              data: {
+                sign: order.getSignatureData(),
+                post: {
+                  endpoint: "/order/v3",
+                  method: "POST",
+                  body: {
+                    order: {
+                      kind: "seaport-v1.4",
                       data: {
                         ...order.params,
                       },

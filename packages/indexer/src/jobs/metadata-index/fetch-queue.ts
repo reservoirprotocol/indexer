@@ -45,14 +45,12 @@ if (config.doBackgroundWork) {
       const limit = 1000;
       let refreshTokens: RefreshTokens[] = [];
 
-      if (data.collection === "0x4923917e9e288b95405e2c893d0ac46b895dda22") {
-        return;
-      }
-
       if (kind === "full-collection-by-slug") {
+        logger.info(QUEUE_NAME, `Full collection by slug. data=${JSON.stringify(data)}`);
+
         // Add the collections slugs to the list
         const pendingRefreshTokensBySlug = new PendingRefreshTokensBySlug();
-        const pendingCount = await pendingRefreshTokensBySlug.add(
+        await pendingRefreshTokensBySlug.add(
           {
             slug: data.slug,
             contract: data.contract,
@@ -61,16 +59,14 @@ if (config.doBackgroundWork) {
           prioritized
         );
 
-        logger.debug(
-          QUEUE_NAME,
-          `There are ${pendingCount} collections slugs pending to refresh for ${data.method}`
-        );
         if (await acquireLock(metadataIndexProcessBySlug.getLockName(data.method), 60 * 5)) {
           await metadataIndexProcessBySlug.addToQueue();
         }
         return;
       }
       if (kind === "full-collection") {
+        logger.info(QUEUE_NAME, `Full collection. data=${JSON.stringify(data)}`);
+
         // Get batch of tokens for the collection
         const [contract, tokenId] = data.continuation
           ? data.continuation.split(":")
@@ -113,12 +109,7 @@ if (config.doBackgroundWork) {
 
       // Add the tokens to the list
       const pendingRefreshTokens = new PendingRefreshTokens(data.method);
-      const pendingCount = await pendingRefreshTokens.add(refreshTokens, prioritized);
-
-      logger.debug(
-        QUEUE_NAME,
-        `There are ${pendingCount} collection slugs pending to refresh for ${data.method}`
-      );
+      await pendingRefreshTokens.add(refreshTokens, prioritized);
 
       if (await acquireLock(metadataIndexProcess.getLockName(data.method), 60 * 5)) {
         // Trigger a job to process the queue

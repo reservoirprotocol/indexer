@@ -176,7 +176,7 @@ export class Tokens {
     readReplica = true
   ) {
     const dbInstance = readReplica ? redb : idb;
-    const limit = 5000;
+    const limit = 10000;
     let checkForMore = true;
     let continuation = "";
     let tokenIds: string[] = [];

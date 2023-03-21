@@ -2,7 +2,6 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk/src";
-import * as Rarible from "@reservoir0x/sdk/src/rarible";
 import { encodeForMatchOrders } from "@reservoir0x/sdk/src/rarible/utils";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { expect } from "chai";
@@ -40,14 +39,12 @@ describe("[ReservoirV6_0_0] Rarible listings", () => {
 
     ({ erc721, erc1155 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    raribleModule = (await ethers
+      .then((factory) => factory.deploy());
+    raribleModule = await ethers
       .getContractFactory("RaribleModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -121,12 +118,8 @@ describe("[ReservoirV6_0_0] Rarible listings", () => {
     // Prepare executions
 
     const totalPrice = bn(
-      listings
-        .map(({ price }) => bn(price))
-        .reduce((a, b) => bn(a).add(b), bn(0))
+      listings.map(({ price }) => bn(price)).reduce((a, b) => bn(a).add(b), bn(0))
     );
-
-    const exchange = new Rarible.Exchange(chainId);
 
     const matchOrder = listings[0].order!.buildMatching(
       raribleModule.address,
@@ -145,61 +138,50 @@ describe("[ReservoirV6_0_0] Rarible listings", () => {
       listingsCount > 1
         ? {
             module: raribleModule.address,
-            data: raribleModule.interface.encodeFunctionData(
-              "acceptETHListings",
+            data: raribleModule.interface.encodeFunctionData("acceptETHListings", [
+              listings.map((listing) => encodeForMatchOrders(listing.order!.params)),
+              listings.map((listing) => listing.order!.params.signature),
+              listings.map((listing) =>
+                encodeForMatchOrders(
+                  listing.order!.buildMatching(raribleModule.address, listing.order!.params)
+                )
+              ),
+              "0x",
+              {
+                fillTo: carol.address,
+                refundTo: carol.address,
+                revertIfIncomplete,
+                amount: totalPrice,
+              },
               [
-                listings.map((listing) =>
-                  encodeForMatchOrders(listing.order!.params)
-                ),
-                listings.map((listing) => listing.order!.params.signature),
-                listings.map((listing) =>
-                  encodeForMatchOrders(
-                    listing.order!.buildMatching(
-                      raribleModule.address,
-                      listing.order!.params
-                    )
-                  )
-                ),
-                "0x",
-                {
-                  fillTo: carol.address,
-                  refundTo: carol.address,
-                  revertIfIncomplete,
-                  amount: totalPrice,
-                },
-                [
-                  ...feesOnTop.map((amount) => ({
-                    recipient: emilio.address,
-                    amount,
-                  })),
-                ],
-              ]
-            ),
+                ...feesOnTop.map((amount) => ({
+                  recipient: emilio.address,
+                  amount,
+                })),
+              ],
+            ]),
             value: priceTotalValue,
           }
         : {
             module: raribleModule.address,
-            data: raribleModule.interface.encodeFunctionData(
-              "acceptETHListing",
-              [
-                encodeForMatchOrders(listings[0].order!.params),
-                listings[0].order!.params.signature,
-                encodeForMatchOrders(matchOrder),
-                "0x",
-                {
-                  fillTo: carol.address,
-                  refundTo: carol.address,
-                  revertIfIncomplete,
-                  amount: totalPrice,
-                },
-                chargeFees
-                  ? feesOnTop.map((amount) => ({
-                      recipient: emilio.address,
-                      amount,
-                    }))
-                  : [],
-              ]
-            ),
+            data: raribleModule.interface.encodeFunctionData("acceptETHListing", [
+              encodeForMatchOrders(listings[0].order!.params),
+              listings[0].order!.params.signature,
+              encodeForMatchOrders(matchOrder),
+              "0x",
+              {
+                fillTo: carol.address,
+                refundTo: carol.address,
+                revertIfIncomplete,
+                amount: totalPrice,
+              },
+              chargeFees
+                ? feesOnTop.map((amount) => ({
+                    recipient: emilio.address,
+                    amount,
+                  }))
+                : [],
+            ]),
             value: priceTotalValue,
           },
     ];
@@ -209,77 +191,44 @@ describe("[ReservoirV6_0_0] Rarible listings", () => {
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      listings.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && listings.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
       return;
     }
 
     // Fetch pre-state
 
-    const ethBalancesBefore = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
-    const wethBalancesBefore = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
 
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
 
-    const ethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
-    const wethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Weth[chainId]
-    );
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
+    const wethBalancesAfter = await getBalances(Sdk.Common.Addresses.Weth[chainId]);
 
-    // Checks
-
-    // Alice got the payment
-
-    const aliceListings = listings.filter(
-      ({ maker, isCancelled }) =>
-        !isCancelled && maker.address === alice.address
-    );
     // Checks
 
     // Alice got the payment
     expect(ethBalancesAfter.alice.sub(ethBalancesBefore.alice)).to.eq(
       listings
-        .filter(
-          ({ maker, isCancelled }) =>
-            !isCancelled && maker.address === alice.address
-        )
+        .filter(({ maker, isCancelled }) => !isCancelled && maker.address === alice.address)
         .map(({ price }) => price)
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
     // Bob got the payment
     expect(ethBalancesAfter.bob.sub(ethBalancesBefore.bob)).to.eq(
       listings
-        .filter(
-          ({ maker, isCancelled }) =>
-            !isCancelled && maker.address === bob.address
-        )
+        .filter(({ maker, isCancelled }) => !isCancelled && maker.address === bob.address)
         .map(({ price }) => price)
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
@@ -311,13 +260,9 @@ describe("[ReservoirV6_0_0] Rarible listings", () => {
         }
       } else {
         if (nft.kind === "erc721") {
-          expect(await nft.contract.ownerOf(nft.id)).to.eq(
-            listings[i].maker.address
-          );
+          expect(await nft.contract.ownerOf(nft.id)).to.eq(listings[i].maker.address);
         } else {
-          expect(
-            await nft.contract.balanceOf(listings[i].maker.address, nft.id)
-          ).to.eq(1);
+          expect(await nft.contract.balanceOf(listings[i].maker.address, nft.id)).to.eq(1);
         }
       }
     }
@@ -329,11 +274,11 @@ describe("[ReservoirV6_0_0] Rarible listings", () => {
     expect(ethBalancesAfter.raribleModule).to.eq(0);
   };
 
-  for (let multiple of [false, true]) {
-    for (let partial of [false, true]) {
-      for (let chargeFees of [false, true]) {
-        for (let revertIfIncomplete of [false, true]) {
-          for (let kind of [false, true]) {
+  for (const multiple of [false, true]) {
+    for (const partial of [false, true]) {
+      for (const chargeFees of [false, true]) {
+        for (const revertIfIncomplete of [false, true]) {
+          for (const kind of [false, true]) {
             it(
               "[eth]" +
                 `${kind ? "[erc721]" : "[erc1555]"}` +

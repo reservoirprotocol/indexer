@@ -4,11 +4,7 @@ import * as Sdk from "@reservoir0x/sdk/src";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  getRandomBoolean,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, getRandomBoolean } from "../../../utils";
 
 // --- Listings ---
 
@@ -89,6 +85,7 @@ export type LocalAssetType = {
 
 export type LocalAsset = {
   // Comes from API
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type?: any;
   assetType: LocalAssetType;
   value: string;
@@ -155,10 +152,7 @@ export const setupRaribleOffers = async (offers: RaribleListing[]) => {
 
     const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
     await weth.deposit(maker, price);
-    await weth.approve(
-      maker,
-      Sdk.Rarible.Addresses.ERC20TransferProxy[chainId]
-    );
+    await weth.approve(maker, Sdk.Rarible.Addresses.ERC20TransferProxy[chainId]);
 
     // Build and sign the order
     const builder = getRandomBoolean()

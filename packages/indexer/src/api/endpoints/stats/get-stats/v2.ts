@@ -37,7 +37,9 @@ export const getStatsV2Options: RouteOptions = {
         ),
       attributes: Joi.object()
         .unknown()
-        .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
+        .description(
+          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/stats/v2?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/stats/v2?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`"
+        ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -388,6 +390,9 @@ export const getStatsV2Options: RouteOptions = {
           SELECT
             "c"."token_count",
             "c"."token_set_id",
+            "c"."top_buy_id",
+            "c"."top_buy_value",
+            "c"."top_buy_maker",
             (
               SELECT COUNT(*) FROM "tokens"
               WHERE "collection_id" = $/collection/
@@ -411,9 +416,6 @@ export const getStatsV2Options: RouteOptions = {
             ON "x"."collection_id" = "c"."id"
           LEFT JOIN LATERAL (
             SELECT
-              "ts"."top_buy_id",
-              "ts"."top_buy_value",
-              "ts"."top_buy_maker",
               date_part('epoch', lower("ob"."valid_between")) AS "top_buy_valid_from",
               coalesce(
                 nullif(date_part('epoch', upper("ob"."valid_between")), 'Infinity'),
@@ -423,11 +425,8 @@ export const getStatsV2Options: RouteOptions = {
               ob.currency AS top_buy_currency,
               coalesce(ob.currency_price, ob.price) AS top_buy_currency_price,
               coalesce(ob.currency_value, ob.value) AS top_buy_currency_value
-            FROM "token_sets" "ts"
-            LEFT JOIN "orders" "ob"
-              ON "ts"."top_buy_id" = "ob"."id"
-            WHERE "ts"."id" = "c"."token_set_id"
-            ORDER BY "ts"."top_buy_value" DESC NULLS LAST
+            FROM "orders" "ob"
+            WHERE "ob"."id" = "c"."top_buy_id"
             LIMIT 1
           ) "y" ON TRUE
         `;

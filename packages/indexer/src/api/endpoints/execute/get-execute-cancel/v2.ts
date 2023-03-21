@@ -1,18 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-import { arrayify } from "@ethersproject/bytes";
-import { verifyMessage } from "@ethersproject/wallet";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
 import Joi from "joi";
 
-import { idb, redb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, fromBuffer, regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
 const version = "v2";
 
@@ -33,7 +28,6 @@ export const getExecuteCancelV2Options: RouteOptions = {
       softCancel: Joi.boolean()
         .default(false)
         .description("If true, the order will be soft-cancelled."),
-      signature: Joi.string().description("Maker signature for soft-cancelling."),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional. Set custom gas price"),
@@ -49,7 +43,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
           id: Joi.string().required(),
           action: Joi.string().required(),
           description: Joi.string().required(),
-          kind: Joi.string().valid("transaction").required(),
+          kind: Joi.string().valid("signature", "transaction").required(),
           items: Joi.array()
             .items(
               Joi.object({
@@ -68,13 +62,14 @@ export const getExecuteCancelV2Options: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
-    const query = request.query as any;
+    const query = request.query;
 
     try {
       // Fetch the order to get cancelled
       const orderResult = await redb.oneOrNone(
         `
           SELECT
+            orders.id,
             orders.kind,
             orders.maker,
             orders.raw_data
@@ -90,81 +85,80 @@ export const getExecuteCancelV2Options: RouteOptions = {
         throw Boom.badData("No matching order");
       }
 
-      const maker = fromBuffer(orderResult.maker);
+      // Handle off-chain cancellations
 
-      // Handle soft-cancelling
-      if (query.softCancel || query.signature) {
-        if (query.signature) {
-          // Check signature
-          const signer = verifyMessage(arrayify(query.id), query.signature);
-          if (signer.toLowerCase() !== maker) {
-            throw Boom.unauthorized("Invalid signature");
-          }
-
-          // Mark the order as cancelled
-          await idb.none(
-            `
-              UPDATE orders SET
-                fillability_status = 'cancelled',
-                updated_at = now()
-              WHERE orders.id = $/id/
-            `,
-            { id: query.id }
-          );
-
-          // Recheck the order
-          await orderUpdatesById.addToQueue([
+      const cancellationZone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
+      const isOracleCancellable =
+        orderResult.kind === "seaport-v1.4" && orderResult.raw_data.zone === cancellationZone;
+      if (isOracleCancellable || query.softCancel) {
+        return {
+          steps: [
             {
-              context: `cancel-${query.id}`,
-              id: query.id,
-              trigger: {
-                kind: "cancel",
-              },
-            } as orderUpdatesById.OrderInfo,
-          ]);
-
-          // No steps to return
-          return { steps: [] };
-        } else {
-          // TODO: Should not reuse the same API for step retrieval and cancellation
-          return {
-            steps: [
-              {
-                id: "cancellation-signature",
-                action: "Soft-cancel order",
-                description: "Authorize the soft-cancellation of the order",
-                kind: "signature",
-                items: [
-                  {
-                    status: "incomplete",
-                    data: {
-                      sign: {
-                        signatureKind: "eip191",
-                        message: orderResult.id,
-                      },
-                      post: {
-                        endpoint: "/execute/cancel/v2",
-                        method: "POST",
-                        body: {},
+              id: "cancellation-signature",
+              action: "Cancel order",
+              description: "Authorize the cancellation of the order",
+              kind: "signature",
+              items: [
+                {
+                  status: "incomplete",
+                  data: {
+                    sign: isOracleCancellable
+                      ? {
+                          signatureKind: "eip712",
+                          domain: {
+                            name: "SignedZone",
+                            version: "1.0.0",
+                            chainId: config.chainId,
+                            verifyingContract: cancellationZone,
+                          },
+                          types: { OrderHashes: [{ name: "orderHashes", type: "bytes32[]" }] },
+                          value: {
+                            orderHashes: [orderResult.id],
+                          },
+                        }
+                      : {
+                          signatureKind: "eip191",
+                          message: orderResult.id,
+                        },
+                    post: {
+                      endpoint: "/execute/cancel-signature/v1",
+                      method: "POST",
+                      body: {
+                        orderId: orderResult.id,
+                        softCancel: !isOracleCancellable,
                       },
                     },
-                    orderIndex: 0,
                   },
-                ],
-              },
-            ],
-          };
-        }
+                  orderIndex: 0,
+                },
+              ],
+            },
+          ],
+        };
       }
+
+      // Handle on-chain cancellations
 
       let cancelTx: TxData;
       let orderSide: "sell" | "buy";
+
+      const maker = fromBuffer(orderResult.maker);
 
       // REFACTOR: Move to SDK and handle X2Y2
       switch (orderResult.kind) {
         case "seaport": {
           const order = new Sdk.Seaport.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.Seaport.Exchange(config.chainId);
+
+          cancelTx = exchange.cancelOrderTx(maker, order);
+          orderSide = order.getInfo()!.side;
+
+          break;
+        }
+
+        case "seaport-v1.4": {
+          const order = new Sdk.SeaportV14.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
 
           cancelTx = exchange.cancelOrderTx(maker, order);
           orderSide = order.getInfo()!.side;

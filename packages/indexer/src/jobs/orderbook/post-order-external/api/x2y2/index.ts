@@ -4,6 +4,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { InvalidRequestError } from "@/jobs/orderbook/post-order-external/api/errors";
 
 // X2Y2 default rate limit - 120 requests per minute
 export const RATE_LIMIT_REQUEST_COUNT = 120;
@@ -14,7 +15,7 @@ export const postOrder = async (order: Sdk.X2Y2.Types.LocalOrder, apiKey: string
 
   // Skip posting orders that already expired
   if (order.deadline <= now()) {
-    return;
+    throw new InvalidRequestError("Order is expired");
   }
 
   // When lowering the price of an existing listing, X2Y2 requires
@@ -51,11 +52,18 @@ export const postOrder = async (order: Sdk.X2Y2.Types.LocalOrder, apiKey: string
   await exchange.postOrder(order, orderId).catch((error) => {
     if (error.response) {
       logger.error(
-        "x2y2_orderbook_api",
-        `Failed to post order to X2Y2. order=${JSON.stringify(order)}, status: ${
+        "x2y2-orderbook-api",
+        `Failed to post order to X2Y2. order=${JSON.stringify(order)}, apiKey=${apiKey}, status=${
           error.response.status
-        }, data:${JSON.stringify(error.response.data)}`
+        }, data=${JSON.stringify(error.response.data)}`
       );
+
+      switch (error.response.status) {
+        case 400:
+          throw new InvalidRequestError(
+            `Request was rejected by X2Y2. error=${error.response.data.code}`
+          );
+      }
     }
 
     throw new Error("Failed to post order to X2Y2");

@@ -1,10 +1,10 @@
 import * as Sdk from "@reservoir0x/sdk";
-import { OrderKind } from "@/orderbook/orders";
+
 import { config } from "@/config/index";
+import { OrderKind } from "@/orderbook/orders";
 
 export const platformFeeRecipientsRegistry: Map<string, string[]> = new Map();
 export const allPlatformFeeRecipients = new Set();
-export const allExchangeList: Map<OrderKind, string> = new Map();
 
 function addPlatformAddress(type: string, addrList: string[]) {
   platformFeeRecipientsRegistry.set(type, addrList);
@@ -32,8 +32,11 @@ addPlatformAddress("sudoswap", [
   "0xb16c1342e617a5b6e4b631eb114483fdb289c0a4",
 ]);
 
-// Exchange List
-allExchangeList.set("seaport", Sdk.Seaport.Addresses.Exchange[config.chainId]);
-allExchangeList.set("seaport-v1.4", Sdk.SeaportV14.Addresses.Exchange[config.chainId]);
-allExchangeList.set("x2y2", Sdk.X2Y2.Addresses.Exchange[config.chainId]);
-allExchangeList.set("looks-rare", Sdk.LooksRare.Addresses.Exchange[config.chainId]);
+addPlatformAddress("bend-dao", ["0xf3ab1d58ce6b9e0d42b8958c918649305e1b1d26"]);
+
+// List of supported exchanges
+export const supportedExchanges: Map<OrderKind, string> = new Map();
+supportedExchanges.set("seaport", Sdk.Seaport.Addresses.Exchange[config.chainId]);
+supportedExchanges.set("seaport-v1.4", Sdk.SeaportV14.Addresses.Exchange[config.chainId]);
+supportedExchanges.set("x2y2", Sdk.X2Y2.Addresses.Exchange[config.chainId]);
+supportedExchanges.set("looks-rare", Sdk.LooksRare.Addresses.Exchange[config.chainId]);

@@ -118,6 +118,9 @@ CREATE INDEX "orders_updated_at_id_index"
 CREATE INDEX "orders_side_contract_created_at_index"
   ON "orders" ("side", "contract", "created_at" DESC, "id" DESC);
 
+CREATE INDEX orders_token_set_id_source_id_int_side_created_at_index
+  ON public.orders USING btree (token_set_id, source_id_int, side, created_at);
+
 -- https://stackoverflow.com/questions/51818949/is-there-any-adverse-effect-on-db-if-i-set-autovacuum-scale-factor-to-zero-for-c
 -- https://www.cybertec-postgresql.com/en/tuning-autovacuum-postgresql/
 ALTER TABLE "orders" SET (

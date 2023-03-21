@@ -118,7 +118,7 @@ export class SingleTokenBuilder extends BaseBuilder {
     });
   }
 
-  public buildMatching(order: Types.Order, taker: string, data: { amount?: string }) {
+  public buildMatching(order: Types.Order, taker: string, data?: { amount?: string }) {
     const rightOrder = {
       type: order.type,
       maker: lc(taker),
@@ -152,7 +152,7 @@ export class SingleTokenBuilder extends BaseBuilder {
 
     // For erc1155 we need to take the value from request (the amount parameter)
     if (Types.AssetClass.ERC1155 == order.make.assetType.assetClass) {
-      rightOrder.take.value = Math.floor(Number(data.amount || "1")).toString();
+      rightOrder.take.value = Math.floor(Number(data?.amount || "1")).toString();
     }
 
     return rightOrder;

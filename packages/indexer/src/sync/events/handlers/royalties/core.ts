@@ -1,4 +1,3 @@
-import { formatEther } from "@ethersproject/units";
 import { getStateChange, getPayments, searchForCall } from "@georgeroman/evm-tx-simulator";
 import { Payment } from "@georgeroman/evm-tx-simulator/dist/types";
 import * as Sdk from "@reservoir0x/sdk";
@@ -6,31 +5,39 @@ import * as Sdk from "@reservoir0x/sdk";
 import { redis } from "@/common/redis";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
-import { getFillEventsFromTx } from "@/events-sync/handlers/royalties";
+import {
+  PartialFillEvent,
+  StateCache,
+  getFillEventsFromTx,
+} from "@/events-sync/handlers/royalties";
 import {
   platformFeeRecipientsRegistry,
   allPlatformFeeRecipients,
-  allExchangeList,
+  supportedExchanges,
 } from "@/events-sync/handlers/royalties/config";
+import { getFillEventsFromTxOnChain } from "@/events-sync/handlers/royalties/utils";
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { TransactionTrace } from "@/models/transaction-traces";
 import { Royalty, getRoyalties } from "@/utils/royalties";
-import { StateCache } from "@/events-sync/handlers/royalties";
 
-function findPayment(payments: Payment[], fillEvent: es.fills.Event) {
-  return payments.find((payment) => {
-    const matchTokenId = payment.token.includes(`${fillEvent.contract}:${fillEvent.tokenId}`);
-    const macthERC20 =
-      payment.token.includes(fillEvent.contract) && payment.amount.includes(fillEvent.tokenId);
-    return matchTokenId || macthERC20;
-  });
-}
+const findMatchingPayment = (payments: Payment[], fillEvent: PartialFillEvent) =>
+  payments.find((payment) => paymentMatches(payment, fillEvent));
+
+const paymentMatches = (payment: Payment, fillEvent: PartialFillEvent) => {
+  // Cover regular ERC721/ERC1155 transfers
+  const matchesNFTTransfer = payment.token.includes(`${fillEvent.contract}:${fillEvent.tokenId}`);
+  // But also non-standard ERC20 transfers (which some NFTs still use)
+  const matchesERC20Transfer =
+    payment.token.includes(fillEvent.contract) && payment.amount.includes(fillEvent.tokenId);
+  return matchesNFTTransfer || matchesERC20Transfer;
+};
 
 export async function extractRoyalties(
   fillEvent: es.fills.Event,
   cache: StateCache,
-  useCache?: boolean
+  useCache?: boolean,
+  forceOnChain?: boolean
 ) {
   const creatorRoyaltyFeeBreakdown: Royalty[] = [];
   const marketplaceFeeBreakdown: Royalty[] = [];
@@ -39,291 +46,283 @@ export async function extractRoyalties(
   const { txHash } = fillEvent.baseEventParams;
   const { tokenId, contract, price, currency } = fillEvent;
 
-  const cacheKeyEvents = `get-fill-events-from-tx:${txHash}`;
+  // Fetch the current transaction's trace
+  let txTrace: TransactionTrace | undefined;
   const cacheKeyTrace = `fetch-transaction-trace:${txHash}`;
-
-  let txTrace = null;
   if (useCache) {
     const result = await redis.get(cacheKeyTrace);
     if (result) {
       txTrace = JSON.parse(result) as TransactionTrace;
     }
   }
-
   if (!txTrace) {
     txTrace = await utils.fetchTransactionTrace(txHash);
     if (useCache) {
       await redis.set(cacheKeyTrace, JSON.stringify(txTrace), "EX", 10 * 60);
     }
   }
-
   if (!txTrace) {
     return null;
   }
 
-  let fillEvents = null;
+  // Fetch the current transaction's sales
+  let fillEvents: PartialFillEvent[] | undefined;
+  const cacheKeyEvents = `get-fill-events-from-tx:${txHash}`;
   if (useCache) {
     const result = await redis.get(cacheKeyEvents);
     if (result) {
-      fillEvents = JSON.parse(result) as es.fills.Event[];
+      fillEvents = JSON.parse(result) as PartialFillEvent[];
     }
   }
 
   if (!fillEvents) {
-    const data = await getFillEventsFromTx(txHash);
-    fillEvents = data.fillEvents;
-    if (useCache) await redis.set(cacheKeyEvents, JSON.stringify(fillEvents), "EX", 10 * 60);
+    fillEvents = await getFillEventsFromTx(txHash);
+    if (useCache) {
+      await redis.set(cacheKeyEvents, JSON.stringify(fillEvents), "EX", 10 * 60);
+    }
   }
 
-  // Get all related royaltly settings from the same transaction
-  const allRoyaltiesDefinition = await Promise.all(
-    fillEvents.map(async (_) => {
-      const cacheKey = `${_.contract}:${_.tokenId}`;
+  // Should only be used for testing
+  if (forceOnChain) {
+    fillEvents = (await getFillEventsFromTxOnChain(txHash)).fillEvents;
+  }
+
+  // For every fill event, get the current royalties (ones cached in our database)
+  const fillEventsWithRoyaltyData = await Promise.all(
+    fillEvents.map(async (f) => {
+      const cacheKey = `${f.contract}:${f.tokenId}`;
+
       let royalties = cache.royalties.get(cacheKey);
       if (!royalties) {
-        royalties = await getRoyalties(_.contract, _.tokenId);
+        royalties = [];
+
+        // Cover both onchain and opensea royalties
+        royalties.push(await getRoyalties(f.contract, f.tokenId, "onchain"));
+        royalties.push(await getRoyalties(f.contract, f.tokenId, "opensea"));
+
         cache.royalties.set(cacheKey, royalties);
       }
+
       return {
-        ..._,
+        ...f,
         royalties,
       };
     })
   );
 
-  const otherRoyaltiesDefinition = allRoyaltiesDefinition.filter((c) => {
-    return c.contract != contract && c.tokenId != tokenId;
-  });
+  // The (sub)call where the current fill occured
+  let subcallToAnalyze = txTrace.calls;
 
-  let traceToAnalyze = txTrace.calls;
-  let usingExhcnageCall = false;
-
-  const exchangeAddress = allExchangeList.get(fillEvent.orderKind);
+  const exchangeAddress = supportedExchanges.get(fillEvent.orderKind);
   if (exchangeAddress) {
-    // Get all `orderKind` related exchange's calls
-    const allExchangeCalls = [];
-    for (let index = 0; index < 100; index++) {
-      const exchangeCall = searchForCall(
-        txTrace.calls,
-        {
-          to: exchangeAddress,
-        },
-        index
-      );
+    // If the fill event is from a supported exchange then search
+    // for any (sub)calls to that particular exchange
+    const exchangeCalls = [];
+    for (let i = 0; i < 20; i++) {
+      const exchangeCall = searchForCall(txTrace.calls, { to: exchangeAddress }, i);
       if (exchangeCall) {
-        allExchangeCalls.push(exchangeCall);
-      } else {
-        break;
+        exchangeCalls.push(exchangeCall);
       }
     }
 
-    if (allExchangeCalls.length === 1) {
-      traceToAnalyze = allExchangeCalls[0];
-      usingExhcnageCall = true;
+    if (exchangeCalls.length === 1) {
+      // If there is a unique call to the exchange in the current
+      // transaction then that is the (sub)call that we will need
+      // to further analyze
+      subcallToAnalyze = exchangeCalls[0];
     } else {
-      // If there has multiple exchange calls, we need based on payments
-      // to find the related with current `fillEvent` one.
-      // What If the same token sale multiple times in different calls?
-      for (let index = 0; index < allExchangeCalls.length; index++) {
-        const exchangeCall = allExchangeCalls[index];
+      // If there are multiple calls to the exchange in the current
+      // transaction then we try to look for the (sub)call where we
+      // find the current fill event's token
+      // TODO: What if the same token sold multiple times in different calls?
+      for (const exchangeCall of exchangeCalls) {
+        // Get all payments associated to the call
         const payments = getPayments(exchangeCall);
-        const matchPayment = findPayment(payments, fillEvent);
-        if (matchPayment) {
-          // Found token transfers inside this exchange call
-          traceToAnalyze = exchangeCall;
-          usingExhcnageCall = true;
+        const matchingPayment = findMatchingPayment(payments, fillEvent);
+        if (matchingPayment) {
+          // If we found a matching payment, then we pin-pointed the (sub)call to analyze
+          subcallToAnalyze = exchangeCall;
           break;
         }
       }
     }
   }
 
-  // Exclude same traders from same tx and WETH
-  const shouldExcludeAddressList = new Set();
+  // Extract the payments from the (sub)call we just found
+  const paymentsToAnalyze = getPayments(subcallToAnalyze);
 
-  fillEvents.forEach((fillEvent) => {
-    shouldExcludeAddressList.add(fillEvent.maker);
-    shouldExcludeAddressList.add(fillEvent.taker);
+  // Extract any fill events that have the same contract and currency
+  const sameContractFills = fillEvents.filter((e) => {
+    const isMatch = e.contract === contract && e.currency === fillEvent.currency;
+    const payment = findMatchingPayment(paymentsToAnalyze, e);
+    return isMatch && payment;
   });
+  // Compute total price for all above same-contract fills
+  const sameContractTotalPrice = sameContractFills.reduce(
+    (total, item) => total.add(bn(item.price).mul(bn(item.amount))),
+    bn(0)
+  );
 
-  shouldExcludeAddressList.add(Sdk.Common.Addresses.Weth[config.chainId]);
-  shouldExcludeAddressList.add(Sdk.Common.Addresses.Eth[config.chainId]);
+  // Extract any fill events that have the same order kind and currency
+  const sameProtocolFills = fillEvents
+    .filter((e) => {
+      const isMatch = e.orderKind === fillEvent.orderKind && e.currency === fillEvent.currency;
+      const payment = findMatchingPayment(paymentsToAnalyze, e);
+      return isMatch && payment;
+    })
+    .map((event) => {
+      return {
+        event,
+        index: paymentsToAnalyze.findIndex((p) => paymentMatches(p, event)),
+      };
+    })
+    // Make sure to sort
+    .sort((a, b) => a.index - b.index);
+  // Compute total price for all above same-protocol fills
+  const sameProtocolTotalPrice = sameProtocolFills.reduce(
+    (total, item) => total.add(bn(item.event.price).mul(bn(item.event.amount))),
+    bn(0)
+  );
 
-  const tracePayments = getPayments(traceToAnalyze);
+  // Keep track of some details for every same-protocol sale
+  const sameProtocolDetails: {
+    recipient: string;
+    bps: number;
+    contract: string;
+    tokenId: string;
+  }[] = [];
+  for (const { contract, tokenId, royalties } of fillEventsWithRoyaltyData) {
+    royalties
+      .map((r) =>
+        r.forEach(({ recipient, bps }) => {
+          const foundMatching = sameProtocolFills.find(
+            ({ event }) => event.contract === contract && event.tokenId === tokenId
+          );
+          if (foundMatching) {
+            const isExist = sameProtocolDetails.find(
+              (c) => c.recipient === recipient && c.contract === contract && c.tokenId === tokenId
+            );
+            if (!isExist) {
+              sameProtocolDetails.push({
+                recipient,
+                bps,
+                contract,
+                tokenId,
+              });
+            }
+          }
+        })
+      )
+      .flat();
+  }
 
-  // When the bound is limited, need filter all related collection and protocol fillEvents
-  // 1. We could using the NFT's transfer logs to get realeted fillEvents
-  const collectionFills =
-    fillEvents?.filter((currentEvent) => {
-      const macthSameCollection =
-        currentEvent.contract === contract && currentEvent.currency === fillEvent.currency;
-      if (usingExhcnageCall) {
-        const matchData = findPayment(tracePayments, currentEvent);
-        return macthSameCollection && matchData;
-      } else {
-        return macthSameCollection;
-      }
-    }) || [];
-
-  const protocolFillEvents =
-    fillEvents?.filter((currentEvent) => {
-      const matchOrderKind =
-        currentEvent.orderKind === fillEvent.orderKind &&
-        currentEvent.currency === fillEvent.currency;
-      if (usingExhcnageCall) {
-        const matchPayment = findPayment(tracePayments, currentEvent);
-        return matchOrderKind && matchPayment;
-      } else {
-        return matchOrderKind;
-      }
-    }) || [];
-
-  // For same token only count once
-  const idTrackers = new Set();
-  const protocolRelatedAmount = protocolFillEvents
-    ? protocolFillEvents.reduce((total, item) => {
-        const id = `${item.contract}:${item.tokenId}`;
-        if (idTrackers.has(id)) {
-          return total;
-        } else {
-          return total.add(bn(item.price).mul(bn(item.amount)));
-        }
-      }, bn(0))
-    : bn(0);
-
-  // For same token only count once
-  const collectionIdTrackers = new Set();
-  const collectionRelatedAmount = collectionFills.reduce((total, item) => {
-    const id = `${item.contract}:${item.tokenId}`;
-    if (collectionIdTrackers.has(id)) {
-      return total;
-    } else {
-      return total.add(bn(item.price).mul(bn(item.amount)));
-    }
-  }, bn(0));
-
-  const state = getStateChange(traceToAnalyze);
-
-  const matchDefinition = allRoyaltiesDefinition.find(
-    (_) => _.contract === contract && _.tokenId === tokenId
+  const matchDefinition = fillEventsWithRoyaltyData.find(
+    (_) => _.contract === contract && _.tokenId === tokenId && _.royalties
   );
   const royalties = matchDefinition ? matchDefinition.royalties : [];
 
-  const balanceChangeWithBps = [];
-  const royaltyRecipients: string[] = royalties.map((_) => _.recipient);
+  const royaltyRecipients: string[] = royalties
+    .map((r) => r.map(({ recipient }) => recipient))
+    .flat();
 
-  // BPS < 30%
-  const threshold = 3000;
-  let sameCollectionSales = 0;
-  let totalTransfers = 0;
+  // Some addresses we know for sure cannot be royalty recipients
+  const notRoyaltyRecipients = new Set();
+  notRoyaltyRecipients.add(Sdk.Common.Addresses.Weth[config.chainId]);
+  notRoyaltyRecipients.add(Sdk.Common.Addresses.Eth[config.chainId]);
+  notRoyaltyRecipients.add(Sdk.BendDao.Addresses.BendWETH[config.chainId]);
+  fillEvents.forEach((fillEvent) => {
+    notRoyaltyRecipients.add(fillEvent.maker);
+    notRoyaltyRecipients.add(fillEvent.taker);
+  });
 
-  // Tracking same collection sales
-  for (const address in state) {
-    const { tokenBalanceState } = state[address];
-    for (const stateId in tokenBalanceState) {
-      const changeValue = tokenBalanceState[stateId];
-      const nftTransfer = stateId.startsWith(`erc721:`) || stateId.startsWith(`erc1155:`);
-      const isNFTState =
-        stateId.startsWith(`erc721:${contract}`) || stateId.startsWith(`erc1155:${contract}`);
-      const notIncrease = changeValue.startsWith("-");
-      if (isNFTState && !notIncrease) {
-        sameCollectionSales++;
-      }
-      if (nftTransfer && !notIncrease) {
-        totalTransfers++;
-      }
-    }
-  }
+  // Get the know platform fee recipients for the current fill order kind
+  const knownPlatformFeeRecipients = platformFeeRecipientsRegistry.get(fillEvent.orderKind) ?? [];
 
-  const platformFeeRecipients: string[] =
-    platformFeeRecipientsRegistry.get(fillEvent.orderKind) ?? [];
-
+  // Iterate through all of the state changes of the (sub)call associated to the current fill event
+  const state = getStateChange(subcallToAnalyze);
   for (const address in state) {
     const { tokenBalanceState } = state[address];
 
-    // TODO Move to the SDK
-    const BETH = "0x0000000000a39bb272e79075ade125fd351887ac";
-    const native = Sdk.Common.Addresses.Eth[config.chainId];
-    const isETH = currency === native;
+    const ETH = Sdk.Common.Addresses.Eth[config.chainId];
+    const BETH = Sdk.Blur.Addresses.Beth[config.chainId];
 
-    const nativeChange = tokenBalanceState[`native:${native}`];
+    const balanceChange =
+      currency === ETH
+        ? // The fill event will map any BETH fills to ETH so we need to cover that here
+          tokenBalanceState[`native:${ETH}`] || tokenBalanceState[`erc20:${BETH}`]
+        : tokenBalanceState[`erc20:${currency}`];
 
-    const balanceChange = isETH
-      ? nativeChange || tokenBalanceState[`erc20:${BETH}`]
-      : tokenBalanceState[`erc20:${currency}`];
-
-    // Receive ETH
+    // If the balance change is positive that means a payment was received
     if (balanceChange && !balanceChange.startsWith("-")) {
-      const bpsInPrice = bn(balanceChange).mul(10000).div(bn(price));
-      const curRoyalties = {
+      const bpsOfPrice = bn(balanceChange).mul(10000).div(bn(price));
+
+      // Start with the assumption that this is a royalty/platform fee payment
+      const royalty = {
         recipient: address,
-        bps: bpsInPrice.toNumber(),
+        bps: bpsOfPrice.toNumber(),
       };
 
-      if (platformFeeRecipients.includes(address)) {
-        curRoyalties.bps = bn(balanceChange).mul(10000).div(protocolRelatedAmount).toNumber();
-        marketplaceFeeBreakdown.push(curRoyalties);
+      if (knownPlatformFeeRecipients.includes(address)) {
+        // This is a marketplace fee payment
+
+        // Reset the bps
+        royalty.bps = bn(balanceChange).mul(10000).div(sameProtocolTotalPrice).toNumber();
+
+        marketplaceFeeBreakdown.push(royalty);
       } else {
-        const bps = bn(balanceChange).mul(10000).div(collectionRelatedAmount).toNumber();
-        if (royaltyRecipients.includes(address)) {
-          // For multiple same collection sales in one tx
-          curRoyalties.bps = bps;
-          creatorRoyaltyFeeBreakdown.push(curRoyalties);
+        // For different collection with same fee recipient
+        const shareSameRecepient =
+          sameProtocolDetails.filter((d) => d.recipient === address).length ===
+          sameProtocolFills.length;
+
+        let bps: number;
+        if (shareSameRecepient) {
+          bps = bn(balanceChange).mul(10000).div(sameProtocolTotalPrice).toNumber();
+        } else {
+          bps = bn(balanceChange).mul(10000).div(sameContractTotalPrice).toNumber();
         }
 
-        const isEligible =
-          bps < threshold &&
+        if (royaltyRecipients.includes(address)) {
+          // Reset the bps
+          royalty.bps = bps;
+          creatorRoyaltyFeeBreakdown.push(royalty);
+        }
+
+        // Conditions:
+        // - royalty percentage between 0% and 30% (both exclusive)
+        // - royalty recipient is not a known platform fee recipient
+        // - royalty recipient is a valid royalty recipient
+        const recipientIsEligible =
           bps > 0 &&
-          !shouldExcludeAddressList.has(address) &&
-          !allPlatformFeeRecipients.has(address);
+          bps < 3000 &&
+          !allPlatformFeeRecipients.has(address) &&
+          !notRoyaltyRecipients.has(address);
 
-        const notInOtherDef = !otherRoyaltiesDefinition.find((_) =>
-          _.royalties.find((c) => c.recipient === address)
-        );
-
+        // For now we exclude AMMs which don't pay royalties
         const isAMM = ["sudoswap", "nftx"].includes(fillEvent.orderKind);
-        if (isEligible && notInOtherDef && !isAMM) {
-          curRoyalties.bps = bps;
-          royaltyFeeBreakdown.push(curRoyalties);
+        if (recipientIsEligible && !isAMM) {
+          // Reset the bps
+          royalty.bps = bps;
+          royaltyFeeBreakdown.push(royalty);
         }
       }
-      balanceChangeWithBps.push({
-        recipient: address,
-        balanceChange,
-        bps: bpsInPrice.toString(),
-      });
     }
   }
 
-  const getTotalRoyaltyBps = (royalties?: Royalty[]) =>
-    (royalties || []).map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+  const getTotalRoyaltyBps = (royalties: Royalty[]) =>
+    royalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
 
   const creatorRoyaltyFeeBps = getTotalRoyaltyBps(creatorRoyaltyFeeBreakdown);
   const royaltyFeeBps = getTotalRoyaltyBps(royaltyFeeBreakdown);
-  const creatorBps = getTotalRoyaltyBps(royalties);
+  const creatorBps = Math.min(...royalties.map(getTotalRoyaltyBps));
 
   const paidFullRoyalty = creatorRoyaltyFeeBps >= creatorBps;
 
-  const result = {
-    txHash,
-    sale: {
-      tokenId,
-      contract,
-      currency,
-      amount: fillEvent.amount,
-      orderKind: fillEvent.orderKind,
-      price: formatEther(price),
-    },
-    totalTransfers,
+  return {
     royaltyFeeBps,
     marketplaceFeeBps: getTotalRoyaltyBps(marketplaceFeeBreakdown),
     royaltyFeeBreakdown,
     marketplaceFeeBreakdown,
-    sameCollectionSales,
-    protocolFillEvents: protocolFillEvents.length,
-    totalFills: fillEvents.length,
     paidFullRoyalty,
   };
-
-  return result;
 }

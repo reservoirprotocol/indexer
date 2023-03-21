@@ -37,14 +37,12 @@ describe("[ReservoirV6_0_0] Sudoswap listings", () => {
 
     ({ erc721 } = await setupNFTs(deployer));
 
-    router = (await ethers
+    router = await ethers
       .getContractFactory("ReservoirV6_0_0", deployer)
-      .then((factory) => factory.deploy())) as any;
-    sudoswapModule = (await ethers
+      .then((factory) => factory.deploy());
+    sudoswapModule = await ethers
       .getContractFactory("SudoswapModule", deployer)
-      .then((factory) =>
-        factory.deploy(router.address, router.address)
-      )) as any;
+      .then((factory) => factory.deploy(router.address, router.address));
   });
 
   const getBalances = async (token: string) => {
@@ -56,9 +54,7 @@ describe("[ReservoirV6_0_0] Sudoswap listings", () => {
         david: await ethers.provider.getBalance(david.address),
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
-        sudoswapModule: await ethers.provider.getBalance(
-          sudoswapModule.address
-        ),
+        sudoswapModule: await ethers.provider.getBalance(sudoswapModule.address),
       };
     } else {
       const contract = new Sdk.Common.Helpers.Erc20(ethers.provider, token);
@@ -154,63 +150,43 @@ describe("[ReservoirV6_0_0] Sudoswap listings", () => {
     // If the `revertIfIncomplete` option is enabled and we have any
     // orders that are not fillable, the whole transaction should be
     // reverted
-    if (
-      partial &&
-      revertIfIncomplete &&
-      listings.some(({ isCancelled }) => isCancelled)
-    ) {
+    if (partial && revertIfIncomplete && listings.some(({ isCancelled }) => isCancelled)) {
       await expect(
         router.connect(carol).execute(executions, {
-          value: executions
-            .map(({ value }) => value)
-            .reduce((a, b) => bn(a).add(b), bn(0)),
+          value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
         })
-      ).to.be.revertedWith(
-        "reverted with custom error 'UnsuccessfulExecution()'"
-      );
+      ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
 
       return;
     }
 
     // Fetch pre-state
 
-    const ethBalancesBefore = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
+    const ethBalancesBefore = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
 
     // Execute
 
     await router.connect(carol).execute(executions, {
-      value: executions
-        .map(({ value }) => value)
-        .reduce((a, b) => bn(a).add(b), bn(0)),
+      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
     });
 
     // Fetch post-state
 
-    const ethBalancesAfter = await getBalances(
-      Sdk.Common.Addresses.Eth[chainId]
-    );
+    const ethBalancesAfter = await getBalances(Sdk.Common.Addresses.Eth[chainId]);
 
     // Checks
 
     // Alice got the payment
     expect(ethBalancesAfter.alice.sub(ethBalancesBefore.alice)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === alice.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === alice.address)
         .map(({ price }) => price)
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
     // Bob got the payment
     expect(ethBalancesAfter.bob.sub(ethBalancesBefore.bob)).to.eq(
       listings
-        .filter(
-          ({ seller, isCancelled }) =>
-            !isCancelled && seller.address === bob.address
-        )
+        .filter(({ seller, isCancelled }) => !isCancelled && seller.address === bob.address)
         .map(({ price }) => price)
         .reduce((a, b) => bn(a).add(b), bn(0))
     );
@@ -237,9 +213,7 @@ describe("[ReservoirV6_0_0] Sudoswap listings", () => {
       if (!listings[i].isCancelled) {
         expect(await nft.contract.ownerOf(nft.id)).to.eq(carol.address);
       } else {
-        expect(await nft.contract.ownerOf(nft.id)).to.eq(
-          listings[i].seller.address
-        );
+        expect(await nft.contract.ownerOf(nft.id)).to.eq(listings[i].seller.address);
       }
     }
 
@@ -248,10 +222,10 @@ describe("[ReservoirV6_0_0] Sudoswap listings", () => {
     expect(ethBalancesAfter.sudoswapModule).to.eq(0);
   };
 
-  for (let multiple of [false, true]) {
-    for (let partial of [false, true]) {
-      for (let chargeFees of [false, true]) {
-        for (let revertIfIncomplete of [false, true]) {
+  for (const multiple of [false, true]) {
+    for (const partial of [false, true]) {
+      for (const chargeFees of [false, true]) {
+        for (const revertIfIncomplete of [false, true]) {
           it(
             "[eth]" +
               `${multiple ? "[multiple-orders]" : "[single-order]"}` +

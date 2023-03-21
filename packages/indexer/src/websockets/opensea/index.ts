@@ -7,7 +7,7 @@ import {
   OpenSeaStreamClient,
   TraitOfferEventPayload,
 } from "@opensea/stream-js";
-import { ItemListedEventPayload } from "@opensea/stream-js/dist/types";
+import { ItemListedEventPayload, ItemMetadataUpdatePayload } from "@opensea/stream-js/dist/types";
 import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 
@@ -17,7 +17,7 @@ import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import { OpenseaWebsocketEvents } from "@/models/opensea-websocket-events";
 import { PartialOrderComponents } from "@/orderbook/orders/seaport";
-import { generateHash } from "@/websockets/opensea/utils";
+import { generateHash, getSupportedChainName } from "@/websockets/opensea/utils";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
@@ -26,6 +26,9 @@ import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handl
 import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
 import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/handlers/collection_offer";
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
+import { Tokens } from "@/models/tokens";
+import MetadataApi from "@/utils/metadata-api";
+import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
@@ -56,11 +59,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     async (event) => {
       try {
         if (await isDuplicateEvent(event)) {
-          logger.debug(
-            "opensea-websocket",
-            `Duplicate event. network=${network}, event=${JSON.stringify(event)}`
-          );
-
           return;
         }
 
@@ -87,6 +85,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
                 metadata: {
                   originatedAt: event.sent_at,
                 },
+                isOpenSea: true,
                 openSeaOrderParams,
               },
               relayToArweave: eventType === EventType.ITEM_LISTED,
@@ -110,18 +109,65 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     }
   );
 
-  // client.onEvents("*", [EventType.ITEM_METADATA_UPDATED], async (event) => {
-  //   try {
-  //     await handleItemMetadataUpdatedEvent(event.payload as ItemMetadataUpdatePayload);
-  //   } catch (error) {
-  //     logger.error(
-  //       "opensea-websocket",
-  //       `network=${network}, event type: ${event.event_type}, event=${JSON.stringify(
-  //         event
-  //       )}, error=${error}`
-  //     );
-  //   }
-  // });
+  client.onItemMetadataUpdated("*", async (event) => {
+    try {
+      if (getSupportedChainName() != event.payload.item.chain.name) {
+        return;
+      }
+
+      if (await isDuplicateEvent(event)) {
+        return;
+      }
+
+      const [, contract, tokenId] = event.payload.item.nft_id.split("/");
+      const token = await Tokens.getByContractAndTokenId(contract, tokenId);
+
+      logger.debug(
+        "opensea-websocket-item-metadata-update-event",
+        `Metadata received. contract=${contract}, tokenId=${tokenId}, event=${JSON.stringify(
+          event
+        )}, token=${JSON.stringify(token)}`
+      );
+
+      if (!token || token.metadataIndexed) {
+        return;
+      }
+
+      const metadata = {
+        asset_contract: {
+          address: contract,
+        },
+        collection: {
+          slug: event.payload.collection.slug,
+        },
+        token_id: tokenId,
+        name: event.payload.item.metadata.name ?? undefined,
+        description:
+          (event.payload.item.metadata as ItemMetadataUpdatePayload).description ?? undefined,
+        image_url: event.payload.item.metadata.image_url ?? undefined,
+        animation_url: event.payload.item.metadata.animation_url ?? undefined,
+        traits: (event.payload.item.metadata as ItemMetadataUpdatePayload).traits,
+      };
+
+      const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
+
+      logger.info(
+        "opensea-websocket-item-metadata-update-event",
+        `Metadata parsed. contract=${contract}, tokenId=${tokenId}, event=${JSON.stringify(
+          event
+        )}, metadata=${JSON.stringify(metadata)}, parsedMetadata=${JSON.stringify(parsedMetadata)}`
+      );
+
+      if (parsedMetadata) {
+        await metadataIndexWrite.addToQueue([parsedMetadata]);
+      }
+    } catch (error) {
+      logger.error(
+        "opensea-websocket-item-metadata-update-event",
+        `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`
+      );
+    }
+  });
 }
 
 const saveEvent = async (event: BaseStreamMessage<unknown>) => {
@@ -140,7 +186,16 @@ const saveEvent = async (event: BaseStreamMessage<unknown>) => {
 
 export const getEventHash = (event: BaseStreamMessage<unknown>): string => {
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  return generateHash(event.event_type, (event.payload as any).order_hash);
+  switch (event.event_type) {
+    case EventType.ITEM_METADATA_UPDATED:
+      return generateHash(
+        event.event_type,
+        (event.payload as any).item.nft_id,
+        (event.payload as any).sent_at
+      );
+    default:
+      return generateHash(event.event_type, (event.payload as any).order_hash);
+  }
 };
 
 export const isDuplicateEvent = async (event: BaseStreamMessage<unknown>): Promise<boolean> => {
@@ -211,7 +266,7 @@ export const parseProtocolData = (payload: unknown): ProtocolData | undefined =>
         offerer: protocolData.parameters.offerer,
         counter: `${protocolData.parameters.counter}`,
         orderType: protocolData.parameters.orderType,
-        signature: protocolData.signature,
+        signature: protocolData.signature || undefined,
       });
 
       return {

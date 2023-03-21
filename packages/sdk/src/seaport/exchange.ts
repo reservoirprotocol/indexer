@@ -4,7 +4,6 @@ import { BigNumberish } from "@ethersproject/bignumber";
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/solidity";
-import axios from "axios";
 
 import * as Addresses from "./addresses";
 import { BaseOrderInfo } from "./builders/base";
@@ -350,30 +349,14 @@ export class Exchange {
 
   // --- Get extra data ---
 
-  public requiresExtraData(order: Order): boolean {
-    if (order.params.zone === Addresses.CancelXZone[this.chainId]) {
-      return true;
-    }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public requiresExtraData(_order: Order): boolean {
     return false;
   }
 
-  public async getExtraData(order: Order): Promise<string> {
-    switch (order.params.zone) {
-      case Addresses.CancelXZone[this.chainId]: {
-        const { extraData } = await axios
-          .get(
-            `https://cancelx-${
-              this.chainId === 1 ? "production" : "development"
-            }.up.railway.app/api/sign/${order.hash()}`
-          )
-          .then((response) => response.data);
-
-        return extraData;
-      }
-
-      default:
-        return "0x";
-    }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async getExtraData(_order: Order): Promise<string> {
+    return "0x";
   }
 
   // --- Get counter (eg. nonce) ---

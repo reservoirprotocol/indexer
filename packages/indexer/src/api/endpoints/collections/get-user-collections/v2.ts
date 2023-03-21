@@ -62,6 +62,14 @@ export const getUserCollectionsV2Options: RouteOptions = {
         .max(100)
         .default(20)
         .description("Amount of items returned in response."),
+      sortBy: Joi.string()
+        .valid("allTimeVolume", "1DayVolume", "7DayVolume", "30DayVolume")
+        .default("allTimeVolume")
+        .description("Order the items are returned in the response. Defaults to allTimeVolume"),
+      sortDirection: Joi.string()
+        .valid("asc", "desc")
+        .default("desc")
+        .description("Order the items are returned in the response."),
     }),
   },
   response: {
@@ -71,12 +79,14 @@ export const getUserCollectionsV2Options: RouteOptions = {
           collection: Joi.object({
             id: Joi.string(),
             slug: Joi.string().allow("", null),
+            createdAt: Joi.string(),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
             banner: Joi.string().allow("", null),
             discordUrl: Joi.string().allow("", null),
             externalUrl: Joi.string().allow("", null),
             twitterUsername: Joi.string().allow("", null),
+            openseaVerificationStatus: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
             sampleImages: Joi.array().items(Joi.string().allow("", null)),
             tokenCount: Joi.string(),
@@ -140,15 +150,15 @@ export const getUserCollectionsV2Options: RouteOptions = {
             SELECT 1 AS owner_liquid_count
             FROM "orders" "o"
             JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
-            WHERE "tst"."contract" = nft_balances."contract"
-            AND "tst"."token_id" = nft_balances."token_id"
+            WHERE "tst"."contract" = nbsample."contract"
+            AND "tst"."token_id" = nbsample."token_id"
             AND "o"."side" = 'buy'
             AND "o"."fillability_status" = 'fillable'
             AND "o"."approval_status" = 'approved'
             AND EXISTS(
               SELECT FROM "nft_balances" "nb"
-                WHERE "nb"."contract" = nft_balances."contract"
-                AND "nb"."token_id" = nft_balances."token_id"
+                WHERE "nb"."contract" = nbsample."contract"
+                AND "nb"."token_id" = nbsample."token_id"
                 AND "nb"."amount" > 0
                 AND "nb"."owner" != "o"."maker"
             )
@@ -159,6 +169,13 @@ export const getUserCollectionsV2Options: RouteOptions = {
 
     try {
       let baseQuery = `
+        WITH nbsample as (SELECT contract, token_id, "owner", amount
+            FROM nft_balances
+            WHERE "owner" = $/user/
+              AND amount > 0
+            ORDER BY last_token_appraisal_value DESC NULLS LAST
+            LIMIT 10000
+        )
         SELECT  collections.id,
                 collections.slug,
                 collections.name,
@@ -168,6 +185,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
                 (collections.metadata ->> 'description')::TEXT AS "description",
                 (collections.metadata ->> 'externalUrl')::TEXT AS "external_url",
                 (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
+                (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
                 collections.contract,
                 collections.token_set_id,
                 collections.token_count,
@@ -194,18 +212,19 @@ export const getUserCollectionsV2Options: RouteOptions = {
                 collections.day1_floor_sell_value,
                 collections.day7_floor_sell_value,
                 collections.day30_floor_sell_value,
-                SUM(COALESCE(nft_balances.amount, 0)) AS owner_token_count,
+                SUM(COALESCE(nbsample.amount, 0)) AS owner_token_count,
+                collections.created_at,
                 ${selectLiquidCount}
                 SUM(CASE WHEN tokens.floor_sell_value IS NULL THEN 0 ELSE 1 END) AS owner_on_sale_count
-        FROM nft_balances 
-        JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id
+        FROM nbsample 
+        JOIN tokens ON nbsample.contract = tokens.contract AND nbsample.token_id = tokens.token_id
         ${liquidCount}
         JOIN collections ON tokens.collection_id = collections.id
       `;
 
       // Filters
       (params as any).user = toBuffer(params.user);
-      const conditions: string[] = [`nft_balances.owner = $/user/`, `nft_balances.amount > 0`];
+      const conditions: string[] = [];
 
       if (query.community) {
         conditions.push(`collections.community = $/community/`);
@@ -229,10 +248,29 @@ export const getUserCollectionsV2Options: RouteOptions = {
       }
 
       // Grouping
-      baseQuery += ` GROUP BY collections.id, nft_balances.owner`;
+      baseQuery += ` GROUP BY collections.id, nbsample.owner`;
 
+      const sortDirection = query.sortDirection === "asc" ? "ASC" : "DESC";
       // Sorting
-      baseQuery += ` ORDER BY collections.all_time_volume DESC`;
+      switch (query.sortBy) {
+        case "allTimeVolume":
+        default: {
+          baseQuery += ` ORDER BY collections.all_time_volume ${sortDirection}`;
+          break;
+        }
+        case "1DayVolume": {
+          baseQuery += ` ORDER BY collections.day1_volume ${sortDirection}`;
+          break;
+        }
+        case "7DayVolume": {
+          baseQuery += ` ORDER BY collections.day7_volume ${sortDirection}`;
+          break;
+        }
+        case "30DayVolume": {
+          baseQuery += ` ORDER BY collections.day30_volume ${sortDirection}`;
+          break;
+        }
+      }
 
       // Pagination
       baseQuery += ` OFFSET $/offset/`;
@@ -240,16 +278,6 @@ export const getUserCollectionsV2Options: RouteOptions = {
 
       let topBidQuery = "";
       if (query.includeTopBid) {
-        topBidQuery = `LEFT JOIN LATERAL (
-          SELECT
-            token_sets.top_buy_value,
-            token_sets.top_buy_maker
-          FROM token_sets
-          WHERE token_sets.id = x.token_set_id
-          ORDER BY token_sets.top_buy_value DESC
-          LIMIT 1
-        ) y ON TRUE`;
-
         topBidQuery = `LEFT JOIN LATERAL (
           SELECT
             ts.top_buy_id,
@@ -280,6 +308,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
           collection: {
             id: r.id,
             slug: r.slug,
+            createdAt: new Date(r.created_at).toISOString(),
             name: r.name,
             image:
               Assets.getLocalAssetsLink(r.image) ||
@@ -288,6 +317,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
             discordUrl: r.discord_url,
             externalUrl: r.external_url,
             twitterUsername: r.twitter_username,
+            openseaVerificationStatus: r.opensea_verification_status,
             description: r.description,
             sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
             tokenCount: String(r.token_count),

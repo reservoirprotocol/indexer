@@ -85,7 +85,7 @@ if (config.doBackgroundWork) {
               logger.error(
                 QUEUE_NAME,
                 `Error. method=${method}, status=${error.response?.status}, error=${JSON.stringify(
-                  error.response.data
+                  error.response?.data
                 )}, refreshTokensChunk=${JSON.stringify(refreshTokensChunk)}`
               );
 

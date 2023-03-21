@@ -5,6 +5,7 @@ import { logger } from "@/common/logger";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
 import { TokenSet, TSTCollectionNonFlagged } from "@/orderbook/token-sets/utils";
+import { Tokens } from "@/models/tokens";
 
 export type Metadata = {
   collection: string;
@@ -99,24 +100,15 @@ export const save = async (
       .then((result) => fromBuffer(result.contract));
 
     // Fetch all non-flagged tokens from the collection
-    const items = await idb.manyOrNone(
-      `
-        SELECT
-          tokens.token_id
-        FROM tokens
-        WHERE tokens.collection_id = $/collection/
-          AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)
-      `,
-      {
-        collection: tokenSet.schema.data.collection,
-      }
+    const tokenIds = await Tokens.getTokenIdsInCollection(
+      tokenSet.schema.data.collection,
+      "",
+      true
     );
 
     // We cache the merkle root in the `metadata` field since we'll need
     // to check it for untrusted sources (eg. native Reservoir orders)
-    const merkleRoot = Common.Helpers.generateMerkleTree(
-      items.map(({ token_id }) => token_id)
-    ).getHexRoot();
+    const merkleRoot = Common.Helpers.generateMerkleTree(tokenIds).getHexRoot();
 
     // Insert into the `token_sets` table
     queries.push({
@@ -151,11 +143,13 @@ export const save = async (
     const columns = new pgp.helpers.ColumnSet(["token_set_id", "contract", "token_id"], {
       table: "token_sets_tokens",
     });
-    const values = items.map(({ token_id }) => ({
+
+    const values = tokenIds.map((token_id) => ({
       token_set_id: tokenSet.id,
       contract: toBuffer(contract),
       token_id,
     }));
+
     queries.push({
       query: `
         INSERT INTO token_sets_tokens (

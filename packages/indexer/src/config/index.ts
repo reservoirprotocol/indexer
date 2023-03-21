@@ -85,6 +85,7 @@ export const config = {
   cbApiKey: String(process.env.CB_API_KEY),
   infinityApiKey: String(process.env.INFINITY_API_KEY),
   flowApiKey: String(process.env.FLOW_API_KEY),
+  orderFetcherApiKey: String(process.env.ORDER_FETCHER_API_KEY),
 
   railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 

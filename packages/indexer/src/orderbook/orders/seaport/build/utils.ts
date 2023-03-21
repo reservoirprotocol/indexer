@@ -67,6 +67,7 @@ export const getBuildInfo = async (
   }
 
   const exchange = new Sdk.Seaport.Exchange(config.chainId);
+  const source = options.orderbook === "opensea" ? "opensea.io" : options.source;
 
   const buildParams: BaseBuildParams = {
     offerer: options.maker,
@@ -91,8 +92,8 @@ export const getBuildInfo = async (
     conduitKey: Sdk.Seaport.Addresses.OpenseaConduitKey[config.chainId] ?? HashZero,
     startTime: options.listingTime || now() - 1 * 60,
     endTime: options.expirationTime || now() + 6 * 30 * 24 * 3600,
-    salt: options.source
-      ? padSourceToSalt(options.source, options.salt ?? getRandomBytes(16).toString())
+    salt: source
+      ? padSourceToSalt(source, options.salt ?? getRandomBytes(16).toString())
       : undefined,
     counter: (await exchange.getCounter(baseProvider, options.maker)).toString(),
     orderType: options.orderType,
@@ -185,7 +186,7 @@ export const getCollectionOpenseaFees = async (
   contract: string,
   totalBps: number
 ) => {
-  let openseaFees = new Map<string, number>();
+  let openseaFees: { [recipient: string]: number } = {};
 
   const cachedCollectionOpenseaFees = await redis.get(`collection-opensea-fees:${collection}`);
 
@@ -204,7 +205,7 @@ export const getCollectionOpenseaFees = async (
         3600
       );
     } else if (totalBps < 50) {
-      openseaFees.set("0x0000a26b00c1f0df003000390027140000faa719", 50 - totalBps);
+      openseaFees["0x0000a26b00c1f0df003000390027140000faa719"] = 50 - totalBps;
     }
   }
 

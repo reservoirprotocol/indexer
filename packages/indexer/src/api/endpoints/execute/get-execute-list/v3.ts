@@ -477,7 +477,7 @@ export const getExecuteListV3Options: RouteOptions = {
             // Check the order's fillability
             const upstreamOrder = Sdk.X2Y2.Order.fromLocalOrder(config.chainId, order);
             try {
-              await x2y2Check.offChainCheck(upstreamOrder, {
+              await x2y2Check.offChainCheck(upstreamOrder, undefined, {
                 onChainApprovalRecheck: true,
               });
             } catch (error: any) {
