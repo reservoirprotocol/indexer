@@ -476,7 +476,7 @@ export const getJoiSaleObject = async (sale: {
         },
       },
     orderId: sale.orderId,
-    orderSource: orderSource?.domain,
+    orderSource: orderSource?.domain ?? null,
     orderSide: sale.orderSide && (sale.orderSide === "sell" ? "ask" : "bid"),
     orderKind: sale.orderKind,
     from:
@@ -488,7 +488,7 @@ export const getJoiSaleObject = async (sale: {
       sale.taker &&
       (sale.orderSide === "sell" ? fromBuffer(sale.taker) : fromBuffer(sale.maker)),
     amount: sale.amount,
-    fillSource: sale.fillSourceId && (fillSource?.domain ?? orderSource?.domain ?? null),
+    fillSource: fillSource?.domain ?? orderSource?.domain ?? null,
     block: sale.block,
     txHash: sale.txHash && fromBuffer(sale.txHash),
     logIndex: sale.logIndex,
