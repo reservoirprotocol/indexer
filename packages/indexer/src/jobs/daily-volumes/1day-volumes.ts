@@ -6,7 +6,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { DailyVolume } from "../../models/daily-volumes/daily-volume";
 
-const QUEUE_NAME = "calculate-0day-volumes";
+const QUEUE_NAME = "calculate-1day-volumes";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -28,13 +28,13 @@ if (config.doBackgroundWork) {
       if (updateResult) {
         logger.info(
           "daily-volumes",
-          `Finished updating the 0day volume on collections table. retry=${retry}`
+          `Finished updating the 1day volume on collections table. retry=${retry}`
         );
       } else {
         if (retry < 5) {
           logger.warn(
             "daily-volumes",
-            `Something went wrong with updating the 0day volume on collections, will retry in a couple of minutes. retry=${retry}`
+            `Something went wrong with updating the 1day volume on collections, will retry in a couple of minutes. retry=${retry}`
           );
           retry++;
 
@@ -42,7 +42,7 @@ if (config.doBackgroundWork) {
         } else {
           logger.error(
             "daily-volumes",
-            `Something went wrong with retrying during updating the 0day volume on collection, stopping. retry=${retry}`
+            `Something went wrong with retrying during updating the 1day volume on collection, stopping. retry=${retry}`
           );
         }
       }
@@ -57,7 +57,7 @@ if (config.doBackgroundWork) {
 }
 
 /**
- * Add a 0day volume calculation job to the queue
+ * Add a 1day volume calculation job to the queue
  *
  * @param retry Retry mechanism
  */
