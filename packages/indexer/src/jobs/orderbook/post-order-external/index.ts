@@ -282,7 +282,8 @@ const postOrder = async (
 
       if (
         order.getInfo()?.side === "buy" &&
-        ["collection", "collection-non-flagged", "attribute"].includes(orderSchema!.kind)
+        orderSchema &&
+        ["collection", "collection-non-flagged", "attribute"].includes(orderSchema.kind)
       ) {
         const { collectionSlug } = await redb.oneOrNone(
           `
@@ -300,7 +301,7 @@ const postOrder = async (
           throw new Error("Invalid collection offer.");
         }
 
-        if (orderSchema?.kind === "attribute") {
+        if (orderSchema.kind === "attribute") {
           return OpenSeaApi.postTraitOffer(
             order,
             collectionSlug,
