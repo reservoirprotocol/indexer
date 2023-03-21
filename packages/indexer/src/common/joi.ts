@@ -464,17 +464,19 @@ export const getJoiSaleObject = async (sale: {
           }`
         )
         .digest("hex"),
-    token: sale.contract &&
-      sale.tokenId && {
-        contract: fromBuffer(sale.contract),
-        tokenId: sale.tokenId,
-        name: sale.name ?? null,
-        image: sale.image ? Assets.getLocalAssetsLink(sale.image) : null,
-        collection: {
-          id: sale.collectionId ?? null,
-          name: sale.collectionName ?? null,
-        },
-      },
+    token:
+      sale.contract !== undefined && sale.tokenId !== undefined
+        ? {
+            contract: fromBuffer(sale.contract),
+            tokenId: sale.tokenId,
+            name: sale.name ?? null,
+            image: sale.image ? Assets.getLocalAssetsLink(sale.image) : null,
+            collection: {
+              id: sale.collectionId ?? null,
+              name: sale.collectionName ?? null,
+            },
+          }
+        : undefined,
     orderId: sale.orderId,
     orderSource: orderSource?.domain ?? null,
     orderSide: sale.orderSide && (sale.orderSide === "sell" ? "ask" : "bid"),
