@@ -23,7 +23,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       let retry = job.data.retry;
 
-      const updateResult = await DailyVolume.update0Day();
+      const updateResult = await DailyVolume.update1Day();
 
       if (updateResult) {
         logger.info(

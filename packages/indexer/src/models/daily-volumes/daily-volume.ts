@@ -223,14 +223,12 @@ export class DailyVolume {
   }
 
   /**
-   * update the 0 day values for the collections (day0_volume, day0_rank, etc)
-   * 0 day values are the values since we calculated daily volumes last time
+   * update the 1day volume for all collections as a 24h rolling average
    *
    **/
-  public static async update0Day(collectionId = "") {
-    const date = new Date();
-    date.setUTCHours(0, 30, 0, 0);
-    const lastDailyTimestamp = date.getTime() / 1000;
+  public static async update1Day(collectionId = "") {
+    const currentDate = new Date();
+    const startTime = new Date(currentDate.getTime() - 24 * 60 * 60 * 1000).getTime();
 
     const results = await ridb.manyOrNone(
       `SELECT t1.collection_id,
@@ -262,7 +260,7 @@ export class DailyVolume {
               ${collectionId ? "AND collection_id = $/collectionId/" : ""}
             GROUP BY "collection_id") t1`,
       {
-        lastDailyTimestamp: lastDailyTimestamp,
+        lastDailyTimestamp: startTime,
         collectionId,
       }
     );
@@ -275,10 +273,10 @@ export class DailyVolume {
           query: `
             UPDATE collections
             SET
-              day0_volume = $/volume/,
-              day0_rank = $/rank/,
-              day0_floor_sell_value = $/floor_sell_value/,
-              day0_volume_change = $/volume_change/
+              day1_volume = $/volume/,
+              day1_rank = $/rank/,
+              day1_floor_sell_value = $/floor_sell_value/,
+              day1_volume_change = $/volume_change/
             WHERE id = $/collection_id/
             `,
           values: values,
