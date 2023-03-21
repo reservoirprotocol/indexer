@@ -476,7 +476,7 @@ export const getJoiSaleObject = async (sale: {
         },
       },
     orderId: sale.orderId,
-    orderSource: sale.orderSourceId && (orderSource?.domain ?? null),
+    orderSource: orderSource?.domain,
     orderSide: sale.orderSide && (sale.orderSide === "sell" ? "ask" : "bid"),
     orderKind: sale.orderKind,
     from:
