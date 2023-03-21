@@ -1,3 +1,21 @@
+# [5.278.0](https://github.com/reservoirprotocol/indexer/compare/v5.277.2...v5.278.0) (2023-03-21)
+
+
+### Bug Fixes
+
+* add attributes-all ([de4fd32](https://github.com/reservoirprotocol/indexer/commit/de4fd32efde0595a0303952a3b3f082c9965247d))
+* add user-top-bids and owners ([c0623ba](https://github.com/reservoirprotocol/indexer/commit/c0623ba13dafb95694f6c04d40b29725cfbe48c2))
+* cleanup unused currency values ([d394c80](https://github.com/reservoirprotocol/indexer/commit/d394c803740cf1efde630060a62fd50447746d57))
+* fix activities to get price obj regardless of includeMetadata ([d98a01f](https://github.com/reservoirprotocol/indexer/commit/d98a01ff62f742e8c8c5d8482990c1d25c80239a))
+* keep floorAskPrice null if not available on user tokens ([e402d95](https://github.com/reservoirprotocol/indexer/commit/e402d95e92ca972b917ca97ce4ef61d315552c9f))
+* merge fixes ([39f3062](https://github.com/reservoirprotocol/indexer/commit/39f306246c5fcfe5959e00ac23926564d28ca0f5))
+* wip standardizing price object ([5777790](https://github.com/reservoirprotocol/indexer/commit/5777790cdb744c252c7e9055d06678e552f4303e))
+
+
+### Features
+
+* standardize price response across APIs ([0553fe5](https://github.com/reservoirprotocol/indexer/commit/0553fe585eab435bed2c243e54d8baa498240c92))
+
 ## [5.277.2](https://github.com/reservoirprotocol/indexer/compare/v5.277.1...v5.277.2) (2023-03-21)
 
 
