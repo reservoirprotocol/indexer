@@ -72,13 +72,13 @@ jobs:
   #   timeout-minutes: 15
   #   needs: [build]
   #   environment: dev
-  #   if: github.ref == 'refs/heads/development' || needs.build.outputs.version != ''
+  #   if: github.ref == 'refs/heads/development' && needs.build.outputs.version != ''
   #   steps:
   #     - name: Checkout repository k8s-configs
   #       uses: actions/checkout@v3
   #       with:
   #         repository: unevenlabs/k8s-configs
-  #         token: ${{ secrets.publish_token }}
+  #         token: ${{ secrets.DEVOPSBOT_TOKEN }}
   #         path: k8s-configs
 
   #     - name: Deploy to Dev Environment
@@ -88,6 +88,10 @@ jobs:
   #           ./dev/platform/indexer-worker.yaml \
   #           ${{ needs.build.outputs.version }} \
   #           indexer-worker
+  #         ./utils/version_update.sh \
+  #           ./prod/platform/indexer-api.yaml \
+  #           ${{ needs.build.outputs.version }} \
+  #           indexer-api
 
   deploy-prod:
     name: Deploy Prod Env
@@ -95,13 +99,13 @@ jobs:
     timeout-minutes: 15
     needs: [build]
     environment: prod
-    if: github.ref == 'refs/heads/main' || needs.build.outputs.version != ''
+    if: github.ref == 'refs/heads/main' && needs.build.outputs.version != ''
     steps:
       - name: Checkout repository k8s-configs
         uses: actions/checkout@v3
         with:
           repository: unevenlabs/k8s-configs
-          token: ${{ secrets.publish_token }}
+          token: ${{ secrets.DEVOPSBOT_TOKEN }}
           path: k8s-configs
 
       - name: Deploy to Prod Environment
@@ -111,3 +115,7 @@ jobs:
             ./prod/platform/indexer-worker.yaml \
             ${{ needs.build.outputs.version }} \
             indexer-worker
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api.yaml \
+            ${{ needs.build.outputs.version }} \
+            indexer-api

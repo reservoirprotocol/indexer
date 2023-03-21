@@ -6,7 +6,6 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
-  bn,
   buildContinuation,
   formatEth,
   fromBuffer,
@@ -17,7 +16,12 @@ import {
 import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
-import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import {
+  getJoiDynamicPricingObject,
+  getJoiPriceObject,
+  JoiDynamicPrice,
+  JoiPrice,
+} from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
 
@@ -153,10 +157,7 @@ export const getUserTokensV6Options: RouteOptions = {
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
-              dynamicPricing: Joi.object({
-                kind: Joi.string().valid("dutch", "pool"),
-                data: Joi.object(),
-              }),
+              dynamicPricing: JoiDynamicPrice.allow(null),
               source: Joi.object().allow(null),
             },
             acquiredAt: Joi.string().allow(null),
@@ -521,73 +522,6 @@ export const getUserTokensV6Options: RouteOptions = {
           : undefined;
         const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
 
-        let dynamicPricing = undefined;
-        if (query.includeDynamicPricing) {
-          // Add missing royalties on top of the raw prices
-          const missingRoyalties = query.normalizeRoyalties
-            ? ((r.floor_sell_missing_royalties ?? []) as any[])
-                .map((mr: any) => bn(mr.amount))
-                .reduce((a, b) => a.add(b), bn(0))
-            : bn(0);
-
-          if (r.floor_sell_dynamic && r.floor_sell_order_kind === "seaport") {
-            const order = new Sdk.Seaport.Order(config.chainId, r.floor_sell_raw_data);
-
-            // Dutch auction
-            dynamicPricing = {
-              kind: "dutch",
-              data: {
-                price: {
-                  start: await getJoiPriceObject(
-                    {
-                      gross: {
-                        amount: bn(order.getMatchingPrice(order.params.startTime))
-                          .add(missingRoyalties)
-                          .toString(),
-                      },
-                    },
-                    floorAskCurrency
-                  ),
-                  end: await getJoiPriceObject(
-                    {
-                      gross: {
-                        amount: bn(order.getMatchingPrice(order.params.endTime))
-                          .add(missingRoyalties)
-                          .toString(),
-                      },
-                    },
-                    floorAskCurrency
-                  ),
-                },
-                time: {
-                  start: order.params.startTime,
-                  end: order.params.endTime,
-                },
-              },
-            };
-          } else if (r.floor_sell_order_kind === "sudoswap") {
-            // Pool orders
-            dynamicPricing = {
-              kind: "pool",
-              data: {
-                pool: r.floor_sell_raw_data.pair,
-                prices: await Promise.all(
-                  (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
-                    getJoiPriceObject(
-                      {
-                        gross: {
-                          amount: bn(price).add(missingRoyalties).toString(),
-                        },
-                      },
-                      floorAskCurrency
-                    )
-                  )
-                ),
-              },
-            };
-          }
-        }
-
         return {
           token: {
             contract: contract,
@@ -657,7 +591,16 @@ export const getUserTokensV6Options: RouteOptions = {
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
-              dynamicPricing,
+              dynamicPricing: query.includeDynamicPricing
+                ? await getJoiDynamicPricingObject(
+                    r.floor_sell_dynamic,
+                    r.floor_sell_order_kind,
+                    query.normalizeRoyalties,
+                    r.floor_sell_raw_data,
+                    r.floor_sell_currency ? fromBuffer(r.floor_sell_currency) : undefined,
+                    r.floor_sell_missing_royalties ? r.floor_sell_missing_royalties : undefined
+                  )
+                : null,
               source: {
                 id: floorSellSource?.address,
                 domain: floorSellSource?.domain,

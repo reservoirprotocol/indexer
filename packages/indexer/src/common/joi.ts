@@ -7,10 +7,10 @@ import Joi from "joi";
 import { bn, formatEth, formatPrice, formatUsd, fromBuffer, now, regex } from "@/common/utils";
 import { Currency, getCurrency } from "@/utils/currencies";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import crypto from "crypto";
 import { Assets } from "@/utils/assets";
+import { config } from "@/config/index";
 
 // --- Prices ---
 
@@ -464,19 +464,21 @@ export const getJoiSaleObject = async (sale: {
           }`
         )
         .digest("hex"),
-    token: sale.contract &&
-      sale.tokenId && {
-        contract: fromBuffer(sale.contract),
-        tokenId: sale.tokenId,
-        name: sale.name ?? null,
-        image: sale.image ? Assets.getLocalAssetsLink(sale.image) : null,
-        collection: {
-          id: sale.collectionId ?? null,
-          name: sale.collectionName ?? null,
-        },
-      },
+    token:
+      sale.contract !== undefined && sale.tokenId !== undefined
+        ? {
+            contract: fromBuffer(sale.contract),
+            tokenId: sale.tokenId,
+            name: sale.name ?? null,
+            image: sale.image ? Assets.getLocalAssetsLink(sale.image) : null,
+            collection: {
+              id: sale.collectionId ?? null,
+              name: sale.collectionName ?? null,
+            },
+          }
+        : undefined,
     orderId: sale.orderId,
-    orderSource: sale.orderSourceId && (orderSource?.domain ?? null),
+    orderSource: orderSource?.domain ?? null,
     orderSide: sale.orderSide && (sale.orderSide === "sell" ? "ask" : "bid"),
     orderKind: sale.orderKind,
     from:
@@ -488,7 +490,7 @@ export const getJoiSaleObject = async (sale: {
       sale.taker &&
       (sale.orderSide === "sell" ? fromBuffer(sale.taker) : fromBuffer(sale.maker)),
     amount: sale.amount,
-    fillSource: sale.fillSourceId && (fillSource?.domain ?? orderSource?.domain ?? null),
+    fillSource: fillSource?.domain ?? orderSource?.domain ?? null,
     block: sale.block,
     txHash: sale.txHash && fromBuffer(sale.txHash),
     logIndex: sale.logIndex,

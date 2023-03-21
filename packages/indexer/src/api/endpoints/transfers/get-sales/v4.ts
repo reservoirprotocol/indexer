@@ -68,6 +68,7 @@ export const getSalesV4Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
+
       limit: Joi.number()
         .integer()
         .min(1)
@@ -177,15 +178,14 @@ export const getSalesV4Options: RouteOptions = {
       (query as any).timestamp = contArr[0];
       (query as any).logIndex = contArr[1];
       (query as any).batchIndex = contArr[2];
-      (query as any).price = contArr[3];
-      const inequalitySymbol = query.sortDirection === "asc" ? ">" : "<";
-      if (query.orderBy && query.orderBy === "price") {
+
+      if (query.sortDirection === "desc") {
         paginationFilter = `
-        AND (fill_events_2.price) ${inequalitySymbol} ($/price/)
+        AND (fill_events_2.timestamp, fill_events_2.log_index, fill_events_2.batch_index) < ($/timestamp/, $/logIndex/, $/batchIndex/)
       `;
       } else {
         paginationFilter = `
-        AND (fill_events_2.timestamp, fill_events_2.log_index, fill_events_2.batch_index) ${inequalitySymbol} ($/timestamp/, $/logIndex/, $/batchIndex/)
+        AND (fill_events_2.timestamp, fill_events_2.log_index, fill_events_2.batch_index) > ($/timestamp/, $/logIndex/, $/batchIndex/)
       `;
       }
     }
@@ -263,8 +263,7 @@ export const getSalesV4Options: RouteOptions = {
             ${tokenFilter}
             ${paginationFilter}
             ${timestampFilter}
-      
-            ${queryOrderBy}
+          ${queryOrderBy}
           LIMIT $/limit/
         ) AS fill_events_2_data
         ${

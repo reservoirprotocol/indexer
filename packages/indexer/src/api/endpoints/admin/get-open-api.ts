@@ -63,6 +63,9 @@ export const getOpenApiOptions: RouteOptions = {
         {
           url: "https://api-polygon.reservoir.tools",
         },
+        {
+          url: "https://api-arbitrum.reservoir.tools",
+        },
       ];
 
       data.openapi["paths"] = Object.fromEntries(

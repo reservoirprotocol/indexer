@@ -4,7 +4,7 @@ import { logger } from "@/common/logger";
 import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import * as dailyVolumes from "@/jobs/daily-volumes/daily-volumes";
-import * as zeroDayVolumes from "@/jobs/daily-volumes/0day-volumes";
+import * as oneDayVolumes from "@/jobs/daily-volumes/1day-volumes";
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
@@ -37,20 +37,20 @@ if (config.doBackgroundWork) {
     "*/15 * * * *",
     async () =>
       await redlock
-        .acquire(["0day-volumes-job-lock"], 5000)
+        .acquire(["1day-volumes-job-lock"], 5000)
         .then(async () => {
-          logger.info("calculate-0day-volumes", "Starting 0day-volumes-lock");
-          logger.info("0day-volumes", "Calculating 0day volumes");
+          logger.info("calculate-1day-volumes", "Starting 1day-volumes-lock");
+          logger.info("1day-volumes", "Calculating 1day volumes");
 
           try {
-            await zeroDayVolumes.addToQueue();
+            await oneDayVolumes.addToQueue();
           } catch (error) {
-            logger.error("daily-volumes", `Failed to calculate 0day volumes: ${error}`);
+            logger.error("daily-volumes", `Failed to calculate 1day volumes: ${error}`);
           }
         })
         .catch((e) => {
           logger.error(
-            "0day-volumes",
+            "1day-volumes",
             JSON.stringify({
               msg: e.message,
             })
