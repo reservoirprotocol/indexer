@@ -1,3 +1,10 @@
+## [5.277.1](https://github.com/reservoirprotocol/indexer/compare/v5.277.0...v5.277.1) (2023-03-21)
+
+
+### Bug Fixes
+
+* revert autoformat changelog ([ea18695](https://github.com/reservoirprotocol/indexer/commit/ea186959941759bac0041ae28bfb005f602d334a))
+
 # [5.277.0](https://github.com/reservoirprotocol/indexer/compare/v5.276.1...v5.277.0) (2023-03-21)
 
 
