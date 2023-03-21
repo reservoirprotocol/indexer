@@ -6,6 +6,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { DailyVolume } from "../../models/daily-volumes/daily-volume";
 
+// queue name
 const QUEUE_NAME = "calculate-1day-volumes";
 
 export const queue = new Queue(QUEUE_NAME, {
