@@ -3,6 +3,7 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
 import { config } from "@/config/index";
 import { addToQueue } from "@/jobs/backfill/backfill-sale-royalties";
 
@@ -13,10 +14,23 @@ export const postResyncSaleRoyalties: RouteOptions = {
     headers: Joi.object({
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
-    payload: Joi.object({
-      fromBlock: Joi.number().required(),
-      toBlock: Joi.number().required(),
-    }),
+    payload: Joi.alternatives(
+      Joi.object({
+        kind: "all",
+        data: Joi.object({
+          fromBlock: Joi.number().required(),
+          toBlock: Joi.number().required(),
+        }),
+      }),
+      Joi.object({
+        kind: "contract",
+        data: Joi.object({
+          contract: Joi.string().pattern(regex.address).required(),
+          fromTimestamp: Joi.number().required(),
+          toTimestamp: Joi.number().required(),
+        }),
+      })
+    ),
   },
   handler: async (request: Request) => {
     if (request.headers["x-admin-api-key"] !== config.adminApiKey) {
@@ -27,7 +41,7 @@ export const postResyncSaleRoyalties: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      await addToQueue(payload.fromBlock, payload.toBlock + 1, payload.toBlock + 1);
+      await addToQueue(payload);
 
       return { message: "Success" };
     } catch (error) {

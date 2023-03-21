@@ -54,5 +54,10 @@
     "**/got": "^11.8.5",
     "**/validator": "^13.7.0",
     "**/swagger-ui-dist": "4.13"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.2",
+    "@semantic-release/git": "^10.0.1",
+    "semantic-release": "^20.1.1"
   }
 }

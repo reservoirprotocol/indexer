@@ -2,6 +2,7 @@ import axios from "axios";
 
 import { config } from "@/config/index";
 import * as flagStatusUpdate from "@/jobs/flag-status/update";
+import { logger } from "@/common/logger";
 
 export const tryGetTokensSuspiciousStatus = async (tokens: string[], timeout = 5000) => {
   const tokenToSuspicious = new Map<string, boolean>();
@@ -93,6 +94,13 @@ export const tryGetCollectionOpenseaFees = async (
     })(),
     new Promise((resolve) => setTimeout(resolve, timeout)),
   ]);
+
+  logger.info(
+    "getCollectionOpenseaFees",
+    `api result. contract=${contract}, tokenId=${tokenId}, isSuccess=${isSuccess}, openseaFees=${JSON.stringify(
+      openseaFees
+    )}`
+  );
 
   return { openseaFees, isSuccess };
 };

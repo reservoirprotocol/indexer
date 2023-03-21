@@ -289,12 +289,12 @@ export async function extractRoyalties(
         }
 
         // Conditions:
-        // - royalty percentage between 0% and 30% (both exclusive)
+        // - royalty percentage between 0% and 15% (both exclusive)
         // - royalty recipient is not a known platform fee recipient
         // - royalty recipient is a valid royalty recipient
         const recipientIsEligible =
           bps > 0 &&
-          bps < 3000 &&
+          bps < 1500 &&
           !allPlatformFeeRecipients.has(address) &&
           !notRoyaltyRecipients.has(address);
 

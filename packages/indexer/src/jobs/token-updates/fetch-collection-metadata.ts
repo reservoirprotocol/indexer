@@ -12,6 +12,8 @@ import { getNetworkSettings } from "@/config/network";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
+import * as marketplaceFees from "@/utils/marketplace_fees";
+
 import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
@@ -167,6 +169,13 @@ if (config.doBackgroundWork) {
           collection.openseaRoyalties as royalties.Royalty[] | undefined
         );
         await royalties.refreshDefaultRoyalties(collection.id);
+
+        // Refresh marketplace fees
+        await marketplaceFees.updateMarketplaceFeeSpec(
+          collection.id,
+          "opensea",
+          collection.openseaFees as royalties.Royalty[] | undefined
+        );
       } catch (error) {
         logger.error(
           QUEUE_NAME,

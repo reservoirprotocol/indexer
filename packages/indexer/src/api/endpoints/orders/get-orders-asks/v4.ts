@@ -8,7 +8,13 @@ import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiPrice, getJoiPriceObject, JoiOrderCriteria } from "@/common/joi";
+import {
+  JoiPrice,
+  getJoiPriceObject,
+  JoiOrderCriteria,
+  JoiDynamicPrice,
+  getJoiDynamicPricingObject,
+} from "@/common/joi";
 import {
   buildContinuation,
   fromBuffer,
@@ -98,6 +104,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
+      includeDynamicPricing: Joi.boolean()
+        .default(false)
+        .description("If true, dynamic pricing data will be returned in the response."),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),
@@ -108,7 +117,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
-        .valid("createdAt", "price")
+        .valid("createdAt", "updatedAt", "price")
         .default("createdAt")
         .description(
           "Order the items are returned in the response, Sorting by price allowed only when filtering by token"
@@ -144,6 +153,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           validUntil: Joi.number().required(),
           quantityFilled: Joi.number().unsafe(),
           quantityRemaining: Joi.number().unsafe(),
+          dynamicPricing: JoiDynamicPrice.allow(null),
           criteria: JoiOrderCriteria.allow(null),
           status: Joi.string(),
           source: Joi.object().allow(null),
@@ -217,6 +227,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           ) AS expiration,
           orders.is_reservoir,
           extract(epoch from orders.created_at) AS created_at,
+          extract(epoch from orders.updated_at) AS updated_at,
           (
             CASE
               WHEN orders.fillability_status = 'filled' THEN 'filled'
@@ -227,9 +238,8 @@ export const getOrdersAsksV4Options: RouteOptions = {
               ELSE 'active'
             END
           ) AS status,
-          orders.updated_at,
           (${criteriaBuildQuery}) AS criteria
-          ${query.includeRawData ? ", orders.raw_data" : ""}
+          ${query.includeRawData || query.includeDynamicPricing ? ", orders.raw_data" : ""}
         FROM orders
       `;
 
@@ -384,22 +394,28 @@ export const getOrdersAsksV4Options: RouteOptions = {
       }
 
       if (query.continuation) {
-        const [priceOrCreatedAt, id] = splitContinuation(
+        const [priceOrCreatedAtOrUpdatedAt, id] = splitContinuation(
           query.continuation,
           /^\d+(.\d+)?_0x[a-f0-9]{64}$/
         );
-        (query as any).priceOrCreatedAt = priceOrCreatedAt;
+        (query as any).priceOrCreatedAtOrUpdatedAt = priceOrCreatedAtOrUpdatedAt;
         (query as any).id = id;
 
         if (query.sortBy === "price") {
           if (query.normalizeRoyalties) {
-            conditions.push(`(orders.normalized_value, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+            conditions.push(
+              `(orders.normalized_value, orders.id) > ($/priceOrCreatedAtOrUpdatedAt/, $/id/)`
+            );
           } else {
-            conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+            conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAtOrUpdatedAt/, $/id/)`);
           }
+        } else if (query.sortBy === "updatedAt") {
+          conditions.push(
+            `(orders.updated_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
+          );
         } else {
           conditions.push(
-            `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAt/), $/id/)`
+            `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
           );
         }
       }
@@ -418,6 +434,8 @@ export const getOrdersAsksV4Options: RouteOptions = {
         } else {
           baseQuery += ` ORDER BY orders.price, orders.id`;
         }
+      } else if (query.sortBy === "updatedAt") {
+        baseQuery += ` ORDER BY orders.updated_at DESC, orders.id DESC`;
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
@@ -440,6 +458,10 @@ export const getOrdersAsksV4Options: RouteOptions = {
               rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
             );
           }
+        } else if (query.sortBy === "updatedAt") {
+          continuation = buildContinuation(
+            rawResult[rawResult.length - 1].updated_at + "_" + rawResult[rawResult.length - 1].id
+          );
         } else {
           continuation = buildContinuation(
             rawResult[rawResult.length - 1].created_at + "_" + rawResult[rawResult.length - 1].id
@@ -514,6 +536,16 @@ export const getOrdersAsksV4Options: RouteOptions = {
           validUntil: Number(r.valid_until),
           quantityFilled: Number(r.quantity_filled),
           quantityRemaining: Number(r.quantity_remaining),
+          dynamicPricing: query.includeDynamicPricing
+            ? await getJoiDynamicPricingObject(
+                r.dynamic,
+                r.kind,
+                query.normalizeRoyalties,
+                r.raw_data,
+                r.currency ? fromBuffer(r.currency) : undefined,
+                r.missing_royalties ? r.missing_royalties : undefined
+              )
+            : null,
           criteria: r.criteria,
           source: {
             id: source?.address,
@@ -526,9 +558,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
           feeBreakdown: feeBreakdown,
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
-          isDynamic: Boolean(r.dynamic),
+          isDynamic: Boolean(r.dynamic || r.kind === "sudoswap"),
           createdAt: new Date(r.created_at * 1000).toISOString(),
-          updatedAt: new Date(r.updated_at).toISOString(),
+          updatedAt: new Date(r.updated_at * 1000).toISOString(),
           rawData: query.includeRawData ? r.raw_data : undefined,
         };
       });

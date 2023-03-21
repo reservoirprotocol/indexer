@@ -169,7 +169,7 @@ export const start = async (): Promise<void> => {
         request.route.method,
         tier,
         apiKey?.key,
-        new Map(Object.entries(_.merge(request.payload, request.query)))
+        new Map(Object.entries(_.merge(request.payload, request.query, request.params)))
       );
     } catch (error) {
       if (error instanceof BlockedRouteError) {
@@ -179,7 +179,12 @@ export const start = async (): Promise<void> => {
           message: `Request to ${request.route.path} is currently suspended`,
         };
 
-        return reply.response(blockedRouteResponse).type("application/json").code(429).takeover();
+        return reply
+          .response(blockedRouteResponse)
+          .type("application/json")
+          .code(429)
+          .header("tier", `${tier}`)
+          .takeover();
       }
     }
 
@@ -235,13 +240,14 @@ export const start = async (): Promise<void> => {
           const tooManyRequestsResponse = {
             statusCode: 429,
             error: "Too Many Requests",
-            message: `Max ${rateLimitRule.points} requests in ${rateLimitRule.duration}s reached`,
+            message: `Max ${rateLimitRule.points} requests in ${rateLimitRule.duration}s reached. Please register for an API key by creating a free account at https://dashboard.reservoir.tools to increase your rate limit.`,
           };
 
           return reply
             .response(tooManyRequestsResponse)
             .type("application/json")
             .code(429)
+            .header("tier", `${tier}`)
             .takeover();
         } else {
           logger.warn("rate-limiter", `Rate limit error ${error}`);

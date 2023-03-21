@@ -2,7 +2,7 @@ import { Interface } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { AddressZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 import * as Addresses from "./addresses";
 import * as SeaportPermit from "./permits/seaport";
@@ -158,6 +158,9 @@ export class Router {
       relayer?: string;
       // Needed for filling Blur orders
       blurAuth?: string;
+      // Callback for handling errors
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onUpstreamError?: (kind: string, error: AxiosError<any>, data: any) => Promise<void>;
     }
   ): Promise<{
     txs: {
@@ -450,82 +453,6 @@ export class Router {
       }
     }
 
-    // Handle partial seaport orders:
-    // - fetch the full order data for each partial order (concurrently)
-    // - remove any partial order from the details
-
-    await Promise.all(
-      details.map(async (detail, i) => {
-        if (detail.kind === "seaport-partial") {
-          try {
-            const order = detail.order as Sdk.Seaport.Types.PartialOrder;
-            const result = await axios.get(
-              `https://order-fetcher.vercel.app/api/listing?contract=${detail.contract}&tokenId=${
-                detail.tokenId
-              }${order.unitPrice ? `&unitPrice=${order.unitPrice}` : ""}&orderHash=${
-                order.id
-              }&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.1`,
-              {
-                headers: {
-                  "X-Api-Key": this.options?.orderFetcherApiKey,
-                },
-              }
-            );
-
-            // Override the details
-            const fullOrder = new Sdk.Seaport.Order(this.chainId, result.data.order);
-            details[i] = {
-              ...detail,
-              kind: "seaport",
-              order: fullOrder,
-            };
-          } catch {
-            if (!options?.partial) {
-              throw new Error("Could not generate fill data");
-            } else {
-              return;
-            }
-          }
-        }
-      })
-    );
-
-    await Promise.all(
-      details.map(async (detail, i) => {
-        if (detail.kind === "seaport-v1.4-partial") {
-          try {
-            const order = detail.order as Sdk.SeaportV14.Types.PartialOrder;
-            const result = await axios.get(
-              `https://order-fetcher.vercel.app/api/listing?contract=${detail.contract}&tokenId=${
-                detail.tokenId
-              }${order.unitPrice ? `&unitPrice=${order.unitPrice}` : ""}&orderHash=${
-                order.id
-              }&taker=${taker}&chainId=${this.chainId}&protocolVersion=v1.4`,
-              {
-                headers: {
-                  "X-Api-Key": this.options?.orderFetcherApiKey,
-                },
-              }
-            );
-
-            // Override the details
-            const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
-            details[i] = {
-              ...detail,
-              kind: "seaport-v1.4",
-              order: fullOrder,
-            };
-          } catch {
-            if (!options?.partial) {
-              throw new Error("Could not generate fill data");
-            } else {
-              return;
-            }
-          }
-        }
-      })
-    );
-
     const txs: {
       approvals: FTApproval[];
       permits: FTPermit[];
@@ -562,7 +489,9 @@ export class Router {
       try {
         let blurUrl = `https://order-fetcher.vercel.app/api/blur-listing?`;
         for (const d of blurCompatibleListings) {
-          blurUrl += `contracts=${d.contract}&tokenIds=${d.tokenId}&prices=${d.price}&`;
+          blurUrl += `contracts=${d.contract}&tokenIds=${d.tokenId}&prices=${
+            d.price
+          }&flaggedStatuses=${d.isFlagged ? "true" : "false"}&`;
         }
         blurUrl += `taker=${taker}&authToken=${options?.blurAuth}`;
 
@@ -637,6 +566,110 @@ export class Router {
         success,
       };
     }
+
+    // Handle partial seaport orders:
+    // - fetch the full order data for each partial order (concurrently)
+    // - remove any partial order from the details
+
+    await Promise.all(
+      details.map(async (detail, i) => {
+        if (detail.kind === "seaport-partial") {
+          try {
+            const order = detail.order as Sdk.Seaport.Types.PartialOrder;
+
+            let url = "https://order-fetcher.vercel.app/api/listing";
+            url += `?contract=${detail.contract}`;
+            url += `&tokenId=${detail.tokenId}`;
+            url += order.unitPrice ? `&unitPrice=${order.unitPrice}` : "";
+            url += `&orderHash=${order.id}`;
+            url += `&taker=${taker}`;
+            url += `&chainId=${this.chainId}`;
+            url += "&protocolVersion=v1.1";
+
+            const result = await axios
+              .get(url, {
+                headers: {
+                  "X-Api-Key": this.options?.orderFetcherApiKey,
+                },
+              })
+              .catch((error) => {
+                if (axios.isAxiosError(error) && options?.onUpstreamError) {
+                  options.onUpstreamError("order-fetcher-opensea-listing", error, {
+                    ...detail,
+                    taker,
+                    url,
+                  });
+                }
+                throw error;
+              });
+
+            // Override the details
+            const fullOrder = new Sdk.Seaport.Order(this.chainId, result.data.order);
+            details[i] = {
+              ...detail,
+              kind: "seaport",
+              order: fullOrder,
+            };
+          } catch {
+            if (!options?.partial) {
+              throw new Error("Could not generate fill data");
+            } else {
+              return;
+            }
+          }
+        }
+      })
+    );
+
+    await Promise.all(
+      details.map(async (detail, i) => {
+        if (detail.kind === "seaport-v1.4-partial") {
+          try {
+            const order = detail.order as Sdk.SeaportV14.Types.PartialOrder;
+
+            let url = "https://order-fetcher.vercel.app/api/listing";
+            url += `?contract=${detail.contract}`;
+            url += `&tokenId=${detail.tokenId}`;
+            url += order.unitPrice ? `&unitPrice=${order.unitPrice}` : "";
+            url += `&orderHash=${order.id}`;
+            url += `&taker=${taker}`;
+            url += `&chainId=${this.chainId}`;
+            url += "&protocolVersion=v1.4";
+
+            const result = await axios
+              .get(url, {
+                headers: {
+                  "X-Api-Key": this.options?.orderFetcherApiKey,
+                },
+              })
+              .catch((error) => {
+                if (axios.isAxiosError(error) && options?.onUpstreamError) {
+                  options.onUpstreamError("order-fetcher-opensea-listing", error, {
+                    ...detail,
+                    taker,
+                    url,
+                  });
+                }
+                throw error;
+              });
+
+            // Override the details
+            const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
+            details[i] = {
+              ...detail,
+              kind: "seaport-v1.4",
+              order: fullOrder,
+            };
+          } catch {
+            if (!options?.partial) {
+              throw new Error("Could not generate fill data");
+            } else {
+              return;
+            }
+          }
+        }
+      })
+    );
 
     const relayer = options?.relayer ?? taker;
 
@@ -2192,8 +2225,9 @@ export class Router {
       partial?: boolean;
       // Force using permit
       forcePermit?: boolean;
-      // Needed for filling some OpenSea orders
-      openseaAuth?: string;
+      // Callback for handling errors
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onUpstreamError?: (kind: string, error: AxiosError<any>, data: any) => Promise<void>;
     }
   ): Promise<{
     txData: TxData;
@@ -2202,10 +2236,6 @@ export class Router {
     success: boolean[];
   }> {
     // Assume the bid details are consistent with the underlying order object
-
-    if (options?.openseaAuth && details.length !== 1) {
-      throw new Error("Only a single bid can be fulfilled");
-    }
 
     // CASE 1
     // Handle exchanges which don't have a router module implemented by filling directly
@@ -2469,18 +2499,31 @@ export class Router {
           const module = this.contracts.seaportModule;
 
           try {
-            const result = await axios.get(
-              `https://order-fetcher.vercel.app/api/offer?orderHash=${order.id}&contract=${
-                order.contract
-              }&tokenId=${order.tokenId}&taker=${detail.owner ?? taker}&chainId=${this.chainId}` +
-                (order.unitPrice ? `&unitPrice=${order.unitPrice}` : "") +
-                (options?.openseaAuth ? `&authorization=${options.openseaAuth}` : ""),
-              {
+            let url = "https://order-fetcher.vercel.app/api/offer";
+            url += `?orderHash=${order.id}`;
+            url += `&contract=${order.contract}`;
+            url += `&tokenId=${order.tokenId}`;
+            url += `&taker=${detail.owner ?? taker}`;
+            url += `&chainId=${this.chainId}`;
+            url += "&protocolVersion=v1.1";
+            url += order.unitPrice ? `&unitPrice=${order.unitPrice}` : "";
+
+            const result = await axios
+              .get(url, {
                 headers: {
                   "X-Api-Key": this.options?.orderFetcherApiKey,
                 },
-              }
-            );
+              })
+              .catch((error) => {
+                if (axios.isAxiosError(error) && options?.onUpstreamError) {
+                  options.onUpstreamError("order-fetcher-opensea-offer", error, {
+                    ...detail,
+                    taker,
+                    url,
+                  });
+                }
+                throw error;
+              });
 
             const fullOrder = new Sdk.Seaport.Order(this.chainId, result.data.order);
             executions.push({
@@ -2570,18 +2613,32 @@ export class Router {
           const module = this.contracts.seaportV14Module;
 
           try {
-            const result = await axios.get(
-              `https://order-fetcher.vercel.app/api/offer?orderHash=${order.id}&contract=${
-                order.contract
-              }&tokenId=${order.tokenId}&taker=${detail.owner ?? taker}&chainId=${this.chainId}` +
-                (order.unitPrice ? `&unitPrice=${order.unitPrice}` : "") +
-                (options?.openseaAuth ? `&authorization=${options.openseaAuth}` : ""),
-              {
+            let url = "https://order-fetcher.vercel.app/api/offer";
+            url += `?orderHash=${order.id}`;
+            url += `&contract=${order.contract}`;
+            url += `&tokenId=${order.tokenId}`;
+            url += `&taker=${detail.isProtected ? taker : detail.owner ?? taker}`;
+            url += `&chainId=${this.chainId}`;
+            url += "&protocolVersion=v1.4";
+            url += order.unitPrice ? `&unitPrice=${order.unitPrice}` : "";
+            url += detail.isProtected ? "&isProtected=true" : "";
+
+            const result = await axios
+              .get(url, {
                 headers: {
                   "X-Api-Key": this.options?.orderFetcherApiKey,
                 },
-              }
-            );
+              })
+              .catch((error) => {
+                if (axios.isAxiosError(error) && options?.onUpstreamError) {
+                  options.onUpstreamError("order-fetcher-opensea-offer", error, {
+                    ...detail,
+                    taker,
+                    url,
+                  });
+                }
+                throw error;
+              });
 
             if (result.data.calldata) {
               // Fill directly
@@ -2589,7 +2646,7 @@ export class Router {
                 txData: {
                   from: taker,
                   to: Sdk.SeaportV14.Addresses.Exchange[this.chainId],
-                  data: result.data.calldata.slice(0, -8) + generateSourceBytes(options?.source),
+                  data: result.data.calldata + generateSourceBytes(options?.source),
                 },
                 success: [true],
                 approvals,

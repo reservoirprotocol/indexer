@@ -362,6 +362,17 @@ export const getNetworkSettings = (): NetworkSettings => {
         backfillBlockBatchSize: 60,
         reorgCheckFrequency: [30],
         subDomain: "api-polygon",
+        whitelistedCurrencies: new Map([
+          [
+            "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c",
+            {
+              contract: "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c",
+              name: "BitCone",
+              symbol: "CONE",
+              decimals: 18,
+            },
+          ],
+        ]),
         coingecko: {
           networkId: "polygon-pos",
         },

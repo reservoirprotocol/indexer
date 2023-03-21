@@ -97,8 +97,6 @@ export const save = async (
       const info = order.getInfo();
       const id = order.hash();
 
-      const timeStart = performance.now();
-
       // Check: order has a valid format
       if (!info) {
         return results.push({
@@ -401,13 +399,20 @@ export const save = async (
             if (merkleRoot) {
               tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
 
-              await tokenSet.tokenList.save([
+              const ts = await tokenSet.tokenList.save([
                 {
                   id: tokenSetId,
                   schemaHash,
                   schema: metadata.schema,
                 },
               ]);
+
+              logger.info(
+                "orders-seaport-v1.4-save",
+                `TokenList. orderId=${id}, tokenSetId=${tokenSetId}, schemaHash=${schemaHash}, metadata=${JSON.stringify(
+                  metadata
+                )}, ts=${JSON.stringify(ts)}`
+              );
             }
 
             break;
@@ -741,15 +746,6 @@ export const save = async (
 
       if (relayToArweave) {
         arweaveData.push({ order, schemaHash, source: source?.domain });
-      }
-
-      const totalTimeElapsed = Math.floor((performance.now() - timeStart) / 1000);
-
-      if (totalTimeElapsed > 1) {
-        logger.info(
-          "orders-seaport-v1.4-save-debug-latency",
-          `orderId=${id}, orderSide=${info.side}, totalTimeElapsed=${totalTimeElapsed}`
-        );
       }
     } catch (error) {
       logger.warn(

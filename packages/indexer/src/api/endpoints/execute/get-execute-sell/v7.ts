@@ -4,7 +4,6 @@ import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import * as SeaportPermit from "@reservoir0x/sdk/dist/router/v6/permits/seaport";
 import { BidDetails } from "@reservoir0x/sdk/dist/router/v6/types";
-import axios from "axios";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -15,11 +14,10 @@ import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/util
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { Sources } from "@/models/sources";
-import { OrderKind, generateBidDetailsV6 } from "@/orderbook/orders";
+import { OrderKind, generateBidDetailsV6, routerOnUpstreamError } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
-import * as o from "@/utils/auth/opensea";
 import { getCurrency } from "@/utils/currencies";
 import { getPermitId, getPermit, savePermit } from "@/utils/permits/nft";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
@@ -257,6 +255,10 @@ export const getExecuteSellV7Options: RouteOptions = {
               unitPrice: order.price,
               rawData: order.rawData,
               fees: feesOnTop,
+              isProtected:
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (order.rawData as any).zone ===
+                Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId],
             },
             {
               kind: token.kind,
@@ -391,6 +393,30 @@ export const getExecuteSellV7Options: RouteOptions = {
             }
           }
 
+          // Partial Seaport orders require knowing the owner
+          let owner: string | undefined;
+          if (["seaport-partial", "seaport-v1.4-partial"].includes(result.kind)) {
+            const ownerResult = await idb.oneOrNone(
+              `
+                SELECT
+                  nft_balances.owner
+                FROM nft_balances
+                WHERE nft_balances.contract = $/contract/
+                  AND nft_balances.token_id = $/tokenId/
+                  AND nft_balances.amount >= $/quantity/
+                LIMIT 1
+              `,
+              {
+                contract: toBuffer(contract),
+                tokenId,
+                quantity: item.quantity,
+              }
+            );
+            if (ownerResult) {
+              owner = fromBuffer(ownerResult.owner);
+            }
+          }
+
           // Do not fill X2Y2 and Seaport orders with flagged tokens
           if (
             ["x2y2", "seaport", "seaport-v1.4", "seaport-partial", "seaport-v1.4-partial"].includes(
@@ -426,6 +452,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               contract,
               tokenId,
               quantity: item.quantity,
+              owner,
             }
           );
         }
@@ -471,6 +498,30 @@ export const getExecuteSellV7Options: RouteOptions = {
 
           let quantityToFill = item.quantity;
           for (const result of orderResults) {
+            // Partial Seaport orders require knowing the owner
+            let owner: string | undefined;
+            if (["seaport-partial", "seaport-v1.4-partial"].includes(result.kind)) {
+              const ownerResult = await idb.oneOrNone(
+                `
+                  SELECT
+                    nft_balances.owner
+                  FROM nft_balances
+                  WHERE nft_balances.contract = $/contract/
+                    AND nft_balances.token_id = $/tokenId/
+                    AND nft_balances.amount >= $/quantity/
+                  LIMIT 1
+                `,
+                {
+                  contract: toBuffer(contract),
+                  tokenId,
+                  quantity: item.quantity,
+                }
+              );
+              if (ownerResult) {
+                owner = fromBuffer(ownerResult.owner);
+              }
+            }
+
             // Do not fill X2Y2 and Seaport orders with flagged tokens
             if (
               [
@@ -538,6 +589,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 contract,
                 tokenId,
                 quantity: Math.min(item.quantity, availableQuantity),
+                owner,
               }
             );
           }
@@ -574,13 +626,6 @@ export const getExecuteSellV7Options: RouteOptions = {
         }[];
       }[] = [
         {
-          id: "auth",
-          action: "Sign in to OpenSea",
-          description: "Some marketplaces require signing an auth message before filling",
-          kind: "signature",
-          items: [],
-        },
-        {
           id: "nft-approval",
           action: "Approve NFT contract",
           description:
@@ -604,70 +649,41 @@ export const getExecuteSellV7Options: RouteOptions = {
         },
       ];
 
-      // Handle OpenSea authentication
-      let openseaAuth: string | undefined;
-      if (path.some((p) => p.source === "opensea.io")) {
-        const openseaAuthId = o.getAuthId(payload.taker);
+      const protectedOffersCount = bidDetails.filter(
+        (d) =>
+          d.kind === "seaport-v1.4" &&
+          d.order.params.zone ===
+            Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId]
+      );
+      if (protectedOffersCount.length > 1) {
+        throw Boom.badRequest("Only a single protected offer can be accepted at once");
+      }
+      if (protectedOffersCount.length === 1 && bidDetails.length > 1) {
+        throw Boom.badRequest("Protected offers cannot be accepted with other offers");
+      }
 
-        openseaAuth = await o
-          .getAuth(openseaAuthId)
-          .then((auth) => (auth ? auth.authorization : undefined));
-        if (!openseaAuth) {
-          const openseaAuthChallengeId = o.getAuthChallengeId(payload.taker);
-
-          let openseaAuthChallenge = await o.getAuthChallenge(openseaAuthChallengeId);
-          if (!openseaAuthChallenge) {
-            openseaAuthChallenge = (await axios
-              .get(
-                `https://order-fetcher.vercel.app/api/opensea-auth-challenge?taker=${payload.taker}`,
-                {
-                  headers: {
-                    "X-Api-Key": config.orderFetcherApiKey,
-                  },
-                }
-              )
-              .then((response) => response.data.authChallenge)) as o.AuthChallenge;
-
-            await o.saveAuthChallenge(
-              openseaAuthChallengeId,
-              openseaAuthChallenge,
-              // Give a 1 minute buffer for the auth challenge to expire
-              24 * 59 * 60
-            );
+      if (protectedOffersCount.length === 1) {
+        // Ensure the taker owns the NFTs to get sold
+        const takerIsOwner = await idb.oneOrNone(
+          `
+            SELECT
+              1
+            FROM nft_balances
+            WHERE nft_balances.contract = $/contract/
+              AND nft_balances.token_id = $/tokenId/
+              AND nft_balances.amount >= $/quantity/
+              AND nft_balances.owner = $/owner/
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(bidDetails[0].contract),
+            tokenId: bidDetails[0].tokenId,
+            quantity: bidDetails[0].amount ?? 1,
+            owner: toBuffer(payload.taker),
           }
-
-          steps[0].items.push({
-            status: "incomplete",
-            data: {
-              sign: {
-                signatureKind: "eip191",
-                message: openseaAuthChallenge.loginMessage,
-              },
-              post: {
-                endpoint: "/execute/auth-signature/v1",
-                method: "POST",
-                body: {
-                  kind: "opensea",
-                  id: openseaAuthChallengeId,
-                },
-              },
-            },
-          });
-
-          // Force the client to poll
-          steps[1].items.push({
-            status: "incomplete",
-          });
-
-          // Return an early since any next steps are dependent on the Blur auth
-          return {
-            steps,
-            path,
-          };
-        } else {
-          steps[0].items.push({
-            status: "complete",
-          });
+        );
+        if (!takerIsOwner) {
+          throw Boom.badRequest("Taker is not the owner of the token to sell");
         }
       }
 
@@ -686,7 +702,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           source: payload.source,
           partial: payload.partial,
           forcePermit,
-          openseaAuth,
+          onUpstreamError: routerOnUpstreamError,
         }
       );
 
@@ -712,7 +728,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           approval.operator
         );
         if (!isApproved) {
-          steps[1].items.push({
+          steps[0].items.push({
             status: "incomplete",
             data: {
               ...approval.txData,
@@ -749,7 +765,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             cachedPermit = permit;
           }
 
-          steps[2].items.push({
+          steps[1].items.push({
             status: "incomplete",
             data: {
               sign: permitHandler.getSignatureData(cachedPermit.details.data),
@@ -766,11 +782,11 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
-      steps[3].items.push({
+      steps[2].items.push({
         status: "incomplete",
         data:
           // Do not return the final step unless all permits have a signature attached
-          steps[2].items.length === 0
+          steps[1].items.length === 0
             ? {
                 ...permitHandler.attachToRouterExecution(
                   txData,
@@ -783,7 +799,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       });
 
       return {
-        steps: openseaAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
+        steps,
         path,
       };
     } catch (error) {

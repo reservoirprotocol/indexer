@@ -75,11 +75,11 @@ export const processTransactionData = async (
 
   if (!config.disableOrders) {
     await Promise.all([
-      orderbookOrders.addToQueue(orderInfos),
+      // orderbookOrders.addToQueue(orderInfos),
       orderbookTokenSets.addToQueue(tokenSets),
     ]);
 
-    logger.info("process-tranaction-data-v0.0.1", `Got ${orderInfos.length} orders from Arweave`);
+    logger.info("process-tranaction-data-v0.0.1", `Got ${orderInfos.length} orders from Arweave.`);
     logger.info(
       "process-tranaction-data-v0.0.1",
       `Got ${tokenSets.length} token sets from Arweave`

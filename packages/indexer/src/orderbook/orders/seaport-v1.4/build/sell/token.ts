@@ -35,5 +35,8 @@ export const build = async (options: BuildOrderOptions) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (buildInfo.params as any).tokenId = options.tokenId;
 
-  return builder?.build(buildInfo.params);
+  const order = builder.build(buildInfo.params);
+  utils.filterZeroAmounts(order);
+
+  return order;
 };

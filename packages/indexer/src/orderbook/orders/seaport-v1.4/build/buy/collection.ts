@@ -51,7 +51,7 @@ export const build = async (options: BuildOrderOptions) => {
     // By default, use a contract-wide builder
     let builder: BaseBuilder = new Sdk.SeaportV14.Builders.ContractWide(config.chainId);
 
-    if (options.orderbook === "opensea" && config.chainId !== 5) {
+    if (options.orderbook === "opensea") {
       const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
         options.maker,
         options.quantity || 1,
@@ -71,12 +71,15 @@ export const build = async (options: BuildOrderOptions) => {
       }
     }
 
-    return builder.build(buildInfo.params);
+    const order = builder.build(buildInfo.params);
+    utils.filterZeroAmounts(order);
+
+    return order;
   } else {
     // Use a token-list builder
     const builder: BaseBuilder = new Sdk.SeaportV14.Builders.TokenList(config.chainId);
 
-    if (options.orderbook === "opensea" && config.chainId !== 5) {
+    if (options.orderbook === "opensea") {
       // We need to fetch from OpenSea the most up-to-date merkle root
       // (currently only supported on production APIs)
       const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
@@ -132,6 +135,9 @@ export const build = async (options: BuildOrderOptions) => {
       (buildInfo.params as any).merkleRoot = cachedMerkleRoot;
     }
 
-    return builder.build(buildInfo.params);
+    const order = builder.build(buildInfo.params);
+    utils.filterZeroAmounts(order);
+
+    return order;
   }
 };

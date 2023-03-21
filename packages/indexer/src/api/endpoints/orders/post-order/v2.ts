@@ -212,9 +212,9 @@ export const postOrderV2Options: RouteOptions = {
               crossPostingOrderId: crossPostingOrder.id,
               orderId,
               orderData: order.data,
+              orderSchema: schema,
               orderbook,
               orderbookApiKey,
-              collectionId: collection,
             });
           } else {
             const orderInfo: orders.seaport.OrderInfo = {
@@ -299,9 +299,9 @@ export const postOrderV2Options: RouteOptions = {
               crossPostingOrderId: crossPostingOrder.id,
               orderId,
               orderData: order.data,
+              orderSchema: schema,
               orderbook,
               orderbookApiKey,
-              collectionId: collection,
             });
           } else {
             const orderInfo: orders.looksRare.OrderInfo = {

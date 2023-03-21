@@ -67,6 +67,12 @@ export const getUserActivityV3Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
+      contract: Joi.string()
+        .lowercase()
+        .pattern(regex.address)
+        .description(
+          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
     }),
   },
   response: {
@@ -119,15 +125,14 @@ export const getUserActivityV3Options: RouteOptions = {
     }
 
     try {
-      const activities = await UserActivities.getActivities(
-        query.users,
-        [],
-        "",
-        query.continuation,
-        query.types,
-        query.limit,
-        query.sortBy
-      );
+      const activities = await UserActivities.getActivities({
+        users: query.users,
+        createdBefore: query.continuation,
+        types: query.types,
+        limit: query.limit,
+        sortBy: query.sortBy,
+        contracts: query.contract ? [query.contract] : [],
+      });
 
       // If no activities found
       if (!activities.length) {
