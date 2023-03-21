@@ -1,0 +1,251 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { Request, RouteOptions } from "@hapi/hapi";
+import Joi from "joi";
+
+import { redb } from "@/common/db";
+import { logger } from "@/common/logger";
+import { fromBuffer, toBuffer } from "@/common/utils";
+import { CollectionSets } from "@/models/collection-sets";
+import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import * as Sdk from "@reservoir0x/sdk";
+import { config } from "@/config/index";
+
+const version = "v2";
+
+export const getOwnersV2Options: RouteOptions = {
+  cache: {
+    privacy: "public",
+    expiresIn: 60 * 60 * 1000,
+  },
+  description: "Owners",
+  notes:
+    "Get owners with various filters applied, and a summary of their ownership. Useful for exploring top owners in a collection or attribute.",
+  tags: ["api", "Owners"],
+  plugins: {
+    "hapi-swagger": {
+      order: 6,
+    },
+  },
+  validate: {
+    query: Joi.object({
+      collectionsSetId: Joi.string()
+        .lowercase()
+        .description("Filter to a particular collection set."),
+      collection: Joi.string()
+        .lowercase()
+        .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+:[0-9]+$|^0x[a-fA-F0-9]{40}$/)
+        .description(
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
+      contract: Joi.string()
+        .lowercase()
+        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .description(
+          "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
+      token: Joi.string()
+        .lowercase()
+        .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+$/)
+        .description(
+          "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
+        ),
+      attributes: Joi.object()
+        .unknown()
+        .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),
+      offset: Joi.number()
+        .integer()
+        .min(0)
+        .default(0)
+        .description("Use offset to request the next batch of items."),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(500)
+        .default(20)
+        .description("Amount of items returned in response."),
+    })
+      .oxor("collectionsSetId", "collection", "contract", "token")
+      .or("collectionsSetId", "collection", "contract", "token")
+      .without("attributes", ["token", "contract"]),
+  },
+  response: {
+    schema: Joi.object({
+      owners: Joi.array().items(
+        Joi.object({
+          address: Joi.string(),
+          ownership: Joi.object({
+            tokenCount: Joi.string(),
+            onSaleCount: Joi.string(),
+            floorAskPrice: JoiPrice.allow(null),
+            topBidValue: JoiPrice.allow(null),
+            totalBidValue: JoiPrice.allow(null),
+          }),
+        })
+      ),
+    }).label(`getOwners${version.toUpperCase()}Response`),
+    failAction: (_request, _h, error) => {
+      logger.error(`get-owners-${version}-handler`, `Wrong response schema: ${error}`);
+      throw error;
+    },
+  },
+  handler: async (request: Request) => {
+    const query = request.query as any;
+
+    let nftBalancesFilter = "";
+    let tokensFilter = "";
+    let attributesJoin = "";
+
+    if (query.collection) {
+      if (query.attributes) {
+        const attributes: { key: string; value: string }[] = [];
+        Object.entries(query.attributes).forEach(([key, values]) => {
+          (Array.isArray(values) ? values : [values]).forEach((value) =>
+            attributes.push({ key, value })
+          );
+        });
+
+        for (let i = 0; i < attributes.length; i++) {
+          (query as any)[`key${i}`] = attributes[i].key;
+          (query as any)[`value${i}`] = attributes[i].value;
+          attributesJoin += `
+            JOIN token_attributes ta${i}
+              ON nft_balances.contract = ta${i}.contract
+              AND nft_balances.token_id = ta${i}.token_id
+              AND ta${i}.key = $/key${i}/
+              AND ta${i}.value = $/value${i}/
+          `;
+        }
+      }
+
+      // If the collection passed is identical the contract
+      if (/^0x[a-f0-9]{40}$/.test(query.collection)) {
+        (query as any).contract = toBuffer(query.collection);
+
+        nftBalancesFilter = `nft_balances.contract = $/contract/`;
+        tokensFilter = `tokens.contract = $/contract/`;
+      } else {
+        // This is a range collection
+        const [contract, startTokenId, endTokenId] = query.collection.split(":");
+        (query as any).contract = toBuffer(contract);
+        (query as any).startTokenId = startTokenId;
+        (query as any).endTokenId = endTokenId;
+
+        nftBalancesFilter = `nft_balances.contract = $/contract/ AND nft_balances.token_id BETWEEN $/startTokenId/ AND $/endTokenId/`;
+        tokensFilter = `tokens.contract = $/contract/ AND tokens.token_id BETWEEN $/startTokenId/ AND $/endTokenId/`;
+      }
+    } else if (query.contract) {
+      (query as any).contract = toBuffer(query.contract);
+      nftBalancesFilter = `nft_balances.contract = $/contract/`;
+      tokensFilter = `tokens.contract = $/contract/`;
+    } else if (query.token) {
+      const [contract, tokenId] = query.token.split(":");
+
+      (query as any).contract = toBuffer(contract);
+      (query as any).tokenId = tokenId;
+      nftBalancesFilter = `nft_balances.contract = $/contract/ AND nft_balances.token_id = $/tokenId/`;
+      tokensFilter = `tokens.contract = $/contract/ AND tokens.token_id = $/tokenId/`;
+    } else if (query.collectionsSetId) {
+      let i = 0;
+      const addCollectionToFilter = (id: string) => {
+        ++i;
+        (query as any)[`contract${i}`] = toBuffer(id);
+        nftBalancesFilter = `${nftBalancesFilter}$/contract${i}/, `;
+        tokensFilter = `${tokensFilter}$/contract${i}/, `;
+      };
+
+      await CollectionSets.getCollectionsIds(query.collectionsSetId).then((result) =>
+        result.forEach(addCollectionToFilter)
+      );
+      if (!nftBalancesFilter && !tokensFilter) {
+        return { owners: [] };
+      }
+      nftBalancesFilter = `nft_balances.contract IN (${nftBalancesFilter.substring(
+        0,
+        nftBalancesFilter.lastIndexOf(", ")
+      )})`;
+      tokensFilter = `tokens.contract IN (${tokensFilter.substring(
+        0,
+        tokensFilter.lastIndexOf(", ")
+      )})`;
+    }
+
+    try {
+      const baseQuery = `
+        WITH x AS (
+          SELECT owner, SUM(amount) AS token_count
+          FROM nft_balances
+          ${attributesJoin}
+          WHERE ${nftBalancesFilter}
+          AND amount > 0
+          GROUP BY owner
+          ORDER BY token_count DESC, owner
+          OFFSET ${query.offset} LIMIT ${query.limit}
+        )
+        SELECT 
+          nft_balances.owner,
+          SUM(nft_balances.amount) AS token_count,
+          COUNT(*) FILTER (WHERE tokens.floor_sell_value IS NOT NULL) AS on_sale_count,
+          MIN(tokens.floor_sell_value) AS floor_sell_value,
+          MAX(tokens.top_buy_value) AS top_buy_value,
+          SUM(nft_balances.amount) * MAX(tokens.top_buy_value) AS total_buy_value
+        FROM nft_balances
+        JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id
+        ${attributesJoin}
+        WHERE ${tokensFilter}
+        AND nft_balances.owner IN (SELECT owner FROM x)
+        AND nft_balances.amount > 0
+        GROUP BY nft_balances.owner
+        ORDER BY token_count DESC, nft_balances.owner
+      `;
+
+      const result = await redb.manyOrNone(baseQuery, query).then((result) =>
+        result.map(async (r) => ({
+          address: fromBuffer(r.owner),
+          ownership: {
+            tokenCount: String(r.token_count),
+            onSaleCount: String(r.on_sale_count),
+            floorAskPrice: r.floor_sell_value
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: String(r.floor_sell_value),
+                      nativeAmount: String(r.floor_sell_value),
+                    },
+                  },
+                  Sdk.Common.Addresses.Eth[config.chainId]
+                )
+              : null,
+            topBidValue: r.top_buy_value
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: String(r.top_buy_value),
+                      nativeAmount: String(r.top_buy_value),
+                    },
+                  },
+                  Sdk.Common.Addresses.Eth[config.chainId]
+                )
+              : null,
+            totalBidValue: r.total_buy_value
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: String(r.total_buy_value),
+                      nativeAmount: String(r.total_buy_value),
+                    },
+                  },
+                  Sdk.Common.Addresses.Eth[config.chainId]
+                )
+              : null,
+          },
+        }))
+      );
+
+      return { owners: await Promise.all(result) };
+    } catch (error) {
+      logger.error(`get-owners-${version}-handler`, `Handler failure: ${error}`);
+      throw error;
+    }
+  },
+};

@@ -86,6 +86,7 @@ export class UserActivities {
     let continuation = "";
     let typesFilter = "";
     let metadataQuery = "";
+    let metadataOrderQuery = "";
     let collectionFilter = "";
     let communityFilter = "";
     let contractsFilter = "";
@@ -220,18 +221,15 @@ export class UserActivities {
                 FROM collections
                 WHERE user_activities.collection_id = collections.id
                 ${communityFilter}
-             ) c ON TRUE
-             LEFT JOIN LATERAL (
-                SELECT 
-                    source_id_int AS "order_source_id_int",
-                    side AS "order_side",
-                    kind AS "order_kind",
-                    (${orderMetadataBuildQuery}) AS "order_metadata",
-                    (${orderCriteriaBuildQuery}) AS "order_criteria"
-                FROM orders
-                WHERE user_activities.order_id = orders.id
-             ) o ON TRUE
-             `;
+             ) c ON TRUE`;
+
+      metadataOrderQuery = `
+        source_id_int AS "order_source_id_int",
+        side AS "order_side",
+        kind AS "order_kind",             
+        (${orderMetadataBuildQuery}) AS "order_metadata",
+        (${orderCriteriaBuildQuery}) AS "order_criteria",
+      `;
     }
 
     const values = {
@@ -258,6 +256,14 @@ export class UserActivities {
     const activities: UserActivitiesEntityParams[] | null = await redb.manyOrNone(
       `SELECT *
              FROM user_activities
+             LEFT JOIN LATERAL (
+              SELECT 
+                ${metadataOrderQuery}
+                currency AS "order_currency",
+                currency_price AS "order_currency_price"
+              FROM orders
+              WHERE user_activities.order_id = orders.id
+            ) o ON TRUE
              ${metadataQuery}   
              WHERE ${usersFilter}
              ${contractsFilter}

@@ -59,6 +59,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/activity/v6",
+    options: activitiesEndpoints.getCollectionActivityV6Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/tokens/{token}/activity/v1",
     options: activitiesEndpoints.getTokenActivityV1Options,
   });
@@ -79,6 +85,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/tokens/{token}/activity/v4",
     options: activitiesEndpoints.getTokenActivityV4Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/tokens/{token}/activity/v5",
+    options: activitiesEndpoints.getTokenActivityV5Options,
   });
 
   server.route({
@@ -113,6 +125,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/users/activity/v6",
+    options: activitiesEndpoints.getUserActivityV6Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/activity/v1",
     options: activitiesEndpoints.getActivityV1Options,
   });
@@ -133,6 +151,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/activity/v4",
     options: activitiesEndpoints.getActivityV4Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/activity/v5",
+    options: activitiesEndpoints.getActivityV5Options,
   });
 
   // Admin
@@ -347,6 +371,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/collections/{collection}/attributes/all/v4",
+    options: attributesEndpoints.getAttributesAllV4Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/collections/{collection}/attributes/static/v1",
     options: attributesEndpoints.getAttributesStaticV1Options,
   });
@@ -462,6 +492,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/users/{user}/collections/v3",
+    options: collectionsEndpoints.getUserCollectionsV3Options,
+  });
+
+  server.route({
     method: "POST",
     path: "/collections/refresh/v1",
     options: collectionsEndpoints.postCollectionsRefreshV1Options,
@@ -513,6 +549,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/events/collections/floor-ask/v1",
     options: eventsEndpoints.getCollectionsFloorAskV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/events/collections/floor-ask/v2",
+    options: eventsEndpoints.getCollectionsFloorAskV2Options,
   });
 
   server.route({
@@ -933,6 +975,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "GET",
+    path: "/orders/users/{user}/top-bids/v4",
+    options: ordersEndpoints.getUserTopBidsV4Options,
+  });
+
+  server.route({
     method: "POST",
     path: "/order/v2",
     options: ordersEndpoints.postOrderV2Options,
@@ -974,6 +1022,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/owners/v1",
     options: ownersEndpoints.getOwnersV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/owners/v2",
+    options: ownersEndpoints.getOwnersV2Options,
   });
 
   server.route({
@@ -1038,6 +1092,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/search/collections/v1",
     options: searchEndpoints.getSearchCollectionsV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/search/collections/v2",
+    options: searchEndpoints.getSearchCollectionsV2Options,
   });
 
   // Stats
@@ -1266,6 +1326,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/transfers/v2",
     options: transfersEndpoints.getTransfersV2Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/transfers/v3",
+    options: transfersEndpoints.getTransfersV3Options,
   });
 
   server.route({
