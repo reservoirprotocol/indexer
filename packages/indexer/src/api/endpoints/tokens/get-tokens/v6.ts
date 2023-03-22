@@ -11,8 +11,8 @@ import {
   getJoiPriceObject,
   getJoiSaleObject,
   JoiAttributeValue,
+  JoiLastSale,
   JoiPrice,
-  JoiSale,
 } from "@/common/joi";
 import {
   bn,
@@ -208,7 +208,7 @@ export const getTokensV6Options: RouteOptions = {
               image: Joi.string().allow("", null),
               slug: Joi.string().allow("", null),
             }),
-            lastSale: JoiSale.optional(),
+            lastSale: JoiLastSale.optional(),
             owner: Joi.string().allow(null),
             attributes: Joi.array()
               .items(

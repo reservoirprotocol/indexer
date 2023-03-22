@@ -16,7 +16,7 @@ import {
 import { CollectionSets } from "@/models/collection-sets";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
-import { getJoiPriceObject, getJoiSaleObject, JoiPrice, JoiSale } from "@/common/joi";
+import { getJoiPriceObject, getJoiSaleObject, JoiPrice, JoiLastSale } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
 
@@ -132,7 +132,7 @@ export const getUserTokensV7Options: RouteOptions = {
               imageUrl: Joi.string().allow(null),
               floorAskPrice: Joi.number().unsafe().allow(null),
             }),
-            lastSale: JoiSale.optional(),
+            lastSale: JoiLastSale.optional(),
             topBid: Joi.object({
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
