@@ -475,13 +475,8 @@ export const getJoiSaleObject = async (sale: {
   );
   const sources = await Sources.getInstance();
   const orderSource =
-    sale.orderSourceId !== null && sale.orderSourceId !== undefined
-      ? sources.get(Number(sale.orderSourceId))
-      : undefined;
-  const fillSource =
-    sale.fillSourceId !== null && sale.fillSourceId !== undefined
-      ? sources.get(Number(sale.fillSourceId))
-      : undefined;
+    sale.orderSourceId != null ? sources.get(Number(sale.orderSourceId)) : undefined;
+  const fillSource = sale.fillSourceId != null ? sources.get(Number(sale.fillSourceId)) : undefined;
 
   return {
     id:
@@ -514,7 +509,7 @@ export const getJoiSaleObject = async (sale: {
           }
         : undefined,
     orderId: sale.orderId,
-    orderSource: orderSource?.domain ?? undefined,
+    orderSource: sale.orderSourceId != undefined ? orderSource?.domain ?? null : undefined,
     orderSide: sale.orderSide && (sale.orderSide === "sell" ? "ask" : "bid"),
     orderKind: sale.orderKind,
     from:
@@ -526,7 +521,10 @@ export const getJoiSaleObject = async (sale: {
       sale.taker &&
       (sale.orderSide === "sell" ? fromBuffer(sale.taker) : fromBuffer(sale.maker)),
     amount: sale.amount,
-    fillSource: fillSource?.domain ?? orderSource?.domain ?? undefined,
+    fillSource:
+      sale.fillSourceId != undefined
+        ? fillSource?.domain ?? orderSource?.domain ?? null
+        : undefined,
     block: sale.block,
     txHash: sale.txHash && fromBuffer(sale.txHash),
     logIndex: sale.logIndex,
