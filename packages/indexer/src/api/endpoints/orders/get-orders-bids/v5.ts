@@ -36,8 +36,14 @@ export const getOrdersBidsV5Options: RouteOptions = {
       ),
       tokens: Joi.alternatives()
         .try(
-          Joi.array().items(Joi.string().lowercase().pattern(regex.token)),
-          Joi.string().lowercase().pattern(regex.address)
+          Joi.array()
+            .max(100)
+            .items(Joi.string()
+            .lowercase()
+            .pattern(regex.token)),
+          Joi.string()
+            .lowercase()
+            .pattern(regex.token)
         )
         .description(
           "Filter to an array of tokens. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
