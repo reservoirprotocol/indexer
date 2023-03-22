@@ -49,7 +49,7 @@ export const getOrdersAsksV5Options: RouteOptions = {
       tokens: Joi.alternatives()
         .try(
           Joi.array().items(Joi.string().lowercase().pattern(regex.token)),
-          Joi.string().lowercase().pattern(regex.address)
+          Joi.string().lowercase().pattern(regex.token)
         )
         .description(
           "Filter to an array of tokens. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
@@ -281,10 +281,10 @@ export const getOrdersAsksV5Options: RouteOptions = {
 
       if (query.tokens) {
         if(!_.isArray(query.tokens)) {
-          (query as any).tokensPrefix = [query.tokens].map(token => `token:${token}`);
+          query.tokens = [query.tokens];
         }
 
-        (query as any).tokensFilter = query.tokensPrefix.map(toBuffer);
+        (query as any).tokensFilter = query.tokens.map((token: string) => `token:${token}`);
         conditions.push(`orders.token_set_id IN ($/tokensFilter:list/)`);
       }
 
