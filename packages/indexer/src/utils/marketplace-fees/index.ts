@@ -94,8 +94,8 @@ export const getCollectionOpenseaFees = async (
 export const refreshCollectionOpenseaFeesAsync = async (collection: string) => {
   const cacheKey = `refresh-collection-opensea-fees:${collection}`;
 
-  if ((await redis.set(cacheKey, now(), "EX", 3600, "NX")) === "OK") {
-    logger.info("refreshCollectionOpenseaFeesAsync", `refresh fees. collection=${collection}}`);
+  if ((await redis.set(cacheKey, now(), "EX", 86400, "NX")) === "OK") {
+    logger.info("refreshCollectionOpenseaFeesAsync", `refresh fees. collection=${collection}`);
 
     try {
       const tokenId = await Tokens.getSingleToken(collection);
