@@ -85,6 +85,10 @@ jobs:
         working-directory: k8s-configs
         run: |
           ./utils/version_update.sh \
+            ./dev/platform/indexer-goerli.yaml \
+            ${{ needs.build.outputs.version }} \
+            indexer-goerli
+          ./utils/version_update.sh \
             ./dev/platform/indexer-websocket-goerli.yaml \
             ${{ needs.build.outputs.version }} \
             indexer-websocket-goerli
