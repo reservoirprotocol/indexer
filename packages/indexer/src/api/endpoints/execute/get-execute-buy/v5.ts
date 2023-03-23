@@ -571,8 +571,8 @@ export const getExecuteBuyV5Options: RouteOptions = {
       ];
 
       for (const tx of txs) {
-        const subPath = path.filter((_, i) => tx.orderIndexes.includes(i));
-        const listings = listingDetails.filter((_, i) => tx.orderIndexes.includes(i));
+        const subPath = path.filter((p) => tx.orderIds.includes(p.orderId));
+        const listings = listingDetails.filter((d) => tx.orderIds.includes(d.orderId));
 
         // Check that the taker has enough funds to fill all requested tokens
         const totalPrice = subPath.map(({ rawQuote }) => bn(rawQuote)).reduce((a, b) => a.add(b));
@@ -641,7 +641,7 @@ export const getExecuteBuyV5Options: RouteOptions = {
       return {
         steps,
         // Remove any unsuccessfully handled listings from the path
-        path: path.filter((_, i) => success[i]),
+        path: path.filter((p) => success[p.orderId]),
       };
     } catch (error) {
       logger.error(`get-execute-buy-${version}-handler`, `Handler failure: ${error}`);

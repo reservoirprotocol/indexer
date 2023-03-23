@@ -122,6 +122,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
       skipBalanceCheck: Joi.boolean()
         .default(false)
         .description("If true, balance check will be skipped."),
+      excludeEOA: Joi.boolean()
+        .default(false)
+        .description(
+          "Exclude orders that can only be filled by EOAs, to support filling with smart contracts."
+        ),
       maxFeePerGas: Joi.string().pattern(regex.number).description("Optional custom gas settings."),
       maxPriorityFeePerGas: Joi.string()
         .pattern(regex.number)
@@ -142,6 +147,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             .items(
               Joi.object({
                 status: Joi.string().valid("complete", "incomplete").required(),
+                orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
               })
             )
@@ -478,7 +484,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 AND orders.fillability_status = 'fillable'
                 AND orders.approval_status = 'approved'
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                ${payload.normalizeRoyalties ? " AND orders.kind != 'blur'" : ""}
+                ${
+                  payload.normalizeRoyalties || payload.excludeEOA
+                    ? " AND orders.kind != 'blur'"
+                    : ""
+                }
               ORDER BY
                 ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
                 ${
@@ -611,13 +621,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       // Set up generic filling steps
-      const steps: {
+      let steps: {
         id: string;
         action: string;
         description: string;
         kind: string;
         items: {
           status: string;
+          orderIds?: string[];
           data?: object;
         }[];
       }[] = [
@@ -755,7 +766,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       const { txs, success } = result;
 
       // Filter out any non-fillable orders from the path
-      path = path.filter((_, i) => success[i]);
+      path = path.filter((p) => success[p.orderId]);
 
       if (!path.length) {
         throw Boom.badRequest("No available orders");
@@ -769,8 +780,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         ? bn(payload.maxPriorityFeePerGas).toHexString()
         : undefined;
 
-      for (const { txData, approvals, permits, orderIndexes } of txs) {
-        const subPath = path.filter((_, i) => orderIndexes.includes(i));
+      for (const { txData, approvals, permits, orderIds } of txs) {
+        const subPath = path.filter((p) => orderIds.includes(p.orderId));
 
         for (const approval of approvals) {
           const approvedAmount = await onChainData
@@ -876,6 +887,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         steps[3].items.push({
           status: "incomplete",
+          orderIds,
           data:
             // Do not return the final step unless all permits have a signature attached
             steps[1].items.length === 0
@@ -889,6 +901,21 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 }
               : undefined,
         });
+      }
+
+      // Warning! When filtering the steps, we should ensure that it
+      // won't affect the client, which might be polling the API and
+      // expect to get the steps returned in the same order / at the
+      // same index.
+      if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
+        // Buying in ETH will never require an approval/permit
+        steps = [steps[0], ...steps.slice(3)];
+      }
+      if (!blurAuth) {
+        // If we reached this point and the Blur auth is missing then we
+        // can be sure that no Blur orders were requested and it is safe
+        // to remove the auth step
+        steps = steps.slice(1);
       }
 
       return {

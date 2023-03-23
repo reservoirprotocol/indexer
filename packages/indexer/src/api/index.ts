@@ -20,6 +20,7 @@ import { allJobQueues, gracefulShutdownJobWorkers } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
+import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
 let server: Hapi.Server;
 
@@ -206,6 +207,15 @@ export const start = async (): Promise<void> => {
         const rateLimiterRes = await rateLimitRule.consume(rateLimitKey, 1);
 
         if (rateLimiterRes) {
+          if (key && tier) {
+            request.pre.metrics = {
+              apiKey: key,
+              route: request.route.path,
+              points: 1,
+              timestamp: _.now(),
+            };
+          }
+
           // Generate the rate limiting header and add them to the request object to be added to the response in the onPreResponse event
           request.headers["X-RateLimit-Limit"] = `${rateLimitRule.points}`;
           request.headers["X-RateLimit-Remaining"] = `${rateLimiterRes.remainingPoints}`;
@@ -227,7 +237,7 @@ export const start = async (): Promise<void> => {
                 error.consumedPoints
               } times on route ${request.route.path}${
                 request.info.referrer ? ` from referrer ${request.info.referrer} ` : ""
-              }`,
+              } x-api-key ${key}`,
               route: request.route.path,
               appName: apiKey?.appName || "",
               key: rateLimitKey,
@@ -283,8 +293,21 @@ export const start = async (): Promise<void> => {
       }
     }
 
+    const typedResponse = response as Hapi.ResponseObject;
+    let statusCode = typedResponse.statusCode;
+
+    // Indicate it's an error response
+    if ("output" in response) {
+      statusCode = _.toInteger(response["output"]["statusCode"]);
+    }
+
+    // Count the API usage, to prevent any latency on the request no need to wait and ignore errors
+    if (request.pre.metrics && statusCode >= 100 && statusCode < 500) {
+      request.pre.metrics.statusCode = statusCode;
+      countApiUsage.addToQueue(request.pre.metrics).catch();
+    }
+
     if (!(response instanceof Boom)) {
-      const typedResponse = response as Hapi.ResponseObject;
       typedResponse.header("X-RateLimit-Limit", request.headers["X-RateLimit-Limit"]);
       typedResponse.header("X-RateLimit-Remaining", request.headers["X-RateLimit-Remaining"]);
       typedResponse.header("X-RateLimit-Reset", request.headers["X-RateLimit-Reset"]);

@@ -107,6 +107,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
       includeDynamicPricing: Joi.boolean()
         .default(false)
         .description("If true, dynamic pricing data will be returned in the response."),
+      excludeEOA: Joi.boolean()
+        .default(false)
+        .description(
+          "Exclude orders that can only be filled by EOAs, to support filling with smart contracts."
+        ),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),
@@ -350,17 +355,17 @@ export const getOrdersAsksV4Options: RouteOptions = {
           }
 
           collectionSetFilter = `
-          JOIN LATERAL (
-            SELECT
-              contract,
-              token_id
-            FROM
-              token_sets_tokens
-            WHERE
-              token_sets_tokens.token_set_id = orders.token_set_id
-            LIMIT 1) tst ON TRUE
-          JOIN tokens ON tokens.contract = tst.contract
-            AND tokens.token_id = tst.token_id
+            JOIN LATERAL (
+              SELECT
+                contract,
+                token_id
+              FROM
+                token_sets_tokens
+              WHERE
+                token_sets_tokens.token_set_id = orders.token_set_id
+              LIMIT 1) tst ON TRUE
+            JOIN tokens ON tokens.contract = tst.contract
+              AND tokens.token_id = tst.token_id
           `;
 
           conditions.push(`tokens.collection_id IN ($/collectionsIds:csv/)`);
@@ -387,6 +392,10 @@ export const getOrdersAsksV4Options: RouteOptions = {
         conditions.push(
           `orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL`
         );
+      }
+
+      if (query.excludeEOA) {
+        conditions.push(`orders.kind != 'blur'`);
       }
 
       if (orderStatusFilter) {

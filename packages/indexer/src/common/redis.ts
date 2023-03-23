@@ -19,11 +19,21 @@ export const redisSubscriber = new Redis(config.redisUrl, {
   enableReadyCheck: false,
 });
 
+export const redisWebsocketPublisher = new Redis(config.redisWebsocketUrl, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
+
 export const rateLimitRedis = new Redis(config.rateLimitRedisUrl, {
   maxRetriesPerRequest: 1,
   enableReadyCheck: false,
   enableOfflineQueue: false,
   commandTimeout: 600,
+});
+
+export const metricsRedis = new Redis(config.metricsRedisUrl, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
 });
 
 // https://redis.io/topics/distlock

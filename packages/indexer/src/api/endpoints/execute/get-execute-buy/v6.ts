@@ -125,6 +125,11 @@ export const getExecuteBuyV6Options: RouteOptions = {
         .description(
           "If true, do not filter out inactive orders (only relevant for order id filtering)."
         ),
+      excludeEOA: Joi.boolean()
+        .default(false)
+        .description(
+          "Exclude orders that can only be filled by EOAs, to support filling with smart contracts."
+        ),
       x2y2ApiKey: Joi.string().description("Override the X2Y2 API key used for filling."),
     }),
   },
@@ -463,7 +468,11 @@ export const getExecuteBuyV6Options: RouteOptions = {
                       ? " AND orders.currency = $/currency/"
                       : ""
                   }
-                  ${payload.normalizeRoyalties ? " AND orders.kind != 'blur'" : ""}
+                  ${
+                    payload.normalizeRoyalties || payload.excludeEOA
+                      ? " AND orders.kind != 'blur'"
+                      : ""
+                  }
                 ORDER BY
                   ${payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"},
                   ${
@@ -688,7 +697,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
       }
 
       // Set up generic filling steps
-      const steps: {
+      let steps: {
         id: string;
         action: string;
         description: string;
@@ -832,8 +841,8 @@ export const getExecuteBuyV6Options: RouteOptions = {
       const txSender = relayer ?? taker;
 
       for (const tx of txs) {
-        const subPath = path.filter((_, i) => tx.orderIndexes.includes(i));
-        const listings = listingDetails.filter((_, i) => tx.orderIndexes.includes(i));
+        const subPath = path.filter((p) => tx.orderIds.includes(p.orderId));
+        const listings = listingDetails.filter((d) => tx.orderIds.includes(d.orderId));
 
         // Check that the taker has enough funds to fill all requested tokens
         const totalPrice = subPath
@@ -902,11 +911,26 @@ export const getExecuteBuyV6Options: RouteOptions = {
         });
       }
 
+      // Warning! When filtering the steps, we should ensure that it
+      // won't affect the client, which might be polling the API and
+      // expect to get the steps returned in the same order / at the
+      // same index.
+      if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
+        // Buying in ETH will never require an approval
+        steps = [steps[0], ...steps.slice(2)];
+      }
+      if (!blurAuth) {
+        // If we reached this point and the Blur auth is missing then we
+        // can be sure that no Blur orders were requested and it is safe
+        // to remove the auth step
+        steps = steps.slice(1);
+      }
+
       return {
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         errors,
         // Remove any unsuccessfully handled listings from the path
-        path: path.filter((_, i) => success[i]),
+        path: path.filter((p) => success[p.orderId]),
       };
     } catch (error) {
       if (!(error instanceof Boom.Boom)) {

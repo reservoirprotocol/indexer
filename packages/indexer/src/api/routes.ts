@@ -316,7 +316,13 @@ export const setupRoutes = (server: Server) => {
   server.route({
     method: "GET",
     path: "/api-keys/{key}/rate-limits",
-    options: apiKeysEndpoints.getApuKeyRateLimits,
+    options: apiKeysEndpoints.getApiKeyRateLimits,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/api-keys/metrics",
+    options: apiKeysEndpoints.getApiKeyMetrics,
   });
 
   // Attributes

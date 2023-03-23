@@ -621,7 +621,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       }
 
       // Set up generic filling steps
-      const steps: {
+      let steps: {
         id: string;
         action: string;
         description: string;
@@ -814,6 +814,16 @@ export const getExecuteSellV7Options: RouteOptions = {
               }
             : undefined,
       });
+
+      // Warning! When filtering the steps, we should ensure that it
+      // won't affect the client, which might be polling the API and
+      // expect to get the steps returned in the same order / at the
+      // same index.
+      if (!approvals.length && !permits.length) {
+        // If no approvals/permits are returned from the router then
+        // those are not actually needed and we can cut their steps
+        steps = steps.slice(2);
+      }
 
       return {
         steps,

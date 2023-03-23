@@ -1154,7 +1154,10 @@ export const getTokensV5Options: RouteOptions = {
                   feeBreakdown: feeBreakdown,
                 }
               : undefined,
-            royaltiesPaid: query.includeRoyaltiesPaid ? r.royalties_paid : undefined,
+            royaltiesPaid:
+              query.includeRoyaltiesPaid && r.royalties_paid !== null
+                ? r.royalties_paid
+                : undefined,
           },
         };
       });

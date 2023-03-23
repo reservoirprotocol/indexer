@@ -1,3 +1,84 @@
+# [5.287.0](https://github.com/reservoirprotocol/indexer/compare/v5.286.0...v5.287.0) (2023-03-23)
+
+
+### Features
+
+* update filed name ([5f55a32](https://github.com/reservoirprotocol/indexer/commit/5f55a322105f4b8c076359cc5dc377a1bdd6d178))
+
+# [5.286.0](https://github.com/reservoirprotocol/indexer/compare/v5.285.0...v5.286.0) (2023-03-23)
+
+
+### Bug Fixes
+
+* rename redis channel new-top-bid -> top-bids ([1adfde0](https://github.com/reservoirprotocol/indexer/commit/1adfde0b53e4cd98225fda7aee4c06bf60a1c463))
+
+
+### Features
+
+* add redis pub into websocket event ([25ac16b](https://github.com/reservoirprotocol/indexer/commit/25ac16b19a96cc68ddee8f46cb2b834f516c4f30))
+* remove floor changes from this branch ([23899cc](https://github.com/reservoirprotocol/indexer/commit/23899cc370226a05ee75184dff45850c89d2d389))
+
+# [5.285.0](https://github.com/reservoirprotocol/indexer/compare/v5.284.0...v5.285.0) (2023-03-23)
+
+
+### Features
+
+* decrease sample size from 10k -> 5k for performance ([0db6a9c](https://github.com/reservoirprotocol/indexer/commit/0db6a9c66d2bf05589c3e396e55d539e9ba0d71e))
+
+# [5.284.0](https://github.com/reservoirprotocol/indexer/compare/v5.283.0...v5.284.0) (2023-03-23)
+
+
+### Features
+
+* added api usage tracking ([4b99959](https://github.com/reservoirprotocol/indexer/commit/4b99959e27c1385fee2005135c3eaafdde223e90))
+* added metrics api ([73c49a7](https://github.com/reservoirprotocol/indexer/commit/73c49a78444b5f22f813bc144209ee90cc542029))
+* added metrics api ([01ca733](https://github.com/reservoirprotocol/indexer/commit/01ca7339287b2a13e998006ee48008f100714389))
+* count only valid http code calls ([2f68395](https://github.com/reservoirprotocol/indexer/commit/2f68395d9f29490c629a7a97ec01afd7b3f27e52))
+* get status code if error ([247fc55](https://github.com/reservoirprotocol/indexer/commit/247fc555f5050503f559e78e18f9dd945913a1df))
+* merge main ([8682561](https://github.com/reservoirprotocol/indexer/commit/8682561f5d86fd756ae8bf8088a5ada186442219))
+* support multiple chains in one metric redis ([51043c1](https://github.com/reservoirprotocol/indexer/commit/51043c19d7fc39593460c328700b8c3c0b960387))
+* support multiple chains in one metric redis ([75ed6f8](https://github.com/reservoirprotocol/indexer/commit/75ed6f8ea351d4647b87d9c229b069c366cb090d))
+* support passing multiple keys to metrics api ([5fdcec1](https://github.com/reservoirprotocol/indexer/commit/5fdcec1dc3ec0ea2db5ae19d05945fa8ab7f3f96))
+* update cron timing ([4c94d2d](https://github.com/reservoirprotocol/indexer/commit/4c94d2d8d71413ee5ec225d8606fa3482e1aa31c))
+* update models ([d2a4d0f](https://github.com/reservoirprotocol/indexer/commit/d2a4d0fe39ad6efd38e97a1c4ef90a33df9c3529))
+* update yarn ([b08b6af](https://github.com/reservoirprotocol/indexer/commit/b08b6af66d4a24fce766e714d434a925821b1210))
+* update yarn ([3f348e3](https://github.com/reservoirprotocol/indexer/commit/3f348e37d6cbc67725d04d1f0cf80e299f295099))
+
+# [5.283.0](https://github.com/reservoirprotocol/indexer/compare/v5.282.0...v5.283.0) (2023-03-23)
+
+
+### Features
+
+* add support for filtering out EOA-only listings ([d9c38e5](https://github.com/reservoirprotocol/indexer/commit/d9c38e5fae9b07a1fc8282c9bb3b64e3abe184d1))
+
+# [5.282.0](https://github.com/reservoirprotocol/indexer/compare/v5.281.1...v5.282.0) (2023-03-23)
+
+
+### Features
+
+* keep track of filled order ids by sale item ([a8257a3](https://github.com/reservoirprotocol/indexer/commit/a8257a3dfc75d371edb786a17223e4d728afa585))
+
+## [5.281.1](https://github.com/reservoirprotocol/indexer/compare/v5.281.0...v5.281.1) (2023-03-22)
+
+
+### Bug Fixes
+
+* leave includeRoyaltiesPaid undefined if token has no last order ([9dcbd2b](https://github.com/reservoirprotocol/indexer/commit/9dcbd2b76515658ac1b325dfc6807f3e10438e2b))
+
+# [5.281.0](https://github.com/reservoirprotocol/indexer/compare/v5.280.4...v5.281.0) (2023-03-22)
+
+
+### Features
+
+* always log x-api-key ([7114be4](https://github.com/reservoirprotocol/indexer/commit/7114be4ac7744c3c575a49fd08becd0ee0c2fae7))
+
+## [5.280.4](https://github.com/reservoirprotocol/indexer/compare/v5.280.3...v5.280.4) (2023-03-22)
+
+
+### Bug Fixes
+
+* filter out redundant steps ([821ad29](https://github.com/reservoirprotocol/indexer/commit/821ad29a20d87db7c0f695f5b05754cd120180ce))
+
 ## [5.280.3](https://github.com/reservoirprotocol/indexer/compare/v5.280.2...v5.280.3) (2023-03-22)
 
 

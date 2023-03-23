@@ -213,7 +213,7 @@ export class Collections {
           orders.source_id_int,
           orders.valid_between
         FROM tokens
-        JOIN orders
+        LEFT JOIN orders
         ON tokens.floor_sell_id = orders.id
         WHERE tokens.collection_id = $/collection/
         ORDER BY tokens.floor_sell_value

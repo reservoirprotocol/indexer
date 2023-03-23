@@ -6,7 +6,7 @@ import _ from "lodash";
 import { logger } from "@/common/logger";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 
-export const getApuKeyRateLimits: RouteOptions = {
+export const getApiKeyRateLimits: RouteOptions = {
   description: "Get rate limits for the given API key",
   notes: "Get the rate limits for the given API key",
   tags: ["api", "Management"],

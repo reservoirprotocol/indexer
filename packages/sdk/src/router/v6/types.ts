@@ -168,14 +168,9 @@ export type ListingFillDetails = {
 };
 export type ListingDetails = GenericOrder & ListingFillDetails;
 
-// For keeping track of each listing's position in the original array
-export type ListingDetailsExtracted = {
-  originalIndex: number;
-} & ListingDetails;
-
 // For supporting filling listings having different underlying currencies
-export type PerCurrencyListingDetailsExtracted = {
-  [currency: string]: ListingDetailsExtracted[];
+export type PerCurrencyListingDetails = {
+  [currency: string]: ListingDetails[];
 };
 
 export type FillListingsResult = {
@@ -183,9 +178,9 @@ export type FillListingsResult = {
     approvals: FTApproval[];
     permits: FTPermit[];
     txData: TxData;
-    orderIndexes: number[];
+    orderIds: string[];
   }[];
-  success: boolean[];
+  success: { [orderId: string]: boolean };
 };
 
 // Bids
@@ -227,6 +222,6 @@ export type SwapDetail = {
   tokenOutAmount: BigNumberish;
   recipient: string;
   refundTo: string;
-  details: ListingDetailsExtracted[];
+  details: ListingDetails[];
   executionIndex: number;
 };

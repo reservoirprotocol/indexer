@@ -174,7 +174,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
             WHERE "owner" = $/user/
               AND amount > 0
             ORDER BY last_token_appraisal_value DESC NULLS LAST
-            LIMIT 10000
+            LIMIT 5000
         )
         SELECT  collections.id,
                 collections.slug,
