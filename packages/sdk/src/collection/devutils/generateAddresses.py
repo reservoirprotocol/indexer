@@ -35,7 +35,7 @@ for contractName, addressBook in data.items():
 
 outputTokens.insert(0, """import { ChainIdToAddress, Network } from "../utils";""")
 
-output = "\n\n".join(outputTokens)
+output = "\n\n".join(outputTokens) + "\n"
 
 with open("../addresses.ts", "w", encoding="utf-8") as fd:
     fd.write(output)

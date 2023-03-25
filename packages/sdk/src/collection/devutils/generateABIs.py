@@ -1,14 +1,23 @@
+# pylint: disable=invalid-name
 """
 This script will copy relevant ABIs from a local copy of the collectionswap
 public repo. This assumes that the collectionswap repo resides in a directory
-named "collectionswap" at the same level as "indexer", the base directory of
-this repo.
+named "collectionswap" at the same level as "indexerDirectoryName", the base
+directory of this repo.
 """
 from pathlib import Path
 import json
 
+indexerDirectoryName = "reservoir-integration"
+
+# Add additional ABIs which are needed by the SDK but not deployed explicitly
+# here (e.g. interfaces)
+additionalABIs = ["ICollectionPool"]
+
 # Get the list of contracts deployed
 relevantContracts = set()
+for abiName in additionalABIs:
+    relevantContracts.add(abiName)
 with open("deploys.json", "r", encoding="utf-8") as fd:
     js = json.load(fd)
     contracts = js["Ethereum"]
@@ -18,7 +27,7 @@ with open("deploys.json", "r", encoding="utf-8") as fd:
 # Find the directory containing compilation artifacts from hardhat in
 # collectionswap repo
 path = Path().absolute()
-while path.name != "indexer":
+while path.name != indexerDirectoryName:
     path = path.parent
 collectionRepoPath = (
     path.parent.joinpath("collectionswap").joinpath("artifacts").joinpath("contracts")
@@ -41,3 +50,4 @@ for x in collectionRepoPath.glob("**/*.json"):
                 encoding="utf-8",
             ) as outFd:
                 json.dump(abi, outFd, indent=2)
+                outFd.write("\n")
