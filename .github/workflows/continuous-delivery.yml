@@ -1,0 +1,135 @@
+name: Continuous Delivery
+
+on:
+  push:
+    branches: [main, development]
+
+env:
+  NODE_VERSION: "18.x"
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # outputs:
+    #   version: ${{ steps.semantic.outputs.new_release_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: "yarn install"
+
+      # - name: Get Release Versions
+      #   uses: cycjimmy/semantic-release-action@v3
+      #   id: semantic
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.DEVOPSBOT_TOKEN }}
+
+      - name: Set up Docker Buildx
+        # if: steps.semantic.outputs.new_release_version != ''
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to GitHub Container Registry
+        # if: steps.semantic.outputs.new_release_version != ''
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        # if: steps.semantic.outputs.new_release_version != ''
+        uses: docker/build-push-action@v3
+        with:
+          push: true
+          tags: |
+            ghcr.io/reservoirprotocol/indexer:latest
+            ghcr.io/reservoirprotocol/indexer:${{ github.sha }}
+          # ghcr.io/reservoirprotocol/indexer:${{ steps.semantic.outputs.new_release_version }}
+          # build-args: |
+          #   VERSION=${{ steps.semantic.outputs.new_release_version }}
+
+      # - name: Publish github release
+      #   if: steps.semantic.outputs.new_release_version != ''
+      #   uses: cycjimmy/semantic-release-action@v3
+
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+    environment: dev
+    # if: github.ref == 'refs/heads/development' && needs.build.outputs.version != ''
+    if: github.ref == 'refs/heads/development'
+    steps:
+      - name: Checkout repository k8s-configs
+        uses: actions/checkout@v3
+        with:
+          repository: unevenlabs/k8s-configs
+          token: ${{ secrets.DEVOPSBOT_TOKEN }}
+          path: k8s-configs
+
+      - name: Deploy to Dev Environment
+        working-directory: k8s-configs
+        run: |
+          ./utils/version_update.sh \
+            ./dev/platform/indexer-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-goerli
+          ./utils/version_update.sh \
+            ./dev/platform/indexer-websocket-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-goerli
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+    environment: prod
+    # if: github.ref == 'refs/heads/main' && needs.build.outputs.version != ''
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository k8s-configs
+        uses: actions/checkout@v3
+        with:
+          repository: unevenlabs/k8s-configs
+          token: ${{ secrets.DEVOPSBOT_TOKEN }}
+          path: k8s-configs
+
+      - name: Deploy to Prod Environment
+        working-directory: k8s-configs
+        run: |
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api.yaml \
+            ${{ github.sha }} \
+            indexer-api
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-polygon.yaml \
+            ${{ github.sha }} \
+            indexer-api-polygon
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker.yaml \
+            ${{ github.sha }} \
+            indexer-worker
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-ethereum.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-ethereum
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-polygon.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-polygon
