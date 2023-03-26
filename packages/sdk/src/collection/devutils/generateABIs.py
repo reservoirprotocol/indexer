@@ -12,7 +12,7 @@ indexerDirectoryName = "reservoir-integration"
 
 # Add additional ABIs which are needed by the SDK but not deployed explicitly
 # here (e.g. interfaces)
-additionalABIs = ["ICollectionPool"]
+additionalABIs = ["ICollectionPool", "CollectionPool"]
 
 # Get the list of contracts deployed
 relevantContracts = set()
