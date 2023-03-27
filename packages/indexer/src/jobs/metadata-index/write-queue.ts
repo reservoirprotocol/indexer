@@ -127,6 +127,7 @@ if (config.doBackgroundWork) {
                 tokenId,
                 mintedTimestamp: getUnixTime(new Date(result.created_at)),
                 newCollection: true,
+                oldCollectionId: result.collection_id,
               },
             ],
             `${contract}:${tokenId}`

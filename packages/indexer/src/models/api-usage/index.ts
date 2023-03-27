@@ -4,6 +4,24 @@ import _ from "lodash";
 import { format } from "date-fns";
 
 export class ApiUsage {
+  public static async clearOldHourlyCounts(hoursCount = 336) {
+    const query = `
+      DELETE FROM hourly_api_usage
+      WHERE hour < NOW() - INTERVAL '${hoursCount} HOURS'
+    `;
+
+    await idb.none(query);
+  }
+
+  public static async clearOldDailyCounts(daysCount = 180) {
+    const query = `
+      DELETE FROM daily_api_usage
+      WHERE day < NOW() - INTERVAL '${daysCount} DAYS'
+    `;
+
+    await idb.none(query);
+  }
+
   public static async recordCounts(counts: ApiUsageCount[]) {
     await ApiUsage.recordHourlyCounts(counts);
     await ApiUsage.recordDailyCounts(counts);

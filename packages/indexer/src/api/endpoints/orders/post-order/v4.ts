@@ -4,17 +4,16 @@ import { splitSignature } from "@ethersproject/bytes";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-
 import Joi from "joi";
 
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
+import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import * as orders from "@/orderbook/orders";
 
 import * as postOrderExternal from "@/jobs/orderbook/post-order-external";
-import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
-import { idb } from "@/common/db";
 
 const version = "v4";
 
@@ -38,6 +37,7 @@ export const postOrderV4Options: RouteOptions = {
               kind: Joi.string()
                 .lowercase()
                 .valid(
+                  "blur",
                   "opensea",
                   "looks-rare",
                   "zeroex-v4",
@@ -54,7 +54,16 @@ export const postOrderV4Options: RouteOptions = {
             }),
             orderbook: Joi.string()
               .lowercase()
-              .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow")
+              .valid(
+                "blur",
+                "reservoir",
+                "opensea",
+                "looks-rare",
+                "x2y2",
+                "universe",
+                "infinity",
+                "flow"
+              )
               .default("reservoir"),
             orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
             attribute: Joi.object({
@@ -226,6 +235,37 @@ export const postOrderV4Options: RouteOptions = {
           }
 
           switch (order.kind) {
+            case "blur": {
+              if (orderbook !== "blur") {
+                return results.push({ message: "unsupported-orderbook", orderIndex: i });
+              }
+
+              const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                orderId: order.data.id,
+                kind: order.kind,
+                orderbook,
+                source,
+                schema,
+                rawData: order.data,
+              } as crossPostingOrdersModel.CrossPostingOrder);
+
+              await postOrderExternal.addToQueue({
+                crossPostingOrderId: crossPostingOrder.id,
+                orderId: order.data.id,
+                orderData: { ...order.data, signature },
+                orderSchema: schema,
+                orderbook,
+                orderbookApiKey,
+              });
+
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId: order.data.id,
+                crossPostingOrderId: crossPostingOrder.id,
+              });
+            }
+
             case "zeroex-v4": {
               if (orderbook !== "reservoir") {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
@@ -450,8 +490,7 @@ export const postOrderV4Options: RouteOptions = {
               }
 
               let crossPostingOrder;
-
-              const orderId = new Sdk.X2Y2.Order(config.chainId, order.data).params.itemHash;
+              const orderId = undefined;
 
               if (orderbook === "x2y2") {
                 // We do not save the order directly since X2Y2 orders are not fillable
@@ -459,7 +498,7 @@ export const postOrderV4Options: RouteOptions = {
                 // patient until the relayer acknowledges the order (via X2Y2's server)
                 // before us being able to ingest it.
                 crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-                  orderId,
+                  orderId: orderId || null,
                   kind: order.kind,
                   orderbook,
                   source,
@@ -469,7 +508,7 @@ export const postOrderV4Options: RouteOptions = {
 
                 await postOrderExternal.addToQueue({
                   crossPostingOrderId: crossPostingOrder.id,
-                  orderId,
+                  orderId: orderId || null,
                   orderData: order.data,
                   orderSchema: schema,
                   orderbook,

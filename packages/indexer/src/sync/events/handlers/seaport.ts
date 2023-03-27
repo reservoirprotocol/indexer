@@ -128,6 +128,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           }
 
           // Handle: filling via `matchOrders`
+
+          // Order 0: bid
+          // Order 1: ask
           if (
             taker === AddressZero &&
             i + 1 < events.length &&
@@ -136,6 +139,29 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             events[i + 1].subKind === subKind
           ) {
             const parsedLog2 = eventData.abi.parseLog(events[i + 1].log);
+            const offer2 = parsedLog2.args["offer"];
+            if (
+              offer2.length &&
+              offer2[0].itemType === consideration[0].itemType &&
+              offer2[0].token === consideration[0].token &&
+              offer2[0].identifier.toString() === consideration[0].identifier.toString() &&
+              offer2[0].amount.toString() === consideration[0].amount.toString()
+            ) {
+              taker = parsedLog2.args["offerer"].toLowerCase();
+              orderIdsToSkip.add(parsedLog2.args["orderHash"]);
+            }
+          }
+
+          // Order 0: ask
+          // Order 1: bid
+          if (
+            taker === AddressZero &&
+            i - 1 >= 0 &&
+            events[i - 1].baseEventParams.txHash === baseEventParams.txHash &&
+            events[i - 1].baseEventParams.logIndex === baseEventParams.logIndex - 1 &&
+            events[i - 1].subKind === subKind
+          ) {
+            const parsedLog2 = eventData.abi.parseLog(events[i - 1].log);
             const offer2 = parsedLog2.args["offer"];
             if (
               offer2.length &&
@@ -360,4 +386,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
     i++;
   }
+
+  // Filter out any sales to get skipped
+  onChainData.fillEventsPartial = onChainData.fillEventsPartial.filter(
+    ({ orderId }) => !orderIdsToSkip.has(orderId!)
+  );
 };

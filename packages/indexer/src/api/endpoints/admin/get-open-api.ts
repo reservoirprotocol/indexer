@@ -74,6 +74,9 @@ export const getOpenApiOptions: RouteOptions = {
           const aMethod = parseMethod(a[1]);
           const bMethod = parseMethod(b[1]);
 
+          aMethod["tags"] = aMethod["tags"] ? aMethod["tags"] : [];
+          bMethod["tags"] = bMethod["tags"] ? bMethod["tags"] : [];
+
           if (aMethod["tags"][0] < bMethod["tags"][0]) {
             return -1;
           }

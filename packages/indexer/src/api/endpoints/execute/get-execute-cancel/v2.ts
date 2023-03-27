@@ -25,9 +25,6 @@ export const getExecuteCancelV2Options: RouteOptions = {
       id: Joi.string()
         .required()
         .description("Order Id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"),
-      softCancel: Joi.boolean()
-        .default(false)
-        .description("If true, the order will be soft-cancelled."),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional. Set custom gas price"),
@@ -90,7 +87,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
       const cancellationZone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
       const isOracleCancellable =
         orderResult.kind === "seaport-v1.4" && orderResult.raw_data.zone === cancellationZone;
-      if (isOracleCancellable || query.softCancel) {
+      if (isOracleCancellable) {
         return {
           steps: [
             {
@@ -102,30 +99,24 @@ export const getExecuteCancelV2Options: RouteOptions = {
                 {
                   status: "incomplete",
                   data: {
-                    sign: isOracleCancellable
-                      ? {
-                          signatureKind: "eip712",
-                          domain: {
-                            name: "SignedZone",
-                            version: "1.0.0",
-                            chainId: config.chainId,
-                            verifyingContract: cancellationZone,
-                          },
-                          types: { OrderHashes: [{ name: "orderHashes", type: "bytes32[]" }] },
-                          value: {
-                            orderHashes: [orderResult.id],
-                          },
-                        }
-                      : {
-                          signatureKind: "eip191",
-                          message: orderResult.id,
-                        },
+                    sign: {
+                      signatureKind: "eip712",
+                      domain: {
+                        name: "SignedZone",
+                        version: "1.0.0",
+                        chainId: config.chainId,
+                        verifyingContract: cancellationZone,
+                      },
+                      types: { OrderHashes: [{ name: "orderHashes", type: "bytes32[]" }] },
+                      value: {
+                        orderHashes: [orderResult.id],
+                      },
+                    },
                     post: {
                       endpoint: "/execute/cancel-signature/v1",
                       method: "POST",
                       body: {
                         orderId: orderResult.id,
-                        softCancel: !isOracleCancellable,
                       },
                     },
                   },

@@ -157,7 +157,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
           return { message: "Nothing to simulate" };
         }
 
-        const saleData = parsedPayload.steps[2].items[0]?.data;
+        const saleData = parsedPayload.steps.find((s: { id: string }) => s.id === "sale").items[0]
+          ?.data;
         if (!saleData) {
           return { message: "Nothing to simulate" };
         }
@@ -256,7 +257,8 @@ export const postSimulateOrderV1Options: RouteOptions = {
           return { message: "Nothing to simulate" };
         }
 
-        const saleData = parsedPayload.steps[2].items[0]?.data;
+        const saleData = parsedPayload.steps.find((s: { id: string }) => s.id === "sale").items[0]
+          ?.data;
         if (!saleData) {
           return { message: "Nothing to simulate" };
         }

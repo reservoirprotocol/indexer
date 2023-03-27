@@ -2,6 +2,7 @@ import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { formatEther, formatUnits } from "@ethersproject/units";
 import crypto from "crypto";
 
+import { baseProvider } from "@/common/provider";
 import { config } from "@/config/index";
 
 // --- BigNumbers ---
@@ -50,6 +51,16 @@ export const toBuffer = (hexValue: string) => Buffer.from(hexValue.slice(2), "he
 export const now = () => Math.floor(Date.now() / 1000);
 
 export const toTime = (dateString: string) => Math.floor(new Date(dateString).getTime() / 1000);
+
+// The safe oracle timestamp should cover any differences between
+// the sync status of various clients (eg. there is a high chance
+// that our provider is in front of end-users' providers so we do
+// lag behind for a few blocks to handle this edge-case).
+export const safeOracleTimestamp = async () => {
+  const latestBlockNumber = await baseProvider.getBlockNumber();
+  const block = await baseProvider.getBlock(latestBlockNumber - 2);
+  return block.timestamp;
+};
 
 // --- Misc ---
 

@@ -12,9 +12,8 @@ import Joi from "joi";
 
 import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { Signers, addressToSigner } from "@/common/signers";
-import { bn, formatPrice, regex, toBuffer } from "@/common/utils";
+import { bn, formatPrice, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v4";
@@ -283,9 +282,6 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
         throw Boom.badRequest("Unsupported currency");
       }
 
-      // Use the timestamp of the latest available block as the message timestamp
-      const timestamp = await baseProvider.getBlock("latest").then((b) => b.timestamp);
-
       const message: {
         id: string;
         payload: string;
@@ -294,7 +290,7 @@ export const getCollectionFloorAskOracleV4Options: RouteOptions = {
       } = {
         id,
         payload: defaultAbiCoder.encode(["address", "uint256"], [query.currency, price]),
-        timestamp,
+        timestamp: await safeOracleTimestamp(),
       };
 
       if (config.oraclePrivateKey) {

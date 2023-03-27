@@ -147,7 +147,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
       await resyncAttributeCache.addToQueue(contract, tokenId, 0, overrideCoolDown);
 
       // Refresh the token floor sell and top bid
-      await tokenRefreshCacheQueue.addToQueue(contract, tokenId);
+      await tokenRefreshCacheQueue.addToQueue(contract, tokenId, true);
 
       logger.info(
         `post-tokens-refresh-${version}-handler`,

@@ -44,6 +44,7 @@ export type PartialFillEvent = {
   taker: string;
   baseEventParams: {
     txHash: string;
+    logIndex: number;
   };
 };
 
@@ -58,7 +59,8 @@ export const getFillEventsFromTx = async (txHash: string): Promise<PartialFillEv
         fill_events_2.price,
         fill_events_2.amount,
         fill_events_2.maker,
-        fill_events_2.taker
+        fill_events_2.taker,
+        fill_events_2.log_index
       FROM fill_events_2
       WHERE fill_events_2.tx_hash = $/txHash/
     `,
@@ -80,6 +82,7 @@ export const getFillEventsFromTx = async (txHash: string): Promise<PartialFillEv
         taker: fromBuffer(r.taker),
         baseEventParams: {
           txHash,
+          logIndex: r.log_index,
         },
       }))
       // Exclude mints

@@ -159,7 +159,10 @@ export class Router {
       // Wallet used for relaying the fill transaction
       relayer?: string;
       // Needed for filling Blur orders
-      blurAuth?: string;
+      blurAuth?: {
+        accessToken: string;
+        cfBm?: string;
+      };
       // Callback for handling recoverable errors
       onRecoverableError?: (
         kind: string,
@@ -460,6 +463,12 @@ export class Router {
       }
     }
 
+    if (details.some(({ kind }) => kind === "blur")) {
+      if (options?.relayer) {
+        throw new Error("Relayer not supported for Blur orders");
+      }
+    }
+
     const txs: {
       approvals: FTApproval[];
       permits: FTPermit[];
@@ -493,15 +502,7 @@ export class Router {
 
     // Generate calldata for the above Blur-compatible listings
     if (blurCompatibleListings.length) {
-      let url = `${this.options?.orderFetcherBaseUrl}/api/blur-listing`;
-      for (const [i, d] of blurCompatibleListings.entries()) {
-        url += `${i === 0 ? "?" : "&"}contracts=${d.contract}`;
-        url += `&tokenIds=${d.tokenId}`;
-        url += `&prices=${d.price}`;
-        url += `&flaggedStatuses=${d.isFlagged ? "true" : "false"}`;
-      }
-      url += `&taker=${taker}`;
-      url += `&authToken=${options?.blurAuth}`;
+      const url = `${this.options?.orderFetcherBaseUrl}/api/blur-listing`;
 
       try {
         // We'll have one transaction per contract
@@ -515,11 +516,25 @@ export class Router {
             errors: { tokenId: string; reason: string }[];
           };
         } = await axios
-          .get(url, {
-            headers: {
-              "X-Api-Key": this.options?.orderFetcherApiKey,
+          .post(
+            url,
+            {
+              taker,
+              tokens: blurCompatibleListings.map((d) => ({
+                contract: d.contract,
+                tokenId: d.tokenId,
+                price: d.price,
+                isFlagged: d.isFlagged,
+              })),
+              authToken: options?.blurAuth?.accessToken,
+              cfBm: options?.blurAuth?.cfBm,
             },
-          })
+            {
+              headers: {
+                "X-Api-Key": this.options?.orderFetcherApiKey,
+              },
+            }
+          )
           .then((response) => response.data.calldata);
 
         for (const [contract, data] of Object.entries(result)) {

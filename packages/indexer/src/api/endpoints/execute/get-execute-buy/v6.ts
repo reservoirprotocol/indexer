@@ -731,13 +731,11 @@ export const getExecuteBuyV6Options: RouteOptions = {
       ];
 
       // Handle Blur authentication
-      let blurAuth: string | undefined;
+      let blurAuth: b.Auth | undefined;
       if (path.some((p) => p.source === "blur.io")) {
         const blurAuthId = b.getAuthId(payload.taker);
 
-        blurAuth = await b
-          .getAuth(blurAuthId)
-          .then((auth) => (auth ? auth.accessToken : undefined));
+        blurAuth = await b.getAuth(blurAuthId);
         if (!blurAuth) {
           const blurAuthChallengeId = b.getAuthChallengeId(payload.taker);
 

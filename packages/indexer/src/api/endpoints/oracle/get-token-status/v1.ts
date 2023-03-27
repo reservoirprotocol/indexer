@@ -7,9 +7,8 @@ import Joi from "joi";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { Signers, addressToSigner } from "@/common/signers";
-import { regex, toBuffer } from "@/common/utils";
+import { regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v1";
@@ -141,7 +140,7 @@ export const getTokenStatusOracleV1Options: RouteOptions = {
             ["bool", "uint256"],
             [result.is_flagged, result.last_transfer_time]
           ),
-          timestamp: await baseProvider.getBlock("latest").then((b) => b.timestamp),
+          timestamp: await safeOracleTimestamp(),
         };
 
         message.signature = await addressToSigner[Signers.V1]().signMessage(

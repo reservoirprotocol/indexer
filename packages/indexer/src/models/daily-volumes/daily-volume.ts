@@ -237,8 +237,17 @@ export class DailyVolume {
 
     const dateTimestamp = date.getTime();
     const day1Timestamp = dateTimestamp / 1000 - 24 * 3600;
-    const day7Timestamp = dateTimestamp / 1000 - 7 * 24 * 3600;
-    const day30Timestamp = dateTimestamp / 1000 - 30 * 24 * 3600;
+    // the beginning of the day 7 days ago to the end of that day
+    const day7Timestamps = [
+      dateTimestamp / 1000 - 7 * 24 * 3600,
+      dateTimestamp / 1000 - 6 * 24 * 3600,
+    ];
+
+    // the beginning of the day 30 days ago to the end of that day
+    const day30Timestamps = [
+      dateTimestamp / 1000 - 30 * 24 * 3600,
+      dateTimestamp / 1000 - 29 * 24 * 3600,
+    ];
 
     const valuesPostfix = useCleanValues ? "_clean" : "";
 
@@ -287,7 +296,7 @@ export class DailyVolume {
                SUM(volume${valuesPostfix}) AS $2:name,
                MIN(floor_sell_value${valuesPostfix}) AS $3:name
         FROM daily_volumes
-        WHERE timestamp >= $4
+        WHERE timestamp < $4 AND timestamp >= $5
         AND collection_id != '-1'
         ${collectionId ? `AND collection_id = $5` : ""}
         GROUP BY collection_id
@@ -298,13 +307,14 @@ export class DailyVolume {
         "day7_rank",
         "day7_volume",
         "day7_floor_sell_value",
-        day7Timestamp,
+        day7Timestamps[1],
+        day7Timestamps[0],
         collectionId,
       ]);
     } catch (error: any) {
       logger.error(
         "daily-volumes",
-        `Error while calculating 7 day daily volumes. dateTimestamp=${dateTimestamp}, day1Timestamp=${day7Timestamp}, error=${error}`
+        `Error while calculating 7 day daily volumes. dateTimestamp=${dateTimestamp}, day7Timestamps=${day7Timestamps}, error=${error}`
       );
 
       return false;
@@ -315,13 +325,14 @@ export class DailyVolume {
         "day30_rank",
         "day30_volume",
         "day30_floor_sell_value",
-        day30Timestamp,
+        day30Timestamps[1],
+        day30Timestamps[0],
         collectionId,
       ]);
     } catch (error: any) {
       logger.error(
         "daily-volumes",
-        `Error while calculating 30 day daily volumes. dateTimestamp=${dateTimestamp}, day1Timestamp=${day30Timestamp}, error=${error}`
+        `Error while calculating 30 day daily volumes. dateTimestamp=${dateTimestamp}, day30Timestamps=${day30Timestamps}, error=${error}`
       );
 
       return false;
@@ -332,6 +343,8 @@ export class DailyVolume {
         "all_time_rank",
         "all_time_volume",
         "all_time_floor_sell_value",
+        // 9999999999999 is the max timestamp we can store in postgres, so we use it to get all the data
+        9999999999999,
         0,
         collectionId,
       ]);

@@ -4,14 +4,20 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { TxData } from "@reservoir0x/sdk/dist/utils";
+import axios from "axios";
 import Joi from "joi";
 import _ from "lodash";
 
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { regex } from "@/common/utils";
+import { now, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
+import * as b from "@/utils/auth/blur";
+
+// Blur
+import * as blurSellToken from "@/orderbook/orders/blur/build/sell/token";
+import * as blurCheck from "@/orderbook/orders/blur/check";
 
 // LooksRare
 import * as looksRareSellToken from "@/orderbook/orders/looks-rare/build/sell/token";
@@ -91,6 +97,7 @@ export const getExecuteListV5Options: RouteOptions = {
             ),
           orderKind: Joi.string()
             .valid(
+              "blur",
               "looks-rare",
               "zeroex-v4",
               "seaport",
@@ -113,7 +120,16 @@ export const getExecuteListV5Options: RouteOptions = {
             }),
           }).description("Additional options."),
           orderbook: Joi.string()
-            .valid("opensea", "looks-rare", "reservoir", "x2y2", "universe", "infinity", "flow")
+            .valid(
+              "blur",
+              "opensea",
+              "looks-rare",
+              "reservoir",
+              "x2y2",
+              "universe",
+              "infinity",
+              "flow"
+            )
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
@@ -205,7 +221,7 @@ export const getExecuteListV5Options: RouteOptions = {
       }[];
 
       // Set up generic listing steps
-      const steps: {
+      let steps: {
         id: string;
         action: string;
         description: string;
@@ -216,6 +232,13 @@ export const getExecuteListV5Options: RouteOptions = {
           orderIndexes?: number[];
         }[];
       }[] = [
+        {
+          id: "auth",
+          action: "Sign auth challenge",
+          description: "Before being able to list, it might be needed to sign an auth challenge",
+          kind: "signature",
+          items: [],
+        },
         {
           id: "nft-approval",
           action: "Approve NFT contract",
@@ -246,6 +269,69 @@ export const getExecuteListV5Options: RouteOptions = {
           orderIndex: number;
         }[],
       };
+
+      // Handle Blur authentication
+      let blurAuth: string | undefined;
+      if (params.some((p) => p.orderKind === "blur")) {
+        const blurAuthId = b.getAuthId(maker);
+
+        blurAuth = await b
+          .getAuth(blurAuthId)
+          .then((auth) => (auth ? auth.accessToken : undefined));
+        if (!blurAuth) {
+          const blurAuthChallengeId = b.getAuthChallengeId(maker);
+
+          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+          if (!blurAuthChallenge) {
+            blurAuthChallenge = (await axios
+              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`, {
+                headers: {
+                  "X-Api-Key": config.orderFetcherApiKey,
+                },
+              })
+              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+
+            await b.saveAuthChallenge(
+              blurAuthChallengeId,
+              blurAuthChallenge,
+              // Give a 1 minute buffer for the auth challenge to expire
+              Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+            );
+          }
+
+          steps[0].items.push({
+            status: "incomplete",
+            data: {
+              sign: {
+                signatureKind: "eip191",
+                message: blurAuthChallenge.message,
+              },
+              post: {
+                endpoint: "/execute/auth-signature/v1",
+                method: "POST",
+                body: {
+                  kind: "blur",
+                  id: blurAuthChallengeId,
+                },
+              },
+            },
+          });
+
+          // Force the client to poll
+          steps[1].items.push({
+            status: "incomplete",
+          });
+
+          // Return an early since any next steps are dependent on the Blur auth
+          return {
+            steps,
+          };
+        } else {
+          steps[0].items.push({
+            status: "complete",
+          });
+        }
+      }
 
       const errors: { message: string; orderIndex: number }[] = [];
       await Promise.all(
@@ -279,6 +365,85 @@ export const getExecuteListV5Options: RouteOptions = {
 
           try {
             switch (params.orderKind) {
+              case "blur": {
+                if (!["blur"].includes(params.orderbook)) {
+                  return errors.push({ message: "Unsupported orderbook", orderIndex: i });
+                }
+
+                const { order, marketplaceData } = await blurSellToken.build({
+                  ...params,
+                  maker,
+                  contract,
+                  tokenId,
+                  authToken: blurAuth!,
+                });
+
+                // Will be set if an approval is needed before listing
+                let approvalTx: TxData | undefined;
+
+                // Check the order's fillability
+                try {
+                  await blurCheck.offChainCheck(order, undefined, { onChainApprovalRecheck: true });
+                } catch (error: any) {
+                  switch (error.message) {
+                    case "no-balance-no-approval":
+                    case "no-balance": {
+                      return errors.push({ message: "Maker does not own token", orderIndex: i });
+                    }
+
+                    case "no-approval": {
+                      // Generate an approval transaction
+                      approvalTx = new Sdk.Common.Helpers.Erc721(
+                        baseProvider,
+                        order.params.collection
+                      ).approveTransaction(
+                        maker,
+                        Sdk.Blur.Addresses.ExecutionDelegate[config.chainId]
+                      );
+
+                      break;
+                    }
+                  }
+                }
+
+                steps[1].items.push({
+                  status: approvalTx ? "incomplete" : "complete",
+                  data: approvalTx,
+                  orderIndexes: [i],
+                });
+                steps[2].items.push({
+                  status: "incomplete",
+                  data: {
+                    sign: order.getSignatureData(),
+                    post: {
+                      endpoint: "/order/v4",
+                      method: "POST",
+                      body: {
+                        items: [
+                          {
+                            order: {
+                              kind: "blur",
+                              data: {
+                                id: order.hash(),
+                                maker,
+                                marketplaceData,
+                                authToken: blurAuth!,
+                              },
+                            },
+                            orderbook: params.orderbook,
+                            orderbookApiKey: params.orderbookApiKey,
+                          },
+                        ],
+                        source,
+                      },
+                    },
+                  },
+                  orderIndexes: [i],
+                });
+
+                break;
+              }
+
               case "zeroex-v4": {
                 if (!["reservoir"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
@@ -319,12 +484,12 @@ export const getExecuteListV5Options: RouteOptions = {
                   }
                 }
 
-                steps[0].items.push({
+                steps[1].items.push({
                   status: approvalTx ? "incomplete" : "complete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[1].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -388,12 +553,12 @@ export const getExecuteListV5Options: RouteOptions = {
                   }
                 }
 
-                steps[0].items.push({
+                steps[1].items.push({
                   status: approvalTx ? "incomplete" : "complete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[1].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -456,12 +621,12 @@ export const getExecuteListV5Options: RouteOptions = {
                   }
                 }
 
-                steps[0].items.push({
+                steps[1].items.push({
                   status: approvalTx ? "incomplete" : "complete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[1].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -531,12 +696,12 @@ export const getExecuteListV5Options: RouteOptions = {
                   }
                 }
 
-                steps[0].items.push({
+                steps[1].items.push({
                   status: approvalTx ? "incomplete" : "complete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[1].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -626,7 +791,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   }
                 }
 
-                steps[0].items.push({
+                steps[1].items.push({
                   status: approvalTx ? "incomplete" : "complete",
                   data: approvalTx,
                   orderIndexes: [i],
@@ -653,7 +818,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
                 if (params.fees?.length) {
-                  return errors.push({ message: "custom-fees-not-supported", orderIndex: i });
+                  return errors.push({ message: "Custom fees not supported", orderIndex: i });
                 }
 
                 const order = await looksRareSellToken.build({
@@ -699,12 +864,12 @@ export const getExecuteListV5Options: RouteOptions = {
                   }
                 }
 
-                steps[0].items.push({
+                steps[1].items.push({
                   status: approvalTx ? "incomplete" : "complete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[1].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -735,7 +900,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
                 if (params.fees?.length) {
-                  return errors.push({ message: "custom-fees-not-supported", orderIndex: i });
+                  return errors.push({ message: "Custom fees not supported", orderIndex: i });
                 }
 
                 const order = await x2y2SellToken.build({
@@ -782,12 +947,12 @@ export const getExecuteListV5Options: RouteOptions = {
                   }
                 }
 
-                steps[0].items.push({
+                steps[1].items.push({
                   status: approvalTx ? "incomplete" : "complete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[1].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: new Sdk.X2Y2.Exchange(
@@ -861,12 +1026,12 @@ export const getExecuteListV5Options: RouteOptions = {
                   }
                 }
 
-                steps[0].items.push({
+                steps[1].items.push({
                   status: approvalTx ? "incomplete" : "complete",
                   data: approvalTx,
                   orderIndexes: [i],
                 });
-                steps[1].items.push({
+                steps[2].items.push({
                   status: "incomplete",
                   data: {
                     sign: order.getSignatureData(),
@@ -893,7 +1058,10 @@ export const getExecuteListV5Options: RouteOptions = {
               }
             }
           } catch (error: any) {
-            return errors.push({ message: error.message ?? "Internal error", orderIndex: i });
+            return errors.push({
+              message: error.response?.data ? JSON.stringify(error.response.data) : error.message,
+              orderIndex: i,
+            });
           }
         })
       );
@@ -905,7 +1073,7 @@ export const getExecuteListV5Options: RouteOptions = {
         const orders = bulkOrders["seaport-v1.4"];
         if (orders.length === 1) {
           const order = new Sdk.SeaportV14.Order(config.chainId, orders[0].order.data);
-          steps[1].items.push({
+          steps[2].items.push({
             status: "incomplete",
             data: {
               sign: order.getSignatureData(),
@@ -932,7 +1100,7 @@ export const getExecuteListV5Options: RouteOptions = {
             orders.map((o) => new Sdk.SeaportV14.Order(config.chainId, o.order.data))
           );
 
-          steps[1].items.push({
+          steps[2].items.push({
             status: "incomplete",
             data: {
               sign: signatureData,
@@ -961,7 +1129,7 @@ export const getExecuteListV5Options: RouteOptions = {
         }
       }
 
-      if (!steps[1].items.length) {
+      if (!steps[2].items.length) {
         const error = Boom.badRequest("No tokens can be listed");
         error.output.payload.errors = errors;
         throw error;
@@ -987,6 +1155,17 @@ export const getExecuteListV5Options: RouteOptions = {
             })(),
           }));
         }
+      }
+
+      // Warning! When filtering the steps, we should ensure that it
+      // won't affect the client, which might be polling the API and
+      // expect to get the steps returned in the same order / at the
+      // same index.
+      if (!blurAuth) {
+        // If we reached this point and the Blur auth is missing then we
+        // can be sure that no Blur orders were requested and it is safe
+        // to remove the auth step
+        steps = steps.slice(1);
       }
 
       return { steps, errors };

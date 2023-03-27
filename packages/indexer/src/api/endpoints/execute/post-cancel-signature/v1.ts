@@ -1,5 +1,3 @@
-import { arrayify } from "@ethersproject/bytes";
-import { verifyMessage } from "@ethersproject/wallet";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import axios from "axios";
@@ -7,9 +5,7 @@ import Joi from "joi";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
 const version = "v1";
 
@@ -27,7 +23,6 @@ export const postCancelSignatureV1Options: RouteOptions = {
     }),
     payload: Joi.object({
       orderId: Joi.string().required().description("Id of the order to cancel"),
-      softCancel: Joi.boolean().default(false),
     }),
   },
   response: {
@@ -62,45 +57,15 @@ export const postCancelSignatureV1Options: RouteOptions = {
         throw Boom.badRequest("Unknown order");
       }
 
-      if (payload.softCancel) {
-        // Check signature
-        const signer = verifyMessage(arrayify(orderId), signature);
-        if (signer.toLowerCase() !== fromBuffer(orderResult.maker)) {
-          throw Boom.unauthorized("Invalid signature");
+      await axios.post(
+        `https://seaport-oracle-${
+          config.chainId === 1 ? "mainnet" : "goerli"
+        }.up.railway.app/api/cancellations`,
+        {
+          signature,
+          orders: [orderResult.raw_data],
         }
-
-        // Mark the order as cancelled
-        await idb.none(
-          `
-            UPDATE orders SET
-              fillability_status = 'cancelled',
-              updated_at = now()
-            WHERE orders.id = $/id/
-          `,
-          { id: query.id }
-        );
-
-        // Update any caches
-        await orderUpdatesById.addToQueue([
-          {
-            context: `cancel-${query.id}`,
-            id: query.id,
-            trigger: {
-              kind: "cancel",
-            },
-          } as orderUpdatesById.OrderInfo,
-        ]);
-      } else {
-        await axios.post(
-          `https://seaport-oracle-${
-            config.chainId === 1 ? "mainnet" : "goerli"
-          }.up.railway.app/api/cancellations`,
-          {
-            signature,
-            orders: [orderResult.raw_data],
-          }
-        );
-      }
+      );
 
       return { message: "Success" };
     } catch (error) {

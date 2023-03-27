@@ -677,7 +677,12 @@ export const save = async (
             id: order.params.salt,
           }
         );
-        if (replacedOrderResult) {
+        if (
+          replacedOrderResult &&
+          // Replacement is only possible if the replaced order is an off-chain cancellable one
+          replacedOrderResult.raw_data.zone ===
+            Sdk.SeaportV14.Addresses.CancellationZone[config.chainId]
+        ) {
           await axios.post(
             `https://seaport-oracle-${
               config.chainId === 1 ? "mainnet" : "goerli"

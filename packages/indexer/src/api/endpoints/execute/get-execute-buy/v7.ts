@@ -663,13 +663,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
       ];
 
       // Handle Blur authentication
-      let blurAuth: string | undefined;
+      let blurAuth: b.Auth | undefined;
       if (path.some((p) => p.source === "blur.io")) {
         const blurAuthId = b.getAuthId(payload.taker);
 
-        blurAuth = await b
-          .getAuth(blurAuthId)
-          .then((auth) => (auth ? auth.accessToken : undefined));
+        blurAuth = await b.getAuth(blurAuthId);
         if (!blurAuth) {
           const blurAuthChallengeId = b.getAuthChallengeId(payload.taker);
 
@@ -890,7 +888,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           orderIds,
           data:
             // Do not return the final step unless all permits have a signature attached
-            steps[1].items.length === 0
+            steps[2].items.length === 0
               ? {
                   ...permitHandler.attachToRouterExecution(
                     txData,

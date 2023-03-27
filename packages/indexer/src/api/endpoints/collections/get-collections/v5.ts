@@ -445,6 +445,8 @@ export const getCollectionsV5Options: RouteOptions = {
 
       const conditions: string[] = [];
 
+      conditions.push("collections.token_count > 0");
+
       if (query.id) {
         conditions.push("collections.id = $/id/");
       }

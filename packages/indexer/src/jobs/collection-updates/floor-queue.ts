@@ -175,8 +175,7 @@ if (config.doBackgroundWork) {
           if (floorToken) {
             await tokenUpdatesRefreshCache.addToQueue(
               fromBuffer(floorToken.contract),
-              floorToken.token_id,
-              true
+              floorToken.token_id
             );
           }
         }

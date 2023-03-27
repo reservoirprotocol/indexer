@@ -357,6 +357,8 @@ export const JoiSale = Joi.object({
   marketplaceFeeBps: Joi.number().optional(),
   paidFullRoyalty: Joi.boolean().optional(),
   feeBreakdown: Joi.array().items(JoiFeeBreakdown).optional(),
+  createdAt: Joi.string().optional(),
+  updatedAt: Joi.string().optional(),
 });
 
 export const feeInfoIsValid = (
@@ -434,6 +436,8 @@ export const getJoiSaleObject = async (sale: {
   txHash?: Buffer;
   logIndex?: number;
   batchIndex?: number;
+  updatedAt?: string;
+  createdAt?: string;
 }) => {
   const currency = await getCurrency(fromBuffer(sale.currencyAddress));
   const lastSaleFeeInfoIsValid = feeInfoIsValid(
@@ -535,5 +539,7 @@ export const getJoiSaleObject = async (sale: {
       sale.fees.marketplaceFeeBreakdown,
       lastSaleFeeInfoIsValid
     ),
+    createdAt: sale.createdAt,
+    updatedAt: sale.updatedAt,
   };
 };

@@ -1,3 +1,132 @@
+# [5.294.0](https://github.com/reservoirprotocol/indexer/compare/v5.293.1...v5.294.0) (2023-03-24)
+
+
+### Features
+
+* change metrics api to be an admin and add clearing tables cron ([0f5bca0](https://github.com/reservoirprotocol/indexer/commit/0f5bca0242c762772ae1d606e328dfbe4bd87464))
+
+## [5.293.1](https://github.com/reservoirprotocol/indexer/compare/v5.293.0...v5.293.1) (2023-03-24)
+
+
+### Bug Fixes
+
+* trigger pipeline ([951da06](https://github.com/reservoirprotocol/indexer/commit/951da064edd27dad8b533a86068aa5c08635edd9))
+
+# [5.293.0](https://github.com/reservoirprotocol/indexer/compare/v5.292.2...v5.293.0) (2023-03-24)
+
+
+### Bug Fixes
+
+* fix typo and inequality ([a03f026](https://github.com/reservoirprotocol/indexer/commit/a03f02693e27a5910ca66d2efbf443687bf377e2))
+* semantic release parallel runs ([1f69238](https://github.com/reservoirprotocol/indexer/commit/1f69238b9f0d4a61bb6ec4b6df88fb9ea162e397))
+
+
+### Features
+
+* fix day7,day30 daily volume calculation to happen on that day ([4357da6](https://github.com/reservoirprotocol/indexer/commit/4357da646ef165525332ccd253156cdccb60f945))
+
+## [5.292.2](https://github.com/reservoirprotocol/indexer/compare/v5.292.1...v5.292.2) (2023-03-24)
+
+
+### Bug Fixes
+
+* semantic parallel runs ([e81dc21](https://github.com/reservoirprotocol/indexer/commit/e81dc210bd0a22625a72d2d02b14437691ac1dd1))
+
+## [5.292.1](https://github.com/reservoirprotocol/indexer/compare/v5.292.0...v5.292.1) (2023-03-24)
+
+
+### Bug Fixes
+
+* only replace off-chain cancellable orders ([b2b1d2e](https://github.com/reservoirprotocol/indexer/commit/b2b1d2ee4210e3e42187e64c09dc0ad477f9ddd3))
+
+
+### Performance Improvements
+
+* only simulate/revalidate top bid on token refresh ([5468407](https://github.com/reservoirprotocol/indexer/commit/5468407a81075240685032b56af5f3a0888bcd71))
+
+# [5.292.0](https://github.com/reservoirprotocol/indexer/compare/v5.291.0...v5.292.0) (2023-03-24)
+
+
+### Bug Fixes
+
+* typo ([f4a899d](https://github.com/reservoirprotocol/indexer/commit/f4a899d2ef5cdc585ea9359cd46a6640e355d2b4))
+
+
+### Features
+
+* royalties support more cases ([06cf5e0](https://github.com/reservoirprotocol/indexer/commit/06cf5e0313c885757cbb27a1104d9eb67408ce47))
+
+# [5.291.0](https://github.com/reservoirprotocol/indexer/compare/v5.290.0...v5.291.0) (2023-03-24)
+
+
+### Bug Fixes
+
+* order-fetcher api call ([6112118](https://github.com/reservoirprotocol/indexer/commit/6112118ddda1a80c7bdeb2d70526e3193b9fe2e3))
+
+
+### Features
+
+* add support for cross-posting listings to blur ([6e59671](https://github.com/reservoirprotocol/indexer/commit/6e59671db3ddefce68c82dffc3dbd79c368c1438))
+
+# [5.290.0](https://github.com/reservoirprotocol/indexer/compare/v5.289.5...v5.290.0) (2023-03-23)
+
+
+### Features
+
+* trigger deployment ([#3764](https://github.com/reservoirprotocol/indexer/issues/3764)) ([3b31521](https://github.com/reservoirprotocol/indexer/commit/3b31521363d93f31504e1f5f457b38a5dea541c3))
+
+## [5.289.5](https://github.com/reservoirprotocol/indexer/compare/v5.289.4...v5.289.5) (2023-03-23)
+
+
+### Bug Fixes
+
+* slowness ([2ceac5a](https://github.com/reservoirprotocol/indexer/commit/2ceac5a700df14b9b6fad42a7d84773a196bcb04))
+
+## [5.289.4](https://github.com/reservoirprotocol/indexer/compare/v5.289.3...v5.289.4) (2023-03-23)
+
+
+### Bug Fixes
+
+* diabled trait offers ([#3759](https://github.com/reservoirprotocol/indexer/issues/3759)) ([d95b747](https://github.com/reservoirprotocol/indexer/commit/d95b747ce40c8f79257657ae0ac334970fa8527d))
+
+## [5.289.3](https://github.com/reservoirprotocol/indexer/compare/v5.289.2...v5.289.3) (2023-03-23)
+
+
+### Bug Fixes
+
+* generic currency description ([f1ee9eb](https://github.com/reservoirprotocol/indexer/commit/f1ee9eb4d4ba7f29a9871f1400261e94e8d241da))
+
+## [5.289.2](https://github.com/reservoirprotocol/indexer/compare/v5.289.1...v5.289.2) (2023-03-23)
+
+
+### Bug Fixes
+
+* dont return collections with 0 tokens ([bdd425f](https://github.com/reservoirprotocol/indexer/commit/bdd425fa30513ba09a8e9cadc0d16f721d4c205b))
+* recalc token_count only for old collection as it is already done for new collection ([c231d08](https://github.com/reservoirprotocol/indexer/commit/c231d0811ef0104e8d9fc7118b63e269960b8ba5))
+* update collections.token_count after token is assigned new collectionId ([9d664b5](https://github.com/reservoirprotocol/indexer/commit/9d664b5f5d66c65f457717cef0f04b105d22c931))
+
+## [5.289.1](https://github.com/reservoirprotocol/indexer/compare/v5.289.0...v5.289.1) (2023-03-23)
+
+
+### Bug Fixes
+
+* tweak simulations and invalidations ([a433220](https://github.com/reservoirprotocol/indexer/commit/a43322098a48dc2b52226eef5e2645315dab931b))
+
+# [5.289.0](https://github.com/reservoirprotocol/indexer/compare/v5.288.0...v5.289.0) (2023-03-23)
+
+
+### Features
+
+* fix top bid on token refresh ([fa35679](https://github.com/reservoirprotocol/indexer/commit/fa356797bd41a34e955ca102b8e91662306bae84))
+* trigger an order fix whenever simulation failed ([cc231ad](https://github.com/reservoirprotocol/indexer/commit/cc231ad0a5aca1a3e4d2257af579bd386d5ab503))
+
+# [5.288.0](https://github.com/reservoirprotocol/indexer/compare/v5.287.0...v5.288.0) (2023-03-23)
+
+
+### Features
+
+* added collections supported marketplaces api ([#3733](https://github.com/reservoirprotocol/indexer/issues/3733)) ([87b193d](https://github.com/reservoirprotocol/indexer/commit/87b193def26935b4cb944e518c948530125cd250))
+
 # [5.287.0](https://github.com/reservoirprotocol/indexer/compare/v5.286.0...v5.287.0) (2023-03-23)
 
 

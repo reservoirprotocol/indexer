@@ -135,15 +135,31 @@ export async function extractRoyalties(
       // transaction then we try to look for the (sub)call where we
       // find the current fill event's token
       // TODO: What if the same token sold multiple times in different calls?
+      const sameTokenFillEvents = fillEvents.filter(
+        (_) => _.contract === fillEvent.contract && _.tokenId === fillEvent.tokenId
+      );
+
+      const matchExchangeCalls = [];
+
       for (const exchangeCall of exchangeCalls) {
         // Get all payments associated to the call
         const payments = getPayments(exchangeCall);
         const matchingPayment = findMatchingPayment(payments, fillEvent);
         if (matchingPayment) {
-          // If we found a matching payment, then we pin-pointed the (sub)call to analyze
-          subcallToAnalyze = exchangeCall;
-          break;
+          matchExchangeCalls.push(exchangeCall);
         }
+      }
+
+      // If we found a matching payment, then we pin-pointed the (sub)call to analyze
+      if (matchExchangeCalls.length) {
+        const eventIndex = sameTokenFillEvents.findIndex(
+          (_) =>
+            _.contract === fillEvent.contract &&
+            _.tokenId === fillEvent.tokenId &&
+            _.baseEventParams.logIndex === fillEvent.baseEventParams.logIndex
+        );
+
+        subcallToAnalyze = matchExchangeCalls[eventIndex];
       }
     }
   }
@@ -235,6 +251,10 @@ export async function extractRoyalties(
     notRoyaltyRecipients.add(fillEvent.taker);
   });
 
+  const sameContractFillsWithRoyaltyData = fillEventsWithRoyaltyData.filter((c) => {
+    return c.contract != contract;
+  });
+
   // Get the know platform fee recipients for the current fill order kind
   const knownPlatformFeeRecipients = platformFeeRecipientsRegistry.get(fillEvent.orderKind) ?? [];
 
@@ -271,15 +291,19 @@ export async function extractRoyalties(
         marketplaceFeeBreakdown.push(royalty);
       } else {
         // For different collection with same fee recipient
-        const shareSameRecepient =
-          sameProtocolDetails.filter((d) => d.recipient === address).length ===
-          sameProtocolFills.length;
+        const sameRecipientDetails = sameProtocolDetails.filter((d) => d.recipient === address);
+        const shareSameRecipient = sameRecipientDetails.length === sameProtocolFills.length;
 
-        let bps: number;
-        if (shareSameRecepient) {
-          bps = bn(balanceChange).mul(10000).div(sameProtocolTotalPrice).toNumber();
-        } else {
-          bps = bn(balanceChange).mul(10000).div(sameContractTotalPrice).toNumber();
+        let bps: number = bn(balanceChange).mul(10000).div(sameContractTotalPrice).toNumber();
+
+        if (shareSameRecipient) {
+          const configBPS = sameRecipientDetails[0].bps;
+          const newBps = bn(balanceChange).mul(10000).div(sameProtocolTotalPrice).toNumber();
+          // Make sure the bps is same with the config
+          const isValid = configBPS === newBps;
+          if (isValid) {
+            bps = newBps;
+          }
         }
 
         if (royaltyRecipients.includes(address)) {
@@ -292,10 +316,16 @@ export async function extractRoyalties(
         // - royalty percentage between 0% and 15% (both exclusive)
         // - royalty recipient is not a known platform fee recipient
         // - royalty recipient is a valid royalty recipient
+        const notInOtherDef = !sameContractFillsWithRoyaltyData.find((_) =>
+          _.royalties.find((c) => c.find((d) => d.recipient === address))
+        );
+
+        const excludeOtherRecipients = shareSameRecipient ? true : notInOtherDef;
         const recipientIsEligible =
           bps > 0 &&
           bps < 1500 &&
           !allPlatformFeeRecipients.has(address) &&
+          excludeOtherRecipients &&
           !notRoyaltyRecipients.has(address);
 
         // For now we exclude AMMs which don't pay royalties

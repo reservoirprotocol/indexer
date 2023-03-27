@@ -8,6 +8,7 @@ import { logger } from "@/common/logger";
 import { rateLimitRedis, redis } from "@/common/redis";
 import { config } from "@/config/index";
 
+import * as BlurApi from "@/jobs/orderbook/post-order-external/api/blur";
 import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 import * as LooksrareApi from "@/jobs/orderbook/post-order-external/api/looksrare";
 import * as X2Y2Api from "@/jobs/orderbook/post-order-external/api/x2y2";
@@ -52,7 +53,11 @@ if (config.doBackgroundWork) {
         throw new Error("Unsupported network");
       }
 
-      if (!["opensea", "looks-rare", "x2y2", "universe", "infinity", "flow"].includes(orderbook)) {
+      if (
+        !["blur", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow"].includes(
+          orderbook
+        )
+      ) {
         throw new Error("Unsupported orderbook");
       }
 
@@ -197,6 +202,8 @@ if (config.doBackgroundWork) {
 
 const getOrderbookDefaultApiKey = (orderbook: string) => {
   switch (orderbook) {
+    case "blur":
+      return config.orderFetcherApiKey;
     case "opensea":
       return config.openSeaApiKey;
     case "looks-rare":
@@ -216,6 +223,12 @@ const getOrderbookDefaultApiKey = (orderbook: string) => {
 
 const getRateLimiter = (orderbook: string) => {
   switch (orderbook) {
+    case "blur":
+      return new RateLimiterRedis({
+        storeClient: rateLimitRedis,
+        points: BlurApi.RATE_LIMIT_REQUEST_COUNT,
+        duration: BlurApi.RATE_LIMIT_INTERVAL,
+      });
     case "looks-rare":
       return new RateLimiterRedis({
         storeClient: rateLimitRedis,
@@ -345,6 +358,10 @@ const postOrder = async (
       const order = new Sdk.Flow.Order(config.chainId, orderData as Sdk.Flow.Types.OrderInput);
       return FlowApi.postOrders(order, orderbookApiKey);
     }
+
+    case "blur": {
+      return BlurApi.postOrder(orderData as BlurApi.BlurData, orderbookApiKey);
+    }
   }
 
   throw new Error(`Unsupported orderbook ${orderbook}`);
@@ -402,6 +419,15 @@ export type PostOrderExternalParams =
       orderData: Sdk.Flow.Types.OrderInput;
       orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
       orderbook: "flow";
+      orderbookApiKey?: string | null;
+      retry?: number;
+    }
+  | {
+      crossPostingOrderId: number;
+      orderId: string;
+      orderData: BlurApi.BlurData;
+      orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
+      orderbook: "blur";
       orderbookApiKey?: string | null;
       retry?: number;
     };

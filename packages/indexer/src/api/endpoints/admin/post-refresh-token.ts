@@ -94,7 +94,7 @@ export const postRefreshTokenOptions: RouteOptions = {
       await resyncAttributeCache.addToQueue(contract, tokenId, 0);
 
       // Refresh the token floor sell and top bid
-      await tokenRefreshCacheQueue.addToQueue(contract, tokenId);
+      await tokenRefreshCacheQueue.addToQueue(contract, tokenId, true);
 
       return { message: "Request accepted" };
     } catch (error) {

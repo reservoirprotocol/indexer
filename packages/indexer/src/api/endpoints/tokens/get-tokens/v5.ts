@@ -28,7 +28,7 @@ export const getTokensV5Options: RouteOptions = {
   description: "Tokens",
   notes:
     "Get a list of tokens with full metadata. This is useful for showing a single token page, or scenarios that require more metadata.",
-  tags: ["api", "Tokens"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 9,

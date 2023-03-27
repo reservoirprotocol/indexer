@@ -7,9 +7,8 @@ import Joi from "joi";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { baseProvider } from "@/common/provider";
 import { Signers, addressToSigner } from "@/common/signers";
-import { fromBuffer, now, regex, toBuffer } from "@/common/utils";
+import { fromBuffer, now, regex, safeOracleTimestamp, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
@@ -128,8 +127,7 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
         }
       }
 
-      // Use the timestamp of the latest available block as the message timestamp
-      const timestamp = await baseProvider.getBlock("latest").then((b) => b.timestamp);
+      const timestamp = await safeOracleTimestamp();
 
       // Use EIP-712 structured hashing (https://eips.ethereum.org/EIPS/eip-712)
       const EIP712_TYPES = {

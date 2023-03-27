@@ -11,7 +11,7 @@ import Joi from "joi";
 import { edb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { Signers, addressToSigner } from "@/common/signers";
-import { bn, formatPrice, now, regex, toBuffer } from "@/common/utils";
+import { bn, formatPrice, safeOracleTimestamp, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 const version = "v1";
@@ -273,7 +273,7 @@ export const getCollectionTopBidOracleV1Options: RouteOptions = {
       } = {
         id,
         payload: defaultAbiCoder.encode(["address", "uint256"], [query.currency, price]),
-        timestamp: now(),
+        timestamp: await safeOracleTimestamp(),
       };
 
       if (config.oraclePrivateKey) {

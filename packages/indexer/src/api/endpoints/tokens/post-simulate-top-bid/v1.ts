@@ -138,7 +138,7 @@ export const postSimulateTopBidV1Options: RouteOptions = {
         return { message: "Nothing to simulate" };
       }
 
-      const saleData = parsedPayload.steps[2].items[0]?.data;
+      const saleData = parsedPayload.steps.find((s: any) => s.id === "sale").items[0]?.data;
       if (!saleData) {
         return { message: "Nothing to simulate" };
       }

@@ -7,13 +7,15 @@ import _ from "lodash";
 import { logger } from "@/common/logger";
 import { redb } from "@/common/db";
 import { sub } from "date-fns";
+import { config } from "@/config/index";
+import * as Boom from "@hapi/boom";
 
 const Joi = JoiBase.extend(JoiDate);
 
 export const getApiKeyMetrics: RouteOptions = {
   description: "Get API usage metrics for the given API key",
   notes: "Get API usage metrics for the given API key",
-  tags: ["api", "Management"],
+  tags: ["api", "x-admin"],
   plugins: {
     "hapi-swagger": {
       payloadType: "form",
@@ -21,6 +23,9 @@ export const getApiKeyMetrics: RouteOptions = {
     },
   },
   validate: {
+    headers: Joi.object({
+      "x-admin-api-key": Joi.string().required(),
+    }).options({ allowUnknown: true }),
     query: Joi.object({
       keys: Joi.alternatives()
         .try(
@@ -32,13 +37,13 @@ export const getApiKeyMetrics: RouteOptions = {
         .valid("hourly", "daily", "monthly")
         .default("monthly")
         .description(
-          "Return results grouped by either hourly/daily/monthly.<br>Hourly will return time in format YYYY-MM-DDTHH:00:000Z<br>Daily will return time in format YYYY-MM-DDT00:00:000Z<br>Monthly will return time in format YYYY-MM-01T00:00:000Z"
+          "Return results by either hourly/daily/monthly granularity.<br>Hourly will return time in format YYYY-MM-DDTHH:00:000Z<br>Daily will return time in format YYYY-MM-DDT00:00:000Z<br>Monthly will return time in format YYYY-MM-01T00:00:000Z<br>"
         ),
       groupBy: Joi.number()
         .default(1)
         .valid(1, 2, 3, 4)
         .description(
-          "1 - All calls per hour/day/month<br>2 - All calls per key per hour/day/month<br>3 - All calls per key per route per hour/day/month<br>4 - All calls per key per route per status code per hour/day/month"
+          "1 - All calls per hour/day/month<br>2 - All calls per key per hour/day/month<br>3 - All calls per key per route per hour/day/month<br>4 - All calls per key per route per status code per hour/day/month<br>"
         ),
       startTime: Joi.date()
         .format("YYYY-MM-DD HH:00")
@@ -68,6 +73,10 @@ export const getApiKeyMetrics: RouteOptions = {
     },
   },
   handler: async (request: Request) => {
+    if (request.headers["x-admin-api-key"] !== config.adminApiKey) {
+      throw Boom.unauthorized("Wrong or missing admin API key");
+    }
+
     const query = request.query as any;
 
     let tableName = "monthly_api_usage";

@@ -59,7 +59,7 @@ export const postAuthSignatureV1Options: RouteOptions = {
             throw Boom.badRequest("Invalid auth challenge signature");
           }
 
-          const accessToken = await axios
+          const result = await axios
             .get(
               `${config.orderFetcherBaseUrl}/api/blur-auth?authChallenge=${JSON.stringify({
                 ...authChallenge,
@@ -71,14 +71,16 @@ export const postAuthSignatureV1Options: RouteOptions = {
                 },
               }
             )
-            .then((response) => response.data.accessToken);
+            .then((response) => response.data);
 
           const authId = b.getAuthId(recoveredSigner);
           await b.saveAuth(
             authId,
-            { accessToken },
+            { accessToken: result.accessToken, cfBm: result.cfBm },
             // Give a 1 minute buffer for the auth to expire
-            Number(JSON.parse(Buffer.from(accessToken.split(".")[1], "base64").toString()).exp) -
+            Number(
+              JSON.parse(Buffer.from(result.accessToken.split(".")[1], "base64").toString()).exp
+            ) -
               now() -
               60
           );
