@@ -4,7 +4,7 @@ import { fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import _ from "lodash";
 import { config } from "@/config/index";
-import { redis, redisWebsocketPublisher } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Sources } from "@/models/sources";
 import { getJoiPriceObject } from "@/common/joi";
@@ -103,25 +103,25 @@ export class NewTopBidWebsocketEvent {
       });
     }
 
-    try {
-      logger.info(
-        "top-bids-websocket-event",
-        `Triggering event. orderId=${data.orderId}, tokenSetId=${order.token_set_id}`
-      );
-      await Promise.all(
-        payloads.map((payload) =>
-          redisWebsocketPublisher.publish(
-            "top-bids",
-            JSON.stringify({
-              event: "new-top-bid",
-              data: payload,
-            })
-          )
-        )
-      );
-    } catch (e) {
-      logger.error("top-bids-websocket-event", `Error triggering event. ${e}`);
-    }
+    // try {
+    //   logger.info(
+    //     "top-bids-websocket-event",
+    //     `Triggering event. orderId=${data.orderId}, tokenSetId=${order.token_set_id}`
+    //   );
+    //   await Promise.all(
+    //     payloads.map((payload) =>
+    //       redisWebsocketPublisher.publish(
+    //         "top-bids",
+    //         JSON.stringify({
+    //           event: "new-top-bid",
+    //           data: payload,
+    //         })
+    //       )
+    //     )
+    //   );
+    // } catch (e) {
+    //   logger.error("top-bids-websocket-event", `Error triggering event. ${e}`);
+    // }
 
     const server = new Pusher.default({
       appId: config.websocketServerAppId,
