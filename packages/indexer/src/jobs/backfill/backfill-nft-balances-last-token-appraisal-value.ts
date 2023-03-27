@@ -36,8 +36,9 @@ if (config.doBackgroundWork) {
         continuationFilter = `AND (nft_balances.owner, nft_balances.contract, nft_balances.token_id) > ($/owner/, $/contract/, $/tokenId/)`;
       }
 
-      const tokens = await idb.manyOrNone(
-        `
+      try {
+        const tokens = await idb.manyOrNone(
+          `
             WITH x AS (
                         SELECT
                           nft_balances.contract,
@@ -67,32 +68,42 @@ if (config.doBackgroundWork) {
                     AND nb.owner = x.owner
                     RETURNING nb.owner, nb.contract, nb.token_id;
           `,
-        {
-          owner: cursor?.owner ? toBuffer(cursor?.owner) : null,
-          contract: cursor?.contract ? toBuffer(cursor?.contract) : null,
-          tokenId: cursor?.tokenId,
-          limit,
+          {
+            owner: cursor?.owner ? toBuffer(cursor?.owner) : null,
+            contract: cursor?.contract ? toBuffer(cursor?.contract) : null,
+            tokenId: cursor?.tokenId,
+            limit,
+          }
+        );
+
+        job.data.nextCursor = null;
+
+        if (tokens.length == limit) {
+          const lastToken = _.last(tokens);
+
+          job.data.nextCursor = {
+            owner: fromBuffer(lastToken.owner),
+            contract: fromBuffer(lastToken.contract),
+            tokenId: lastToken.token_id,
+          };
         }
-      );
 
-      job.data.nextCursor = null;
+        logger.info(
+          QUEUE_NAME,
+          `Processed ${tokens.length} records.  limit=${limit}, cursor=${JSON.stringify(
+            cursor
+          )}, nextCursor=${JSON.stringify(job.data.nextCursor)}`
+        );
+      } catch (error) {
+        logger.error(
+          QUEUE_NAME,
+          `Process error.  limit=${limit}, cursor=${JSON.stringify(cursor)}, error=${JSON.stringify(
+            error
+          )}`
+        );
 
-      if (tokens.length == limit) {
-        const lastToken = _.last(tokens);
-
-        job.data.nextCursor = {
-          owner: fromBuffer(lastToken.owner),
-          contract: fromBuffer(lastToken.contract),
-          tokenId: lastToken.token_id,
-        };
+        job.data.nextCursor = cursor;
       }
-
-      logger.info(
-        QUEUE_NAME,
-        `Processed ${tokens.length} records.  limit=${limit}, cursor=${JSON.stringify(
-          cursor
-        )}, nextCursor=${JSON.stringify(job.data.nextCursor)}`
-      );
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
