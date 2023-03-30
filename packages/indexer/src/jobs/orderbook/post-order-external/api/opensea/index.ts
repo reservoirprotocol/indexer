@@ -70,11 +70,11 @@ export const buildCollectionOffer = async (
   collectionSlug: string,
   apiKey = ""
 ) => {
-  const url = `${getOpenseaBaseUrl()}/v2/offers/build`;
+  let url = `${getOpenseaBaseUrl()}/v2/offers/build`;
 
-  // if (!_.isEmpty(config.openSeaCrossPostingApiUrl)) {
-  //   url = `${config.openSeaCrossPostingApiUrl}/v2/offers/build`;
-  // }
+  if (config.openSeaCrossPostingApiUrl) {
+    url = `${config.openSeaCrossPostingApiUrl}/v2/offers/build`;
+  }
 
   logger.error(
     "opensea-orderbook-api",
