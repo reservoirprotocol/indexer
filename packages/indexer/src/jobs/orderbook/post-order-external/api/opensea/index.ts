@@ -9,7 +9,6 @@ import {
   InvalidRequestError,
 } from "@/jobs/orderbook/post-order-external/api/errors";
 import { getOpenseaBaseUrl, getOpenseaNetworkName, getOpenseaSubDomain } from "@/config/network";
-import _ from "lodash";
 
 // Open Sea default rate limit - 2 requests per second for post apis
 export const RATE_LIMIT_REQUEST_COUNT = 2;
@@ -71,11 +70,11 @@ export const buildCollectionOffer = async (
   collectionSlug: string,
   apiKey = ""
 ) => {
-  let url = `${getOpenseaBaseUrl()}/v2/offers/build`;
+  const url = `${getOpenseaBaseUrl()}/v2/offers/build`;
 
-  if (!_.isEmpty(config.openSeaCrossPostingApiUrl)) {
-    url = `${config.openSeaCrossPostingApiUrl}/v2/offers/build`;
-  }
+  // if (!_.isEmpty(config.openSeaCrossPostingApiUrl)) {
+  //   url = `${config.openSeaCrossPostingApiUrl}/v2/offers/build`;
+  // }
 
   logger.error(
     "opensea-orderbook-api",
