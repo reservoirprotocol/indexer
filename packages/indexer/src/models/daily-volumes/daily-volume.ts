@@ -230,6 +230,13 @@ export class DailyVolume {
     const currentDate = new Date();
     const startTime = new Date(currentDate.getTime() - 24 * 60 * 60 * 1000).getTime() / 1000;
 
+    // Get a list of all collections that have non-null 1day values
+    const collectionsWith1DayValues = await ridb.manyOrNone(
+      `SELECT id FROM collections WHERE day1_volume != 0
+       ${collectionId ? "AND id = $/collectionId/" : ""}`,
+      { collectionId }
+    );
+
     const results = await ridb.manyOrNone(
       `SELECT t1.collection_id,
             t1.volume,
@@ -298,6 +305,40 @@ export class DailyVolume {
         logger.error(
           "daily-volumes",
           `Error while inserting/updating daily volumes. collectionId=${collectionId}`
+        );
+
+        return false;
+      }
+    }
+
+    const updatedCollectionIds = results.map((r: any) => r.collection_id);
+    const collectionsToUpdateToNull = collectionsWith1DayValues.filter(
+      (c: any) => !updatedCollectionIds.includes(c.id)
+    );
+
+    if (collectionsToUpdateToNull.length) {
+      const updateToNullQueries = collectionsToUpdateToNull.map((c: any) => {
+        return {
+          query: `
+          UPDATE collections
+          SET
+            day1_volume = 0,
+            day1_rank = NULL,
+            day1_floor_sell_value = NULL,
+            day1_volume_change = NULL
+          WHERE id = $/collection_id/
+        `,
+          values: { collection_id: c.id },
+        };
+      });
+
+      try {
+        const concat = pgp.helpers.concat(updateToNullQueries);
+        await idb.none(concat);
+      } catch (error: any) {
+        logger.error(
+          "daily-volumes",
+          `Error while setting 1day values to null. collectionId=${collectionId}`
         );
 
         return false;
