@@ -58,7 +58,7 @@ export const getExecuteBidV5Options: RouteOptions = {
   description: "Create bids (offers)",
   notes: "Generate bids and submit them to multiple marketplaces",
   timeout: { server: 60000 },
-  tags: ["api", "Orderbook"],
+  tags: ["api", "Create Orders (list & bid)"],
   plugins: {
     "hapi-swagger": {
       order: 11,

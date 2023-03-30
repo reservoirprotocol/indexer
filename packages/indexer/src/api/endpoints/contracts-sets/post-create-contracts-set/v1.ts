@@ -10,7 +10,7 @@ const version = "v1";
 
 export const postCreateContractsSetV1Options: RouteOptions = {
   description: "Create Contracts Set",
-  tags: ["api", "Contracts"],
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
       order: 1,

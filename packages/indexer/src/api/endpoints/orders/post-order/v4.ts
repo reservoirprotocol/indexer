@@ -19,7 +19,7 @@ const version = "v4";
 
 export const postOrderV4Options: RouteOptions = {
   description: "Submit signed orders",
-  tags: ["api", "Orderbook"],
+  tags: ["api", "Create Orders (list & bid)"],
   plugins: {
     "hapi-swagger": {
       order: 5,
