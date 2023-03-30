@@ -81,9 +81,9 @@ CREATE INDEX "orders_upper_valid_between_index"
   INCLUDE ("id")
   WHERE ("fillability_status" = 'fillable' OR "fillability_status" = 'no-balance');
 
-CREATE INDEX "orders_conduit_index"
+CREATE INDEX "orders_maker_side_conduit_index"
   ON "orders" ("maker", "side", "conduit")
-  WHERE ("fillability_status" = 'fillable' OR "fillability_status" = 'no-balance');
+  WHERE ("fillability_status" = 'fillable' OR "fillability_status" = 'no-balance' OR "fillability_status" = 'filled');
 
 CREATE INDEX "orders_kind_maker_nonce_full_index"
   ON "orders" ("kind", "maker", "nonce")

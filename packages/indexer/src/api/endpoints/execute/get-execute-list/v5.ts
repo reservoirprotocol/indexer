@@ -56,7 +56,7 @@ const version = "v5";
 export const getExecuteListV5Options: RouteOptions = {
   description: "Create asks (listings)",
   notes: "Generate listings and submit them to multiple marketplaces",
-  tags: ["api", "Orderbook"],
+  tags: ["api", "Create Orders (list & bid)"],
   plugins: {
     "hapi-swagger": {
       order: 11,

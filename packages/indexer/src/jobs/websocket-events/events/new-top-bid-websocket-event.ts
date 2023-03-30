@@ -150,7 +150,7 @@ export class NewTopBidWebsocketEvent {
           redisWebsocketPublisher.publish(
             "top-bids",
             JSON.stringify({
-              event: "new-top-bid",
+              event: "top-bid.changed",
               data: payload,
             })
           )

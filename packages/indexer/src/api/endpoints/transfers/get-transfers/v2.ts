@@ -126,7 +126,7 @@ export const getTransfersV2Options: RouteOptions = {
               AND fill_events_2.log_index = nft_transfer_events.log_index + (
                 CASE
                   WHEN fill_events_2.order_kind = 'x2y2' THEN 2
-                  WHEN fill_events_2.order_kind = 'seaport' THEN -2
+                  WHEN fill_events_2.order_kind::text LIKE 'seaport%' THEN -2
                   ELSE 1
                 END
               )

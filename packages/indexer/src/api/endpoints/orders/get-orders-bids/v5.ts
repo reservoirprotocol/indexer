@@ -284,7 +284,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       }
 
       if (query.token) {
-        baseQuery += ` JOIN token_sets_tokens ON token_sets_tokens.token_set_id = orders.token_set_id`;
+        baseQuery += ` JOIN token_sets_tokens ON token_sets_tokens.token_set_id = orders.token_set_id AND token_sets_tokens.contract = orders.contract`;
 
         const [contract, tokenId] = query.token.split(":");
 

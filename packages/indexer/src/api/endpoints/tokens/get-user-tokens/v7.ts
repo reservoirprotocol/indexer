@@ -436,7 +436,7 @@ export const getUserTokensV7Options: RouteOptions = {
           ) AS b
           ${tokensJoin}
           JOIN collections c ON c.id = t.collection_id
-          JOIN orders o ON o.id = c.floor_sell_id
+          LEFT JOIN orders o ON o.id = c.floor_sell_id
           JOIN contracts con ON b.contract = con.address
       `;
 

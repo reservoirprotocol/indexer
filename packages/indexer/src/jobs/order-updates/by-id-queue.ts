@@ -440,6 +440,16 @@ if (config.doBackgroundWork) {
                   kind: processActivityEvent.EventKind.newSellOrder,
                   data: eventData,
                 };
+
+                // trigger new sell order event
+                await websocketEventsTriggerQueue.addToQueue([
+                  {
+                    kind: websocketEventsTriggerQueue.EventKind.NewSellOrder,
+                    data: {
+                      orderId: order.id,
+                    },
+                  },
+                ]);
               } else if (order.side === "buy") {
                 eventInfo = {
                   kind: processActivityEvent.EventKind.newBuyOrder,

@@ -12,6 +12,11 @@ import {
   NewActivityWebsocketEventInfo,
 } from "@/jobs/websocket-events/events/new-activity-websocket-event";
 
+import {
+  NewSellOrderWebsocketEvent,
+  NewSellOrderWebsocketEventInfo,
+} from "@/jobs/websocket-events/events/new-sell-order-websocket-event";
+
 import { randomUUID } from "crypto";
 import _ from "lodash";
 import tracer from "@/common/tracer";
@@ -51,6 +56,13 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             () => NewActivityWebsocketEvent.triggerEvent(data)
           );
           break;
+        case EventKind.NewSellOrder:
+          await tracer.trace(
+            "triggerEvent",
+            { resource: "NewSellOrderWebsocketEvent", tags: { event: data } },
+            () => NewSellOrderWebsocketEvent.triggerEvent(data)
+          );
+          break;
       }
     },
     { connection: redis.duplicate(), concurrency: 20 }
@@ -63,6 +75,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 export enum EventKind {
   NewTopBid = "new-top-bid",
   NewActivity = "new-activity",
+  NewSellOrder = "new-sell-order",
 }
 
 export type EventInfo =
@@ -73,6 +86,10 @@ export type EventInfo =
   | {
       kind: EventKind.NewActivity;
       data: NewActivityWebsocketEventInfo;
+    }
+  | {
+      kind: EventKind.NewSellOrder;
+      data: NewSellOrderWebsocketEventInfo;
     };
 
 export const addToQueue = async (events: EventInfo[]) => {
