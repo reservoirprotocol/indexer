@@ -72,7 +72,7 @@ export const buildCollectionOffer = async (
 ) => {
   let url = `${getOpenseaBaseUrl()}/v2/offers/build`;
 
-  if (config.openSeaCrossPostingApiUrl) {
+  if (config.openSeaCrossPostingApiUrl != null) {
     url = `${config.openSeaCrossPostingApiUrl}/v2/offers/build`;
   }
 
@@ -108,7 +108,9 @@ export const buildCollectionOffer = async (
       .catch((error) => {
         logger.error(
           "opensea-orderbook-api",
-          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, url=${url}, error=${error}, responseStatus=${
+          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, url=${url}, openSeaCrossPostingApiUrl=${
+            config.openSeaCrossPostingApiUrl
+          }, getOpenseaBaseUrl=${getOpenseaBaseUrl()}, error=${error}, responseStatus=${
             error.response?.status
           }, responseData=${JSON.stringify(error.response?.data)}`
         );
