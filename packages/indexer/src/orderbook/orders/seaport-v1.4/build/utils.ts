@@ -1,6 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
-import { BaseBuildParams } from "@reservoir0x/sdk/dist/seaport-v1.4/builders/base";
+import { BaseBuildParams } from "@reservoir0x/sdk/dist/seaport-base/builders/base";
 import { generateSourceBytes, getRandomBytes } from "@reservoir0x/sdk/dist/utils";
 
 import { redb } from "@/common/db";
@@ -17,7 +17,7 @@ export interface BaseOrderBuildOptions {
   orderbook: "opensea" | "reservoir";
   useOffChainCancellation?: boolean;
   replaceOrderId?: string;
-  orderType?: Sdk.SeaportV14.Types.OrderType;
+  orderType?: Sdk.SeaportBase.Types.OrderType;
   currency?: string;
   quantity?: number;
   nonce?: string;

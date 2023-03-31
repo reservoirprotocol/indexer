@@ -1,5 +1,4 @@
 import * as Sdk from "@reservoir0x/sdk";
-import { BaseBuilder } from "@reservoir0x/sdk/dist/seaport-v1.4/builders/base";
 
 import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
@@ -30,10 +29,9 @@ export const build = async (options: BuildOrderOptions) => {
 
   const buildInfo = await utils.getBuildInfo(options, collectionResult.collection_id, "sell");
 
-  const builder: BaseBuilder = new Sdk.SeaportV14.Builders.SingleToken(config.chainId);
+  const builder = new Sdk.SeaportBase.Builders.SingleToken(config.chainId);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (buildInfo.params as any).tokenId = options.tokenId;
+  const tokenId = options.tokenId;
 
-  return builder?.build(buildInfo.params);
+  return builder?.build({ ...buildInfo.params, tokenId }, Sdk.SeaportV14.Order);
 };

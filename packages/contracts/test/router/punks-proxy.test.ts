@@ -63,10 +63,10 @@ describe("PunksProxy", () => {
 
     await punksProxy
       .connect(alice)
-      .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+      .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
-    const exchange = new Sdk.Seaport.Exchange(chainId);
-    const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+    const exchange = new Sdk.SeaportV11.Exchange(chainId);
+    const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
     const order = builder.build({
       side: "sell",
       tokenKind: "erc721",
@@ -78,7 +78,7 @@ describe("PunksProxy", () => {
       counter: 0,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    });
+    }, Sdk.SeaportV11.Order);
     await order.sign(alice);
 
     // Checks
@@ -107,14 +107,14 @@ describe("PunksProxy", () => {
 
     await punksProxy
       .connect(alice)
-      .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+      .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
     const weth = new Sdk.Common.Helpers.Weth(ethers.provider, chainId);
     await weth.deposit(bob, price);
-    await weth.approve(bob, Sdk.Seaport.Addresses.Exchange[chainId]);
+    await weth.approve(bob, Sdk.SeaportV11.Addresses.Exchange[chainId]);
 
-    const exchange = new Sdk.Seaport.Exchange(chainId);
-    const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+    const exchange = new Sdk.SeaportV11.Exchange(chainId);
+    const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
     const order = builder.build({
       side: "buy",
       tokenKind: "erc721",
@@ -126,7 +126,7 @@ describe("PunksProxy", () => {
       counter: 0,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    });
+    }, Sdk.SeaportV11.Order);
     await order.sign(bob);
 
     // Checks

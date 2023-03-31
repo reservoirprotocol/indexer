@@ -16,7 +16,7 @@ import {
   setupSeaportERC721Approvals,
   setupSeaportListings,
   setupSeaportOffers,
-} from "./helpers/seaport";
+} from "./helpers/seaport-v1.1";
 import { bn, getChainId, getRandomInteger, getRandomFloat, reset, setupNFTs } from "../utils";
 
 describe("[ReservoirV6_0_1] Various edge-cases", () => {
@@ -50,7 +50,7 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
     seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
       .then((factory) =>
-        factory.deploy(deployer.address, router.address, Sdk.Seaport.Addresses.Exchange[chainId])
+        factory.deploy(deployer.address, router.address, Sdk.SeaportV11.Addresses.Exchange[chainId])
       );
     seaportApprovalOrderZone = await ethers
       .getContractFactory("SeaportApprovalOrderZone", deployer)

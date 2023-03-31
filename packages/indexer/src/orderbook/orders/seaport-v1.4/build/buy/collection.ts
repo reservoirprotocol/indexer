@@ -1,6 +1,6 @@
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers";
-import { BaseBuilder } from "@reservoir0x/sdk/dist/seaport-v1.4/builders/base";
+import { BaseBuilder } from "@reservoir0x/sdk/dist/seaport-base/builders/base";
 
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
@@ -49,7 +49,7 @@ export const build = async (options: BuildOrderOptions) => {
   const collectionIsContractWide = collectionResult.token_set_id?.startsWith("contract:");
   if (collectionIsContractWide && !options.excludeFlaggedTokens) {
     // By default, use a contract-wide builder
-    let builder: BaseBuilder = new Sdk.SeaportV14.Builders.ContractWide(config.chainId);
+    let builder: BaseBuilder = new Sdk.SeaportBase.Builders.ContractWide(config.chainId);
 
     if (options.orderbook === "opensea") {
       const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
@@ -67,14 +67,14 @@ export const build = async (options: BuildOrderOptions) => {
         (buildInfo.params as any).merkleRoot =
           buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria;
 
-        builder = new Sdk.SeaportV14.Builders.TokenList(config.chainId);
+        builder = new Sdk.SeaportBase.Builders.TokenList(config.chainId);
       }
     }
 
-    return builder.build(buildInfo.params);
+    return builder.build(buildInfo.params, Sdk.SeaportV14.Order);
   } else {
     // Use a token-list builder
-    const builder: BaseBuilder = new Sdk.SeaportV14.Builders.TokenList(config.chainId);
+    const builder: BaseBuilder = new Sdk.SeaportBase.Builders.TokenList(config.chainId);
 
     if (options.orderbook === "opensea") {
       // We need to fetch from OpenSea the most up-to-date merkle root
@@ -132,6 +132,6 @@ export const build = async (options: BuildOrderOptions) => {
       (buildInfo.params as any).merkleRoot = cachedMerkleRoot;
     }
 
-    return builder.build(buildInfo.params);
+    return builder.build(buildInfo.params, Sdk.SeaportV14.Order);
   }
 };

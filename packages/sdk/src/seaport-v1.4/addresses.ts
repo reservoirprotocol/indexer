@@ -12,18 +12,6 @@ export const Exchange: ChainIdToAddress = {
   [Network.Avalanche]: "0x00000000000001ad428e4906ae43d8f9852d0dd6",
 };
 
-export const ConduitController: ChainIdToAddress = {
-  [Network.Ethereum]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.EthereumGoerli]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.Optimism]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.Gnosis]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.Polygon]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.PolygonMumbai]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.Arbitrum]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.AvalancheFuji]: "0x00000000f9490004c11cef243f5400493c00ad63",
-  [Network.Avalanche]: "0x00000000f9490004c11cef243f5400493c00ad63",
-};
-
 // Conduits
 
 export const OpenseaConduitKey: ChainIdToAddress = {

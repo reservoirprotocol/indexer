@@ -31,7 +31,7 @@ import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/confi
 
 export type OrderInfo = {
   kind?: "full";
-  orderParams: Sdk.SeaportV14.Types.OrderComponents;
+  orderParams: Sdk.SeaportBase.Types.OrderComponents;
   metadata: OrderMetadata;
   isReservoir?: boolean;
   isOpenSea?: boolean;
@@ -79,7 +79,7 @@ export const save = async (
   }[] = [];
 
   const handleOrder = async (
-    orderParams: Sdk.SeaportV14.Types.OrderComponents,
+    orderParams: Sdk.SeaportBase.Types.OrderComponents,
     metadata: OrderMetadata,
     isReservoir?: boolean,
     isOpenSea?: boolean,
@@ -766,7 +766,7 @@ export const save = async (
       limit(async () =>
         tracer.trace("handleOrder", { resource: "seaportV14Save" }, () =>
           handleOrder(
-            orderInfo.orderParams as Sdk.SeaportV14.Types.OrderComponents,
+            orderInfo.orderParams as Sdk.SeaportBase.Types.OrderComponents,
             orderInfo.metadata,
             orderInfo.isReservoir,
             orderInfo.isOpenSea,

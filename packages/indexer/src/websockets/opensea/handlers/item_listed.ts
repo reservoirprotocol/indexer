@@ -1,7 +1,7 @@
 import { toTime } from "@/common/utils";
 import { getSupportedChainName } from "@/websockets/opensea/utils";
 import { ItemListedEventPayload } from "@opensea/stream-js/dist/types";
-import { OpenseaOrderParams } from "@/orderbook/orders/seaport";
+import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import _ from "lodash";
 
 export const handleEvent = (payload: ItemListedEventPayload): OpenseaOrderParams | null => {

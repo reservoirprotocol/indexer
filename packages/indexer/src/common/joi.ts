@@ -300,7 +300,7 @@ export const getJoiDynamicPricingObject = async (
   kind: string,
   normalizeRoyalties: boolean,
   raw_data:
-    | Sdk.SeaportV14.Types.OrderComponents
+    | Sdk.SeaportBase.Types.OrderComponents
     | Sdk.Sudoswap.OrderParams
     | Sdk.Nftx.Types.OrderParams,
   currency?: string,
@@ -318,7 +318,7 @@ export const getJoiDynamicPricingObject = async (
   if (dynamic && (kind === "seaport" || kind === "seaport-v1.4")) {
     const order = new Sdk.SeaportV14.Order(
       config.chainId,
-      raw_data as Sdk.SeaportV14.Types.OrderComponents
+      raw_data as Sdk.SeaportBase.Types.OrderComponents
     );
 
     // Dutch auction

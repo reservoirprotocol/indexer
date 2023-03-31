@@ -7,7 +7,7 @@ export * as element from "@/orderbook/orders/element";
 export * as forward from "@/orderbook/orders/forward";
 export * as foundation from "@/orderbook/orders/foundation";
 export * as looksRare from "@/orderbook/orders/looks-rare";
-export * as seaport from "@/orderbook/orders/seaport";
+export * as seaport from "@/orderbook/orders/seaport-v1.1";
 export * as seaportV14 from "@/orderbook/orders/seaport-v1.4";
 export * as sudoswap from "@/orderbook/orders/sudoswap";
 export * as x2y2 from "@/orderbook/orders/x2y2";
@@ -301,7 +301,7 @@ export const generateListingDetailsV6 = (
         return {
           kind: "seaport",
           ...common,
-          order: new Sdk.Seaport.Order(config.chainId, order.rawData),
+          order: new Sdk.SeaportV11.Order(config.chainId, order.rawData),
         };
       } else {
         // Sorry for all the below `any` types
@@ -458,7 +458,7 @@ export const generateBidDetailsV6 = async (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const extraArgs: any = {};
 
-        const sdkOrder = new Sdk.Seaport.Order(config.chainId, order.rawData);
+        const sdkOrder = new Sdk.SeaportV11.Order(config.chainId, order.rawData);
         if (sdkOrder.params.kind?.includes("token-list")) {
           // When filling a "token-list" order, we also need to pass in the
           // full list of tokens the order was made on (in order to be able
@@ -765,7 +765,7 @@ export const generateListingDetailsV5 = (
         return {
           kind: "seaport",
           ...common,
-          order: new Sdk.Seaport.Order(config.chainId, order.rawData),
+          order: new Sdk.SeaportV11.Order(config.chainId, order.rawData),
         };
       } else {
         // Sorry for all the below `any` types
@@ -841,7 +841,7 @@ export const generateBidDetailsV5 = async (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const extraArgs: any = {};
 
-        const sdkOrder = new Sdk.Seaport.Order(config.chainId, order.rawData);
+        const sdkOrder = new Sdk.SeaportV11.Order(config.chainId, order.rawData);
         if (sdkOrder.params.kind?.includes("token-list")) {
           // When filling a "token-list" order, we also need to pass in the
           // full list of tokens the order was made on (in order to be able

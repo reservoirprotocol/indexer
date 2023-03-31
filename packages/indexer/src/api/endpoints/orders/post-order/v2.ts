@@ -191,9 +191,9 @@ export const postOrderV2Options: RouteOptions = {
 
           let crossPostingOrder;
 
-          const orderId = new Sdk.Seaport.Order(
+          const orderId = new Sdk.SeaportV11.Order(
             config.chainId,
-            order.data as Sdk.Seaport.Types.OrderComponents
+            order.data as Sdk.SeaportBase.Types.OrderComponents
           ).hash();
 
           if (orderbook === "opensea") {
@@ -292,7 +292,7 @@ export const postOrderV2Options: RouteOptions = {
             throw new Error("Unsupported orderbook");
           }
 
-          const orderObject = new Sdk.Seaport.Order(config.chainId, {
+          const orderObject = new Sdk.SeaportV11.Order(config.chainId, {
             ...order.data.parameters,
             signature: order.data.signature,
           });

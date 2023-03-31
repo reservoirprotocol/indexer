@@ -24,8 +24,8 @@ import * as looksRareSellToken from "@/orderbook/orders/looks-rare/build/sell/to
 import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
 
 // Seaport
-import * as seaportSellToken from "@/orderbook/orders/seaport/build/sell/token";
-import * as seaportCheck from "@/orderbook/orders/seaport/check";
+import * as seaportSellToken from "@/orderbook/orders/seaport-v1.1/build/sell/token";
+import * as seaportCheck from "@/orderbook/orders/seaport-v1.1/check";
 
 // Seaport v1.4
 import * as seaportV14SellToken from "@/orderbook/orders/seaport-v1.4/build/sell/token";
@@ -263,7 +263,7 @@ export const getExecuteListV5Options: RouteOptions = {
         "seaport-v1.4": [] as {
           order: {
             kind: "seaport-v1.4";
-            data: Sdk.SeaportV14.Types.OrderComponents;
+            data: Sdk.SeaportBase.Types.OrderComponents;
           };
           orderbook: string;
           orderbookApiKey?: string;
@@ -683,7 +683,7 @@ export const getExecuteListV5Options: RouteOptions = {
                     case "no-approval": {
                       // Generate an approval transaction
 
-                      const exchange = new Sdk.Seaport.Exchange(config.chainId);
+                      const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
                       const info = order.getInfo()!;
 
                       const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";

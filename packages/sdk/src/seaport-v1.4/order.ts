@@ -9,15 +9,16 @@ import { recoverAddress } from "@ethersproject/transactions";
 import { verifyTypedData } from "@ethersproject/wallet";
 
 import * as Addresses from "./addresses";
-import { Builders } from "./builders";
-import { BaseBuilder, BaseOrderInfo } from "./builders/base";
-import * as Types from "./types";
+import { Builders } from "../seaport-base/builders";
+import { BaseBuilder, BaseOrderInfo } from "../seaport-base/builders/base";
+import * as Types from "../seaport-base/types";
+import { IOrder, ORDER_EIP712_TYPES } from "../seaport-base/order";
 import * as Common from "../common";
 import { bn, getCurrentTimestamp, lc, n, s } from "../utils";
 
 import { Exchange } from "./exchange";
 
-export class Order {
+export class Order implements IOrder {
   public chainId: number;
   public params: Types.OrderComponents;
 
@@ -175,7 +176,7 @@ export class Order {
       throw new Error("Price not evenly divisible to the amount");
     }
 
-    if (!this.getBuilder().isValid(this)) {
+    if (!this.getBuilder().isValid(this, Order)) {
       throw new Error("Invalid order");
     }
   }
@@ -322,7 +323,7 @@ export class Order {
     // contract-wide
     {
       const builder = new Builders.ContractWide(this.chainId);
-      if (builder.isValid(this)) {
+      if (builder.isValid(this, Order)) {
         return "contract-wide";
       }
     }
@@ -330,7 +331,7 @@ export class Order {
     // single-token
     {
       const builder = new Builders.SingleToken(this.chainId);
-      if (builder.isValid(this)) {
+      if (builder.isValid(this, Order)) {
         return "single-token";
       }
     }
@@ -338,7 +339,7 @@ export class Order {
     // token-list
     {
       const builder = new Builders.TokenList(this.chainId);
-      if (builder.isValid(this)) {
+      if (builder.isValid(this, Order)) {
         return "token-list";
       }
     }
@@ -397,36 +398,36 @@ export const EIP712_DOMAIN = (chainId: number) => ({
   verifyingContract: Addresses.Exchange[chainId],
 });
 
-export const ORDER_EIP712_TYPES = {
-  OrderComponents: [
-    { name: "offerer", type: "address" },
-    { name: "zone", type: "address" },
-    { name: "offer", type: "OfferItem[]" },
-    { name: "consideration", type: "ConsiderationItem[]" },
-    { name: "orderType", type: "uint8" },
-    { name: "startTime", type: "uint256" },
-    { name: "endTime", type: "uint256" },
-    { name: "zoneHash", type: "bytes32" },
-    { name: "salt", type: "uint256" },
-    { name: "conduitKey", type: "bytes32" },
-    { name: "counter", type: "uint256" },
-  ],
-  OfferItem: [
-    { name: "itemType", type: "uint8" },
-    { name: "token", type: "address" },
-    { name: "identifierOrCriteria", type: "uint256" },
-    { name: "startAmount", type: "uint256" },
-    { name: "endAmount", type: "uint256" },
-  ],
-  ConsiderationItem: [
-    { name: "itemType", type: "uint8" },
-    { name: "token", type: "address" },
-    { name: "identifierOrCriteria", type: "uint256" },
-    { name: "startAmount", type: "uint256" },
-    { name: "endAmount", type: "uint256" },
-    { name: "recipient", type: "address" },
-  ],
-};
+// export const ORDER_EIP712_TYPES = {
+//   OrderComponents: [
+//     { name: "offerer", type: "address" },
+//     { name: "zone", type: "address" },
+//     { name: "offer", type: "OfferItem[]" },
+//     { name: "consideration", type: "ConsiderationItem[]" },
+//     { name: "orderType", type: "uint8" },
+//     { name: "startTime", type: "uint256" },
+//     { name: "endTime", type: "uint256" },
+//     { name: "zoneHash", type: "bytes32" },
+//     { name: "salt", type: "uint256" },
+//     { name: "conduitKey", type: "bytes32" },
+//     { name: "counter", type: "uint256" },
+//   ],
+//   OfferItem: [
+//     { name: "itemType", type: "uint8" },
+//     { name: "token", type: "address" },
+//     { name: "identifierOrCriteria", type: "uint256" },
+//     { name: "startAmount", type: "uint256" },
+//     { name: "endAmount", type: "uint256" },
+//   ],
+//   ConsiderationItem: [
+//     { name: "itemType", type: "uint8" },
+//     { name: "token", type: "address" },
+//     { name: "identifierOrCriteria", type: "uint256" },
+//     { name: "startAmount", type: "uint256" },
+//     { name: "endAmount", type: "uint256" },
+//     { name: "recipient", type: "address" },
+//   ],
+// };
 
 const normalize = (order: Types.OrderComponents): Types.OrderComponents => {
   // Perform some normalization operations on the order:

@@ -45,7 +45,7 @@ export const setupListings = async (listings: Listing[]) => {
     }
 
     // Build and sign the order
-    const builder = new Sdk.SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
     const order = builder.build({
       side: "sell",
       tokenKind: nft.kind,
@@ -58,7 +58,7 @@ export const setupListings = async (listings: Listing[]) => {
       counter: 0,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    });
+    }, Sdk.SeaportV14.Order);
     await order.sign(seller);
 
     listing.order = order;
@@ -103,7 +103,7 @@ export const setupOffers = async (offers: Offer[]) => {
     await weth.approve(buyer, Sdk.SeaportV14.Addresses.Exchange[chainId]);
 
     // Build and sign the order
-    const builder = new Sdk.SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
     const order = builder.build({
       side: "buy",
       tokenKind: nft.kind,
@@ -155,7 +155,7 @@ export const setupERC20Approvals = async (approvals: ERC20Approval[]) => {
     await erc20.approve(giver, Sdk.SeaportV14.Addresses.Exchange[chainId]);
 
     // Build and sign the approval order (in a hacky way)
-    const builder = new Sdk.SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
     const order = builder.build({
       side: "sell",
       tokenKind: "erc721",
@@ -240,7 +240,7 @@ export const setupERC721Approvals = async (approvals: ERC721Approval[], skipMint
     }
 
     // Build and sign the approval order (in a hacky way)
-    const builder = new Sdk.SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
     const order = builder.build({
       side: "sell",
       tokenKind: "erc721",
