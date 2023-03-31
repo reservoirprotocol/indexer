@@ -54,12 +54,15 @@ if (config.doBackgroundWork) {
           orderbook
         )
       ) {
-        throw new Error("Unsupported orderbook");
-      }
+        if (crossPostingOrderId) {
+          await crossPostingOrdersModel.updateOrderStatus(
+            crossPostingOrderId,
+            CrossPostingOrderStatus.failed,
+            "Unsupported orderbook"
+          );
+        }
 
-      // TODO: Remove after deployment
-      if (job.data.orderbookApiKey === null) {
-        delete job.data.orderbookApiKey;
+        throw new Error("Unsupported orderbook");
       }
 
       const orderbookApiKey = job.data.orderbookApiKey ?? getOrderbookDefaultApiKey(orderbook);
