@@ -78,7 +78,13 @@ export const buildCollectionOffer = async (
 
   logger.error(
     "opensea-orderbook-api",
-    `Build OpenSea collection offer debug. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, url=${url}, openSeaCrossPostingApiUrl=${
+    `Build OpenSea collection offer debug. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, url=${url}, OPENSEA_CROSS_POSTING_API_KEY=${
+      process.env.OPENSEA_CROSS_POSTING_API_KEY
+    }, OPENSEA_CROSS_POSTING_API_URL=${
+      process.env.OPENSEA_CROSS_POSTING_API_URL
+    }, OPENSEA_CROSS_POSTING_API_HEADER=${
+      process.env.OPENSEA_CROSS_POSTING_API_HEADER
+    }, openSeaCrossPostingApiUrl=${
       config.openSeaCrossPostingApiUrl
     }, getOpenseaBaseUrl=${getOpenseaBaseUrl()}, openSeaCrossPostingApiKeyHeader=${
       config.openSeaCrossPostingApiKeyHeader
