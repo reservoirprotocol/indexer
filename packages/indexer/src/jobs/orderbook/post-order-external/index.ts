@@ -49,10 +49,6 @@ if (config.doBackgroundWork) {
 
       logger.info(QUEUE_NAME, `Start. jobData=${JSON.stringify(job.data)}`);
 
-      if (![1, 4, 5].includes(config.chainId)) {
-        throw new Error("Unsupported network");
-      }
-
       if (
         !["blur", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow"].includes(
           orderbook
