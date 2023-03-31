@@ -96,7 +96,7 @@ export class AsksDataSource extends BaseDataSource {
               break;
             }
             case "seaport": {
-              const seaportOrder = new Sdk.Seaport.Order(config.chainId, r.raw_data);
+              const seaportOrder = new Sdk.SeaportV11.Order(config.chainId, r.raw_data);
               startPrice = seaportOrder.getMatchingPrice(r.valid_from);
               endPrice = seaportOrder.getMatchingPrice(r.valid_until);
               break;
@@ -239,7 +239,7 @@ export class AsksDataSourceV2 extends BaseDataSource {
               break;
             }
             case "seaport": {
-              const seaportOrder = new Sdk.Seaport.Order(config.chainId, r.raw_data);
+              const seaportOrder = new Sdk.SeaportV11.Order(config.chainId, r.raw_data);
               startPrice = seaportOrder.getMatchingPrice(r.valid_from);
               endPrice = seaportOrder.getMatchingPrice(r.valid_until);
               break;

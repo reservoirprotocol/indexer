@@ -61,6 +61,15 @@ export const getOpenseaSubDomain = () => {
   }
 };
 
+export const getOpenseaBaseUrl = () => {
+  switch (config.chainId) {
+    case 5:
+      return "https://testnets-api.opensea.io";
+    default:
+      return "https://api.opensea.io";
+  }
+};
+
 export const getServiceName = () => {
   return `indexer-${config.version}-${getNetworkName()}`;
 };
@@ -410,9 +419,9 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         enableWebSocket: false,
-        realtimeSyncMaxBlockLag: 28,
+        realtimeSyncMaxBlockLag: 16,
         realtimeSyncFrequencySeconds: 5,
-        lastBlockLatency: 10,
+        lastBlockLatency: 5,
         subDomain: "api-arbitrum",
         coingecko: {
           networkId: "arbitrum-one",

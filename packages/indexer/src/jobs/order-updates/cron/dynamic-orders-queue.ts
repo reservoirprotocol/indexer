@@ -63,7 +63,7 @@ if (config.doBackgroundWork) {
         const values: any[] = [];
         for (const { id, kind, currency, raw_data } of dynamicOrders) {
           if (!_.isNull(raw_data) && kind === "seaport") {
-            const order = new Sdk.Seaport.Order(config.chainId, raw_data);
+            const order = new Sdk.SeaportV11.Order(config.chainId, raw_data);
             const newCurrencyPrice = order.getMatchingPrice().toString();
 
             const prices = await getUSDAndNativePrices(

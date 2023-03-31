@@ -85,7 +85,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
       switch (actionData.orderKind) {
         case "seaport": {
-          const exchange = new Sdk.Seaport.Exchange(config.chainId);
+          const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
           cancelTx = exchange.cancelAllOrdersTx(maker);
 
           break;
@@ -197,9 +197,9 @@ export const getExecuteCancelV3Options: RouteOptions = {
       switch (orderResult.kind) {
         case "seaport": {
           const orders = orderResults.map((dbOrder) => {
-            return new Sdk.Seaport.Order(config.chainId, dbOrder.raw_data);
+            return new Sdk.SeaportV11.Order(config.chainId, dbOrder.raw_data);
           });
-          const exchange = new Sdk.Seaport.Exchange(config.chainId);
+          const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
 
           cancelTx = exchange.cancelOrdersTx(maker, orders);
           break;
@@ -207,9 +207,9 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
         case "seaport-v1.4": {
           const orders = orderResults.map((dbOrder) => {
-            return new Sdk.Seaport.Order(config.chainId, dbOrder.raw_data);
+            return new Sdk.SeaportV11.Order(config.chainId, dbOrder.raw_data);
           });
-          const exchange = new Sdk.Seaport.Exchange(config.chainId);
+          const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
 
           cancelTx = exchange.cancelOrdersTx(maker, orders);
           break;

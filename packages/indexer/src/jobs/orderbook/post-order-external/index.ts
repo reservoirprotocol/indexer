@@ -281,7 +281,7 @@ const postOrder = async (
     case "opensea": {
       const order = new Sdk.SeaportV14.Order(
         config.chainId,
-        orderData as Sdk.SeaportV14.Types.OrderComponents
+        orderData as Sdk.SeaportBase.Types.OrderComponents
       );
 
       logger.info(
@@ -371,7 +371,7 @@ export type PostOrderExternalParams =
   | {
       crossPostingOrderId?: number;
       orderId: string;
-      orderData: Sdk.Seaport.Types.OrderComponents;
+      orderData: Sdk.SeaportBase.Types.OrderComponents;
       orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
       orderbook: "opensea";
       orderbookApiKey?: string | null;

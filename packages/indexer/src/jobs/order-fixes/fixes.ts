@@ -12,7 +12,7 @@ import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as raribleCheck from "@/orderbook/orders/rarible/check";
 import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
-import * as seaportCheck from "@/orderbook/orders/seaport/check";
+import * as seaportCheck from "@/orderbook/orders/seaport-base/check";
 import * as x2y2Check from "@/orderbook/orders/x2y2/check";
 import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 import * as blurCheck from "@/orderbook/orders/blur/check";
@@ -177,9 +177,10 @@ if (config.doBackgroundWork) {
                 }
 
                 case "seaport": {
-                  const order = new Sdk.Seaport.Order(config.chainId, result.raw_data);
+                  const order = new Sdk.SeaportV11.Order(config.chainId, result.raw_data);
+                  const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
                   try {
-                    await seaportCheck.offChainCheck(order, {
+                    await seaportCheck.offChainCheck(order, exchange, {
                       onChainApprovalRecheck: true,
                       checkFilledOrCancelled: true,
                     });

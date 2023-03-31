@@ -483,11 +483,10 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       // Direct filling on OpenSea might require an approval
       if (txData.to === Sdk.SeaportV14.Addresses.Exchange[config.chainId]) {
-        const isApproved = await getNftApproval(
-          bidDetails.contract,
-          payload.taker,
-          Sdk.SeaportV14.Addresses.OpenseaConduit[config.chainId]
+        const conduit = new Sdk.SeaportV14.Exchange(config.chainId).deriveConduit(
+          Sdk.SeaportV14.Addresses.OpenseaConduitKey[config.chainId]
         );
+        const isApproved = await getNftApproval(bidDetails.contract, payload.taker, conduit);
 
         if (!isApproved) {
           steps[0].items.push({

@@ -9,7 +9,7 @@ import { expect } from "chai";
 import { ethers, network } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport";
+import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport-v1.1";
 import { bn, getChainId, getRandomFloat, reset } from "../../utils";
 
 // WARNING! These tests are flaky!
@@ -40,7 +40,7 @@ describe("[ReservoirV6_0_1] X2Y2 offers", () => {
     seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
       .then((factory) =>
-        factory.deploy(deployer.address, router.address, Sdk.Seaport.Addresses.Exchange[chainId])
+        factory.deploy(deployer.address, router.address, Sdk.SeaportV11.Addresses.Exchange[chainId])
       );
     x2y2Module = await ethers
       .getContractFactory("X2Y2Module", deployer)

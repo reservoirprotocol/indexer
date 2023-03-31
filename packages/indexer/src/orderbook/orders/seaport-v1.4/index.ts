@@ -1,7 +1,7 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
-import { OrderKind } from "@reservoir0x/sdk/dist/seaport-v1.4/types";
+import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
 import axios from "axios";
 import _ from "lodash";
 import pLimit from "p-limit";
@@ -18,7 +18,7 @@ import { Collections } from "@/models/collections";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
-import { offChainCheck } from "@/orderbook/orders/seaport-v1.4/check";
+import { offChainCheck } from "@/orderbook/orders/seaport-base/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
@@ -31,7 +31,7 @@ import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/confi
 
 export type OrderInfo = {
   kind?: "full";
-  orderParams: Sdk.SeaportV14.Types.OrderComponents;
+  orderParams: Sdk.SeaportBase.Types.OrderComponents;
   metadata: OrderMetadata;
   isReservoir?: boolean;
   isOpenSea?: boolean;
@@ -79,7 +79,7 @@ export const save = async (
   }[] = [];
 
   const handleOrder = async (
-    orderParams: Sdk.SeaportV14.Types.OrderComponents,
+    orderParams: Sdk.SeaportBase.Types.OrderComponents,
     metadata: OrderMetadata,
     isReservoir?: boolean,
     isOpenSea?: boolean,
@@ -239,8 +239,9 @@ export const save = async (
       // Check: order fillability
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
+      const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
       try {
-        await offChainCheck(order, {
+        await offChainCheck(order, exchange, {
           onChainApprovalRecheck: true,
           singleTokenERC721ApprovalCheck: metadata.fromOnChain,
         });
@@ -766,7 +767,7 @@ export const save = async (
       limit(async () =>
         tracer.trace("handleOrder", { resource: "seaportV14Save" }, () =>
           handleOrder(
-            orderInfo.orderParams as Sdk.SeaportV14.Types.OrderComponents,
+            orderInfo.orderParams as Sdk.SeaportBase.Types.OrderComponents,
             orderInfo.metadata,
             orderInfo.isReservoir,
             orderInfo.isOpenSea,

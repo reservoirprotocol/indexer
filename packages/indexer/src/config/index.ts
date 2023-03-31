@@ -83,6 +83,14 @@ export const config = {
 
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
+  openSeaCrossPostingApiKey: String(
+    process.env.OPENSEA_CROSS_POSTING_API_KEY || process.env.OPENSEA_API_KEY
+  ),
+  openSeaCrossPostingApiUrl: String(process.env.OPENSEA_CROSS_POSTING_API_URL || ""),
+  openSeaCrossPostingApiKeyHeader: String(
+    process.env.OPENSEA_CROSS_POSTING_API_HEADER || "X-Api-Key"
+  ),
+
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
   infinityApiKey: String(process.env.INFINITY_API_KEY),

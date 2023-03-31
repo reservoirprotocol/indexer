@@ -23,9 +23,9 @@ import * as looksRareBuyToken from "@/orderbook/orders/looks-rare/build/buy/toke
 import * as looksRareBuyCollection from "@/orderbook/orders/looks-rare/build/buy/collection";
 
 // Seaport
-import * as seaportBuyAttribute from "@/orderbook/orders/seaport/build/buy/attribute";
-import * as seaportBuyToken from "@/orderbook/orders/seaport/build/buy/token";
-import * as seaportBuyCollection from "@/orderbook/orders/seaport/build/buy/collection";
+import * as seaportBuyAttribute from "@/orderbook/orders/seaport-v1.1/build/buy/attribute";
+import * as seaportBuyToken from "@/orderbook/orders/seaport-v1.1/build/buy/token";
+import * as seaportBuyCollection from "@/orderbook/orders/seaport-v1.1/build/buy/collection";
 
 // Seaport v1.4
 import * as seaportV14BuyAttribute from "@/orderbook/orders/seaport-v1.4/build/buy/attribute";
@@ -296,7 +296,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         "seaport-v1.4": [] as {
           order: {
             kind: "seaport-v1.4";
-            data: Sdk.SeaportV14.Types.OrderComponents;
+            data: Sdk.SeaportBase.Types.OrderComponents;
           };
           tokenSetId?: string;
           attribute?: {
@@ -548,7 +548,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
-                let order: Sdk.Seaport.Order;
+                let order: Sdk.SeaportV11.Order;
                 if (token) {
                   const [contract, tokenId] = token.split(":");
                   order = await seaportBuyToken.build({
@@ -591,7 +591,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
-                const exchange = new Sdk.Seaport.Exchange(config.chainId);
+                const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
                 const conduit = exchange.deriveConduit(order.params.conduitKey);
 
                 // Check the maker's approval

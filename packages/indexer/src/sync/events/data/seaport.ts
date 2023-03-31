@@ -1,5 +1,5 @@
 import { Interface } from "@ethersproject/abi";
-import { Seaport } from "@reservoir0x/sdk";
+import { SeaportV11 } from "@reservoir0x/sdk";
 
 import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
@@ -7,7 +7,7 @@ import { EventData } from "@/events-sync/data";
 export const orderCancelled: EventData = {
   kind: "seaport",
   subKind: "seaport-order-cancelled",
-  addresses: { [Seaport.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  addresses: { [SeaportV11.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x6bacc01dbe442496068f7d234edd811f1a5f833243e0aec824f86ab861f3c90d",
   numTopics: 3,
   abi: new Interface([
@@ -22,7 +22,7 @@ export const orderCancelled: EventData = {
 export const orderFulfilled: EventData = {
   kind: "seaport",
   subKind: "seaport-order-filled",
-  addresses: { [Seaport.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  addresses: { [SeaportV11.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31",
   numTopics: 3,
   abi: new Interface([
@@ -51,7 +51,7 @@ export const orderFulfilled: EventData = {
 export const counterIncremented: EventData = {
   kind: "seaport",
   subKind: "seaport-counter-incremented",
-  addresses: { [Seaport.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  addresses: { [SeaportV11.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0x721c20121297512b72821b97f5326877ea8ecf4bb9948fea5bfcb6453074d37f",
   numTopics: 2,
   abi: new Interface([
@@ -65,7 +65,7 @@ export const counterIncremented: EventData = {
 export const orderValidated: EventData = {
   kind: "seaport",
   subKind: "seaport-order-validated",
-  addresses: { [Seaport.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
+  addresses: { [SeaportV11.Addresses.Exchange[config.chainId]?.toLowerCase()]: true },
   topic: "0xfde361574a066b44b3b5fe98a87108b7565e327327954c4faeea56a4e6491a0a",
   numTopics: 3,
   abi: new Interface([

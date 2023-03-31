@@ -62,10 +62,10 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
       // Approve the exchange
       await erc721
         .connect(seller1)
-        .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+        .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const sellOrder = builder.build({
         side: "sell",
         tokenKind: "erc721",
@@ -83,7 +83,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await sellOrder.sign(seller1);
 
       await sellOrder.checkFillability(ethers.provider);
@@ -282,10 +282,10 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
       // Approve the exchange
       await erc721
         .connect(seller1)
-        .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+        .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const sellOrder = builder.build({
         side: "sell",
         tokenKind: "erc721",
@@ -303,7 +303,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await sellOrder.sign(seller1);
 
       await sellOrder.checkFillability(ethers.provider);
@@ -409,10 +409,10 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
       // Approve the exchange
       await erc721
         .connect(seller1)
-        .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+        .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const sellOrder = builder.build({
         side: "sell",
         tokenKind: "erc721",
@@ -430,7 +430,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await sellOrder.sign(seller1);
 
       await sellOrder.checkFillability(ethers.provider);
@@ -460,10 +460,10 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
       // Approve the exchange
       await erc721
         .connect(seller2)
-        .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+        .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const sellOrder = builder.build({
         side: "sell",
         tokenKind: "erc721",
@@ -481,7 +481,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await sellOrder.sign(seller2);
 
       await sellOrder.checkFillability(ethers.provider);
@@ -511,10 +511,10 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
       // Approve the exchange
       await erc721
         .connect(seller3)
-        .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+        .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const sellOrder = builder.build({
         side: "sell",
         tokenKind: "erc721",
@@ -532,7 +532,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await sellOrder.sign(seller3);
 
       await sellOrder.checkFillability(ethers.provider);
@@ -614,10 +614,10 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
       // Approve the exchange
       await erc721
         .connect(seller1)
-        .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+        .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const sellOrder = builder.build({
         side: "sell",
         tokenKind: "erc721",
@@ -635,7 +635,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await sellOrder.sign(seller1);
 
       await sellOrder.checkFillability(ethers.provider);
@@ -668,7 +668,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         .setApprovalForAll(Sdk.SeaportV14.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.SeaportV14.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const sellOrder = builder.build({
         side: "sell",
         tokenKind: "erc721",
@@ -686,7 +686,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV14.Order);
       await sellOrder.sign(seller2);
 
       await sellOrder.checkFillability(ethers.provider);
@@ -716,10 +716,10 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
       // Approve the exchange
       await erc721
         .connect(seller3)
-        .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+        .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const sellOrder = builder.build({
         side: "sell",
         tokenKind: "erc721",
@@ -737,7 +737,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await sellOrder.sign(seller3);
 
       await sellOrder.checkFillability(ethers.provider);
@@ -867,10 +867,10 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
       // Approve the exchange
       await erc721
         .connect(seller1)
-        .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+        .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const sellOrder = builder.build({
         side: "sell",
         tokenKind: "erc721",
@@ -888,7 +888,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await sellOrder.sign(seller1);
 
       await sellOrder.checkFillability(ethers.provider);
@@ -921,7 +921,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         .setApprovalForAll(Sdk.SeaportV14.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.SeaportV14.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const sellOrder = builder.build({
         side: "sell",
         tokenKind: "erc721",
@@ -939,7 +939,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV14.Order);
       await sellOrder.sign(seller2);
 
       await sellOrder.checkFillability(ethers.provider);
@@ -1014,10 +1014,10 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
       // Approve the exchange
       await erc721
         .connect(seller4)
-        .setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+        .setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const sellOrder = builder.build({
         side: "sell",
         tokenKind: "erc721",
@@ -1035,7 +1035,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await sellOrder.sign(seller1);
 
       await sellOrder.checkFillability(ethers.provider);
@@ -1153,16 +1153,16 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
     {
       // Wrap ETH for buyer
       await weth.deposit(buyer1, price1);
-      await weth.approve(buyer1, Sdk.Seaport.Addresses.Exchange[chainId]);
+      await weth.approve(buyer1, Sdk.SeaportV11.Addresses.Exchange[chainId]);
 
       // Mint erc721 to seller
       await erc721.connect(seller).mint(tokenId1);
 
       // Approve the exchange
-      await erc721.connect(seller).setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+      await erc721.connect(seller).setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const buyOrder = builder.build({
         side: "buy",
         tokenKind: "erc721",
@@ -1180,7 +1180,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await buyOrder.sign(buyer1);
 
       bids.push({
@@ -1213,7 +1213,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         .setApprovalForAll(Sdk.SeaportV14.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.SeaportV14.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const buyOrder = builder.build({
         side: "buy",
         tokenKind: "erc721",
@@ -1231,7 +1231,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV14.Order);
       await buyOrder.sign(buyer2);
 
       bids.push({
@@ -1322,16 +1322,16 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
     {
       // Wrap ETH for buyer
       await weth.deposit(buyer1, price1);
-      await weth.approve(buyer1, Sdk.Seaport.Addresses.Exchange[chainId]);
+      await weth.approve(buyer1, Sdk.SeaportV11.Addresses.Exchange[chainId]);
 
       // Mint erc721 to seller
       await erc721.connect(seller).mint(tokenId1);
 
       // Approve the exchange
-      await erc721.connect(seller).setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+      await erc721.connect(seller).setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const buyOrder = builder.build({
         side: "buy",
         tokenKind: "erc721",
@@ -1349,7 +1349,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await buyOrder.sign(buyer1);
 
       bids.push({
@@ -1382,7 +1382,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         .setApprovalForAll(Sdk.SeaportV14.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.SeaportV14.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const buyOrder = builder.build({
         side: "buy",
         tokenKind: "erc721",
@@ -1400,7 +1400,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV14.Order);
       await buyOrder.sign(buyer2);
 
       bids.push({
@@ -1422,16 +1422,16 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
     {
       // Wrap ETH for buyer
       await weth.deposit(buyer3, price3);
-      await weth.approve(buyer3, Sdk.Seaport.Addresses.Exchange[chainId]);
+      await weth.approve(buyer3, Sdk.SeaportV11.Addresses.Exchange[chainId]);
 
       // Mint erc721 to seller
       await erc721.connect(seller).mint(tokenId3);
 
       // Approve the exchange
-      await erc721.connect(seller).setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+      await erc721.connect(seller).setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const buyOrder = builder.build({
         side: "buy",
         tokenKind: "erc721",
@@ -1449,7 +1449,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await buyOrder.sign(buyer3);
 
       bids.push({
@@ -1462,7 +1462,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         order: buyOrder,
       });
 
-      await new Sdk.Seaport.Exchange(chainId).cancelOrder(buyer3, buyOrder);
+      await new Sdk.SeaportV11.Exchange(chainId).cancelOrder(buyer3, buyOrder);
     }
 
     const sellerWethBalanceBefore = await weth.getBalance(seller.address);
@@ -1582,16 +1582,16 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
     {
       // Wrap ETH for buyer
       await weth.deposit(buyer1, price1);
-      await weth.approve(buyer1, Sdk.Seaport.Addresses.Exchange[chainId]);
+      await weth.approve(buyer1, Sdk.SeaportV11.Addresses.Exchange[chainId]);
 
       // Mint erc721 to seller
       await erc721.connect(seller).mint(tokenId1);
 
       // Approve the exchange
-      await erc721.connect(seller).setApprovalForAll(Sdk.Seaport.Addresses.Exchange[chainId], true);
+      await erc721.connect(seller).setApprovalForAll(Sdk.SeaportV11.Addresses.Exchange[chainId], true);
 
       // Build sell order
-      const builder = new Sdk.Seaport.Builders.SingleToken(chainId);
+      const builder = new Sdk.SeaportBase.Builders.SingleToken(chainId);
       const buyOrder = builder.build({
         side: "buy",
         tokenKind: "erc721",
@@ -1609,7 +1609,7 @@ describe("[ReservoirV6_0_1] Filling listings and bids via the SDK", () => {
         counter: 0,
         startTime: await getCurrentTimestamp(ethers.provider),
         endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-      });
+      }, Sdk.SeaportV11.Order);
       await buyOrder.sign(buyer1);
 
       bids.push({

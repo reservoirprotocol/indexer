@@ -91,7 +91,7 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
   const seaportModule = await ethers
     .getContractFactory("SeaportModule", deployer)
     .then((factory) =>
-      factory.deploy(deployer.address, router.address, Sdk.Seaport.Addresses.Exchange[chainId])
+      factory.deploy(deployer.address, router.address, Sdk.SeaportV11.Addresses.Exchange[chainId])
     );
   Sdk.RouterV6.Addresses.SeaportModule[chainId] = seaportModule.address.toLowerCase();
 

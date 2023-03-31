@@ -7,7 +7,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import { SeaportERC20Approval, setupSeaportERC20Approvals } from "../helpers/seaport";
+import { SeaportERC20Approval, setupSeaportERC20Approvals } from "../helpers/seaport-v1.1";
 import { ZeroExV4Listing, setupZeroExV4Listings } from "../helpers/zeroex-v4";
 import {
   bn,
@@ -51,7 +51,7 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
     seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
       .then((factory) =>
-        factory.deploy(deployer.address, router.address, Sdk.Seaport.Addresses.Exchange[chainId])
+        factory.deploy(deployer.address, router.address, Sdk.SeaportV11.Addresses.Exchange[chainId])
       );
     swapModule = await ethers
       .getContractFactory("SwapModule", deployer)

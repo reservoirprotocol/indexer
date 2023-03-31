@@ -591,7 +591,7 @@ export class Router {
     await Promise.all(
       details.map(async (detail, i) => {
         if (detail.kind === "seaport-partial") {
-          const order = detail.order as Sdk.Seaport.Types.PartialOrder;
+          const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
 
           let url = `${this.options?.orderFetcherBaseUrl}/api/listing`;
           url += `?contract=${detail.contract}`;
@@ -610,7 +610,7 @@ export class Router {
             });
 
             // Override the details
-            const fullOrder = new Sdk.Seaport.Order(this.chainId, result.data.order);
+            const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
             details[i] = {
               ...detail,
               kind: "seaport",
@@ -639,7 +639,7 @@ export class Router {
     await Promise.all(
       details.map(async (detail, i) => {
         if (detail.kind === "seaport-v1.4-partial") {
-          const order = detail.order as Sdk.SeaportV14.Types.PartialOrder;
+          const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
 
           let url = `${this.options?.orderFetcherBaseUrl}/api/listing`;
           url += `?contract=${detail.contract}`;
@@ -696,18 +696,18 @@ export class Router {
           buyInCurrency === currency &&
           // All orders must have the same currency and conduit
           currency === details[0].currency &&
-          (order as Sdk.Seaport.Order).params.conduitKey ===
-            (details[0].order as Sdk.Seaport.Order).params.conduitKey &&
+          (order as Sdk.SeaportV11.Order).params.conduitKey ===
+            (details[0].order as Sdk.SeaportV11.Order).params.conduitKey &&
           !fees?.length
       ) &&
       !options?.globalFees?.length &&
       !options?.forceRouter &&
       !options?.relayer
     ) {
-      const exchange = new Sdk.Seaport.Exchange(this.chainId);
+      const exchange = new Sdk.SeaportV11.Exchange(this.chainId);
 
       const conduit = exchange.deriveConduit(
-        (details[0].order as Sdk.Seaport.Order).params.conduitKey
+        (details[0].order as Sdk.SeaportV11.Order).params.conduitKey
       );
 
       let approval: FTApproval | undefined;
@@ -721,7 +721,7 @@ export class Router {
       }
 
       if (details.length === 1) {
-        const order = details[0].order as Sdk.Seaport.Order;
+        const order = details[0].order as Sdk.SeaportV11.Order;
         return {
           txs: [
             {
@@ -742,7 +742,7 @@ export class Router {
           success: { [details[0].orderId]: true },
         };
       } else {
-        const orders = details.map((d) => d.order as Sdk.Seaport.Order);
+        const orders = details.map((d) => d.order as Sdk.SeaportV11.Order);
         return {
           txs: [
             {
@@ -783,7 +783,7 @@ export class Router {
       const exchange = new Sdk.SeaportV14.Exchange(this.chainId);
 
       const conduit = exchange.deriveConduit(
-        (details[0].order as Sdk.Seaport.Order).params.conduitKey
+        (details[0].order as Sdk.SeaportV11.Order).params.conduitKey
       );
 
       let approval: FTApproval | undefined;
@@ -1269,11 +1269,11 @@ export class Router {
 
     // Handle Seaport listings
     if (Object.keys(seaportDetails).length) {
-      const exchange = new Sdk.Seaport.Exchange(this.chainId);
+      const exchange = new Sdk.SeaportV11.Exchange(this.chainId);
       for (const currency of Object.keys(seaportDetails)) {
         const currencyDetails = seaportDetails[currency];
 
-        const orders = currencyDetails.map((d) => d.order as Sdk.Seaport.Order);
+        const orders = currencyDetails.map((d) => d.order as Sdk.SeaportV11.Order);
         const module = this.contracts.seaportModule;
 
         const fees = getFees(currencyDetails);
@@ -2479,7 +2479,9 @@ export class Router {
 
       const contract = detail.contract;
       const owner = taker;
-      const operator = Sdk.Seaport.Addresses.OpenseaConduit[this.chainId];
+      const operator = new Sdk.SeaportV11.Exchange(this.chainId).deriveConduit(
+        Sdk.SeaportV11.Addresses.OpenseaConduitKey[this.chainId]
+      );
 
       // Generate approval
       approvals.push({
@@ -2603,7 +2605,7 @@ export class Router {
         }
 
         case "seaport": {
-          const order = detail.order as Sdk.Seaport.Order;
+          const order = detail.order as Sdk.SeaportV11.Order;
           const module = this.contracts.seaportModule;
 
           const matchParams = order.buildMatching({
@@ -2612,7 +2614,7 @@ export class Router {
             ...(detail.extraArgs ?? {}),
           });
 
-          const exchange = new Sdk.Seaport.Exchange(this.chainId);
+          const exchange = new Sdk.SeaportV11.Exchange(this.chainId);
           executions.push({
             module: module.address,
             data: module.interface.encodeFunctionData(
@@ -2646,7 +2648,7 @@ export class Router {
         }
 
         case "seaport-partial": {
-          const order = detail.order as Sdk.Seaport.Types.PartialOrder;
+          const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
           const module = this.contracts.seaportModule;
 
           let url = `${this.options?.orderFetcherBaseUrl}/api/offer`;
@@ -2665,7 +2667,7 @@ export class Router {
               },
             });
 
-            const fullOrder = new Sdk.Seaport.Order(this.chainId, result.data.order);
+            const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
             executions.push({
               module: module.address,
               data: module.interface.encodeFunctionData(
@@ -2758,7 +2760,7 @@ export class Router {
         }
 
         case "seaport-v1.4-partial": {
-          const order = detail.order as Sdk.SeaportV14.Types.PartialOrder;
+          const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
           const module = this.contracts.seaportV14Module;
 
           let url = `${this.options?.orderFetcherBaseUrl}/api/offer`;

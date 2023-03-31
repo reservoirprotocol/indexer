@@ -80,7 +80,7 @@ export const postPermitSignatureV1Options: RouteOptions = {
             orderData.signature = query.signature;
 
             // Verify the permit signature
-            const order = new Sdk.Seaport.Order(config.chainId, orderData);
+            const order = new Sdk.SeaportV11.Order(config.chainId, orderData);
             await order.checkSignature();
 
             // Update the cached permit to include the signature

@@ -11,7 +11,7 @@ import {
   SeaportListing,
   setupSeaportERC20Approvals,
   setupSeaportListings,
-} from "./helpers/seaport";
+} from "./helpers/seaport-v1.1";
 import {
   bn,
   getChainId,

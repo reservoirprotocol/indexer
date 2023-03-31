@@ -107,7 +107,7 @@ export class Router {
       details
         .filter(({ kind }) => kind === "seaport-partial")
         .map(async (detail) => {
-          const order = detail.order as Sdk.Seaport.Types.PartialOrder;
+          const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
           const result = await axios.get(
             `${this.options?.orderFetcherBaseUrl}/api/listing?orderHash=${order.id}&contract=${order.contract}&tokenId=${order.tokenId}&taker=${taker}&chainId=${this.chainId}`,
             {
@@ -117,7 +117,7 @@ export class Router {
             }
           );
 
-          const fullOrder = new Sdk.Seaport.Order(this.chainId, result.data.order);
+          const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
           details.push({
             ...detail,
             kind: "seaport",
@@ -140,9 +140,9 @@ export class Router {
       // Skip direct filling if disabled via the options
       !options?.forceRouter
     ) {
-      const exchange = new Sdk.Seaport.Exchange(this.chainId);
+      const exchange = new Sdk.SeaportV11.Exchange(this.chainId);
       if (details.length === 1) {
-        const order = details[0].order as Sdk.Seaport.Order;
+        const order = details[0].order as Sdk.SeaportV11.Order;
         return exchange.fillOrderTx(
           taker,
           order,
@@ -153,7 +153,7 @@ export class Router {
           }
         );
       } else {
-        const orders = details.map((d) => d.order as Sdk.Seaport.Order);
+        const orders = details.map((d) => d.order as Sdk.SeaportV11.Order);
         return exchange.fillOrdersTx(
           taker,
           orders,
@@ -545,12 +545,12 @@ export class Router {
         maker: order.params.maker,
       };
     } else if (kind === "seaport") {
-      order = order as Sdk.Seaport.Order;
+      order = order as Sdk.SeaportV11.Order;
 
       // Support passing an amount for partially fillable orders
       const matchParams = order.buildMatching({ amount });
 
-      const exchange = new Sdk.Seaport.Exchange(this.chainId);
+      const exchange = new Sdk.SeaportV11.Exchange(this.chainId);
       return {
         tx: await exchange.fillOrderTx(this.contract.address, order, matchParams, {
           recipient: taker,
@@ -645,7 +645,7 @@ export class Router {
         exchangeKind: ExchangeKind.ZEROEX_V4,
       };
     } else if (kind === "seaport") {
-      order = order as Sdk.Seaport.Order;
+      order = order as Sdk.SeaportV11.Order;
 
       const matchParams = order.buildMatching({
         tokenId,
@@ -653,7 +653,7 @@ export class Router {
         amount: 1,
       });
 
-      const exchange = new Sdk.Seaport.Exchange(this.chainId);
+      const exchange = new Sdk.SeaportV11.Exchange(this.chainId);
       return {
         tx: await exchange.fillOrderTx(
           filler,
@@ -667,7 +667,7 @@ export class Router {
         exchangeKind: ExchangeKind.SEAPORT,
       };
     } else if (kind === "seaport-partial") {
-      order = order as Sdk.Seaport.Types.PartialOrder;
+      order = order as Sdk.SeaportBase.Types.PartialOrder;
       const result = await axios.get(
         `${this.options?.orderFetcherBaseUrl}/api/offer?orderHash=${order.id}&contract=${order.contract}&tokenId=${order.tokenId}&taker=${taker}&chainId=${this.chainId}`,
         {
@@ -677,9 +677,9 @@ export class Router {
         }
       );
 
-      const fullOrder = new Sdk.Seaport.Order(this.chainId, result.data.order);
+      const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
 
-      const exchange = new Sdk.Seaport.Exchange(this.chainId);
+      const exchange = new Sdk.SeaportV11.Exchange(this.chainId);
       return {
         tx: await exchange.fillOrderTx(
           filler,
