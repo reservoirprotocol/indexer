@@ -433,7 +433,7 @@ export const getJoiOrderObject = async (order: {
   updatedAt: number;
   includeRawData: boolean;
   rawData:
-    | Sdk.SeaportV14.Types.OrderComponents
+    | Sdk.SeaportBase.Types.OrderComponents
     | Sdk.Sudoswap.OrderParams
     | Sdk.Nftx.Types.OrderParams;
   normalizeRoyalties: boolean;
