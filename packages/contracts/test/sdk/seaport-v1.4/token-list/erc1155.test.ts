@@ -2,6 +2,7 @@ import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
 import * as Common from "@reservoir0x/sdk/src/common";
 import * as SeaportV14 from "@reservoir0x/sdk/src/seaport-v1.4";
+import { Builders } from "@reservoir0x/sdk/src/seaport-base";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { expect } from "chai";
 import { ethers } from "hardhat";
@@ -63,7 +64,7 @@ describe("SeaportV14 - TokenList ERC1155", () => {
     await nft.approve(seller2, SeaportV14.Addresses.Exchange[chainId]);
 
     const exchange = new SeaportV14.Exchange(chainId);
-    const builder = new SeaportV14.Builders.TokenList(chainId);
+    const builder = new Builders.TokenList(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
@@ -84,7 +85,7 @@ describe("SeaportV14 - TokenList ERC1155", () => {
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
       counter: await exchange.getCounter(ethers.provider, buyer.address),
-    });
+    }, SeaportV14.Order);
     await buyOrder.sign(buyer);
 
     buyOrder.checkValidity();

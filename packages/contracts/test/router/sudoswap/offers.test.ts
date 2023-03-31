@@ -7,7 +7,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport";
+import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport-v1.1";
 import { SudoswapOffer, setupSudoswapOffers } from "../helpers/sudoswap";
 import {
   bn,
@@ -49,7 +49,7 @@ describe("[ReservoirV6_0_1] Sudoswap offers", () => {
     seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
       .then((factory) =>
-        factory.deploy(deployer.address, router.address, Sdk.Seaport.Addresses.Exchange[chainId])
+        factory.deploy(deployer.address, router.address, Sdk.SeaportV11.Addresses.Exchange[chainId])
       );
     sudoswapModule = await ethers
       .getContractFactory("SudoswapModule", deployer)

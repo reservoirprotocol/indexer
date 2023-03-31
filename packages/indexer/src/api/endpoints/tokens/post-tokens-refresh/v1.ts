@@ -99,7 +99,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
       const currentUtcTime = new Date().toISOString();
       await Tokens.update(contract, tokenId, { lastMetadataSync: currentUtcTime });
 
-      if (config.metadataIndexingMethod === "opensea") {
+      if (_.indexOf([1, 5, 10, 137, 42161], config.chainId) !== -1) {
         // Refresh orders from OpenSea
         await OpenseaIndexerApi.fastTokenSync(payload.token);
       }

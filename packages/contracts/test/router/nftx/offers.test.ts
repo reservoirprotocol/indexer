@@ -8,7 +8,7 @@ import { ethers } from "hardhat";
 
 import { NFTXOffer, setupNFTXOffers } from "../helpers/nftx";
 import { ExecutionInfo } from "../helpers/router";
-import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport";
+import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport-v1.1";
 import {
   bn,
   getChainId,
@@ -49,7 +49,7 @@ describe("[ReservoirV6_0_1] NFTX offers", () => {
     seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
       .then((factory) =>
-        factory.deploy(deployer.address, router.address, Sdk.Seaport.Addresses.Exchange[chainId])
+        factory.deploy(deployer.address, router.address, Sdk.SeaportV11.Addresses.Exchange[chainId])
       );
     nftxModule = await ethers
       .getContractFactory("NFTXModule", deployer)

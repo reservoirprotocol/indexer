@@ -1,6 +1,6 @@
 import { now, toTime } from "@/common/utils";
 
-import { PartialOrderComponents } from "@/orderbook/orders/seaport";
+import { PartialOrderComponents } from "@/orderbook/orders/seaport-v1.1";
 import { CollectionOfferEventPayload } from "@opensea/stream-js";
 import { getNetworkSettings } from "@/config/network";
 

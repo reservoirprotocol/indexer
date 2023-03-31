@@ -14,10 +14,10 @@ const version = "v2";
 export const getExecuteCancelV2Options: RouteOptions = {
   description: "Cancel order",
   notes: "Cancel an existing order on any marketplace",
-  tags: ["api", "Fill Orders (buy & sell)"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 11,
+      deprecated: true,
     },
   },
   validate: {
@@ -138,8 +138,8 @@ export const getExecuteCancelV2Options: RouteOptions = {
       // REFACTOR: Move to SDK and handle X2Y2
       switch (orderResult.kind) {
         case "seaport": {
-          const order = new Sdk.Seaport.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Seaport.Exchange(config.chainId);
+          const order = new Sdk.SeaportV11.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
 
           cancelTx = exchange.cancelOrderTx(maker, order);
           orderSide = order.getInfo()!.side;

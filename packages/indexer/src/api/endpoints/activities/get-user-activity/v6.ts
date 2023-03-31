@@ -7,11 +7,15 @@ import { logger } from "@/common/logger";
 import { buildContinuation, fromBuffer, regex, splitContinuation } from "@/common/utils";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { UserActivities } from "@/models/user-activities";
-import { Sources } from "@/models/sources";
 import { getOrderSourceByOrderKind, OrderKind } from "@/orderbook/orders";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
-import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
+import {
+  getJoiActivityOrderObject,
+  getJoiPriceObject,
+  JoiActivityOrder,
+  JoiPrice,
+} from "@/common/joi";
 import { ContractSets } from "@/models/contract-sets";
 
 const version = "v6";
@@ -138,12 +142,7 @@ export const getUserActivityV6Options: RouteOptions = {
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
-          order: Joi.object({
-            id: Joi.string().allow(null),
-            side: Joi.string().valid("ask", "bid").allow(null),
-            source: Joi.object().allow(null),
-            criteria: JoiOrderCriteria.allow(null),
-          }),
+          order: JoiActivityOrder,
           createdAt: Joi.string(),
         })
       ),
@@ -201,21 +200,9 @@ export const getUserActivityV6Options: RouteOptions = {
         return { activities: [] };
       }
 
-      const sources = await Sources.getInstance();
-
       const result = [];
 
       for (const activity of activities) {
-        let orderSource;
-
-        if (activity.order) {
-          const orderSourceIdInt =
-            activity.order.sourceIdInt ||
-            (await getOrderSourceByOrderKind(activity.order.kind! as OrderKind))?.id;
-
-          orderSource = orderSourceIdInt ? sources.get(orderSourceIdInt) : undefined;
-        }
-
         result.push({
           type: activity.type,
           fromAddress: activity.fromAddress,
@@ -242,22 +229,16 @@ export const getUserActivityV6Options: RouteOptions = {
           logIndex: activity.metadata.logIndex,
           batchIndex: activity.metadata.batchIndex,
           order: activity.order?.id
-            ? {
+            ? await getJoiActivityOrderObject({
                 id: activity.order.id,
-                side: activity.order.side
-                  ? activity.order.side === "sell"
-                    ? "ask"
-                    : "bid"
-                  : undefined,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.getTitle(),
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
-                criteria: activity.order.criteria || undefined,
-              }
+                side: activity.order.side,
+                sourceIdInt:
+                  activity.order.sourceIdInt ||
+                  (
+                    await getOrderSourceByOrderKind(activity.order.kind! as OrderKind)
+                  )?.id,
+                criteria: activity.order.criteria,
+              })
             : undefined,
         });
       }

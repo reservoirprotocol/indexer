@@ -2,6 +2,7 @@ import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
 import * as Common from "@reservoir0x/sdk/src/common";
 import * as SeaportV14 from "@reservoir0x/sdk/src/seaport-v1.4";
+import { Builders } from "@reservoir0x/sdk/src/seaport-base";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { expect } from "chai";
 import { ethers } from "hardhat";
@@ -43,7 +44,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
 
     const exchange = new SeaportV14.Exchange(chainId);
 
-    const builder = new SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build sell order
     const sellOrder = builder.build({
@@ -57,7 +58,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
       counter: 0,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    });
+    }, SeaportV14.Order);
 
     // Sign the order
     await sellOrder.sign(seller);
@@ -107,7 +108,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
 
     const exchange = new SeaportV14.Exchange(chainId);
 
-    const builder = new SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build sell order
     const sellOrder = builder.build({
@@ -122,7 +123,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
       counter: 0,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    });
+    }, SeaportV14.Order);
 
     // Sign the order
     await sellOrder.sign(seller);
@@ -178,7 +179,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
 
     const exchange = new SeaportV14.Exchange(chainId);
 
-    const builder = new SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build sell order
     const sellOrder = builder.build({
@@ -202,7 +203,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
       counter: 0,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    });
+    }, SeaportV14.Order);
 
     // Sign the order
     await sellOrder.sign(seller);
@@ -260,7 +261,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
 
     const exchange = new SeaportV14.Exchange(chainId);
 
-    const builder = new SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build sell order
     const sellOrder = builder.build({
@@ -281,7 +282,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
       counter: 0,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    });
+    }, SeaportV14.Order);
 
     // Sign the order
     await sellOrder.sign(seller);
@@ -346,7 +347,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
 
     const exchange = new SeaportV14.Exchange(chainId);
 
-    const builder = new SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
@@ -360,7 +361,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
       counter: 0,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    });
+    }, SeaportV14.Order);
 
     // Sign the order
     await buyOrder.sign(buyer);
@@ -418,7 +419,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
 
     const exchange = new SeaportV14.Exchange(chainId);
 
-    const builder = new SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
@@ -433,7 +434,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
       counter: 0,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    });
+    }, SeaportV14.Order);
 
     // Sign the order
     await buyOrder.sign(buyer);
@@ -497,7 +498,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
 
     const exchange = new SeaportV14.Exchange(chainId);
 
-    const builder = new SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
@@ -521,7 +522,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
       counter: 0,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    });
+    }, SeaportV14.Order);
 
     // Sign the order
     await buyOrder.sign(buyer);
@@ -592,7 +593,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
 
     const exchange = new SeaportV14.Exchange(chainId);
 
-    const builder = new SeaportV14.Builders.SingleToken(chainId);
+    const builder = new Builders.SingleToken(chainId);
 
     // Build buy order
     const buyOrder = builder.build({
@@ -613,7 +614,7 @@ describe("SeaportV14 - SingleToken Erc1155", () => {
       counter: 0,
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 60,
-    });
+    }, SeaportV14.Order);
 
     // Sign the order
     await buyOrder.sign(buyer);

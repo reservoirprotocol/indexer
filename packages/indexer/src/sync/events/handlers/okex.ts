@@ -21,7 +21,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const consideration = parsedLog.args["consideration"];
 
         // TODO: Switch to `Okex` class once integrated
-        const saleInfo = new Sdk.Seaport.Exchange(config.chainId).deriveBasicSale(
+        const saleInfo = new Sdk.SeaportV11.Exchange(config.chainId).deriveBasicSale(
           offer,
           consideration
         );

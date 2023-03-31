@@ -106,10 +106,10 @@ export const getExecuteCancelV1Options: RouteOptions = {
 
       switch (orderResult.kind) {
         case "seaport": {
-          const order = new Sdk.Seaport.Order(config.chainId, orderResult.raw_data);
+          const order = new Sdk.SeaportV11.Order(config.chainId, orderResult.raw_data);
 
           // Generate exchange-specific cancellation transaction.
-          const exchange = new Sdk.Seaport.Exchange(config.chainId);
+          const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
           const cancelTx = exchange.cancelOrderTx(query.maker, order);
 
           const steps = generateSteps(order.getInfo()!.side);

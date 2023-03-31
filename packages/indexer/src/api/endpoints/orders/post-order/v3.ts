@@ -210,7 +210,7 @@ export const postOrderV3Options: RouteOptions = {
 
           const orderId =
             order.kind === "seaport"
-              ? new Sdk.Seaport.Order(config.chainId, order.data).hash()
+              ? new Sdk.SeaportV11.Order(config.chainId, order.data).hash()
               : new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
 
           if (orderbook === "opensea") {
@@ -344,9 +344,9 @@ export const postOrderV3Options: RouteOptions = {
 
           let crossPostingOrder;
 
-          const orderId = new Sdk.Seaport.Order(config.chainId, order.data).hash();
+          const orderId = new Sdk.SeaportV11.Order(config.chainId, order.data).hash();
 
-          const orderComponents = order.data as Sdk.Seaport.Types.OrderComponents;
+          const orderComponents = order.data as Sdk.SeaportBase.Types.OrderComponents;
           const tokenOffer = orderComponents.offer[0];
 
           // Forward EIP1271 signature

@@ -7,8 +7,12 @@ import { logger } from "@/common/logger";
 import { buildContinuation, fromBuffer, regex, splitContinuation } from "@/common/utils";
 import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
-import { Sources } from "@/models/sources";
-import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
+import {
+  getJoiActivityOrderObject,
+  getJoiPriceObject,
+  JoiActivityOrder,
+  JoiPrice,
+} from "@/common/joi";
 
 const version = "v6";
 
@@ -112,12 +116,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
-          order: Joi.object({
-            id: Joi.string().allow(null),
-            side: Joi.string().valid("ask", "bid").allow(null),
-            source: Joi.object().allow(null),
-            criteria: JoiOrderCriteria.allow(null),
-          }),
+          order: JoiActivityOrder,
         })
       ),
     }).label(`getCollectionActivity${version.toUpperCase()}Response`),
@@ -156,12 +155,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
         return { activities: [] };
       }
 
-      const sources = await Sources.getInstance();
-
       const result = _.map(activities, async (activity) => {
-        const orderSourceId = activity.order?.sourceIdInt || activity.metadata.orderSourceIdInt;
-        const orderSource = orderSourceId ? sources.get(orderSourceId) : undefined;
-
         return {
           type: activity.type,
           fromAddress: activity.fromAddress,
@@ -192,22 +186,12 @@ export const getCollectionActivityV6Options: RouteOptions = {
           logIndex: activity.metadata.logIndex,
           batchIndex: activity.metadata.batchIndex,
           order: activity.order?.id
-            ? {
+            ? await getJoiActivityOrderObject({
                 id: activity.order.id,
-                side: activity.order.side
-                  ? activity.order.side === "sell"
-                    ? "ask"
-                    : "bid"
-                  : undefined,
-                source: orderSource
-                  ? {
-                      domain: orderSource?.domain,
-                      name: orderSource?.getTitle(),
-                      icon: orderSource?.getIcon(),
-                    }
-                  : undefined,
+                side: activity.order.side,
+                sourceIdInt: activity.order.sourceIdInt || activity.metadata.orderSourceIdInt,
                 criteria: activity.order.criteria,
-              }
+              })
             : undefined,
         };
       });

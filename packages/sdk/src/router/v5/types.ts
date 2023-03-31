@@ -33,11 +33,11 @@ export type GenericOrder =
     }
   | {
       kind: "seaport";
-      order: Sdk.Seaport.Order;
+      order: Sdk.SeaportV11.Order;
     }
   | {
       kind: "seaport-partial";
-      order: Sdk.Seaport.Types.PartialOrder;
+      order: Sdk.SeaportBase.Types.PartialOrder;
     }
   | {
       kind: "cryptopunks";

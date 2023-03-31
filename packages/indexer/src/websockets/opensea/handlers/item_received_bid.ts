@@ -1,6 +1,6 @@
 import { now, toTime } from "@/common/utils";
 import { getSupportedChainName } from "@/websockets/opensea/utils";
-import { PartialOrderComponents } from "@/orderbook/orders/seaport";
+import { PartialOrderComponents } from "@/orderbook/orders/seaport-v1.1";
 import { ItemReceivedBidEventPayload } from "@opensea/stream-js";
 import { getNetworkSettings } from "@/config/network";
 

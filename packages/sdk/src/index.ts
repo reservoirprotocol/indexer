@@ -24,8 +24,9 @@ import * as Nouns from "./nouns";
 import * as Okex from "./okex";
 import * as Quixotic from "./quixotic";
 import * as Rarible from "./rarible";
-import * as Seaport from "./seaport";
+import * as SeaportV11 from "./seaport-v1.1";
 import * as SeaportV14 from "./seaport-v1.4";
+import * as SeaportBase from "./seaport-base";
 import * as Sudoswap from "./sudoswap";
 import * as SuperRare from "./superrare";
 import * as TofuNft from "./tofunft";
@@ -36,6 +37,7 @@ import * as X2Y2 from "./x2y2";
 import * as ZeroExV4 from "./zeroex-v4";
 import * as Zora from "./zora";
 import * as ZeroExV2 from "./zeroex-v2";
+import * as Treasure from "./treasure";
 
 export {
   // Common
@@ -65,8 +67,9 @@ export {
   Okex,
   Quixotic,
   Rarible,
-  Seaport,
+  SeaportV11,
   SeaportV14,
+  SeaportBase,
   Sudoswap,
   SuperRare,
   TofuNft,
@@ -77,4 +80,5 @@ export {
   ZeroExV4,
   Zora,
   ZeroExV2,
+  Treasure,
 };

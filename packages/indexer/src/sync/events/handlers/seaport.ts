@@ -110,7 +110,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const exchange =
           orderKind === "seaport-v1.4"
             ? new Sdk.SeaportV14.Exchange(config.chainId)
-            : new Sdk.Seaport.Exchange(config.chainId);
+            : new Sdk.SeaportV11.Exchange(config.chainId);
 
         const saleInfo = exchange.deriveBasicSale(offer, consideration);
         if (saleInfo) {
@@ -278,7 +278,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const isV14 = orderKind === "seaport-v1.4";
         const exchange = isV14
           ? new Sdk.SeaportV14.Exchange(config.chainId)
-          : new Sdk.Seaport.Exchange(config.chainId);
+          : new Sdk.SeaportV11.Exchange(config.chainId);
 
         const allOrderParametersV14 = [];
         const allOrderParameters = [];
@@ -329,7 +329,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           const parameters = allOrderParameters[index];
           try {
             const counter = await exchange.getCounter(baseProvider, parameters.offerer);
-            const order = new Sdk.Seaport.Order(config.chainId, {
+            const order = new Sdk.SeaportV11.Order(config.chainId, {
               ...parameters,
               counter,
             });

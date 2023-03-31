@@ -2,31 +2,21 @@
 
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
-import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 import _ from "lodash";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import {
-  JoiPrice,
-  getJoiPriceObject,
-  JoiOrderCriteria,
-  JoiDynamicPrice,
-  getJoiDynamicPricingObject,
-} from "@/common/joi";
+import { JoiOrder, getJoiOrderObject } from "@/common/joi";
 import {
   buildContinuation,
-  fromBuffer,
   getNetAmount,
   regex,
   splitContinuation,
   toBuffer,
 } from "@/common/utils";
-import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
-import { SourcesEntity } from "@/models/sources/sources-entity";
 import { Orders } from "@/utils/orders";
 import { TokenSets } from "@/models/token-sets";
 
@@ -148,43 +138,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      orders: Joi.array().items(
-        Joi.object({
-          id: Joi.string().required(),
-          kind: Joi.string().required(),
-          side: Joi.string().valid("buy", "sell").required(),
-          tokenSetId: Joi.string().required(),
-          tokenSetSchemaHash: Joi.string().lowercase().pattern(regex.bytes32).required(),
-          contract: Joi.string().lowercase().pattern(regex.address),
-          maker: Joi.string().lowercase().pattern(regex.address).required(),
-          taker: Joi.string().lowercase().pattern(regex.address).required(),
-          price: JoiPrice,
-          validFrom: Joi.number().required(),
-          validUntil: Joi.number().required(),
-          quantityFilled: Joi.number().unsafe(),
-          quantityRemaining: Joi.number().unsafe(),
-          dynamicPricing: JoiDynamicPrice.allow(null),
-          criteria: JoiOrderCriteria.allow(null),
-          status: Joi.string(),
-          source: Joi.object().allow(null),
-          feeBps: Joi.number().allow(null),
-          feeBreakdown: Joi.array()
-            .items(
-              Joi.object({
-                kind: Joi.string(),
-                recipient: Joi.string().allow("", null),
-                bps: Joi.number(),
-              })
-            )
-            .allow(null),
-          expiration: Joi.number().required(),
-          isReservoir: Joi.boolean().allow(null),
-          isDynamic: Joi.boolean(),
-          createdAt: Joi.string().required(),
-          updatedAt: Joi.string().required(),
-          rawData: Joi.object().optional().allow(null),
-        })
-      ),
+      orders: Joi.array().items(JoiOrder),
       continuation: Joi.string().pattern(regex.base64).allow(null),
     }).label(`getOrdersAsks${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
@@ -475,101 +429,48 @@ export const getOrdersAsksV4Options: RouteOptions = {
         }
       }
 
-      const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
-        const feeBreakdown = r.fee_breakdown;
-        let feeBps = r.fee_bps;
-
-        if (query.normalizeRoyalties && r.missing_royalties) {
-          for (let i = 0; i < r.missing_royalties.length; i++) {
-            const index: number = r.fee_breakdown.findIndex(
-              (fee: { recipient: string }) => fee.recipient === r.missing_royalties[i].recipient
-            );
-
-            const missingFeeBps = Number(r.missing_royalties[i].bps);
-            feeBps += missingFeeBps;
-
-            if (index !== -1) {
-              feeBreakdown[index].bps += missingFeeBps;
-            } else {
-              feeBreakdown.push({
-                bps: missingFeeBps,
-                kind: "royalty",
-                recipient: r.missing_royalties[i].recipient,
-              });
-            }
-          }
-        }
-
-        let source: SourcesEntity | undefined;
-        if (r.token_set_id?.startsWith("token")) {
-          const [, contract, tokenId] = r.token_set_id.split(":");
-          source = sources.get(Number(r.source_id_int), contract, tokenId);
-        } else {
-          source = sources.get(Number(r.source_id_int));
-        }
-
-        return {
+        return await getJoiOrderObject({
           id: r.id,
           kind: r.kind,
           side: r.side,
           status: r.status,
           tokenSetId: r.token_set_id,
-          tokenSetSchemaHash: fromBuffer(r.token_set_schema_hash),
-          contract: fromBuffer(r.contract),
-          maker: fromBuffer(r.maker),
-          taker: fromBuffer(r.taker),
-          price: await getJoiPriceObject(
-            {
-              gross: {
-                amount: query.normalizeRoyalties
-                  ? r.currency_normalized_value ?? r.price
-                  : r.currency_price ?? r.price,
-                nativeAmount: query.normalizeRoyalties ? r.normalized_value ?? r.price : r.price,
-              },
-              net: {
-                amount: getNetAmount(r.currency_price ?? r.price, _.min([r.fee_bps, 10000])),
-                nativeAmount: getNetAmount(r.price, _.min([r.fee_bps, 10000])),
-              },
+          tokenSetSchemaHash: r.token_set_schema_hash,
+          contract: r.contract,
+          maker: r.maker,
+          taker: r.taker,
+          prices: {
+            gross: {
+              amount: query.normalizeRoyalties
+                ? r.currency_normalized_value ?? r.price
+                : r.currency_price ?? r.price,
+              nativeAmount: query.normalizeRoyalties ? r.normalized_value ?? r.price : r.price,
             },
-            r.currency
-              ? fromBuffer(r.currency)
-              : r.side === "sell"
-              ? Sdk.Common.Addresses.Eth[config.chainId]
-              : Sdk.Common.Addresses.Weth[config.chainId],
-            query.displayCurrency
-          ),
-          validFrom: Number(r.valid_from),
-          validUntil: Number(r.valid_until),
-          quantityFilled: Number(r.quantity_filled),
-          quantityRemaining: Number(r.quantity_remaining),
-          dynamicPricing: query.includeDynamicPricing
-            ? await getJoiDynamicPricingObject(
-                r.dynamic,
-                r.kind,
-                query.normalizeRoyalties,
-                r.raw_data,
-                r.currency ? fromBuffer(r.currency) : undefined,
-                r.missing_royalties ? r.missing_royalties : undefined
-              )
-            : null,
-          criteria: r.criteria,
-          source: {
-            id: source?.address,
-            domain: source?.domain,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
+            net: {
+              amount: getNetAmount(r.currency_price ?? r.price, _.min([r.fee_bps, 10000])),
+              nativeAmount: getNetAmount(r.price, _.min([r.fee_bps, 10000])),
+            },
+            currency: r.currency,
           },
-          feeBps: Number(feeBps.toString()),
-          feeBreakdown: feeBreakdown,
-          expiration: Number(r.expiration),
+          validFrom: r.valid_from,
+          validUntil: r.valid_until,
+          quantityFilled: r.quantity_filled,
+          quantityRemaining: r.quantity_remaining,
+          criteria: r.criteria,
+          sourceIdInt: r.source_id_int,
+          feeBps: r.fee_bps,
+          feeBreakdown: r.fee_breakdown,
+          expiration: r.expiration,
           isReservoir: r.is_reservoir,
-          isDynamic: Boolean(r.dynamic || r.kind === "sudoswap"),
-          createdAt: new Date(r.created_at * 1000).toISOString(),
-          updatedAt: new Date(r.updated_at).toISOString(),
-          rawData: query.includeRawData ? r.raw_data : undefined,
-        };
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+          includeRawData: query.includeRawData,
+          rawData: r.raw_data,
+          normalizeRoyalties: query.normalizeRoyalties,
+          missingRoyalties: r.missing_royalties,
+          dynamic: r.dynamic,
+        });
       });
 
       return {
