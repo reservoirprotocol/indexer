@@ -2,11 +2,18 @@ import * as Types from "./types";
 import { BaseOrderInfo } from "./builders/base";
 import { BigNumberish } from "@ethersproject/bignumber";
 
+export enum SeaportOrderKind {
+  SEAPORT_V11 = "seaport",
+  SEAPORT_V14 = "seaport-v1.4",
+}
+
 export interface IOrder {
   chainId: number;
   params: Types.OrderComponents;
 
   getInfo(): BaseOrderInfo | undefined;
+
+  getKind(): SeaportOrderKind;
 
   getMatchingPrice(timestampOverride?: number): BigNumberish;
 

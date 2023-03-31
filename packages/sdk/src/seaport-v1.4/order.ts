@@ -12,7 +12,7 @@ import * as Addresses from "./addresses";
 import { Builders } from "../seaport-base/builders";
 import { BaseBuilder, BaseOrderInfo } from "../seaport-base/builders/base";
 import * as Types from "../seaport-base/types";
-import { IOrder, ORDER_EIP712_TYPES } from "../seaport-base/order";
+import { IOrder, ORDER_EIP712_TYPES, SeaportOrderKind } from "../seaport-base/order";
 import * as Common from "../common";
 import { bn, getCurrentTimestamp, lc, n, s } from "../utils";
 
@@ -183,6 +183,10 @@ export class Order implements IOrder {
 
   public getInfo(): BaseOrderInfo | undefined {
     return this.getBuilder().getInfo(this);
+  }
+
+  public getKind(): SeaportOrderKind {
+    return SeaportOrderKind.SEAPORT_V14;
   }
 
   public getMatchingPrice(timestampOverride?: number): BigNumberish {
@@ -397,37 +401,6 @@ export const EIP712_DOMAIN = (chainId: number) => ({
   chainId,
   verifyingContract: Addresses.Exchange[chainId],
 });
-
-// export const ORDER_EIP712_TYPES = {
-//   OrderComponents: [
-//     { name: "offerer", type: "address" },
-//     { name: "zone", type: "address" },
-//     { name: "offer", type: "OfferItem[]" },
-//     { name: "consideration", type: "ConsiderationItem[]" },
-//     { name: "orderType", type: "uint8" },
-//     { name: "startTime", type: "uint256" },
-//     { name: "endTime", type: "uint256" },
-//     { name: "zoneHash", type: "bytes32" },
-//     { name: "salt", type: "uint256" },
-//     { name: "conduitKey", type: "bytes32" },
-//     { name: "counter", type: "uint256" },
-//   ],
-//   OfferItem: [
-//     { name: "itemType", type: "uint8" },
-//     { name: "token", type: "address" },
-//     { name: "identifierOrCriteria", type: "uint256" },
-//     { name: "startAmount", type: "uint256" },
-//     { name: "endAmount", type: "uint256" },
-//   ],
-//   ConsiderationItem: [
-//     { name: "itemType", type: "uint8" },
-//     { name: "token", type: "address" },
-//     { name: "identifierOrCriteria", type: "uint256" },
-//     { name: "startAmount", type: "uint256" },
-//     { name: "endAmount", type: "uint256" },
-//     { name: "recipient", type: "address" },
-//   ],
-// };
 
 const normalize = (order: Types.OrderComponents): Types.OrderComponents => {
   // Perform some normalization operations on the order:

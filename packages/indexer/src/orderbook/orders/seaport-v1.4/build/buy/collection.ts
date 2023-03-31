@@ -1,6 +1,5 @@
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers";
-import { BaseBuilder } from "@reservoir0x/sdk/dist/seaport-base/builders/base";
 
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";

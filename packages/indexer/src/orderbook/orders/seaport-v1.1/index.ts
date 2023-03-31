@@ -1,7 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
-import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
 import _ from "lodash";
 import pLimit from "p-limit";
 
@@ -17,7 +16,7 @@ import { Collections } from "@/models/collections";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
-import { offChainCheck } from "@/orderbook/orders/seaport-v1.1/check";
+import { offChainCheck } from "@/orderbook/orders/seaport-base/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
@@ -38,7 +37,7 @@ export type OrderInfo = {
 };
 
 export declare type OpenseaOrderParams = {
-  kind: OrderKind;
+  kind: Sdk.SeaportBase.Types.OrderKind;
   side: "buy" | "sell";
   hash: string;
   price?: string;
@@ -229,8 +228,9 @@ export const save = async (
       // Check: order fillability
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
+      const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
       try {
-        await offChainCheck(order, {
+        await offChainCheck(order, exchange, {
           onChainApprovalRecheck: true,
           singleTokenERC721ApprovalCheck: metadata.fromOnChain,
         });
@@ -665,9 +665,7 @@ export const save = async (
         source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
         contract: toBuffer(info.contract),
-        conduit: toBuffer(
-          new Sdk.SeaportV11.Exchange(config.chainId).deriveConduit(order.params.conduitKey)
-        ),
+        conduit: toBuffer(exchange.deriveConduit(order.params.conduitKey)),
         fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
         dynamic: info.isDynamic ?? null,

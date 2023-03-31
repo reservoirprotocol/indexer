@@ -1,6 +1,5 @@
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers";
-import { BaseBuilder } from "@reservoir0x/sdk/dist/seaport-base/builders/base";
 
 import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
@@ -49,7 +48,9 @@ export const build = async (options: BuildOrderOptions) => {
   const collectionIsContractWide = collectionResult.token_set_id?.startsWith("contract:");
   if (collectionIsContractWide && !options.excludeFlaggedTokens) {
     // By default, use a contract-wide builder
-    let builder: BaseBuilder = new Sdk.SeaportBase.Builders.ContractWide(config.chainId);
+    let builder: Sdk.SeaportBase.BaseBuilder = new Sdk.SeaportBase.Builders.ContractWide(
+      config.chainId
+    );
 
     if (options.orderbook === "opensea" && config.chainId !== 5) {
       const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
@@ -74,7 +75,9 @@ export const build = async (options: BuildOrderOptions) => {
     return builder.build(buildInfo.params, Sdk.SeaportV11.Order);
   } else {
     // Use a token-list builder
-    const builder: BaseBuilder = new Sdk.SeaportBase.Builders.TokenList(config.chainId);
+    const builder: Sdk.SeaportBase.BaseBuilder = new Sdk.SeaportBase.Builders.TokenList(
+      config.chainId
+    );
 
     if (options.orderbook === "opensea" && config.chainId !== 5) {
       // We need to fetch from OpenSea the most up-to-date merkle root

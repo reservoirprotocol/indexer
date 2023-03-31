@@ -23,6 +23,8 @@ export abstract class SeaportBaseExchange {
     this.conduitController = new ConduitController(this.chainId);
   }
 
+  public abstract deriveConduit(conduitKey: string): string;
+
   // --- Fill order ---
 
   public async fillOrder(

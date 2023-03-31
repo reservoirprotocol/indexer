@@ -1,6 +1,5 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
-import { BaseBuildParams } from "@reservoir0x/sdk/dist/seaport-base/builders/base";
 import { generateSourceBytes, getRandomBytes } from "@reservoir0x/sdk/dist/utils";
 
 import { redb } from "@/common/db";
@@ -31,7 +30,7 @@ export interface BaseOrderBuildOptions {
 }
 
 type OrderBuildInfo = {
-  params: BaseBuildParams;
+  params: Sdk.SeaportBase.BaseBuildParams;
   kind: "erc721" | "erc1155";
 };
 
@@ -68,7 +67,7 @@ export const getBuildInfo = async (
   const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
   const source = options.orderbook === "opensea" ? "opensea.io" : options.source;
 
-  const buildParams: BaseBuildParams = {
+  const buildParams: Sdk.SeaportBase.BaseBuildParams = {
     offerer: options.maker,
     side,
     tokenKind: collectionResult.kind,
