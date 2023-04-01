@@ -11,14 +11,17 @@ export const Router: ChainIdToAddress = {
   [Network.Arbitrum]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
 };
 
-// Utility modules
+// Approval proxy
 
-export const Permit2Module: ChainIdToAddress = {
-  [Network.Ethereum]: "0x96c15183d2349541da56510a63dbfc425641aa7f",
-  [Network.Polygon]: "0x96c15183d2349541da56510a63dbfc425641aa7f",
-  [Network.Optimism]: "0x96c15183d2349541da56510a63dbfc425641aa7f",
-  [Network.Arbitrum]: "0x96c15183d2349541da56510a63dbfc425641aa7f",
+export const ApprovalProxy: ChainIdToAddress = {
+  [Network.Ethereum]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
+  [Network.EthereumGoerli]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
+  [Network.Polygon]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
+  [Network.Optimism]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
+  [Network.Arbitrum]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
 };
+
+// Utility modules
 
 export const SwapModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x5cf0a457d2b6c003232184178e87c91248f73477",
@@ -85,5 +88,5 @@ export const RaribleModule: ChainIdToAddress = {
 };
 
 export const SuperRareModule: ChainIdToAddress = {
-  //TODO add SuperRareModule address
+  // TODO: Deploy SuperRareModule to mainnet
 };

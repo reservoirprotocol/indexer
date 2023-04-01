@@ -2,7 +2,6 @@ import { BigNumber } from "@ethersproject/bignumber";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import * as Permit2 from "@reservoir0x/sdk/dist/router/v6/permits/permit2";
 import { FillListingsResult, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import axios from "axios";
 import Joi from "joi";
@@ -21,7 +20,6 @@ import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import * as onChainData from "@/utils/on-chain-data";
-import { getPermitId, getPermit, savePermit } from "@/utils/permits/ft";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
@@ -660,13 +658,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: [],
         },
         {
-          id: "permit",
-          action: "Sign permits",
-          description: "Sign permits for accessing the tokens in your wallet",
-          kind: "signature",
-          items: [],
-        },
-        {
           id: "sale",
           action: "Confirm transaction in your wallet",
           description: "To purchase this item you must confirm the transaction and pay the gas fee",
@@ -791,27 +782,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
         ? bn(payload.maxPriorityFeePerGas).toHexString()
         : undefined;
 
-      for (const { txData, approvals, permits, orderIds } of txs) {
+      for (const { txData, approvals, orderIds } of txs) {
         const subPath = path.filter((p) => orderIds.includes(p.orderId));
 
+        // Handle approvals
         for (const approval of approvals) {
           const approvedAmount = await onChainData
             .fetchAndUpdateFtApproval(approval.currency, approval.owner, approval.operator, true)
             .then((a) => a.value);
 
-          const amountToApprove = permits.length
-            ? permits
-                .map((p) =>
-                  p.details.data.transferDetails.filter(({ token }) => token === approval.currency)
-                )
-                .flat()
-                .reduce((total, { amount }) => total.add(amount), bn(0))
-            : subPath
-                .filter((p) => p.currency === approval.currency)
-                .map(({ rawQuote }) => bn(rawQuote))
-                .reduce((total, amount) => total.add(amount), bn(0));
-
-          const isApproved = bn(approvedAmount).gte(amountToApprove);
+          const isApproved = bn(approvedAmount).gte(approval.amount);
           if (!isApproved) {
             steps[1].items.push({
               status: "incomplete",
@@ -824,62 +804,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
           }
         }
 
-        const permitHandler = new Permit2.Handler(config.chainId, baseProvider);
-        if (permits.length) {
-          for (const permit of permits) {
-            const id = getPermitId(request.payload as object, permit.currencies);
-
-            let cachedPermit = await getPermit(id);
-            if (cachedPermit) {
-              // Always use the cached permit details
-              permit.details = cachedPermit.details;
-
-              // If the cached permit has a signature attached to it, we can skip it
-              const hasSignature = (permit.details.data as Permit2.Data).signature;
-              if (hasSignature) {
-                continue;
-              }
-            } else {
-              // Cache the permit if it's the first time we encounter it
-              await savePermit(
-                id,
-                permit,
-                // Give a 1 minute buffer for the permit to expire
-                parseInt(permit.details.data.permitBatch.sigDeadline.toString()) - now() - 60
-              );
-              cachedPermit = permit;
-            }
-
-            steps[2].items.push({
-              status: "incomplete",
-              data: {
-                sign: permitHandler.getSignatureData(cachedPermit.details.data),
-                post: {
-                  endpoint: "/execute/permit-signature/v1",
-                  method: "POST",
-                  body: {
-                    kind: "ft-permit",
-                    id,
-                  },
-                },
-              },
-            });
-          }
-        }
-
         // Get the total price to be paid in the buy-in currency:
         // - orders already denominated in the buy-in currency
-        // - permit amounts (which will be denominated in the buy-in currency)
+        // - approval amounts (which will be denominated in the buy-in currency)
         const totalBuyInCurrencyPrice = subPath
           .filter(({ currency }) => currency === buyInCurrency)
           .map(({ rawQuote }) => bn(rawQuote))
           .reduce((a, b) => a.add(b), bn(0))
-          .add(
-            permits
-              .map((p) => p.details.data.transferDetails.map((d) => bn(d.amount)))
-              .flat()
-              .reduce((a, b) => a.add(b), bn(0))
-          );
+          .add(approvals.map((a) => bn(a.amount)).reduce((a, b) => a.add(b), bn(0)));
 
         // Check that the transaction sender has enough funds to fill all requested tokens
         const txSender = payload.relayer ?? payload.taker;
@@ -896,21 +828,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
           }
         }
 
-        steps[3].items.push({
+        steps[2].items.push({
           status: "incomplete",
           orderIds,
-          data:
-            // Do not return the final step unless all permits have a signature attached
-            steps[2].items.length === 0
-              ? {
-                  ...permitHandler.attachToRouterExecution(
-                    txData,
-                    permits.map((p) => p.details.data)
-                  ),
-                  maxFeePerGas,
-                  maxPriorityFeePerGas,
-                }
-              : undefined,
+          data: {
+            ...txData,
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+          },
         });
       }
 
@@ -919,8 +844,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
       // expect to get the steps returned in the same order / at the
       // same index.
       if (buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId]) {
-        // Buying in ETH will never require an approval/permit
-        steps = [steps[0], ...steps.slice(3)];
+        // Buying in ETH will never require an approval
+        steps = [steps[0], ...steps.slice(2)];
       }
       if (!blurAuth) {
         // If we reached this point and the Blur auth is missing then we

@@ -78,6 +78,11 @@ const dv = async (contractName: string, version: string, args: any[]) => {
 
 export const triggerByModule = {
   ReservoirV6_0_1: async () => dv("ReservoirV6_0_1", "v3", []),
+  ReservoirApprovalProxy: async (chainId: number) =>
+    dv("ReservoirApprovalProxy", "v1", [
+      Sdk.SeaportBase.Addresses.ConduitController[chainId],
+      Sdk.RouterV6.Addresses.Router[chainId],
+    ]),
   ElementModule: async (chainId: number) =>
     dv("ElementModule", "v1", [
       DEPLOYER,
@@ -154,8 +159,6 @@ export const triggerByModule = {
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.Zora.Addresses.Exchange[chainId],
     ]),
-  Permit2Module: async (chainId: number) =>
-    dv("Permit2Module", "v1", [DEPLOYER, Sdk.Common.Addresses.Permit2[chainId]]),
   SuperRareModule: async (chainId: number) =>
     dv("SuperRareModule", "v1", [
       DEPLOYER,
