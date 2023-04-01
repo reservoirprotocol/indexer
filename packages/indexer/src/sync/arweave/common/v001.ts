@@ -29,7 +29,6 @@ export const processTransactionData = async (
           orderInfos.push({
             kind,
             info: {
-              kind: "full",
               orderParams: data,
               metadata: {
                 schemaHash: data.schemaHash,

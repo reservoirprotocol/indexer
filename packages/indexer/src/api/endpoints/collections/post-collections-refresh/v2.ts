@@ -10,6 +10,7 @@ import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
+import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
@@ -18,16 +19,15 @@ import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Tokens } from "@/models/tokens";
 import { MetadataIndexInfo } from "@/jobs/metadata-index/fetch-queue";
-import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 
-const version = "v1";
+const version = "v2";
 
-export const postCollectionsRefreshV1Options: RouteOptions = {
+export const postCollectionsRefreshV2Options: RouteOptions = {
   description: "Refresh Collection",
-  tags: ["api", "x-deprecated"],
+  tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
-      deprecated: true,
+      order: 13,
     },
   },
   validate: {
@@ -46,9 +46,9 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         .description(
           "If true, will force a refresh regardless of cool down. Requires an authorized api key to be passed."
         ),
-      metadataOnly: Joi.boolean()
-        .default(false)
-        .description("If true, will only refresh the collection metadata."),
+      refreshTokens: Joi.boolean()
+        .default(true)
+        .description("If true, will refresh the metadata for the tokens in the collection."),
     }),
   },
   response: {
@@ -92,7 +92,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
 
       const currentUtcTime = new Date().toISOString();
 
-      if (payload.metadataOnly) {
+      if (!payload.refreshTokens) {
         // Refresh the collection metadata
         let tokenId;
         if (collection.tokenIdRange?.length) {

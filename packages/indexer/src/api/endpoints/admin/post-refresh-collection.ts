@@ -16,6 +16,7 @@ import { Collections } from "@/models/collections";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { Tokens } from "@/models/tokens";
 import { MetadataIndexInfo } from "@/jobs/metadata-index/fetch-queue";
+import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 
 export const postRefreshCollectionOptions: RouteOptions = {
   description: "Refresh a collection's orders and metadata",
@@ -96,6 +97,20 @@ export const postRefreshCollectionOptions: RouteOptions = {
           tokenId,
           collection.community
         );
+
+        if (collection.slug) {
+          // Refresh opensea collection offers
+          await openseaOrdersProcessQueue.addToQueue([
+            {
+              kind: "collection-offers",
+              data: {
+                contract: collection.contract,
+                collectionId: collection.id,
+                collectionSlug: collection.slug,
+              },
+            },
+          ]);
+        }
 
         // Refresh the contract floor sell and top bid
         await collectionsRefreshCache.addToQueue(collection.id);

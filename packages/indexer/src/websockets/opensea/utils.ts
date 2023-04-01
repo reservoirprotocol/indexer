@@ -9,6 +9,10 @@ export const getSupportedChainName = () => {
       return "goerli";
     case 137:
       return "matic";
+    case 10:
+      return "optimism";
+    case 42161:
+      return "arbitrum";
     default:
       return "unknown";
   }

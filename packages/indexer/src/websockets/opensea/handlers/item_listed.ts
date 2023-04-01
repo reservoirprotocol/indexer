@@ -1,10 +1,10 @@
 import { toTime } from "@/common/utils";
 import { getSupportedChainName } from "@/websockets/opensea/utils";
 import { ItemListedEventPayload } from "@opensea/stream-js/dist/types";
-import { PartialOrderComponents } from "@/orderbook/orders/seaport-v1.1";
+import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import _ from "lodash";
 
-export const handleEvent = (payload: ItemListedEventPayload): PartialOrderComponents | null => {
+export const handleEvent = (payload: ItemListedEventPayload): OpenseaOrderParams | null => {
   if (getSupportedChainName() != payload.item.chain.name) {
     return null;
   }

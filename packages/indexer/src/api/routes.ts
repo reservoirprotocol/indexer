@@ -511,6 +511,12 @@ export const setupRoutes = (server: Server) => {
   });
 
   server.route({
+    method: "POST",
+    path: "/collections/refresh/v2",
+    options: collectionsEndpoints.postCollectionsRefreshV2Options,
+  });
+
+  server.route({
     method: "GET",
     path: "/collections/daily-volumes/v1",
     options: collectionsEndpoints.getDailyVolumesV1Options,
@@ -1359,6 +1365,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/sync/sales/v1",
     options: syncEndpoints.getSyncSalesV1Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/sync/asks/v1",
+    options: syncEndpoints.getSyncOrdersAsksV1Options,
   });
 
   // sources
