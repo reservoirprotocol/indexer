@@ -37,6 +37,7 @@ import * as X2Y2 from "./x2y2";
 import * as ZeroExV4 from "./zeroex-v4";
 import * as Zora from "./zora";
 import * as ZeroExV2 from "./zeroex-v2";
+import * as Treasure from "./treasure";
 
 export {
   // Common
@@ -79,4 +80,5 @@ export {
   ZeroExV4,
   Zora,
   ZeroExV2,
+  Treasure,
 };

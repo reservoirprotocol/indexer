@@ -70,7 +70,7 @@ export const getBuildInfo = async (
   const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
 
   // Use OpenSea's conduit for sharing approvals (where available)
-  const conduitKey = Sdk.SeaportV14.Addresses.OpenseaConduitKey[config.chainId];
+  const conduitKey = Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId];
 
   // No zone by default
   let zone = AddressZero;

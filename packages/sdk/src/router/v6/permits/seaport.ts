@@ -59,7 +59,7 @@ export class Handler {
       endTime: now + expiresIn,
       zoneHash: HashZero,
       salt: getRandomBytes().toHexString(),
-      conduitKey: Sdk.SeaportV11.Addresses.OpenseaConduitKey[this.chainId],
+      conduitKey: Sdk.SeaportBase.Addresses.OpenseaConduitKey[this.chainId],
       counter: await new Sdk.SeaportV11.Exchange(this.chainId)
         .getCounter(this.provider, giver)
         .then((c) => c.toString()),

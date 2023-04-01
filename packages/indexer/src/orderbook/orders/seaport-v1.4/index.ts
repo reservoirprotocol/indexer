@@ -184,8 +184,6 @@ export const save = async (
           ![
             // No zone
             AddressZero,
-            // Pausable zone
-            Sdk.SeaportV14.Addresses.PausableZone[config.chainId],
             // Cancellation zone
             Sdk.SeaportV14.Addresses.CancellationZone[config.chainId],
           ].includes(order.params.zone) &&

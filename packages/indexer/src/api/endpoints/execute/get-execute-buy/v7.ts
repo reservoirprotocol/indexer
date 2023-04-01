@@ -756,7 +756,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           globalFees: feesOnTop,
           // TODO: Move this defaulting to the core SDK
           directFillingData: {
-            conduitKey: Sdk.SeaportV11.Addresses.OpenseaConduitKey[config.chainId],
+            conduitKey: Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
           },
           blurAuth,
           onRecoverableError: async (kind, error, data) => {

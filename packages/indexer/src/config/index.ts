@@ -86,7 +86,7 @@ export const config = {
   openSeaCrossPostingApiKey: String(
     process.env.OPENSEA_CROSS_POSTING_API_KEY || process.env.OPENSEA_API_KEY
   ),
-  openSeaCrossPostingApiUrl: String(process.env.OPENSEA_CROSS_POSTING_API_URL),
+  openSeaCrossPostingApiUrl: String(process.env.OPENSEA_CROSS_POSTING_API_URL || ""),
   openSeaCrossPostingApiKeyHeader: String(
     process.env.OPENSEA_CROSS_POSTING_API_HEADER || "X-Api-Key"
   ),

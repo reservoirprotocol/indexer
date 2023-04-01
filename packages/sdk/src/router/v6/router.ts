@@ -2480,7 +2480,7 @@ export class Router {
       const contract = detail.contract;
       const owner = taker;
       const operator = new Sdk.SeaportV11.Exchange(this.chainId).deriveConduit(
-        Sdk.SeaportV11.Addresses.OpenseaConduitKey[this.chainId]
+        Sdk.SeaportBase.Addresses.OpenseaConduitKey[this.chainId]
       );
 
       // Generate approval

@@ -31,6 +31,7 @@ import "@/jobs/opensea-orders";
 
 import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
+import * as processActivityBackfillEvent from "@/jobs/activities/process-activity-event-backfill";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
 import * as arweaveSyncBackfill from "@/jobs/arweave-sync/backfill-queue";
@@ -148,6 +149,7 @@ export const gracefulShutdownJobWorkers = [
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,
   processActivityEvent.queue,
+  processActivityBackfillEvent.queue,
   removeUnsyncedEventsActivities.queue,
 
   arweaveSyncBackfill.queue,

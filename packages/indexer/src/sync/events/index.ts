@@ -227,6 +227,10 @@ export const extractEventsBatches = async (
             kind: "zeroex-v2",
             data: kindToEvents.get("zeroex-v2") ?? [],
           },
+          {
+            kind: "treasure",
+            data: kindToEvents.get("treasure") ?? [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {
