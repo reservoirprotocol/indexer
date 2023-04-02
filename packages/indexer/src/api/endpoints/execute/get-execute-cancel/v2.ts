@@ -116,7 +116,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
                       endpoint: "/execute/cancel-signature/v1",
                       method: "POST",
                       body: {
-                        orderId: orderResult.id,
+                        orderIds: [orderResult.id],
                       },
                     },
                   },
