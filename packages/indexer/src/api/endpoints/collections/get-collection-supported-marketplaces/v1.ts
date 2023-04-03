@@ -52,16 +52,16 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
     try {
       const collectionResult = await redb.oneOrNone(
         `
-      SELECT
-        collections.new_royalties,
-        collections.marketplace_fees,
-        collections.contract
-      FROM collections
-      JOIN contracts
-        ON collections.contract = contracts.address
-      WHERE collections.id = $/collection/
-      LIMIT 1
-    `,
+          SELECT
+            collections.new_royalties,
+            collections.marketplace_fees,
+            collections.contract
+          FROM collections
+          JOIN contracts
+            ON collections.contract = contracts.address
+          WHERE collections.id = $/collection/
+          LIMIT 1
+        `,
         { collection: params.collection }
       );
 
@@ -104,6 +104,18 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           },
           orderbook: "x2y2",
           orderKind: "x2y2",
+          listingEnabled: false,
+        },
+        {
+          name: "Blur",
+          imageUrl: `https://${
+            getNetworkSettings().subDomain
+          }.reservoir.tools/redirect/sources/blur/logo/v2`,
+          fee: {
+            bps: 0,
+          },
+          orderbook: "blur",
+          orderKind: "blur",
           listingEnabled: false,
         },
       ];
@@ -155,7 +167,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
         let listableOrderbooks = ["reservoir"];
         switch (config.chainId) {
           case 1: {
-            listableOrderbooks = ["reservoir", "opensea", "looks-rare", "x2y2"];
+            listableOrderbooks = ["reservoir", "opensea", "looks-rare", "x2y2", "blur"];
             break;
           }
           case 4: {

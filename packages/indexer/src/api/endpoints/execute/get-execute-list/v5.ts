@@ -1186,7 +1186,10 @@ export const getExecuteListV5Options: RouteOptions = {
         })
       );
 
-      return { steps, errors };
+      return {
+        steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
+        errors,
+      };
     } catch (error) {
       if (!(error instanceof Boom.Boom)) {
         logger.error(`get-execute-list-${version}-handler`, `Handler failure: ${error}`);
