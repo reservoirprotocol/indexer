@@ -4,7 +4,7 @@ import { BigNumberish } from "@ethersproject/bignumber";
 import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getBuildInfo } from "../utils";
+import { getBuildInfo } from "@/orderbook/orders/seaport-v1.4/build/utils";
 import { BaseOrderBuildOptions } from "@/orderbook/orders/seaport-base/build/utils";
 import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 
