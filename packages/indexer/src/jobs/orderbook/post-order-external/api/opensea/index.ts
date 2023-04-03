@@ -70,26 +70,7 @@ export const buildCollectionOffer = async (
   collectionSlug: string,
   apiKey = ""
 ) => {
-  let url = `${getOpenseaBaseUrl()}/v2/offers/build`;
-
-  if (config.openSeaCrossPostingApiUrl) {
-    url = `${config.openSeaCrossPostingApiUrl}/v2/offers/build`;
-  }
-
-  logger.error(
-    "opensea-orderbook-api",
-    `Build OpenSea collection offer debug. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, url=${url}, OPENSEA_CROSS_POSTING_API_KEY=${
-      process.env.OPENSEA_CROSS_POSTING_API_KEY
-    }, OPENSEA_CROSS_POSTING_API_URL=${
-      process.env.OPENSEA_CROSS_POSTING_API_URL
-    }, OPENSEA_CROSS_POSTING_API_HEADER=${
-      process.env.OPENSEA_CROSS_POSTING_API_HEADER
-    }, openSeaCrossPostingApiUrl=${
-      config.openSeaCrossPostingApiUrl
-    }, getOpenseaBaseUrl=${getOpenseaBaseUrl()}, openSeaCrossPostingApiKeyHeader=${
-      config.openSeaCrossPostingApiKeyHeader
-    }, openSeaCrossPostingApiKey=${config.openSeaCrossPostingApiKey}`
-  );
+  const url = `${config.openSeaCrossPostingApiUrl || getOpenseaBaseUrl()}/v2/offers/build`;
 
   return (
     axios

@@ -339,7 +339,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               onChainData.orders.push({
                 kind: "seaport",
                 info: {
-                  kind: "full",
                   orderParams: order.params,
                   metadata: {
                     fromOnChain: true,
@@ -367,7 +366,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               onChainData.orders.push({
                 kind: "seaport-v1.4",
                 info: {
-                  kind: "full",
                   orderParams: order.params,
                   metadata: {
                     fromOnChain: true,

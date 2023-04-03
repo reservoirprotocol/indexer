@@ -32,13 +32,13 @@ const allOperatorList: Opreator[] = [
   },
   {
     address: conduitController.deriveConduit(
-      Sdk.SeaportV11.Addresses.OpenseaConduitKey[config.chainId]
+      Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
     ),
     marketplace: "seaport",
   },
   {
     address: conduitController.deriveConduit(
-      Sdk.SeaportV11.Addresses.OpenseaConduitKey[config.chainId]
+      Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
     ),
     marketplace: "seaport-v1.4",
   },
@@ -75,7 +75,7 @@ export async function checkMarketplaceIsFiltered(collection: string, marketplace
 
 export const getMarketplaceBlacklist = async (collection: string) => {
   const contract = new Contract(
-    Sdk.SeaportV11.Addresses.OperatorFilterRegistry[config.chainId],
+    Sdk.SeaportBase.Addresses.OperatorFilterRegistry[config.chainId],
     new Interface([
       "function filteredOperators(address registrant) external view returns (address[] memory)",
     ]),

@@ -78,7 +78,6 @@ if (config.doBackgroundWork) {
               orderInfo = {
                 kind: "seaport",
                 info: {
-                  kind: "full",
                   orderParams: protocolData.order.params,
                   metadata: {},
                   openSeaOrderParams,
@@ -86,19 +85,9 @@ if (config.doBackgroundWork) {
                 relayToArweave: eventType === EventType.ITEM_LISTED,
                 validateBidValue: true,
               };
-            } else {
-              orderInfo = {
-                kind: "seaport",
-                info: {
-                  kind: "partial",
-                  orderParams: openSeaOrderParams,
-                } as orders.seaport.OrderInfo,
-                relayToArweave: false,
-                validateBidValue: true,
-              };
-            }
 
-            orderInfos.push(orderInfo);
+              orderInfos.push(orderInfo);
+            }
           }
         } catch (error) {
           logger.error(

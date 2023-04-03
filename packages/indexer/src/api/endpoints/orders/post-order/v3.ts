@@ -236,7 +236,6 @@ export const postOrderV3Options: RouteOptions = {
               order.kind === "seaport"
                 ? await orders.seaport.save([
                     {
-                      kind: "full",
                       orderParams: order.data,
                       isReservoir: true,
                       metadata: {
@@ -247,7 +246,6 @@ export const postOrderV3Options: RouteOptions = {
                   ])
                 : await orders.seaportV14.save([
                     {
-                      kind: "full",
                       orderParams: order.data,
                       isReservoir: true,
                       metadata: {
@@ -433,7 +431,6 @@ export const postOrderV3Options: RouteOptions = {
           } else {
             const [result] = await orders.seaport.save([
               {
-                kind: "full",
                 orderParams: order.data,
                 isReservoir: true,
                 metadata: {

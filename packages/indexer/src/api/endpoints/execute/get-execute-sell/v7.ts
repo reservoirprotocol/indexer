@@ -2,7 +2,6 @@ import { BigNumber } from "@ethersproject/bignumber";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
-import * as SeaportPermit from "@reservoir0x/sdk/dist/router/v6/permits/seaport";
 import { BidDetails, FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/types";
 import Joi from "joi";
 
@@ -10,7 +9,7 @@ import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
+import { bn, formatPrice, fromBuffer, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { Sources } from "@/models/sources";
@@ -19,7 +18,6 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import { getCurrency } from "@/utils/currencies";
-import { getPermitId, getPermit, savePermit } from "@/utils/permits/nft";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v7";
@@ -657,13 +655,6 @@ export const getExecuteSellV7Options: RouteOptions = {
           items: [],
         },
         {
-          id: "permit",
-          action: "Sign permits",
-          description: "Sign permits for accessing the NFTs in your wallet",
-          kind: "signature",
-          items: [],
-        },
-        {
           id: "sale",
           action: "Accept offer",
           description: "To sell this item you must confirm the transaction and pay the gas fee",
@@ -713,7 +704,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       });
 
       const { customTokenAddresses } = getNetworkSettings();
-      const forcePermit = customTokenAddresses.includes(bidDetails[0].contract);
+      const forceApprovalProxy = customTokenAddresses.includes(bidDetails[0].contract);
 
       const errors: { orderId: string; message: string }[] = [];
 
@@ -722,7 +713,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         result = await router.fillBidsTx(bidDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
-          forcePermit,
+          forceApprovalProxy,
           onRecoverableError: async (kind, error, data) => {
             errors.push({
               orderId: data.orderId,
@@ -738,7 +729,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         throw boomError;
       }
 
-      const { txData, approvals, permits, success } = result;
+      const { txData, approvals, success } = result;
 
       // Filter out any non-fillable orders from the path
       path = path.filter((_, i) => success[i]);
@@ -773,73 +764,23 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
-      const permitHandler = new SeaportPermit.Handler(config.chainId, baseProvider);
-      if (permits.length) {
-        for (const permit of permits) {
-          const id = getPermitId(request.payload as object, permit.tokens);
-
-          let cachedPermit = await getPermit(id);
-          if (cachedPermit) {
-            // Always use the cached permit details
-            permit.details = cachedPermit.details;
-
-            // If the cached permit has a signature attached to it, we can skip it
-            const hasSignature = (permit.details.data as SeaportPermit.Data).order.signature;
-            if (hasSignature) {
-              continue;
-            }
-          } else {
-            // Cache the permit if it's the first time we encounter it
-            await savePermit(
-              id,
-              permit,
-              // Give a 1 minute buffer for the permit to expire
-              (permit.details.data as SeaportPermit.Data).order.endTime - now() - 60
-            );
-            cachedPermit = permit;
-          }
-
-          steps[1].items.push({
-            status: "incomplete",
-            data: {
-              sign: permitHandler.getSignatureData(cachedPermit.details.data),
-              post: {
-                endpoint: "/execute/permit-signature/v1",
-                method: "POST",
-                body: {
-                  kind: "nft-permit",
-                  id,
-                },
-              },
-            },
-          });
-        }
-      }
-
-      steps[2].items.push({
+      steps[1].items.push({
         status: "incomplete",
-        data:
-          // Do not return the final step unless all permits have a signature attached
-          steps[1].items.length === 0
-            ? {
-                ...permitHandler.attachToRouterExecution(
-                  txData,
-                  permits.map((p) => p.details.data)
-                ),
-                maxFeePerGas,
-                maxPriorityFeePerGas,
-              }
-            : undefined,
+        data: {
+          ...txData,
+          maxFeePerGas,
+          maxPriorityFeePerGas,
+        },
       });
 
       // Warning! When filtering the steps, we should ensure that it
       // won't affect the client, which might be polling the API and
       // expect to get the steps returned in the same order / at the
       // same index.
-      if (!approvals.length && !permits.length) {
-        // If no approvals/permits are returned from the router then
-        // those are not actually needed and we can cut their steps
-        steps = steps.slice(2);
+      if (!approvals.length) {
+        // If no approvals are returned from the router then those
+        // are not actually needed and we can cut their steps
+        steps = steps.slice(1);
       }
 
       const perfTime2 = performance.now();
