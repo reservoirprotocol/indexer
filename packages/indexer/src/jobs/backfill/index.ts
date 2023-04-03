@@ -1,3 +1,4 @@
+import "@/jobs/backfill/backfill-expired-orders";
 import "@/jobs/backfill/backfill-foundation-sales";
 import "@/jobs/backfill/backfill-mints";
 import "@/jobs/backfill/backfill-sale-royalties";

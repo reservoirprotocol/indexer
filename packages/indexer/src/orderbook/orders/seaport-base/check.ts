@@ -15,7 +15,7 @@ export const offChainCheck = async (
     // purely from off-chain state can be inaccurate. In order to
     // handle this, we allow the option to double validate orders
     // on-chain in case off-chain validation returns the order as
-    // being invalid. We use the this option to validate approval
+    // being invalid. We use this option to validate approval
     // of buy orders as well.
     onChainApprovalRecheck?: boolean;
     checkFilledOrCancelled?: boolean;

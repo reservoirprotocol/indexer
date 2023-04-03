@@ -47,8 +47,6 @@ if (config.doBackgroundWork) {
       const { crossPostingOrderId, orderId, orderData, orderSchema, orderbook } =
         job.data as PostOrderExternalParams;
 
-      logger.info(QUEUE_NAME, `Start. jobData=${JSON.stringify(job.data)}`);
-
       if (
         !["blur", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow"].includes(
           orderbook
@@ -89,7 +87,7 @@ if (config.doBackgroundWork) {
           QUEUE_NAME,
           `Post Order Rate Limited. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
-          )}, rateLimitExpiration: ${rateLimitExpiration}, retry: ${retry}`
+          )}, rateLimitExpiration=${rateLimitExpiration}, retry=${retry}`
         );
 
         await addToQueue(job.data, rateLimitExpiration, true);
@@ -110,13 +108,6 @@ if (config.doBackgroundWork) {
               CrossPostingOrderStatus.posted
             );
           }
-
-          logger.info(
-            QUEUE_NAME,
-            `Post Order Success. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
-              orderData
-            )}, retry: ${retry}`
-          );
         } catch (error) {
           if (error instanceof RequestWasThrottledError) {
             // If we got throttled by the api, reschedule job based on the provided delay.
@@ -129,7 +120,7 @@ if (config.doBackgroundWork) {
                 QUEUE_NAME,
                 `Unable to set expiration. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                   orderData
-                )}, retry: ${retry}, delay=${delay}, error: ${error}`
+                )}, retry=${retry}, delay=${delay}, error=${error}`
               );
             }
 
@@ -139,15 +130,15 @@ if (config.doBackgroundWork) {
               QUEUE_NAME,
               `Post Order Throttled. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
-              )}, delay: ${delay}, retry: ${retry}`
+              )}, delay=${delay}, retry=${retry}`
             );
           } else if (error instanceof InvalidRequestError) {
             // If the order is invalid, fail the job.
-            logger.error(
+            logger.info(
               QUEUE_NAME,
               `Post Order Failed - Invalid Order. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
-              )}, retry: ${retry}, error: ${error}`
+              )}, retry=${retry}, error=${error}`
             );
 
             if (crossPostingOrderId) {
@@ -170,11 +161,11 @@ if (config.doBackgroundWork) {
 
             await addToQueue(job.data, 1000, true);
           } else {
-            logger.error(
+            logger.info(
               QUEUE_NAME,
               `Post Order Failed - Max Retries Reached. orderbook${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
-              )}, retry: ${retry}, error: ${error}`
+              )}, retry=${retry}, error=${error}`
             );
 
             if (crossPostingOrderId) {

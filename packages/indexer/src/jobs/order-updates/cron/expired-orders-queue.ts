@@ -27,8 +27,8 @@ export let worker: Worker | undefined;
 
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
-// BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+// BACKGROUND WORKER AND MASTER ONLY
+if (config.doBackgroundWork && config.master) {
   worker = new Worker(
     QUEUE_NAME,
     async () => {
@@ -43,7 +43,7 @@ if (config.doBackgroundWork) {
             FROM orders
             WHERE upper(orders.valid_between) < now()
               AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
-            LIMIT 10000
+            LIMIT 5000
           )
           UPDATE orders SET
             fillability_status = 'expired',

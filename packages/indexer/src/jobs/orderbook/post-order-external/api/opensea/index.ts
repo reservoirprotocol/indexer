@@ -104,9 +104,7 @@ export const buildCollectionOffer = async (
       .catch((error) => {
         logger.error(
           "opensea-orderbook-api",
-          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, url=${url}, openSeaCrossPostingApiUrl=${
-            config.openSeaCrossPostingApiUrl
-          }, getOpenseaBaseUrl=${getOpenseaBaseUrl()}, error=${error}, responseStatus=${
+          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, url=${url}, error=${error}, responseStatus=${
             error.response?.status
           }, responseData=${JSON.stringify(error.response?.data)}`
         );

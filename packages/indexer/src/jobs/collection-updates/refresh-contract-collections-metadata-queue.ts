@@ -46,11 +46,6 @@ if (config.doBackgroundWork) {
           }
         );
 
-        logger.info(
-          QUEUE_NAME,
-          `Collections Refresh. contract=${contract}, contractCollections=${contractCollections.length}`
-        );
-
         if (contractCollections.length) {
           const infos: CollectionMetadataInfo[] = [];
 
@@ -71,17 +66,7 @@ if (config.doBackgroundWork) {
               tokenId,
               community: contractCollection.community,
             });
-
-            logger.info(
-              QUEUE_NAME,
-              `Collection Refresh. contract=${contract}, collectionId=${contractCollection.id}, tokenId=${tokenId}`
-            );
           }
-
-          logger.info(
-            QUEUE_NAME,
-            `Collections Refresh. contract=${contract}, contractCollections=${contractCollections.length}, infos=${infos.length}`
-          );
 
           await collectionUpdatesMetadata.addToQueueBulk(infos);
         } else {
@@ -96,11 +81,6 @@ if (config.doBackgroundWork) {
             {
               contract: toBuffer(contract),
             }
-          );
-
-          logger.info(
-            QUEUE_NAME,
-            `Token Refresh. contract=${contract}, tokenId=${contractToken?.token_id}`
           );
 
           if (contractToken) {

@@ -26,7 +26,6 @@ import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
-// import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 export type OrderInfo = {
   kind?: "full";
@@ -470,11 +469,6 @@ export const save = async (
           bps,
         };
       });
-
-      // If unknown address was found
-      if (!_.isEmpty(openSeaRoyalties) && !knownFee) {
-        logger.info("orders-seaport-save", `Unknown Fee for order ${id}`);
-      }
 
       if (feeBps > 10000) {
         return results.push({
