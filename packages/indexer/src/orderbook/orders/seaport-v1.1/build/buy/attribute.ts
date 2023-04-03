@@ -3,9 +3,10 @@ import * as Sdk from "@reservoir0x/sdk";
 import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as utils from "@/orderbook/orders/seaport-v1.1/build/utils";
+import { getBuildInfo } from "@/orderbook/orders/seaport-v1.1/build/utils";
+import { BaseOrderBuildOptions } from "@/orderbook/orders/seaport-base/build/utils";
 
-interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
+interface BuildOrderOptions extends BaseOrderBuildOptions {
   // TODO: refactor
   // The following combinations are possible:
   // - collection + attributes
@@ -51,7 +52,7 @@ export const build = async (options: BuildOrderOptions) => {
       throw new Error("Attribute has too many items");
     }
 
-    const buildInfo = await utils.getBuildInfo(
+    const buildInfo = await getBuildInfo(
       {
         ...options,
         contract: fromBuffer(attributeResult.contract),
@@ -108,7 +109,7 @@ export const build = async (options: BuildOrderOptions) => {
       }
     );
 
-    const buildInfo = await utils.getBuildInfo(
+    const buildInfo = await getBuildInfo(
       {
         ...options,
         contract: fromBuffer(tokens[0].contract),

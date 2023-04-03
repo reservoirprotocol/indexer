@@ -13,7 +13,7 @@ const PENDING_DATA_KEY = "pending-arweave-data";
 
 export const addPendingOrdersSeaport = async (
   data: {
-    order: Sdk.SeaportV11.Order;
+    order: Sdk.SeaportBase.IOrder;
     schemaHash?: string;
     source?: string;
   }[]
@@ -23,30 +23,7 @@ export const addPendingOrdersSeaport = async (
       PENDING_DATA_KEY,
       ...data.map(({ order, schemaHash }) =>
         JSON.stringify({
-          kind: "seaport",
-          data: {
-            ...order.params,
-            schemaHash,
-          },
-        })
-      )
-    );
-  }
-};
-
-export const addPendingOrdersSeaportV14 = async (
-  data: {
-    order: Sdk.SeaportV14.Order;
-    schemaHash?: string;
-    source?: string;
-  }[]
-) => {
-  if (config.arweaveRelayerKey && data.length) {
-    await redis.rpush(
-      PENDING_DATA_KEY,
-      ...data.map(({ order, schemaHash }) =>
-        JSON.stringify({
-          kind: "seaport-v1.4",
+          kind: order.getKind(),
           data: {
             ...order.params,
             schemaHash,

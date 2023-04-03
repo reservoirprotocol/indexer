@@ -1,6 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
-import { generateSourceBytes, getRandomBytes } from "@reservoir0x/sdk/dist/utils";
+import { getRandomBytes } from "@reservoir0x/sdk/dist/utils";
 
 import { redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
@@ -8,37 +8,11 @@ import { bn, fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import { logger } from "@/common/logger";
-
-export interface BaseOrderBuildOptions {
-  maker: string;
-  contract?: string;
-  weiPrice: string;
-  orderbook: "opensea" | "reservoir";
-  orderType?: Sdk.SeaportBase.Types.OrderType;
-  currency?: string;
-  quantity?: number;
-  nonce?: string;
-  fee?: number[];
-  feeRecipient?: string[];
-  listingTime?: number;
-  expirationTime?: number;
-  salt?: string;
-  automatedRoyalties?: boolean;
-  royaltyBps?: number;
-  excludeFlaggedTokens?: boolean;
-  source?: string;
-}
-
-type OrderBuildInfo = {
-  params: Sdk.SeaportBase.BaseBuildParams;
-  kind: "erc721" | "erc1155";
-};
-
-export const padSourceToSalt = (source: string, salt: string) => {
-  const sourceHash = generateSourceBytes(source);
-  const saltHex = bn(salt)._hex.slice(6);
-  return bn(`0x${sourceHash}${saltHex}`).toString();
-};
+import {
+  BaseOrderBuildOptions,
+  OrderBuildInfo,
+  padSourceToSalt,
+} from "@/orderbook/orders/seaport-base/build/utils";
 
 export const getBuildInfo = async (
   options: BaseOrderBuildOptions,
