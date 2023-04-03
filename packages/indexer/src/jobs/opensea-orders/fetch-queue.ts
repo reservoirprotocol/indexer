@@ -10,7 +10,7 @@ import { config } from "@/config/index";
 import { PendingRefreshOpenseaCollectionOffersCollections } from "@/models/pending-refresh-opensea-collection-offers-collections";
 import axios from "axios";
 import { getSupportedChainName } from "@/websockets/opensea/utils";
-import { OpenseaOrderParams } from "@/orderbook/orders/seaport";
+import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { parseProtocolData } from "@/websockets/opensea";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import { Tokens } from "@/models/tokens";
