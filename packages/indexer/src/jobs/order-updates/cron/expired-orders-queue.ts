@@ -43,7 +43,7 @@ if (config.doBackgroundWork) {
             FROM orders
             WHERE upper(orders.valid_between) < now()
               AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
-            LIMIT 2000
+            LIMIT 10000
           )
           UPDATE orders SET
             fillability_status = 'expired',
@@ -80,7 +80,7 @@ if (config.doBackgroundWork) {
     "*/5 * * * * *",
     async () =>
       await redlock
-        .acquire(["expired-orders-check-lock"], (5 - 3) * 1000)
+        .acquire(["expired-orders-check-lock"], 2 * 1000)
         .then(async () => {
           logger.info(QUEUE_NAME, "Triggering expired orders check");
           await addToQueue();
