@@ -123,9 +123,12 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
 
       const openseaRoyalties: { bps: number; recipient: string }[] =
         collectionResult.new_royalties?.opensea;
-      const maxOpenseaRoyaltiesBps = openseaRoyalties
-        .map(({ bps }) => bps)
-        .reduce((a, b) => a + b, 0);
+
+      let maxOpenseaRoyaltiesBps;
+
+      if (openseaRoyalties) {
+        maxOpenseaRoyaltiesBps = openseaRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+      }
 
       const openseaMarketplace = {
         name: "OpenSea",
@@ -135,10 +138,12 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
         fee: {
           bps: openseaMarketplaceFees[0]?.bps ?? 0,
         },
-        royalties: {
-          minBps: Math.min(maxOpenseaRoyaltiesBps, 50),
-          maxBps: maxOpenseaRoyaltiesBps,
-        },
+        royalties: maxOpenseaRoyaltiesBps
+          ? {
+              minBps: Math.min(maxOpenseaRoyaltiesBps, 50),
+              maxBps: maxOpenseaRoyaltiesBps,
+            }
+          : undefined,
         orderbook: "opensea",
         orderKind: "seaport-v1.4",
         listingEnabled: false,
