@@ -50,7 +50,10 @@ if (config.doBackgroundWork) {
         `,
         { timestamp }
       );
-      logger.info(QUEUE_NAME, `Invalidated ${expiredOrders.length} orders`);
+
+      if (expiredOrders.length) {
+        logger.info(QUEUE_NAME, `Invalidated ${expiredOrders.length} orders`);
+      }
 
       const currentTime = now();
       await orderUpdatesById.addToQueue(
