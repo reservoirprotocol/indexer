@@ -64,7 +64,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           listingEnabled: Joi.boolean(),
         })
       ),
-    }).label(`getMarketplacesv1Resp`),
+    }),
   },
   handler: async (request: Request) => {
     const params = request.params as any;
