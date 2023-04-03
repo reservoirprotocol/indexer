@@ -48,3 +48,15 @@ export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Avalanche]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.AvalancheFuji]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
 };
+
+export const OperatorFilterRegistry: ChainIdToAddress = {
+  [Network.Ethereum]: "0x000000000000aaeb6d7670e522a718067333cd4e",
+  [Network.EthereumGoerli]: "0x000000000000aaeb6d7670e522a718067333cd4e",
+  [Network.Optimism]: "0x000000000000aaeb6d7670e522a718067333cd4e",
+  [Network.Gnosis]: "0x000000000000aaeb6d7670e522a718067333cd4e",
+  [Network.Polygon]: "0x000000000000aaeb6d7670e522a718067333cd4e",
+  [Network.PolygonMumbai]: "0x000000000000aaeb6d7670e522a718067333cd4e",
+  [Network.Arbitrum]: "0x000000000000aaeb6d7670e522a718067333cd4e",
+  [Network.Avalanche]: "0x000000000000aaeb6d7670e522a718067333cd4e",
+  [Network.AvalancheFuji]: "0x000000000000aaeb6d7670e522a718067333cd4e",
+};
