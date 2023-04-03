@@ -228,6 +228,10 @@ export const extractEventsBatches = async (
             data: kindToEvents.get("zeroex-v2") ?? [],
           },
           {
+            kind: "zeroex-v3",
+            data: kindToEvents.get("zeroex-v3") ?? [],
+          },
+          {
             kind: "treasure",
             data: kindToEvents.get("treasure") ?? [],
           },
