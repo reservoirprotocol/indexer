@@ -60,18 +60,6 @@ export const postRefreshTokenOptions: RouteOptions = {
       // Refresh meta data
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
-      let method =
-        payload.method ?? metadataIndexFetch.getIndexingMethod(collection?.community || null);
-
-      if (contract === "0x11708dc8a3ea69020f520c81250abb191b190110") {
-        method = "simplehash";
-
-        logger.info(
-          `post-tokens-refresh-handler`,
-          `Forced rtfkt. contract=${contract}, tokenId=${tokenId}, method=${method}`
-        );
-      }
-
       await metadataIndexFetch.addToQueue(
         [
           {

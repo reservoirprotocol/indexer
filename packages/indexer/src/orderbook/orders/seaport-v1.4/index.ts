@@ -487,11 +487,6 @@ export const save = async (
         };
       });
 
-      // If unknown address was found
-      if (!_.isEmpty(openSeaRoyalties) && !knownFee) {
-        logger.info("orders-seaport-v1.4-save", `Unknown Fee for order ${id}`);
-      }
-
       if (feeBps > 10000) {
         return results.push({
           id,
