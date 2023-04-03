@@ -6,7 +6,7 @@ import { redis } from "@/common/redis";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getBuildInfo } from "../utils";
-import { BaseOrderBuildOptions } from "../../../seaport-base/build/utils";
+import { BaseOrderBuildOptions } from "@/orderbook/orders/seaport-base/build/utils";
 import { generateSchemaHash } from "@/orderbook/orders/utils";
 import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 import { Tokens } from "@/models/tokens";

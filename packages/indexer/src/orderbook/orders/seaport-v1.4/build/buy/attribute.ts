@@ -5,7 +5,7 @@ import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getBuildInfo } from "../utils";
-import { BaseOrderBuildOptions } from "../../../seaport-base/build/utils";
+import { BaseOrderBuildOptions } from "@/orderbook/orders/seaport-base/build/utils";
 import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 
 interface BuildOrderOptions extends BaseOrderBuildOptions {

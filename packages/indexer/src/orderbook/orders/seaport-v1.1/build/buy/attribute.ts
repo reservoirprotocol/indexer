@@ -4,7 +4,7 @@ import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getBuildInfo } from "../utils";
-import { BaseOrderBuildOptions } from "../../../seaport-base/build/utils";
+import { BaseOrderBuildOptions } from "@/orderbook/orders/seaport-base/build/utils";
 
 interface BuildOrderOptions extends BaseOrderBuildOptions {
   // TODO: refactor
