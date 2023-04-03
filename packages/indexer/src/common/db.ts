@@ -32,8 +32,8 @@ export const hdb = pgp({
   keepAlive: true,
   max: 5,
   connectionTimeoutMillis: 30 * 1000,
-  query_timeout: 10 * 1000,
-  statement_timeout: 10 * 1000,
+  query_timeout: 30 * 1000,
+  statement_timeout: 30 * 1000,
   allowExitOnIdle: true,
 });
 
