@@ -228,7 +228,9 @@ export class DailyVolume {
    **/
   public static async update1Day(collectionId = "") {
     const currentDate = new Date();
-    const startTime = new Date(currentDate.getTime() - 24 * 60 * 60 * 1000).getTime() / 1000;
+    const startTime = Math.floor(
+      new Date(currentDate.getTime() - 24 * 60 * 60 * 1000).getTime() / 1000
+    );
 
     // Get a list of all collections that have non-null 1day values
     const collectionsWith1DayValues = await ridb.manyOrNone(
