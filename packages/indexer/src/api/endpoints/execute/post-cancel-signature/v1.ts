@@ -10,7 +10,7 @@ import { config } from "@/config/index";
 const version = "v1";
 
 export const postCancelSignatureV1Options: RouteOptions = {
-  description: "Off-chain cancel an order",
+  description: "Off-chain cancel orders",
   tags: ["api", "Misc"],
   plugins: {
     "hapi-swagger": {
@@ -22,7 +22,11 @@ export const postCancelSignatureV1Options: RouteOptions = {
       signature: Joi.string().required().description("Cancellation signature"),
     }),
     payload: Joi.object({
-      orderId: Joi.string().required().description("Id of the order to cancel"),
+      orderIds: Joi.array()
+        .items(Joi.string())
+        .min(1)
+        .required()
+        .description("Ids of the orders to cancel"),
     }),
   },
   response: {
@@ -41,20 +45,21 @@ export const postCancelSignatureV1Options: RouteOptions = {
 
     try {
       const signature = query.signature;
-      const orderId = payload.orderId;
+      const orderIds = payload.orderIds;
 
-      const orderResult = await idb.oneOrNone(
+      const ordersResult = await idb.manyOrNone(
         `
           SELECT
             orders.maker,
             orders.raw_data
           FROM orders
-          WHERE orders.id = $/id/
+          WHERE orders.id IN ($/ids:list/)
+          ORDER BY orders.id
         `,
-        { id: orderId }
+        { ids: orderIds }
       );
-      if (!orderResult) {
-        throw Boom.badRequest("Unknown order");
+      if (ordersResult.length !== orderIds.length) {
+        throw Boom.badRequest("Could not find all relevant orders");
       }
 
       await axios.post(
@@ -63,7 +68,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
         }.up.railway.app/api/cancellations`,
         {
           signature,
-          orders: [orderResult.raw_data],
+          orders: ordersResult.map((o) => o.raw_data),
         }
       );
 

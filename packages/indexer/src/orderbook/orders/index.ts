@@ -72,6 +72,7 @@ export type OrderKind =
   | "bend-dao"
   | "superrare"
   | "zeroex-v2"
+  | "zeroex-v3"
   | "treasure";
 
 // In case we don't have the source of an order readily available, we use

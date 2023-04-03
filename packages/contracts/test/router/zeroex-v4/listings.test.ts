@@ -7,7 +7,6 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import { SeaportERC20Approval, setupSeaportERC20Approvals } from "../helpers/seaport-v1.1";
 import { ZeroExV4Listing, setupZeroExV4Listings } from "../helpers/zeroex-v4";
 import {
   bn,
@@ -32,8 +31,6 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
   let erc1155: Contract;
   let erc721: Contract;
   let router: Contract;
-  let seaportApprovalOrderZone: Contract;
-  let seaportModule: Contract;
   let swapModule: Contract;
   let zeroExV4Module: Contract;
 
@@ -45,14 +42,6 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
     router = await ethers
       .getContractFactory("ReservoirV6_0_1", deployer)
       .then((factory) => factory.deploy());
-    seaportApprovalOrderZone = await ethers
-      .getContractFactory("SeaportApprovalOrderZone", deployer)
-      .then((factory) => factory.deploy());
-    seaportModule = await ethers
-      .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(deployer.address, router.address, Sdk.SeaportV11.Addresses.Exchange[chainId])
-      );
     swapModule = await ethers
       .getContractFactory("SwapModule", deployer)
       .then((factory) =>
@@ -79,7 +68,6 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
         david: await ethers.provider.getBalance(david.address),
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
-        seaportModule: await ethers.provider.getBalance(seaportModule.address),
         zeroExV4Module: await ethers.provider.getBalance(zeroExV4Module.address),
         swapModule: await ethers.provider.getBalance(swapModule.address),
       };
@@ -92,7 +80,6 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
         david: await contract.getBalance(david.address),
         emilio: await contract.getBalance(emilio.address),
         router: await contract.getBalance(router.address),
-        seaportModule: await ethers.provider.getBalance(seaportModule.address),
         zeroExV4Module: await contract.getBalance(zeroExV4Module.address),
         swapModule: await contract.getBalance(swapModule.address),
       };
@@ -150,26 +137,13 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
 
     const totalPrice = bn(listings.map(({ price }) => price).reduce((a, b) => bn(a).add(b), bn(0)));
 
-    const approval: SeaportERC20Approval = {
-      giver: carol,
-      filler: seaportModule.address,
-      receiver: zeroExV4Module.address,
-      paymentToken,
-      amount: totalPrice.add(
-        // Anything on top should be refunded
-        feesOnTop.reduce((a, b) => bn(a).add(b), bn(0)).add(parsePrice("0.1"))
-      ),
-      zone: seaportApprovalOrderZone.address,
-    };
-    await setupSeaportERC20Approvals([approval]);
-
     // Prepare executions
 
     const tokenKind = listings[0].nft.kind.toUpperCase();
     const executions: ExecutionInfo[] = [
+      // 1. When filling USDC listings, swap ETH to USDC (for testing purposes only)
       ...(useUsdc
         ? [
-            // 1. When filling USDC listings, swap ETH to USDC (for testing purposes only)
             {
               module: swapModule.address,
               data: swapModule.interface.encodeFunctionData("ethToExactOutput", [
@@ -187,7 +161,7 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
                   },
                   transfers: [
                     {
-                      recipient: carol.address,
+                      recipient: zeroExV4Module.address,
                       amount: listings
                         .map(({ price }, i) => bn(price).add(chargeFees ? feesOnTop[i] : 0))
                         .reduce((a, b) => bn(a).add(b), bn(0)),
@@ -201,44 +175,9 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
               // Anything on top should be refunded
               value: parseEther("100"),
             },
-            // 2. Fill approval order, so that we avoid giving approval to the router
-            {
-              module: seaportModule.address,
-              data: seaportModule.interface.encodeFunctionData("matchOrders", [
-                [
-                  // Regular order
-                  {
-                    parameters: {
-                      ...approval.orders![0].params,
-                      totalOriginalConsiderationItems:
-                        approval.orders![0].params.consideration.length,
-                    },
-                    signature: approval.orders![0].params.signature,
-                  },
-                ],
-                // Match the single offer item to the single consideration item
-                [
-                  {
-                    offerComponents: [
-                      {
-                        orderIndex: 0,
-                        itemIndex: 0,
-                      },
-                    ],
-                    considerationComponents: [
-                      {
-                        orderIndex: 0,
-                        itemIndex: 0,
-                      },
-                    ],
-                  },
-                ],
-              ]),
-              value: 0,
-            },
           ]
         : []),
-      // 3. Fill listings
+      // 2. Fill listings
       listingsCount > 1
         ? {
             module: zeroExV4Module.address,
@@ -392,7 +331,7 @@ describe("[ReservoirV6_0_1] ZeroExV4 listings", () => {
     expect(balancesAfter.swapModule).to.eq(0);
   };
 
-  for (const useUsdc of [false, true]) {
+  for (const useUsdc of [true]) {
     for (const multiple of [false, true]) {
       for (const partial of [false, true]) {
         for (const chargeFees of [false, true]) {

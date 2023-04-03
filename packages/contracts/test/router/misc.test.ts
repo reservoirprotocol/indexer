@@ -10,10 +10,8 @@ import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "./helpers/router";
 import {
-  SeaportERC721Approval,
   SeaportListing,
   SeaportOffer,
-  setupSeaportERC721Approvals,
   setupSeaportListings,
   setupSeaportOffers,
 } from "./helpers/seaport-v1.1";
@@ -33,7 +31,6 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
   let router: Contract;
   let balanceAssertModule: Contract;
   let seaportModule: Contract;
-  let seaportApprovalOrderZone: Contract;
   let swapModule: Contract;
 
   beforeEach(async () => {
@@ -52,9 +49,6 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
       .then((factory) =>
         factory.deploy(deployer.address, router.address, Sdk.SeaportV11.Addresses.Exchange[chainId])
       );
-    seaportApprovalOrderZone = await ethers
-      .getContractFactory("SeaportApprovalOrderZone", deployer)
-      .then((factory) => factory.deploy());
     swapModule = await ethers
       .getContractFactory("SwapModule", deployer)
       .then((factory) =>
@@ -212,92 +206,6 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
     expect(ethBalancesAfter.seaportModule).to.eq(0);
     expect(wethBalancesAfter.router).to.eq(0);
     expect(wethBalancesAfter.seaportModule).to.eq(0);
-  });
-
-  it("Approval orders via `SeaportApprovalOrderZone` cannot be front-run", async () => {
-    // Setup
-
-    // Giver: Alice
-    // Receiver: Bob
-
-    const approval: SeaportERC721Approval = {
-      giver: alice,
-      filler: seaportModule.address,
-      nft: {
-        kind: "erc721",
-        contract: erc721,
-        id: getRandomInteger(1, 10000),
-      },
-      zone: seaportApprovalOrderZone.address,
-    };
-    await setupSeaportERC721Approvals([approval]);
-
-    // Prepare executions
-
-    const executions: ExecutionInfo[] = [
-      {
-        module: seaportModule.address,
-        data: seaportModule.interface.encodeFunctionData("matchOrders", [
-          [
-            // Regular order
-            {
-              parameters: {
-                ...approval.orders![0].params,
-                totalOriginalConsiderationItems: approval.orders![0].params.consideration.length,
-              },
-              signature: approval.orders![0].params.signature,
-            },
-            // Mirror order
-            {
-              parameters: {
-                ...approval.orders![1].params,
-                totalOriginalConsiderationItems: approval.orders![1].params.consideration.length,
-              },
-              signature: "0x",
-            },
-          ],
-          // Match the single offer item to the single consideration item
-          [
-            {
-              offerComponents: [
-                {
-                  orderIndex: 0,
-                  itemIndex: 0,
-                },
-              ],
-              considerationComponents: [
-                {
-                  orderIndex: 0,
-                  itemIndex: 0,
-                },
-              ],
-            },
-          ],
-        ]),
-        value: 0,
-      },
-    ];
-
-    // Checks
-
-    // The custom zone will enforce that no one other than the approval
-    // order's offerer can be the relayer of the transaction
-    await expect(
-      router.connect(carol).execute(executions, {
-        value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
-      })
-    ).to.be.revertedWith("reverted with custom error 'UnsuccessfulExecution()'");
-
-    // Execute
-
-    await router.connect(alice).execute(executions, {
-      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b), bn(0)),
-    });
-
-    // Checks
-
-    // The Seaport module got the NFT
-    expect(await approval.nft.contract.ownerOf(approval.nft.id)).to.eq(seaportModule.address);
   });
 
   it("Fill offer for single token approval-less", async () => {

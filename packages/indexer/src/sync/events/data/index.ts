@@ -26,14 +26,15 @@ import * as seaportV14 from "@/events-sync/data/seaport-v1.4";
 import * as sudoswap from "@/events-sync/data/sudoswap";
 import * as superrare from "@/events-sync/data/superrare";
 import * as tofu from "@/events-sync/data/tofu";
+import * as treasure from "@/events-sync/data/treasure";
 import * as universe from "@/events-sync/data/universe";
 import * as wyvernV2 from "@/events-sync/data/wyvern-v2";
 import * as wyvernV23 from "@/events-sync/data/wyvern-v2.3";
 import * as x2y2 from "@/events-sync/data/x2y2";
+import * as zeroExV2 from "@/events-sync/data/zeroex-v2";
+import * as zeroExV3 from "@/events-sync/data/zeroex-v3";
 import * as zeroExV4 from "@/events-sync/data/zeroex-v4";
 import * as zora from "@/events-sync/data/zora";
-import * as zeroExV2 from "@/events-sync/data/zeroex-v2";
-import * as treasure from "@/events-sync/data/treasure";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -66,13 +67,14 @@ export type EventKind =
   | "sudoswap"
   | "superrare"
   | "tofu"
+  | "treasure"
   | "universe"
   | "wyvern"
   | "x2y2"
-  | "zeroex-v4"
-  | "zora"
   | "zeroex-v2"
-  | "treasure";
+  | "zeroex-v3"
+  | "zeroex-v4"
+  | "zora";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -190,6 +192,7 @@ export type EventSubKind =
   | "superrare-auction-settled"
   | "superrare-set-sale-price"
   | "zeroex-v2-fill"
+  | "zeroex-v3-fill"
   | "treasure-item-sold";
 
 export type EventData = {
@@ -315,6 +318,7 @@ const allEventData = [
   superrare.auctionSettled,
   superrare.setSalePrice,
   zeroExV2.fill,
+  zeroExV3.fill,
   treasure.itemSold,
 ];
 

@@ -7,7 +7,6 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport-v1.1";
 import { LooksRareOffer, setupLooksRareOffers } from "../helpers/looks-rare";
 import {
   bn,
@@ -31,8 +30,6 @@ describe("[ReservoirV6_0_1] LooksRare offers", () => {
 
   let erc721: Contract;
   let router: Contract;
-  let seaportApprovalOrderZone: Contract;
-  let seaportModule: Contract;
   let looksRareModule: Contract;
 
   beforeEach(async () => {
@@ -43,14 +40,6 @@ describe("[ReservoirV6_0_1] LooksRare offers", () => {
     router = await ethers
       .getContractFactory("ReservoirV6_0_1", deployer)
       .then((factory) => factory.deploy());
-    seaportApprovalOrderZone = await ethers
-      .getContractFactory("SeaportApprovalOrderZone", deployer)
-      .then((factory) => factory.deploy());
-    seaportModule = await ethers
-      .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(deployer.address, router.address, Sdk.SeaportV11.Addresses.Exchange[chainId])
-      );
     looksRareModule = await ethers
       .getContractFactory("LooksRareModule", deployer)
       .then((factory) =>
@@ -67,7 +56,6 @@ describe("[ReservoirV6_0_1] LooksRare offers", () => {
         david: await ethers.provider.getBalance(david.address),
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
-        seaportModule: await ethers.provider.getBalance(seaportModule.address),
         looksRareModule: await ethers.provider.getBalance(looksRareModule.address),
       };
     } else {
@@ -79,7 +67,6 @@ describe("[ReservoirV6_0_1] LooksRare offers", () => {
         david: await contract.getBalance(david.address),
         emilio: await contract.getBalance(emilio.address),
         router: await contract.getBalance(router.address),
-        seaportModule: await contract.getBalance(seaportModule.address),
         looksRareModule: await contract.getBalance(looksRareModule.address),
       };
     }
@@ -123,73 +110,18 @@ describe("[ReservoirV6_0_1] LooksRare offers", () => {
     }
     await setupLooksRareOffers(offers);
 
-    // In order to avoid giving NFT approvals to the router (remember,
-    // the router is supposed to be stateless), we do create multiple
-    // Seaport orders (we can also have a single aggregated order for
-    // bundling everything together) which give the NFTs to the router
-    // (eg. offer = NFT and consideration = NFT - with the router as a
-    // private recipient). This way, the NFT approvals will be made on
-    // the Seaport conduit and the router stays stateless.
-
-    const approvals: SeaportERC721Approval[] = offers.map((offer) => ({
-      giver: carol,
-      filler: seaportModule.address,
-      receiver: looksRareModule.address,
-      nft: offer.nft,
-      zone: seaportApprovalOrderZone.address,
-    }));
-    await setupSeaportERC721Approvals(approvals);
+    // Send the NFTs to the module (in real-world this will be done atomically)
+    for (const offer of offers) {
+      await offer.nft.contract.connect(carol).mint(offer.nft.id);
+      await offer.nft.contract
+        .connect(carol)
+        .transferFrom(carol.address, looksRareModule.address, offer.nft.id);
+    }
 
     // Prepare executions
 
     const executions: ExecutionInfo[] = [
-      // 1. Fill the approval orders, so that we avoid giving approval to the router
-      {
-        module: seaportModule.address,
-        data: seaportModule.interface.encodeFunctionData("matchOrders", [
-          [
-            ...approvals
-              .map(({ orders }) => [
-                // Regular order
-                {
-                  parameters: {
-                    ...orders![0].params,
-                    totalOriginalConsiderationItems: orders![0].params.consideration.length,
-                  },
-                  signature: orders![0].params.signature,
-                },
-                // Mirror order
-                {
-                  parameters: {
-                    ...orders![1].params,
-                    totalOriginalConsiderationItems: orders![1].params.consideration.length,
-                  },
-                  signature: "0x",
-                },
-              ])
-              .flat(),
-          ],
-          // For each regular order, match the single offer item to the single consideration item
-          [
-            ...approvals.map((_, i) => ({
-              offerComponents: [
-                {
-                  orderIndex: i * 2,
-                  itemIndex: 0,
-                },
-              ],
-              considerationComponents: [
-                {
-                  orderIndex: i * 2,
-                  itemIndex: 0,
-                },
-              ],
-            })),
-          ],
-        ]),
-        value: 0,
-      },
-      // 2. Fill offers with the received NFTs
+      // 1. Fill offers with the received NFTs
       ...offers.map((offer, i) => ({
         module: looksRareModule.address,
         data: looksRareModule.interface.encodeFunctionData("acceptERC721Offer", [
@@ -279,7 +211,6 @@ describe("[ReservoirV6_0_1] LooksRare offers", () => {
 
     // Router is stateless
     expect(balancesAfter.router).to.eq(0);
-    expect(balancesAfter.seaportModule).to.eq(0);
     expect(balancesAfter.looksRareModule).to.eq(0);
   };
 
