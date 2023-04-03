@@ -24,22 +24,20 @@ export const getExecuteCancelV3Options: RouteOptions = {
   },
   validate: {
     payload: Joi.object({
-      orderIds: Joi.array().items(Joi.string()).min(1).optional(),
-      maker: Joi.string().pattern(regex.address).optional(),
-      orderKind: Joi.string()
-        .valid(
-          "seaport",
-          "seaport-v1.4",
-          "looks-rare",
-          "zeroex-v4-erc721",
-          "zeroex-v4-erc1155",
-          "universe",
-          "rarible",
-          "infinity",
-          "flow"
-        )
-        .optional(),
-      token: Joi.string().pattern(regex.token).optional(),
+      orderIds: Joi.array().items(Joi.string()).min(1),
+      maker: Joi.string().pattern(regex.address),
+      orderKind: Joi.string().valid(
+        "seaport",
+        "seaport-v1.4",
+        "looks-rare",
+        "zeroex-v4-erc721",
+        "zeroex-v4-erc1155",
+        "universe",
+        "rarible",
+        "infinity",
+        "flow"
+      ),
+      token: Joi.string().pattern(regex.token),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional. Set custom gas price"),
@@ -63,7 +61,6 @@ export const getExecuteCancelV3Options: RouteOptions = {
               Joi.object({
                 status: Joi.string().valid("complete", "incomplete").required(),
                 data: Joi.object(),
-                orderIndex: Joi.number(),
               })
             )
             .required(),
@@ -78,8 +75,15 @@ export const getExecuteCancelV3Options: RouteOptions = {
   handler: async (request: Request) => {
     const actionData = request.payload as any;
 
+    const gasSettings = {
+      maxFeePerGas: actionData.maxFeePerGas ? bn(actionData.maxFeePerGas).toHexString() : undefined,
+      maxPriorityFeePerGas: actionData.maxPriorityFeePerGas
+        ? bn(actionData.maxPriorityFeePerGas).toHexString()
+        : undefined,
+    };
+
     // Cancel by maker
-    if (!actionData.token && actionData.maker) {
+    if (actionData.maker && !actionData.token) {
       let cancelTx: TxData;
       const maker = actionData.maker;
 
@@ -107,21 +111,16 @@ export const getExecuteCancelV3Options: RouteOptions = {
           {
             id: "cancellation",
             action: "Submit cancellation",
-            description: `To cancel these orders you must confirm the transaction and pay the gas fee`,
+            description:
+              "To cancel these orders you must confirm the transaction and pay the gas fee",
             kind: "transaction",
             items: [
               {
                 status: "incomplete",
                 data: {
                   ...cancelTx,
-                  maxFeePerGas: actionData.maxFeePerGas
-                    ? bn(actionData.maxFeePerGas).toHexString()
-                    : undefined,
-                  maxPriorityFeePerGas: actionData.maxPriorityFeePerGas
-                    ? bn(actionData.maxPriorityFeePerGas).toHexString()
-                    : undefined,
+                  ...gasSettings,
                 },
-                orderIndex: 0,
               },
             ],
           },
@@ -129,7 +128,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
       };
     }
 
-    // Cancel by tokenId or multile orderIds
+    // Cancel by token or order ids
     try {
       // Fetch the orders to get cancelled
       const orderResults = actionData.token
@@ -142,16 +141,16 @@ export const getExecuteCancelV3Options: RouteOptions = {
                 orders.raw_data
               FROM orders
               WHERE orders.token_set_id = $/token_set_id/ 
-              AND side = $/side/
-              AND maker = $/maker/
-              AND kind = $/order_kind/
-              AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
+                AND side = $/side/
+                AND maker = $/maker/
+                AND kind = $/orderKind/
+                AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
             `,
             {
               side: "sell",
               token_set_id: `token:${actionData.token}`,
               maker: toBuffer(actionData.maker),
-              order_kind: actionData.orderKind,
+              orderKind: actionData.orderKind,
             }
           )
         : await redb.manyOrNone(
@@ -162,29 +161,77 @@ export const getExecuteCancelV3Options: RouteOptions = {
                 orders.maker,
                 orders.raw_data
               FROM orders
-              WHERE orders.id IN ($/id:csv/)
+              WHERE orders.id IN ($/ids:csv/)
                 AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
             `,
-            { id: actionData.orderIds }
+            {
+              ids: actionData.orderIds,
+            }
           );
 
-      // Return early in case no order was found
+      // Return early in case no matching orders were found
       if (!orderResults.length) {
-        throw Boom.badRequest("No matching order");
+        throw Boom.badRequest("No matching order(s)");
       }
 
       const isBulkCancel = orderResults.length > 1;
       const orderResult = orderResults[0];
 
-      // Make sure all order is same kind
-      const supportedKinds = ["seaport-v1.4", "seaport"];
+      // When bulk-cancelling, make sure all orders have the same kind
+      const supportedKinds = ["seaport", "seaport-v1.4"];
       if (isBulkCancel) {
-        const isSupportBulk =
+        const supportsBulkCancel =
           supportedKinds.includes(orderResult.kind) &&
-          orderResults.every((c) => c.kind === orderResult.kind);
-        if (!isSupportBulk) {
-          throw Boom.badRequest("Bulk cancel not supported");
+          orderResults.every((o) => o.kind === orderResult.kind);
+        if (!supportsBulkCancel) {
+          throw Boom.notImplemented("Bulk cancelling not supported");
         }
+      }
+
+      // Handle off-chain cancellations
+
+      const cancellationZone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
+      const areAllOracleCancellable = orderResults.every(
+        (o) => o.kind === "seaport-v1.4" && o.raw_data.zone === cancellationZone
+      );
+      if (areAllOracleCancellable) {
+        return {
+          steps: [
+            {
+              id: "cancellation-signature",
+              action: "Cancel order",
+              description: "Authorize the cancellation of the order",
+              kind: "signature",
+              items: [
+                {
+                  status: "incomplete",
+                  data: {
+                    sign: {
+                      signatureKind: "eip712",
+                      domain: {
+                        name: "SignedZone",
+                        version: "1.0.0",
+                        chainId: config.chainId,
+                        verifyingContract: cancellationZone,
+                      },
+                      types: { OrderHashes: [{ name: "orderHashes", type: "bytes32[]" }] },
+                      value: {
+                        orderHashes: orderResults.map((o) => o.id),
+                      },
+                    },
+                    post: {
+                      endpoint: "/execute/cancel-signature/v1",
+                      method: "POST",
+                      body: {
+                        orderIds: orderResults.map((o) => o.id).sort(),
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        };
       }
 
       // Handle on-chain cancellations
@@ -192,8 +239,6 @@ export const getExecuteCancelV3Options: RouteOptions = {
       let cancelTx: TxData;
 
       const maker = fromBuffer(orderResult.maker);
-
-      // REFACTOR: Move to SDK and handle X2Y2
       switch (orderResult.kind) {
         case "seaport": {
           const orders = orderResults.map((dbOrder) => {
@@ -207,9 +252,9 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
         case "seaport-v1.4": {
           const orders = orderResults.map((dbOrder) => {
-            return new Sdk.SeaportV11.Order(config.chainId, dbOrder.raw_data);
+            return new Sdk.SeaportV14.Order(config.chainId, dbOrder.raw_data);
           });
-          const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
+          const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
 
           cancelTx = exchange.cancelOrdersTx(maker, orders);
           break;
@@ -288,14 +333,8 @@ export const getExecuteCancelV3Options: RouteOptions = {
                 status: "incomplete",
                 data: {
                   ...cancelTx,
-                  maxFeePerGas: actionData.maxFeePerGas
-                    ? bn(actionData.maxFeePerGas).toHexString()
-                    : undefined,
-                  maxPriorityFeePerGas: actionData.maxPriorityFeePerGas
-                    ? bn(actionData.maxPriorityFeePerGas).toHexString()
-                    : undefined,
+                  ...gasSettings,
                 },
-                orderIndex: 0,
               },
             ],
           },

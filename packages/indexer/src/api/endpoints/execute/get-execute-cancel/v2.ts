@@ -14,10 +14,10 @@ const version = "v2";
 export const getExecuteCancelV2Options: RouteOptions = {
   description: "Cancel order",
   notes: "Cancel an existing order on any marketplace",
-  tags: ["api", "Fill Orders (buy & sell)"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 11,
+      deprecated: true,
     },
   },
   validate: {
@@ -116,7 +116,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
                       endpoint: "/execute/cancel-signature/v1",
                       method: "POST",
                       body: {
-                        orderId: orderResult.id,
+                        orderIds: [orderResult.id],
                       },
                     },
                   },

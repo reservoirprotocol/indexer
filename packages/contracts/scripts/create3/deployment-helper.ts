@@ -5,7 +5,6 @@
 import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
 import { keccak256 } from "@ethersproject/solidity";
-import * as Addresses from "@reservoir0x/sdk/src/router/v6/addresses";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import hre, { ethers } from "hardhat";
 
@@ -63,21 +62,3 @@ export class DeploymentHelper {
     });
   }
 }
-
-// const main = async () => {
-//   const deploymentHelper = await DeploymentHelper.getInstance();
-//   const chainId = await deploymentHelper.deployer.getChainId();
-
-//   const args: any[] = [
-//     deploymentHelper.deployer.address,
-//     "0xb69D7A3C1d9aa9da38AE3e088f60EB6cf7df6A26",
-//   ];
-//   await deploymentHelper.deploy("SeaportV14Module", "v1", args, { verifyOnEtherscan: true });
-// };
-
-// main()
-//   .then(() => process.exit(0))
-//   .catch((error) => {
-//     console.error(error);
-//     process.exit(1);
-//   });

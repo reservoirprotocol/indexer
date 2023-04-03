@@ -87,7 +87,7 @@ export const getBuildInfo = async (
         ? Sdk.SeaportV11.Addresses.PausableZone[config.chainId] ?? AddressZero
         : AddressZero,
     // Use OpenSea's conduit for sharing approvals (where available)
-    conduitKey: Sdk.SeaportV11.Addresses.OpenseaConduitKey[config.chainId],
+    conduitKey: Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
     startTime: options.listingTime || now() - 1 * 60,
     endTime: options.expirationTime || now() + 6 * 30 * 24 * 3600,
     salt: source

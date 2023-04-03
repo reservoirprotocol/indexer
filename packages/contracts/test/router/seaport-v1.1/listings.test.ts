@@ -2,12 +2,12 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { parseEther, parseUnits } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk/src";
+import { ItemType } from "@reservoir0x/sdk/src/router/v6/approval-proxy";
+import { ExecutionInfo } from "@reservoir0x/sdk/src/router/v6/types";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { AllowanceTransfer } from "@uniswap/permit2-sdk";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import { ExecutionInfo } from "../helpers/router";
 import { SeaportListing, setupSeaportListings } from "../helpers/seaport-v1.1";
 import {
   bn,
@@ -16,6 +16,7 @@ import {
   getRandomFloat,
   getRandomInteger,
   reset,
+  setupConduit,
   setupNFTs,
 } from "../../utils";
 
@@ -33,58 +34,11 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
   let erc721: Contract;
 
   let router: Contract;
+  let approvalProxy: Contract;
   let seaportModule: Contract;
-  let permit2Module: Contract;
   let swapModule: Contract;
 
-  const generatePermit2ModuleTransfer = async (
-    chainId: number,
-    owner: SignerWithAddress,
-    recipient: string,
-    token: string,
-    amount: string,
-    permit2Module: string
-  ) => {
-    const expiration = Math.floor(new Date().getTime() / 1000) + 86400;
-    const permitBatch = {
-      details: [
-        {
-          token,
-          amount,
-          expiration,
-          nonce: 0,
-        },
-      ],
-      spender: permit2Module,
-      sigDeadline: expiration,
-    };
-
-    const signatureData = AllowanceTransfer.getPermitData(
-      permitBatch,
-      Sdk.Common.Addresses.Permit2[chainId],
-      chainId
-    );
-
-    const signature = await owner._signTypedData(
-      signatureData.domain,
-      signatureData.types,
-      signatureData.values
-    );
-
-    return {
-      permit: permitBatch,
-      owner: owner.address,
-      transferDetails: [
-        {
-          from: owner.address,
-          to: recipient,
-          amount,
-          token,
-        },
-      ],
-      signature,
-    };
-  };
+  let conduitKey: string;
 
   beforeEach(async () => {
     [deployer, alice, bob, carol, david, emilio] = await ethers.getSigners();
@@ -94,6 +48,11 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
     router = await ethers
       .getContractFactory("ReservoirV6_0_1", deployer)
       .then((factory) => factory.deploy());
+    approvalProxy = await ethers
+      .getContractFactory("ReservoirApprovalProxy", deployer)
+      .then((factory) =>
+        factory.deploy(Sdk.SeaportBase.Addresses.ConduitController[chainId], router.address)
+      );
     seaportModule = await ethers
       .getContractFactory("SeaportModule", deployer)
       .then((factory) =>
@@ -109,9 +68,8 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
           Sdk.Common.Addresses.SwapRouter[chainId]
         )
       );
-    permit2Module = await ethers
-      .getContractFactory("Permit2Module", deployer)
-      .then((factory) => factory.deploy(deployer.address, Sdk.Common.Addresses.Permit2[chainId]));
+
+    conduitKey = await setupConduit(chainId, deployer, [approvalProxy.address]);
   });
 
   const getBalances = async (token: string) => {
@@ -433,7 +391,7 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
     }
   }
 
-  it("Permit2 - Fill ETH listing with USDC", async () => {
+  it("ApprovalProxy - Fill ETH listing with USDC", async () => {
     // Setup
 
     // Maker: Alice
@@ -485,32 +443,16 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
     });
 
     const erc20 = new Sdk.Common.Helpers.Erc20(ethers.provider, Sdk.Common.Addresses.Usdc[chainId]);
-    await erc20.approve(bob, Sdk.Common.Addresses.Permit2[chainId]);
-    const permitModuleTransfer = await generatePermit2ModuleTransfer(
-      1,
+    await erc20.approve(
       bob,
-      swapModule.address,
-      Sdk.Common.Addresses.Usdc[chainId],
-      parseUnits("10000", 6).toString(),
-      permit2Module.address
+      new Sdk.SeaportBase.ConduitController(chainId).deriveConduit(conduitKey)
     );
 
     await setupSeaportListings([listing]);
 
     // Prepare executions
     const executions: ExecutionInfo[] = [
-      // 1. Transfer with permit2
-      {
-        module: permit2Module.address,
-        data: permit2Module.interface.encodeFunctionData(`permitTransfer`, [
-          permitModuleTransfer.owner,
-          permitModuleTransfer.permit,
-          permitModuleTransfer.transferDetails,
-          permitModuleTransfer.signature,
-        ]),
-        value: 0,
-      },
-      // 2. Swap USDC > WETH
+      // 1. Swap USDC > WETH
       {
         module: swapModule.address,
         data: swapModule.interface.encodeFunctionData("erc20ToExactOutput", [
@@ -536,7 +478,7 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
         ]),
         value: 0,
       },
-      // 3. Fill ETH listing with the received funds
+      // 2. Fill ETH listing with the received funds
       {
         module: seaportModule.address,
         data: seaportModule.interface.encodeFunctionData("acceptETHListing", [
@@ -570,10 +512,23 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
 
     // Execute
 
-    await router.connect(bob).execute(executions, {
-      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
-      gasLimit: 3000000,
-    });
+    await approvalProxy.connect(bob).bulkTransferWithExecute(
+      [
+        {
+          items: [
+            {
+              itemType: ItemType.ERC20,
+              token: Sdk.Common.Addresses.Usdc[chainId],
+              identifier: 0,
+              amount: parseUnits("10000", 6),
+            },
+          ],
+          recipient: swapModule.address,
+        },
+      ],
+      executions,
+      conduitKey
+    );
 
     // Fetch post-state
 
@@ -597,7 +552,7 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
     expect(ethBalancesAfter.swapModule).to.eq(0);
   });
 
-  it("Permit2 - Fill USDC listing", async () => {
+  it("ApprovalProxy - Fill USDC listing", async () => {
     // Setup
 
     // Maker: Alice
@@ -649,14 +604,9 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
     });
 
     const erc20 = new Sdk.Common.Helpers.Erc20(ethers.provider, Sdk.Common.Addresses.Usdc[chainId]);
-    await erc20.approve(bob, Sdk.Common.Addresses.Permit2[chainId]);
-    const permitModuleTransfer = await generatePermit2ModuleTransfer(
-      1,
+    await erc20.approve(
       bob,
-      seaportModule.address,
-      Sdk.Common.Addresses.Usdc[chainId],
-      listing.price.toString(),
-      permit2Module.address
+      new Sdk.SeaportBase.ConduitController(chainId).deriveConduit(conduitKey)
     );
 
     await setupSeaportListings([listing]);
@@ -664,18 +614,7 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
     // Prepare executions
 
     const executions: ExecutionInfo[] = [
-      // 1. Transfer with permit2
-      {
-        module: permit2Module.address,
-        data: permit2Module.interface.encodeFunctionData(`permitTransfer`, [
-          permitModuleTransfer.owner,
-          permitModuleTransfer.permit,
-          permitModuleTransfer.transferDetails,
-          permitModuleTransfer.signature,
-        ]),
-        value: 0,
-      },
-      // 2. Fill USDC listing with the received funds
+      // 1. Fill USDC listing with the received funds
       {
         module: seaportModule.address,
         data: seaportModule.interface.encodeFunctionData("acceptERC20Listing", [
@@ -708,9 +647,23 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
 
     // Execute
 
-    await router.connect(bob).execute(executions, {
-      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
-    });
+    await approvalProxy.connect(bob).bulkTransferWithExecute(
+      [
+        {
+          items: [
+            {
+              itemType: ItemType.ERC20,
+              token: Sdk.Common.Addresses.Usdc[chainId],
+              identifier: 0,
+              amount: bn(listing.price),
+            },
+          ],
+          recipient: seaportModule.address,
+        },
+      ],
+      executions,
+      conduitKey
+    );
 
     // Fetch post-state
 
@@ -734,7 +687,7 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
     expect(ethBalancesAfter.swapModule).to.eq(0);
   });
 
-  it("Permit2 - Fill WETH listing with USDC", async () => {
+  it("ApprovalProxy - Fill WETH listing with USDC", async () => {
     // Setup
 
     // Maker: Alice
@@ -786,32 +739,15 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
     });
 
     const erc20 = new Sdk.Common.Helpers.Erc20(ethers.provider, Sdk.Common.Addresses.Usdc[chainId]);
-    await erc20.approve(bob, Sdk.Common.Addresses.Permit2[chainId]);
-    const permitModuleTransfer = await generatePermit2ModuleTransfer(
-      1,
+    await erc20.approve(
       bob,
-      swapModule.address,
-      Sdk.Common.Addresses.Usdc[chainId],
-      parseUnits("10000", 6).toString(),
-      permit2Module.address
+      new Sdk.SeaportBase.ConduitController(chainId).deriveConduit(conduitKey)
     );
-
     await setupSeaportListings([listing]);
 
     // Prepare executions
     const executions: ExecutionInfo[] = [
-      // 1. Transfer with permit2
-      {
-        module: permit2Module.address,
-        data: permit2Module.interface.encodeFunctionData(`permitTransfer`, [
-          permitModuleTransfer.owner,
-          permitModuleTransfer.permit,
-          permitModuleTransfer.transferDetails,
-          permitModuleTransfer.signature,
-        ]),
-        value: 0,
-      },
-      // 2. Swap USDC > WETH
+      // 1. Swap USDC > WETH
       {
         module: swapModule.address,
         data: swapModule.interface.encodeFunctionData("erc20ToExactOutput", [
@@ -837,7 +773,7 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
         ]),
         value: 0,
       },
-      // 3. Fill WETH listing with the received funds
+      // 2. Fill WETH listing with the received funds
       {
         module: seaportModule.address,
         data: seaportModule.interface.encodeFunctionData("acceptERC20Listing", [
@@ -870,9 +806,23 @@ describe("[ReservoirV6_0_1] SeaportV11 listings", () => {
 
     // Execute
 
-    await router.connect(bob).execute(executions, {
-      value: executions.map(({ value }) => value).reduce((a, b) => bn(a).add(b)),
-    });
+    await approvalProxy.connect(bob).bulkTransferWithExecute(
+      [
+        {
+          items: [
+            {
+              itemType: ItemType.ERC20,
+              token: Sdk.Common.Addresses.Usdc[chainId],
+              identifier: 0,
+              amount: parseUnits("10000", 6),
+            },
+          ],
+          recipient: swapModule.address,
+        },
+      ],
+      executions,
+      conduitKey
+    );
 
     // Fetch post-state
 

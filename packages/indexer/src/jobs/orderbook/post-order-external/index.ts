@@ -49,21 +49,20 @@ if (config.doBackgroundWork) {
 
       logger.info(QUEUE_NAME, `Start. jobData=${JSON.stringify(job.data)}`);
 
-      if (![1, 4, 5].includes(config.chainId)) {
-        throw new Error("Unsupported network");
-      }
-
       if (
         !["blur", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow"].includes(
           orderbook
         )
       ) {
-        throw new Error("Unsupported orderbook");
-      }
+        if (crossPostingOrderId) {
+          await crossPostingOrdersModel.updateOrderStatus(
+            crossPostingOrderId,
+            CrossPostingOrderStatus.failed,
+            "Unsupported orderbook"
+          );
+        }
 
-      // TODO: Remove after deployment
-      if (job.data.orderbookApiKey === null) {
-        delete job.data.orderbookApiKey;
+        throw new Error("Unsupported orderbook");
       }
 
       const orderbookApiKey = job.data.orderbookApiKey ?? getOrderbookDefaultApiKey(orderbook);

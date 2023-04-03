@@ -13,6 +13,7 @@ import {
 import { Tokens } from "@/models/tokens";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
+import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import { logger } from "@/common/logger";
 
@@ -136,6 +137,8 @@ export class Collections {
       "opensea",
       collection.openseaFees as royalties.Royalty[] | undefined
     );
+
+    await marketplaceBlacklist.updateMarketplaceBlacklist(collection.contract);
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {

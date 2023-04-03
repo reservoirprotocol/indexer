@@ -782,12 +782,6 @@ export const setupRoutes = (server: Server) => {
     options: executeEndpoints.postCancelSignatureV1Options,
   });
 
-  server.route({
-    method: "POST",
-    path: "/execute/permit-signature/v1",
-    options: executeEndpoints.postPermitSignatureV1Options,
-  });
-
   // Health
 
   // Both `/readyz` and `/livez` point to the same handler,

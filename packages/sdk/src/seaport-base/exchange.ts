@@ -144,7 +144,7 @@ export abstract class SeaportBaseExchange {
                 numerator: matchParams.amount || "1",
                 denominator: info.amount,
                 signature: order.params.signature!,
-                extraData: await this.getExtraData(order),
+                extraData: await this.getExtraData(order, matchParams),
               },
               matchParams.criteriaResolvers || [],
               conduitKey,
@@ -224,7 +224,7 @@ export abstract class SeaportBaseExchange {
                 numerator: matchParams.amount || "1",
                 denominator: info.amount,
                 signature: order.params.signature!,
-                extraData: await this.getExtraData(order),
+                extraData: await this.getExtraData(order, matchParams),
               },
               matchParams.criteriaResolvers || [],
               conduitKey,
@@ -280,7 +280,7 @@ export abstract class SeaportBaseExchange {
               numerator: matchParams[i].amount || "1",
               denominator: order.getInfo()!.amount,
               signature: order.params.signature!,
-              extraData: await this.getExtraData(order),
+              extraData: await this.getExtraData(order, matchParams[i]),
             }))
           ),
           matchParams

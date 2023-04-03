@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { Interface } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { BigNumberish, BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
@@ -70,6 +71,37 @@ export const setupNFTs = async (deployer: SignerWithAddress) => {
   return { erc721, erc1155 };
 };
 
+export const setupConduit = async (
+  chainId: number,
+  deployer: SignerWithAddress,
+  channels: string[]
+) => {
+  const iface = new Interface([
+    "function createConduit(bytes32 conduitKey, address initialOwner) returns (address)",
+    "function updateChannel(address conduit, address channel, bool isOpen) external",
+  ]);
+
+  const conduitKey = `${deployer.address}000000000000000000000000`;
+
+  await deployer.sendTransaction({
+    to: Sdk.SeaportBase.Addresses.ConduitController[chainId],
+    data: iface.encodeFunctionData("createConduit", [conduitKey, deployer.address]),
+  });
+
+  for (const channel of channels) {
+    await deployer.sendTransaction({
+      to: Sdk.SeaportBase.Addresses.ConduitController[chainId],
+      data: iface.encodeFunctionData("updateChannel", [
+        new Sdk.SeaportBase.ConduitController(chainId).deriveConduit(conduitKey),
+        channel,
+        true,
+      ]),
+    });
+  }
+
+  return conduitKey;
+};
+
 // Deploy router with modules and override any SDK addresses
 export const setupRouterWithModules = async (chainId: number, deployer: SignerWithAddress) => {
   // Deploy router
@@ -121,10 +153,13 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
     )) as any;
   Sdk.RouterV6.Addresses.SwapModule[chainId] = swapModule.address.toLowerCase();
 
-  const permit2Module = (await ethers
-    .getContractFactory("Permit2Module", deployer)
+  const approvalProxy = await ethers
+    .getContractFactory("ReservoirApprovalProxy", deployer)
     .then((factory) =>
-      factory.deploy(deployer.address, Sdk.Common.Addresses.Permit2[chainId])
-    )) as any;
-  Sdk.RouterV6.Addresses.Permit2Module[chainId] = permit2Module.address.toLowerCase();
+      factory.deploy(Sdk.SeaportBase.Addresses.ConduitController[chainId], router.address)
+    );
+  Sdk.RouterV6.Addresses.ApprovalProxy[chainId] = approvalProxy.address.toLowerCase();
+
+  const conduitKey = await setupConduit(chainId, deployer, [approvalProxy.address]);
+  Sdk.SeaportBase.Addresses.ReservoirConduitKey[chainId] = conduitKey;
 };

@@ -23,3 +23,7 @@ export const ExponentialCurve: ChainIdToAddress = {
 export const XykCurve: ChainIdToAddress = {
   [Network.Ethereum]: "0x7942e264e21c5e6cbba45fe50785a15d3beb1da0",
 };
+
+export const LSSVMRouter: ChainIdToAddress = {
+  [Network.Ethereum]: "0x2b2e8cda09bba9660dca5cb6233787738ad68329",
+};

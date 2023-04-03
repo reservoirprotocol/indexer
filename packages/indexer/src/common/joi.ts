@@ -11,6 +11,7 @@ import { Sources } from "@/models/sources";
 import crypto from "crypto";
 import { Assets } from "@/utils/assets";
 import { config } from "@/config/index";
+import { SourcesEntity } from "@/models/sources/sources-entity";
 
 // --- Prices ---
 
@@ -251,6 +252,49 @@ export const JoiOrderCriteria = Joi.alternatives(
   })
 );
 
+export const JoiOrder = Joi.object({
+  id: Joi.string().required(),
+  kind: Joi.string().required(),
+  side: Joi.string().valid("buy", "sell").required(),
+  status: Joi.string(),
+  tokenSetId: Joi.string().required(),
+  tokenSetSchemaHash: Joi.string().lowercase().pattern(regex.bytes32).required(),
+  contract: Joi.string().lowercase().pattern(regex.address),
+  maker: Joi.string().lowercase().pattern(regex.address).required(),
+  taker: Joi.string().lowercase().pattern(regex.address).required(),
+  price: JoiPrice,
+  validFrom: Joi.number().required(),
+  validUntil: Joi.number().required(),
+  quantityFilled: Joi.number().unsafe(),
+  quantityRemaining: Joi.number().unsafe(),
+  dynamicPricing: JoiDynamicPrice.allow(null),
+  criteria: JoiOrderCriteria.allow(null),
+  source: Joi.object().allow(null),
+  feeBps: Joi.number().allow(null),
+  feeBreakdown: Joi.array()
+    .items(
+      Joi.object({
+        kind: Joi.string(),
+        recipient: Joi.string().allow("", null),
+        bps: Joi.number(),
+      })
+    )
+    .allow(null),
+  expiration: Joi.number().required(),
+  isReservoir: Joi.boolean().allow(null),
+  isDynamic: Joi.boolean(),
+  createdAt: Joi.string().required(),
+  updatedAt: Joi.string().required(),
+  rawData: Joi.object().optional().allow(null),
+});
+
+export const JoiActivityOrder = Joi.object({
+  id: Joi.string().allow(null),
+  side: Joi.string().valid("ask", "bid").allow(null),
+  source: Joi.object().allow(null),
+  criteria: JoiOrderCriteria.allow(null),
+});
+
 export const getJoiDynamicPricingObject = async (
   dynamic: boolean,
   kind: string,
@@ -350,6 +394,173 @@ export const getJoiDynamicPricingObject = async (
       },
     };
   }
+};
+
+export const getJoiOrderObject = async (order: {
+  id: string;
+  kind: string;
+  side: string;
+  status: string;
+  tokenSetId: string;
+  tokenSetSchemaHash: Buffer;
+  contract: Buffer;
+  maker: Buffer;
+  taker: Buffer;
+  prices: {
+    gross: {
+      amount: string;
+      nativeAmount?: string;
+      usdAmount?: string;
+    };
+    net: {
+      amount: string;
+      nativeAmount?: string;
+      usdAmount?: string;
+    };
+    currency: Buffer;
+  };
+  validFrom: string;
+  validUntil: string;
+  quantityFilled: string;
+  quantityRemaining: string;
+  criteria: string;
+  sourceIdInt: number;
+  feeBps: any;
+  feeBreakdown: any;
+  expiration: string;
+  isReservoir: boolean;
+  createdAt: number;
+  updatedAt: number;
+  includeRawData: boolean;
+  rawData:
+    | Sdk.SeaportBase.Types.OrderComponents
+    | Sdk.Sudoswap.OrderParams
+    | Sdk.Nftx.Types.OrderParams;
+  normalizeRoyalties: boolean;
+  missingRoyalties: any;
+  dynamic?: boolean;
+  token?: string;
+}) => {
+  const sources = await Sources.getInstance();
+  let source: SourcesEntity | undefined;
+  if (order.tokenSetId?.startsWith("token")) {
+    const [, contract, tokenId] = order.tokenSetId.split(":");
+    source = sources.get(Number(order.sourceIdInt), contract, tokenId);
+  } else if (order.token) {
+    const [contract, tokenId] = order.token.split(":");
+    source = sources.get(Number(order.sourceIdInt), contract, tokenId);
+  } else {
+    source = sources.get(Number(order.sourceIdInt));
+  }
+
+  const feeBreakdown = order.feeBreakdown;
+  let feeBps = order.feeBps;
+
+  if (order.normalizeRoyalties && order.missingRoyalties) {
+    for (let i = 0; i < order.missingRoyalties.length; i++) {
+      const index: number = order.feeBreakdown.findIndex(
+        (fee: { recipient: string }) => fee.recipient === order.missingRoyalties[i].recipient
+      );
+
+      const missingFeeBps = Number(order.missingRoyalties[i].bps);
+      feeBps += missingFeeBps;
+
+      if (index !== -1) {
+        feeBreakdown[index].bps += missingFeeBps;
+      } else {
+        feeBreakdown.push({
+          bps: missingFeeBps,
+          kind: "royalty",
+          recipient: order.missingRoyalties[i].recipient,
+        });
+      }
+    }
+  }
+
+  return {
+    id: order.id,
+    kind: order.kind,
+    side: order.side,
+    status: order.status,
+    tokenSetId: order.tokenSetId,
+    tokenSetSchemaHash: fromBuffer(order.tokenSetSchemaHash),
+    contract: fromBuffer(order.contract),
+    maker: fromBuffer(order.maker),
+    taker: fromBuffer(order.taker),
+    price: await getJoiPriceObject(
+      {
+        gross: {
+          amount: order.prices.gross.amount,
+          nativeAmount: order.prices.gross.nativeAmount,
+        },
+        net: {
+          amount: order.prices.net.amount,
+          nativeAmount: order.prices.net.nativeAmount,
+        },
+      },
+      order.prices.currency
+        ? fromBuffer(order.prices.currency)
+        : order.side === "sell"
+        ? Sdk.Common.Addresses.Eth[config.chainId]
+        : Sdk.Common.Addresses.Weth[config.chainId]
+    ),
+    validFrom: Number(order.validFrom),
+    validUntil: Number(order.validUntil),
+    quantityFilled: Number(order.quantityFilled),
+    quantityRemaining: Number(order.quantityRemaining),
+    dynamicPricing: order.dynamic
+      ? await getJoiDynamicPricingObject(
+          order.dynamic,
+          order.kind,
+          order.normalizeRoyalties,
+          order.rawData,
+          order.prices.currency ? fromBuffer(order.prices.currency) : undefined,
+          order.missingRoyalties ? order.missingRoyalties : undefined
+        )
+      : order.dynamic !== undefined
+      ? null
+      : undefined,
+    criteria: order.criteria,
+    source: {
+      id: source?.address,
+      domain: source?.domain,
+      name: source?.getTitle(),
+      icon: source?.getIcon(),
+      url: source?.metadata.url,
+    },
+    feeBps: Number(feeBps.toString()),
+    feeBreakdown: feeBreakdown,
+    expiration: Number(order.expiration),
+    isReservoir: order.isReservoir,
+    isDynamic:
+      order.dynamic !== undefined ? Boolean(order.dynamic || order.kind === "sudoswap") : undefined,
+    createdAt: new Date(order.createdAt * 1000).toISOString(),
+    updatedAt: new Date(order.updatedAt).toISOString(),
+    rawData: order.includeRawData ? order.rawData : undefined,
+  };
+};
+
+export const getJoiActivityOrderObject = async (order: {
+  id: string | null;
+  side: string | null;
+  sourceIdInt: number | null | undefined;
+  criteria: Record<string, unknown> | null;
+}) => {
+  const sources = await Sources.getInstance();
+  const orderSource = order.sourceIdInt ? sources.get(order.sourceIdInt) : undefined;
+
+  return {
+    id: order.id,
+    side: order.side ? (order.side === "sell" ? "ask" : "bid") : undefined,
+    source: orderSource
+      ? {
+          domain: orderSource?.domain,
+          name: orderSource?.getTitle(),
+          icon: orderSource?.getIcon(),
+        }
+      : undefined,
+    criteria: order.criteria,
+  };
 };
 
 // --- Sales ---

@@ -124,9 +124,12 @@ export class NewSellOrderWebsocketEvent {
       };
 
       redisWebsocketPublisher.publish(
-        "asks",
+        "events",
         JSON.stringify({
           event: "ask.created",
+          tags: {
+            contract: fromBuffer(rawResult.contract),
+          },
           data: result,
         })
       );
