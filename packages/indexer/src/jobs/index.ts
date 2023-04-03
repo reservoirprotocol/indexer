@@ -65,6 +65,7 @@ import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-c
 import * as currencies from "@/jobs/currencies/index";
 
 import * as dailyVolumes from "@/jobs/daily-volumes/daily-volumes";
+import * as oneDayVolumes from "@/jobs/daily-volumes/1day-volumes";
 
 import * as exportData from "@/jobs/data-export/export-data";
 
@@ -185,6 +186,7 @@ export const allJobQueues = [
   updateCollectionDailyVolume.queue,
 
   dailyVolumes.queue,
+  oneDayVolumes.queue,
 
   exportData.queue,
 
