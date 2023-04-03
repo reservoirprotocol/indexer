@@ -700,7 +700,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       });
 
       const { customTokenAddresses } = getNetworkSettings();
-      const forcePermit = customTokenAddresses.includes(bidDetails[0].contract);
+      const forceApprovalProxy = customTokenAddresses.includes(bidDetails[0].contract);
 
       const errors: { orderId: string; message: string }[] = [];
 
@@ -709,7 +709,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         result = await router.fillBidsTx(bidDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
-          forcePermit,
+          forceApprovalProxy,
           onRecoverableError: async (kind, error, data) => {
             errors.push({
               orderId: data.orderId,
