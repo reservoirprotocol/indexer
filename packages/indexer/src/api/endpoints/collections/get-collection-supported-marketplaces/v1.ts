@@ -46,6 +46,26 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
         ),
     }),
   },
+  response: {
+    schema: Joi.object({
+      marketplaces: Joi.array().items(
+        Joi.object({
+          name: Joi.string(),
+          imageUrl: Joi.string(),
+          fee: Joi.object({
+            bps: Joi.number(),
+          }),
+          royalties: Joi.object({
+            minBps: Joi.number(),
+            maxBps: Joi.number(),
+          }),
+          orderbook: Joi.string().allow(null),
+          orderKind: Joi.string().allow(null),
+          listingEnabled: Joi.boolean(),
+        })
+      ),
+    }),
+  },
   handler: async (request: Request) => {
     const params = request.params as any;
 
