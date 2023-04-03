@@ -9,7 +9,6 @@ import { expect } from "chai";
 import { ethers, network } from "hardhat";
 
 import { ExecutionInfo } from "../helpers/router";
-import { SeaportERC721Approval, setupSeaportERC721Approvals } from "../helpers/seaport-v1.1";
 import { bn, getChainId, getRandomFloat, reset } from "../../utils";
 
 // WARNING! These tests are flaky!
@@ -24,8 +23,6 @@ describe("[ReservoirV6_0_1] X2Y2 offers", () => {
   let emilio: SignerWithAddress;
 
   let router: Contract;
-  let seaportApprovalOrderZone: Contract;
-  let seaportModule: Contract;
   let x2y2Module: Contract;
 
   beforeEach(async () => {
@@ -34,14 +31,6 @@ describe("[ReservoirV6_0_1] X2Y2 offers", () => {
     router = await ethers
       .getContractFactory("ReservoirV6_0_1", deployer)
       .then((factory) => factory.deploy());
-    seaportApprovalOrderZone = await ethers
-      .getContractFactory("SeaportApprovalOrderZone", deployer)
-      .then((factory) => factory.deploy());
-    seaportModule = await ethers
-      .getContractFactory("SeaportModule", deployer)
-      .then((factory) =>
-        factory.deploy(deployer.address, router.address, Sdk.SeaportV11.Addresses.Exchange[chainId])
-      );
     x2y2Module = await ethers
       .getContractFactory("X2Y2Module", deployer)
       .then((factory) =>
@@ -64,7 +53,6 @@ describe("[ReservoirV6_0_1] X2Y2 offers", () => {
         david: await ethers.provider.getBalance(david.address),
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
-        seaportModule: await ethers.provider.getBalance(seaportModule.address),
         x2y2Module: await ethers.provider.getBalance(x2y2Module.address),
       };
     } else {
@@ -76,7 +64,6 @@ describe("[ReservoirV6_0_1] X2Y2 offers", () => {
         david: await contract.getBalance(david.address),
         emilio: await contract.getBalance(emilio.address),
         router: await contract.getBalance(router.address),
-        seaportModule: await contract.getBalance(seaportModule.address),
         x2y2Module: await contract.getBalance(x2y2Module.address),
       };
     }
@@ -175,14 +162,7 @@ describe("[ReservoirV6_0_1] X2Y2 offers", () => {
       }
     }
 
-    // In order to avoid giving NFT approvals to the router (remember,
-    // the router is supposed to be stateless), we do create multiple
-    // Seaport orders (we can also have a single aggregated order for
-    // bundling everything together) which give the NFTs to the router
-    // (eg. offer = NFT and consideration = NFT - with the router as a
-    // private recipient). This way, the NFT approvals will be made on
-    // the Seaport conduit and the router stays stateless.
-
+    // Send the NFTs to the module (in real-world this will be done atomically)
     await Promise.all(
       offers.map(async (offer) => {
         const contract = new Sdk.Common.Helpers.Erc721(ethers.provider, offer.params.nft.token);
@@ -195,73 +175,14 @@ describe("[ReservoirV6_0_1] X2Y2 offers", () => {
         const signer = await ethers.getSigner(owner);
         await contract.contract
           .connect(signer)
-          .transferFrom(owner, carol.address, offer.params.nft.tokenId!);
+          .transferFrom(owner, x2y2Module.address, offer.params.nft.tokenId!);
       })
     );
-
-    const approvals: SeaportERC721Approval[] = offers.map((offer) => ({
-      giver: carol,
-      filler: seaportModule.address,
-      receiver: x2y2Module.address,
-      nft: {
-        kind: "erc721",
-        contract: new Sdk.Common.Helpers.Erc721(ethers.provider, offer.params.nft.token).contract,
-        id: Number(offer.params.nft.tokenId!),
-      },
-      zone: seaportApprovalOrderZone.address,
-    }));
-    await setupSeaportERC721Approvals(approvals, true);
 
     // Prepare executions
 
     const executions: ExecutionInfo[] = [
-      // 1. Fill the approval orders, so that we avoid giving approval to the router
-      {
-        module: seaportModule.address,
-        data: seaportModule.interface.encodeFunctionData("matchOrders", [
-          [
-            ...approvals
-              .map(({ orders }) => [
-                // Regular order
-                {
-                  parameters: {
-                    ...orders![0].params,
-                    totalOriginalConsiderationItems: orders![0].params.consideration.length,
-                  },
-                  signature: orders![0].params.signature,
-                },
-                // Mirror order
-                {
-                  parameters: {
-                    ...orders![1].params,
-                    totalOriginalConsiderationItems: orders![1].params.consideration.length,
-                  },
-                  signature: "0x",
-                },
-              ])
-              .flat(),
-          ],
-          // For each regular order, match the single offer item to the single consideration item
-          [
-            ...approvals.map((_, i) => ({
-              offerComponents: [
-                {
-                  orderIndex: i * 2,
-                  itemIndex: 0,
-                },
-              ],
-              considerationComponents: [
-                {
-                  orderIndex: i * 2,
-                  itemIndex: 0,
-                },
-              ],
-            })),
-          ],
-        ]),
-        value: 0,
-      },
-      // 2. Fill offers with the received NFTs
+      // 1. Fill offers with the received NFTs
       ...offers.map((_, i) => ({
         module: x2y2Module.address,
         data: x2y2Module.interface.encodeFunctionData("acceptERC721Offer", [
@@ -334,7 +255,6 @@ describe("[ReservoirV6_0_1] X2Y2 offers", () => {
 
     // Router is stateless
     expect(balancesAfter.router).to.eq(0);
-    expect(balancesAfter.seaportModule).to.eq(0);
     expect(balancesAfter.x2y2Module).to.eq(0);
   };
 

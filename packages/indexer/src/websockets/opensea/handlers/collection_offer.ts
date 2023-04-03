@@ -1,12 +1,10 @@
 import { now, toTime } from "@/common/utils";
 
-import { PartialOrderComponents } from "@/orderbook/orders/seaport-v1.1";
+import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { CollectionOfferEventPayload } from "@opensea/stream-js";
 import { getNetworkSettings } from "@/config/network";
 
-export const handleEvent = (
-  payload: CollectionOfferEventPayload
-): PartialOrderComponents | null => {
+export const handleEvent = (payload: CollectionOfferEventPayload): OpenseaOrderParams | null => {
   if (!getNetworkSettings().supportedBidCurrencies[payload.payment_token.address]) {
     return null;
   }
