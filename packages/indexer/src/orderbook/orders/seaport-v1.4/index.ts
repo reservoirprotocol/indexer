@@ -133,10 +133,11 @@ export const save = async (
       }
 
       const currentTime = now();
+      const inTheFutureThreshold = 7 * 24 * 60 * 60;
 
       // Check: order has a valid start time
       const startTime = order.params.startTime;
-      if (startTime - 5 * 60 >= currentTime) {
+      if (startTime - inTheFutureThreshold >= currentTime) {
         // TODO: Add support for not-yet-valid orders
         return results.push({
           id,
