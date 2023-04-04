@@ -116,6 +116,9 @@ export const getUserTokensV7Options: RouteOptions = {
         .description(
           "If true, last sale data including royalties paid will be returned in the response."
         ),
+      includeRawData: Joi.boolean()
+        .default(false)
+        .description("If true, raw data is included in the response."),
       useNonFlaggedFloorAsk: Joi.boolean()
         .default(false)
         .description("If true, will return the collection non flagged floor ask."),
@@ -182,6 +185,7 @@ export const getUserTokensV7Options: RouteOptions = {
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
               source: Joi.object().allow(null),
+              rawData: Joi.object().optional().allow(null),
             },
             acquiredAt: Joi.string().allow(null),
           }),
@@ -467,7 +471,9 @@ export const getUserTokensV7Options: RouteOptions = {
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, c.metadata, c.royalties,
-               c.royalties_bps, ${
+               c.royalties_bps, 
+               ${query.includeRawData ? "o.raw_data," : ""}
+               ${
                  query.useNonFlaggedFloorAsk
                    ? "c.floor_sell_value"
                    : "c.non_flagged_floor_sell_value"
@@ -709,6 +715,7 @@ export const getUserTokensV7Options: RouteOptions = {
                 icon: floorSellSource?.getIcon(),
                 url: floorSellSource?.metadata.url,
               },
+              rawData: query.includeRawData ? r.raw_data : undefined,
             },
             acquiredAt: acquiredTime,
           },
