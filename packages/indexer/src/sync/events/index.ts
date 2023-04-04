@@ -303,7 +303,9 @@ export const syncEvents = async (
     }
 
     const limit = pLimit(32);
-    await Promise.all(blocksToFetch.map((block) => limit(() => syncEventsUtils.fetchBlock(block))));
+    await Promise.all(
+      blocksToFetch.map((block) => limit(() => syncEventsUtils.fetchBlock(block, true)))
+    );
   }
 
   logger.info(

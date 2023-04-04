@@ -7,7 +7,6 @@ import { baseProvider } from "@/common/provider";
 import { bn, fromBuffer, now } from "@/common/utils";
 import { config } from "@/config/index";
 import * as marketplaceFees from "@/utils/marketplace-fees";
-import { logger } from "@/common/logger";
 import {
   BaseOrderBuildOptions,
   OrderBuildInfo,
@@ -75,7 +74,6 @@ export const getBuildInfo = async (
   let totalFees = bn(0);
 
   // Include royalties
-  let totalBps = 0;
   if (options.automatedRoyalties) {
     const royalties: { bps: number; recipient: string }[] =
       (options.orderbook === "opensea"
@@ -93,7 +91,6 @@ export const getBuildInfo = async (
         const bps = Math.min(royaltyBpsToPay, r.bps);
         if (bps > 0) {
           royaltyBpsToPay -= bps;
-          totalBps += bps;
 
           const fee = bn(bps).mul(options.weiPrice).div(10000).toString();
           buildParams.fees!.push({
@@ -119,22 +116,7 @@ export const getBuildInfo = async (
     if (collectionResult.marketplace_fees?.opensea == null) {
       openseaMarketplaceFees = await marketplaceFees.getCollectionOpenseaFees(
         collection,
-        fromBuffer(collectionResult.contract),
-        totalBps
-      );
-
-      logger.info(
-        "getCollectionOpenseaFees",
-        `From api. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
-          openseaMarketplaceFees
-        )}`
-      );
-    } else {
-      logger.info(
-        "getCollectionOpenseaFees",
-        `From db. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
-          openseaMarketplaceFees
-        )}`
+        fromBuffer(collectionResult.contract)
       );
     }
 
@@ -142,9 +124,6 @@ export const getBuildInfo = async (
       options.fee.push(openseaMarketplaceFee.bps);
       options.feeRecipient.push(openseaMarketplaceFee.recipient);
     }
-
-    // Refresh opensea fees
-    await marketplaceFees.refreshCollectionOpenseaFeesAsync(collection);
   }
 
   if (options.fee && options.feeRecipient) {
