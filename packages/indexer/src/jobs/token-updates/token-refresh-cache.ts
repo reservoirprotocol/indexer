@@ -74,26 +74,26 @@ if (config.doBackgroundWork) {
         // Simulate and revalidate the top bid on the token
         const topBid = await idb.oneOrNone(
           `
-          SELECT
-            o.id
-          FROM orders o
-          JOIN token_sets_tokens tst
-            ON o.token_set_id = tst.token_set_id
-          WHERE tst.contract = $/contract/
-            AND tst.token_id = $/tokenId/
-            AND o.side = 'buy'
-            AND o.fillability_status = 'fillable'
-            AND o.approval_status = 'approved'
-            AND EXISTS(
-              SELECT FROM nft_balances nb
-                WHERE nb.contract = $/contract/
-                AND nb.token_id = $/tokenId/
-                AND nb.amount > 0
-                AND nb.owner != o.maker
-            )
-          ORDER BY o.value DESC
-          LIMIT 1
-        `,
+            SELECT
+              o.id
+            FROM orders o
+            JOIN token_sets_tokens tst
+              ON o.token_set_id = tst.token_set_id
+            WHERE tst.contract = $/contract/
+              AND tst.token_id = $/tokenId/
+              AND o.side = 'buy'
+              AND o.fillability_status = 'fillable'
+              AND o.approval_status = 'approved'
+              AND EXISTS(
+                SELECT FROM nft_balances nb
+                  WHERE nb.contract = $/contract/
+                  AND nb.token_id = $/tokenId/
+                  AND nb.amount > 0
+                  AND nb.owner != o.maker
+              )
+            ORDER BY o.value DESC
+            LIMIT 1
+          `,
           {
             contract: toBuffer(contract),
             tokenId,

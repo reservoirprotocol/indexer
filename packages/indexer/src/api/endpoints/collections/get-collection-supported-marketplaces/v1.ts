@@ -130,7 +130,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           name: "Blur",
           imageUrl: `https://${
             getNetworkSettings().subDomain
-          }.reservoir.tools/redirect/sources/blur/logo/v2`,
+          }.reservoir.tools/redirect/sources/blur.io/logo/v2`,
           fee: {
             bps: 0,
           },

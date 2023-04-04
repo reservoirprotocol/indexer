@@ -22,12 +22,8 @@ import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
-let server: Hapi.Server;
-
-export const inject = (options: Hapi.ServerInjectOptions) => server.inject(options);
-
-export const start = async (): Promise<void> => {
-  server = Hapi.server({
+export const start = async (): Promise<Hapi.Server> => {
+  const server = Hapi.server({
     port: config.port,
     query: {
       parser: (query) => qs.parse(query),
@@ -322,4 +318,8 @@ export const start = async (): Promise<void> => {
 
   await server.start();
   logger.info("process", `Started on port ${config.port}`);
+
+  return server;
 };
+
+export const inject = (options: Hapi.ServerInjectOptions) => start().then((s) => s.inject(options));

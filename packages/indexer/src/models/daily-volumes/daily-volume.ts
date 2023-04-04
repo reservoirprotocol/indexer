@@ -241,39 +241,43 @@ export class DailyVolume {
 
     const results = await ridb.manyOrNone(
       `SELECT t1.collection_id,
-            t1.volume,
-            t1.rank,
-            t1.floor_sell_value,
-            t1.volume_change,
-            t1.contract
-          FROM
-            (SELECT
+       t1.volume,
+       t1.rank,
+       t1.floor_sell_value,
+       t1.volume_change,
+       t1.contract
+      FROM
+        (SELECT
+          t.contract,
+          t."collection_id",
+          sum("fe"."price") AS "volume",
+          RANK() OVER (ORDER BY SUM(price) DESC, t."collection_id") "rank",
+          min(fe.price) AS "floor_sell_value",
+          (sum("fe"."price") / vc.volume_past) as "volume_change"
+        FROM "fill_events_2" "fe"
+          JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
+          JOIN "collections" "c" ON "t"."collection_id" = "c"."id"
+          JOIN (
+            SELECT
               t.contract,
-              "collection_id",
-              sum("fe"."price") AS "volume",
-              RANK() OVER (ORDER BY SUM(price) DESC, "collection_id") "rank",
-              min(fe.price) AS "floor_sell_value",
-              (
-                  SELECT sum("fe"."price") / (SELECT 
-                        sum("fe2"."price") 
-                        FROM fill_events_2 fe2 
-                       WHERE t.contract = fe2.contract AND
-                            fe2.price > 0
-                        AND "fe2"."timestamp" < $/yesterdayTimestamp/
-                        AND "fe2".timestamp >= $/endYesterdayTimestamp/
-                    )
-              ) as "volume_change"
-
-            FROM "fill_events_2" "fe"
-              JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
-              JOIN "collections" "c" ON "t"."collection_id" = "c"."id"
-            WHERE
-              "fe"."timestamp" >= $/yesterdayTimestamp/
-              AND fe.price > 0
-              AND fe.is_primary IS NOT TRUE
-              AND coalesce(fe.wash_trading_score, 0) = 0
-              ${collectionId ? "AND collection_id = $/collectionId/" : ""}
-            GROUP BY t.contract, "collection_id") t1`,
+              t.collection_id,
+              sum("fe2"."price") as "volume_past"
+            FROM fill_events_2 fe2
+            JOIN tokens t ON fe2.token_id = t.token_id AND fe2.contract = t.contract
+            WHERE fe2.price > 0
+            AND "fe2"."timestamp" < $/yesterdayTimestamp/
+            AND "fe2".timestamp >= $/endYesterdayTimestamp/
+            ${collectionId ? "AND t.collection_id = $/collectionId/" : ""}
+            GROUP BY t.contract, t.collection_id
+          ) vc ON t.contract = vc.contract AND t.collection_id = vc.collection_id
+        WHERE
+          "fe"."timestamp" >= $/yesterdayTimestamp/
+          AND fe.price > 0
+          AND fe.is_primary IS NOT TRUE
+          AND coalesce(fe.wash_trading_score, 0) = 0
+          ${collectionId ? "AND t.collection_id = $/collectionId/" : ""}
+        GROUP BY t.contract, t."collection_id", vc.volume_past) t1
+        `,
       {
         yesterdayTimestamp: startTime,
         endYesterdayTimestamp: startTime - 24 * 60 * 60,

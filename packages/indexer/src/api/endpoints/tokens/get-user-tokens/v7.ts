@@ -143,6 +143,13 @@ export const getUserTokensV7Options: RouteOptions = {
               name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
               floorAskPrice: JoiPrice.allow(null),
+              royaltiesBps: Joi.number().allow(null),
+              royalties: Joi.array().items(
+                Joi.object({
+                  bps: Joi.number().allow(null),
+                  recipient: Joi.string().allow(null),
+                })
+              ),
             }),
             lastSale: JoiSale.optional(),
             topBid: Joi.object({
@@ -458,7 +465,8 @@ export const getUserTokensV7Options: RouteOptions = {
                t.rarity_score, ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
-               c.name as collection_name, con.kind, c.metadata, ${
+               c.name as collection_name, con.kind, c.metadata, c.royalties,
+               c.royalties_bps, ${
                  query.useNonFlaggedFloorAsk
                    ? "c.floor_sell_value"
                    : "c.non_flagged_floor_sell_value"
@@ -606,6 +614,8 @@ export const getUserTokensV7Options: RouteOptions = {
                     query.displayCurrency
                   )
                 : null,
+              royaltiesBps: r.royalties_bps ?? 0,
+              royalties: r.royalties,
             },
             lastSale:
               query.includeLastSale && r.last_sale_currency
