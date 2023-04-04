@@ -42,7 +42,7 @@ if (config.doBackgroundWork) {
       const floorAsk = await idb.oneOrNone(
         `
           SELECT
-            tokens.floor_sell_id
+            tokens.floor_sell_id AS id
           FROM tokens
           WHERE tokens.contract = $/contract/
             AND tokens.token_id = $/tokenId/

@@ -137,6 +137,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .description("Optional custom gas settings."),
       // TODO: Allow passing other API keys as well (eg. Coinbase)
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
+      blurAuth: Joi.string().description("Optional Blur auth to be used"),
     }),
   },
   response: {
@@ -669,63 +670,70 @@ export const getExecuteBuyV7Options: RouteOptions = {
       // Handle Blur authentication
       let blurAuth: b.Auth | undefined;
       if (path.some((p) => p.source === "blur.io")) {
-        const blurAuthId = b.getAuthId(payload.taker);
-
-        blurAuth = await b.getAuth(blurAuthId);
-        if (!blurAuth) {
-          const blurAuthChallengeId = b.getAuthChallengeId(payload.taker);
-
-          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
-          if (!blurAuthChallenge) {
-            blurAuthChallenge = (await axios
-              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${payload.taker}`, {
-                headers: {
-                  "X-Api-Key": config.orderFetcherApiKey,
-                },
-              })
-              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
-
-            await b.saveAuthChallenge(
-              blurAuthChallengeId,
-              blurAuthChallenge,
-              // Give a 1 minute buffer for the auth challenge to expire
-              Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
-            );
-          }
-
-          steps[0].items.push({
-            status: "incomplete",
-            data: {
-              sign: {
-                signatureKind: "eip191",
-                message: blurAuthChallenge.message,
-              },
-              post: {
-                endpoint: "/execute/auth-signature/v1",
-                method: "POST",
-                body: {
-                  kind: "blur",
-                  id: blurAuthChallengeId,
-                },
-              },
-            },
-          });
-
-          // Force the client to poll
-          steps[1].items.push({
-            status: "incomplete",
-          });
-
-          // Return an early since any next steps are dependent on the Blur auth
-          return {
-            steps,
-            path,
-          };
+        if (payload.blurAuth) {
+          blurAuth = { accessToken: payload.blurAuth };
         } else {
-          steps[0].items.push({
-            status: "complete",
-          });
+          const blurAuthId = b.getAuthId(payload.taker);
+
+          blurAuth = await b.getAuth(blurAuthId);
+          if (!blurAuth) {
+            const blurAuthChallengeId = b.getAuthChallengeId(payload.taker);
+
+            let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+            if (!blurAuthChallenge) {
+              blurAuthChallenge = (await axios
+                .get(
+                  `${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${payload.taker}`,
+                  {
+                    headers: {
+                      "X-Api-Key": config.orderFetcherApiKey,
+                    },
+                  }
+                )
+                .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+
+              await b.saveAuthChallenge(
+                blurAuthChallengeId,
+                blurAuthChallenge,
+                // Give a 1 minute buffer for the auth challenge to expire
+                Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+              );
+            }
+
+            steps[0].items.push({
+              status: "incomplete",
+              data: {
+                sign: {
+                  signatureKind: "eip191",
+                  message: blurAuthChallenge.message,
+                },
+                post: {
+                  endpoint: "/execute/auth-signature/v1",
+                  method: "POST",
+                  body: {
+                    kind: "blur",
+                    id: blurAuthChallengeId,
+                  },
+                },
+              },
+            });
+
+            // Force the client to poll
+            steps[1].items.push({
+              status: "incomplete",
+            });
+
+            // Return an early since any next steps are dependent on the Blur auth
+            return {
+              steps,
+              path,
+            };
+          }
         }
+
+        steps[0].items.push({
+          status: "complete",
+        });
       }
 
       const router = new Sdk.RouterV6.Router(config.chainId, baseProvider, {

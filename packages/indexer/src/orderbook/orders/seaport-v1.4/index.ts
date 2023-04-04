@@ -179,6 +179,10 @@ export const save = async (
         });
       }
 
+      const isProtectedOffer =
+        Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId] === order.params.zone &&
+        info.side === "buy";
+
       // Check: order has a known zone
       if (order.params.orderType > 1) {
         if (
@@ -188,13 +192,8 @@ export const save = async (
             // Cancellation zone
             Sdk.SeaportV14.Addresses.CancellationZone[config.chainId],
           ].includes(order.params.zone) &&
-          !(
-            // Protected offers zone
-            (
-              Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId] ===
-                order.params.zone && info.side === "buy"
-            )
-          )
+          // Protected offers zone
+          !isProtectedOffer
         ) {
           return results.push({
             id,
@@ -714,9 +713,9 @@ export const save = async (
         dynamic: info.isDynamic ?? null,
         raw_data: order.params,
         expiration: validTo,
-        missing_royalties: missingRoyalties,
-        normalized_value: normalizedValue,
-        currency_normalized_value: currencyNormalizedValue,
+        missing_royalties: isProtectedOffer ? null : missingRoyalties,
+        normalized_value: isProtectedOffer ? null : normalizedValue,
+        currency_normalized_value: isProtectedOffer ? null : currencyNormalizedValue,
         originated_at: metadata.originatedAt ?? null,
       });
 
