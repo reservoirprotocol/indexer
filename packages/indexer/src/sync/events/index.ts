@@ -390,11 +390,13 @@ export const syncEvents = async (
       }
 
       const blocksToCheck: BlocksToCheck[] = [];
+      let blockNumbersArray = _.range(fromBlock, toBlock + 1);
 
       // Put all fetched blocks on a delayed queue
       [...blocksSet.values()].map(async (blockData) => {
         const block = Number(blockData.split("-")[0]);
         const blockHash = blockData.split("-")[1];
+        blockNumbersArray = _.difference(blockNumbersArray, [block]);
 
         ns.reorgCheckFrequency.map((frequency) =>
           blocksToCheck.push({
@@ -404,6 +406,11 @@ export const syncEvents = async (
           })
         );
       });
+
+      // Log blocks for which no logs were fetched from the RPC provider
+      if (!_.isEmpty(blockNumbersArray)) {
+        logger.warn("sync-events", `No logs fetched for ${JSON.stringify(blockNumbersArray)}`);
+      }
 
       await blockCheck.addBulk(blocksToCheck);
     }
