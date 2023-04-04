@@ -83,7 +83,7 @@ if (config.doBackgroundWork) {
 
       if (isRateLimited) {
         // If limit reached, reschedule job based on the limit expiration.
-        logger.info(
+        logger.debug(
           QUEUE_NAME,
           `Post Order Rate Limited. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
@@ -272,15 +272,6 @@ const postOrder = async (
       const order = new Sdk.SeaportV14.Order(
         config.chainId,
         orderData as Sdk.SeaportBase.Types.OrderComponents
-      );
-
-      logger.info(
-        QUEUE_NAME,
-        `Post Order Seaport. orderbook=${orderbook}, orderId=${orderId}, orderSchema=${JSON.stringify(
-          orderSchema
-        )}, orderData=${JSON.stringify(orderData)}, side=${order.getInfo()?.side}, kind=${
-          order.params.kind
-        }`
       );
 
       if (
