@@ -10,7 +10,7 @@ import { regex } from "@/common/utils";
 const version = "v1";
 
 export const getCrossPostingOrdersV1Options: RouteOptions = {
-  description: "Cross posting orders",
+  description: "Check cross posting status",
   notes: "Get a list of cross posting orders with status",
   tags: ["api", "Orders"],
   plugins: {
