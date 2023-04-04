@@ -281,54 +281,6 @@ export const postOrderV3Options: RouteOptions = {
                   orderbookApiKey: config.forwardOpenseaApiKey,
                 });
               }
-            } else {
-              const collectionResult = await idb.oneOrNone(
-                `
-                  SELECT
-                    collections.new_royalties,
-                    orders.token_set_id
-                  FROM orders
-                  JOIN token_sets_tokens
-                    ON orders.token_set_id = token_sets_tokens.token_set_id
-                  JOIN tokens
-                    ON tokens.contract = token_sets_tokens.contract
-                    AND tokens.token_id = token_sets_tokens.token_id
-                  JOIN collections
-                    ON tokens.collection_id = collections.id
-                  WHERE orders.id = $/id/
-                  LIMIT 1
-                `,
-                { id: orderId }
-              );
-
-              if (
-                collectionResult?.token_set_id?.startsWith("token") &&
-                collectionResult?.new_royalties?.["opensea"]
-              ) {
-                const osRoyaltyRecipients = collectionResult.new_royalties["opensea"].map(
-                  (r: any) => r.recipient.toLowerCase()
-                );
-                const maker = order.data.offerer.toLowerCase();
-                const consideration = order.data.consideration;
-
-                let hasMarketplaceFee = false;
-                for (const c of consideration) {
-                  const recipient = c.recipient.toLowerCase();
-                  if (recipient !== maker && !osRoyaltyRecipients.includes(recipient)) {
-                    hasMarketplaceFee = true;
-                  }
-                }
-
-                if (!hasMarketplaceFee) {
-                  await postOrderExternal.addToQueue({
-                    orderId,
-                    orderData: order.data,
-                    orderSchema: schema,
-                    orderbook: "opensea",
-                    orderbookApiKey: config.openSeaApiKey,
-                  });
-                }
-              }
             }
           }
 
