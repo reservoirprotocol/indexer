@@ -122,4 +122,8 @@ export const config = {
   doNftTransfersWrite: Boolean(Number(process.env.DO_NFT_TRANSFERS_WRITE)),
   doProcessBackfilling: Boolean(Number(process.env.DO_PROCESS_BACKFILLING)),
   doProcessRealtime: Boolean(Number(process.env.DO_PROCESS_REALTIME)),
+
+  // Elasticsearch
+  elasticCloudId: String(process.env.ELASTIC_CLOUD_ID),
+  elasticCloudAPIKey: String(process.env.ELASTIC_CLOUD_API_KEY),
 };
