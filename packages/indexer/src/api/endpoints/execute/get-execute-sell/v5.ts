@@ -187,6 +187,7 @@ export const getExecuteSellV5Options: RouteOptions = {
               AND orders.fillability_status = 'fillable'
               AND orders.approval_status = 'approved'
               AND orders.quantity_remaining >= $/quantity/
+              ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
               AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
             ORDER BY orders.value DESC
             LIMIT 1

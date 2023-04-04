@@ -383,6 +383,7 @@ export const getUserTokensV6Options: RouteOptions = {
           AND "o"."side" = 'buy'
           AND "o"."fillability_status" = 'fillable'
           AND "o"."approval_status" = 'approved'
+          ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
           AND EXISTS(
             SELECT FROM "nft_balances" "nb"
               WHERE "nb"."contract" = "b"."contract"

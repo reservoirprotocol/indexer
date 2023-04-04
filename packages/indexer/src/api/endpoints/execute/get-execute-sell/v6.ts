@@ -267,6 +267,7 @@ export const getExecuteSellV6Options: RouteOptions = {
                 AND orders.approval_status = 'approved'
                 AND orders.quantity_remaining >= $/quantity/
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
                 ${isFlagged ? "AND orders.kind NOT IN ('x2y2', 'seaport')" : ""}
               ORDER BY orders.value DESC
             `,

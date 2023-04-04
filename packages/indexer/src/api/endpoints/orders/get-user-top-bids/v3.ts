@@ -256,6 +256,7 @@ export const getUserTopBidsV3Options: RouteOptions = {
             AND o.fillability_status = 'fillable'
             AND o.approval_status = 'approved'
             AND o.maker != $/user/
+            ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
             ORDER BY o.value DESC
             LIMIT 1
         ) y ON TRUE
