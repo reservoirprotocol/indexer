@@ -423,7 +423,7 @@ export const getTokensV5Options: RouteOptions = {
       LEFT JOIN LATERAL (
         SELECT
           CASE WHEN f.royalty_fee_breakdown IS NOT NULL THEN true
-          WHEN o.fee_breakdown IS NULL THEN false 
+          WHEN o.fee_breakdown IS NULL THEN false
           WHEN 'royalty' IN (SELECT jsonb_array_elements(o.fee_breakdown)->>'kind') THEN true
           ELSE false END AS royalties_paid
         FROM fill_events_2 f
@@ -463,6 +463,13 @@ export const getTokensV5Options: RouteOptions = {
       if (query.currencies) {
         sourceConditions.push(`o.currency IN ($/currenciesFilter:raw/)`);
       }
+
+      sourceConditions.push(`
+        tst.token_id IN (
+          SELECT token_id FROM orders
+          WHERE ${sourceConditions.join(" AND ")}
+        )
+      `);
 
       if (query.contract) {
         sourceConditions.push(`tst.contract = $/contract/`);
@@ -509,7 +516,7 @@ export const getTokensV5Options: RouteOptions = {
           ORDER BY token_id, contract, ${
             query.normalizeRoyalties ? "o.normalized_value" : "o.value"
           }
-        ) s ON s.contract = t.contract AND s.token_id = t.token_id      
+        ) s ON s.contract = t.contract AND s.token_id = t.token_id
       `;
     }
 

@@ -417,10 +417,10 @@ export const getTokensV6Options: RouteOptions = {
       includeRoyaltyBreakdownQuery = `
         LEFT JOIN LATERAL (
         SELECT
-          fe.timestamp AS last_sale_timestamp,          
+          fe.timestamp AS last_sale_timestamp,
           fe.currency AS last_sale_currency,
-          fe.currency_price AS last_sale_currency_price,            
-          fe.price AS last_sale_price,    
+          fe.currency_price AS last_sale_currency_price,
+          fe.price AS last_sale_price,
           fe.usd_price AS last_sale_usd_price,
           fe.marketplace_fee_bps AS last_sale_marketplace_fee_bps,
           fe.royalty_fee_bps AS last_sale_royalty_fee_bps,
@@ -463,6 +463,13 @@ export const getTokensV6Options: RouteOptions = {
       if (query.currencies) {
         sourceConditions.push(`o.currency IN ($/currenciesFilter:raw/)`);
       }
+
+      sourceConditions.push(`
+        tst.token_id IN (
+          SELECT token_id FROM orders
+          WHERE ${sourceConditions.join(" AND ")}
+        )
+      `);
 
       if (query.contract) {
         sourceConditions.push(`tst.contract = $/contract/`);
@@ -509,7 +516,7 @@ export const getTokensV6Options: RouteOptions = {
           ORDER BY token_id, contract, ${
             query.normalizeRoyalties ? "o.normalized_value" : "o.value"
           }
-        ) s ON s.contract = t.contract AND s.token_id = t.token_id      
+        ) s ON s.contract = t.contract AND s.token_id = t.token_id
       `;
     }
 

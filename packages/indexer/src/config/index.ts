@@ -24,8 +24,8 @@ export const config = {
   metadataIndexingMethod: String(process.env.METADATA_INDEXING_METHOD || "opensea"),
   metadataIndexingMethodCollection: String(
     process.env.METADATA_INDEXING_METHOD_COLLECTION ||
-    process.env.METADATA_INDEXING_METHOD ||
-    "opensea"
+      process.env.METADATA_INDEXING_METHOD ||
+      "opensea"
   ),
   metadataApiBaseUrl: String(process.env.METADATA_API_BASE_URL),
   metadataApiBaseUrlAlt: String(

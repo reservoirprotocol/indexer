@@ -263,7 +263,7 @@ export const getSalesV4Options: RouteOptions = {
             ${tokenFilter}
             ${paginationFilter}
             ${timestampFilter}
-      
+            AND is_deleted = 0
             ${queryOrderBy}
           LIMIT $/limit/
         ) AS fill_events_2_data
