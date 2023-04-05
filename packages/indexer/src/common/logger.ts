@@ -1,5 +1,6 @@
 import { createLogger, format, transports } from "winston";
 import { getServiceName } from "@/config/network";
+import { config } from "@/config/index";
 
 import { networkInterfaces } from "os";
 
@@ -33,7 +34,7 @@ const log = (level: "error" | "info" | "warn" | "debug") => {
       format.json()
     ),
     transports: [
-      process.env.DATADOG_API_KEY
+      config.chainId !== 5 && process.env.DATADOG_API_KEY
         ? new transports.Http({
             host: "http-intake.logs.datadoghq.com",
             path: `/api/v2/logs?dd-api-key=${process.env.DATADOG_API_KEY}&ddsource=nodejs&service=${service}`,
