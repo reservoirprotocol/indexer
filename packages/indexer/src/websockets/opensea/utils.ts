@@ -1,5 +1,6 @@
-import { config } from "@/config/index";
 import crypto from "crypto";
+
+import { config } from "@/config/index";
 
 export const getSupportedChainName = () => {
   switch (config.chainId) {

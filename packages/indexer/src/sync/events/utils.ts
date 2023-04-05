@@ -16,48 +16,48 @@ import { getTransactionTraces, saveTransactionTraces } from "@/models/transactio
 import { OrderKind, getOrderSourceByOrderId, getOrderSourceByOrderKind } from "@/orderbook/orders";
 import { getRouters } from "@/utils/routers";
 
-export const fetchBlock = async (blockNumber: number, force = false) =>
-  getBlocks(blockNumber)
-    // Only fetch a single block (multiple ones might be available due to reorgs)
-    .then(async (blocks) => {
-      if (blocks.length && !force) {
-        return blocks[0];
-      } else {
-        const block = await baseProvider.getBlockWithTransactions(blockNumber);
+export const fetchBlock = async (blockNumber: number, force = false) => {
+  if (!force) {
+    const blocks = await getBlocks(blockNumber);
+    if (blocks.length) {
+      return blocks[0];
+    }
+  }
 
-        // Create transactions array to store
-        const transactions = block.transactions.map((tx) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const rawTx = tx.raw as any;
+  const block = await baseProvider.getBlockWithTransactions(blockNumber);
 
-          const gasPrice = tx.gasPrice?.toString();
-          const gasUsed = rawTx?.gas ? bn(rawTx.gas).toString() : undefined;
-          const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
+  // Create transactions array to store
+  const transactions = block.transactions.map((tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawTx = tx.raw as any;
 
-          return {
-            hash: tx.hash.toLowerCase(),
-            from: tx.from.toLowerCase(),
-            to: (tx.to || AddressZero).toLowerCase(),
-            value: tx.value.toString(),
-            data: tx.data.toLowerCase(),
-            blockNumber: block.number,
-            blockTimestamp: block.timestamp,
-            gasPrice,
-            gasUsed,
-            gasFee,
-          };
-        });
+    const gasPrice = tx.gasPrice?.toString();
+    const gasUsed = rawTx?.gas ? bn(rawTx.gas).toString() : undefined;
+    const gasFee = gasPrice && gasUsed ? bn(gasPrice).mul(gasUsed).toString() : undefined;
 
-        // Save all transactions within the block
-        await saveTransactions(transactions);
+    return {
+      hash: tx.hash.toLowerCase(),
+      from: tx.from.toLowerCase(),
+      to: (tx.to || AddressZero).toLowerCase(),
+      value: tx.value.toString(),
+      data: tx.data.toLowerCase(),
+      blockNumber: block.number,
+      blockTimestamp: block.timestamp,
+      gasPrice,
+      gasUsed,
+      gasFee,
+    };
+  });
 
-        return saveBlock({
-          number: block.number,
-          hash: block.hash,
-          timestamp: block.timestamp,
-        });
-      }
-    });
+  // Save all transactions within the block
+  await saveTransactions(transactions);
+
+  return saveBlock({
+    number: block.number,
+    hash: block.hash,
+    timestamp: block.timestamp,
+  });
+};
 
 export const fetchTransaction = async (txHash: string) =>
   getTransaction(txHash).catch(async () => {

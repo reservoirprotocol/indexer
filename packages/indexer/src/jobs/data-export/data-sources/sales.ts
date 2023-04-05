@@ -42,6 +42,7 @@ export class SalesDataSourceV2 extends BaseDataSource {
           wash_trading_score,
           is_primary,
           created_at,
+          is_deleted,
           extract(epoch from updated_at) updated_ts
         FROM fill_events_2
         WHERE updated_at < NOW() - INTERVAL '5 minutes'
@@ -111,6 +112,7 @@ export class SalesDataSourceV2 extends BaseDataSource {
           tx_timestamp: r.timestamp,
           created_at: new Date(r.created_at).toISOString(),
           updated_at: new Date(r.updated_ts * 1000).toISOString(),
+          is_deleted: Boolean(r.is_deleted),
         });
       }
 

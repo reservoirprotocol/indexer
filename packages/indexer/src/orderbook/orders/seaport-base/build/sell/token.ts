@@ -3,7 +3,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { BaseOrderBuildOptions, OrderBuildInfo } from "../utils";
+import { BaseOrderBuildOptions, OrderBuildInfo } from "@/orderbook/orders/seaport-base/build/utils";
 
 export interface BuildOrderOptions extends BaseOrderBuildOptions {
   tokenId: string;

@@ -4,6 +4,7 @@ import { Provider } from "@ethersproject/abstract-provider";
 import { TypedDataSigner } from "@ethersproject/abstract-signer";
 import { AddressZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
+import { _TypedDataEncoder } from "@ethersproject/hash";
 import { keccak256 } from "@ethersproject/keccak256";
 import { parseEther } from "@ethersproject/units";
 import { verifyTypedData } from "@ethersproject/wallet";
@@ -99,6 +100,7 @@ export class Order {
       domain: this.EIP712_DOMAIN(this.chainId),
       types: Types.EIP712_TYPES,
       value: toRawOrder(this),
+      primaryType: _TypedDataEncoder.getPrimaryType(Types.EIP712_TYPES),
     };
   }
 

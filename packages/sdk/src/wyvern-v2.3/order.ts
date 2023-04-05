@@ -101,6 +101,7 @@ export class Order {
       domain: EIP712_DOMAIN(this.chainId),
       types: EIP712_TYPES,
       value: toRawOrder(this),
+      primaryType: _TypedDataEncoder.getPrimaryType(EIP712_TYPES),
     };
   }
 

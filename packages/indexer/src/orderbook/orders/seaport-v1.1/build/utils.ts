@@ -1,13 +1,11 @@
-import { AddressZero } from "@ethersproject/constants";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { getRandomBytes } from "@reservoir0x/sdk/dist/utils";
 
 import { redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
-import { bn, fromBuffer, now } from "@/common/utils";
+import { bn, now } from "@/common/utils";
 import { config } from "@/config/index";
-import * as marketplaceFees from "@/utils/marketplace-fees";
-import { logger } from "@/common/logger";
 import {
   BaseOrderBuildOptions,
   OrderBuildInfo,
@@ -19,6 +17,10 @@ export const getBuildInfo = async (
   collection: string,
   side: "sell" | "buy"
 ): Promise<OrderBuildInfo> => {
+  if (options.orderbook === "opensea") {
+    throw new Error("OpenSea doesn't support Seaport v1.1 anymore");
+  }
+
   const collectionResult = await redb.oneOrNone(
     `
       SELECT
@@ -39,7 +41,7 @@ export const getBuildInfo = async (
   }
 
   const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
-  const source = options.orderbook === "opensea" ? "opensea.io" : options.source;
+  const source = options.source;
 
   const buildParams: Sdk.SeaportBase.BaseBuildParams = {
     offerer: options.maker,
@@ -55,13 +57,8 @@ export const getBuildInfo = async (
       ? Sdk.Common.Addresses.Weth[config.chainId]
       : Sdk.Common.Addresses.Eth[config.chainId],
     fees: [],
-    // Use OpenSea's pausable zone when posting to OpenSea
-    zone:
-      options.orderbook === "opensea"
-        ? Sdk.SeaportV11.Addresses.PausableZone[config.chainId] ?? AddressZero
-        : AddressZero,
-    // Use OpenSea's conduit for sharing approvals (where available)
-    conduitKey: Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
+    zone: AddressZero,
+    conduitKey: HashZero,
     startTime: options.listingTime || now() - 1 * 60,
     endTime: options.expirationTime || now() + 6 * 30 * 24 * 3600,
     salt: source
@@ -75,12 +72,8 @@ export const getBuildInfo = async (
   let totalFees = bn(0);
 
   // Include royalties
-  let totalBps = 0;
   if (options.automatedRoyalties) {
-    const royalties: { bps: number; recipient: string }[] =
-      (options.orderbook === "opensea"
-        ? collectionResult.new_royalties?.opensea
-        : collectionResult.royalties) ?? [];
+    const royalties: { bps: number; recipient: string }[] = collectionResult.royalties ?? [];
 
     let royaltyBpsToPay = royalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
     if (options.royaltyBps !== undefined) {
@@ -93,7 +86,6 @@ export const getBuildInfo = async (
         const bps = Math.min(royaltyBpsToPay, r.bps);
         if (bps > 0) {
           royaltyBpsToPay -= bps;
-          totalBps += bps;
 
           const fee = bn(bps).mul(options.weiPrice).div(10000).toString();
           buildParams.fees!.push({
@@ -105,46 +97,6 @@ export const getBuildInfo = async (
         }
       }
     }
-  }
-
-  if (options.orderbook === "opensea") {
-    if (!options.fee || !options.feeRecipient) {
-      options.fee = [];
-      options.feeRecipient = [];
-    }
-
-    let openseaMarketplaceFees: { bps: number; recipient: string }[] =
-      collectionResult.marketplace_fees?.opensea;
-
-    if (collectionResult.marketplace_fees?.opensea == null) {
-      openseaMarketplaceFees = await marketplaceFees.getCollectionOpenseaFees(
-        collection,
-        fromBuffer(collectionResult.contract),
-        totalBps
-      );
-
-      logger.info(
-        "getCollectionOpenseaFees",
-        `From api. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
-          openseaMarketplaceFees
-        )}`
-      );
-    } else {
-      logger.info(
-        "getCollectionOpenseaFees",
-        `From db. collection=${collection}, openseaMarketplaceFees=${JSON.stringify(
-          openseaMarketplaceFees
-        )}`
-      );
-    }
-
-    for (const openseaMarketplaceFee of openseaMarketplaceFees) {
-      options.fee.push(openseaMarketplaceFee.bps);
-      options.feeRecipient.push(openseaMarketplaceFee.recipient);
-    }
-
-    // Refresh opensea fees
-    await marketplaceFees.refreshCollectionOpenseaFeesAsync(collection);
   }
 
   if (options.fee && options.feeRecipient) {

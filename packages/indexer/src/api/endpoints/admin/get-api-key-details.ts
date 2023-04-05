@@ -26,7 +26,7 @@ export const getApiKeyDetails: RouteOptions = {
       email: Joi.string().email(),
       active: Joi.bool(),
       tier: Joi.number().unsafe(),
-      permissions: Joi.string().allow(null),
+      permissions: Joi.object().allow(null),
       createdAt: Joi.string(),
     }).label("getApiKeyRateLimitsResponse"),
     failAction: (_request, _h, error) => {

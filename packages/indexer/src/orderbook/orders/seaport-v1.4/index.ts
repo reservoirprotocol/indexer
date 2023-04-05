@@ -1,4 +1,4 @@
-import { AddressZero } from "@ethersproject/constants";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import axios from "axios";
@@ -120,6 +120,17 @@ export const save = async (
         return results.push({
           id,
           status: "already-exists",
+        });
+      }
+
+      if (
+        ![HashZero, Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]].includes(
+          order.params.conduitKey
+        )
+      ) {
+        return results.push({
+          id,
+          status: "unsupported-conduit",
         });
       }
 

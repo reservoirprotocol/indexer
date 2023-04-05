@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { BigNumber } from "@ethersproject/bignumber";
+import { _TypedDataEncoder } from "@ethersproject/hash";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -509,6 +510,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                       domain: signData.domain,
                       types: signData.types,
                       value: signData.value,
+                      primaryType: _TypedDataEncoder.getPrimaryType(signData.types),
                     },
                     post: {
                       endpoint: "/order/v4",

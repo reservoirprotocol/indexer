@@ -1,4 +1,5 @@
 import { AddressZero } from "@ethersproject/constants";
+import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
 import pLimit from "p-limit";
 
@@ -15,19 +16,22 @@ import { offChainCheck } from "@/orderbook/orders/blur/check";
 import * as tokenSet from "@/orderbook/token-sets";
 // import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
-export type OrderInfo = {
-  orderParams: Sdk.Blur.Types.BaseOrder;
-  metadata: OrderMetadata;
-};
-
 type SaveResult = {
   id: string;
   status: string;
   unfillable?: boolean;
+  triggerKind?: "new-order" | "reprice";
 };
 
-export const save = async (
-  orderInfos: OrderInfo[],
+// Listings
+
+export type ListingOrderInfo = {
+  orderParams: Sdk.Blur.Types.BaseOrder;
+  metadata: OrderMetadata;
+};
+
+export const saveListings = async (
+  orderInfos: ListingOrderInfo[],
   relayToArweave?: boolean
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
@@ -39,7 +43,7 @@ export const save = async (
     source?: string;
   }[] = [];
 
-  const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
+  const handleOrder = async ({ orderParams, metadata }: ListingOrderInfo) => {
     try {
       const order = new Sdk.Blur.Order(config.chainId, orderParams);
       const id = order.hash();
@@ -232,7 +236,7 @@ export const save = async (
     } catch (error) {
       logger.error(
         "orders-blur-save",
-        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
+        `Failed to handle listing with params ${JSON.stringify(orderParams)}: ${error}`
       );
     }
   };
@@ -297,6 +301,268 @@ export const save = async (
     if (relayToArweave) {
       await arweaveRelay.addPendingOrdersBlur(arweaveData);
     }
+  }
+
+  return results;
+};
+
+// Bids
+
+export type BidOrderInfo = {
+  orderParams: Sdk.Blur.Types.BlurBidPool;
+  metadata: OrderMetadata;
+};
+
+const getBlurBidId = (collection: string) =>
+  // Buy orders have a single order id per collection
+  keccak256(["string", "address"], ["blur", collection]);
+
+export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]> => {
+  const results: SaveResult[] = [];
+  const orderValues: DbOrder[] = [];
+
+  const handleOrder = async ({ orderParams }: BidOrderInfo) => {
+    const id = getBlurBidId(orderParams.collection);
+
+    // const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, "blur");
+    // if (isFiltered) {
+    //   return results.push({
+    //     id,
+    //     status: "filtered",
+    //   });
+    // }
+
+    try {
+      const orderResult = await idb.oneOrNone(
+        `
+          SELECT
+            orders.raw_data
+          FROM orders
+          WHERE orders.id = $/id/
+        `,
+        { id }
+      );
+      if (!orderResult) {
+        // Handle: token set
+        const schemaHash = generateSchemaHash();
+        const [{ id: tokenSetId }] = await tokenSet.contractWide.save([
+          {
+            id: `contract:${orderParams.collection}`.toLowerCase(),
+            schemaHash,
+            contract: orderParams.collection,
+          },
+        ]);
+        if (!tokenSetId) {
+          throw new Error("No token set available");
+        }
+
+        // Handle: source
+        const sources = await Sources.getInstance();
+        const source = await sources.getOrInsert("blur.io");
+
+        // The price points should be kept sorted
+        orderParams.pricePoints.sort((a, b) => Number(b.price) - Number(a.price));
+
+        // Remove any empty price points
+        orderParams.pricePoints = orderParams.pricePoints.filter((pp) => pp.executableSize > 0);
+
+        if (!orderParams.pricePoints.length) {
+          return results.push({
+            id,
+            status: "redundant",
+          });
+        }
+
+        // Handle: price
+        const price = orderParams.pricePoints[0].price;
+
+        const totalQuantity = orderParams.pricePoints
+          .map((p) => p.executableSize)
+          .reduce((a, b) => a + b, 0);
+
+        const validFrom = `date_trunc('seconds', now())`;
+        const validTo = `'Infinity'`;
+        orderValues.push({
+          id,
+          kind: "blur",
+          side: "buy",
+          fillability_status: "fillable",
+          approval_status: "approved",
+          token_set_id: tokenSetId,
+          token_set_schema_hash: toBuffer(schemaHash),
+          maker: toBuffer(Sdk.Blur.Addresses.Beth[config.chainId]),
+          taker: toBuffer(AddressZero),
+          price,
+          value: price,
+          currency: toBuffer(Sdk.Blur.Addresses.Beth[config.chainId]),
+          currency_price: price,
+          currency_value: price,
+          needs_conversion: null,
+          quantity_remaining: totalQuantity.toString(),
+          valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
+          nonce: null,
+          source_id_int: source?.id,
+          is_reservoir: null,
+          contract: toBuffer(orderParams.collection),
+          conduit: null,
+          // TODO: Include royalty fees
+          fee_bps: 0,
+          fee_breakdown: null,
+          dynamic: null,
+          raw_data: orderParams,
+          expiration: validTo,
+          missing_royalties: null,
+          normalized_value: null,
+          currency_normalized_value: null,
+          block_number: null,
+          log_index: null,
+        });
+
+        results.push({
+          id,
+          status: "success",
+        });
+      } else {
+        const currentBid = orderResult.raw_data as Sdk.Blur.Types.BlurBidPool;
+        const bidUpdates = orderParams;
+
+        if (currentBid.collection !== bidUpdates.collection) {
+          return results.push({
+            id,
+            status: "unreachable",
+          });
+        }
+
+        // Update the current bid in place
+        for (const newPricePoint of bidUpdates.pricePoints) {
+          const existingPricePointIndex = currentBid.pricePoints.findIndex(
+            (pp) => pp.price === newPricePoint.price
+          );
+          if (existingPricePointIndex !== -1) {
+            currentBid.pricePoints[existingPricePointIndex] = newPricePoint;
+          } else {
+            currentBid.pricePoints.push(newPricePoint);
+          }
+        }
+
+        // The price points should be kept sorted
+        currentBid.pricePoints.sort((a, b) => Number(b.price) - Number(a.price));
+
+        // Remove any empty price points
+        currentBid.pricePoints = currentBid.pricePoints.filter((pp) => pp.executableSize > 0);
+
+        if (!currentBid.pricePoints.length) {
+          await idb.none(
+            `
+              UPDATE orders SET
+                fillability_status = 'filled',
+                updated_at = now()
+              WHERE orders.id = $/id/
+            `,
+            { id }
+          );
+        } else {
+          // Handle: price
+          const price = currentBid.pricePoints[0].price;
+
+          const totalQuantity = currentBid.pricePoints
+            .map((p) => p.executableSize)
+            .reduce((a, b) => a + b, 0);
+
+          await idb.none(
+            `
+              UPDATE orders SET
+                fillability_status = 'fillable',
+                price = $/price/,
+                currency_price = $/price/,
+                value = $/price/,
+                currency_value = $/price/,
+                quantity_remaining = $/totalQuantity/,
+                valid_between = tstzrange(date_trunc('seconds', to_timestamp(now())), 'Infinity', '[]'),
+                expiration = 'Infinity',
+                updated_at = now(),
+                raw_data = $/rawData:json/
+              WHERE orders.id = $/id/
+            `,
+            {
+              id,
+              price,
+              totalQuantity,
+              rawData: currentBid,
+            }
+          );
+        }
+
+        results.push({
+          id,
+          status: "success",
+          triggerKind: "reprice",
+        });
+      }
+    } catch (error) {
+      logger.error(
+        "orders-blur-save",
+        `Failed to handle bid with params ${JSON.stringify(orderParams)}: ${error}`
+      );
+    }
+  };
+
+  // Process all orders concurrently
+  const limit = pLimit(20);
+  await Promise.all(orderInfos.map((orderInfo) => limit(() => handleOrder(orderInfo))));
+
+  if (orderValues.length) {
+    const columns = new pgp.helpers.ColumnSet(
+      [
+        "id",
+        "kind",
+        "side",
+        "fillability_status",
+        "approval_status",
+        "token_set_id",
+        "token_set_schema_hash",
+        "maker",
+        "taker",
+        "price",
+        "value",
+        "currency",
+        "currency_price",
+        "currency_value",
+        "needs_conversion",
+        "quantity_remaining",
+        { name: "valid_between", mod: ":raw" },
+        "nonce",
+        "source_id_int",
+        "is_reservoir",
+        "contract",
+        "conduit",
+        "fee_bps",
+        { name: "fee_breakdown", mod: ":json" },
+        "dynamic",
+        "raw_data",
+        { name: "expiration", mod: ":raw" },
+        "originated_at",
+      ],
+      {
+        table: "orders",
+      }
+    );
+    await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
+
+    await ordersUpdateById.addToQueue(
+      results
+        .filter((r) => r.status === "success")
+        .map(
+          ({ id }) =>
+            ({
+              context: `new-order-${id}`,
+              id,
+              trigger: {
+                kind: "new-order",
+              },
+            } as ordersUpdateById.OrderInfo)
+        )
+    );
   }
 
   return results;

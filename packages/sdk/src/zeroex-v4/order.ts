@@ -69,6 +69,7 @@ export class Order {
       domain: EIP712_DOMAIN(this.chainId),
       types,
       value,
+      primaryType: _TypedDataEncoder.getPrimaryType(types),
     };
   }
 

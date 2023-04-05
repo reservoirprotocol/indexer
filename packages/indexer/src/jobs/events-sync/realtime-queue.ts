@@ -86,7 +86,7 @@ if (
           );
 
           logger.info(
-            QUEUE_NAME,
+            "sync-events-timing",
             `Events realtime syncing block range [${fromBlock}, ${headBlock}] total blocks ${
               headBlock - fromBlock
             } time ${(now() - startTime) / 1000}s`

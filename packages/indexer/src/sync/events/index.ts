@@ -1,5 +1,5 @@
 import { Filter } from "@ethersproject/abstract-provider";
-import _ from "lodash";
+import _, { now } from "lodash";
 import pLimit from "p-limit";
 
 import { logger } from "@/common/logger";
@@ -18,6 +18,7 @@ import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 import { BlocksToCheck } from "@/jobs/events-sync/block-check-queue";
+import { idb } from "@/common/db";
 
 export const extractEventsBatches = async (
   enhancedEvents: EnhancedEvent[],
@@ -282,12 +283,37 @@ export const syncEvents = async (
   // related to every of those blocks a priori for efficiency. Otherwise, it can be
   // too inefficient to do it and in this case we just proceed (and let any further
   // processes fetch those blocks as needed / if needed).
+  let startTime = now();
   if (!backfill && toBlock - fromBlock + 1 <= 32) {
+    const existingBlocks = await idb.manyOrNone(
+      `
+        SELECT blocks.number
+        FROM blocks
+        WHERE blocks.number IN ($/blocks:list/)
+      `,
+      { blocks: _.range(fromBlock, toBlock + 1) }
+    );
+
+    let blocksToFetch = _.range(fromBlock, toBlock + 1);
+    if (existingBlocks) {
+      blocksToFetch = _.difference(
+        blocksToFetch,
+        existingBlocks.map((block) => block.number)
+      );
+    }
+
     const limit = pLimit(32);
     await Promise.all(
-      _.range(fromBlock, toBlock + 1).map((block) => limit(() => syncEventsUtils.fetchBlock(block)))
+      blocksToFetch.map((block) => limit(() => syncEventsUtils.fetchBlock(block, true)))
     );
   }
+
+  logger.info(
+    "sync-events-timing",
+    `RPC getBlockWithTransactions [${fromBlock}, ${toBlock}] total blocks ${
+      toBlock - fromBlock
+    } time ${(now() - startTime) / 1000}s`
+  );
 
   // Generate the events filter with one of the following options:
   // - fetch all events
@@ -318,9 +344,18 @@ export const syncEvents = async (
   }
 
   const enhancedEvents: EnhancedEvent[] = [];
+  startTime = now();
   await baseProvider.getLogs(eventFilter).then(async (logs) => {
+    logger.info(
+      "sync-events-timing",
+      `RPC getLogs [${fromBlock}, ${toBlock}] total blocks ${toBlock - fromBlock} time ${
+        (now() - startTime) / 1000
+      }s`
+    );
+
     const availableEventData = getEventData();
 
+    startTime = now();
     for (const log of logs) {
       try {
         const baseEventParams = await parseEvent(log, blocksCache);
@@ -367,8 +402,23 @@ export const syncEvents = async (
       }
     }
 
+    logger.info(
+      "sync-events-timing",
+      `Parse and save events [${fromBlock}, ${toBlock}] total blocks ${toBlock - fromBlock} time ${
+        (now() - startTime) / 1000
+      }s`
+    );
+
     // Process the retrieved events asynchronously
+    startTime = now();
     const eventsBatches = await extractEventsBatches(enhancedEvents, backfill);
+    logger.info(
+      "sync-events-timing",
+      `Extract events batches [${fromBlock}, ${toBlock}] total blocks ${toBlock - fromBlock} time ${
+        (now() - startTime) / 1000
+      }s`
+    );
+
     if (backfill) {
       await eventsSyncBackfillProcess.addToQueue(eventsBatches);
     } else {
@@ -390,11 +440,13 @@ export const syncEvents = async (
       }
 
       const blocksToCheck: BlocksToCheck[] = [];
+      let blockNumbersArray = _.range(fromBlock, toBlock);
 
       // Put all fetched blocks on a delayed queue
       [...blocksSet.values()].map(async (blockData) => {
         const block = Number(blockData.split("-")[0]);
         const blockHash = blockData.split("-")[1];
+        blockNumbersArray = _.difference(blockNumbersArray, [block]);
 
         ns.reorgCheckFrequency.map((frequency) =>
           blocksToCheck.push({
@@ -404,6 +456,14 @@ export const syncEvents = async (
           })
         );
       });
+
+      // Log blocks for which no logs were fetched from the RPC provider
+      if (!_.isEmpty(blockNumbersArray)) {
+        logger.warn(
+          "sync-events",
+          `[${fromBlock}, ${toBlock}] No logs fetched for ${JSON.stringify(blockNumbersArray)}`
+        );
+      }
 
       await blockCheck.addBulk(blocksToCheck);
     }

@@ -2,6 +2,7 @@ import * as Types from "./types";
 import { Provider } from "@ethersproject/abstract-provider";
 import { bn, getCurrentTimestamp, lc } from "../utils";
 import { TypedDataSigner } from "@ethersproject/abstract-signer";
+import { _TypedDataEncoder } from "@ethersproject/hash";
 import { keccak256, solidityKeccak256, defaultAbiCoder, splitSignature } from "ethers/lib/utils";
 import { BigNumber, BigNumberish, Contract } from "ethers";
 import { OrderParams } from "./order-params";
@@ -36,6 +37,7 @@ export class Order extends OrderParams {
       domain: this._domain,
       types,
       value,
+      primaryType: _TypedDataEncoder.getPrimaryType(types),
     };
   }
 

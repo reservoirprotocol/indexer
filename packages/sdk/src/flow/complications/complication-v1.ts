@@ -37,8 +37,8 @@ export class ComplicationV1 implements Complication {
   }
 
   async sign(signer: TypedDataSigner, params: Types.InternalOrder): Promise<string> {
-    const { type, value, domain } = this.getSignatureData(params);
-    const sig = splitSignature(await signer._signTypedData(domain, type, value));
+    const { types, value, domain } = this.getSignatureData(params);
+    const sig = splitSignature(await signer._signTypedData(domain, types, value));
     const encodedSig = this._getEncodedSig(sig);
     return encodedSig;
   }
@@ -48,11 +48,11 @@ export class ComplicationV1 implements Complication {
     params: Types.InternalOrder,
     provider?: Provider
   ): Promise<void> {
-    const { type, value, domain } = this.getSignatureData(params);
+    const { types, value, domain } = this.getSignatureData(params);
     try {
       const decodedSig = this._getDecodedSig(encodedSig);
 
-      const signer = verifyTypedData(domain, type, value, decodedSig);
+      const signer = verifyTypedData(domain, types, value, decodedSig);
 
       if (lc(signer) !== lc(params.signer)) {
         throw new Error("Invalid signature");
@@ -65,7 +65,7 @@ export class ComplicationV1 implements Complication {
       /**
        * check if the signature is a contract signature
        */
-      const eip712Hash = _TypedDataEncoder.hash(domain, type, value);
+      const eip712Hash = _TypedDataEncoder.hash(domain, types, value);
 
       const iface = new Interface([
         "function isValidSignature(bytes32 digest, bytes signature) view returns (bytes4)",
@@ -85,8 +85,9 @@ export class ComplicationV1 implements Complication {
     return {
       signatureKind: "eip712",
       domain: this.domain,
-      type: ORDER_EIP712_TYPES,
+      types: ORDER_EIP712_TYPES,
       value: params,
+      primaryType: _TypedDataEncoder.getPrimaryType(ORDER_EIP712_TYPES),
     };
   }
 
