@@ -37,6 +37,7 @@ import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsync
 import * as arweaveSyncBackfill from "@/jobs/arweave-sync/backfill-queue";
 import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
+import * as backfillCancelSeaport11Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
 import * as backfillInvalidatedOrders from "@/jobs/backfill/backfill-invalidated-orders";
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 import * as backfillFoundationSales from "@/jobs/backfill/backfill-foundation-sales";
@@ -158,6 +159,7 @@ export const allJobQueues = [
   arweaveSyncBackfill.queue,
   arweaveSyncRealtime.queue,
 
+  backfillCancelSeaport11Orders.queue,
   backfillInvalidatedOrders.queue,
   backfillExpiredOrders.queue,
   backfillFoundationSales.queue,

@@ -507,6 +507,8 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
     }
   };
 
+  logger.info("orders-blur-save", JSON.stringify(results));
+
   // Process all orders concurrently
   const limit = pLimit(20);
   await Promise.all(orderInfos.map((orderInfo) => limit(() => handleOrder(orderInfo))));

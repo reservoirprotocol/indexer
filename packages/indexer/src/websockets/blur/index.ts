@@ -22,28 +22,30 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
     logger.error(COMPONENT, `Error from Blur websocket: ${error}`);
   });
 
-  client.on(
-    "CollectionBidsPrice",
-    async (message: { contractAddress: string; updates: Sdk.Blur.Types.BlurBidPricePoint[] }) => {
-      try {
-        logger.info(COMPONENT, JSON.stringify(message));
-        if (message.contractAddress === "0x19b86299c21505cdf59ce63740b240a9c822b5e4") {
-          await orderbook.addToQueue([
-            {
-              kind: "blur-bid",
-              info: {
-                orderParams: {
-                  collection: message.contractAddress.toLowerCase(),
-                  pricePoints: message.updates,
-                },
-                metadata: {},
+  client.on("CollectionBidsPrice", async (message: string) => {
+    try {
+      const parsedMessage: {
+        contractAddress: string;
+        updates: Sdk.Blur.Types.BlurBidPricePoint[];
+      } = JSON.parse(message);
+
+      if (parsedMessage.contractAddress === "0x19b86299c21505cdf59ce63740b240a9c822b5e4") {
+        logger.info(COMPONENT, JSON.stringify(parsedMessage));
+        await orderbook.addToQueue([
+          {
+            kind: "blur-bid",
+            info: {
+              orderParams: {
+                collection: parsedMessage.contractAddress.toLowerCase(),
+                pricePoints: parsedMessage.updates,
               },
+              metadata: {},
             },
-          ]);
-        }
-      } catch (error) {
-        logger.error(COMPONENT, `Error handling bid: ${error} (message = ${message})`);
+          },
+        ]);
       }
+    } catch (error) {
+      logger.error(COMPONENT, `Error handling bid: ${error} (message = ${message})`);
     }
-  );
+  });
 }
