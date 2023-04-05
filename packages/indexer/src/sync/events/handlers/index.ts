@@ -38,6 +38,7 @@ import * as zeroExV2 from "@/events-sync/handlers/zeroex-v2";
 import * as zeroExV3 from "@/events-sync/handlers/zeroex-v3";
 import * as treasure from "@/events-sync/handlers/treasure";
 import * as looksRareV2 from "@/events-sync/handlers/looks-rare-v2";
+import * as collection from "@/events-sync/handlers/collection";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -61,6 +62,7 @@ export const eventKindToHandler = new Map<
   ["erc721", (e, d) => erc721.handleEvents(e, d)],
   ["erc1155", (e, d) => erc1155.handleEvents(e, d)],
   ["blur", (e, d) => blur.handleEvents(e, d)],
+  ["collection", (e, d) => collection.handleEvents(e, d)],
   ["cryptopunks", (e, d) => cryptopunks.handleEvents(e, d)],
   ["decentraland", (e, d) => decentraland.handleEvents(e, d)],
   ["element", (e, d) => element.handleEvents(e, d)],
