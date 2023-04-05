@@ -240,7 +240,7 @@ export class Exchange {
       throw new Error("No orders provided");
     }
 
-    const types = { ...firstOrderSignatureData.type };
+    const types = firstOrderSignatureData.types;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (types as any).BulkOrder = [{ name: "tree", type: `Order${`[2]`.repeat(height)}` }];
     const encoder = _TypedDataEncoder.from(types);
