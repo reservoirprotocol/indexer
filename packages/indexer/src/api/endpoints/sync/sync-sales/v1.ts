@@ -8,6 +8,8 @@ import { logger } from "@/common/logger";
 import { JoiSale, getJoiSaleObject } from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import * as Boom from "@hapi/boom";
+import _ from "lodash";
+import { format, lastDayOfMonth, isSameMonth } from "date-fns";
 
 const version = "v1";
 
@@ -23,6 +25,15 @@ export const getSyncSalesV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
+      monthTimestamp: Joi.number().description(
+        "Get sales for a given timestamp's month and year, minutes are ignored."
+      ),
+      contract: Joi.alternatives()
+        .try(
+          Joi.array().items(Joi.string().lowercase().pattern(regex.address)).max(20),
+          Joi.string().lowercase().pattern(regex.address)
+        )
+        .description("Array of contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
@@ -45,6 +56,8 @@ export const getSyncSalesV1Options: RouteOptions = {
     const CACHE_TTL = 1000 * 60 * 60 * 24;
 
     let paginationFilter = "";
+    let contractFilter = "";
+    let dateFilter = "";
 
     if (query.continuation) {
       const contArr = splitContinuation(query.continuation, /^(.+)_(.+)_(\d+)_(\d+)$/);
@@ -58,6 +71,31 @@ export const getSyncSalesV1Options: RouteOptions = {
       (query as any).logIndex = contArr[2];
       (query as any).batchIndex = contArr[3];
       paginationFilter = ` AND (updated_at, tx_hash, log_index, batch_index) > (to_timestamp($/updatedAt/), $/txHash/, $/logIndex/, $/batchIndex/)`;
+    }
+
+    if (query.contract) {
+      if (!_.isArray(query.contract)) {
+        query.contract = [query.contract];
+      }
+
+      for (const contract of query.contract) {
+        const contractsFilter = `'${_.replace(contract, "0x", "\\x")}'`;
+
+        if (_.isUndefined((query as any).contractsFilter)) {
+          (query as any).contractsFilter = [];
+        }
+
+        (query as any).contractsFilter.push(contractsFilter);
+      }
+
+      (query as any).contractsFilter = _.join((query as any).contractsFilter, ",");
+      contractFilter = `fill_events_2.contract IN ($/contractsFilter:raw/)`;
+    }
+
+    if (query.monthTimestamp) {
+      (query as any).monthDateStart = format(new Date(query.monthTimestamp), "yyyy-MM-01");
+      (query as any).monthDateEnd = format(lastDayOfMonth(query.monthTimestamp), "yyyy-MM-dd");
+      dateFilter = `updated_at <= DATE($/monthDateEnd/) AND updated_at >= DATE($/monthDateStart/)`;
     }
 
     try {
@@ -91,29 +129,48 @@ export const getSyncSalesV1Options: RouteOptions = {
             fill_events_2.marketplace_fee_breakdown,
             fill_events_2.paid_full_royalty,
             fill_events_2.created_at,
+            fill_events_2.is_deleted,
             extract(epoch from updated_at) updated_ts
           FROM fill_events_2
             LEFT JOIN currencies
             ON fill_events_2.currency = currencies.contract
-            WHERE updated_at < NOW() - INTERVAL '5 minutes'
+            WHERE
+            ${dateFilter ? `${dateFilter}` : "TRUE"}
+            ${contractFilter ? `AND ${contractFilter}` : ""}
             ${paginationFilter}
             ORDER BY fill_events_2.updated_at ASC, fill_events_2.tx_hash ASC, fill_events_2.log_index ASC, fill_events_2.batch_index ASC
           LIMIT ${LIMIT};
       `;
 
       const rawResult = await redb.manyOrNone(baseQuery, query);
+      let continuation = null;
+      let continuationToken = null;
+      let cursor = null;
 
-      const continuationToken = buildContinuation(
-        rawResult[rawResult.length - 1].updated_ts +
-          "_" +
-          fromBuffer(rawResult[rawResult.length - 1].tx_hash) +
-          "_" +
-          rawResult[rawResult.length - 1].log_index +
-          "_" +
-          rawResult[rawResult.length - 1].batch_index
-      );
+      if (rawResult.length > 0) {
+        continuationToken = buildContinuation(
+          rawResult[rawResult.length - 1].updated_ts +
+            "_" +
+            fromBuffer(rawResult[rawResult.length - 1].tx_hash) +
+            "_" +
+            rawResult[rawResult.length - 1].log_index +
+            "_" +
+            rawResult[rawResult.length - 1].batch_index
+        );
+        continuation = rawResult.length === LIMIT ? continuationToken : null;
+      }
 
-      const continuation = rawResult.length === LIMIT ? continuationToken : null;
+      if (!continuation) {
+        let isCurrentMonth = true;
+        if (query.monthTimestamp) {
+          const monthDateStart = new Date(query.monthTimestamp);
+          const currentMonthDateStart = new Date();
+          isCurrentMonth = isSameMonth(monthDateStart, currentMonthDateStart);
+        }
+
+        cursor = isCurrentMonth ? continuationToken : null;
+      }
+
       const result = rawResult.map(async (r) => {
         return await getJoiSaleObject({
           prices: {
@@ -148,6 +205,7 @@ export const getSyncSalesV1Options: RouteOptions = {
           txHash: r.tx_hash,
           logIndex: r.log_index,
           batchIndex: r.batch_index,
+          isDeleted: Boolean(r.is_deleted),
           createdAt: new Date(r.created_at).toISOString(),
           updatedAt: new Date(r.updated_ts * 1000).toISOString(),
         });
@@ -156,7 +214,7 @@ export const getSyncSalesV1Options: RouteOptions = {
       const response = h.response({
         sales: await Promise.all(result),
         continuation,
-        cursor: !continuation ? continuationToken : null,
+        cursor,
       });
 
       if (rawResult.length === LIMIT) {

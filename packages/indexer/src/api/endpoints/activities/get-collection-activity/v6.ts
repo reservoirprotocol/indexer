@@ -4,7 +4,7 @@ import _ from "lodash";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import { logger } from "@/common/logger";
-import { buildContinuation, fromBuffer, regex, splitContinuation } from "@/common/utils";
+import { buildContinuation, regex, splitContinuation } from "@/common/utils";
 import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
 import {
@@ -13,6 +13,8 @@ import {
   JoiActivityOrder,
   JoiPrice,
 } from "@/common/joi";
+import { config } from "@/config/index";
+import * as Sdk from "@reservoir0x/sdk";
 
 const version = "v6";
 
@@ -160,15 +162,15 @@ export const getCollectionActivityV6Options: RouteOptions = {
           type: activity.type,
           fromAddress: activity.fromAddress,
           toAddress: activity.toAddress,
-          price: activity.order?.currency
+          price: activity.order
             ? await getJoiPriceObject(
                 {
                   gross: {
-                    amount: String(activity.order?.currencyPrice ?? activity.price),
+                    amount: String(activity.price),
                     nativeAmount: String(activity.price),
                   },
                 },
-                fromBuffer(activity.order.currency),
+                Sdk.Common.Addresses.Eth[config.chainId],
                 query.displayCurrency
               )
             : undefined,
