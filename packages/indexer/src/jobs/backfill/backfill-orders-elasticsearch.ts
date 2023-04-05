@@ -39,11 +39,21 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
   const worker = new Worker(QUEUE_NAME, async (job) => {
-    const { timestamp } = job.data;
+    const cursor = job.data.cursor as CursorInfo;
+
+    let continuationFilter = "";
+
+    const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1;
+
+    if (cursor) {
+      continuationFilter = `WHERE (orders.created_at, orders.id) > (to_timestamp($/createdAt/), $/id/)`;
+    }
+
     const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
-    const results = await idb.manyOrNone(
-      `
+    try {
+      const results = await idb.manyOrNone(
+        `
             SELECT orders.id,
             orders.kind,
             orders.side,
@@ -69,111 +79,154 @@ if (config.doBackgroundWork) {
             coalesce(orders.fee_bps, 0) AS fee_bps,
             orders.fee_breakdown,
             COALESCE(NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'), 0) AS expiration,
+            (
+              CASE
+                WHEN orders.fillability_status = 'filled' THEN 'filled'
+                WHEN orders.fillability_status = 'cancelled' THEN 'cancelled'
+                WHEN orders.fillability_status = 'expired' THEN 'expired'
+                WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
+                WHEN orders.approval_status = 'no-approval' THEN 'inactive'
+                ELSE 'active'
+              END
+            ) AS status,
             orders.is_reservoir,
             extract(epoch
             FROM orders.created_at) AS created_at,
             (${criteriaBuildQuery}) AS criteria
           FROM orders
-          WHERE orders.timestamp < $/timestamp/
-            AND orders.timestamp >= $/timestamp/ - 60000
+          ${continuationFilter}
+          LIMIT $/limit/
         `,
-      {
-        timestamp: timestamp,
-      }
-    );
-
-    const ordersParsed = await Promise.all(
-      results.map(async (order) => {
-        const sources = await Sources.getInstance();
-
-        const feeBreakdown = order.fee_breakdown;
-        const feeBps = order.fee_bps;
-
-        let source: SourcesEntity | undefined;
-        if (order.token_set_id?.startsWith("token")) {
-          const [, contract, tokenId] = order.token_set_id.split(":");
-          source = sources.get(Number(order.source_id_int), contract, tokenId);
-        } else {
-          source = sources.get(Number(order.source_id_int));
+        {
+          createdAt: cursor?.createdAt || null,
+          id: cursor?.id || null,
+          limit,
         }
+      );
 
-        return {
-          id: order.id,
-          kind: order.kind,
-          side: order.side,
-          status: order.status,
-          tokenSetId: order.token_set_id,
-          tokenSetSchemaHash: fromBuffer(order.token_set_schema_hash),
-          contract: fromBuffer(order.contract),
-          maker: fromBuffer(order.maker),
-          taker: fromBuffer(order.taker),
-          price: await getJoiPriceObject(
-            {
-              gross: {
-                amount: order.currency_price ?? order.price,
-                nativeAmount: order.price,
+      const ordersParsed = await Promise.all(
+        results.map(async (order) => {
+          const sources = await Sources.getInstance();
+
+          const feeBreakdown = order.fee_breakdown;
+          const feeBps = order.fee_bps;
+
+          let source: SourcesEntity | undefined;
+          if (order.token_set_id?.startsWith("token")) {
+            const [, contract, tokenId] = order.token_set_id.split(":");
+            source = sources.get(Number(order.source_id_int), contract, tokenId);
+          } else {
+            source = sources.get(Number(order.source_id_int));
+          }
+
+          return {
+            id: order.id,
+            kind: order.kind,
+            side: order.side,
+            status: order.status,
+            tokenSetId: order.token_set_id,
+            tokenSetSchemaHash: fromBuffer(order.token_set_schema_hash),
+            contract: fromBuffer(order.contract),
+            maker: fromBuffer(order.maker),
+            taker: fromBuffer(order.taker),
+            price: await getJoiPriceObject(
+              {
+                gross: {
+                  amount: order.currency_price ?? order.price,
+                  nativeAmount: order.price,
+                },
+                net: {
+                  amount: getNetAmount(
+                    order.currency_price ?? order.price,
+                    _.min([order.fee_bps, 10000])
+                  ),
+                  nativeAmount: getNetAmount(order.price, _.min([order.fee_bps, 10000])),
+                },
               },
-              net: {
-                amount: getNetAmount(
-                  order.currency_price ?? order.price,
-                  _.min([order.fee_bps, 10000])
-                ),
-                nativeAmount: getNetAmount(order.price, _.min([order.fee_bps, 10000])),
-              },
+              order.currency
+                ? fromBuffer(order.currency)
+                : order.side === "sell"
+                ? Sdk.Common.Addresses.Eth[config.chainId]
+                : Sdk.Common.Addresses.Weth[config.chainId],
+              undefined
+            ),
+            validFrom: Number(order.valid_from),
+            validUntil: Number(order.valid_until),
+            quantityFilled: Number(order.quantity_filled),
+            quantityRemaining: Number(order.quantity_remaining),
+
+            criteria: order.criteria,
+            source: {
+              id: source?.address,
+              domain: source?.domain,
+              name: source?.getTitle(),
+              icon: source?.getIcon(),
+              url: source?.metadata.url,
             },
-            order.currency
-              ? fromBuffer(order.currency)
-              : order.side === "sell"
-              ? Sdk.Common.Addresses.Eth[config.chainId]
-              : Sdk.Common.Addresses.Weth[config.chainId],
-            undefined
-          ),
-          validFrom: Number(order.valid_from),
-          validUntil: Number(order.valid_until),
-          quantityFilled: Number(order.quantity_filled),
-          quantityRemaining: Number(order.quantity_remaining),
+            feeBps: Number(feeBps?.toString()),
+            feeBreakdown: feeBreakdown,
+            expiration: Number(order.expiration),
+            isReservoir: order.is_reservoir,
+            isDynamic: Boolean(order.dynamic || order.kind === "sudoswap"),
+            createdAt: new Date(order.created_at * 1000).toISOString(),
+            rawData: order.raw_data,
+          };
+        })
+      );
 
-          criteria: order.criteria,
-          source: {
-            id: source?.address,
-            domain: source?.domain,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
-          },
-          feeBps: Number(feeBps.toString()),
-          feeBreakdown: feeBreakdown,
-          expiration: Number(order.expiration),
-          isReservoir: order.is_reservoir,
-          isDynamic: Boolean(order.dynamic || order.kind === "sudoswap"),
-          createdAt: new Date(order.created_at * 1000).toISOString(),
-          rawData: order.raw_data,
+      await Promise.all(
+        ordersParsed.map(async (order) => {
+          await esClient.index({
+            index: "orders",
+            document: order,
+          });
+        })
+      );
+
+      job.data.nextCursor = null;
+      if (results.length == limit) {
+        const lastToken = _.last(results);
+        job.data.nextCursor = {
+          createdAt: lastToken.created_at,
+          id: lastToken.id,
         };
-      })
-    );
-
-    await Promise.all(
-      ordersParsed.map(async (order) => {
-        // insert into elasticsearch
-        await esClient.index({
-          index: "orders",
-          document: order,
-        });
-      })
-    );
+      }
+    } catch (error) {
+      logger.error(
+        QUEUE_NAME,
+        `Process error.  limit=${limit}, cursor=${JSON.stringify(cursor)}, error=${JSON.stringify(
+          error
+        )}`
+      );
+      job.data.nextCursor = cursor;
+    }
   });
 
   worker.on("completed", async (job) => {
-    // timestamp minus 10 minutes
-    const timestamp = job.data.timestamp - 10 * 60 * 1000;
-    await addToQueue(timestamp);
+    if (job.data.nextCursor) {
+      await addToQueue(job.data.nextCursor);
+    }
   });
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
+
+  // redlock
+  //   .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
+  //   .then(async () => {
+  //     await addToQueue(Date.now());
+  //   })
+  //   .catch(() => {
+  //     // Skip on any errors
+  //   });
 }
 
 export const addToQueue = async (timestamp: number) => {
   await queue.add(randomUUID(), { timestamp });
 };
+
+export interface CursorInfo {
+  createdAt: string;
+  id: string;
+}
