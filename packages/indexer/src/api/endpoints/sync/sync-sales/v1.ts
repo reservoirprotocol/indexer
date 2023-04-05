@@ -9,7 +9,7 @@ import { JoiSale, getJoiSaleObject } from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import * as Boom from "@hapi/boom";
 import _ from "lodash";
-import { format, lastDayOfMonth, isSameMonth } from "date-fns";
+import { format, lastDayOfMonth, isSameMonth, addDays } from "date-fns";
 
 const version = "v1";
 
@@ -25,9 +25,9 @@ export const getSyncSalesV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      monthTimestamp: Joi.number().description(
-        "Get sales for a given timestamp's month and year, minutes are ignored."
-      ),
+      date: Joi.string()
+        .pattern(/^\d{4}-\d{2}$/)
+        .description("Get sales for a given month and year, the format is YYYY-MM."),
       contract: Joi.alternatives()
         .try(
           Joi.array().items(Joi.string().lowercase().pattern(regex.address)).max(20),
@@ -92,10 +92,11 @@ export const getSyncSalesV1Options: RouteOptions = {
       contractFilter = `fill_events_2.contract IN ($/contractsFilter:raw/)`;
     }
 
-    if (query.monthTimestamp) {
-      (query as any).monthDateStart = format(new Date(query.monthTimestamp), "yyyy-MM-01");
-      (query as any).monthDateEnd = format(lastDayOfMonth(query.monthTimestamp), "yyyy-MM-dd");
-      dateFilter = `updated_at <= DATE($/monthDateEnd/) AND updated_at >= DATE($/monthDateStart/)`;
+    if (query.date) {
+      (query as any).monthDateStart = `${query.date}-01 00:00:00`;
+      const endOfMonth = lastDayOfMonth(new Date(query.monthDateStart));
+      (query as any).nextMonthStart = format(addDays(endOfMonth, 1), "yyyy-MM-01");
+      dateFilter = `updated_at >= DATE($/monthDateStart/) AND updated_at < DATE($/nextMonthStart/)`;
     }
 
     try {
@@ -162,8 +163,8 @@ export const getSyncSalesV1Options: RouteOptions = {
 
       if (!continuation) {
         let isCurrentMonth = true;
-        if (query.monthTimestamp) {
-          const monthDateStart = new Date(query.monthTimestamp);
+        if (query.date) {
+          const monthDateStart = new Date(`${query.date}-01 00:00:00`);
           const currentMonthDateStart = new Date();
           isCurrentMonth = isSameMonth(monthDateStart, currentMonthDateStart);
         }
