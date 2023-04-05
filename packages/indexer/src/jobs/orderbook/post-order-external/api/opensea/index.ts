@@ -218,7 +218,7 @@ export const postCollectionOffer = async (
         "opensea-orderbook-api",
         `Post OpenSea collection offer error. order=${JSON.stringify(
           order
-        )}, collectionSlug=${collectionSlug}, url=${url}, data=${data}, error=${error}, responseStatus=${
+        )}, collectionSlug=${collectionSlug}, url=${url}, apiKey=${apiKey}, data=${data}, error=${error}, responseStatus=${
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );
