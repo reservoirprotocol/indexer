@@ -35,3 +35,15 @@ export type BaseOrder = {
   r?: string;
   s?: string;
 };
+
+export type BlurBidPricePoint = {
+  price: string;
+  executableSize: number;
+  bidderCount: number;
+};
+
+// Blur bids require special handling since we can't get the order data for all of them
+export type BlurBidPool = {
+  collection: string;
+  pricePoints: BlurBidPricePoint[];
+};

@@ -39,6 +39,7 @@ export const postOrderV3Options: RouteOptions = {
           .lowercase()
           .valid(
             "opensea",
+            "blur",
             "looks-rare",
             "zeroex-v4",
             "seaport",
@@ -186,6 +187,33 @@ export const postOrderV3Options: RouteOptions = {
           }
 
           const [result] = await orders.zeroExV4.save([orderInfo]);
+
+          if (result.status === "already-exists") {
+            return { message: "Success", orderId: result.id };
+          }
+
+          if (result.status === "success") {
+            return { message: "Success", orderId: result.id };
+          } else {
+            const error = Boom.badRequest(result.status);
+            error.output.payload.orderId = result.id;
+            throw error;
+          }
+        }
+
+        case "blur": {
+          if (orderbook !== "reservoir") {
+            throw new Error("Unsupported orderbook");
+          }
+
+          const orderInfo: orders.blur.ListingOrderInfo = {
+            orderParams: order.data,
+            metadata: {
+              schema,
+            },
+          };
+
+          const [result] = await orders.blur.saveListings([orderInfo]);
 
           if (result.status === "already-exists") {
             return { message: "Success", orderId: result.id };

@@ -143,7 +143,13 @@ export type GenericOrderInfo =
     }
   | {
       kind: "blur";
-      info: orders.blur.OrderInfo;
+      info: orders.blur.ListingOrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "blur-bid";
+      info: orders.blur.BidOrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
     }
@@ -254,7 +260,12 @@ export const jobProcessor = async (job: Job) => {
       }
 
       case "blur": {
-        result = await orders.blur.save([info], relayToArweave);
+        result = await orders.blur.saveListings([info], relayToArweave);
+        break;
+      }
+
+      case "blur-bid": {
+        result = await orders.blur.saveBids([info]);
         break;
       }
 
