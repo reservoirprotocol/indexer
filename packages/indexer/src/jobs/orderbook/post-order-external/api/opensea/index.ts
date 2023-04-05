@@ -182,7 +182,7 @@ export const postCollectionOffer = async (
   collectionSlug: string,
   apiKey: string
 ) => {
-  const url = `${config.openSeaCrossPostingApiUrl || getOpenseaBaseUrl()}/v2/offers`;
+  const url = `${getOpenseaBaseUrl()}/v2/offers`;
 
   const data = JSON.stringify({
     criteria: {
@@ -206,7 +206,7 @@ export const postCollectionOffer = async (
         config.chainId != 5
           ? {
               "Content-Type": "application/json",
-              [config.openSeaCrossPostingApiKeyHeader]: apiKey || config.openSeaCrossPostingApiKey,
+              "X-Api-Key": apiKey || config.openSeaApiKey,
             }
           : {
               "Content-Type": "application/json",
