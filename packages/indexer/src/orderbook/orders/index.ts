@@ -21,6 +21,7 @@ export * as nftx from "@/orderbook/orders/nftx";
 export * as manifold from "@/orderbook/orders/manifold";
 export * as superrare from "@/orderbook/orders/superrare";
 export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
+export * as collection from "@/orderbook/orders/collection";
 
 // Imports
 
@@ -72,7 +73,8 @@ export type OrderKind =
   | "zeroex-v2"
   | "zeroex-v3"
   | "treasure"
-  | "looks-rare-v2";
+  | "looks-rare-v2"
+  | "collection";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -174,6 +176,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("superrare.com");
       case "alienswap":
         return sources.getOrInsert("alienswap.xyz");
+      case "collection":
+        return sources.getOrInsert("collection.xyz");
 
       case "mint": {
         if (address && mintsSources.has(address)) {
