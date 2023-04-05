@@ -128,7 +128,7 @@ if (config.doBackgroundWork) {
 
             logger.info(
               QUEUE_NAME,
-              `Post Order Throttled. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+              `Post Order Throttled. orderbook=${orderbook}, orderbookApiKey=${orderbookApiKey}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
               )}, delay=${delay}, retry=${retry}`
             );
