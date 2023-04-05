@@ -291,8 +291,9 @@ export class Exchange {
       signatureData: {
         signatureKind: "eip712",
         domain: complicationInstance.domain,
-        types: types,
+        types,
         value: { tree: chunks },
+        primaryType: _TypedDataEncoder.getPrimaryType(types),
       },
       proofs: orders.map((_, i) => tree.getHexProof(leaves[i], i)),
     };

@@ -91,8 +91,9 @@ export class Exchange extends SeaportBaseExchange {
       signatureData: {
         signatureKind: "eip712",
         domain: EIP712_DOMAIN(this.chainId),
-        types: types,
+        types,
         value: { tree: chunks },
+        primaryType: _TypedDataEncoder.getPrimaryType(types),
       },
       proofs: orders.map((_, i) => tree.getHexProof(leaves[i], i)),
     };
