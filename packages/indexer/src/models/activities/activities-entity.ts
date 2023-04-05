@@ -61,8 +61,8 @@ export type ActivitiesEntityParams = {
   order_kind: string;
   order_metadata: Record<string, unknown>;
   order_criteria: Record<string, unknown>;
-  order_currency: Buffer;
-  order_currency_price: number;
+  order_currency?: Buffer | undefined;
+  order_currency_price?: number | undefined;
 };
 
 // Possible fields to be found in the metadata
@@ -102,8 +102,8 @@ export type ActivityOrder = {
   kind: string | null;
   metadata: Record<string, unknown> | null;
   criteria: Record<string, unknown> | null;
-  currency: Buffer;
-  currencyPrice: number;
+  currency: Buffer | undefined;
+  currencyPrice: number | undefined;
 };
 
 export class ActivitiesEntity {

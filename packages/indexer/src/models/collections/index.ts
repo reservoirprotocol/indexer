@@ -314,4 +314,15 @@ export class Collections {
       );
     }
   }
+
+  public static async getIdsByCommunity(community: string) {
+    const query = `
+      SELECT id
+      FROM collections
+      WHERE community = $/community/
+    `;
+
+    const collectionIds = await idb.manyOrNone(query, { community });
+    return _.map(collectionIds, "id");
+  }
 }

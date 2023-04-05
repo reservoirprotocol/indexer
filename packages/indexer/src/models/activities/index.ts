@@ -9,6 +9,8 @@ import {
   ActivitiesEntityParams,
 } from "@/models/activities/activities-entity";
 import { Orders } from "@/utils/orders";
+import { CollectionSets } from "@/models/collection-sets";
+import { Collections } from "@/models/collections";
 
 export class Activities {
   public static async addActivities(activities: ActivitiesEntityInsertParams[]) {
@@ -282,8 +284,7 @@ export class Activities {
     let continuation = "";
     let typesFilter = "";
     let metadataQuery = "";
-    let metadataOrderQuery = "";
-    let collectionFilter = "";
+    let collectionIds: string[] = [];
 
     if (!_.isNull(createdBefore)) {
       continuation = `AND activities.${sortByColumn} < $/createdBefore/`;
@@ -294,18 +295,14 @@ export class Activities {
     }
 
     if (collectionsSetId) {
-      collectionFilter = `WHERE activities.collection_id IN (select collection_id
-            FROM collections_sets_collections
-            WHERE collections_set_id = $/collectionsSetId/
-         )`;
+      collectionIds = await CollectionSets.getCollectionsIds(collectionsSetId);
     } else if (community) {
-      collectionFilter =
-        "WHERE activities.collection_id IN (SELECT id FROM collections WHERE community = $/community/)";
+      collectionIds = await Collections.getIdsByCommunity(community);
     } else if (collectionId) {
-      collectionFilter = "WHERE activities.collection_id = $/collectionId/";
+      collectionIds = [collectionId];
     }
 
-    if (!collectionFilter) {
+    if (collectionIds.length == 0) {
       return [];
     }
 
@@ -411,15 +408,16 @@ export class Activities {
                 SELECT name AS "collection_name", metadata AS "collection_metadata"
                 FROM collections
                 WHERE activities.collection_id = collections.id
-             ) c ON TRUE`;
-
-      metadataOrderQuery = `
-        source_id_int AS "order_source_id_int",
-        side AS "order_side",
-        kind AS "order_kind",
-        (${orderMetadataBuildQuery}) AS "order_metadata",
-        (${orderCriteriaBuildQuery}) AS "order_criteria",
-      `;
+             ) c ON TRUE
+             LEFT JOIN LATERAL (
+                SELECT source_id_int AS "order_source_id_int",
+                side AS "order_side",
+                kind AS "order_kind",
+                (${orderMetadataBuildQuery}) AS "order_metadata",
+                (${orderCriteriaBuildQuery}) AS "order_criteria"
+                FROM orders
+                WHERE activities.order_id = orders.id
+            ) o ON TRUE`;
     }
 
     let attributesQuery = "";
@@ -443,33 +441,38 @@ export class Activities {
       }
     }
 
-    const activities: ActivitiesEntityParams[] | null = await redb.manyOrNone(
-      `SELECT *
-             FROM activities
-             LEFT JOIN LATERAL (
-              SELECT                   
-                ${metadataOrderQuery}     
-                currency AS "order_currency",
-                currency_price AS "order_currency_price"                               
-              FROM orders
-              WHERE activities.order_id = orders.id
-            ) o ON TRUE
-             ${metadataQuery}
-             ${attributesQuery}
-             ${collectionFilter}
-             ${continuation}
-             ${typesFilter}
-             ORDER BY activities.${sortByColumn} DESC NULLS LAST
-             LIMIT $/limit/`,
-      {
-        collectionId,
-        limit,
-        community,
-        collectionsSetId,
-        createdBefore: sortBy == "eventTimestamp" ? Number(createdBefore) : createdBefore,
-        types: _.join(types, "','"),
-      }
-    );
+    const query = {
+      collectionId,
+      limit,
+      community,
+      collectionsSetId,
+      createdBefore: sortBy == "eventTimestamp" ? Number(createdBefore) : createdBefore,
+      types: _.join(types, "','"),
+    };
+
+    const baseQuery =
+      collectionIds
+        .map((collectionId, i) => {
+          (query as any)[`collectionId${i}`] = collectionId;
+
+          return `(
+            SELECT *
+            FROM activities        
+            ${metadataQuery}
+            ${attributesQuery}
+            WHERE activities.collection_id = $/collectionId${i}/          
+            ${continuation}
+            ${typesFilter}
+            ORDER BY activities.${sortByColumn} DESC NULLS LAST
+            LIMIT $/limit/ 
+          )`;
+        })
+        .join(" UNION ALL ") +
+      ` ORDER BY ${sortByColumn} DESC NULLS LAST
+            LIMIT $/limit/
+        `;
+
+    const activities: ActivitiesEntityParams[] | null = await redb.manyOrNone(baseQuery, query);
 
     if (activities) {
       return _.map(activities, (activity) => new ActivitiesEntity(activity));
