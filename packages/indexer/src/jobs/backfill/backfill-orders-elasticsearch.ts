@@ -191,6 +191,13 @@ if (config.doBackgroundWork) {
           id: lastToken.id,
         };
       }
+
+      logger.info(
+        QUEUE_NAME,
+        `Processed ${results.length} records.  limit=${limit}, cursor=${JSON.stringify(
+          cursor
+        )}, nextCursor=${JSON.stringify(job.data.nextCursor)}`
+      );
     } catch (error) {
       logger.error(
         QUEUE_NAME,
