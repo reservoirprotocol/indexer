@@ -440,7 +440,7 @@ export const syncEvents = async (
       }
 
       const blocksToCheck: BlocksToCheck[] = [];
-      let blockNumbersArray = _.range(fromBlock, toBlock + 1);
+      let blockNumbersArray = _.range(fromBlock, toBlock);
 
       // Put all fetched blocks on a delayed queue
       [...blocksSet.values()].map(async (blockData) => {
@@ -459,7 +459,10 @@ export const syncEvents = async (
 
       // Log blocks for which no logs were fetched from the RPC provider
       if (!_.isEmpty(blockNumbersArray)) {
-        logger.warn("sync-events", `No logs fetched for ${JSON.stringify(blockNumbersArray)}`);
+        logger.warn(
+          "sync-events",
+          `[${fromBlock}, ${toBlock}] No logs fetched for ${JSON.stringify(blockNumbersArray)}`
+        );
       }
 
       await blockCheck.addBulk(blocksToCheck);
