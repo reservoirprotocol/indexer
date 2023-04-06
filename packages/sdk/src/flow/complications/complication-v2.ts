@@ -41,8 +41,8 @@ export class ComplicationV2 implements Complication {
   }
 
   async sign(signer: TypedDataSigner, params: Types.InternalOrder): Promise<string> {
-    const { type, value, domain } = this.getSignatureData(params);
-    const sig = await signer._signTypedData(domain, type, value);
+    const { types, value, domain } = this.getSignatureData(params);
+    const sig = await signer._signTypedData(domain, types, value);
 
     return sig;
   }
@@ -52,7 +52,7 @@ export class ComplicationV2 implements Complication {
     params: Types.InternalOrder,
     provider?: Provider
   ): Promise<void> {
-    const { type, value, domain } = this.getSignatureData(params);
+    const { types, value, domain } = this.getSignatureData(params);
 
     try {
       // Remove the `0x` prefix and count bytes not characters
@@ -82,7 +82,7 @@ export class ComplicationV2 implements Complication {
           proofElements.push("0x" + proofAndSignature.slice(start, start + 64).padEnd(64, "0"));
         }
 
-        let root = _TypedDataEncoder.hashStruct("Order", type, value);
+        let root = _TypedDataEncoder.hashStruct("Order", types, value);
         for (let i = 0; i < proofElements.length; i++) {
           if ((key >> i) % 2 === 0) {
             root = solidityKeccak256(["bytes"], [root + proofElements[i].slice(2)]);
@@ -91,7 +91,6 @@ export class ComplicationV2 implements Complication {
           }
         }
 
-        const types = { ...type };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (types as any).BulkOrder = [{ name: "tree", type: `Order${`[2]`.repeat(height)}` }];
         const encoder = _TypedDataEncoder.from(types);
@@ -109,7 +108,7 @@ export class ComplicationV2 implements Complication {
           throw new Error("Invalid signature");
         }
       } else {
-        const signer = verifyTypedData(domain, type, value, sig);
+        const signer = verifyTypedData(domain, types, value, sig);
         if (lc(params.signer) !== lc(signer)) {
           throw new Error("Invalid signature");
         }
@@ -122,7 +121,7 @@ export class ComplicationV2 implements Complication {
       /**
        * check if the signature is a contract signature
        */
-      const eip712Hash = _TypedDataEncoder.hash(domain, type, value);
+      const eip712Hash = _TypedDataEncoder.hash(domain, types, value);
 
       const iface = new Interface([
         "function isValidSignature(bytes32 digest, bytes signature) view returns (bytes4)",
@@ -142,8 +141,9 @@ export class ComplicationV2 implements Complication {
     return {
       signatureKind: "eip712",
       domain: this.domain,
-      type: ORDER_EIP712_TYPES,
+      types: ORDER_EIP712_TYPES,
       value: params,
+      primaryType: _TypedDataEncoder.getPrimaryType(ORDER_EIP712_TYPES),
     };
   }
 

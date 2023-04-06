@@ -276,6 +276,10 @@ export const start = async (): Promise<void> => {
 
     // Set custom response in case of timeout
     if ("isBoom" in response && "output" in response) {
+      if (response["output"]["statusCode"] >= 500) {
+        ApiKeyManager.logUnexpectedErrorResponse(request, response);
+      }
+
       if (response["output"]["statusCode"] == 503) {
         const timeoutResponse = {
           statusCode: 504,
@@ -284,10 +288,6 @@ export const start = async (): Promise<void> => {
         };
 
         return reply.response(timeoutResponse).type("application/json").code(504);
-      }
-
-      if (response["output"]["statusCode"] >= 500) {
-        ApiKeyManager.logUnexpectedErrorResponse(request, response);
       }
     }
 

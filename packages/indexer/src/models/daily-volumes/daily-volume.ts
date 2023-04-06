@@ -257,7 +257,7 @@ export class DailyVolume {
         FROM "fill_events_2" "fe"
           JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
           JOIN "collections" "c" ON "t"."collection_id" = "c"."id"
-          JOIN (
+          LEFT JOIN (
             SELECT
               t.contract,
               t.collection_id,

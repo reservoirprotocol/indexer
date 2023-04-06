@@ -1,37 +1,12 @@
 import * as Sdk from "@reservoir0x/sdk";
 
-import { redb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
-import { config } from "@/config/index";
-import * as utils from "@/orderbook/orders/seaport-v1.1/build/utils";
-
-interface BuildOrderOptions extends utils.BaseOrderBuildOptions {
-  tokenId: string;
-}
+import { getBuildInfo } from "@/orderbook/orders/seaport-v1.1/build/utils";
+import {
+  SellTokenBuilderBase,
+  BuildOrderOptions,
+} from "@/orderbook/orders/seaport-base/build/sell/token";
 
 export const build = async (options: BuildOrderOptions) => {
-  const collectionResult = await redb.oneOrNone(
-    `
-      SELECT
-        tokens.collection_id
-      FROM tokens
-      WHERE tokens.contract = $/contract/
-        AND tokens.token_id = $/tokenId/
-    `,
-    {
-      contract: toBuffer(options.contract!),
-      tokenId: options.tokenId,
-    }
-  );
-  if (!collectionResult) {
-    throw new Error("Could not retrieve token's collection");
-  }
-
-  const buildInfo = await utils.getBuildInfo(options, collectionResult.collection_id, "sell");
-
-  const builder = new Sdk.SeaportBase.Builders.SingleToken(config.chainId);
-
-  const tokenId = options.tokenId;
-
-  return builder?.build({ ...buildInfo.params, tokenId }, Sdk.SeaportV11.Order);
+  const builder = new SellTokenBuilderBase(getBuildInfo);
+  return await builder.build(options, Sdk.SeaportV11.Order);
 };

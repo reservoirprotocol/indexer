@@ -1,5 +1,6 @@
 import { Provider } from "@ethersproject/abstract-provider";
 import { TypedDataSigner } from "@ethersproject/abstract-signer";
+import { _TypedDataEncoder } from "@ethersproject/hash";
 
 import * as Addresses from "./addresses";
 import { Builders } from "./builders";
@@ -72,6 +73,7 @@ export class Order {
       domain: EIP712_DOMAIN(this.chainId),
       types: EIP712_TYPES,
       value: toRawOrder(this),
+      primaryType: _TypedDataEncoder.getPrimaryType(EIP712_TYPES),
     };
   }
 

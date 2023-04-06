@@ -2,10 +2,10 @@ import * as Sdk from "@reservoir0x/sdk";
 import cron from "node-cron";
 
 import { logger } from "@/common/logger";
-import { arweaveGateway } from "@/common/provider";
+// import { arweaveGateway } from "@/common/provider";
 import { redlock, redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { getNetworkName } from "@/config/network";
+// import { getNetworkName } from "@/config/network";
 
 const PENDING_DATA_KEY = "pending-arweave-data";
 
@@ -13,7 +13,7 @@ const PENDING_DATA_KEY = "pending-arweave-data";
 
 export const addPendingOrdersSeaport = async (
   data: {
-    order: Sdk.SeaportV11.Order;
+    order: Sdk.SeaportBase.IOrder;
     schemaHash?: string;
     source?: string;
   }[]
@@ -23,30 +23,7 @@ export const addPendingOrdersSeaport = async (
       PENDING_DATA_KEY,
       ...data.map(({ order, schemaHash }) =>
         JSON.stringify({
-          kind: "seaport",
-          data: {
-            ...order.params,
-            schemaHash,
-          },
-        })
-      )
-    );
-  }
-};
-
-export const addPendingOrdersSeaportV14 = async (
-  data: {
-    order: Sdk.SeaportV14.Order;
-    schemaHash?: string;
-    source?: string;
-  }[]
-) => {
-  if (config.arweaveRelayerKey && data.length) {
-    await redis.rpush(
-      PENDING_DATA_KEY,
-      ...data.map(({ order, schemaHash }) =>
-        JSON.stringify({
-          kind: "seaport-v1.4",
+          kind: order.getKind(),
           data: {
             ...order.params,
             schemaHash,
@@ -254,29 +231,29 @@ if (config.doBackgroundWork && config.arweaveRelayerKey) {
             }
 
             if (batch.length) {
-              const wallet = JSON.parse(config.arweaveRelayerKey!);
-              const transaction = await arweaveGateway.createTransaction(
-                {
-                  data: JSON.stringify(batch.map((b) => JSON.parse(b))),
-                },
-                wallet
-              );
-              transaction.addTag("Content-Type", "application/json");
-              transaction.addTag("App-Name", `Reservoir Protocol`);
-              transaction.addTag("App-Version", "0.0.1");
-              transaction.addTag("Network", getNetworkName());
+              // const wallet = JSON.parse(config.arweaveRelayerKey!);
+              // const transaction = await arweaveGateway.createTransaction(
+              //   {
+              //     data: JSON.stringify(batch.map((b) => JSON.parse(b))),
+              //   },
+              //   wallet
+              // );
+              // transaction.addTag("Content-Type", "application/json");
+              // transaction.addTag("App-Name", `Reservoir Protocol`);
+              // transaction.addTag("App-Version", "0.0.1");
+              // transaction.addTag("Network", getNetworkName());
 
-              await arweaveGateway.transactions.sign(transaction, wallet).then(async () => {
-                const uploader = await arweaveGateway.transactions.getUploader(transaction);
-                while (!uploader.isComplete) {
-                  await uploader.uploadChunk();
-                }
-              });
+              // await arweaveGateway.transactions.sign(transaction, wallet).then(async () => {
+              //   const uploader = await arweaveGateway.transactions.getUploader(transaction);
+              //   while (!uploader.isComplete) {
+              //     await uploader.uploadChunk();
+              //   }
+              // });
 
-              logger.info(
-                "arweave-relay",
-                `${batch.length} pending data entries relayed via transaction ${transaction.id}`
-              );
+              // logger.info(
+              //   "arweave-relay",
+              //   `${batch.length} pending data entries relayed via transaction ${transaction.id}`
+              // );
 
               await redis.ltrim(PENDING_DATA_KEY, batchSize * iterations, -1);
             } else {

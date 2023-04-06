@@ -218,6 +218,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
                       value: {
                         orderHashes: orderResults.map((o) => o.id),
                       },
+                      primaryType: "OrderHashes",
                     },
                     post: {
                       endpoint: "/execute/cancel-signature/v1",

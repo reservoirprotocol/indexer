@@ -236,33 +236,53 @@ export const postOrderV4Options: RouteOptions = {
 
           switch (order.kind) {
             case "blur": {
-              if (orderbook !== "blur") {
+              let crossPostingOrder;
+              let orderId: string;
+
+              if (orderbook === "blur") {
+                orderId = order.data.id;
+
+                crossPostingOrder = await crossPostingOrdersModel.saveOrder({
+                  orderId,
+                  kind: order.kind,
+                  orderbook,
+                  source,
+                  schema,
+                  rawData: order.data,
+                } as crossPostingOrdersModel.CrossPostingOrder);
+
+                await postOrderExternal.addToQueue({
+                  crossPostingOrderId: crossPostingOrder.id,
+                  orderId,
+                  orderData: { ...order.data, signature },
+                  orderSchema: schema,
+                  orderbook,
+                  orderbookApiKey,
+                });
+              } else if (orderbook === "reservoir") {
+                const [result] = await orders.blur.saveListings([
+                  {
+                    orderParams: order.data,
+                    metadata: {
+                      schema,
+                    },
+                  },
+                ]);
+
+                orderId = result.id;
+
+                if (!["success", "already-exists"].includes(result.status)) {
+                  return results.push({ message: result.status, orderIndex: i, orderId });
+                }
+              } else {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
-
-              const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-                orderId: order.data.id,
-                kind: order.kind,
-                orderbook,
-                source,
-                schema,
-                rawData: order.data,
-              } as crossPostingOrdersModel.CrossPostingOrder);
-
-              await postOrderExternal.addToQueue({
-                crossPostingOrderId: crossPostingOrder.id,
-                orderId: order.data.id,
-                orderData: { ...order.data, signature },
-                orderSchema: schema,
-                orderbook,
-                orderbookApiKey,
-              });
 
               return results.push({
                 message: "success",
                 orderIndex: i,
-                orderId: order.data.id,
-                crossPostingOrderId: crossPostingOrder.id,
+                orderId,
+                crossPostingOrderId: crossPostingOrder?.id,
               });
             }
 
@@ -372,54 +392,6 @@ export const postOrderV4Options: RouteOptions = {
                       orderbookApiKey: config.forwardOpenseaApiKey,
                     });
                   }
-                } else {
-                  const collectionResult = await idb.oneOrNone(
-                    `
-                      SELECT
-                        collections.new_royalties,
-                        orders.token_set_id
-                      FROM orders
-                      JOIN token_sets_tokens
-                        ON orders.token_set_id = token_sets_tokens.token_set_id
-                      JOIN tokens
-                        ON tokens.contract = token_sets_tokens.contract
-                        AND tokens.token_id = token_sets_tokens.token_id
-                      JOIN collections
-                        ON tokens.collection_id = collections.id
-                      WHERE orders.id = $/id/
-                      LIMIT 1
-                    `,
-                    { id: orderId }
-                  );
-
-                  if (
-                    collectionResult?.token_set_id?.startsWith("token") &&
-                    collectionResult?.new_royalties?.["opensea"]
-                  ) {
-                    const osRoyaltyRecipients = collectionResult.new_royalties["opensea"].map(
-                      (r: any) => r.recipient.toLowerCase()
-                    );
-                    const maker = order.data.offerer.toLowerCase();
-                    const consideration = order.data.consideration;
-
-                    let hasMarketplaceFee = false;
-                    for (const c of consideration) {
-                      const recipient = c.recipient.toLowerCase();
-                      if (recipient !== maker && !osRoyaltyRecipients.includes(recipient)) {
-                        hasMarketplaceFee = true;
-                      }
-                    }
-
-                    if (!hasMarketplaceFee) {
-                      await postOrderExternal.addToQueue({
-                        orderId,
-                        orderData: order.data,
-                        orderSchema: schema,
-                        orderbook: "opensea",
-                        orderbookApiKey: config.openSeaApiKey,
-                      });
-                    }
-                  }
                 }
               }
 
@@ -488,7 +460,7 @@ export const postOrderV4Options: RouteOptions = {
               }
 
               let crossPostingOrder;
-              const orderId = undefined;
+              let orderId = undefined;
 
               if (orderbook === "x2y2") {
                 // We do not save the order directly since X2Y2 orders are not fillable
@@ -521,6 +493,8 @@ export const postOrderV4Options: RouteOptions = {
                     },
                   },
                 ]);
+
+                orderId = result.id;
 
                 if (!["success", "already-exists"].includes(result.status)) {
                   return results.push({ message: result.status, orderIndex: i, orderId });
