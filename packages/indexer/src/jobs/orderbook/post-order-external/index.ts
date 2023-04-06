@@ -195,7 +195,7 @@ const getOrderbookDefaultApiKey = (orderbook: string) => {
     case "blur":
       return config.orderFetcherApiKey;
     case "opensea":
-      return config.openSeaApiKey;
+      return config.openSeaCrossPostingApiKey;
     case "looks-rare":
       return config.looksRareApiKey;
     case "x2y2":
