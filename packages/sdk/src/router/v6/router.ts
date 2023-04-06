@@ -50,6 +50,7 @@ import ZoraModuleAbi from "./abis/ZoraModule.json";
 
 type SetupOptions = {
   x2y2ApiKey?: string;
+  openseaApiKey?: string;
   cbApiKey?: string;
   orderFetcherBaseUrl?: string;
   orderFetcherApiKey?: string;
@@ -594,6 +595,7 @@ export class Router {
           url += `&taker=${taker}`;
           url += `&chainId=${this.chainId}`;
           url += "&protocolVersion=v1.1";
+          url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
             const result = await axios.get(url, {
@@ -642,6 +644,7 @@ export class Router {
           url += `&taker=${taker}`;
           url += `&chainId=${this.chainId}`;
           url += "&protocolVersion=v1.4";
+          url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
             const result = await axios.get(url, {
@@ -2669,6 +2672,7 @@ export class Router {
           url += `&chainId=${this.chainId}`;
           url += "&protocolVersion=v1.1";
           url += order.unitPrice ? `&unitPrice=${order.unitPrice}` : "";
+          url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
             const result = await axios.get(url, {
@@ -2782,6 +2786,7 @@ export class Router {
           url += "&protocolVersion=v1.4";
           url += order.unitPrice ? `&unitPrice=${order.unitPrice}` : "";
           url += detail.isProtected ? "&isProtected=true" : "";
+          url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
             const result = await axios.get(url, {
