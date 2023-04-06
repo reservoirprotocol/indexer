@@ -23,6 +23,7 @@ export interface BaseOrderBuildOptions {
   royaltyBps?: number;
   excludeFlaggedTokens?: boolean;
   source?: string;
+  orderbookApiKey?: string;
 }
 
 export type OrderBuildInfo = {

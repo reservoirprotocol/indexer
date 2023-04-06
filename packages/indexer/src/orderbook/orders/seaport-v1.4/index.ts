@@ -267,11 +267,28 @@ export const save = async (
 
       if (openSeaOrderParams && openSeaOrderParams.kind !== "single-token") {
         const collection = await getCollection(openSeaOrderParams);
+
         if (!collection) {
           return results.push({
             id,
             status: "unknown-collection",
           });
+        }
+
+        const identifierOrCriteria = order.params.consideration[0]?.identifierOrCriteria;
+
+        if (openSeaOrderParams.kind === "contract-wide") {
+          logger.info(
+            "orders-seaport-v1.4-save",
+            `Opensea Collection Offer identifierOrCriteria Cached. collectionSlug=${openSeaOrderParams.collectionSlug}, identifierOrCriteria=${identifierOrCriteria}`
+          );
+
+          await redis.set(
+            `opensea-collection-offer-identifier-or-criteria:${openSeaOrderParams.collectionSlug}`,
+            identifierOrCriteria,
+            "EX",
+            3600
+          );
         }
 
         schemaHash = generateSchemaHash();

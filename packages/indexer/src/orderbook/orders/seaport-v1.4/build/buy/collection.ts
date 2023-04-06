@@ -10,6 +10,7 @@ import { BaseOrderBuildOptions } from "@/orderbook/orders/seaport-base/build/uti
 import { generateSchemaHash } from "@/orderbook/orders/utils";
 import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 import { Tokens } from "@/models/tokens";
+import { logger } from "@/common/logger";
 
 interface BuildOrderOptions extends BaseOrderBuildOptions {
   collection: string;
@@ -54,20 +55,16 @@ export const build = async (options: BuildOrderOptions) => {
     );
 
     if (options.orderbook === "opensea") {
-      const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
-        options.maker,
-        options.quantity || 1,
+      const identifierOrCriteria = await getOpenseaCollectionIdentifierOrCriteria(
+        options,
         collectionResult.slug
       );
 
       // When cross-posting to OpenSea, if the result from their API is not
       // a contract-wide order, then switch to using a token-list builder
-      if (
-        buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria != "0"
-      ) {
+      if (identifierOrCriteria != "0") {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (buildInfo.params as any).merkleRoot =
-          buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria;
+        (buildInfo.params as any).merkleRoot = identifierOrCriteria;
 
         builder = new Sdk.SeaportBase.Builders.TokenList(config.chainId);
       }
@@ -82,16 +79,11 @@ export const build = async (options: BuildOrderOptions) => {
 
     if (options.orderbook === "opensea") {
       // We need to fetch from OpenSea the most up-to-date merkle root
-      // (currently only supported on production APIs)
-      const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
-        options.maker,
-        options.quantity || 1,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (buildInfo.params as any).merkleRoot = await getOpenseaCollectionIdentifierOrCriteria(
+        options,
         collectionResult.slug
       );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (buildInfo.params as any).merkleRoot =
-        buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria;
     } else {
       // For up-to-date results we need to compute the corresponding token set id
       // from the tokens table. However, that can be computationally-expensive so
@@ -138,4 +130,53 @@ export const build = async (options: BuildOrderOptions) => {
 
     return builder.build(buildInfo.params, Sdk.SeaportV14.Order);
   }
+};
+
+const getOpenseaCollectionIdentifierOrCriteria = async (
+  options: BuildOrderOptions,
+  collectionSlug: strin
+) => {
+  const identifierOrCriteria = "0";
+
+  try {
+    identifierOrCriteria = await redis.get(
+      `opensea-collection-offer-identifier-or-criteria:${collectionSlug}`
+    );
+
+    if (identifierOrCriteria == null) {
+      const buildCollectionOfferParams = await OpenSeaApi.buildCollectionOffer(
+        options.maker,
+        options.quantity || 1,
+        collectionSlug,
+        options.orderbookApiKey
+      );
+
+      identifierOrCriteria =
+        buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria;
+
+      await redis.set(
+        `opensea-collection-offer-identifier-or-criteria:${collectionSlug}`,
+        identifierOrCriteria,
+        "EX",
+        3600
+      );
+
+      logger.info(
+        "seaport-opensea-build-collection-offer",
+        `Opensea Collection Offer identifierOrCriteria from api. collectionSlug=${collectionSlug}, identifierOrCriteria=${identifierOrCriteria}`
+      );
+    } else {
+      logger.info(
+        "seaport-opensea-build-collection-offer",
+        `Opensea Collection Offer identifierOrCriteria from cache. collectionSlug=${collectionSlug}, identifierOrCriteria=${identifierOrCriteria}`
+      );
+    }
+  } catch {
+    logger.info(
+      "seaport-opensea-build-collection-offer",
+      `Opensea Collection Offer identifierOrCriteria failed. collectionSlug=${collectionSlug}, identifierOrCriteria=${identifierOrCriteria}`
+    );
+  }
+
+  return identifierOrCriteria;
 };

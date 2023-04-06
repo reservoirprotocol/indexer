@@ -70,7 +70,7 @@ export const buildCollectionOffer = async (
   collectionSlug: string,
   apiKey = ""
 ) => {
-  const url = `${config.openSeaCrossPostingApiUrl || getOpenseaBaseUrl()}/v2/offers/build`;
+  const url = `${getOpenseaBaseUrl()}/v2/offers/build`;
 
   return (
     axios
@@ -90,8 +90,7 @@ export const buildCollectionOffer = async (
             config.chainId != 5
               ? {
                   "Content-Type": "application/json",
-                  [config.openSeaCrossPostingApiKeyHeader]:
-                    apiKey || config.openSeaCrossPostingApiKey,
+                  "X-Api-Key": apiKey || config.openSeaApiKey,
                 }
               : {
                   "Content-Type": "application/json",
@@ -104,7 +103,7 @@ export const buildCollectionOffer = async (
       .catch((error) => {
         logger.error(
           "opensea-orderbook-api",
-          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, url=${url}, error=${error}, responseStatus=${
+          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, url=${url}, apiKey=${apiKey}, error=${error}, responseStatus=${
             error.response?.status
           }, responseData=${JSON.stringify(error.response?.data)}`
         );
