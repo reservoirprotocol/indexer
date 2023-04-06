@@ -94,7 +94,7 @@ if (config.doBackgroundWork) {
             FROM orders.created_at) AS created_at,
             (${criteriaBuildQuery}) AS criteria
           FROM orders WHERE
-          orders.kind = 'sell'
+          orders.side = 'sell'
           ${continuationFilter}
           LIMIT $/limit/
         `,
