@@ -55,7 +55,7 @@ if (
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 12 : 20 }
+    { connection: redis.duplicate(), concurrency: 20 }
   );
 
   worker.on("error", (error) => {

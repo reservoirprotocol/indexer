@@ -38,7 +38,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   const uniqueTokens = new Set<string>();
   const uniqueOwners = new Set<string>();
 
-  let transferValues: DbEvent[] = [];
+  const transferValues: DbEvent[] = [];
   const uniqueOwnersTransferValues = [];
 
   const contractValues: {
@@ -60,11 +60,11 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
     const ownerTo = `${event.to}:${contractId}:${event.tokenId}`;
 
     // Once we already update an owner create new array in order to split the update queries later
-    if (uniqueOwners.has(ownerFrom) || uniqueOwners.has(ownerTo)) {
-      uniqueOwnersTransferValues.push(transferValues);
-      transferValues = [];
-      uniqueOwners.clear();
-    }
+    // if (uniqueOwners.has(ownerFrom) || uniqueOwners.has(ownerTo)) {
+    //   uniqueOwnersTransferValues.push(transferValues);
+    //   transferValues = [];
+    //   uniqueOwners.clear();
+    // }
 
     uniqueOwners.add(ownerFrom);
     uniqueOwners.add(ownerTo);
