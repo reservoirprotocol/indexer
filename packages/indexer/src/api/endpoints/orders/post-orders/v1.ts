@@ -78,7 +78,6 @@ export const postOrdersV1Options: RouteOptions = {
             },
             isOpenSea: true,
           },
-          relayToArweave: true,
           validateBidValue: true,
         });
       }

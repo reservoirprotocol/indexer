@@ -290,12 +290,6 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
-    path: "/admin/sync-arweave",
-    options: adminEndpoints.postSyncArweaveOptions,
-  });
-
-  server.route({
-    method: "POST",
     path: "/admin/sync-events",
     options: adminEndpoints.postSyncEventsOptions,
   });

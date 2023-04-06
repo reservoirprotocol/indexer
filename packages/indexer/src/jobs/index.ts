@@ -2,8 +2,6 @@
 
 // Initialize all background job queues and crons
 
-import "@/jobs/arweave-relay";
-import "@/jobs/arweave-sync";
 import "@/jobs/backfill";
 import "@/jobs/bid-updates";
 import "@/jobs/cache-check";
@@ -33,9 +31,6 @@ import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activitie
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as processActivityBackfillEvent from "@/jobs/activities/process-activity-event-backfill";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
-
-import * as arweaveSyncBackfill from "@/jobs/arweave-sync/backfill-queue";
-import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
 
 import * as backfillCancelSeaport11Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
 import * as backfillInvalidatedOrders from "@/jobs/backfill/backfill-invalidated-orders";
@@ -155,9 +150,6 @@ export const allJobQueues = [
   processActivityEvent.queue,
   processActivityBackfillEvent.queue,
   removeUnsyncedEventsActivities.queue,
-
-  arweaveSyncBackfill.queue,
-  arweaveSyncRealtime.queue,
 
   backfillCancelSeaport11Orders.queue,
   backfillInvalidatedOrders.queue,

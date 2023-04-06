@@ -22,7 +22,6 @@ import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 
-import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
@@ -64,17 +63,10 @@ type SaveResult = {
 
 export const save = async (
   orderInfos: OrderInfo[],
-  relayToArweave?: boolean,
   validateBidValue?: boolean
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
-
-  const arweaveData: {
-    order: Sdk.SeaportV11.Order;
-    schemaHash?: string;
-    source?: string;
-  }[] = [];
 
   const handleOrder = async (
     orderParams: Sdk.SeaportBase.Types.OrderComponents,
@@ -692,10 +684,6 @@ export const save = async (
         status: "success",
         unfillable,
       });
-
-      if (relayToArweave) {
-        arweaveData.push({ order, schemaHash, source: source?.domain });
-      }
     } catch (error) {
       logger.warn(
         "orders-seaport-save",
@@ -784,10 +772,6 @@ export const save = async (
             } as ordersUpdateById.OrderInfo)
         )
     );
-
-    if (relayToArweave) {
-      await arweaveRelay.addPendingOrdersSeaport(arweaveData);
-    }
   }
 
   return results;

@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-// import * as orderbook from "@/jobs/orderbook/orders-queue";
+import * as orderbook from "@/jobs/orderbook/orders-queue";
 
 const COMPONENT = "blur-websocket";
 
@@ -31,18 +31,18 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
 
       if (parsedMessage.contractAddress === "0x19b86299c21505cdf59ce63740b240a9c822b5e4") {
         logger.info(COMPONENT, JSON.stringify(parsedMessage));
-        // await orderbook.addToQueue([
-        //   {
-        //     kind: "blur-bid",
-        //     info: {
-        //       orderParams: {
-        //         collection: parsedMessage.contractAddress.toLowerCase(),
-        //         pricePoints: parsedMessage.updates,
-        //       },
-        //       metadata: {},
-        //     },
-        //   },
-        // ]);
+        await orderbook.addToQueue([
+          {
+            kind: "blur-bid",
+            info: {
+              orderParams: {
+                collection: parsedMessage.contractAddress.toLowerCase(),
+                pricePoints: parsedMessage.updates,
+              },
+              metadata: {},
+            },
+          },
+        ]);
       }
     } catch (error) {
       logger.error(COMPONENT, `Error handling bid: ${error} (message = ${message})`);

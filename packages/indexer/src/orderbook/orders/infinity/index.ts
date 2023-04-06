@@ -11,7 +11,6 @@ import { offChainCheck } from "@/orderbook/orders/infinity/check";
 import { DbOrder, generateSchemaHash, OrderMetadata } from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 
-import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 
 export type OrderInfo = {
@@ -25,15 +24,9 @@ type SaveResult = {
   unfillable?: boolean;
 };
 
-export const save = async (orderInfos: OrderInfo[], relayToArweave?: boolean) => {
+export const save = async (orderInfos: OrderInfo[]) => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
-
-  const arweaveData: {
-    order: Sdk.Infinity.Order;
-    schemaHash?: string;
-    source?: string;
-  }[] = [];
 
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
@@ -262,10 +255,6 @@ export const save = async (orderInfos: OrderInfo[], relayToArweave?: boolean) =>
         status: "success",
         unfillable,
       });
-
-      if (relayToArweave) {
-        arweaveData.push({ order, schemaHash, source: source?.domain });
-      }
     } catch (error) {
       logger.error(
         "orders-infinity-save",
@@ -331,10 +320,6 @@ export const save = async (orderInfos: OrderInfo[], relayToArweave?: boolean) =>
             } as ordersUpdateById.OrderInfo)
         )
     );
-
-    if (relayToArweave) {
-      await arweaveRelay.addPendingOrdersInfinity(arweaveData);
-    }
   }
 
   return results;
