@@ -37,21 +37,23 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+if (config.doBackgroundWork && config.elasticCloudAPIKey) {
   const worker = new Worker(QUEUE_NAME, async (job) => {
     const cursor = job.data.cursor as CursorInfo;
 
     let continuationFilter = "";
 
-    const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1;
+    const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 100;
 
     if (cursor) {
-      continuationFilter = `AND (orders.created_at, orders.id) > (to_timestamp($/createdAt/), $/id/)`;
+      continuationFilter = `(orders.updated_at, orders.id) > (to_timestamp($/createdAt/), $/id/) AND`;
     }
 
     const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
     try {
+      // eslint-disable-next-line no-console
+      console.log("cursor", cursor);
       const results = await idb.manyOrNone(
         `
             SELECT orders.id,
@@ -94,8 +96,8 @@ if (config.doBackgroundWork) {
             FROM orders.created_at) AS created_at,
             (${criteriaBuildQuery}) AS criteria
           FROM orders WHERE
-          orders.side = 'sell'
           ${continuationFilter}
+          orders.side = 'sell'
           LIMIT $/limit/
         `,
         {
@@ -105,10 +107,9 @@ if (config.doBackgroundWork) {
         }
       );
 
+      const sources = await Sources.getInstance();
       const ordersParsed = await Promise.all(
         results.map(async (order) => {
-          const sources = await Sources.getInstance();
-
           const feeBreakdown = order.fee_breakdown;
           const feeBps = order.fee_bps;
 
