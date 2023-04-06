@@ -63,6 +63,7 @@ export class Order implements IOrder {
       domain: EIP712_DOMAIN(this.chainId),
       types: ORDER_EIP712_TYPES,
       value: this.params,
+      primaryType: _TypedDataEncoder.getPrimaryType(ORDER_EIP712_TYPES),
     };
   }
 

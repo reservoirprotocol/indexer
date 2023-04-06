@@ -39,6 +39,7 @@ export const postOrderV3Options: RouteOptions = {
           .lowercase()
           .valid(
             "opensea",
+            "blur",
             "looks-rare",
             "zeroex-v4",
             "seaport",
@@ -200,6 +201,33 @@ export const postOrderV3Options: RouteOptions = {
           }
         }
 
+        case "blur": {
+          if (orderbook !== "reservoir") {
+            throw new Error("Unsupported orderbook");
+          }
+
+          const orderInfo: orders.blur.ListingOrderInfo = {
+            orderParams: order.data,
+            metadata: {
+              schema,
+            },
+          };
+
+          const [result] = await orders.blur.saveListings([orderInfo]);
+
+          if (result.status === "already-exists") {
+            return { message: "Success", orderId: result.id };
+          }
+
+          if (result.status === "success") {
+            return { message: "Success", orderId: result.id };
+          } else {
+            const error = Boom.badRequest(result.status);
+            error.output.payload.orderId = result.id;
+            throw error;
+          }
+        }
+
         case "seaport":
         case "seaport-v1.4": {
           if (!["opensea", "reservoir"].includes(orderbook)) {
@@ -280,54 +308,6 @@ export const postOrderV3Options: RouteOptions = {
                   orderbook: "opensea",
                   orderbookApiKey: config.forwardOpenseaApiKey,
                 });
-              }
-            } else {
-              const collectionResult = await idb.oneOrNone(
-                `
-                  SELECT
-                    collections.new_royalties,
-                    orders.token_set_id
-                  FROM orders
-                  JOIN token_sets_tokens
-                    ON orders.token_set_id = token_sets_tokens.token_set_id
-                  JOIN tokens
-                    ON tokens.contract = token_sets_tokens.contract
-                    AND tokens.token_id = token_sets_tokens.token_id
-                  JOIN collections
-                    ON tokens.collection_id = collections.id
-                  WHERE orders.id = $/id/
-                  LIMIT 1
-                `,
-                { id: orderId }
-              );
-
-              if (
-                collectionResult?.token_set_id?.startsWith("token") &&
-                collectionResult?.new_royalties?.["opensea"]
-              ) {
-                const osRoyaltyRecipients = collectionResult.new_royalties["opensea"].map(
-                  (r: any) => r.recipient.toLowerCase()
-                );
-                const maker = order.data.offerer.toLowerCase();
-                const consideration = order.data.consideration;
-
-                let hasMarketplaceFee = false;
-                for (const c of consideration) {
-                  const recipient = c.recipient.toLowerCase();
-                  if (recipient !== maker && !osRoyaltyRecipients.includes(recipient)) {
-                    hasMarketplaceFee = true;
-                  }
-                }
-
-                if (!hasMarketplaceFee) {
-                  await postOrderExternal.addToQueue({
-                    orderId,
-                    orderData: order.data,
-                    orderSchema: schema,
-                    orderbook: "opensea",
-                    orderbookApiKey: config.openSeaApiKey,
-                  });
-                }
               }
             }
           }

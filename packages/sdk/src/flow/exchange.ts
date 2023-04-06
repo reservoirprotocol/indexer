@@ -240,7 +240,7 @@ export class Exchange {
       throw new Error("No orders provided");
     }
 
-    const types = { ...firstOrderSignatureData.type };
+    const types = firstOrderSignatureData.types;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (types as any).BulkOrder = [{ name: "tree", type: `Order${`[2]`.repeat(height)}` }];
     const encoder = _TypedDataEncoder.from(types);
@@ -291,8 +291,9 @@ export class Exchange {
       signatureData: {
         signatureKind: "eip712",
         domain: complicationInstance.domain,
-        types: types,
+        types,
         value: { tree: chunks },
+        primaryType: _TypedDataEncoder.getPrimaryType(types),
       },
       proofs: orders.map((_, i) => tree.getHexProof(leaves[i], i)),
     };

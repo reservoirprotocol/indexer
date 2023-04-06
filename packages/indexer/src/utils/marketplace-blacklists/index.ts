@@ -1,19 +1,21 @@
-import * as Sdk from "@reservoir0x/sdk";
 import { Interface } from "@ethersproject/abi";
 import { Contract } from "@ethersproject/contracts";
-import { config } from "@/config/index";
-import { baseProvider } from "@/common/provider";
-import { idb, redb } from "@/common/db";
-import { OrderKind } from "@/orderbook/orders";
+import * as Sdk from "@reservoir0x/sdk";
 
-export type Opreator = {
+import { idb, redb } from "@/common/db";
+import { baseProvider } from "@/common/provider";
+import { config } from "@/config/index";
+import { OrderKind } from "@/orderbook/orders";
+import { toBuffer } from "@/common/utils";
+
+export type Operator = {
   address: string;
   marketplace: OrderKind;
 };
 
 const conduitController = new Sdk.SeaportBase.ConduitController(config.chainId);
 
-const allOperatorList: Opreator[] = [
+const allOperatorList: Operator[] = [
   {
     address: Sdk.Blur.Addresses.ExecutionDelegate[config.chainId],
     marketplace: "blur",
@@ -60,55 +62,50 @@ const allOperatorList: Opreator[] = [
   },
 ];
 
-export async function checkMarketplaceIsFiltered(collection: string, marketplace: OrderKind) {
+export const checkMarketplaceIsFiltered = async (contract: string, marketplace: OrderKind) => {
   const operatorList = allOperatorList.filter((c) => c.marketplace === marketplace);
-  let blacklist: string[] = [];
-  const result = await getMarketplaceBlacklistFromDB(collection);
-  if (result && result.filtered_operators) {
-    blacklist = result.filtered_operators;
-  } else {
-    blacklist = await updateMarketplaceBlacklist(collection);
-  }
-  const isBlocked = operatorList.some((c) => blacklist.includes(c.address));
-  return isBlocked;
-}
+  const result = await getMarketplaceBlacklistFromDB(contract);
+  return operatorList.some((c) => result.includes(c.address));
+};
 
-export const getMarketplaceBlacklist = async (collection: string) => {
-  const contract = new Contract(
+export const getMarketplaceBlacklist = async (contract: string): Promise<string[]> => {
+  const c = new Contract(
     Sdk.SeaportBase.Addresses.OperatorFilterRegistry[config.chainId],
     new Interface([
       "function filteredOperators(address registrant) external view returns (address[] memory)",
     ]),
     baseProvider
   );
-  const operators = await contract.filteredOperators(collection);
-  return operators.map((_: string) => _.toLowerCase());
+
+  const operators = await c.filteredOperators(contract);
+  return operators.map((o: string) => o.toLowerCase());
 };
 
-export async function updateMarketplaceBlacklist(collection: string) {
-  const blacklists = await getMarketplaceBlacklist(collection);
+export const getMarketplaceBlacklistFromDB = async (contract: string): Promise<string[]> => {
+  const result = await redb.oneOrNone(
+    `
+      SELECT
+        contracts.filtered_operators
+      FROM contracts
+      WHERE contracts.address = $/contract/
+    `,
+    { contract: toBuffer(contract) }
+  );
+
+  return result?.filtered_operators || [];
+};
+
+export const updateMarketplaceBlacklist = async (contract: string) => {
+  const blacklist = await getMarketplaceBlacklist(contract);
   await idb.none(
     `
       UPDATE contracts
-        SET filtered_operators = $/blacklists:json/
-      WHERE contracts.address = $/collection/
+        SET filtered_operators = $/blacklist:json/
+      WHERE contracts.address = $/contract/
     `,
     {
-      collection,
-      blacklists: blacklists,
+      contract: toBuffer(contract),
+      blacklist,
     }
   );
-  return blacklists;
-}
-
-export async function getMarketplaceBlacklistFromDB(collection: string) {
-  const collectionResult = await redb.oneOrNone(
-    `
-      SELECT contracts.filtered_operators
-      FROM contracts
-      WHERE contracts.address = $/collection/
-    `,
-    { collection }
-  );
-  return collectionResult;
-}
+};

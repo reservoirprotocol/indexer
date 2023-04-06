@@ -53,6 +53,7 @@ export type TakeOrderParams = {
 export interface SignatureData {
   signatureKind: "eip712";
   domain: TypedDataDomain;
-  type: Record<string, TypedDataField[]>;
+  types: Record<string, TypedDataField[]>;
   value: InternalOrder;
+  primaryType: string;
 }
