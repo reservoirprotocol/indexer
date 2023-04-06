@@ -52,8 +52,6 @@ if (config.doBackgroundWork && config.elasticCloudAPIKey) {
     const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
     try {
-      // eslint-disable-next-line no-console
-      console.log("cursor", cursor);
       const results = await idb.manyOrNone(
         `
             SELECT orders.id,
