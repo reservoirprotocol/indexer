@@ -46,7 +46,7 @@ if (config.doBackgroundWork) {
     const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1;
 
     if (cursor) {
-      continuationFilter = `WHERE (orders.created_at, orders.id) > (to_timestamp($/createdAt/), $/id/)`;
+      continuationFilter = `AND (orders.created_at, orders.id) > (to_timestamp($/createdAt/), $/id/)`;
     }
 
     const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
@@ -93,7 +93,8 @@ if (config.doBackgroundWork) {
             extract(epoch
             FROM orders.created_at) AS created_at,
             (${criteriaBuildQuery}) AS criteria
-          FROM orders
+          FROM orders WHERE
+          orders.kind = 'sell'
           ${continuationFilter}
           LIMIT $/limit/
         `,
@@ -174,14 +175,12 @@ if (config.doBackgroundWork) {
         })
       );
 
-      await Promise.all(
-        ordersParsed.map(async (order) => {
-          await esClient.index({
-            index: "orders",
-            document: order,
-          });
-        })
-      );
+      await esClient.bulk({
+        body: ordersParsed.flatMap((order) => [
+          { index: { _index: "asks", _id: order.id } },
+          order,
+        ]),
+      });
 
       job.data.nextCursor = null;
       if (results.length == limit) {
