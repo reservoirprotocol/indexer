@@ -11,8 +11,9 @@ const version = "v1";
 
 export const getCrossPostingOrdersV1Options: RouteOptions = {
   description: "Cross posting status",
-  notes: "Get a list of cross posting orders with status.\n\n Input your `crossPostingOrderId`into the ids param and submit for the status. \n\n The `crossPostingOrderId` is returned on the `bids` and `asks execute APIs. The `id` is also exposed on the `onProgess` callback for the SDK. ReservoirKit will not return an `id`.",
-  tags: [“api”, “Create Orders (list & bid)“],
+  notes:
+    "Get a list of cross posting orders with status.\n\n Input your `crossPostingOrderId`into the ids param and submit for the status. \n\n The `crossPostingOrderId` is returned on the `bids` and `asks execute APIs. The `id` is also exposed on the `onProgess` callback for the SDK. ReservoirKit will not return an `id`.",
+  tags: ["api", "Create Orders (list & bid)"],
   plugins: {
     "hapi-swagger": {
       order: 5,
