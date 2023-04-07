@@ -17,14 +17,16 @@ import * as InfinityApi from "@/jobs/orderbook/post-order-external/api/infinity"
 import * as FlowApi from "@/jobs/orderbook/post-order-external/api/flow";
 
 import {
-  RequestWasThrottledError,
   InvalidRequestError,
+  InvalidRequestErrorKind,
+  RequestWasThrottledError,
 } from "@/jobs/orderbook/post-order-external/api/errors";
 import { redb } from "@/common/db";
 import { RateLimiterRedis, RateLimiterRes } from "rate-limiter-flexible";
 import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import { CrossPostingOrderStatus } from "@/models/cross-posting-orders";
 import { TSTAttribute, TSTCollection, TSTCollectionNonFlagged } from "@/orderbook/token-sets/utils";
+import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 
 const QUEUE_NAME = "orderbook-post-order-external-queue";
 const MAX_RETRIES = 5;
@@ -147,6 +149,41 @@ if (config.doBackgroundWork) {
                 CrossPostingOrderStatus.failed,
                 error.message
               );
+            }
+
+            if ((error as InvalidRequestError).kind === InvalidRequestErrorKind.InvalidFees) {
+              // If fees are invalid, refresh the collection metadata to refresh the fees
+              const rawResult = await redb.oneOrNone(
+                `
+                SELECT
+                  tokens.contract,
+                  tokens.token_id,
+                  collections.id AS "collection_id",
+                  collections.community
+                FROM orders
+                JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id
+                JOIN tokens tokens on tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id
+                JOIN collections ON collections.id = tokens.collection_id
+                WHERE orders.id = $/id/
+                LIMIT 1
+              `,
+                { id: orderId }
+              );
+
+              if (rawResult) {
+                logger.info(
+                  QUEUE_NAME,
+                  `Post Order Failed - Refreshing collection metadata. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+                    orderData
+                  )}, retry: ${retry}`
+                );
+
+                await collectionUpdatesMetadata.addToQueue(
+                  rawResult!.contract,
+                  rawResult.token_id,
+                  rawResult!.community
+                );
+              }
             }
           } else if (retry < MAX_RETRIES) {
             // If we got an unknown error from the api, reschedule job based on fixed delay.

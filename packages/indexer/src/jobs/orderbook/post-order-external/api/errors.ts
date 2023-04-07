@@ -9,9 +9,15 @@ export class RequestWasThrottledError extends Error {
   }
 }
 
+export enum InvalidRequestErrorKind {
+  InvalidFees = "invalid-fees",
+}
+
 export class InvalidRequestError extends Error {
-  constructor(message: string) {
+  kind: InvalidRequestErrorKind | undefined;
+  constructor(message: string, kind?: InvalidRequestErrorKind) {
     super(message);
+    this.kind = kind;
 
     Object.setPrototypeOf(this, InvalidRequestError.prototype);
   }
