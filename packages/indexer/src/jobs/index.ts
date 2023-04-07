@@ -126,8 +126,9 @@ import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attrib
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
 import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute-counts";
 
-import * as websocketEventsTriggerQueue from "@/jobs/websocket-events/trigger-queue";
-
+import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
+import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
+import * as newTopBidTriggerQueue from "@/jobs/websocket-events/new-top-bid-trigger-queue";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
@@ -246,7 +247,9 @@ export const allJobQueues = [
   resyncAttributeValueCounts.queue,
   updateAttributeCounts.queue,
 
-  websocketEventsTriggerQueue.queue,
+  askWebsocketEventsTriggerQueue.queue,
+  bidWebsocketEventsTriggerQueue.queue,
+  newTopBidTriggerQueue.queue,
 
   countApiUsage.queue,
 
