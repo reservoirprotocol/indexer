@@ -93,6 +93,22 @@ if (
               headBlock - fromBlock
             } time ${(now() - startTime) / 1000}s`
           );
+
+          logger.info("sync-events-timing", "begin JSON log");
+
+          logger.info(
+            "sync-events-timing",
+            JSON.stringify({
+              message: "Events realtime syncing",
+              providerHeadBlock,
+              headBlock,
+              fromBlock,
+              totalBlocks: headBlock - fromBlock,
+              time: (now() - startTime) / 1000,
+            })
+          );
+
+          logger.info("sync-events-timing", "end JSON log");
         } catch (error) {
           logger.error(QUEUE_NAME, `Events realtime syncing failed: ${error}`);
           throw error;
