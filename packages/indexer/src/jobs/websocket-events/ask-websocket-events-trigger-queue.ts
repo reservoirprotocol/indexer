@@ -78,8 +78,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             END
           ) AS status,
             (${criteriaBuildQuery}) AS criteria
-      FROM orders
-      WHERE orders.id = $/orderId/`,
+          FROM orders
+          WHERE orders.id = $/orderId/`,
           { orderId: data.orderId }
         );
 
@@ -162,7 +162,10 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           })
         );
       } catch (e) {
-        logger.error("ask-websocket-event", `Error triggering event. ${e}`);
+        logger.error(
+          QUEUE_NAME,
+          `Error triggering event. error=${e}, data=${JSON.stringify(data)}`
+        );
       }
     },
     { connection: redis.duplicate(), concurrency: 20 }
