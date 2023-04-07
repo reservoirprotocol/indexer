@@ -18,7 +18,9 @@ export type CrossPostingOrder = {
   rawData: string;
 };
 
-export const saveOrder = async (order: CrossPostingOrder): Promise<{ id: number }> => {
+export const saveOrder = async (
+  order: CrossPostingOrder
+): Promise<{ id: number; status: string }> => {
   const columns = new pgp.helpers.ColumnSet(
     ["order_id", "kind", "orderbook", "source", "schema", "status", "raw_data"],
     { table: "cross_posting_orders" }
@@ -36,7 +38,7 @@ export const saveOrder = async (order: CrossPostingOrder): Promise<{ id: number 
     },
   ];
 
-  const query = pgp.helpers.insert(data, columns) + " RETURNING id";
+  const query = pgp.helpers.insert(data, columns) + " RETURNING id, status";
 
   return idb.one(query);
 };
