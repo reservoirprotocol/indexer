@@ -9,7 +9,7 @@ import { JoiSale, getJoiSaleObject } from "@/common/joi";
 import { buildContinuation, fromBuffer, regex, splitContinuation, toBuffer } from "@/common/utils";
 import * as Boom from "@hapi/boom";
 import _ from "lodash";
-import { format, lastDayOfMonth, isSameMonth, addDays } from "date-fns";
+import { format, lastDayOfMonth, isSameMonth, addDays, isSameDay } from "date-fns";
 
 const version = "v1";
 
@@ -26,8 +26,10 @@ export const getSyncSalesV1Options: RouteOptions = {
   validate: {
     query: Joi.object({
       date: Joi.string()
-        .pattern(/^\d{4}-\d{2}$/)
-        .description("Get sales for a given month and year, the format is YYYY-MM."),
+        .pattern(/^\d{4}-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?$/)
+        .description(
+          "Get sales for a given month and year or month, year and date, the format can be YYYY-MM or YYYY-MM-DD."
+        ),
       contract: Joi.alternatives()
         .try(
           Joi.array().items(Joi.string().lowercase().pattern(regex.address)).max(20),
@@ -58,6 +60,7 @@ export const getSyncSalesV1Options: RouteOptions = {
     let paginationFilter = "";
     let contractFilter = "";
     let dateFilter = "";
+    let hasDays = false;
 
     if (query.continuation) {
       const contArr = splitContinuation(query.continuation, /^(.+)_(.+)_(\d+)_(\d+)$/);
@@ -93,10 +96,17 @@ export const getSyncSalesV1Options: RouteOptions = {
     }
 
     if (query.date) {
-      (query as any).monthDateStart = `${query.date}-01 00:00:00`;
-      const endOfMonth = lastDayOfMonth(new Date(query.monthDateStart));
-      (query as any).nextMonthStart = format(addDays(endOfMonth, 1), "yyyy-MM-01");
-      dateFilter = `updated_at >= DATE($/monthDateStart/) AND updated_at < DATE($/nextMonthStart/)`;
+      hasDays = query.date.split("-").length === 3;
+      const fullStartDate = hasDays ? query.date : `${query.date}-01`;
+      (query as any).dateStart = `${fullStartDate} 00:00:00`;
+      if (hasDays) {
+        const endOfDay = addDays(new Date(query.dateStart), 1);
+        (query as any).dateEnd = format(endOfDay, "yyyy-MM-dd 00:00:00");
+      } else {
+        const endOfMonth = lastDayOfMonth(new Date(query.dateStart));
+        (query as any).dateEnd = format(addDays(endOfMonth, 1), "yyyy-MM-01");
+      }
+      dateFilter = `updated_at >= DATE($/dateStart/) AND updated_at < DATE($/dateEnd/)`;
     }
 
     try {
@@ -162,14 +172,19 @@ export const getSyncSalesV1Options: RouteOptions = {
       }
 
       if (!continuation) {
-        let isCurrentMonth = true;
+        let isSameTimePeriod = true;
         if (query.date) {
-          const monthDateStart = new Date(`${query.date}-01 00:00:00`);
-          const currentMonthDateStart = new Date();
-          isCurrentMonth = isSameMonth(monthDateStart, currentMonthDateStart);
+          const currentDate = new Date();
+          if (hasDays) {
+            const date = new Date(`${query.date} 00:00:00`);
+            isSameTimePeriod = isSameDay(date, currentDate);
+          } else {
+            const monthDateStart = new Date(`${query.date}-01 00:00:00`);
+            isSameTimePeriod = isSameMonth(monthDateStart, currentDate);
+          }
         }
 
-        cursor = isCurrentMonth ? continuationToken : null;
+        cursor = isSameTimePeriod ? continuationToken : null;
       }
 
       const result = rawResult.map(async (r) => {
