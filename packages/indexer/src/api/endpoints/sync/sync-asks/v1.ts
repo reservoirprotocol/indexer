@@ -191,7 +191,10 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
 
       let oldOrders = 1;
 
-      if (!query.oldOrders || (rawResult.length !== limit && query.oldOrders)) {
+      if (
+        query.continuation &&
+        (!query.oldOrders || (rawResult.length !== limit && query.oldOrders))
+      ) {
         oldOrders = 0;
       }
 
