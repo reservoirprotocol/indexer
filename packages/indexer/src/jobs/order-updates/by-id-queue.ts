@@ -457,7 +457,7 @@ if (config.doBackgroundWork) {
 
             await WebsocketEventRouter({
               eventInfo: {
-                kind: order.kind,
+                kind: trigger.kind,
                 orderId: order.id,
               },
               eventKind:
