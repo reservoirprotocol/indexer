@@ -100,27 +100,29 @@ if (config.doBackgroundWork) {
                 }
 
                 case "blur": {
-                  const order = new Sdk.Blur.Order(config.chainId, result.raw_data);
-                  try {
-                    await blurCheck.offChainCheck(order, result.originated_at, {
-                      onChainApprovalRecheck: true,
-                      checkFilledOrCancelled: true,
-                    });
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  } catch (error: any) {
-                    if (error.message === "cancelled") {
-                      fillabilityStatus = "cancelled";
-                    } else if (error.message === "filled") {
-                      fillabilityStatus = "filled";
-                    } else if (error.message === "no-balance") {
-                      fillabilityStatus = "no-balance";
-                    } else if (error.message === "no-approval") {
-                      approvalStatus = "no-approval";
-                    } else if (error.message === "no-balance-no-approval") {
-                      fillabilityStatus = "no-balance";
-                      approvalStatus = "no-approval";
-                    } else {
-                      return;
+                  if (result.side === "sell") {
+                    const order = new Sdk.Blur.Order(config.chainId, result.raw_data);
+                    try {
+                      await blurCheck.offChainCheck(order, result.originated_at, {
+                        onChainApprovalRecheck: true,
+                        checkFilledOrCancelled: true,
+                      });
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    } catch (error: any) {
+                      if (error.message === "cancelled") {
+                        fillabilityStatus = "cancelled";
+                      } else if (error.message === "filled") {
+                        fillabilityStatus = "filled";
+                      } else if (error.message === "no-balance") {
+                        fillabilityStatus = "no-balance";
+                      } else if (error.message === "no-approval") {
+                        approvalStatus = "no-approval";
+                      } else if (error.message === "no-balance-no-approval") {
+                        fillabilityStatus = "no-balance";
+                        approvalStatus = "no-approval";
+                      } else {
+                        return;
+                      }
                     }
                   }
                   break;
