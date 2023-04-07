@@ -60,6 +60,7 @@ export const postOrderV2Options: RouteOptions = {
       crossPostingOrderId: Joi.string().description(
         "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
       ),
+      crossPostingOrderStatus: Joi.string(),
     }).label(`postOrder${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`post-order-${version}-handler`, `Wrong response schema: ${error}`);
@@ -233,7 +234,12 @@ export const postOrderV2Options: RouteOptions = {
             }
           }
 
-          return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder?.id };
+          return {
+            message: "Success",
+            orderId,
+            crossPostingOrderId: crossPostingOrder?.id,
+            crossPostingOrderStatus: crossPostingOrder?.status,
+          };
         }
 
         case "looks-rare": {
@@ -284,7 +290,12 @@ export const postOrderV2Options: RouteOptions = {
             }
           }
 
-          return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder?.id };
+          return {
+            message: "Success",
+            orderId,
+            crossPostingOrderId: crossPostingOrder?.id,
+            crossPostingOrderStatus: crossPostingOrder?.status,
+          };
         }
 
         case "opensea": {

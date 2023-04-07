@@ -2,7 +2,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import * as Sdk from "@reservoir0x/sdk";
 import _ from "lodash";
 
-import { idb } from "@/common/db";
+import { redb } from "@/common/db";
 import { getJoiPriceObject } from "@/common/joi";
 import { fromBuffer, getNetAmount } from "@/common/utils";
 import { Sources } from "@/models/sources";
@@ -38,7 +38,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
       try {
         const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
-        const rawResult = await idb.oneOrNone(
+        const rawResult = await redb.oneOrNone(
           `
             SELECT orders.id,
             orders.kind,
@@ -66,8 +66,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             orders.fee_breakdown,
             COALESCE(NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'), 0) AS expiration,
             orders.is_reservoir,
-            extract(epoch
-            FROM orders.created_at) AS created_at,
+            orders.created_at,
             (
             CASE
               WHEN orders.fillability_status = 'filled' THEN 'filled'
@@ -79,14 +78,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             END
           ) AS status,
             (${criteriaBuildQuery}) AS criteria
-      FROM orders
-      WHERE (orders.side = 'sell')
-        AND (orders.id = $/orderId/)
-        AND (orders.taker = '\\x0000000000000000000000000000000000000000'
-            OR orders.taker IS NULL)
-      ORDER BY orders.created_at DESC,
-              orders.id DESC
-      LIMIT 1`,
+          FROM orders
+          WHERE orders.id = $/orderId/`,
           { orderId: data.orderId }
         );
 
@@ -152,7 +145,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           expiration: Number(rawResult.expiration),
           isReservoir: rawResult.is_reservoir,
           isDynamic: Boolean(rawResult.dynamic || rawResult.kind === "sudoswap"),
-          createdAt: new Date(rawResult.created_at * 1000).toISOString(),
+          createdAt: new Date(rawResult.created_at).toISOString(),
           rawData: rawResult.raw_data,
         };
 
@@ -162,7 +155,6 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           "events",
           JSON.stringify({
             event: eventType,
-            trigger: data.kind,
             tags: {
               contract: fromBuffer(rawResult.contract),
             },
@@ -170,7 +162,10 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           })
         );
       } catch (e) {
-        logger.error("ask-websocket-event", `Error triggering event. ${e}`);
+        logger.error(
+          QUEUE_NAME,
+          `Error triggering event. error=${e}, data=${JSON.stringify(data)}`
+        );
       }
     },
     { connection: redis.duplicate(), concurrency: 20 }

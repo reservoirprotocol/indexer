@@ -27,9 +27,11 @@ export const getCollectionsFloorAskV2Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      collection: Joi.string().description(
-        "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-      ),
+      collection: Joi.string()
+        .lowercase()
+        .description(
+          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),

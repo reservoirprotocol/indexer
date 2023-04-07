@@ -225,16 +225,27 @@ export const getUserTokensV7Options: RouteOptions = {
           AND nft_balances.token_id <= $/endTokenId${i}/)
         `);
       } else if (id.match(/^0x[a-f0-9]{40}:[a-zA-Z]+-.+$/g)) {
+        const collectionParts = id.split(":");
+
         (query as any)[`collection${i}`] = id;
+        (query as any)[`contract${i}`] = toBuffer(collectionParts[0]);
 
         // List based collections
         tokensCollectionFilters.push(`
           collection_id = $/collection${i}/
         `);
+
+        nftBalanceCollectionFilters.push(`(nft_balances.contract = $/contract${i}/)`);
       } else {
         // Contract side collection
         (query as any)[`contract${i}`] = toBuffer(id);
+        (query as any)[`collection${i}`] = id;
+
         nftBalanceCollectionFilters.push(`(nft_balances.contract = $/contract${i}/)`);
+
+        tokensCollectionFilters.push(`
+          collection_id = $/collection${i}/
+        `);
       }
     };
 

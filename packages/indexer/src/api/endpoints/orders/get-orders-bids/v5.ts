@@ -62,7 +62,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       attribute: Joi.object()
         .unknown()
         .description(
-          "Filter to a particular attribute within a collection. Example: `attribute[Mouth]=Bored` (Collection must be passed as well when filtering by attribute)"
+          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/owners/v1?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/owners/v1?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`(Collection must be passed as well when filtering by attribute)"
         ),
       contracts: Joi.alternatives().try(
         Joi.array()

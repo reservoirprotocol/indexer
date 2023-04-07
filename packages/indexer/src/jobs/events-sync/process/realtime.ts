@@ -55,7 +55,7 @@ if (
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 10 }
+    { connection: redis.duplicate(), concurrency: config.chainId === 137 ? 10 : 20 }
   );
 
   worker.on("error", (error) => {
@@ -72,7 +72,7 @@ if (
         .acquire(["realtime-process-size-check-lock"], (60 - 5) * 1000)
         .then(async () => {
           const size = await queue.count();
-          if (size >= 40000) {
+          if (size >= 20000) {
             logger.error(
               "realtime-process-size-check",
               `Realtime process buffering up: size=${size}`
