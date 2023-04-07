@@ -2,7 +2,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import * as Sdk from "@reservoir0x/sdk";
 import _ from "lodash";
 
-import { idb } from "@/common/db";
+import { redb } from "@/common/db";
 import { getJoiPriceObject } from "@/common/joi";
 import { fromBuffer, getNetAmount } from "@/common/utils";
 import { Sources } from "@/models/sources";
@@ -38,7 +38,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
       try {
         const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
-        const rawResult = await idb.oneOrNone(
+        const rawResult = await redb.oneOrNone(
           `
             SELECT orders.id,
             orders.kind,
@@ -66,9 +66,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             orders.fee_breakdown,
             COALESCE(NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'), 0) AS expiration,
             orders.is_reservoir,
-            extract(epoch
-            FROM orders.created_at) AS created_at,
-            (
+            orders.created_at,
             CASE
               WHEN orders.fillability_status = 'filled' THEN 'filled'
               WHEN orders.fillability_status = 'cancelled' THEN 'cancelled'
@@ -80,13 +78,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           ) AS status,
             (${criteriaBuildQuery}) AS criteria
       FROM orders
-      WHERE (orders.side = 'sell')
-        AND (orders.id = $/orderId/)
-        AND (orders.taker = '\\x0000000000000000000000000000000000000000'
-            OR orders.taker IS NULL)
-      ORDER BY orders.created_at DESC,
-              orders.id DESC
-      LIMIT 1`,
+      WHERE orders.id = $/orderId/`,
           { orderId: data.orderId }
         );
 

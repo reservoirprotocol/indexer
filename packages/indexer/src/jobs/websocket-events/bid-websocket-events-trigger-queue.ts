@@ -8,7 +8,7 @@ import { randomUUID } from "crypto";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
 
-import { idb } from "@/common/db";
+import { redb } from "@/common/db";
 import { getJoiPriceObject } from "@/common/joi";
 import { fromBuffer, getNetAmount } from "@/common/utils";
 import { Sources } from "@/models/sources";
@@ -38,7 +38,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
       try {
         const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
-        const rawResult = await idb.oneOrNone(
+        const rawResult = await redb.oneOrNone(
           `
             SELECT orders.id,
             orders.kind,
@@ -66,9 +66,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             orders.fee_breakdown,
             COALESCE(NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'), 0) AS expiration,
             orders.is_reservoir,
-            extract(epoch
-            FROM orders.created_at) AS created_at,
-            (
+            orders.created_at,
             CASE
               WHEN orders.fillability_status = 'filled' THEN 'filled'
               WHEN orders.fillability_status = 'cancelled' THEN 'cancelled'
@@ -80,12 +78,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           ) AS status,
             (${criteriaBuildQuery}) AS criteria
       FROM orders
-      WHERE (orders.side = 'sell')
-        AND (orders.id = $/orderId/)
-        AND (orders.taker = '\\x0000000000000000000000000000000000000000'
-            OR orders.taker IS NULL)
-      ORDER BY orders.created_at DESC,
-              orders.id DESC
+      WHERE orders.id = $/orderId/
       LIMIT 1`,
           { orderId: data.orderId }
         );
@@ -152,11 +145,12 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           expiration: Number(rawResult.expiration),
           isReservoir: rawResult.is_reservoir,
           isDynamic: Boolean(rawResult.dynamic || rawResult.kind === "sudoswap"),
-          createdAt: new Date(rawResult.created_at * 1000).toISOString(),
+          createdAt: new Date(rawResult.created_at).toISOString(),
           rawData: rawResult.raw_data,
         };
 
         const eventType = data.kind === "new-order" ? "bid.created" : "bid.updated";
+
         await redisWebsocketPublisher.publish(
           "events",
           JSON.stringify({
