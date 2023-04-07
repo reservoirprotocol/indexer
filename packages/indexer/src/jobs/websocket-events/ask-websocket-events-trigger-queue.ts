@@ -145,7 +145,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           expiration: Number(rawResult.expiration),
           isReservoir: rawResult.is_reservoir,
           isDynamic: Boolean(rawResult.dynamic || rawResult.kind === "sudoswap"),
-          createdAt: new Date(rawResult.created_at * 1000).toISOString(),
+          createdAt: new Date(rawResult.created_at).toISOString(),
           rawData: rawResult.raw_data,
         };
 
