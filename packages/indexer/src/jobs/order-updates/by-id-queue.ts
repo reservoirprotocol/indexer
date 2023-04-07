@@ -17,7 +17,10 @@ import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
 import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
-import * as websocketEventsTriggerQueue from "@/jobs/websocket-events/trigger-queue";
+import {
+  WebsocketEventKind,
+  WebsocketEventRouter,
+} from "../websocket-events/websocket-event-router";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -168,12 +171,12 @@ if (config.doBackgroundWork) {
                 buyOrderResult[0].attributeId
               ) {
                 //  Only trigger websocket event for non collection offers.
-                await websocketEventsTriggerQueue.addToQueue([
-                  {
-                    kind: websocketEventsTriggerQueue.EventKind.NewTopBid,
-                    data: { orderId: buyOrderResult[0].topBuyId },
+                await WebsocketEventRouter({
+                  eventKind: WebsocketEventKind.NewTopBid,
+                  eventInfo: {
+                    orderId: buyOrderResult[0].topBuyId,
                   },
-                ]);
+                });
               }
 
               for (const result of buyOrderResult) {
@@ -440,16 +443,6 @@ if (config.doBackgroundWork) {
                   kind: processActivityEvent.EventKind.newSellOrder,
                   data: eventData,
                 };
-
-                // trigger new sell order event
-                await websocketEventsTriggerQueue.addToQueue([
-                  {
-                    kind: websocketEventsTriggerQueue.EventKind.NewSellOrder,
-                    data: {
-                      orderId: order.id,
-                    },
-                  },
-                ]);
               } else if (order.side === "buy") {
                 eventInfo = {
                   kind: processActivityEvent.EventKind.newBuyOrder,
@@ -461,8 +454,19 @@ if (config.doBackgroundWork) {
             if (eventInfo) {
               await processActivityEvent.addToQueue([eventInfo as processActivityEvent.EventInfo]);
             }
+
+            await WebsocketEventRouter({
+              eventInfo: {
+                kind: trigger.kind,
+                orderId: order.id,
+              },
+              eventKind:
+                order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
+            });
           }
         }
+
+        // handle triggering websocket events
       } catch (error) {
         logger.error(
           QUEUE_NAME,

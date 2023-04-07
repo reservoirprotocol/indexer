@@ -84,7 +84,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
                 isOpenSea: true,
                 openSeaOrderParams,
               },
-              relayToArweave: eventType === EventType.ITEM_LISTED,
               validateBidValue: true,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any;

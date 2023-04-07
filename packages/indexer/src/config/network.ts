@@ -81,6 +81,7 @@ type NetworkSettings = {
   realtimeSyncFrequencySeconds: number;
   realtimeSyncMaxBlockLag: number;
   lastBlockLatency: number;
+  headBlockDelay: number;
   backfillBlockBatchSize: number;
   metadataMintDelay: number;
   enableMetadataAutoRefresh: boolean;
@@ -108,6 +109,7 @@ export const getNetworkSettings = (): NetworkSettings => {
     realtimeSyncFrequencySeconds: 15,
     realtimeSyncMaxBlockLag: 16,
     lastBlockLatency: 5,
+    headBlockDelay: 0,
     backfillBlockBatchSize: 16,
     metadataMintDelay: 120,
     enableMetadataAutoRefresh: false,
@@ -368,7 +370,9 @@ export const getNetworkSettings = (): NetworkSettings => {
         metadataMintDelay: 180,
         enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
-        lastBlockLatency: 15,
+        realtimeSyncFrequencySeconds: 10,
+        lastBlockLatency: 10,
+        headBlockDelay: 7,
         backfillBlockBatchSize: 60,
         reorgCheckFrequency: [30],
         subDomain: "api-polygon",
@@ -423,6 +427,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncMaxBlockLag: 32,
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
+        headBlockDelay: 10,
         subDomain: "api-arbitrum",
         coingecko: {
           networkId: "arbitrum-one",

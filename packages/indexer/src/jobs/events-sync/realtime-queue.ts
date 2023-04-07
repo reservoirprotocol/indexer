@@ -46,7 +46,9 @@ if (
           // the backfill queue.
           const maxBlocks = getNetworkSettings().realtimeSyncMaxBlockLag;
 
-          const headBlock = await baseProvider.getBlockNumber();
+          // For high volume chains get up to headBlockDelay from RPC head block to avoid skipping missing blocks
+          const providerHeadBlock = await baseProvider.getBlockNumber();
+          const headBlock = providerHeadBlock - getNetworkSettings().headBlockDelay;
 
           // Fetch the last synced blocked
           let localBlock = Number(await redis.get(`${QUEUE_NAME}-last-block`));
@@ -68,7 +70,7 @@ if (
           if (localBlock + getNetworkSettings().lastBlockLatency < fromBlock) {
             logger.info(
               QUEUE_NAME,
-              `Out of sync: local block ${localBlock} and upstream block ${fromBlock} total missing ${
+              `Out of sync: local block ${localBlock} and upstream block ${fromBlock} (providerHeadBlock ${providerHeadBlock})total missing ${
                 fromBlock - localBlock
               }`
             );
@@ -87,7 +89,7 @@ if (
 
           logger.info(
             "sync-events-timing",
-            `Events realtime syncing block range [${fromBlock}, ${headBlock}] total blocks ${
+            `Events realtime syncing providerHeadBlock ${providerHeadBlock} block range [${fromBlock}, ${headBlock}] total blocks ${
               headBlock - fromBlock
             } time ${(now() - startTime) / 1000}s`
           );
@@ -106,7 +108,7 @@ if (
 
   // Monitor the job as bullmq has bugs and job might be stuck and needs to be manually removed
   cron.schedule(`*/${getNetworkSettings().realtimeSyncFrequencySeconds} * * * * *`, async () => {
-    if (_.includes([137, 42161, 10], config.chainId)) {
+    if (_.includes([1, 137, 42161, 10], config.chainId)) {
       const job = await queue.getJob(`${config.chainId}`);
 
       if (job && (await job.isFailed())) {
@@ -122,7 +124,7 @@ if (
 
 export const addToQueue = async () => {
   let jobId;
-  if (_.includes([137, 42161, 10], config.chainId)) {
+  if (_.includes([1, 137, 42161, 10], config.chainId)) {
     jobId = `${config.chainId}`;
   }
 

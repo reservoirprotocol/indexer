@@ -8,7 +8,6 @@ import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as arweaveRelay from "@/jobs/arweave-relay";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
@@ -27,18 +26,9 @@ type SaveResult = {
   unfillable?: boolean;
 };
 
-export const save = async (
-  orderInfos: OrderInfo[],
-  relayToArweave?: boolean
-): Promise<SaveResult[]> => {
+export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
-
-  const arweaveData: {
-    order: Sdk.Element.Order;
-    schemaHash?: string;
-    source?: string;
-  }[] = [];
 
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
@@ -311,10 +301,6 @@ export const save = async (
         status: "success",
         unfillable,
       });
-
-      if (relayToArweave) {
-        arweaveData.push({ order, schemaHash, source: source?.domain });
-      }
     } catch (error) {
       logger.error(
         "orders-element-save",
@@ -378,10 +364,6 @@ export const save = async (
             } as ordersUpdateById.OrderInfo)
         )
     );
-
-    if (relayToArweave) {
-      await arweaveRelay.addPendingOrdersElement(arweaveData);
-    }
   }
 
   return results;

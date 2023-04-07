@@ -58,7 +58,6 @@ export const postSeaportOffersV1Options: RouteOptions = {
       //       },
       //       metadata: {},
       //     },
-      //     relayToArweave: true,
       //     validateBidValue: true,
       //   });
       // }

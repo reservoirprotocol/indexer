@@ -20,7 +20,6 @@ export * from "@/api/endpoints/admin/post-resync-source";
 export * from "@/api/endpoints/admin/post-revalidate-order";
 export * from "@/api/endpoints/admin/post-routers";
 export * from "@/api/endpoints/admin/post-set-community";
-export * from "@/api/endpoints/admin/post-sync-arweave";
 export * from "@/api/endpoints/admin/post-sync-daily-volumes";
 export * from "@/api/endpoints/admin/post-sync-events";
 export * from "@/api/endpoints/admin/post-update-api-key";

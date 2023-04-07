@@ -1,5 +1,5 @@
 import { Filter } from "@ethersproject/abstract-provider";
-import _, { now } from "lodash";
+import _ from "lodash";
 import pLimit from "p-limit";
 
 import { logger } from "@/common/logger";
@@ -283,7 +283,6 @@ export const syncEvents = async (
   // related to every of those blocks a priori for efficiency. Otherwise, it can be
   // too inefficient to do it and in this case we just proceed (and let any further
   // processes fetch those blocks as needed / if needed).
-  let startTime = now();
   if (!backfill && toBlock - fromBlock + 1 <= 32) {
     const existingBlocks = await idb.manyOrNone(
       `
@@ -307,13 +306,6 @@ export const syncEvents = async (
       blocksToFetch.map((block) => limit(() => syncEventsUtils.fetchBlock(block, true)))
     );
   }
-
-  logger.info(
-    "sync-events-timing",
-    `RPC getBlockWithTransactions [${fromBlock}, ${toBlock}] total blocks ${
-      toBlock - fromBlock
-    } time ${(now() - startTime) / 1000}s`
-  );
 
   // Generate the events filter with one of the following options:
   // - fetch all events
@@ -344,18 +336,9 @@ export const syncEvents = async (
   }
 
   const enhancedEvents: EnhancedEvent[] = [];
-  startTime = now();
   await baseProvider.getLogs(eventFilter).then(async (logs) => {
-    logger.info(
-      "sync-events-timing",
-      `RPC getLogs [${fromBlock}, ${toBlock}] total blocks ${toBlock - fromBlock} time ${
-        (now() - startTime) / 1000
-      }s`
-    );
-
     const availableEventData = getEventData();
 
-    startTime = now();
     for (const log of logs) {
       try {
         const baseEventParams = await parseEvent(log, blocksCache);
@@ -402,22 +385,8 @@ export const syncEvents = async (
       }
     }
 
-    logger.info(
-      "sync-events-timing",
-      `Parse and save events [${fromBlock}, ${toBlock}] total blocks ${toBlock - fromBlock} time ${
-        (now() - startTime) / 1000
-      }s`
-    );
-
     // Process the retrieved events asynchronously
-    startTime = now();
     const eventsBatches = await extractEventsBatches(enhancedEvents, backfill);
-    logger.info(
-      "sync-events-timing",
-      `Extract events batches [${fromBlock}, ${toBlock}] total blocks ${toBlock - fromBlock} time ${
-        (now() - startTime) / 1000
-      }s`
-    );
 
     if (backfill) {
       await eventsSyncBackfillProcess.addToQueue(eventsBatches);

@@ -2,8 +2,6 @@
 
 // Initialize all background job queues and crons
 
-import "@/jobs/arweave-relay";
-import "@/jobs/arweave-sync";
 import "@/jobs/backfill";
 import "@/jobs/bid-updates";
 import "@/jobs/cache-check";
@@ -34,9 +32,7 @@ import * as processActivityEvent from "@/jobs/activities/process-activity-event"
 import * as processActivityBackfillEvent from "@/jobs/activities/process-activity-event-backfill";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
-import * as arweaveSyncBackfill from "@/jobs/arweave-sync/backfill-queue";
-import * as arweaveSyncRealtime from "@/jobs/arweave-sync/realtime-queue";
-
+import * as backfillCancelSeaport11Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
 import * as backfillInvalidatedOrders from "@/jobs/backfill/backfill-invalidated-orders";
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 import * as backfillFoundationSales from "@/jobs/backfill/backfill-foundation-sales";
@@ -130,8 +126,9 @@ import * as resyncAttributeKeyCounts from "@/jobs/update-attribute/resync-attrib
 import * as resyncAttributeValueCounts from "@/jobs/update-attribute/resync-attribute-value-counts";
 import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute-counts";
 
-import * as websocketEventsTriggerQueue from "@/jobs/websocket-events/trigger-queue";
-
+import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
+import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
+import * as newTopBidTriggerQueue from "@/jobs/websocket-events/new-top-bid-trigger-queue";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
@@ -155,9 +152,7 @@ export const allJobQueues = [
   processActivityBackfillEvent.queue,
   removeUnsyncedEventsActivities.queue,
 
-  arweaveSyncBackfill.queue,
-  arweaveSyncRealtime.queue,
-
+  backfillCancelSeaport11Orders.queue,
   backfillInvalidatedOrders.queue,
   backfillExpiredOrders.queue,
   backfillFoundationSales.queue,
@@ -252,7 +247,9 @@ export const allJobQueues = [
   resyncAttributeValueCounts.queue,
   updateAttributeCounts.queue,
 
-  websocketEventsTriggerQueue.queue,
+  askWebsocketEventsTriggerQueue.queue,
+  bidWebsocketEventsTriggerQueue.queue,
+  newTopBidTriggerQueue.queue,
 
   countApiUsage.queue,
 

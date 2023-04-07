@@ -148,7 +148,6 @@ if (config.doBackgroundWork) {
                   isOpenSea: true,
                   openSeaOrderParams,
                 },
-                relayToArweave: false,
                 validateBidValue: true,
               } as any;
 

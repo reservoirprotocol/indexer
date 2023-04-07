@@ -111,7 +111,7 @@ if (config.doBackgroundWork) {
         } catch (error) {
           if (error instanceof RequestWasThrottledError) {
             // If we got throttled by the api, reschedule job based on the provided delay.
-            const delay = error.delay;
+            const delay = Math.max(error.delay, 5);
 
             try {
               await rateLimiter.block(rateLimiterKey, Math.floor(delay / 1000));
@@ -195,7 +195,7 @@ const getOrderbookDefaultApiKey = (orderbook: string) => {
     case "blur":
       return config.orderFetcherApiKey;
     case "opensea":
-      return config.openSeaApiKey;
+      return config.openSeaCrossPostingApiKey;
     case "looks-rare":
       return config.looksRareApiKey;
     case "x2y2":

@@ -44,14 +44,16 @@ export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => 
               }
             : {
                 "Content-Type": "application/json",
-                // The request will fail if passing the API key on Rinkeby
+                // The request will fail if passing the API key on Opensea Testnet APIs
               },
       }
     )
     .catch((error) => {
       logger.error(
         "opensea-orderbook-api",
-        `Post OpenSea order error. order=${JSON.stringify(order)}, error=${error}, responseStatus=${
+        `Post OpenSea order error. order=${JSON.stringify(
+          order
+        )}, apiKey=${apiKey}, error=${error}, responseStatus=${
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );
@@ -95,7 +97,7 @@ export const buildCollectionOffer = async (
                 }
               : {
                   "Content-Type": "application/json",
-                  // The request will fail if passing the API key on Rinkeby
+                  // The request will fail if passing the API key on Opensea Testnet APIs
                 },
         }
       )
@@ -104,7 +106,7 @@ export const buildCollectionOffer = async (
       .catch((error) => {
         logger.error(
           "opensea-orderbook-api",
-          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, url=${url}, error=${error}, responseStatus=${
+          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, apiKey=${apiKey}, error=${error}, responseStatus=${
             error.response?.status
           }, responseData=${JSON.stringify(error.response?.data)}`
         );
@@ -154,7 +156,7 @@ export const buildTraitOffer = async (
                 }
               : {
                   "Content-Type": "application/json",
-                  // The request will fail if passing the API key on Rinkeby
+                  // The request will fail if passing the API key on Opensea Testnet APIs
                 },
         }
       )
@@ -163,7 +165,7 @@ export const buildTraitOffer = async (
       .catch((error) => {
         logger.error(
           "opensea_orderbook_api",
-          `Build OpenSea trait offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, traitType=${traitType}, traitValue=${traitValue}, error=${error}, responseStatus=${
+          `Build OpenSea trait offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, traitType=${traitType}, traitValue=${traitValue}, apiKey=${apiKey}, error=${error}, responseStatus=${
             error.response?.status
           }, responseData=${JSON.stringify(error.response?.data)}`
         );
@@ -182,7 +184,8 @@ export const postCollectionOffer = async (
   collectionSlug: string,
   apiKey: string
 ) => {
-  const url = `https://${getOpenseaSubDomain()}.opensea.io/v2/offers`;
+  const url = `${getOpenseaBaseUrl()}/v2/offers`;
+
   const data = JSON.stringify({
     criteria: {
       collection: {
@@ -209,7 +212,7 @@ export const postCollectionOffer = async (
             }
           : {
               "Content-Type": "application/json",
-              // The request will fail if passing the API key on Rinkeby
+              // The request will fail if passing the API key on Opensea Testnet APIs
             },
     })
     .catch((error) => {
@@ -217,7 +220,7 @@ export const postCollectionOffer = async (
         "opensea-orderbook-api",
         `Post OpenSea collection offer error. order=${JSON.stringify(
           order
-        )}, collectionSlug=${collectionSlug}, url=${url}, data=${data}, error=${error}, responseStatus=${
+        )}, collectionSlug=${collectionSlug}, apiKey=${apiKey}, data=${data}, error=${error}, responseStatus=${
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );
@@ -267,7 +270,7 @@ export const postTraitOffer = async (
             }
           : {
               "Content-Type": "application/json",
-              // The request will fail if passing the API key on Rinkeby
+              // The request will fail if passing the API key on Opensea Testnet APIs
             },
     })
     .catch((error) => {
@@ -275,7 +278,7 @@ export const postTraitOffer = async (
         "opensea-orderbook-api",
         `Post OpenSea trait offer error. order=${JSON.stringify(
           order
-        )}, collectionSlug=${collectionSlug}, url=${url}, data=${data}, error=${error}, responseStatus=${
+        )}, collectionSlug=${collectionSlug}, apiKey=${apiKey}, data=${data}, error=${error}, responseStatus=${
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );

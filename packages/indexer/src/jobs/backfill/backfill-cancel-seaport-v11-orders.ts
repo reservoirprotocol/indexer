@@ -1,15 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { HashZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
-const QUEUE_NAME = "backfill-cancel-wyvern-v23-orders";
+const QUEUE_NAME = "backfill-cancel-seaport-v11-orders";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -37,8 +38,10 @@ if (config.doBackgroundWork) {
                 orders.id,
                 orders.fillability_status
               FROM orders
-              WHERE orders.kind = 'wyvern-v2.3'
+              WHERE orders.kind = 'seaport'
                 AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
+                AND orders.conduit = '\\x1e0049783f008a0085193e00003d00cd54003c71'
+                AND orders.contract IS NOT NULL
                 AND orders.id > $/id/
               ORDER BY orders.id
               LIMIT $/limit/
@@ -84,16 +87,20 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  // !!! DISABLED
-
-  // redlock
-  //   .acquire([`${QUEUE_NAME}-lock-3`], 60 * 60 * 24 * 30 * 1000)
-  //   .then(async () => {
-  //     await addToQueue(HashZero);
-  //   })
-  //   .catch(() => {
-  //     // Skip on any errors
-  //   });
+  if (config.chainId === 1) {
+    redlock
+      .acquire([`${QUEUE_NAME}-lock-5`], 60 * 60 * 24 * 30 * 1000)
+      .then(async () => {
+        await addToQueue("0x3" + HashZero.slice(3));
+        await addToQueue("0x6" + HashZero.slice(3));
+        await addToQueue("0x9" + HashZero.slice(3));
+        await addToQueue("0xb" + HashZero.slice(3));
+        await addToQueue("0xe" + HashZero.slice(3));
+      })
+      .catch(() => {
+        // Skip on any errors
+      });
+  }
 }
 
 export const addToQueue = async (id: string) => {

@@ -235,7 +235,7 @@ export class Activities {
 
     baseQuery += ` LIMIT $/limit/`;
 
-    const activities: ActivitiesEntityParams[] | null = await idb.manyOrNone(baseQuery, {
+    const activities: ActivitiesEntityParams[] | null = await redb.manyOrNone(baseQuery, {
       limit,
       id,
       eventTimestamp,
@@ -450,12 +450,11 @@ export class Activities {
       types: _.join(types, "','"),
     };
 
-    const baseQuery =
-      collectionIds
-        .map((collectionId, i) => {
-          (query as any)[`collectionId${i}`] = collectionId;
+    let baseQuery = collectionIds
+      .map((collectionId, i) => {
+        (query as any)[`collectionId${i}`] = collectionId;
 
-          return `(
+        return `(
             SELECT *
             FROM activities        
             ${metadataQuery}
@@ -466,11 +465,15 @@ export class Activities {
             ORDER BY activities.${sortByColumn} DESC NULLS LAST
             LIMIT $/limit/ 
           )`;
-        })
-        .join(" UNION ALL ") +
-      ` ORDER BY ${sortByColumn} DESC NULLS LAST
-            LIMIT $/limit/
-        `;
+      })
+      .join(" UNION ALL ");
+
+    if (collectionIds.length > 1) {
+      baseQuery += `
+        ORDER BY ${sortByColumn} DESC NULLS LAST
+        LIMIT $/limit/
+      `;
+    }
 
     const activities: ActivitiesEntityParams[] | null = await redb.manyOrNone(baseQuery, query);
 

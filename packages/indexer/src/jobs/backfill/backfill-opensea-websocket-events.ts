@@ -82,7 +82,6 @@ if (config.doBackgroundWork) {
                   metadata: {},
                   openSeaOrderParams,
                 } as orders.seaport.OrderInfo,
-                relayToArweave: eventType === EventType.ITEM_LISTED,
                 validateBidValue: true,
               };
 
