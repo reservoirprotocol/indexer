@@ -189,9 +189,10 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
 
       const rawResult = await redb.manyOrNone(baseQuery, query);
 
-      let oldOrders = 0;
-      if (rawResult.length === limit && query.oldOrders) {
-        oldOrders = 1;
+      let oldOrders = 1;
+
+      if (!query.oldOrders || (rawResult.length !== limit && query.oldOrders)) {
+        oldOrders = 0;
       }
 
       const continuation = buildContinuation(
