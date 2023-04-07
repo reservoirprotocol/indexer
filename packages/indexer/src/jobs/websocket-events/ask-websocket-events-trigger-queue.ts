@@ -67,6 +67,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             COALESCE(NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'), 0) AS expiration,
             orders.is_reservoir,
             orders.created_at,
+            (
             CASE
               WHEN orders.fillability_status = 'filled' THEN 'filled'
               WHEN orders.fillability_status = 'cancelled' THEN 'cancelled'
