@@ -51,7 +51,9 @@ export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => 
     .catch((error) => {
       logger.error(
         "opensea-orderbook-api",
-        `Post OpenSea order error. order=${JSON.stringify(order)}, error=${error}, responseStatus=${
+        `Post OpenSea order error. order=${JSON.stringify(
+          order
+        )}, apiKey=${apiKey}, error=${error}, responseStatus=${
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );
@@ -104,7 +106,7 @@ export const buildCollectionOffer = async (
       .catch((error) => {
         logger.error(
           "opensea-orderbook-api",
-          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, url=${url}, error=${error}, responseStatus=${
+          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, apiKey=${apiKey}, error=${error}, responseStatus=${
             error.response?.status
           }, responseData=${JSON.stringify(error.response?.data)}`
         );
@@ -163,7 +165,7 @@ export const buildTraitOffer = async (
       .catch((error) => {
         logger.error(
           "opensea_orderbook_api",
-          `Build OpenSea trait offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, traitType=${traitType}, traitValue=${traitValue}, error=${error}, responseStatus=${
+          `Build OpenSea trait offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, traitType=${traitType}, traitValue=${traitValue}, apiKey=${apiKey}, error=${error}, responseStatus=${
             error.response?.status
           }, responseData=${JSON.stringify(error.response?.data)}`
         );
@@ -218,7 +220,7 @@ export const postCollectionOffer = async (
         "opensea-orderbook-api",
         `Post OpenSea collection offer error. order=${JSON.stringify(
           order
-        )}, collectionSlug=${collectionSlug}, url=${url}, apiKey=${apiKey}, data=${data}, error=${error}, responseStatus=${
+        )}, collectionSlug=${collectionSlug}, apiKey=${apiKey}, data=${data}, error=${error}, responseStatus=${
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );
@@ -276,7 +278,7 @@ export const postTraitOffer = async (
         "opensea-orderbook-api",
         `Post OpenSea trait offer error. order=${JSON.stringify(
           order
-        )}, collectionSlug=${collectionSlug}, url=${url}, data=${data}, error=${error}, responseStatus=${
+        )}, collectionSlug=${collectionSlug}, apiKey=${apiKey}, data=${data}, error=${error}, responseStatus=${
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );

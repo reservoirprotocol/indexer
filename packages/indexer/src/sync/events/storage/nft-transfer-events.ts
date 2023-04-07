@@ -36,10 +36,8 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
   // Keep track of all unique contracts and tokens
   const uniqueContracts = new Set<string>();
   const uniqueTokens = new Set<string>();
-  const uniqueOwners = new Set<string>();
 
   const transferValues: DbEvent[] = [];
-  const uniqueOwnersTransferValues = [];
 
   const contractValues: {
     address: Buffer;
@@ -55,19 +53,6 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
 
   for (const event of events) {
     const contractId = event.baseEventParams.address.toString();
-
-    const ownerFrom = `${event.from}:${contractId}:${event.tokenId}`;
-    const ownerTo = `${event.to}:${contractId}:${event.tokenId}`;
-
-    // Once we already update an owner create new array in order to split the update queries later
-    // if (uniqueOwners.has(ownerFrom) || uniqueOwners.has(ownerTo)) {
-    //   uniqueOwnersTransferValues.push(transferValues);
-    //   transferValues = [];
-    //   uniqueOwners.clear();
-    // }
-
-    uniqueOwners.add(ownerFrom);
-    uniqueOwners.add(ownerTo);
 
     transferValues.push({
       address: toBuffer(event.baseEventParams.address),
@@ -106,13 +91,8 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
     }
   }
 
-  // Add the last batch of transfer values
   if (transferValues.length) {
-    uniqueOwnersTransferValues.push(transferValues);
-  }
-
-  if (uniqueOwnersTransferValues.length) {
-    for (const transferEvents of uniqueOwnersTransferValues) {
+    for (const event of transferValues) {
       const nftTransferQueries: string[] = [];
       const columns = new pgp.helpers.ColumnSet(
         [
@@ -148,7 +128,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "to",
             "token_id",
             "amount"
-          ) VALUES ${pgp.helpers.values(transferEvents, columns)}
+          ) VALUES ${pgp.helpers.values(event, columns)}
           ON CONFLICT DO NOTHING
           RETURNING
             "address",
