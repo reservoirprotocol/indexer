@@ -171,8 +171,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
     { connection: redis.duplicate(), concurrency: 20 }
   );
 
-  worker.on("failed", async (job) => {
-    logger.error(QUEUE_NAME, `Worker failed. job=${JSON.stringify(job)}`);
+  worker.on("error", (error) => {
+    logger.error(QUEUE_NAME, `Worker errored. error=${JSON.stringify(error)}`);
   });
 }
 
