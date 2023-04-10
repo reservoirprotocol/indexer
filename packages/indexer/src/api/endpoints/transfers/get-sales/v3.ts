@@ -265,6 +265,7 @@ export const getSalesV3Options: RouteOptions = {
             ${tokenFilter}
             ${paginationFilter}
             ${timestampFilter}
+            AND is_deleted = 0
           ORDER BY
             fill_events_2.timestamp DESC,
             fill_events_2.log_index DESC,

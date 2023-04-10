@@ -1,6 +1,6 @@
 {
   "name": "@reservoir0x/indexer",
-  "version": "5.296.1",
+  "version": "6.0.0-dev.24",
   "description": "Reservoir Protocol Indexer",
   "license": "MIT",
   "private": true,
@@ -29,6 +29,7 @@
     "@poprank/rankings": "1.1.20",
     "@reservoir0x/sdk": "*",
     "@types/date-fns": "^2.6.0",
+    "@types/flat": "^5.0.2",
     "@types/hapi__basic": "^5.1.2",
     "@types/hapi__hapi": "^20.0.9",
     "@types/hapi__inert": "^5.2.3",
@@ -52,6 +53,7 @@
     "eslint": "^8.10.0",
     "eslint-config-prettier": "^8.5.0",
     "ethers": "^5.7.2",
+    "flat": "^5.0.2",
     "graphql": "^16.3.0",
     "graphql-request": "^4.0.0",
     "hapi-pulse": "^3.0.0",

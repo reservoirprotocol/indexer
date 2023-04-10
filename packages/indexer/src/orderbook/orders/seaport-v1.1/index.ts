@@ -1,7 +1,6 @@
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
-import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
 import _ from "lodash";
 import pLimit from "p-limit";
 
@@ -37,7 +36,7 @@ export type OrderInfo = {
 };
 
 export declare type OpenseaOrderParams = {
-  kind: OrderKind;
+  kind: Sdk.SeaportBase.Types.OrderKind;
   side: "buy" | "sell";
   hash: string;
   price?: string;

@@ -356,6 +356,7 @@ export const getCollectionsV5Options: RouteOptions = {
             COUNT(*) AS total_sale_count
           FROM fill_events_2 fe
           WHERE fe.contract = x.contract
+          AND fe.is_deleted = 0
         ) s ON TRUE
       `;
       }

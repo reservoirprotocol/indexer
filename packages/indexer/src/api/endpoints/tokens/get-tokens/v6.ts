@@ -430,7 +430,7 @@ export const getTokensV6Options: RouteOptions = {
           fe.royalty_fee_breakdown AS last_sale_royalty_fee_breakdown,
           fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown
         FROM fill_events_2 fe
-        WHERE fe.contract = t.contract AND fe.token_id = t.token_id
+        WHERE fe.contract = t.contract AND fe.token_id = t.token_id AND fe.is_deleted = 0
         ORDER BY timestamp DESC LIMIT 1
         ) r ON TRUE
         `;

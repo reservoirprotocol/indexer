@@ -107,6 +107,7 @@ export class DailyVolume {
               "fe"."timestamp" >= $/startTime/
               AND "fe"."timestamp" < $/endTime/
               AND fe.price > 0
+              AND fe.is_deleted = 0
               AND fe.is_primary IS NOT TRUE 
               ${collectionId ? "AND collection_id = $/collectionId/" : ""}
             GROUP BY "collection_id") t1
@@ -124,6 +125,7 @@ export class DailyVolume {
               "fe"."timestamp" >= $/startTime/
               AND "fe"."timestamp" < $/endTime/
               AND fe.price > 0
+              AND fe.is_deleted = 0
               AND fe.is_primary IS NOT TRUE 
               AND coalesce(fe.wash_trading_score, 0) = 0
               ${collectionId ? "AND collection_id = $/collectionId/" : ""}
@@ -265,6 +267,7 @@ export class DailyVolume {
             FROM fill_events_2 fe2
             JOIN tokens t ON fe2.token_id = t.token_id AND fe2.contract = t.contract
             WHERE fe2.price > 0
+            AND fe.is_deleted = 0
             AND "fe2"."timestamp" < $/yesterdayTimestamp/
             AND "fe2".timestamp >= $/endYesterdayTimestamp/
             ${collectionId ? "AND t.collection_id = $/collectionId/" : ""}
@@ -273,6 +276,7 @@ export class DailyVolume {
         WHERE
           "fe"."timestamp" >= $/yesterdayTimestamp/
           AND fe.price > 0
+          AND fe.is_deleted = 0
           AND fe.is_primary IS NOT TRUE
           AND coalesce(fe.wash_trading_score, 0) = 0
           ${collectionId ? "AND t.collection_id = $/collectionId/" : ""}
@@ -281,7 +285,6 @@ export class DailyVolume {
       {
         yesterdayTimestamp: startTime,
         endYesterdayTimestamp: startTime - 24 * 60 * 60,
-
         collectionId,
       }
     );
