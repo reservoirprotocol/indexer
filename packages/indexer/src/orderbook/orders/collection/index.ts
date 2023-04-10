@@ -218,7 +218,7 @@ const computeRoyaltyInfo = async (
  * pool for these values and saves them in the DB. Effectively a cache load for
  * immutable params.
  */
-const getPoolDetails = async (address: string) =>
+export const getPoolDetails = async (address: string) =>
   getCollectionPool(address).catch(async () => {
     if (Sdk.Collection.Addresses.CollectionPoolFactory[config.chainId]) {
       const poolIface = new Interface([
@@ -241,7 +241,7 @@ const getPoolDetails = async (address: string) =>
         const factory = new Contract(
           Sdk.Collection.Addresses.CollectionPoolFactory[config.chainId],
           new Interface([
-            "function isPoolVariant(address potentialPool, PoolVariant variant) view returns (bool)",
+            "function isPoolVariant(address potentialPool, uint8 variant) view returns (bool)",
           ]),
           baseProvider
         );
@@ -298,10 +298,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         new Interface([
           `
             function getBuyNFTQuote(uint256) view returns (
-              (uint128,uint128,bytes,bytes) newParams,
+              tuple(uint128 spotPrice,uint128 delta,bytes props,bytes state) newParams,
               uint256 totalAmount,
               uint256 inputAmount,
-              (uint256,uint256,uint256[]) fees
+              tuple(uint256 trade,uint256 protocol,uint256[] royalties) fees
             )
           `,
           `
@@ -313,12 +313,12 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             )
           `,
           `function liquidity() view returns (uint256)`,
-          `feeMultipliers() view returns (
-            (uint24,uint24,uint24,uint24)
+          `function feeMultipliers() view returns (
+            tuple(uint24 trade,uint24 protocol,uint24 royaltyNumerator,uint24 carry)
           )`,
           `function getRoyaltyRecipient(address payable erc2981Recipient) view returns (address payable)`,
           `function getAllHeldIds() view returns (uint256[])`,
-          `function tokenIDFilterRoot view returns (bytes32)`,
+          `function tokenIDFilterRoot() view returns (bytes32)`,
         ]),
         baseProvider
       );
