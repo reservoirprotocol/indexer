@@ -75,57 +75,50 @@ export const buildCollectionOffer = async (
 ) => {
   const url = `${config.openSeaCrossPostingApiUrl || getOpenseaBaseUrl()}/v2/offers/build`;
 
-  return axios
-    .post(
-      url,
-      JSON.stringify({
-        offerer,
-        quantity,
-        criteria: {
-          collection: {
-            slug: collectionSlug,
+  return (
+    axios
+      .post(
+        url,
+        JSON.stringify({
+          offerer,
+          quantity,
+          criteria: {
+            collection: {
+              slug: collectionSlug,
+            },
           },
-        },
-      }),
-      {
-        headers:
-          config.chainId != 5
-            ? {
-                "Content-Type": "application/json",
-                [config.openSeaCrossPostingApiKeyHeader]:
-                  apiKey || config.openSeaCrossPostingApiKey,
-              }
-            : {
-                "Content-Type": "application/json",
-                // The request will fail if passing the API key on Opensea Testnet APIs
-              },
-      }
-    )
-    .then((response) => {
-      logger.info(
-        "opensea-orderbook-api",
-        `Build OpenSea collection offer response. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, apiKey=${apiKey}, responseData=${JSON.stringify(
-          response.data
-        )}`
-      );
-
+        }),
+        {
+          headers:
+            config.chainId != 5
+              ? {
+                  "Content-Type": "application/json",
+                  [config.openSeaCrossPostingApiKeyHeader]:
+                    apiKey || config.openSeaCrossPostingApiKey,
+                }
+              : {
+                  "Content-Type": "application/json",
+                  // The request will fail if passing the API key on Opensea Testnet APIs
+                },
+        }
+      )
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return response.data as any;
-    })
-    .catch((error) => {
-      logger.error(
-        "opensea-orderbook-api",
-        `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, apiKey=${apiKey}, error=${error}, responseStatus=${
-          error.response?.status
-        }, responseData=${JSON.stringify(error.response?.data)}`
-      );
+      .then((response) => response.data as any)
+      .catch((error) => {
+        logger.error(
+          "opensea-orderbook-api",
+          `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, apiKey=${apiKey}, error=${error}, responseStatus=${
+            error.response?.status
+          }, responseData=${JSON.stringify(error.response?.data)}`
+        );
 
-      if (error.response) {
-        handleErrorResponse(error.response);
-      }
+        if (error.response) {
+          handleErrorResponse(error.response);
+        }
 
-      throw new Error(`Failed to build OpenSea collection offer`);
-    });
+        throw new Error(`Failed to build OpenSea collection offer`);
+      })
+  );
 };
 
 export const buildTraitOffer = async (
@@ -319,10 +312,16 @@ const handleErrorResponse = (response: any) => {
       const error = response.data.errors?.toString();
       const message = `Request was rejected by OpenSea. error=${error}`;
 
-      if (
-        error === "You have provided fees that we cannot attribute to OpenSea or the collection"
-      ) {
-        throw new InvalidRequestError(message, InvalidRequestErrorKind.InvalidFees);
+      const invalidFeeErrors = [
+        "You have provided a fee",
+        "You have not provided all required creator fees",
+        "You have provided fees that we cannot attribute to OpenSea or the collection",
+      ];
+
+      for (const invalidFeeError of invalidFeeErrors) {
+        if (invalidFeeError.startsWith(error)) {
+          throw new InvalidRequestError(message, InvalidRequestErrorKind.InvalidFees);
+        }
       }
 
       throw new InvalidRequestError(message);
