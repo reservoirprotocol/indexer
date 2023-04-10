@@ -20,7 +20,7 @@ import {
   getCollectionPool,
   saveCollectionPool,
 } from "@/models/collection-pools";
-import { BigNumber } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import { TokenIDs } from "fummpel";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import { generateMerkleTree } from "@reservoir0x/sdk/src/common/helpers/merkle";
@@ -31,8 +31,9 @@ const factoryAddress = Sdk.Collection.Addresses.CollectionPoolFactory[config.cha
 export type OrderInfo = {
   orderParams: {
     pool: string;
-    // Should be TokenIDs.encode([]) for unfiltered pools
-    encodedTokenIds: Uint8Array;
+    // Should be undefined if the trigger was an event which should not change
+    // the existing merkle root
+    encodedTokenIds?: Uint8Array;
     // Validation parameters (for ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
@@ -317,6 +318,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           )`,
           `function getRoyaltyRecipient(address payable erc2981Recipient) view returns (address payable)`,
           `function getAllHeldIds() view returns (uint256[])`,
+          `function tokenIDFilterRoot view returns (bytes32)`,
         ]),
         baseProvider
       );
@@ -397,23 +399,29 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             const orderResult = await idb.oneOrNone(
               `
                 SELECT
-                  orders.token_set_id
+                  orders.token_set_id,
+                  orders.token_set_schema_hash
                 FROM orders
                 WHERE orders.id = $/id/
               `,
               { id }
             );
 
-            // No entry found, create new row
-            if (!orderResult) {
-              // Handle: token set
-              const schemaHash = generateSchemaHash();
-              // Check if pool is filtered
-              const acceptedSet = TokenIDs.decode(orderParams.encodedTokenIds)
-                .tokens()
-                .map((bi) => BigNumber.from(bi));
-              let tokenSetId;
-              if (acceptedSet.length === 0) {
+            // If there's an existing order, first hold onto existing values.
+            // If the orderParams passes encodedTokenIds, then it should mutate
+            // these columns.
+            let tokenSetId = orderResult?.token_set_id;
+            let schemaHash = orderResult?.token_set_schema_hash;
+            // Check if there's encodedTokenIds to process. If not, just don't
+            // change the values existing in DB.
+            if (orderParams.encodedTokenIds !== undefined) {
+              const isFiltered =
+                (await poolContract.tokenIDFilterRoot()) === ethers.constants.HashZero;
+
+              if (!isFiltered) {
+                // Non-filtered pool, save tokenSetId and schema hash of a
+                // contract TokenSet
+                schemaHash = generateSchemaHash();
                 tokenSetId = `contract:${pool.nft}`.toLowerCase();
                 await tokenSet.contractWide.save([
                   {
@@ -423,6 +431,12 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   },
                 ]);
               } else {
+                // Filtered pool, save tokenSetId and schema hash of a
+                // token-list TokenSet
+                const acceptedSet = TokenIDs.decode(orderParams.encodedTokenIds)
+                  .tokens()
+                  .map((bi) => BigNumber.from(bi));
+
                 const merkleTree = generateMerkleTree(acceptedSet);
                 tokenSetId = `list:${pool.nft}:${merkleTree.getHexRoot()}`;
                 const schema = {
@@ -432,13 +446,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     tokenSetId, // Used for lookup in token set table
                   },
                 };
+                schemaHash = generateSchemaHash(schema);
                 await tokenSet.tokenList.save([
                   {
                     // This must === `list:${pool.nft}:${generateMerkleTree(acceptedSet).getHexRoot()}`
                     // in the TokenSet.isValid() function
                     id: tokenSetId,
                     schema,
-                    schemaHash: generateSchemaHash(schema),
+                    schemaHash,
                     items: {
                       contract: pool.nft,
                       // This stores all tokenIds which are known to belong to this merkle tree
@@ -447,7 +462,24 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   } as TokenSet,
                 ]);
               }
+            }
 
+            // By this point, there should be a valid token set id and schema
+            // hash for the order to be defined
+            if (tokenSetId === undefined || schemaHash === undefined) {
+              results.push({
+                id,
+                txHash: orderParams.txHash,
+                txTimestamp: orderParams.txTimestamp,
+                status: "invalid-token-set",
+              });
+              return;
+            }
+
+            // No entry found, create new row. Only columns which are constant
+            // for all buy orders should be in this if-branch. Everything else
+            // might need to be updated
+            if (!orderResult) {
               // Handle: source
               const sources = await Sources.getInstance();
               const source = await sources.getOrInsert("collection.xyz");
@@ -519,7 +551,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     fee_bps = $/feeBps/,
                     fee_breakdown = $/feeBreakdown:json/,
                     block_number = $/blockNumber/,
-                    log_index = $/logIndex/
+                    log_index = $/logIndex/,
+                    token_set_id = $/tokenSetId/,
+                    token_set_schema_hash = $/schemaHash/
                   WHERE orders.id = $/id/
                     AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
                 `,
@@ -538,6 +572,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   feeBreakdown: feeBreakdown,
                   blockNumber: orderParams.txBlock,
                   logIndex: orderParams.logIndex,
+                  tokenSetId,
+                  schemaHash: toBuffer(schemaHash),
                 }
               );
 
