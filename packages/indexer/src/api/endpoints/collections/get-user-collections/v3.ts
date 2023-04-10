@@ -170,6 +170,19 @@ export const getUserCollectionsV3Options: RouteOptions = {
               AND amount > 0
             ORDER BY last_token_appraisal_value DESC NULLS LAST
             LIMIT 10000
+        ),
+        token_images AS (
+            SELECT tokens.collection_id, tokens.image,
+                  ROW_NUMBER() OVER (PARTITION BY tokens.collection_id ORDER BY tokens.token_id) AS image_row_num
+            FROM nbsample
+            JOIN tokens ON nbsample.contract = tokens.contract AND nbsample.token_id = tokens.token_id
+            WHERE tokens.image IS NOT NULL
+        ),
+        filtered_token_images AS (
+            SELECT collection_id, array_agg(image) AS images
+            FROM token_images
+            WHERE image_row_num <= 4
+            GROUP BY collection_id
         )
         SELECT  collections.id,
                 collections.slug,
@@ -183,7 +196,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 collections.contract,
                 collections.token_set_id,
                 collections.token_count,
-                array_agg(tokens.image) FILTER (WHERE tokens.image IS NOT NULL) AS sample_images,
+                filtered_token_images.images AS sample_images,
                 collections.day1_volume,
                 collections.day7_volume,
                 collections.day30_volume,
@@ -210,6 +223,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
         JOIN tokens ON nbsample.contract = tokens.contract AND nbsample.token_id = tokens.token_id
         ${liquidCount}
         JOIN collections ON tokens.collection_id = collections.id
+        LEFT JOIN filtered_token_images ON collections.id = filtered_token_images.collection_id
       `;
 
       // Filters
@@ -238,7 +252,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
       }
 
       // Grouping
-      baseQuery += ` GROUP BY collections.id, nbsample.owner`;
+      baseQuery += ` GROUP BY collections.id, nbsample.owner, filtered_token_images.images`;
 
       // Sorting
       baseQuery += ` ORDER BY collections.all_time_volume DESC`;
@@ -281,7 +295,6 @@ export const getUserCollectionsV3Options: RouteOptions = {
       `;
 
       const result = await redb.manyOrNone(baseQuery, { ...params, ...query });
-
       const sources = await Sources.getInstance();
 
       const collections = _.map(result, async (r) => {
