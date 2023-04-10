@@ -183,14 +183,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 collections.contract,
                 collections.token_set_id,
                 collections.token_count,
-                (
-                  SELECT array(
-                    SELECT tokens.image FROM tokens
-                    WHERE tokens.collection_id = collections.id
-                    AND tokens.image IS NOT NULL
-                    LIMIT 4
-                  )
-                ) AS sample_images,
+                array_agg(tokens.image) FILTER (WHERE tokens.image IS NOT NULL) AS sample_images,
                 collections.day1_volume,
                 collections.day7_volume,
                 collections.day30_volume,
