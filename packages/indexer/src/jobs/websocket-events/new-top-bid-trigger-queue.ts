@@ -31,7 +31,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
     async (job: Job) => {
       const { data } = job.data as EventInfo;
 
-      NewTopBidWebsocketEvent.triggerEvent(data);
+      await NewTopBidWebsocketEvent.triggerEvent(data);
     },
     { connection: redis.duplicate(), concurrency: 20 }
   );
