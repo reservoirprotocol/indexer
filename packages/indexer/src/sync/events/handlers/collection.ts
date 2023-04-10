@@ -6,9 +6,9 @@ import { bn } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
-import * as sudoswap from "@/orderbook/orders/sudoswap";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import * as sudoswapUtils from "@/utils/sudoswap";
+import { baseProvider } from "@/common/provider";
+import { acceptsTokenIds } from "@/events-sync/data/collection";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For keeping track of all individual trades per transaction
@@ -22,7 +22,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
       // =========== BEGIN SUDOSWAP REFERENCE CODE ===========
-      case "sudoswap-buy": {
+      case "collection-swap-nft-in-pool": {
         const swapTokenForAnyNFTs = "0x28b8aee1";
         const swapTokenForSpecificNFTs = "0x6d8b99f7";
 
@@ -307,7 +307,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      case "sudoswap-sell": {
+      case "collection-swap-nft-out-pool": {
         const swapNFTsForToken = "0xb1d3f1c1";
 
         const txHash = baseEventParams.txHash;
@@ -469,13 +469,26 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
+      // =========== END SUDOSWAP REFERENCE CODE ===========
 
-      case "sudoswap-new-pair": {
+      case "collection-new-pool": {
         const parsedLog = eventData.abi.parseLog(log);
-        const pool = parsedLog.args["pool"].toLowerCase();
+        const pool = parsedLog.args["poolAddress"].toLowerCase();
+
+        // New pools will need encoded tokenIds from the AcceptsTokenIDs event
+        const receipt = await baseProvider.getTransactionReceipt(baseEventParams.txHash);
+        const acceptsTokenIdsLog = receipt.logs.map((log) => {
+          try {
+            return acceptsTokenIds.abi.parseLog(log);
+          } catch (err) {
+            return undefined;
+          }
+        })[0];
+
+        const encodedTokenIds = acceptsTokenIdsLog?.args["_data"];
 
         onChainData.orders.push({
-          kind: "sudoswap",
+          kind: "collection",
           info: {
             orderParams: {
               pool,
@@ -483,6 +496,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               txTimestamp: baseEventParams.timestamp,
               txBlock: baseEventParams.block,
               logIndex: baseEventParams.logIndex,
+              encodedTokenIds,
             },
             metadata: {},
           },
@@ -490,13 +504,45 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
+      case "collection-accepts-token-ids": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const encodedTokenIds = parsedLog.args["_data"];
 
-      case "sudoswap-token-deposit":
-      case "sudoswap-token-withdrawal":
-      case "sudoswap-spot-price-update":
-      case "sudoswap-delta-update": {
         onChainData.orders.push({
-          kind: "sudoswap",
+          kind: "collection",
+          info: {
+            orderParams: {
+              pool: baseEventParams.address,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+              txBlock: baseEventParams.block,
+              logIndex: baseEventParams.logIndex,
+              encodedTokenIds,
+            },
+            metadata: {},
+          },
+        });
+
+        break;
+      }
+      case "collection-accrued-trade-fee-withdrawal":
+      case "collection-spot-price-update":
+      case "collection-delta-update":
+      case "collection-props-update":
+      case "collection-state-update":
+      case "collection-royalty-numerator-update":
+      case "collection-royalty-recipient-fallback-update":
+      case "collection-external-filter-set":
+      case "collection-fee-update":
+      case "collection-protocol-fee-multiplier-update":
+      case "collection-carry-fee-multiplier-update":
+      case "collection-asset-recipient-change":
+      case "collection-token-deposit":
+      case "collection-token-withdrawal":
+      case "collection-nft-deposit":
+      case "collection-nft-withdrawal": {
+        onChainData.orders.push({
+          kind: "collection",
           info: {
             orderParams: {
               pool: baseEventParams.address,
@@ -511,7 +557,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
-      // =========== END SUDOSWAP REFERENCE CODE ===========
     }
   }
 };
