@@ -28,8 +28,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "yarn"
 
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
       - name: Install dependencies
-        run: "yarn install"
+        run: "bun install"
 
       # - name: Get Release Versions
       #   uses: cycjimmy/semantic-release-action@v3
