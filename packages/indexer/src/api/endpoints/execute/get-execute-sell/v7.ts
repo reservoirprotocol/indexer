@@ -61,7 +61,6 @@ export const getExecuteSellV7Options: RouteOptions = {
                   "x2y2",
                   "universe",
                   "rarible",
-                  "infinity",
                   "sudoswap",
                   "nftx"
                 )
@@ -703,7 +702,6 @@ export const getExecuteSellV7Options: RouteOptions = {
         openseaApiKey: payload.openseaApiKey,
         cbApiKey: config.cbApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
-        orderFetcherApiKey: config.orderFetcherApiKey,
       });
 
       const { customTokenAddresses } = getNetworkSettings();

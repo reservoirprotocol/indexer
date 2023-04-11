@@ -42,10 +42,6 @@ import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 import * as universeSellToken from "@/orderbook/orders/universe/build/sell/token";
 import * as universeCheck from "@/orderbook/orders/universe/check";
 
-// Infinity
-import * as infinitySellToken from "@/orderbook/orders/infinity/build/sell/token";
-import * as infinityCheck from "@/orderbook/orders/infinity/check";
-
 // Flow
 import * as flowSellToken from "@/orderbook/orders/flow/build/sell/token";
 import * as flowCheck from "@/orderbook/orders/flow/check";
@@ -103,7 +99,6 @@ export const getExecuteListV5Options: RouteOptions = {
               "seaport-v1.4",
               "x2y2",
               "universe",
-              "infinity",
               "flow"
             )
             .default("seaport-v1.4")
@@ -119,16 +114,7 @@ export const getExecuteListV5Options: RouteOptions = {
             }),
           }).description("Additional options."),
           orderbook: Joi.string()
-            .valid(
-              "blur",
-              "opensea",
-              "looks-rare",
-              "reservoir",
-              "x2y2",
-              "universe",
-              "infinity",
-              "flow"
-            )
+            .valid("blur", "opensea", "looks-rare", "reservoir", "x2y2", "universe", "flow")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
@@ -285,11 +271,7 @@ export const getExecuteListV5Options: RouteOptions = {
           let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
           if (!blurAuthChallenge) {
             blurAuthChallenge = (await axios
-              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`, {
-                headers: {
-                  "X-Api-Key": config.orderFetcherApiKey,
-                },
-              })
+              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
               .then((response) => response.data.authChallenge)) as b.AuthChallenge;
 
             await b.saveAuthChallenge(
@@ -506,74 +488,6 @@ export const getExecuteListV5Options: RouteOptions = {
                         },
                         orderbook: params.orderbook,
                         orderbookApiKey: params.orderbookApiKey,
-                        source,
-                      },
-                    },
-                  },
-                  orderIndexes: [i],
-                });
-
-                break;
-              }
-
-              case "infinity": {
-                if (!["infinity"].includes(params.orderbook)) {
-                  return errors.push({ message: "Unsupported orderbook", orderIndex: i });
-                }
-
-                const order = await infinitySellToken.build({
-                  ...params,
-                  orderbook: "infinity",
-                  maker,
-                  contract,
-                  tokenId,
-                });
-
-                // Will be set if an approval is needed before listing
-                let approvalTx: TxData | undefined;
-
-                // Check the order's fillability
-                try {
-                  await infinityCheck.offChainCheck(order, { onChainApprovalRecheck: true });
-                } catch (error: any) {
-                  switch (error.message) {
-                    case "no-balance-no-approval":
-                    case "no-balance": {
-                      return errors.push({ message: "Maker does not own token", orderIndex: i });
-                    }
-
-                    case "no-approval": {
-                      // Generate an approval transaction
-                      approvalTx = new Sdk.Common.Helpers.Erc721(
-                        baseProvider,
-                        contract
-                      ).approveTransaction(maker, Sdk.Infinity.Addresses.Exchange[config.chainId]);
-
-                      break;
-                    }
-                  }
-                }
-
-                steps[1].items.push({
-                  status: approvalTx ? "incomplete" : "complete",
-                  data: approvalTx,
-                  orderIndexes: [i],
-                });
-                steps[2].items.push({
-                  status: "incomplete",
-                  data: {
-                    sign: order.getSignatureData(),
-                    post: {
-                      endpoint: "/order/v3",
-                      method: "POST",
-                      body: {
-                        order: {
-                          kind: params.orderKind,
-                          data: {
-                            ...order.params,
-                          },
-                        },
-                        orderbook: params.orderbook,
                         source,
                       },
                     },

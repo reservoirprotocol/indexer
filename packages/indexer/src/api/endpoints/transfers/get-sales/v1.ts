@@ -108,6 +108,8 @@ export const getSalesV1Options: RouteOptions = {
 
       // Filters
       const conditions: string[] = [];
+      conditions.push(`"fe"."is_deleted" = 0`);
+
       if (query.contract) {
         (query as any).contract = toBuffer(query.contract);
         conditions.push(`"fe"."contract" = $/contract/`);

@@ -93,9 +93,7 @@ export const config = {
 
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
-  infinityApiKey: String(process.env.INFINITY_API_KEY),
   flowApiKey: String(process.env.FLOW_API_KEY),
-  orderFetcherApiKey: String(process.env.ORDER_FETCHER_API_KEY),
 
   blurWsApiKey: process.env.BLUR_WS_API_KEY,
   blurWsUrl: process.env.BLUR_WS_URL,
@@ -125,4 +123,6 @@ export const config = {
   doNftTransfersWrite: Boolean(Number(process.env.DO_NFT_TRANSFERS_WRITE)),
   doProcessBackfilling: Boolean(Number(process.env.DO_PROCESS_BACKFILLING)),
   doProcessRealtime: Boolean(Number(process.env.DO_PROCESS_REALTIME)),
+
+  enableDebug: Boolean(Number(process.env.ENABLE_DEBUG)),
 };

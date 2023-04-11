@@ -118,11 +118,6 @@ export type GenericOrderInfo =
       validateBidValue?: boolean;
     }
   | {
-      kind: "infinity";
-      info: orders.infinity.OrderInfo;
-      validateBidValue?: boolean;
-    }
-  | {
       kind: "flow";
       info: orders.flow.OrderInfo;
       validateBidValue?: boolean;
@@ -155,6 +150,11 @@ export type GenericOrderInfo =
   | {
       kind: "superrare";
       info: orders.superrare.OrderInfo;
+      validateBidValue?: boolean;
+    }
+  | {
+      kind: "looks-rare-v2";
+      info: orders.looksRareV2.OrderInfo;
       validateBidValue?: boolean;
     };
 
@@ -229,11 +229,6 @@ export const jobProcessor = async (job: Job) => {
         break;
       }
 
-      case "infinity": {
-        result = await orders.infinity.save([info]);
-        break;
-      }
-
       case "flow": {
         result = await orders.flow.save([info]);
         break;
@@ -261,6 +256,11 @@ export const jobProcessor = async (job: Job) => {
 
       case "superrare": {
         result = await orders.superrare.save([info]);
+        break;
+      }
+
+      case "looks-rare-v2": {
+        result = await orders.looksRareV2.save([info]);
         break;
       }
     }

@@ -48,7 +48,6 @@ export const postOrderV3Options: RouteOptions = {
             "x2y2",
             "universe",
             "forward",
-            "infinity",
             "flow"
           )
           .required(),
@@ -56,7 +55,7 @@ export const postOrderV3Options: RouteOptions = {
       }),
       orderbook: Joi.string()
         .lowercase()
-        .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow")
+        .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "flow")
         .default("reservoir"),
       orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
       source: Joi.string().pattern(regex.domain).description("The source domain"),
@@ -539,34 +538,6 @@ export const postOrderV3Options: RouteOptions = {
           }
 
           const orderId = new Sdk.Universe.Order(config.chainId, order.data).hashOrderKey();
-
-          const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-            orderId,
-            kind: order.kind,
-            orderbook,
-            source,
-            schema,
-            rawData: order.data,
-          } as crossPostingOrdersModel.CrossPostingOrder);
-
-          await postOrderExternal.addToQueue({
-            crossPostingOrderId: crossPostingOrder.id,
-            orderId,
-            orderData: order.data,
-            orderSchema: schema,
-            orderbook,
-            orderbookApiKey,
-          });
-
-          return { message: "Success", orderId, crossPostingOrderId: crossPostingOrder.id };
-        }
-
-        case "infinity": {
-          if (!["infinity"].includes(orderbook)) {
-            throw new Error("Unknown orderbook");
-          }
-
-          const orderId = new Sdk.Infinity.Order(config.chainId, order.data).hash();
 
           const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
             orderId,

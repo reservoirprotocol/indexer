@@ -1,5 +1,7 @@
 import { Server } from "@hapi/hapi";
 
+import { config } from "@/config/index";
+
 import * as activitiesEndpoints from "@/api/endpoints/activities";
 import * as adminEndpoints from "@/api/endpoints/admin";
 import * as apiKeysEndpoints from "@/api/endpoints/api-keys";
@@ -24,6 +26,7 @@ import * as syncEndpoints from "@/api/endpoints/sync";
 import * as assetsEndpoints from "@/api/endpoints/assets";
 import * as sourcesEndpoints from "@/api/endpoints/sources";
 import * as websocketEndpoints from "@/api/endpoints/websocket";
+import * as debugEndpoints from "@/api/endpoints/debug";
 
 export const setupRoutes = (server: Server) => {
   // Activity
@@ -1376,4 +1379,31 @@ export const setupRoutes = (server: Server) => {
     path: "/websocket/user-auth",
     options: websocketEndpoints.postWebsocketUserAuthOptions,
   });
+
+  // Debug APIs
+  if (config.enableDebug) {
+    server.route({
+      method: "GET",
+      path: "/debug/event-parsing",
+      options: debugEndpoints.eventParsingOptions,
+    });
+
+    server.route({
+      method: "POST",
+      path: "/debug/order-saving",
+      options: debugEndpoints.orderSavingOptions,
+    });
+
+    server.route({
+      method: "GET",
+      path: "/debug/get-order",
+      options: debugEndpoints.getOrderOptions,
+    });
+
+    server.route({
+      method: "GET",
+      path: "/debug/reset",
+      options: debugEndpoints.resetOptions,
+    });
+  }
 };

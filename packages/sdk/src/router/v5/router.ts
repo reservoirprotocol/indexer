@@ -16,7 +16,6 @@ import RouterAbi from "./abis/ReservoirV5_0_0.json";
 type SetupOptions = {
   x2y2ApiKey?: string;
   orderFetcherBaseUrl?: string;
-  orderFetcherApiKey?: string;
 };
 
 export class Router {
@@ -109,12 +108,7 @@ export class Router {
         .map(async (detail) => {
           const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
           const result = await axios.get(
-            `${this.options?.orderFetcherBaseUrl}/api/listing?orderHash=${order.id}&contract=${order.contract}&tokenId=${order.tokenId}&taker=${taker}&chainId=${this.chainId}`,
-            {
-              headers: {
-                "X-Api-Key": this.options?.orderFetcherApiKey,
-              },
-            }
+            `${this.options?.orderFetcherBaseUrl}/api/listing?orderHash=${order.id}&contract=${order.contract}&tokenId=${order.tokenId}&taker=${taker}&chainId=${this.chainId}`
           );
 
           const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
@@ -669,12 +663,7 @@ export class Router {
     } else if (kind === "seaport-partial") {
       order = order as Sdk.SeaportBase.Types.PartialOrder;
       const result = await axios.get(
-        `${this.options?.orderFetcherBaseUrl}/api/offer?orderHash=${order.id}&contract=${order.contract}&tokenId=${order.tokenId}&taker=${taker}&chainId=${this.chainId}`,
-        {
-          headers: {
-            "X-Api-Key": this.options?.orderFetcherApiKey,
-          },
-        }
+        `${this.options?.orderFetcherBaseUrl}/api/offer?orderHash=${order.id}&contract=${order.contract}&tokenId=${order.tokenId}&taker=${taker}&chainId=${this.chainId}`
       );
 
       const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);

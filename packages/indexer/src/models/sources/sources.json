@@ -9,7 +9,9 @@
       "tokenUrlMainnet": "https://opensea.io/assets/${contract}/${tokenId}",
       "tokenUrlRinkeby": "https://testnets.opensea.io/assets/${contract}/${tokenId}",
       "tokenUrlGoerli": "https://testnets.opensea.io/assets/${contract}/${tokenId}",
-      "tokenUrlPolygon": "https://opensea.io/assets/matic/${contract}/${tokenId}"
+      "tokenUrlPolygon": "https://opensea.io/assets/matic/${contract}/${tokenId}",
+      "tokenUrlArbitrum": "https://opensea.io/assets/arbitrum/${contract}/${tokenId}",
+      "tokenUrlOptimism": "https://opensea.io/assets/optimism/${contract}/${tokenId}"
     }
   },
   "2": {

@@ -19,6 +19,8 @@ export type SourcesMetadata = {
   tokenUrlRinkeby?: string;
   tokenUrlPolygon?: string;
   tokenUrlGoerli?: string;
+  tokenUrlArbitrum?: string;
+  tokenUrlOptimism?: string;
 };
 
 export class SourcesEntity {
