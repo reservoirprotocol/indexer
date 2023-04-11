@@ -6,7 +6,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import _ from "lodash";
 import Joi from "joi";
 
-import { idb, redb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import {
@@ -321,7 +321,7 @@ export const getCollectionsV5Options: RouteOptions = {
 
       // TODO: Cache owners count on collection instead of not allowing for big collections.
       if (query.includeOwnerCount) {
-        const collectionResult = await idb.oneOrNone(
+        const collectionResult = await redb.oneOrNone(
           `
               SELECT
                 collections.token_count
