@@ -21,10 +21,10 @@ import { SourcesEntity } from "@/models/sources/sources-entity";
 
 const version = "v1";
 
-export const getSyncOrdersAsksV1Options: RouteOptions = {
-  description: "Sync Asks (listings)",
+export const getSyncOrdersV1Options: RouteOptions = {
+  description: "Sync Orders",
   notes:
-    "This API is optimized for bulk access to asks (listings) for syncing a remote database. Thus it offers minimal filters/metadata.",
+    "This API is optimized for bulk access to asks (listings) and bids (offers) for syncing a remote database. Thus it offers minimal filters/metadata.",
   tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
@@ -33,6 +33,7 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
+      side: Joi.string().valid("sell", "buy").default("sell").description("Sell or buy side."),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
@@ -151,13 +152,13 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
       `;
 
       // Filters
-      const conditions: string[] = [`orders.side = 'sell'`];
+      const conditions: string[] = [];
 
-      /* if (!query.includePrivate) {
-        conditions.push(
-          `orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL`
-        );
-      } */
+      if (query.side === "sell") {
+        conditions.push(`orders.side = 'sell'`);
+      } else {
+        conditions.push(`orders.side = 'buy'`);
+      }
 
       if (query.continuation) {
         const [updatedAt, id, oldOrders] = splitContinuation(
