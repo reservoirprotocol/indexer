@@ -1,20 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Request, RouteOptions } from "@hapi/hapi";
-import Joi from "joi";
-import * as allOrderHandlers from "@/orderbook/orders";
-import { idb, pgp } from "@/common/db";
-import { toBuffer } from "@/common/utils";
-import { baseProvider } from "@/common/provider";
 import * as Sdk from "@reservoir0x/sdk";
+import Joi from "joi";
+
+import { idb, pgp } from "@/common/db";
+import { baseProvider } from "@/common/provider";
+import { toBuffer } from "@/common/utils";
+import * as allOrderHandlers from "@/orderbook/orders";
 
 async function refreshBalance(owner: string, contract: string) {
   const balanceResult = await idb.oneOrNone(
     `
-            SELECT ft_balances.amount FROM ft_balances
-            WHERE ft_balances.contract = $/contract/
-            AND ft_balances.owner = $/owner/
-        `,
+      SELECT ft_balances.amount FROM ft_balances
+      WHERE ft_balances.contract = $/contract/
+        AND ft_balances.owner = $/owner/
+    `,
     {
       contract: toBuffer(contract),
       owner: toBuffer(owner),
@@ -27,12 +28,11 @@ async function refreshBalance(owner: string, contract: string) {
     if (balanceResult) {
       await idb.oneOrNone(
         `
-                    UPDATE ft_balances 
-                        SET amount = $/amount/
-                    WHERE 
-                        contract = $/contract/
-                    AND owner = $/owner/
-                `,
+          UPDATE ft_balances 
+            SET amount = $/amount/
+          WHERE contract = $/contract/
+            AND owner = $/owner/
+        `,
         {
           contract: toBuffer(contract),
           owner: toBuffer(owner),
@@ -41,7 +41,17 @@ async function refreshBalance(owner: string, contract: string) {
       );
     } else {
       await idb.oneOrNone(
-        "INSERT INTO ft_balances (amount, contract, owner) VALUES ($/amount/, $/contract/, $/owner/) ON CONFLICT DO NOTHING RETURNING 1",
+        `
+          INSERT INTO ft_balances(
+            amount,
+            contract,
+            owner
+          ) VALUES (
+            $/amount/,
+            $/contract/,
+            $/owner/
+          ) ON CONFLICT DO NOTHING RETURNING 1
+        `,
         {
           contract: toBuffer(contract),
           owner: toBuffer(owner),
@@ -50,18 +60,18 @@ async function refreshBalance(owner: string, contract: string) {
       );
     }
   } catch {
-    // Skip Errors
+    // Skip errors
   }
 }
 
 async function refreshNFTBalance(owner: string, contract: string, tokenId: string) {
   const balanceResult = await idb.oneOrNone(
     `
-          SELECT nft_balances.amount FROM nft_balances
-          WHERE nft_balances.contract = $/contract/
-            AND nft_balances.token_id = $/tokenId/
-            AND nft_balances.owner = $/owner/
-        `,
+      SELECT nft_balances.amount FROM nft_balances
+      WHERE nft_balances.contract = $/contract/
+        AND nft_balances.token_id = $/tokenId/
+        AND nft_balances.owner = $/owner/
+    `,
     {
       contract: toBuffer(contract),
       tokenId,
@@ -76,27 +86,33 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
 
     await idb.oneOrNone(
       `
-    INSERT INTO tokens (contract, token_id, minted_timestamp) 
-    VALUES ($/contract/, $/tokenId/, $/minted_timestamp/) 
-    ON CONFLICT DO NOTHING RETURNING 1
-    `,
+        INSERT INTO tokens(
+          contract,
+          token_id,
+          minted_timestamp
+        ) VALUES (
+          $/contract/,
+          $/tokenId/,
+          $/mintedTimestamp/
+        ) 
+        ON CONFLICT DO NOTHING RETURNING 1
+      `,
       {
         contract: toBuffer(contract),
         tokenId,
-        minted_timestamp: Math.floor(Date.now() / 1000),
+        mintedTimestamp: Math.floor(Date.now() / 1000),
       }
     );
 
     if (balanceResult) {
       await idb.oneOrNone(
         `
-                    UPDATE nft_balances 
-                        SET amount = $/amount/
-                    WHERE 
-                        contract = $/contract/
-                    AND owner = $/owner/
-                    AND token_id = $/tokenId/
-                `,
+          UPDATE nft_balances 
+            SET amount = $/amount/
+          WHERE contract = $/contract/
+            AND owner = $/owner/
+            AND token_id = $/tokenId/
+        `,
         {
           contract: toBuffer(contract),
           owner: toBuffer(owner),
@@ -106,7 +122,19 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
       );
     } else {
       await idb.oneOrNone(
-        "INSERT INTO nft_balances (amount, contract, owner, token_id) VALUES ($/amount/, $/contract/, $/owner/, $/tokenId/) ON CONFLICT DO NOTHING RETURNING 1",
+        `
+          INSERT INTO nft_balances(
+            amount,
+            contract,
+            owner,
+            token_id
+          ) VALUES (
+            $/amount/,
+            $/contract/,
+            $/owner/,
+            $/tokenId/
+          ) ON CONFLICT DO NOTHING RETURNING 1
+        `,
         {
           contract: toBuffer(contract),
           owner: toBuffer(owner),
@@ -116,7 +144,7 @@ async function refreshNFTBalance(owner: string, contract: string, tokenId: strin
       );
     }
   } catch {
-    // Skip Errors
+    // Skip errors
   }
 }
 
@@ -124,25 +152,26 @@ export async function saveContract(address: string, kind: string) {
   const columns = new pgp.helpers.ColumnSet(["address", "kind"], {
     table: "contracts",
   });
+
   const queries = [
     `INSERT INTO "contracts" (
-      "address",
-      "kind"
-    ) VALUES ${pgp.helpers.values(
-      {
-        address: toBuffer(address),
-        kind,
-      },
-      columns
-    )}
-    ON CONFLICT DO NOTHING
-  `,
+        "address",
+        "kind"
+      ) VALUES ${pgp.helpers.values(
+        {
+          address: toBuffer(address),
+          kind,
+        },
+        columns
+      )}
+      ON CONFLICT DO NOTHING
+    `,
   ];
   await idb.none(pgp.helpers.concat(queries));
 }
 
 export const orderSavingOptions: RouteOptions = {
-  description: "Order Saving",
+  description: "Order saving",
   tags: ["debug"],
   plugins: {
     "hapi-swagger": {
@@ -180,20 +209,20 @@ export const orderSavingOptions: RouteOptions = {
     const nfts = payload.nfts;
 
     if (currency) {
-      // Refresh balance manually
+      // Refresh FT balance
       for (let index = 0; index < makers.length; index++) {
         const maker = makers[index];
         await refreshBalance(maker, currency);
       }
     }
 
-    // Refresh NFT balance manually
+    // Refresh NFT balance
     for (let index = 0; index < nfts.length; index++) {
       const nft = nfts[index];
       await refreshNFTBalance(nft.owner, nft.collection, nft.tokenId);
     }
 
-    // Store contract kind manually
+    // Store contract
     await saveContract(payload.contract, payload.kind);
 
     // Save order
@@ -209,10 +238,8 @@ export const orderSavingOptions: RouteOptions = {
           },
         ]);
         results.push(result[0]);
-      } catch (err) {
-        results.push({
-          err,
-        });
+      } catch (error) {
+        results.push({ error });
       }
     }
 

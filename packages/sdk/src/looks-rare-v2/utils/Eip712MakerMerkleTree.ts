@@ -21,10 +21,6 @@ const defaultMaker: Maker = {
   additionalParameters: "0x",
 };
 
-/**
- * Specific implementation of Eip712MerkleTree for Maker type
- * @extends Eip712MerkleTree
- */
 export class Eip712MakerMerkleTree extends Eip712MerkleTree<Maker> {
   constructor(public makerOrders: Maker[]) {
     const height = Eip712MerkleTree.getTreeHeight(makerOrders.length);

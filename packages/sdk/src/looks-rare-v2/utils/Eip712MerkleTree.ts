@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { BytesLike } from "@ethersproject/bytes";
 import { _TypedDataEncoder as TypedDataEncoder } from "@ethersproject/hash";
-import { keccak256, BytesLike } from "ethers/lib/utils";
+import { keccak256 } from "@ethersproject/keccak256";
 import { MerkleTree } from "merkletreejs";
+
 import { EIP712TypedData } from "../types";
 
 type BatchOrderElements<T> = [T, T] | [BatchOrderElements<T>, BatchOrderElements<T>];
@@ -22,29 +24,13 @@ const fillArray = <T>(arr: T[], length: number, value: T): T[] => {
   return arrCopy;
 };
 
-/**
- * Generic wrapper around MerkleTreeJS to support EIP signing
- */
 export class Eip712MerkleTree<BaseType extends Record<string, any> = any> {
   public tree: MerkleTree;
   private completeLeaves: string[];
   private completeElements: BaseType[];
 
-  /**
-   * Compute the tree height
-   * @param length length of the array of elements
-   * @returns height as a number
-   */
   static getTreeHeight = (length: number): number => Math.max(Math.ceil(Math.log2(length)), 1);
 
-  /**
-   *
-   * @param types EIP712 Typed data
-   * @param leafType Leaf type used in the Typed data
-   * @param defaultNode Dummy node
-   * @param elements Array of data blocks
-   * @param depth tree depth
-   */
   constructor(
     public types: EIP712TypedData,
     public leafType: string,

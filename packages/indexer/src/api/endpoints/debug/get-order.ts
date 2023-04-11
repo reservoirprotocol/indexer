@@ -2,6 +2,7 @@
 
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
+
 import { idb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 
@@ -21,6 +22,7 @@ export const getOrderOptions: RouteOptions = {
   handler: async (request: Request) => {
     const payload = request.query as any;
     const orderId = payload.orderId;
+
     const [order] = await Promise.all([
       idb.oneOrNone(`SELECT * FROM "orders" "o" WHERE "o"."id" = $/id/`, {
         id: orderId,

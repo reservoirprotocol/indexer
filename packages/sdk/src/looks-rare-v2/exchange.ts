@@ -1,9 +1,9 @@
 import { Provider } from "@ethersproject/abstract-provider";
 import { Signer } from "@ethersproject/abstract-signer";
-import { BigNumberish } from "ethers";
-import { Contract, ContractTransaction } from "@ethersproject/contracts";
+import { BigNumberish } from "@ethersproject/bignumber";
 import { joinSignature } from "@ethersproject/bytes";
 import { AddressZero, HashZero } from "@ethersproject/constants";
+import { Contract, ContractTransaction } from "@ethersproject/contracts";
 
 import * as Addresses from "./addresses";
 import { Order } from "./order";

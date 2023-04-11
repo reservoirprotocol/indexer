@@ -1,11 +1,11 @@
 import { Provider } from "@ethersproject/abstract-provider";
+import { TypedDataSigner } from "@ethersproject/abstract-signer";
 import { HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import { _TypedDataEncoder } from "@ethersproject/hash";
-import { verifyTypedData } from "@ethersproject/wallet";
 import { keccak256 as solidityKeccak256 } from "@ethersproject/solidity";
 import { recoverAddress } from "@ethersproject/transactions";
-import { TypedDataSigner } from "@ethersproject/abstract-signer";
+import { verifyTypedData } from "@ethersproject/wallet";
 import { Eip712MakerMerkleTree } from "./utils/Eip712MakerMerkleTree";
 
 import * as Addresses from "./addresses";
@@ -56,6 +56,7 @@ export class Order {
       EIP712_TYPES,
       this.params
     );
+
     this.params = {
       ...this.params,
       signature: signature,
@@ -64,6 +65,7 @@ export class Order {
 
   static async signBulkOrders(signer: TypedDataSigner, orders: Order[]) {
     const tree = new Eip712MakerMerkleTree(orders.map((_) => _.params));
+
     const chainId = orders[0].chainId;
     const domain = EIP712_DOMAIN(chainId);
     const hexRoot = tree.hexRoot;

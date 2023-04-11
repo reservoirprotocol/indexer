@@ -6,12 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("LooksRareV2 - ContractWide Erc721", () => {
   const chainId = getChainId();
@@ -50,20 +45,12 @@ describe("LooksRareV2 - ContractWide Erc721", () => {
     const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
 
     // Approve the transfer manager
-    await nft.approve(
-      seller,
-      LooksRareV2.Addresses.TransferManager[chainId]
-    );
+    await nft.approve(seller, LooksRareV2.Addresses.TransferManager[chainId]);
 
     const exchange = new LooksRareV2.Exchange(1);
 
-    await exchange.grantApprovals(seller, [
-      LooksRareV2.Addresses.Exchange[chainId]
-    ])
-
-    await exchange.grantApprovals(buyer, [
-      LooksRareV2.Addresses.Exchange[chainId]
-    ])
+    await exchange.grantApprovals(seller, [LooksRareV2.Addresses.Exchange[chainId]]);
+    await exchange.grantApprovals(buyer, [LooksRareV2.Addresses.Exchange[chainId]]);
 
     const builder = new LooksRareV2.Builders.ContractWide(1);
 
@@ -73,8 +60,6 @@ describe("LooksRareV2 - ContractWide Erc721", () => {
       collectionType: LooksRareV2.Types.CollectionType.ERC721,
       signer: buyer.address,
       collection: erc721.address,
-      itemId: "0",
-      amount: 1,
       currency: Common.Addresses.Weth[chainId],
       price,
       startTime: await getCurrentTimestamp(ethers.provider),

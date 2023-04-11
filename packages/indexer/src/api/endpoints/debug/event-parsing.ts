@@ -2,6 +2,7 @@
 
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
+
 import {
   getEnhancedEventsFromTx,
   extractOnChainData,
@@ -24,17 +25,17 @@ export const eventParsingOptions: RouteOptions = {
   response: {},
   handler: async (request: Request) => {
     const query = request.query as any;
+
     try {
       const events = await getEnhancedEventsFromTx(query.tx);
       const onChainData = await extractOnChainData(events, query.skipProcessing);
+
       return {
         events,
         onChainData,
       };
     } catch (error) {
-      return {
-        error,
-      };
+      return { error };
     }
   },
 };

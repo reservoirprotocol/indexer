@@ -1,7 +1,8 @@
+import { BigNumberish } from "@ethersproject/bignumber";
+
 import { BaseBuildParams, BaseBuilder } from "../base";
 import { Order } from "../../order";
 import { BytesEmpty, s } from "../../../utils";
-import { BigNumberish } from "@ethersproject/bignumber";
 
 interface BuildParams extends BaseBuildParams {
   itemId: BigNumberish;

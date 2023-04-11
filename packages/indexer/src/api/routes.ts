@@ -1,5 +1,7 @@
 import { Server } from "@hapi/hapi";
 
+import { config } from "@/config/index";
+
 import * as activitiesEndpoints from "@/api/endpoints/activities";
 import * as adminEndpoints from "@/api/endpoints/admin";
 import * as apiKeysEndpoints from "@/api/endpoints/api-keys";
@@ -25,7 +27,6 @@ import * as assetsEndpoints from "@/api/endpoints/assets";
 import * as sourcesEndpoints from "@/api/endpoints/sources";
 import * as websocketEndpoints from "@/api/endpoints/websocket";
 import * as debugEndpoints from "@/api/endpoints/debug";
-import { config } from "@/config/index";
 
 export const setupRoutes = (server: Server) => {
   // Activity
@@ -1379,7 +1380,7 @@ export const setupRoutes = (server: Server) => {
     options: websocketEndpoints.postWebsocketUserAuthOptions,
   });
 
-  // Debug Test
+  // Debug APIs
   if (config.enableDebug) {
     server.route({
       method: "GET",

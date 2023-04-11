@@ -6,12 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("LooksRareV2 - ContractWide Erc1155", () => {
   const chainId = getChainId();
@@ -50,20 +45,13 @@ describe("LooksRareV2 - ContractWide Erc1155", () => {
     const nft = new Common.Helpers.Erc1155(ethers.provider, erc1155.address);
 
     // Approve the transfer manager
-    await nft.approve(
-      seller,
-      LooksRareV2.Addresses.TransferManager[chainId]
-    );
+    await nft.approve(seller, LooksRareV2.Addresses.TransferManager[chainId]);
 
     const exchange = new LooksRareV2.Exchange(chainId);
 
-    await exchange.grantApprovals(seller, [
-      LooksRareV2.Addresses.Exchange[chainId]
-    ])
+    await exchange.grantApprovals(seller, [LooksRareV2.Addresses.Exchange[chainId]]);
 
-    await exchange.grantApprovals(buyer, [
-      LooksRareV2.Addresses.Exchange[chainId]
-    ])
+    await exchange.grantApprovals(buyer, [LooksRareV2.Addresses.Exchange[chainId]]);
 
     const builder = new LooksRareV2.Builders.ContractWide(chainId);
 
@@ -73,8 +61,6 @@ describe("LooksRareV2 - ContractWide Erc1155", () => {
       collectionType: LooksRareV2.Types.CollectionType.ERC1155,
       signer: buyer.address,
       collection: erc1155.address,
-      itemId: 0,
-      amount: 1,
       currency: Common.Addresses.Weth[chainId],
       price,
       startTime: await getCurrentTimestamp(ethers.provider),
@@ -94,10 +80,7 @@ describe("LooksRareV2 - ContractWide Erc1155", () => {
 
     const buyerBalanceBefore = await weth.getBalance(buyer.address);
     const sellerBalanceBefore = await weth.getBalance(seller.address);
-    const ownerBalanceBefore = await nft.getBalance(
-      seller.address,
-      boughtTokenId
-    );
+    const ownerBalanceBefore = await nft.getBalance(seller.address, boughtTokenId);
 
     expect(buyerBalanceBefore).to.eq(price);
     expect(sellerBalanceBefore).to.eq(0);
@@ -108,10 +91,7 @@ describe("LooksRareV2 - ContractWide Erc1155", () => {
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
-    const ownerBalanceAfter = await nft.getBalance(
-      seller.address,
-      boughtTokenId
-    );
+    const ownerBalanceAfter = await nft.getBalance(seller.address, boughtTokenId);
 
     expect(buyerBalanceAfter).to.eq(0);
     expect(sellerBalanceAfter).to.eq(price.sub(price.mul(50).div(10000)));

@@ -1,6 +1,5 @@
 import { TypedDataField } from "@ethersproject/abstract-signer";
 
-/** EIP712 type data */
 export type EIP712TypedData = Record<string, Array<TypedDataField>>;
 
 export type OrderKind = "single-token" | "contract-wide";
@@ -15,7 +14,6 @@ export enum CollectionType {
   ERC1155,
 }
 
-/** List of trading strategies */
 export enum StrategyType {
   standard = 0,
   collection = 1,

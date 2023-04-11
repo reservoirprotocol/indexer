@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { RouteOptions } from "@hapi/hapi";
+
 import { idb } from "@/common/db";
 
 export const resetOptions: RouteOptions = {
-  description: "Reset Databse",
+  description: "Reset database",
   tags: ["debug"],
   plugins: {
     "hapi-swagger": {
