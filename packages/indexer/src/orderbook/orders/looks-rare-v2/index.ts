@@ -27,18 +27,9 @@ type SaveResult = {
   unfillable?: boolean;
 };
 
-export const save = async (
-  orderInfos: OrderInfo[],
-  relayToArweave?: boolean
-): Promise<SaveResult[]> => {
+export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
-
-  const arweaveData: {
-    order: Sdk.LooksRareV2.Order;
-    schemaHash?: string;
-    source?: string;
-  }[] = [];
 
   const handleOrder = async ({ orderParams, metadata }: OrderInfo) => {
     try {
@@ -85,9 +76,9 @@ export const save = async (
         });
       }
 
-      // Check: order has Weth as payment token
+      // Check: order has (W)ETH as payment token
       if (
-        [
+        ![
           Sdk.Common.Addresses.Weth[config.chainId],
           Sdk.Common.Addresses.Eth[config.chainId],
         ].includes(order.params.currency)
@@ -182,11 +173,7 @@ export const save = async (
       const side = order.params.quoteType === Sdk.LooksRareV2.Types.QuoteType.Ask ? "sell" : "buy";
 
       // Handle: currency
-      let currency = order.params.currency;
-      if (side === "sell" && currency === Sdk.Common.Addresses.Weth[config.chainId]) {
-        // LooksRare sell orders are always in WETH (although fillable in ETH)
-        currency = Sdk.Common.Addresses.Eth[config.chainId];
-      }
+      const currency = order.params.currency;
 
       // Handle: fees
       let feeBreakdown = [
@@ -208,18 +195,6 @@ export const save = async (
         );
       } else {
         onChainRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "onchain");
-      }
-
-      if (!onChainRoyalties.length) {
-        if (order.params.kind === "single-token") {
-          onChainRoyalties = await royalties.getRoyalties(
-            order.params.collection,
-            order.params.itemIds[0],
-            "eip2981"
-          );
-        } else {
-          onChainRoyalties = await royalties.getRoyaltiesByTokenSet(tokenSetId, "eip2981");
-        }
       }
 
       if (onChainRoyalties.length) {
@@ -349,13 +324,9 @@ export const save = async (
         status: "success",
         unfillable,
       });
-
-      if (relayToArweave) {
-        arweaveData.push({ order, schemaHash, source: source?.domain });
-      }
     } catch (error) {
       logger.error(
-        "orders-looks-rare-save",
+        "orders-looks-rare-v2-save",
         `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
       );
     }

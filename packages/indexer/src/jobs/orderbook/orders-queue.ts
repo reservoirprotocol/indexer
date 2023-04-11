@@ -160,7 +160,6 @@ export type GenericOrderInfo =
   | {
       kind: "looks-rare-v2";
       info: orders.looksRareV2.OrderInfo;
-      relayToArweave?: boolean;
       validateBidValue?: boolean;
     };
 
