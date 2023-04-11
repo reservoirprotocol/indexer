@@ -6,12 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  getChainId,
-  getCurrentTimestamp,
-  reset,
-  setupNFTs,
-} from "../../../utils";
+import { getChainId, getCurrentTimestamp, reset, setupNFTs } from "../../../utils";
 
 describe("LooksRareV2 - SingleToken Erc721", () => {
   const chainId = getChainId();
@@ -50,22 +45,12 @@ describe("LooksRareV2 - SingleToken Erc721", () => {
     const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
 
     // Approve the transfer manager
-    await nft.approve(
-      seller,
-      LooksRareV2.Addresses.TransferManager[chainId]
-    );
+    await nft.approve(seller, LooksRareV2.Addresses.TransferManager[chainId]);
 
     const exchange = new LooksRareV2.Exchange(chainId);
 
-    try {
-      await exchange.grantApprovals(seller, [
-        LooksRareV2.Addresses.Exchange[chainId]
-      ])
-  
-      await exchange.grantApprovals(buyer, [
-        LooksRareV2.Addresses.Exchange[chainId]
-      ])
-    } catch {}
+    await exchange.grantApprovals(seller, [LooksRareV2.Addresses.Exchange[chainId]]);
+    await exchange.grantApprovals(buyer, [LooksRareV2.Addresses.Exchange[chainId]]);
 
     const builder = new LooksRareV2.Builders.SingleToken(chainId);
 
@@ -82,7 +67,7 @@ describe("LooksRareV2 - SingleToken Erc721", () => {
       globalNonce: await exchange.getGlobalNonce(ethers.provider, buyer.address, "buy"),
       startTime: await getCurrentTimestamp(ethers.provider),
       endTime: (await getCurrentTimestamp(ethers.provider)) + 86400 * 31,
-    }
+    };
 
     // Build buy order
     const buyOrder = builder.build(orderParameters);
@@ -103,18 +88,15 @@ describe("LooksRareV2 - SingleToken Erc721", () => {
     expect(ownerBefore).to.eq(seller.address);
 
     // Match orders
-    const tx = await exchange.fillOrder(seller, buyOrder, sellOrder);
+    await exchange.fillOrder(seller, buyOrder, sellOrder);
 
     const buyerBalanceAfter = await weth.getBalance(buyer.address);
     const sellerBalanceAfter = await weth.getBalance(seller.address);
     const ownerAfter = await nft.getOwner(boughtTokenId);
 
     expect(buyerBalanceAfter).to.eq(0);
-    
-    expect(sellerBalanceAfter).to.eq(
-      price
-      .sub(price.mul(50).div(10000))
-    );
+
+    expect(sellerBalanceAfter).to.eq(price.sub(price.mul(50).div(10000)));
 
     expect(ownerAfter).to.eq(buyer.address);
   });
@@ -125,28 +107,19 @@ describe("LooksRareV2 - SingleToken Erc721", () => {
     const price = parseEther("1");
     const soldTokenId = 0;
 
-    const weth = new Common.Helpers.Weth(ethers.provider, chainId);
-
     // Mint erc721 to seller
     await erc721.connect(seller).mint(soldTokenId);
 
     const nft = new Common.Helpers.Erc721(ethers.provider, erc721.address);
 
     // Approve the transfer manager
-    await nft.approve(
-      seller,
-      LooksRareV2.Addresses.TransferManager[chainId]
-    );
+    await nft.approve(seller, LooksRareV2.Addresses.TransferManager[chainId]);
 
     const exchange = new LooksRareV2.Exchange(chainId);
 
-    await exchange.grantApprovals(seller, [
-      LooksRareV2.Addresses.Exchange[chainId]
-    ])
+    await exchange.grantApprovals(seller, [LooksRareV2.Addresses.Exchange[chainId]]);
 
-    await exchange.grantApprovals(buyer, [
-      LooksRareV2.Addresses.Exchange[chainId]
-    ])
+    await exchange.grantApprovals(buyer, [LooksRareV2.Addresses.Exchange[chainId]]);
 
     const builder = new LooksRareV2.Builders.SingleToken(chainId);
 
@@ -158,7 +131,6 @@ describe("LooksRareV2 - SingleToken Erc721", () => {
       signer: seller.address,
       collection: erc721.address,
       itemId: soldTokenId,
-      amount: 1,
       currency: Common.Addresses.Eth[chainId],
       price,
       startTime: await getCurrentTimestamp(ethers.provider),

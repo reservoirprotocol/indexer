@@ -104,14 +104,38 @@ export class Order {
 
     if (this.params.merkleTree) {
       const merkleTree = this.params.merkleTree;
-      const height = merkleTree.proof.length!;
-      const root = merkleTree.root!;
 
-      const types = getBatchOrderTypes(height);
+      const height = merkleTree.proof.length;
+
+      let computedHash = this.hash();
+      for (let i = 0; i < height; i++) {
+        if (merkleTree.proof[i].position === Types.MerkleTreeNodePosition.Left) {
+          computedHash = solidityKeccak256(
+            ["bytes"],
+            [merkleTree.proof[i].value + computedHash.slice(2)]
+          );
+        } else {
+          computedHash = solidityKeccak256(
+            ["bytes"],
+            [computedHash + merkleTree.proof[i].value.slice(2)]
+          );
+        }
+      }
+
+      if (computedHash !== merkleTree.root) {
+        throw new Error("Invalid merkle proof");
+      }
+
+      const types = { ...EIP712_TYPES };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (types as any).BatchOrder = [{ name: "tree", type: `Maker${`[2]`.repeat(height)}` }];
       const encoder = _TypedDataEncoder.from(types);
 
       const bulkOrderTypeHash = solidityKeccak256(["string"], [encoder.encodeType("BatchOrder")]);
-      const bulkOrderHash = solidityKeccak256(["bytes"], [bulkOrderTypeHash + root.slice(2)]);
+      const bulkOrderHash = solidityKeccak256(
+        ["bytes"],
+        [bulkOrderTypeHash + merkleTree.root.slice(2)]
+      );
 
       const value = solidityKeccak256(
         ["bytes"],
