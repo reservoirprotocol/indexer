@@ -21,6 +21,7 @@ export * as rarible from "@/orderbook/orders/rarible";
 export * as nftx from "@/orderbook/orders/nftx";
 export * as manifold from "@/orderbook/orders/manifold";
 export * as superrare from "@/orderbook/orders/superrare";
+export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
 
 // Imports
 import * as Sdk from "@reservoir0x/sdk";
@@ -73,7 +74,8 @@ export type OrderKind =
   | "superrare"
   | "zeroex-v2"
   | "zeroex-v3"
-  | "treasure";
+  | "treasure"
+  | "looks-rare-v2";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -418,6 +420,14 @@ export const generateListingDetailsV6 = (
       };
     }
 
+    case "looks-rare-v2": {
+      return {
+        kind: "looks-rare-v2",
+        ...common,
+        order: new Sdk.LooksRareV2.Order(config.chainId, order.rawData),
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }
@@ -683,6 +693,15 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.Blur.Order(config.chainId, order.rawData);
       return {
         kind: "blur",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
+    case "looks-rare-v2": {
+      const sdkOrder = new Sdk.LooksRareV2.Order(config.chainId, order.rawData);
+      return {
+        kind: "looks-rare-v2",
         ...common,
         order: sdkOrder,
       };

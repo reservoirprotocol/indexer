@@ -9,6 +9,7 @@ export type Event = {
   maker: string;
   minNonce: string;
   baseEventParams: BaseEventParams;
+  orderSide?: "sell" | "buy";
   acrossAll?: boolean;
 };
 
@@ -24,6 +25,7 @@ type DbEvent = {
   order_kind: OrderKind;
   maker: Buffer;
   min_nonce: string;
+  side: "sell" | "buy" | null;
 };
 
 function generateUpdateQuery(bulkCancelValues: DbEvent[], acrossAll: boolean) {
@@ -40,6 +42,7 @@ function generateUpdateQuery(bulkCancelValues: DbEvent[], acrossAll: boolean) {
       "order_kind",
       "maker",
       "min_nonce",
+      "side",
     ],
     { table: "bulk_cancel_events" }
   );
@@ -59,10 +62,11 @@ function generateUpdateQuery(bulkCancelValues: DbEvent[], acrossAll: boolean) {
         "batch_index",
         "order_kind",
         "maker",
-        "min_nonce"
+        "min_nonce",
+        "side"
       ) VALUES ${pgp.helpers.values(bulkCancelValues, columns)}
       ON CONFLICT DO NOTHING
-      RETURNING "order_kind", "maker", "min_nonce", "tx_hash", "timestamp", "log_index", "batch_index", "block_hash"
+      RETURNING "side", "order_kind", "maker", "min_nonce", "tx_hash", "timestamp", "log_index", "batch_index", "block_hash"
     )
     UPDATE "orders" AS "o" SET
       "fillability_status" = 'cancelled',
@@ -70,7 +74,8 @@ function generateUpdateQuery(bulkCancelValues: DbEvent[], acrossAll: boolean) {
       "updated_at" = now()
     FROM "x"
     WHERE "o"."maker" = "x"."maker"
-      And "o"."kind" = "x"."order_kind"
+      AND "o"."kind" = "x"."order_kind"
+      AND "x"."side" IS NULL OR "o"."side" = "x"."side"
       ${acrossAll ? `` : `AND "o"."nonce" < "x"."min_nonce" `}
       AND ("o"."fillability_status" = 'fillable' OR "o"."fillability_status" = 'no-balance')
     RETURNING "o"."id", "x"."tx_hash", "x"."timestamp", "x"."log_index", "x"."batch_index", "x"."block_hash"
@@ -93,6 +98,7 @@ export const addEvents = async (events: Event[], backfill = false) => {
       order_kind: event.orderKind,
       maker: toBuffer(event.maker),
       min_nonce: event.minNonce,
+      side: event.orderSide ?? null,
     };
     if (event.acrossAll) {
       bulkCancelValuesAcrossAll.push(dbEvent);

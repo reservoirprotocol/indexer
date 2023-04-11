@@ -130,6 +130,10 @@ export type GenericOrder =
   | {
       kind: "superrare";
       order: Sdk.SuperRare.Order;
+    }
+  | {
+      kind: "looks-rare-v2";
+      order: Sdk.LooksRareV2.Order;
     };
 
 // Listings

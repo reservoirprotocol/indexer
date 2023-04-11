@@ -426,6 +426,38 @@ export class Router {
       }
     }
 
+    // TODO: Add LooksRareV2 router module
+    if (details.some(({ kind }) => kind === "looks-rare-v2")) {
+      if (options?.relayer) {
+        throw new Error("Relayer not supported for LooksRareV2 orders");
+      }
+
+      if (details.length > 1) {
+        throw new Error("LooksRareV2 sweeping is not supported");
+      } else {
+        if (options?.globalFees?.length) {
+          throw new Error("Fees not supported for LooksRareV2 orders");
+        }
+
+        const detail = details[0];
+
+        const order = detail.order as Sdk.LooksRareV2.Order;
+        const exchange = new Sdk.LooksRareV2.Exchange(this.chainId);
+        const matchOrder = order.buildMatching(taker);
+
+        return {
+          txs: [
+            {
+              approvals: [],
+              txData: exchange.fillOrderTx(taker, order, matchOrder),
+              orderIds: [detail.orderId],
+            },
+          ],
+          success: { [detail.orderId]: true },
+        };
+      }
+    }
+
     if (details.some(({ kind }) => kind === "blur")) {
       if (options?.relayer) {
         throw new Error("Relayer not supported for Blur orders");
@@ -2462,6 +2494,39 @@ export class Router {
         const exchange = new Sdk.Forward.Exchange(this.chainId);
         return {
           txData: exchange.fillOrderTx(taker, order, matchParams, {
+            source: options?.source,
+          }),
+          success: [true],
+          approvals: [approval],
+        };
+      }
+    }
+
+    // TODO: Add LooksRareV2 router module
+    if (details.some(({ kind }) => kind === "looks-rare-v2")) {
+      if (details.length > 1) {
+        throw new Error("LooksRareV2 multi-selling is not supported");
+      } else {
+        const detail = details[0];
+
+        // Approve LooksRareV2's Exchange contract
+        const approval = {
+          contract: detail.contract,
+          owner: taker,
+          operator: Sdk.LooksRareV2.Addresses.TransferManager[this.chainId],
+          txData: generateNFTApprovalTxData(
+            detail.contract,
+            taker,
+            Sdk.LooksRareV2.Addresses.TransferManager[this.chainId]
+          ),
+        };
+
+        const order = detail.order as Sdk.LooksRareV2.Order;
+        const matchOrder = order.buildMatching(taker);
+
+        const exchange = new Sdk.LooksRareV2.Exchange(this.chainId);
+        return {
+          txData: exchange.fillOrderTx(taker, order, matchOrder, {
             source: options?.source,
           }),
           success: [true],
