@@ -39,7 +39,6 @@ export const postOrderV4Options: RouteOptions = {
                 .valid(
                   "blur",
                   "opensea",
-                  "looks-rare",
                   "looks-rare-v2",
                   "zeroex-v4",
                   "seaport",
@@ -398,14 +397,14 @@ export const postOrderV4Options: RouteOptions = {
               });
             }
 
-            case "looks-rare": {
+            case "looks-rare-v2": {
               if (!["looks-rare", "reservoir"].includes(orderbook)) {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
               let crossPostingOrder;
 
-              const orderId = new Sdk.LooksRare.Order(config.chainId, order.data).hash();
+              const orderId = new Sdk.LooksRareV2.Order(config.chainId, order.data).hash();
 
               if (orderbook === "looks-rare") {
                 crossPostingOrder = await crossPostingOrdersModel.saveOrder({
@@ -426,7 +425,7 @@ export const postOrderV4Options: RouteOptions = {
                   orderbookApiKey,
                 });
               } else {
-                const [result] = await orders.looksRare.save([
+                const [result] = await orders.looksRareV2.save([
                   {
                     orderParams: order.data,
                     metadata: {
@@ -447,34 +446,6 @@ export const postOrderV4Options: RouteOptions = {
                 orderId,
                 crossPostingOrderId: crossPostingOrder?.id,
                 crossPostingOrderStatus: crossPostingOrder?.status,
-              });
-            }
-
-            case "looks-rare-v2": {
-              if (!["reservoir"].includes(orderbook)) {
-                return results.push({ message: "unsupported-orderbook", orderIndex: i });
-              }
-
-              const orderId = new Sdk.LooksRareV2.Order(config.chainId, order.data).hash();
-
-              const [result] = await orders.looksRareV2.save([
-                {
-                  orderParams: order.data,
-                  metadata: {
-                    schema,
-                    source,
-                  },
-                },
-              ]);
-
-              if (!["success", "already-exists"].includes(result.status)) {
-                return results.push({ message: result.status, orderIndex: i, orderId });
-              }
-
-              return results.push({
-                message: "success",
-                orderIndex: i,
-                orderId,
               });
             }
 

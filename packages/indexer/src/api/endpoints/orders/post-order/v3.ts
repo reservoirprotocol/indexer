@@ -40,7 +40,7 @@ export const postOrderV3Options: RouteOptions = {
           .valid(
             "opensea",
             "blur",
-            "looks-rare",
+            "looks-rare-v2",
             "zeroex-v4",
             "seaport",
             "seaport-v1.4",
@@ -440,16 +440,16 @@ export const postOrderV3Options: RouteOptions = {
           };
         }
 
-        case "looks-rare": {
+        case "looks-rare-v2": {
           if (!["looks-rare", "reservoir"].includes(orderbook)) {
             throw new Error("Unknown orderbook");
           }
 
           let crossPostingOrder;
 
-          const orderId = new Sdk.LooksRare.Order(
+          const orderId = new Sdk.LooksRareV2.Order(
             config.chainId,
-            order.data as Sdk.LooksRare.Types.MakerOrderParams
+            order.data as Sdk.LooksRareV2.Types.MakerOrderParams
           ).hash();
 
           if (orderbook === "looks-rare") {
@@ -471,7 +471,7 @@ export const postOrderV3Options: RouteOptions = {
               orderbookApiKey,
             });
           } else {
-            const orderInfo: orders.looksRare.OrderInfo = {
+            const orderInfo: orders.looksRareV2.OrderInfo = {
               orderParams: order.data,
               metadata: {
                 schema,
@@ -479,7 +479,7 @@ export const postOrderV3Options: RouteOptions = {
               },
             };
 
-            const [result] = await orders.looksRare.save([orderInfo]);
+            const [result] = await orders.looksRareV2.save([orderInfo]);
 
             if (!["success", "already-exists"].includes(result.status)) {
               const error = Boom.badRequest(result.status);
