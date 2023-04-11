@@ -1357,7 +1357,7 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
-    path: "/sync/asks/v1",
+    path: "/sync/orders/v1",
     options: syncEndpoints.getSyncOrdersV1Options,
   });
 
