@@ -173,15 +173,15 @@ if (config.doBackgroundWork) {
               if (rawResult) {
                 logger.info(
                   QUEUE_NAME,
-                  `Post Order Failed - Refreshing collection metadata. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+                  `Post Order Failed - Invalid Fees. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                     orderData
                   )}, retry: ${retry}`
                 );
 
                 await collectionUpdatesMetadata.addToQueue(
-                  rawResult!.contract,
+                  rawResult.contract,
                   rawResult.token_id,
-                  rawResult!.community
+                  rawResult.community
                 );
               }
             }
