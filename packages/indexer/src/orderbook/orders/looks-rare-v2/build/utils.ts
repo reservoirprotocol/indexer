@@ -50,7 +50,10 @@ export const getBuildInfo = async (
         : Sdk.LooksRareV2.Types.CollectionType.ERC1155,
     signer: options.maker,
     price: options.weiPrice,
-    currency: Sdk.Common.Addresses.Weth[config.chainId],
+    currency:
+      side === "sell"
+        ? Sdk.Common.Addresses.Eth[config.chainId]
+        : Sdk.Common.Addresses.Weth[config.chainId],
     startTime: options.listingTime!,
     endTime: options.expirationTime!,
   };
