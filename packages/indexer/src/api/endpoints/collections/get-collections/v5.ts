@@ -246,6 +246,7 @@ export const getCollectionsV5Options: RouteOptions = {
             )
             .optional(),
           contractKind: Joi.string().allow("", null),
+          mintedTimestamp: Joi.number().allow(null),
         })
       ),
     }).label(`getCollections${version.toUpperCase()}Response`),
@@ -448,6 +449,7 @@ export const getCollectionsV5Options: RouteOptions = {
           ${floorAskSelectQuery}
           collections.token_count,
           collections.created_at,
+          collections.minted_timestamp,
           (
             SELECT
               COUNT(*)
@@ -783,6 +785,7 @@ export const getCollectionsV5Options: RouteOptions = {
                 }))
               : undefined,
             contractKind: r.contract_kind,
+            mintedTimestamp: r.minted_timestamp,
           };
         })
       );
