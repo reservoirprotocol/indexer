@@ -116,9 +116,11 @@ export const save = async (
       }
 
       if (
-        ![HashZero, Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]].includes(
-          order.params.conduitKey
-        )
+        ![
+          HashZero,
+          Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
+          Sdk.SeaportBase.Addresses.OriginConduitKey[config.chainId],
+        ].includes(order.params.conduitKey)
       ) {
         return results.push({
           id,
