@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import _ from "lodash";
-import { idb, pgp, redb } from "@/common/db";
+import { idb, pgp, redb, redbAlt } from "@/common/db";
 import { splitContinuation, toBuffer } from "@/common/utils";
 import {
   ActivitiesEntity,
@@ -475,7 +475,9 @@ export class Activities {
       `;
     }
 
-    const activities: ActivitiesEntityParams[] | null = await redb.manyOrNone(baseQuery, query);
+    // Use 20s timeout on community filter
+    const cdb = community ? redbAlt : redb;
+    const activities: ActivitiesEntityParams[] | null = await cdb.manyOrNone(baseQuery, query);
 
     if (activities) {
       return _.map(activities, (activity) => new ActivitiesEntity(activity));

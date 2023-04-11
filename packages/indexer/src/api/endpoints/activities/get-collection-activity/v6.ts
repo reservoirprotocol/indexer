@@ -22,6 +22,9 @@ export const getCollectionActivityV6Options: RouteOptions = {
   description: "Collection activity",
   notes: "This API can be used to build a feed for a collection",
   tags: ["api", "Activity"],
+  timeout: {
+    server: 20 * 1000,
+  },
   plugins: {
     "hapi-swagger": {
       order: 1,

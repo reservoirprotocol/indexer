@@ -47,7 +47,6 @@ export const getExecuteSellV6Options: RouteOptions = {
             "seaport-v1.4-partial",
             "x2y2",
             "universe",
-            "infinity",
             "flow"
           )
           .required(),
@@ -456,7 +455,6 @@ export const getExecuteSellV6Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
-        orderFetcherApiKey: config.orderFetcherApiKey,
       });
 
       const errors: { orderId: string; message: string }[] = [];
@@ -523,43 +521,6 @@ export const getExecuteSellV6Options: RouteOptions = {
                   baseProvider,
                   bidDetails.contract
                 ).approveTransaction(payload.taker, Sdk.Forward.Addresses.Exchange[config.chainId]);
-
-          steps[0].items.push({
-            status: "incomplete",
-            data: {
-              ...approveTx,
-              maxFeePerGas: payload.maxFeePerGas
-                ? bn(payload.maxFeePerGas).toHexString()
-                : undefined,
-              maxPriorityFeePerGas: payload.maxPriorityFeePerGas
-                ? bn(payload.maxPriorityFeePerGas).toHexString()
-                : undefined,
-            },
-          });
-        }
-      }
-
-      if (bidDetails.kind === "infinity") {
-        const isApproved = await getNftApproval(
-          bidDetails.contract,
-          payload.taker,
-          Sdk.Infinity.Addresses.Exchange[config.chainId]
-        );
-
-        if (!isApproved) {
-          const approveTx =
-            bidDetails.contractKind === "erc721"
-              ? new Sdk.Common.Helpers.Erc721(baseProvider, bidDetails.contract).approveTransaction(
-                  payload.taker,
-                  Sdk.Infinity.Addresses.Exchange[config.chainId]
-                )
-              : new Sdk.Common.Helpers.Erc1155(
-                  baseProvider,
-                  bidDetails.contract
-                ).approveTransaction(
-                  payload.taker,
-                  Sdk.Infinity.Addresses.Exchange[config.chainId]
-                );
 
           steps[0].items.push({
             status: "incomplete",

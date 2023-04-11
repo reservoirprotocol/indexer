@@ -45,10 +45,6 @@ import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/c
 // Universe
 import * as universeBuyToken from "@/orderbook/orders/universe/build/buy/token";
 
-// Infinity
-import * as infinityBuyToken from "@/orderbook/orders/infinity/build/buy/token";
-import * as infinityBuyCollection from "@/orderbook/orders/infinity/build/buy/collection";
-
 // Flow
 import * as flowBuyToken from "@/orderbook/orders/flow/build/buy/token";
 import * as flowBuyCollection from "@/orderbook/orders/flow/build/buy/collection";
@@ -120,7 +116,6 @@ export const getExecuteBidV5Options: RouteOptions = {
               "looks-rare",
               "x2y2",
               "universe",
-              "infinity",
               "flow"
             )
             .default("seaport-v1.4")
@@ -136,16 +131,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             }),
           }).description("Additional options."),
           orderbook: Joi.string()
-            .valid(
-              "blur",
-              "reservoir",
-              "opensea",
-              "looks-rare",
-              "x2y2",
-              "universe",
-              "infinity",
-              "flow"
-            )
+            .valid("blur", "reservoir", "opensea", "looks-rare", "x2y2", "universe", "flow")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
@@ -328,11 +314,7 @@ export const getExecuteBidV5Options: RouteOptions = {
           let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
           if (!blurAuthChallenge) {
             blurAuthChallenge = (await axios
-              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`, {
-                headers: {
-                  "X-Api-Key": config.orderFetcherApiKey,
-                },
-              })
+              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
               .then((response) => response.data.authChallenge)) as b.AuthChallenge;
 
             await b.saveAuthChallenge(
@@ -932,101 +914,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                 break;
               }
 
-              case "infinity": {
-                if (!["infinity"].includes(params.orderbook)) {
-                  return errors.push({
-                    message: "Unsupported orderbook",
-                    orderIndex: i,
-                  });
-                }
-
-                if (params.fees?.length) {
-                  return errors.push({
-                    message: "Custom fees not supported",
-                    orderIndex: i,
-                  });
-                }
-                if (params.excludeFlaggedTokens) {
-                  return errors.push({
-                    message: "Flagged tokens exclusion not supported",
-                    orderIndex: i,
-                  });
-                }
-
-                let order: Sdk.Infinity.Order;
-                if (token) {
-                  const [contract, tokenId] = token.split(":");
-                  order = await infinityBuyToken.build({
-                    ...params,
-                    orderbook: "infinity",
-                    maker,
-                    contract,
-                    tokenId,
-                  });
-                } else if (collection) {
-                  order = await infinityBuyCollection.build({
-                    ...params,
-                    orderbook: "infinity",
-                    maker,
-                    contract: collection,
-                  });
-                } else {
-                  return errors.push({
-                    message: "Only token and collection bids are supported",
-                    orderIndex: i,
-                  });
-                }
-
-                let approvalTx: TxData | undefined;
-                const wethApproval = await currency.getAllowance(
-                  maker,
-                  Sdk.Infinity.Addresses.Exchange[config.chainId]
-                );
-
-                if (
-                  bn(wethApproval).lt(bn(order.params.startPrice)) ||
-                  bn(wethApproval).lt(bn(order.params.endPrice))
-                ) {
-                  approvalTx = currency.approveTransaction(
-                    maker,
-                    Sdk.Infinity.Addresses.Exchange[config.chainId]
-                  );
-                }
-
-                steps[2].items.push({
-                  status: !approvalTx ? "complete" : "incomplete",
-                  data: approvalTx,
-                  orderIndexes: [i],
-                });
-                steps[3].items.push({
-                  status: "incomplete",
-                  data: {
-                    sign: order.getSignatureData(),
-                    post: {
-                      endpoint: "/order/v3",
-                      method: "POST",
-                      body: {
-                        order: {
-                          kind: "infinity",
-                          data: {
-                            ...order.params,
-                          },
-                        },
-                        tokenSetId,
-                        collection,
-                        orderbook: params.orderbook,
-                        source,
-                      },
-                    },
-                  },
-                  orderIndexes: [i],
-                });
-
-                break;
-              }
-
               case "flow": {
-                if (!["infinity"].includes(params.orderbook)) {
+                if (!["flow"].includes(params.orderbook)) {
                   return errors.push({
                     message: "Unsupported orderbook",
                     orderIndex: i,

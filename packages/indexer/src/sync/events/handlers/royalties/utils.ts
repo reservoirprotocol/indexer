@@ -57,12 +57,11 @@ export const getEnhancedEventsFromTx = async (txHash: string) => {
   return enhancedEvents;
 };
 
-export async function extractOnChainData(enhancedEvents: EnhancedEvent[]) {
+export async function extractOnChainData(enhancedEvents: EnhancedEvent[], skipProcessing = true) {
   const allOnChainData: OnChainData[] = [];
-
   const eventBatches = await extractEventsBatches(enhancedEvents, true);
   for (const batch of eventBatches) {
-    const onChainData = await processEventsBatch(batch, true);
+    const onChainData = await processEventsBatch(batch, skipProcessing);
     allOnChainData.push(onChainData);
   }
 

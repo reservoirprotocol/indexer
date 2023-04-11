@@ -90,7 +90,7 @@ if (
           logger.info(
             "sync-events-timing",
             JSON.stringify({
-              message: "Events realtime syncing",
+              message: `Events realtime syncing providerHeadBlock ${providerHeadBlock} block range [${fromBlock}, ${headBlock}]`,
               providerHeadBlock,
               headBlock,
               fromBlock,

@@ -9,6 +9,7 @@ export type Event = {
   maker: string;
   minNonce: string;
   baseEventParams: BaseEventParams;
+  orderSide?: "sell" | "buy";
   acrossAll?: boolean;
 };
 
@@ -24,9 +25,16 @@ type DbEvent = {
   order_kind: OrderKind;
   maker: Buffer;
   min_nonce: string;
+  side: "sell" | "buy" | null;
 };
 
-function generateUpdateQuery(bulkCancelValues: DbEvent[], acrossAll: boolean) {
+function generateUpdateQuery(
+  bulkCancelValues: DbEvent[],
+  options?: {
+    acrossAll?: boolean;
+    withSide?: boolean;
+  }
+) {
   const columns = new pgp.helpers.ColumnSet(
     [
       "address",
@@ -40,11 +48,11 @@ function generateUpdateQuery(bulkCancelValues: DbEvent[], acrossAll: boolean) {
       "order_kind",
       "maker",
       "min_nonce",
+      "side",
     ],
     { table: "bulk_cancel_events" }
   );
 
-  // For Element there has two kind-of nonce, set acrossAll `true` to cancel all maker's related orders
   // Atomically insert the bulk cancel events and update order statuses
   return `
     WITH "x" AS (
@@ -59,10 +67,11 @@ function generateUpdateQuery(bulkCancelValues: DbEvent[], acrossAll: boolean) {
         "batch_index",
         "order_kind",
         "maker",
-        "min_nonce"
+        "min_nonce",
+        "side"
       ) VALUES ${pgp.helpers.values(bulkCancelValues, columns)}
       ON CONFLICT DO NOTHING
-      RETURNING "order_kind", "maker", "min_nonce", "tx_hash", "timestamp", "log_index", "batch_index", "block_hash"
+      RETURNING "side", "order_kind", "maker", "min_nonce", "tx_hash", "timestamp", "log_index", "batch_index", "block_hash"
     )
     UPDATE "orders" AS "o" SET
       "fillability_status" = 'cancelled',
@@ -70,8 +79,9 @@ function generateUpdateQuery(bulkCancelValues: DbEvent[], acrossAll: boolean) {
       "updated_at" = now()
     FROM "x"
     WHERE "o"."maker" = "x"."maker"
-      And "o"."kind" = "x"."order_kind"
-      ${acrossAll ? `` : `AND "o"."nonce" < "x"."min_nonce" `}
+      AND "o"."kind" = "x"."order_kind"
+      ${options?.withSide ? ` AND "o"."side" = "x"."side"` : ""}
+      ${options?.acrossAll ? "" : ` AND "o"."nonce" < "x"."min_nonce"`}
       AND ("o"."fillability_status" = 'fillable' OR "o"."fillability_status" = 'no-balance')
     RETURNING "o"."id", "x"."tx_hash", "x"."timestamp", "x"."log_index", "x"."batch_index", "x"."block_hash"
   `;
@@ -80,6 +90,7 @@ function generateUpdateQuery(bulkCancelValues: DbEvent[], acrossAll: boolean) {
 export const addEvents = async (events: Event[], backfill = false) => {
   const bulkCancelValues: DbEvent[] = [];
   const bulkCancelValuesAcrossAll: DbEvent[] = [];
+  const bulkCancelValuesWithSide: DbEvent[] = [];
   for (const event of events) {
     const dbEvent = {
       address: toBuffer(event.baseEventParams.address),
@@ -93,34 +104,43 @@ export const addEvents = async (events: Event[], backfill = false) => {
       order_kind: event.orderKind,
       maker: toBuffer(event.maker),
       min_nonce: event.minNonce,
+      side: event.orderSide ?? null,
     };
+
     if (event.acrossAll) {
       bulkCancelValuesAcrossAll.push(dbEvent);
+    } else if (event.orderSide) {
+      bulkCancelValuesWithSide.push(dbEvent);
     } else {
       bulkCancelValues.push(dbEvent);
     }
   }
 
   let query: string | undefined;
-  let acrossAllQuery: string | undefined;
   if (bulkCancelValues.length) {
-    query = generateUpdateQuery(bulkCancelValues, false);
+    query = generateUpdateQuery(bulkCancelValues);
   }
 
+  let queryAcrossAll: string | undefined;
   if (bulkCancelValuesAcrossAll.length) {
-    acrossAllQuery = generateUpdateQuery(bulkCancelValuesAcrossAll, true);
+    queryAcrossAll = generateUpdateQuery(bulkCancelValuesAcrossAll, { acrossAll: true });
   }
 
-  if (query || acrossAllQuery) {
+  let queryWithSide: string | undefined;
+  if (bulkCancelValuesWithSide.length) {
+    queryWithSide = generateUpdateQuery(bulkCancelValuesWithSide, { withSide: true });
+  }
+
+  if (query || queryAcrossAll || queryWithSide) {
     // No need to buffer through the write queue since there
     // are no chances of database deadlocks in this scenario
-    const [bulkResult, acrossResult] = await Promise.all([
+    const [result, resultAcrossAll, resultWithSide] = await Promise.all([
       query ? idb.manyOrNone(query) : Promise.resolve([]),
-      acrossAllQuery ? idb.manyOrNone(acrossAllQuery) : Promise.resolve([]),
+      queryAcrossAll ? idb.manyOrNone(queryAcrossAll) : Promise.resolve([]),
+      queryWithSide ? idb.manyOrNone(queryWithSide) : Promise.resolve([]),
     ]);
 
-    const result = bulkResult.concat(acrossResult);
-
+    const all = result.concat(resultAcrossAll, resultWithSide);
     if (!backfill) {
       // TODO: Ideally, we should trigger all further processing
       // pipelines one layer higher but for now we can just have
@@ -129,7 +149,7 @@ export const addEvents = async (events: Event[], backfill = false) => {
       // number of orders that need status updates and executing
       // it synchronously is not ideal).
       await orderUpdatesById.addToQueue(
-        result.map(
+        all.map(
           ({ id, tx_hash, timestamp, log_index, batch_index, block_hash }) =>
             ({
               context: `cancelled-${id}`,

@@ -75,14 +75,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         return;
       }
 
-      // Handle: fees
-      let feeBps = 0;
-      const feeBreakdown: {
-        kind: string;
-        recipient: string;
-        bps: number;
-      }[] = [];
-
       const poolFeatures = await Sdk.Nftx.Helpers.getPoolFeatures(orderParams.pool, baseProvider);
 
       // Force recheck at most once per hour
@@ -92,6 +84,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       // Handle buy orders
       try {
+        // Handle: fees
+        let feeBps = 0;
+        const feeBreakdown: {
+          kind: string;
+          recipient: string;
+          bps: number;
+        }[] = [];
+
         const id = getOrderId(orderParams.pool, "buy");
 
         // Requirements for buy orders:
@@ -401,6 +401,14 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         // Handle: prices
         const { price, feeBps: bps } = priceList[0];
         const value = price;
+
+        // Handle: fees
+        let feeBps = 0;
+        const feeBreakdown: {
+          kind: string;
+          recipient: string;
+          bps: number;
+        }[] = [];
 
         // Handle: fees
         feeBps = Number(bps);

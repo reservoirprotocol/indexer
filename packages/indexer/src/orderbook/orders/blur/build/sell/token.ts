@@ -25,13 +25,7 @@ export const build = async (options: BuildOrderOptions) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     signData: { value: any; domain: any; types: any };
     marketplaceData: string;
-  } = await axios
-    .get(url, {
-      headers: {
-        "X-Api-Key": config.orderFetcherApiKey,
-      },
-    })
-    .then((response) => response.data.data);
+  } = await axios.get(url).then((response) => response.data.data);
 
   return {
     order: new Sdk.Blur.Order(config.chainId, response.signData.value),

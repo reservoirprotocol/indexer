@@ -24,6 +24,12 @@ export const ReservoirConduitKey: ChainIdToAddress = {
   [Network.AvalancheFuji]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
 };
 
+export const OriginConduitKey: ChainIdToAddress = {
+  [Network.Ethereum]: "0x52b868f7b0d20b689d059ab141677c673d5d2b7e000000000000000000000000",
+  [Network.EthereumGoerli]: "0x52b868f7b0d20b689d059ab141677c673d5d2b7e000000000000000000000000",
+  [Network.Polygon]: "0x52b868f7b0d20b689d059ab141677c673d5d2b7e000000000000000000000000",
+};
+
 export const ConduitController: ChainIdToAddress = {
   [Network.Ethereum]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.EthereumGoerli]: "0x00000000f9490004c11cef243f5400493c00ad63",
