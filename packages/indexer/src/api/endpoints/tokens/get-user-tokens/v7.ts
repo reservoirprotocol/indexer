@@ -182,7 +182,7 @@ export const getUserTokensV7Options: RouteOptions = {
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
-              kind: Joi.string(),
+              kind: Joi.string().allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
               source: Joi.object().allow(null),
