@@ -333,9 +333,9 @@ const postOrder = async (
     }
 
     case "looks-rare": {
-      const order = new Sdk.LooksRare.Order(
+      const order = new Sdk.LooksRareV2.Order(
         config.chainId,
-        orderData as Sdk.LooksRare.Types.MakerOrderParams
+        orderData as Sdk.LooksRareV2.Types.MakerOrderParams
       );
       return LooksrareApi.postOrder(order, orderbookApiKey);
     }
@@ -375,7 +375,7 @@ export type PostOrderExternalParams =
   | {
       crossPostingOrderId: number;
       orderId: string;
-      orderData: Sdk.LooksRare.Types.MakerOrderParams;
+      orderData: Sdk.LooksRareV2.Types.MakerOrderParams;
       orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
       orderbook: "looks-rare";
       orderbookApiKey?: string | null;

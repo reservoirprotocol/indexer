@@ -20,8 +20,8 @@ import * as blurSellToken from "@/orderbook/orders/blur/build/sell/token";
 import * as blurCheck from "@/orderbook/orders/blur/check";
 
 // LooksRare
-import * as looksRareSellToken from "@/orderbook/orders/looks-rare/build/sell/token";
-import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
+import * as looksRareV2SellToken from "@/orderbook/orders/looks-rare-v2/build/sell/token";
+import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
 
 // Seaport
 import * as seaportSellToken from "@/orderbook/orders/seaport-v1.1/build/sell/token";
@@ -93,7 +93,7 @@ export const getExecuteListV5Options: RouteOptions = {
           orderKind: Joi.string()
             .valid(
               "blur",
-              "looks-rare",
+              "looks-rare-v2",
               "zeroex-v4",
               "seaport",
               "seaport-v1.4",
@@ -730,7 +730,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 break;
               }
 
-              case "looks-rare": {
+              case "looks-rare-v2": {
                 if (!["reservoir", "looks-rare"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
@@ -738,7 +738,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   return errors.push({ message: "Custom fees not supported", orderIndex: i });
                 }
 
-                const order = await looksRareSellToken.build({
+                const order = await looksRareV2SellToken.build({
                   ...params,
                   maker,
                   contract,
@@ -750,7 +750,7 @@ export const getExecuteListV5Options: RouteOptions = {
 
                 // Check the order's fillability
                 try {
-                  await looksRareCheck.offChainCheck(order, { onChainApprovalRecheck: true });
+                  await looksRareV2Check.offChainCheck(order, { onChainApprovalRecheck: true });
                 } catch (error: any) {
                   switch (error.message) {
                     case "no-balance-no-approval":
@@ -771,9 +771,7 @@ export const getExecuteListV5Options: RouteOptions = {
                           : new Sdk.Common.Helpers.Erc1155(baseProvider, order.params.collection)
                       ).approveTransaction(
                         maker,
-                        contractKind === "erc721"
-                          ? Sdk.LooksRare.Addresses.TransferManagerErc721[config.chainId]
-                          : Sdk.LooksRare.Addresses.TransferManagerErc1155[config.chainId]
+                        Sdk.LooksRareV2.Addresses.TransferManager[config.chainId]
                       );
 
                       break;
@@ -795,7 +793,7 @@ export const getExecuteListV5Options: RouteOptions = {
                       method: "POST",
                       body: {
                         order: {
-                          kind: "looks-rare",
+                          kind: "looks-rare-v2",
                           data: {
                             ...order.params,
                           },
