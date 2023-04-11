@@ -64,12 +64,7 @@ export const postAuthSignatureV1Options: RouteOptions = {
               `${config.orderFetcherBaseUrl}/api/blur-auth?authChallenge=${JSON.stringify({
                 ...authChallenge,
                 signature: query.signature,
-              })}`,
-              {
-                headers: {
-                  "X-Api-Key": config.orderFetcherApiKey,
-                },
-              }
+              })}`
             )
             .then((response) => response.data);
 
@@ -104,12 +99,7 @@ export const postAuthSignatureV1Options: RouteOptions = {
 
           const authorization = await axios
             .get(
-              `${config.orderFetcherBaseUrl}/api/opensea-auth?chainId=${config.chainId}&taker=${authChallenge.walletAddress}&loginMessage=${authChallenge.loginMessage}&signature=${query.signature}`,
-              {
-                headers: {
-                  "X-Api-Key": config.orderFetcherApiKey,
-                },
-              }
+              `${config.orderFetcherBaseUrl}/api/opensea-auth?chainId=${config.chainId}&taker=${authChallenge.walletAddress}&loginMessage=${authChallenge.loginMessage}&signature=${query.signature}`
             )
             .then((response) => response.data.authorization);
 

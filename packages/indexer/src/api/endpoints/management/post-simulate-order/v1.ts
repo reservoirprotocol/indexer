@@ -144,7 +144,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           },
         });
 
-        if (JSON.parse(response.payload).statusCode === 500) {
+        if (JSON.parse(response.payload).statusCode !== 200) {
           return { message: "Simulation failed" };
         }
 
@@ -248,7 +248,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           },
         });
 
-        if (JSON.parse(response.payload).statusCode === 500) {
+        if (JSON.parse(response.payload).statusCode !== 200) {
           return { message: "Simulation failed" };
         }
 

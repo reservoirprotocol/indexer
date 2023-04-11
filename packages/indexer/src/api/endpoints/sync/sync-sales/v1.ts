@@ -140,6 +140,7 @@ export const getSyncSalesV1Options: RouteOptions = {
             fill_events_2.marketplace_fee_breakdown,
             fill_events_2.paid_full_royalty,
             fill_events_2.created_at,
+            fill_events_2.is_deleted,
             extract(epoch from updated_at) updated_ts
           FROM fill_events_2
             LEFT JOIN currencies
@@ -220,6 +221,7 @@ export const getSyncSalesV1Options: RouteOptions = {
           txHash: r.tx_hash,
           logIndex: r.log_index,
           batchIndex: r.batch_index,
+          isDeleted: Boolean(r.is_deleted),
           createdAt: new Date(r.created_at).toISOString(),
           updatedAt: new Date(r.updated_ts * 1000).toISOString(),
         });

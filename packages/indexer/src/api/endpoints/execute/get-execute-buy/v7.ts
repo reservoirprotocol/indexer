@@ -60,7 +60,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   "x2y2",
                   "universe",
                   "rarible",
-                  "infinity",
                   "sudoswap",
                   "flow",
                   "nftx"
@@ -684,14 +683,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
             if (!blurAuthChallenge) {
               blurAuthChallenge = (await axios
-                .get(
-                  `${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${payload.taker}`,
-                  {
-                    headers: {
-                      "X-Api-Key": config.orderFetcherApiKey,
-                    },
-                  }
-                )
+                .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${payload.taker}`)
                 .then((response) => response.data.authChallenge)) as b.AuthChallenge;
 
               await b.saveAuthChallenge(
@@ -743,7 +735,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
         openseaApiKey: payload.openseaApiKey,
         cbApiKey: config.cbApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
-        orderFetcherApiKey: config.orderFetcherApiKey,
       });
 
       const errors: { orderId: string; message: string }[] = [];

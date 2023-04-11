@@ -171,16 +171,6 @@ export const extractEventsBatches = async (
             data: kindToEvents.get("universe") ?? [],
           },
           {
-            kind: "infinity",
-            data: kindToEvents.has("infinity")
-              ? [
-                  ...kindToEvents.get("infinity")!,
-                  // To properly validate bids, we need some additional events
-                  ...events.filter((e) => e.subKind === "erc20-transfer"),
-                ]
-              : [],
-          },
-          {
             kind: "rarible",
             data: kindToEvents.has("rarible")
               ? [
@@ -235,6 +225,10 @@ export const extractEventsBatches = async (
           {
             kind: "treasure",
             data: kindToEvents.get("treasure") ?? [],
+          },
+          {
+            kind: "looks-rare-v2",
+            data: kindToEvents.get("looks-rare-v2") ?? [],
           },
         ];
 
@@ -409,7 +403,7 @@ export const syncEvents = async (
       }
 
       const blocksToCheck: BlocksToCheck[] = [];
-      let blockNumbersArray = _.range(fromBlock, toBlock);
+      let blockNumbersArray = _.range(fromBlock, toBlock + 1);
 
       // Put all fetched blocks on a delayed queue
       [...blocksSet.values()].map(async (blockData) => {
