@@ -94,6 +94,7 @@ export const config = {
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
   flowApiKey: String(process.env.FLOW_API_KEY),
+  orderFetcherApiKey: String(process.env.ORDER_FETCHER_API_KEY),
 
   blurWsApiKey: process.env.BLUR_WS_API_KEY,
   blurWsUrl: process.env.BLUR_WS_URL,
