@@ -12,6 +12,7 @@ import { parseEvent } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 import * as syncEventsUtils from "@/events-sync/utils";
 import * as blocksModel from "@/models/blocks";
+import getUuidByString from "uuid-by-string";
 
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 import * as blockCheck from "@/jobs/events-sync/block-check-queue";
@@ -46,10 +47,17 @@ export const extractEventsBatches = async (
     [...txHashToEvents.entries()].map(([txHash, events]) =>
       limit(() => {
         const kindToEvents = new Map<EventKind, EnhancedEvent[]>();
+        let blockHash = "";
+
         for (const event of events) {
           if (!kindToEvents.has(event.kind)) {
             kindToEvents.set(event.kind, []);
           }
+
+          if (!blockHash) {
+            blockHash = event.baseEventParams.blockHash;
+          }
+
           kindToEvents.get(event.kind)!.push(event);
         }
 
@@ -233,7 +241,7 @@ export const extractEventsBatches = async (
         ];
 
         txHashToEventsBatch.set(txHash, {
-          id: txHash,
+          id: getUuidByString(`${txHash}:${blockHash}`),
           events: eventsByKind,
           backfill,
         });
