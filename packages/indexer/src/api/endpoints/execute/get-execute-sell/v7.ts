@@ -61,7 +61,6 @@ export const getExecuteSellV7Options: RouteOptions = {
                   "x2y2",
                   "universe",
                   "rarible",
-                  "infinity",
                   "sudoswap",
                   "nftx"
                 )

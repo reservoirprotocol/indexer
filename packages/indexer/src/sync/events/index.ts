@@ -171,16 +171,6 @@ export const extractEventsBatches = async (
             data: kindToEvents.get("universe") ?? [],
           },
           {
-            kind: "infinity",
-            data: kindToEvents.has("infinity")
-              ? [
-                  ...kindToEvents.get("infinity")!,
-                  // To properly validate bids, we need some additional events
-                  ...events.filter((e) => e.subKind === "erc20-transfer"),
-                ]
-              : [],
-          },
-          {
             kind: "rarible",
             data: kindToEvents.has("rarible")
               ? [

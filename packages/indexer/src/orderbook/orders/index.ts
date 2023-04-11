@@ -14,7 +14,6 @@ export * as x2y2 from "@/orderbook/orders/x2y2";
 export * as zeroExV4 from "@/orderbook/orders/zeroex-v4";
 export * as zora from "@/orderbook/orders/zora";
 export * as universe from "@/orderbook/orders/universe";
-export * as infinity from "@/orderbook/orders/infinity";
 export * as flow from "@/orderbook/orders/flow";
 export * as blur from "@/orderbook/orders/blur";
 export * as rarible from "@/orderbook/orders/rarible";
@@ -62,7 +61,6 @@ export type OrderKind =
   | "universe"
   | "nftx"
   | "blur"
-  | "infinity"
   | "flow"
   | "forward"
   | "manifold"
@@ -157,8 +155,6 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("nftx.io");
       case "blur":
         return sources.getOrInsert("blur.io");
-      case "infinity":
-        return sources.getOrInsert("infinity.xyz");
       case "flow":
         return sources.getOrInsert("flow.so");
       case "manifold":
@@ -359,15 +355,6 @@ export const generateListingDetailsV6 = (
         kind: "universe",
         ...common,
         order: new Sdk.Universe.Order(config.chainId, order.rawData),
-      };
-    }
-
-    case "infinity": {
-      const sdkOrder = new Sdk.Infinity.Order(config.chainId, order.rawData);
-      return {
-        kind: "infinity",
-        ...common,
-        order: sdkOrder,
       };
     }
 
@@ -624,15 +611,6 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.Universe.Order(config.chainId, order.rawData);
       return {
         kind: "universe",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
-    case "infinity": {
-      const sdkOrder = new Sdk.Infinity.Order(config.chainId, order.rawData);
-      return {
-        kind: "infinity",
         ...common,
         order: sdkOrder,
       };

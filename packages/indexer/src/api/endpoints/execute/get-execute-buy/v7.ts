@@ -60,7 +60,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
                   "x2y2",
                   "universe",
                   "rarible",
-                  "infinity",
                   "sudoswap",
                   "flow",
                   "nftx"

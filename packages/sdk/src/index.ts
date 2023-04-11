@@ -15,7 +15,6 @@ import * as Element from "./element";
 import * as Flow from "./flow";
 import * as Forward from "./forward";
 import * as Foundation from "./foundation";
-import * as Infinity from "./infinity";
 import * as LooksRare from "./looks-rare";
 import * as Manifold from "./manifold";
 import * as NftTrader from "./nft-trader";
@@ -60,7 +59,6 @@ export {
   Flow,
   Forward,
   Foundation,
-  Infinity,
   LooksRare,
   Manifold,
   NftTrader,

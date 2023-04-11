@@ -118,11 +118,6 @@ export type GenericOrderInfo =
       validateBidValue?: boolean;
     }
   | {
-      kind: "infinity";
-      info: orders.infinity.OrderInfo;
-      validateBidValue?: boolean;
-    }
-  | {
       kind: "flow";
       info: orders.flow.OrderInfo;
       validateBidValue?: boolean;
@@ -231,11 +226,6 @@ export const jobProcessor = async (job: Job) => {
 
       case "rarible": {
         result = await orders.rarible.save([info]);
-        break;
-      }
-
-      case "infinity": {
-        result = await orders.infinity.save([info]);
         break;
       }
 

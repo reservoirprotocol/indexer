@@ -38,7 +38,6 @@ export const postOrdersV1Options: RouteOptions = {
               "blur",
               "rarible",
               "manifold",
-              "infinity",
               "flow",
               "looks-rare-v2"
             )

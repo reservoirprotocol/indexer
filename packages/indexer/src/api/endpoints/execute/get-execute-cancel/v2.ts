@@ -200,16 +200,6 @@ export const getExecuteCancelV2Options: RouteOptions = {
           break;
         }
 
-        case "infinity": {
-          const order = new Sdk.Infinity.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Infinity.Exchange(config.chainId);
-          const nonce = order.nonce;
-          cancelTx = exchange.cancelMultipleOrdersTx(order.signer, [nonce]);
-          orderSide = order.isSellOrder ? "sell" : "buy";
-
-          break;
-        }
-
         case "flow": {
           const order = new Sdk.Flow.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.Flow.Exchange(config.chainId);

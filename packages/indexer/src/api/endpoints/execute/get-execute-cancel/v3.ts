@@ -34,7 +34,6 @@ export const getExecuteCancelV3Options: RouteOptions = {
         "zeroex-v4-erc1155",
         "universe",
         "rarible",
-        "infinity",
         "flow"
       ),
       token: Joi.string().pattern(regex.token),
@@ -291,15 +290,6 @@ export const getExecuteCancelV3Options: RouteOptions = {
           const order = new Sdk.Rarible.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.Rarible.Exchange(config.chainId);
           cancelTx = await exchange.cancelOrderTx(order.params);
-
-          break;
-        }
-
-        case "infinity": {
-          const order = new Sdk.Infinity.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Infinity.Exchange(config.chainId);
-          const nonce = order.nonce;
-          cancelTx = exchange.cancelMultipleOrdersTx(order.signer, [nonce]);
 
           break;
         }

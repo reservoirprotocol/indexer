@@ -259,69 +259,6 @@ export class Router {
       }
     }
 
-    // TODO: Add Infinity router module
-    if (details.some(({ kind }) => kind === "infinity")) {
-      if (options?.relayer) {
-        throw new Error("Relayer not supported for Infinity orders");
-      }
-
-      if (details.length > 1) {
-        throw new Error("Infinity sweeping is not supported");
-      } else {
-        if (options?.globalFees?.length) {
-          throw new Error("Fees not supported for Infinity orders");
-        }
-
-        const detail = details[0];
-
-        let approval: FTApproval | undefined;
-        if (!isETH(this.chainId, detail.currency)) {
-          approval = {
-            currency: detail.currency,
-            amount: detail.price,
-            owner: taker,
-            operator: Sdk.Infinity.Addresses.Exchange[this.chainId],
-            txData: generateFTApprovalTxData(
-              detail.currency,
-              taker,
-              Sdk.Infinity.Addresses.Exchange[this.chainId]
-            ),
-          };
-        }
-
-        const order = detail.order as Sdk.Infinity.Order;
-        const exchange = new Sdk.Infinity.Exchange(this.chainId);
-
-        if (options?.directFillingData) {
-          return {
-            txs: [
-              {
-                approvals: approval ? [approval] : [],
-                txData: exchange.takeOrdersTx(taker, [
-                  {
-                    order,
-                    tokens: options.directFillingData,
-                  },
-                ]),
-                orderIds: [detail.orderId],
-              },
-            ],
-            success: { [detail.orderId]: true },
-          };
-        }
-        return {
-          txs: [
-            {
-              approvals: approval ? [approval] : [],
-              txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
-      }
-    }
-
     // TODO: Add Flow router module
     if (details.some(({ kind }) => kind === "flow")) {
       if (options?.relayer) {

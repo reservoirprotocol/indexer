@@ -13,7 +13,6 @@ import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 import * as LooksrareApi from "@/jobs/orderbook/post-order-external/api/looksrare";
 import * as X2Y2Api from "@/jobs/orderbook/post-order-external/api/x2y2";
 import * as UniverseApi from "@/jobs/orderbook/post-order-external/api/universe";
-import * as InfinityApi from "@/jobs/orderbook/post-order-external/api/infinity";
 import * as FlowApi from "@/jobs/orderbook/post-order-external/api/flow";
 
 import {
@@ -49,11 +48,7 @@ if (config.doBackgroundWork) {
       const { crossPostingOrderId, orderId, orderData, orderSchema, orderbook } =
         job.data as PostOrderExternalParams;
 
-      if (
-        !["blur", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow"].includes(
-          orderbook
-        )
-      ) {
+      if (!["blur", "opensea", "looks-rare", "x2y2", "universe", "flow"].includes(orderbook)) {
         if (crossPostingOrderId) {
           await crossPostingOrdersModel.updateOrderStatus(
             crossPostingOrderId,
@@ -237,8 +232,6 @@ const getOrderbookDefaultApiKey = (orderbook: string) => {
       return config.x2y2ApiKey;
     case "universe":
       return "";
-    case "infinity":
-      return config.infinityApiKey;
     case "flow":
       return config.flowApiKey;
   }
@@ -277,12 +270,6 @@ const getRateLimiter = (orderbook: string) => {
         storeClient: rateLimitRedis,
         points: UniverseApi.RATE_LIMIT_REQUEST_COUNT,
         duration: UniverseApi.RATE_LIMIT_INTERVAL,
-      });
-    case "infinity":
-      return new RateLimiterRedis({
-        storeClient: rateLimitRedis,
-        points: InfinityApi.RATE_LIMIT_REQUEST_COUNT,
-        duration: InfinityApi.RATE_LIMIT_INTERVAL,
       });
     case "flow":
       return new RateLimiterRedis({
@@ -362,14 +349,6 @@ const postOrder = async (
       return X2Y2Api.postOrder(orderData as Sdk.X2Y2.Types.LocalOrder, orderbookApiKey);
     }
 
-    case "infinity": {
-      const order = new Sdk.Infinity.Order(
-        config.chainId,
-        orderData as Sdk.Infinity.Types.OrderInput
-      );
-      return InfinityApi.postOrders(order, orderbookApiKey);
-    }
-
     case "flow": {
       const order = new Sdk.Flow.Order(config.chainId, orderData as Sdk.Flow.Types.OrderInput);
       return FlowApi.postOrders(order, orderbookApiKey);
@@ -417,15 +396,6 @@ export type PostOrderExternalParams =
       orderData: Sdk.Universe.Types.Order;
       orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
       orderbook: "universe";
-      orderbookApiKey?: string | null;
-      retry?: number;
-    }
-  | {
-      crossPostingOrderId: number;
-      orderId: string;
-      orderData: Sdk.Infinity.Types.OrderInput;
-      orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
-      orderbook: "infinity";
       orderbookApiKey?: string | null;
       retry?: number;
     }

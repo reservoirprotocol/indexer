@@ -27,7 +27,6 @@ import * as x2y2 from "@/events-sync/handlers/x2y2";
 import * as zeroExV4 from "@/events-sync/handlers/zeroex-v4";
 import * as zora from "@/events-sync/handlers/zora";
 import * as universe from "@/events-sync/handlers/universe";
-import * as infinity from "@/events-sync/handlers/infinity";
 import * as flow from "@/events-sync/handlers/flow";
 import * as rarible from "@/events-sync/handlers/rarible";
 import * as manifold from "@/events-sync/handlers/manifold";
@@ -79,7 +78,6 @@ export const eventKindToHandler = new Map<
   ["zeroex-v4", (e, d, b) => zeroExV4.handleEvents(e, d, b)],
   ["zora", (e, d) => zora.handleEvents(e, d)],
   ["universe", (e, d) => universe.handleEvents(e, d)],
-  ["infinity", (e, d) => infinity.handleEvents(e, d)],
   ["rarible", (e, d) => rarible.handleEvents(e, d)],
   ["manifold", (e, d) => manifold.handleEvents(e, d)],
   ["tofu", (e, d) => tofu.handleEvents(e, d)],
