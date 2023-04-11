@@ -4,6 +4,7 @@ import { BaseBuildParams } from "@reservoir0x/sdk/dist/looks-rare-v2/builders/ba
 import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import * as commonHelpers from "@/orderbook/orders/common/helpers";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -56,6 +57,21 @@ export const getBuildInfo = async (
         : Sdk.Common.Addresses.Weth[config.chainId],
     startTime: options.listingTime!,
     endTime: options.expirationTime!,
+    globalNonce: await commonHelpers.getMinNonce("looks-rare-v2", options.maker, side),
+    subsetNonce: await (async () => {
+      let subsetNonce = 0;
+
+      let i = 0;
+      while (i++ < 50) {
+        if (await commonHelpers.isSubsetNonceCancelled(options.maker, subsetNonce.toString())) {
+          subsetNonce++;
+        } else {
+          break;
+        }
+      }
+
+      return subsetNonce.toString();
+    })(),
   };
 
   return {
