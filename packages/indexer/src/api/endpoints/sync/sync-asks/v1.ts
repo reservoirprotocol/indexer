@@ -33,11 +33,6 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      sortDirection: Joi.string()
-        .lowercase()
-        .valid("asc", "desc")
-        .default("asc")
-        .description("Direction to order the items which are returned in the response."),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
@@ -91,7 +86,6 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
         })
       ),
       continuation: Joi.string().pattern(regex.base64).allow(null),
-      cursor: Joi.string().pattern(regex.base64).allow(null),
     }).label(`syncOrdersAsks${version.toUpperCase()}Response`),
     failAction: (_request, _h, error) => {
       logger.error(`sync-orders-asks-${version}-handler`, `Wrong response schema: ${error}`);
@@ -166,18 +160,21 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
       } */
 
       if (query.continuation) {
-        const [updatedAt, id] = splitContinuation(
+        const [updatedAt, id, oldOrders] = splitContinuation(
           query.continuation,
-          /^\d+(.\d+)?_0x[a-f0-9]{64}$/
+          /^\d+(.\d+)?_0x[a-f0-9]{64}_\d$/
         );
         (query as any).updatedAt = updatedAt;
         (query as any).id = id;
+        (query as any).oldOrders = Number(oldOrders);
 
-        if (query.sortDirection === "asc") {
-          conditions.push(`(orders.updated_at, orders.id) > (to_timestamp($/updatedAt/), $/id/)`);
-        } else {
-          conditions.push(`(orders.updated_at, orders.id) < (to_timestamp($/updatedAt/), $/id/)`);
-        }
+        conditions.push(`(orders.updated_at, orders.id) > (to_timestamp($/updatedAt/), $/id/)`);
+      }
+
+      if (query.oldOrders || !query.continuation) {
+        conditions.push(`orders.updated_at < now()`);
+        conditions.push(`orders.fillability_status = 'fillable'`);
+        conditions.push(`orders.approval_status = 'approved'`);
       }
 
       if (conditions.length) {
@@ -185,23 +182,30 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
       }
 
       // Sorting
-      if (query.sortDirection === "asc") {
-        baseQuery += ` ORDER BY orders.updated_at ASC, orders.id ASC`;
-      } else {
-        baseQuery += ` ORDER BY orders.updated_at DESC, orders.id DESC`;
-      }
+      baseQuery += ` ORDER BY orders.updated_at ASC, orders.id ASC`;
 
       // Pagination
       baseQuery += ` LIMIT ${limit}`;
 
       const rawResult = await redb.manyOrNone(baseQuery, query);
 
-      let continuationToken = null;
-      continuationToken = buildContinuation(
-        rawResult[rawResult.length - 1].updated_at + "_" + rawResult[rawResult.length - 1].id
+      let oldOrders = 1;
+
+      if (
+        query.continuation &&
+        (!query.oldOrders || (rawResult.length !== limit && query.oldOrders))
+      ) {
+        oldOrders = 0;
+      }
+
+      const continuation = buildContinuation(
+        rawResult[rawResult.length - 1].updated_at +
+          "_" +
+          rawResult[rawResult.length - 1].id +
+          "_" +
+          oldOrders
       );
 
-      const continuation = rawResult.length === limit ? continuationToken : null;
       const sources = await Sources.getInstance();
       const result = rawResult.map(async (r) => {
         let source: SourcesEntity | undefined;
@@ -282,10 +286,9 @@ export const getSyncOrdersAsksV1Options: RouteOptions = {
       const response = h.response({
         orders: await Promise.all(result),
         continuation,
-        cursor: !continuation ? continuationToken : null,
       });
 
-      if (rawResult.length === limit) {
+      if (rawResult.length === limit && oldOrders) {
         response.ttl(CACHE_TTL);
       }
 
