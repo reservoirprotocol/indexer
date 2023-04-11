@@ -1,2 +1,2 @@
 export * from "@/api/endpoints/sync/sync-sales/v1";
-export * from "@/api/endpoints/sync/sync-asks/v1";
+export * from "@/api/endpoints/sync/sync-orders/v1";

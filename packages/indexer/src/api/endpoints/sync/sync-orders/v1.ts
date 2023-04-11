@@ -33,7 +33,10 @@ export const getSyncOrdersV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      side: Joi.string().valid("sell", "buy").default("sell").description("Sell or buy side."),
+      side: Joi.string()
+        .valid("sell", "buy")
+        .default("sell")
+        .description("asks (sell) vs. bids (buy)"),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
