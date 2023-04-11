@@ -22,24 +22,16 @@ export type BlurData = {
   isCollectionBid?: boolean;
 };
 
-export async function postOrder(order: BlurData, apiKey: string): Promise<void> {
+export async function postOrder(order: BlurData): Promise<void> {
   const url = `${config.orderFetcherBaseUrl}/api/blur-submit-order`;
   try {
-    await axios.post(
-      url,
-      {
-        maker: order.maker,
-        marketplaceData: order.marketplaceData,
-        authToken: order.authToken,
-        signature: order.signature,
-        isCollectionBid: order.isCollectionBid ? "true" : undefined,
-      },
-      {
-        headers: {
-          "X-Api-Key": apiKey || config.orderFetcherApiKey,
-        },
-      }
-    );
+    await axios.post(url, {
+      maker: order.maker,
+      marketplaceData: order.marketplaceData,
+      authToken: order.authToken,
+      signature: order.signature,
+      isCollectionBid: order.isCollectionBid ? "true" : undefined,
+    });
   } catch (err: any) {
     if (err?.response) {
       logger.error(

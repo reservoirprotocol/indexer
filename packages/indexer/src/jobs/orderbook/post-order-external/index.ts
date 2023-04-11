@@ -229,8 +229,6 @@ if (config.doBackgroundWork) {
 
 const getOrderbookDefaultApiKey = (orderbook: string) => {
   switch (orderbook) {
-    case "blur":
-      return config.orderFetcherApiKey;
     case "opensea":
       return config.openSeaCrossPostingApiKey;
     case "looks-rare":
@@ -378,7 +376,7 @@ const postOrder = async (
     }
 
     case "blur": {
-      return BlurApi.postOrder(orderData as BlurApi.BlurData, orderbookApiKey);
+      return BlurApi.postOrder(orderData as BlurApi.BlurData);
     }
   }
 

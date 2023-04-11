@@ -53,7 +53,6 @@ type SetupOptions = {
   openseaApiKey?: string;
   cbApiKey?: string;
   orderFetcherBaseUrl?: string;
-  orderFetcherApiKey?: string;
 };
 
 export class Router {
@@ -510,24 +509,16 @@ export class Router {
             errors: { tokenId: string; reason: string }[];
           };
         } = await axios
-          .post(
-            url,
-            {
-              taker,
-              tokens: blurCompatibleListings.map((d) => ({
-                contract: d.contract,
-                tokenId: d.tokenId,
-                price: d.price,
-                isFlagged: d.isFlagged,
-              })),
-              authToken: options?.blurAuth?.accessToken,
-            },
-            {
-              headers: {
-                "X-Api-Key": this.options?.orderFetcherApiKey,
-              },
-            }
-          )
+          .post(url, {
+            taker,
+            tokens: blurCompatibleListings.map((d) => ({
+              contract: d.contract,
+              tokenId: d.tokenId,
+              price: d.price,
+              isFlagged: d.isFlagged,
+            })),
+            authToken: options?.blurAuth?.accessToken,
+          })
           .then((response) => response.data.calldata);
 
         for (const [contract, data] of Object.entries(result)) {
@@ -630,11 +621,7 @@ export class Router {
           url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
-            const result = await axios.get(url, {
-              headers: {
-                "X-Api-Key": this.options?.orderFetcherApiKey,
-              },
-            });
+            const result = await axios.get(url);
 
             // Override the details
             const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
@@ -679,11 +666,7 @@ export class Router {
           url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
-            const result = await axios.get(url, {
-              headers: {
-                "X-Api-Key": this.options?.orderFetcherApiKey,
-              },
-            });
+            const result = await axios.get(url);
 
             // Override the details
             const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
@@ -2740,11 +2723,7 @@ export class Router {
           url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
-            const result = await axios.get(url, {
-              headers: {
-                "X-Api-Key": this.options?.orderFetcherApiKey,
-              },
-            });
+            const result = await axios.get(url);
 
             const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
             executions.push({
@@ -2854,11 +2833,7 @@ export class Router {
           url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
-            const result = await axios.get(url, {
-              headers: {
-                "X-Api-Key": this.options?.orderFetcherApiKey,
-              },
-            });
+            const result = await axios.get(url);
 
             if (result.data.calldata) {
               const contract = detail.contract;
