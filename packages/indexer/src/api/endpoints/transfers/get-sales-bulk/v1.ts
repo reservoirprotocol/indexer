@@ -100,6 +100,8 @@ export const getSalesBulkV1Options: RouteOptions = {
 
     // Filters
     const conditions: string[] = [];
+    conditions.push(`fill_events_2.is_deleted = 0`);
+
     if (query.contract) {
       (query as any).contract = toBuffer(query.contract);
       conditions.push(`fill_events_2.contract = $/contract/`);

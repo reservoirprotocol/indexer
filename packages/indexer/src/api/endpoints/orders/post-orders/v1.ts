@@ -38,8 +38,8 @@ export const postOrdersV1Options: RouteOptions = {
               "blur",
               "rarible",
               "manifold",
-              "infinity",
-              "flow"
+              "flow",
+              "looks-rare-v2"
             )
             .required(),
           data: Joi.object().required(),

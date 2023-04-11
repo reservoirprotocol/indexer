@@ -53,7 +53,6 @@ type SetupOptions = {
   openseaApiKey?: string;
   cbApiKey?: string;
   orderFetcherBaseUrl?: string;
-  orderFetcherApiKey?: string;
 };
 
 export class Router {
@@ -260,69 +259,6 @@ export class Router {
       }
     }
 
-    // TODO: Add Infinity router module
-    if (details.some(({ kind }) => kind === "infinity")) {
-      if (options?.relayer) {
-        throw new Error("Relayer not supported for Infinity orders");
-      }
-
-      if (details.length > 1) {
-        throw new Error("Infinity sweeping is not supported");
-      } else {
-        if (options?.globalFees?.length) {
-          throw new Error("Fees not supported for Infinity orders");
-        }
-
-        const detail = details[0];
-
-        let approval: FTApproval | undefined;
-        if (!isETH(this.chainId, detail.currency)) {
-          approval = {
-            currency: detail.currency,
-            amount: detail.price,
-            owner: taker,
-            operator: Sdk.Infinity.Addresses.Exchange[this.chainId],
-            txData: generateFTApprovalTxData(
-              detail.currency,
-              taker,
-              Sdk.Infinity.Addresses.Exchange[this.chainId]
-            ),
-          };
-        }
-
-        const order = detail.order as Sdk.Infinity.Order;
-        const exchange = new Sdk.Infinity.Exchange(this.chainId);
-
-        if (options?.directFillingData) {
-          return {
-            txs: [
-              {
-                approvals: approval ? [approval] : [],
-                txData: exchange.takeOrdersTx(taker, [
-                  {
-                    order,
-                    tokens: options.directFillingData,
-                  },
-                ]),
-                orderIds: [detail.orderId],
-              },
-            ],
-            success: { [detail.orderId]: true },
-          };
-        }
-        return {
-          txs: [
-            {
-              approvals: approval ? [approval] : [],
-              txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
-      }
-    }
-
     // TODO: Add Flow router module
     if (details.some(({ kind }) => kind === "flow")) {
       if (options?.relayer) {
@@ -426,6 +362,38 @@ export class Router {
       }
     }
 
+    // TODO: Add LooksRareV2 router module
+    if (details.some(({ kind }) => kind === "looks-rare-v2")) {
+      if (options?.relayer) {
+        throw new Error("Relayer not supported for LooksRareV2 orders");
+      }
+
+      if (details.length > 1) {
+        throw new Error("LooksRareV2 sweeping is not supported");
+      } else {
+        if (options?.globalFees?.length) {
+          throw new Error("Fees not supported for LooksRareV2 orders");
+        }
+
+        const detail = details[0];
+
+        const order = detail.order as Sdk.LooksRareV2.Order;
+        const exchange = new Sdk.LooksRareV2.Exchange(this.chainId);
+        const matchOrder = order.buildMatching(taker);
+
+        return {
+          txs: [
+            {
+              approvals: [],
+              txData: exchange.fillOrderTx(taker, order, matchOrder),
+              orderIds: [detail.orderId],
+            },
+          ],
+          success: { [detail.orderId]: true },
+        };
+      }
+    }
+
     if (details.some(({ kind }) => kind === "blur")) {
       if (options?.relayer) {
         throw new Error("Relayer not supported for Blur orders");
@@ -478,24 +446,16 @@ export class Router {
             errors: { tokenId: string; reason: string }[];
           };
         } = await axios
-          .post(
-            url,
-            {
-              taker,
-              tokens: blurCompatibleListings.map((d) => ({
-                contract: d.contract,
-                tokenId: d.tokenId,
-                price: d.price,
-                isFlagged: d.isFlagged,
-              })),
-              authToken: options?.blurAuth?.accessToken,
-            },
-            {
-              headers: {
-                "X-Api-Key": this.options?.orderFetcherApiKey,
-              },
-            }
-          )
+          .post(url, {
+            taker,
+            tokens: blurCompatibleListings.map((d) => ({
+              contract: d.contract,
+              tokenId: d.tokenId,
+              price: d.price,
+              isFlagged: d.isFlagged,
+            })),
+            authToken: options?.blurAuth?.accessToken,
+          })
           .then((response) => response.data.calldata);
 
         for (const [contract, data] of Object.entries(result)) {
@@ -598,11 +558,7 @@ export class Router {
           url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
-            const result = await axios.get(url, {
-              headers: {
-                "X-Api-Key": this.options?.orderFetcherApiKey,
-              },
-            });
+            const result = await axios.get(url);
 
             // Override the details
             const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
@@ -647,11 +603,7 @@ export class Router {
           url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
-            const result = await axios.get(url, {
-              headers: {
-                "X-Api-Key": this.options?.orderFetcherApiKey,
-              },
-            });
+            const result = await axios.get(url);
 
             // Override the details
             const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
@@ -2470,6 +2422,39 @@ export class Router {
       }
     }
 
+    // TODO: Add LooksRareV2 router module
+    if (details.some(({ kind }) => kind === "looks-rare-v2")) {
+      if (details.length > 1) {
+        throw new Error("LooksRareV2 multi-selling is not supported");
+      } else {
+        const detail = details[0];
+
+        // Approve LooksRareV2's Exchange contract
+        const approval = {
+          contract: detail.contract,
+          owner: taker,
+          operator: Sdk.LooksRareV2.Addresses.TransferManager[this.chainId],
+          txData: generateNFTApprovalTxData(
+            detail.contract,
+            taker,
+            Sdk.LooksRareV2.Addresses.TransferManager[this.chainId]
+          ),
+        };
+
+        const order = detail.order as Sdk.LooksRareV2.Order;
+        const matchOrder = order.buildMatching(taker);
+
+        const exchange = new Sdk.LooksRareV2.Exchange(this.chainId);
+        return {
+          txData: exchange.fillOrderTx(taker, order, matchOrder, {
+            source: options?.source,
+          }),
+          success: [true],
+          approvals: [approval],
+        };
+      }
+    }
+
     // CASE 2
     // Handle exchanges which do have a router module implemented by filling through the router
 
@@ -2675,11 +2660,7 @@ export class Router {
           url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
-            const result = await axios.get(url, {
-              headers: {
-                "X-Api-Key": this.options?.orderFetcherApiKey,
-              },
-            });
+            const result = await axios.get(url);
 
             const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
             executions.push({
@@ -2789,11 +2770,7 @@ export class Router {
           url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
 
           try {
-            const result = await axios.get(url, {
-              headers: {
-                "X-Api-Key": this.options?.orderFetcherApiKey,
-              },
-            });
+            const result = await axios.get(url);
 
             if (result.data.calldata) {
               const contract = detail.contract;

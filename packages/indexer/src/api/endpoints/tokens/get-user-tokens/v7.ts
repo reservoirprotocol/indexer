@@ -182,6 +182,7 @@ export const getUserTokensV7Options: RouteOptions = {
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
+              kind: Joi.string().allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
               source: Joi.object().allow(null),
@@ -351,7 +352,7 @@ export const getUserTokensV7Options: RouteOptions = {
           fe.royalty_fee_breakdown AS last_sale_royalty_fee_breakdown,
           fe.marketplace_fee_breakdown AS last_sale_marketplace_fee_breakdown
         FROM fill_events_2 fe
-        WHERE fe.contract = t.contract AND fe.token_id = t.token_id
+        WHERE fe.contract = t.contract AND fe.token_id = t.token_id AND fe.is_deleted = 0
         ORDER BY timestamp DESC LIMIT 1
         ) r ON TRUE
         `;
@@ -482,7 +483,7 @@ export const getUserTokensV7Options: RouteOptions = {
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, c.metadata, c.royalties,
-               c.royalties_bps, 
+               c.royalties_bps, o.kind AS floor_sell_kind,
                ${query.includeRawData ? "o.raw_data," : ""}
                ${
                  query.useNonFlaggedFloorAsk
@@ -717,6 +718,7 @@ export const getUserTokensV7Options: RouteOptions = {
                   )
                 : null,
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
+              kind: r.floor_sell_kind,
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
               source: {

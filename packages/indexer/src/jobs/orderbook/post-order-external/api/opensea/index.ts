@@ -312,10 +312,16 @@ const handleErrorResponse = (response: any) => {
       const error = response.data.errors?.toString();
       const message = `Request was rejected by OpenSea. error=${error}`;
 
-      if (
-        error === "You have provided fees that we cannot attribute to OpenSea or the collection"
-      ) {
-        throw new InvalidRequestError(message, InvalidRequestErrorKind.InvalidFees);
+      const invalidFeeErrors = [
+        "You have provided a fee",
+        "You have not provided all required creator fees",
+        "You have provided fees that we cannot attribute to OpenSea or the collection",
+      ];
+
+      for (const invalidFeeError of invalidFeeErrors) {
+        if (error.startsWith(invalidFeeError)) {
+          throw new InvalidRequestError(message, InvalidRequestErrorKind.InvalidFees);
+        }
       }
 
       throw new InvalidRequestError(message);

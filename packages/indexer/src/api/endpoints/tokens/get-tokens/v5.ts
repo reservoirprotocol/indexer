@@ -428,7 +428,7 @@ export const getTokensV5Options: RouteOptions = {
           ELSE false END AS royalties_paid
         FROM fill_events_2 f
         LEFT JOIN orders o ON f.order_id = o.id
-        WHERE f.contract = t.contract AND f.token_id = t.token_id
+        WHERE f.contract = t.contract AND f.token_id = t.token_id AND f.is_deleted = 0
         ORDER BY timestamp DESC LIMIT 1
       ) r ON TRUE
       `;

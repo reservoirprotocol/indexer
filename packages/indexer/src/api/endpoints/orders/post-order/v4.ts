@@ -40,13 +40,13 @@ export const postOrderV4Options: RouteOptions = {
                   "blur",
                   "opensea",
                   "looks-rare",
+                  "looks-rare-v2",
                   "zeroex-v4",
                   "seaport",
                   "seaport-v1.4",
                   "x2y2",
                   "universe",
                   "forward",
-                  "infinity",
                   "flow"
                 )
                 .required(),
@@ -54,16 +54,7 @@ export const postOrderV4Options: RouteOptions = {
             }),
             orderbook: Joi.string()
               .lowercase()
-              .valid(
-                "blur",
-                "reservoir",
-                "opensea",
-                "looks-rare",
-                "x2y2",
-                "universe",
-                "infinity",
-                "flow"
-              )
+              .valid("blur", "reservoir", "opensea", "looks-rare", "x2y2", "universe", "flow")
               .default("reservoir"),
             orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
             attribute: Joi.object({
@@ -97,6 +88,7 @@ export const postOrderV4Options: RouteOptions = {
           crossPostingOrderId: Joi.string().description(
             "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
           ),
+          crossPostingOrderStatus: Joi.string(),
         })
       ),
     }).label(`postOrder${version.toUpperCase()}Response`),
@@ -144,6 +136,7 @@ export const postOrderV4Options: RouteOptions = {
         orderIndex: number;
         orderId?: string;
         crossPostingOrderId?: number;
+        crossPostingOrderStatus?: string;
       }[] = [];
       await Promise.all(
         items.map(async (item, i) => {
@@ -283,6 +276,7 @@ export const postOrderV4Options: RouteOptions = {
                 orderIndex: i,
                 orderId,
                 crossPostingOrderId: crossPostingOrder?.id,
+                crossPostingOrderStatus: crossPostingOrder?.status,
               });
             }
 
@@ -400,6 +394,7 @@ export const postOrderV4Options: RouteOptions = {
                 orderIndex: i,
                 orderId,
                 crossPostingOrderId: crossPostingOrder?.id,
+                crossPostingOrderStatus: crossPostingOrder?.status,
               });
             }
 
@@ -451,6 +446,35 @@ export const postOrderV4Options: RouteOptions = {
                 orderIndex: i,
                 orderId,
                 crossPostingOrderId: crossPostingOrder?.id,
+                crossPostingOrderStatus: crossPostingOrder?.status,
+              });
+            }
+
+            case "looks-rare-v2": {
+              if (!["reservoir"].includes(orderbook)) {
+                return results.push({ message: "unsupported-orderbook", orderIndex: i });
+              }
+
+              const orderId = new Sdk.LooksRareV2.Order(config.chainId, order.data).hash();
+
+              const [result] = await orders.looksRareV2.save([
+                {
+                  orderParams: order.data,
+                  metadata: {
+                    schema,
+                    source,
+                  },
+                },
+              ]);
+
+              if (!["success", "already-exists"].includes(result.status)) {
+                return results.push({ message: result.status, orderIndex: i, orderId });
+              }
+
+              return results.push({
+                message: "success",
+                orderIndex: i,
+                orderId,
               });
             }
 
@@ -506,6 +530,7 @@ export const postOrderV4Options: RouteOptions = {
                 orderIndex: i,
                 orderId,
                 crossPostingOrderId: crossPostingOrder?.id,
+                crossPostingOrderStatus: crossPostingOrder?.status,
               });
             }
 
@@ -539,39 +564,7 @@ export const postOrderV4Options: RouteOptions = {
                 orderIndex: i,
                 orderId,
                 crossPostingOrderId: crossPostingOrder.id,
-              });
-            }
-
-            case "infinity": {
-              if (!["infinity"].includes(orderbook)) {
-                return results.push({ message: "unsupported-orderbook", orderIndex: i });
-              }
-
-              const orderId = new Sdk.Infinity.Order(config.chainId, order.data).hash();
-
-              const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-                orderId,
-                kind: order.kind,
-                orderbook,
-                source,
-                schema,
-                rawData: order.data,
-              } as crossPostingOrdersModel.CrossPostingOrder);
-
-              await postOrderExternal.addToQueue({
-                crossPostingOrderId: crossPostingOrder.id,
-                orderId,
-                orderData: order.data,
-                orderSchema: schema,
-                orderbook: "infinity",
-                orderbookApiKey,
-              });
-
-              return results.push({
-                message: "success",
-                orderIndex: i,
-                orderId,
-                crossPostingOrderId: crossPostingOrder.id,
+                crossPostingOrderStatus: crossPostingOrder.status,
               });
             }
 
@@ -605,6 +598,7 @@ export const postOrderV4Options: RouteOptions = {
                 orderIndex: i,
                 orderId,
                 crossPostingOrderId: crossPostingOrder.id,
+                crossPostingOrderStatus: crossPostingOrder.status,
               });
             }
           }

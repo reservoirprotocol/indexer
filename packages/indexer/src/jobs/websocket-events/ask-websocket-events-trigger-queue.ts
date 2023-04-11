@@ -21,6 +21,10 @@ export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
     attempts: 5,
+    backoff: {
+      type: "exponential",
+      delay: 1000,
+    },
     removeOnComplete: 1000,
     removeOnFail: 1000,
     timeout: 60000,
@@ -35,11 +39,10 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
     async (job: Job) => {
       const { data } = job.data as EventInfo;
 
-      try {
-        const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
+      const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
-        const rawResult = await redb.oneOrNone(
-          `
+      const rawResult = await redb.oneOrNone(
+        `
             SELECT orders.id,
             orders.kind,
             orders.side,
@@ -80,98 +83,93 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             (${criteriaBuildQuery}) AS criteria
           FROM orders
           WHERE orders.id = $/orderId/`,
-          { orderId: data.orderId }
-        );
+        { orderId: data.orderId }
+      );
 
-        const sources = await Sources.getInstance();
+      const sources = await Sources.getInstance();
 
-        const feeBreakdown = rawResult.fee_breakdown;
-        const feeBps = rawResult.fee_bps;
+      const feeBreakdown = rawResult.fee_breakdown;
+      const feeBps = rawResult.fee_bps;
 
-        let source: SourcesEntity | undefined;
-        if (rawResult.token_set_id?.startsWith("token")) {
-          const [, contract, tokenId] = rawResult.token_set_id.split(":");
-          source = sources.get(Number(rawResult.source_id_int), contract, tokenId);
-        } else {
-          source = sources.get(Number(rawResult.source_id_int));
-        }
-
-        const result = {
-          id: rawResult.id,
-          kind: rawResult.kind,
-          side: rawResult.side,
-          status: rawResult.status,
-          tokenSetId: rawResult.token_set_id,
-          tokenSetSchemaHash: fromBuffer(rawResult.token_set_schema_hash),
-          contract: fromBuffer(rawResult.contract),
-          maker: fromBuffer(rawResult.maker),
-          taker: fromBuffer(rawResult.taker),
-          price: await getJoiPriceObject(
-            {
-              gross: {
-                amount: rawResult.currency_price ?? rawResult.price,
-                nativeAmount: rawResult.price,
-              },
-              net: {
-                amount: getNetAmount(
-                  rawResult.currency_price ?? rawResult.price,
-                  _.min([rawResult.fee_bps, 10000])
-                ),
-                nativeAmount: getNetAmount(rawResult.price, _.min([rawResult.fee_bps, 10000])),
-              },
-            },
-            rawResult.currency
-              ? fromBuffer(rawResult.currency)
-              : rawResult.side === "sell"
-              ? Sdk.Common.Addresses.Eth[config.chainId]
-              : Sdk.Common.Addresses.Weth[config.chainId],
-            undefined
-          ),
-          validFrom: Number(rawResult.valid_from),
-          validUntil: Number(rawResult.valid_until),
-          quantityFilled: Number(rawResult.quantity_filled),
-          quantityRemaining: Number(rawResult.quantity_remaining),
-
-          criteria: rawResult.criteria,
-          source: {
-            id: source?.address,
-            domain: source?.domain,
-            name: source?.getTitle(),
-            icon: source?.getIcon(),
-            url: source?.metadata.url,
-          },
-          feeBps: Number(feeBps.toString()),
-          feeBreakdown: feeBreakdown,
-          expiration: Number(rawResult.expiration),
-          isReservoir: rawResult.is_reservoir,
-          isDynamic: Boolean(rawResult.dynamic || rawResult.kind === "sudoswap"),
-          createdAt: new Date(rawResult.created_at).toISOString(),
-          rawData: rawResult.raw_data,
-        };
-
-        const eventType = data.kind === "new-order" ? "ask.created" : "ask.updated";
-
-        await redisWebsocketPublisher.publish(
-          "events",
-          JSON.stringify({
-            event: eventType,
-            tags: {
-              contract: fromBuffer(rawResult.contract),
-            },
-            data: result,
-          })
-        );
-      } catch (e) {
-        logger.error(
-          QUEUE_NAME,
-          `Error triggering event. error=${e}, data=${JSON.stringify(data)}`
-        );
+      let source: SourcesEntity | undefined;
+      if (rawResult.token_set_id?.startsWith("token")) {
+        const [, contract, tokenId] = rawResult.token_set_id.split(":");
+        source = sources.get(Number(rawResult.source_id_int), contract, tokenId);
+      } else {
+        source = sources.get(Number(rawResult.source_id_int));
       }
+
+      const result = {
+        id: rawResult.id,
+        kind: rawResult.kind,
+        side: rawResult.side,
+        status: rawResult.status,
+        tokenSetId: rawResult.token_set_id,
+        tokenSetSchemaHash: fromBuffer(rawResult.token_set_schema_hash),
+        contract: fromBuffer(rawResult.contract),
+        maker: fromBuffer(rawResult.maker),
+        taker: fromBuffer(rawResult.taker),
+        price: await getJoiPriceObject(
+          {
+            gross: {
+              amount: rawResult.currency_price ?? rawResult.price,
+              nativeAmount: rawResult.price,
+            },
+            net: {
+              amount: getNetAmount(
+                rawResult.currency_price ?? rawResult.price,
+                _.min([rawResult.fee_bps, 10000])
+              ),
+              nativeAmount: getNetAmount(rawResult.price, _.min([rawResult.fee_bps, 10000])),
+            },
+          },
+          rawResult.currency
+            ? fromBuffer(rawResult.currency)
+            : rawResult.side === "sell"
+            ? Sdk.Common.Addresses.Eth[config.chainId]
+            : Sdk.Common.Addresses.Weth[config.chainId],
+          undefined
+        ),
+        validFrom: Number(rawResult.valid_from),
+        validUntil: Number(rawResult.valid_until),
+        quantityFilled: Number(rawResult.quantity_filled),
+        quantityRemaining: Number(rawResult.quantity_remaining),
+
+        criteria: rawResult.criteria,
+        source: {
+          id: source?.address,
+          domain: source?.domain,
+          name: source?.getTitle(),
+          icon: source?.getIcon(),
+          url: source?.metadata.url,
+        },
+        feeBps: Number(feeBps.toString()),
+        feeBreakdown: feeBreakdown,
+        expiration: Number(rawResult.expiration),
+        isReservoir: rawResult.is_reservoir,
+        isDynamic: Boolean(rawResult.dynamic || rawResult.kind === "sudoswap"),
+        createdAt: new Date(rawResult.created_at).toISOString(),
+        rawData: rawResult.raw_data,
+      };
+
+      const eventType = data.kind === "new-order" ? "ask.created" : "ask.updated";
+
+      await redisWebsocketPublisher.publish(
+        "events",
+        JSON.stringify({
+          event: eventType,
+          tags: {
+            contract: fromBuffer(rawResult.contract),
+          },
+          data: result,
+        })
+      );
     },
     { connection: redis.duplicate(), concurrency: 20 }
   );
+
   worker.on("error", (error) => {
-    logger.error(QUEUE_NAME, `Worker errored: ${error}`);
+    logger.error(QUEUE_NAME, `Worker errored. error=${JSON.stringify(error)}`);
   });
 }
 

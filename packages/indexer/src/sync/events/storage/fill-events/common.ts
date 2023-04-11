@@ -150,14 +150,15 @@ export const addEvents = async (events: Event[]) => {
 };
 
 export const removeEvents = async (block: number, blockHash: string) => {
-  // Delete the fill events but skip reverting order status updates
+  // Mark fill events as deleted but skip reverting order status updates
   // since it is not possible to know what to revert to and even if
   // we knew, it might mess up other higher-level order processes.
   await idb.any(
     `
-      DELETE FROM fill_events_2
+      UPDATE fill_events_2
+      SET is_deleted = 1
       WHERE block = $/block/
-        AND block_hash = $/blockHash/
+      AND block_hash = $/blockHash/
     `,
     {
       block,
