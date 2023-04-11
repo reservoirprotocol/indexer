@@ -319,7 +319,7 @@ const handleErrorResponse = (response: any) => {
       ];
 
       for (const invalidFeeError of invalidFeeErrors) {
-        if (invalidFeeError.startsWith(error)) {
+        if (error.startsWith(invalidFeeError)) {
           throw new InvalidRequestError(message, InvalidRequestErrorKind.InvalidFees);
         }
       }
