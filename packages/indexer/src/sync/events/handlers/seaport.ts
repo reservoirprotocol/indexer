@@ -1,5 +1,5 @@
 import { Log } from "@ethersproject/abstract-provider";
-import { AddressZero, HashZero } from "@ethersproject/constants";
+import { HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { searchForCall } from "@georgeroman/evm-tx-simulator";
 
@@ -132,7 +132,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           // Order 0: bid
           // Order 1: ask
           if (
-            taker === AddressZero &&
             i + 1 < events.length &&
             events[i + 1].baseEventParams.txHash === baseEventParams.txHash &&
             events[i + 1].baseEventParams.logIndex === baseEventParams.logIndex + 1 &&
@@ -155,7 +154,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           // Order 0: ask
           // Order 1: bid
           if (
-            taker === AddressZero &&
             i - 1 >= 0 &&
             events[i - 1].baseEventParams.txHash === baseEventParams.txHash &&
             events[i - 1].baseEventParams.logIndex === baseEventParams.logIndex - 1 &&
