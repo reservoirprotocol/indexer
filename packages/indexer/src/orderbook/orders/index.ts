@@ -128,6 +128,7 @@ export const getOrderSourceByOrderKind = async (
       case "foundation":
         return sources.getOrInsert("foundation.app");
       case "looks-rare":
+      case "looks-rare-v2":
         return sources.getOrInsert("looksrare.org");
       case "seaport":
       case "seaport-v1.4":

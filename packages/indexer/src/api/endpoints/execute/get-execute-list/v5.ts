@@ -93,6 +93,7 @@ export const getExecuteListV5Options: RouteOptions = {
           orderKind: Joi.string()
             .valid(
               "blur",
+              "looks-rare",
               "looks-rare-v2",
               "zeroex-v4",
               "seaport",
@@ -324,6 +325,10 @@ export const getExecuteListV5Options: RouteOptions = {
           // Force usage of seaport-v1.4
           if (params.orderKind === "seaport") {
             params.orderKind = "seaport-v1.4";
+          }
+          // Force usage of looks-rare-v2
+          if (params.orderKind === "looks-rare") {
+            params.orderKind = "looks-rare-v2";
           }
 
           // For now, ERC20 listings are only supported on Seaport
