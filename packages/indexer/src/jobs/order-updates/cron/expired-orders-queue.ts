@@ -29,8 +29,8 @@ export let worker: Worker | undefined;
 
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
-// BACKGROUND WORKER AND MASTER ONLY
-if (config.doBackgroundWork && config.master) {
+// BACKGROUND WORKER ONLY
+if (config.doBackgroundWork) {
   const intervalInSeconds = 5;
 
   worker = new Worker(
