@@ -2,6 +2,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 import cron from "node-cron";
 
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
@@ -36,9 +37,9 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  // Every minute we check the size of the orders queue. This will
-  // ensure we get notified when it's buffering up and potentially
-  // blocking the real-time flow of orders.
+  // Checks
+
+  // Orders queue size
   cron.schedule(
     "*/1 * * * *",
     async () =>
@@ -49,6 +50,33 @@ if (config.doBackgroundWork) {
           if (size >= 40000) {
             logger.error("orders-queue-size-check", `Orders queue buffering up: size=${size}`);
           }
+        })
+        .catch(() => {
+          // Skip on any errors
+        })
+  );
+
+  // Pending expired orders
+  cron.schedule(
+    "0 */2 * * *",
+    async () =>
+      await redlock
+        .acquire(["pending-expired-orders-check-lock"], (2 * 3600 - 5) * 1000)
+        .then(async () => {
+          const result = await idb.oneOrNone(
+            `
+              SELECT
+                count(*) AS expired_count
+              FROM orders
+              WHERE upper(orders.valid_between) < now()
+                AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
+            `
+          );
+
+          logger.error(
+            "pending-expired-orders-check",
+            JSON.stringify({ count: result.expired_count })
+          );
         })
         .catch(() => {
           // Skip on any errors

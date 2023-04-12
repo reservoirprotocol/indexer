@@ -543,7 +543,7 @@ export const save = async (
       }
 
       if (isOpenSea) {
-        await sources.getOrInsert("opensea.io");
+        source = await sources.getOrInsert("opensea.io");
       }
 
       // If the order is native, override any default source
