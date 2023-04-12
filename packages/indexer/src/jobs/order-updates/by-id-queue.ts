@@ -49,6 +49,10 @@ if (config.doBackgroundWork) {
       const { id, trigger } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
+      logger.info(
+        QUEUE_NAME,
+        `Processing order, orderId=${id}, trigger=${trigger.kind}, side=${side}, tokenSetId=${tokenSetId}`
+      );
       try {
         let order: any;
         if (id) {
