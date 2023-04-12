@@ -309,10 +309,10 @@ export const start = async (): Promise<void> => {
       typedResponse.header("X-RateLimit-Limit", request.headers["X-RateLimit-Limit"]);
       typedResponse.header("X-RateLimit-Remaining", request.headers["X-RateLimit-Remaining"]);
       typedResponse.header("X-RateLimit-Reset", request.headers["X-RateLimit-Reset"]);
-    }
 
-    if (request.route.settings.tags && request.route.settings.tags.includes("x-deprecated")) {
-      typedResponse.header("Deprecation", "true");
+      if (request.route.settings.tags && request.route.settings.tags.includes("x-deprecated")) {
+        typedResponse.header("Deprecation", "true");
+      }
     }
 
     return reply.continue;

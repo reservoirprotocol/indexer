@@ -39,6 +39,11 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
     async (job: Job) => {
       const { data } = job.data as EventInfo;
 
+      // log order id for debugging
+      if (data.kind === "new-order") {
+        logger.info(QUEUE_NAME, `Processing websocket event, orderId=${data.orderId}`);
+      }
+
       const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
       const rawResult = await redb.oneOrNone(
@@ -59,6 +64,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             orders.normalized_value,
             orders.currency_normalized_value,
             orders.missing_royalties,
+            orders.nonce,
             DYNAMIC,
             DATE_PART('epoch', LOWER(orders.valid_between)) AS valid_from,
             COALESCE(NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'), 0) AS valid_until,
@@ -106,6 +112,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         status: rawResult.status,
         tokenSetId: rawResult.token_set_id,
         tokenSetSchemaHash: fromBuffer(rawResult.token_set_schema_hash),
+        nonce: Number(rawResult.nonce),
         contract: fromBuffer(rawResult.contract),
         maker: fromBuffer(rawResult.maker),
         taker: fromBuffer(rawResult.taker),
