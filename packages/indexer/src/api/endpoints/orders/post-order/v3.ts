@@ -48,7 +48,8 @@ export const postOrderV3Options: RouteOptions = {
             "x2y2",
             "universe",
             "forward",
-            "flow"
+            "flow",
+            "alienswap"
           )
           .required(),
         data: Joi.object().required(),
@@ -228,6 +229,7 @@ export const postOrderV3Options: RouteOptions = {
           }
         }
 
+        case "alienswap":
         case "seaport":
         case "seaport-v1.4": {
           if (!["opensea", "reservoir"].includes(orderbook)) {
@@ -236,10 +238,23 @@ export const postOrderV3Options: RouteOptions = {
 
           let crossPostingOrder;
 
-          const orderId =
-            order.kind === "seaport"
-              ? new Sdk.SeaportV11.Order(config.chainId, order.data).hash()
-              : new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
+          let orderId: string;
+          switch (order.kind) {
+            case "seaport":
+              orderId = new Sdk.SeaportV11.Order(config.chainId, order.data).hash();
+              break;
+
+            case "seaport-v1.4":
+              orderId = new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
+              break;
+
+            case "alienswap":
+              orderId = new Sdk.Alienswap.Order(config.chainId, order.data).hash();
+              break;
+
+            default:
+              throw new Error("Unreachable");
+          }
 
           if (orderbook === "opensea") {
             crossPostingOrder = await crossPostingOrdersModel.saveOrder({
@@ -260,33 +275,53 @@ export const postOrderV3Options: RouteOptions = {
               orderbookApiKey,
             });
           } else if (orderbook === "reservoir") {
-            const [result] =
-              order.kind === "seaport"
-                ? await orders.seaport.save([
-                    {
-                      orderParams: order.data,
-                      isReservoir: true,
-                      metadata: {
-                        schema,
-                        source,
-                      },
-                    },
-                  ])
-                : await orders.seaportV14.save([
-                    {
-                      orderParams: order.data,
-                      isReservoir: true,
-                      metadata: {
-                        schema,
-                        source,
-                      },
-                    },
-                  ]);
-
-            if (!["success", "already-exists"].includes(result.status)) {
-              const error = Boom.badRequest(result.status);
-              error.output.payload.orderId = orderId;
-              throw error;
+            if (order.kind === "seaport") {
+              const [result] = await orders.seaport.save([
+                {
+                  orderParams: order.data,
+                  isReservoir: true,
+                  metadata: {
+                    schema,
+                    source,
+                  },
+                },
+              ]);
+              if (!["success", "already-exists"].includes(result.status)) {
+                const error = Boom.badRequest(result.status);
+                error.output.payload.orderId = orderId;
+                throw error;
+              }
+            } else if (order.kind == "seaport-v1.4") {
+              const [result] = await orders.seaportV14.save([
+                {
+                  orderParams: order.data,
+                  isReservoir: true,
+                  metadata: {
+                    schema,
+                    source,
+                  },
+                },
+              ]);
+              if (!["success", "already-exists"].includes(result.status)) {
+                const error = Boom.badRequest(result.status);
+                error.output.payload.orderId = orderId;
+                throw error;
+              }
+            } else {
+              const [result] = await orders.alienswap.save([
+                {
+                  orderParams: order.data,
+                  metadata: {
+                    schema,
+                    source,
+                  },
+                },
+              ]);
+              if (!["success", "already-exists"].includes(result.status)) {
+                const error = Boom.badRequest(result.status);
+                error.output.payload.orderId = orderId;
+                throw error;
+              }
             }
 
             if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {

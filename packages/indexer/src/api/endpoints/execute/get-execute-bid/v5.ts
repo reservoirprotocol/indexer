@@ -33,6 +33,11 @@ import * as seaportV14BuyAttribute from "@/orderbook/orders/seaport-v1.4/build/b
 import * as seaportV14BuyToken from "@/orderbook/orders/seaport-v1.4/build/buy/token";
 import * as seaportV14BuyCollection from "@/orderbook/orders/seaport-v1.4/build/buy/collection";
 
+// Alienswap
+import * as alienswapBuyAttribute from "@/orderbook/orders/alienswap/build/buy/attribute";
+import * as alienswapBuyToken from "@/orderbook/orders/alienswap/build/buy/token";
+import * as alienswapBuyCollection from "@/orderbook/orders/alienswap/build/buy/collection";
+
 // X2Y2
 import * as x2y2BuyCollection from "@/orderbook/orders/x2y2/build/buy/collection";
 import * as x2y2BuyToken from "@/orderbook/orders/x2y2/build/buy/token";
@@ -117,7 +122,8 @@ export const getExecuteBidV5Options: RouteOptions = {
               "looks-rare-v2",
               "x2y2",
               "universe",
-              "flow"
+              "flow",
+              "alienswap"
             )
             .default("seaport-v1.4")
             .description("Exchange protocol used to create order. Example: `seaport-v1.4`"),
@@ -284,6 +290,24 @@ export const getExecuteBidV5Options: RouteOptions = {
         "seaport-v1.4": [] as {
           order: {
             kind: "seaport-v1.4";
+            data: Sdk.SeaportBase.Types.OrderComponents;
+          };
+          tokenSetId?: string;
+          attribute?: {
+            collection: string;
+            key: string;
+            value: string;
+          };
+          collection?: string;
+          isNonFlagged?: boolean;
+          orderbook: string;
+          orderbookApiKey?: string;
+          source?: string;
+          orderIndex: number;
+        }[],
+        alienswap: [] as {
+          order: {
+            kind: "alienswap";
             data: Sdk.SeaportBase.Types.OrderComponents;
           };
           tokenSetId?: string;
@@ -715,6 +739,104 @@ export const getExecuteBidV5Options: RouteOptions = {
                 });
 
                 bulkOrders["seaport-v1.4"].push({
+                  order: {
+                    kind: params.orderKind,
+                    data: {
+                      ...order.params,
+                    },
+                  },
+                  tokenSetId,
+                  attribute,
+                  collection,
+                  isNonFlagged: params.excludeFlaggedTokens,
+                  orderbook: params.orderbook,
+                  orderbookApiKey: params.orderbookApiKey,
+                  source,
+                  orderIndex: i,
+                });
+
+                break;
+              }
+
+              case "alienswap": {
+                if (!["reservoir"].includes(params.orderbook)) {
+                  return errors.push({
+                    message: "Unsupported orderbook",
+                    orderIndex: i,
+                  });
+                }
+
+                const options = params.options?.[params.orderKind] as
+                  | {
+                      useOffChainCancellation?: boolean;
+                      replaceOrderId?: string;
+                    }
+                  | undefined;
+
+                let order: Sdk.Alienswap.Order;
+                if (token) {
+                  const [contract, tokenId] = token.split(":");
+                  order = await alienswapBuyToken.build({
+                    ...params,
+                    ...options,
+                    orderbook: params.orderbook as "reservoir",
+                    maker,
+                    contract,
+                    tokenId,
+                    source,
+                  });
+                } else if (tokenSetId) {
+                  order = await alienswapBuyAttribute.build({
+                    ...params,
+                    ...options,
+                    orderbook: params.orderbook as "reservoir",
+                    maker,
+                    source,
+                  });
+                } else if (attribute) {
+                  order = await alienswapBuyAttribute.build({
+                    ...params,
+                    ...options,
+                    orderbook: params.orderbook as "reservoir",
+                    maker,
+                    collection: attribute.collection,
+                    attributes: [attribute],
+                    source,
+                  });
+                } else if (collection) {
+                  order = await alienswapBuyCollection.build({
+                    ...params,
+                    ...options,
+                    orderbook: params.orderbook as "reservoir",
+                    maker,
+                    collection,
+                    source,
+                  });
+                } else {
+                  return errors.push({
+                    message:
+                      "Only token, token-set-id, attribute and collection bids are supported",
+                    orderIndex: i,
+                  });
+                }
+
+                const exchange = new Sdk.Alienswap.Exchange(config.chainId);
+                const conduit = exchange.deriveConduit(order.params.conduitKey);
+
+                // Check the maker's approval
+                let approvalTx: TxData | undefined;
+                const currencyApproval = await currency.getAllowance(maker, conduit);
+                if (bn(currencyApproval).lt(order.getMatchingPrice())) {
+                  approvalTx = currency.approveTransaction(maker, conduit);
+                }
+
+                steps[2].items.push({
+                  status: !approvalTx ? "complete" : "incomplete",
+                  data: approvalTx,
+                  orderIndexes: [i],
+                });
+
+                bulkOrders["alienswap"].push({
                   order: {
                     kind: params.orderKind,
                     data: {
@@ -1179,10 +1301,8 @@ export const getExecuteBidV5Options: RouteOptions = {
         })
       );
 
-      // Post any bulk orders together
+      // Post any seaport-v1.4 bulk orders together
       {
-        const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
-
         const orders = bulkOrders["seaport-v1.4"];
         if (orders.length === 1) {
           const order = new Sdk.SeaportV14.Order(config.chainId, orders[0].order.data);
@@ -1213,6 +1333,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             orderIndexes: [orders[0].orderIndex],
           });
         } else if (orders.length > 1) {
+          const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
           const { signatureData, proofs } = exchange.getBulkSignatureDataWithProofs(
             orders.map((o) => new Sdk.SeaportV14.Order(config.chainId, o.order.data))
           );
@@ -1235,6 +1356,76 @@ export const getExecuteBidV5Options: RouteOptions = {
                     orderbookApiKey: o.orderbookApiKey,
                     bulkData: {
                       kind: "seaport-v1.4",
+                      data: {
+                        orderIndex: i,
+                        merkleProof: proofs[i],
+                      },
+                    },
+                  })),
+                  source,
+                },
+              },
+            },
+            orderIndexes: orders.map(({ orderIndex }) => orderIndex),
+          });
+        }
+      }
+
+      // Post any alienswap bulk orders together
+      {
+        const orders = bulkOrders["alienswap"];
+        if (orders.length === 1) {
+          const order = new Sdk.Alienswap.Order(config.chainId, orders[0].order.data);
+          steps[3].items.push({
+            status: "incomplete",
+            data: {
+              sign: order.getSignatureData(),
+              post: {
+                endpoint: "/order/v3",
+                method: "POST",
+                body: {
+                  order: {
+                    kind: "alienswap",
+                    data: {
+                      ...order.params,
+                    },
+                  },
+                  tokenSetId: orders[0].tokenSetId,
+                  attribute: orders[0].attribute,
+                  collection: orders[0].collection,
+                  isNonFlagged: orders[0].isNonFlagged,
+                  orderbook: orders[0].orderbook,
+                  orderbookApiKey: orders[0].orderbookApiKey,
+                  source,
+                },
+              },
+            },
+            orderIndexes: [orders[0].orderIndex],
+          });
+        } else if (orders.length > 1) {
+          const exchange = new Sdk.Alienswap.Exchange(config.chainId);
+          const { signatureData, proofs } = exchange.getBulkSignatureDataWithProofs(
+            orders.map((o) => new Sdk.Alienswap.Order(config.chainId, o.order.data))
+          );
+
+          steps[3].items.push({
+            status: "incomplete",
+            data: {
+              sign: signatureData,
+              post: {
+                endpoint: "/order/v4",
+                method: "POST",
+                body: {
+                  items: orders.map((o, i) => ({
+                    order: o.order,
+                    tokenSetId: o.tokenSetId,
+                    attribute: o.attribute,
+                    collection: o.collection,
+                    isNonFlagged: o.isNonFlagged,
+                    orderbook: o.orderbook,
+                    orderbookApiKey: o.orderbookApiKey,
+                    bulkData: {
+                      kind: "alienswap",
                       data: {
                         orderIndex: i,
                         merkleProof: proofs[i],

@@ -6,7 +6,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import _ from "lodash";
 import Joi from "joi";
 
-import { redb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import {
@@ -246,6 +246,7 @@ export const getCollectionsV5Options: RouteOptions = {
             )
             .optional(),
           contractKind: Joi.string().allow("", null),
+          mintedTimestamp: Joi.number().allow(null),
         })
       ),
     }).label(`getCollections${version.toUpperCase()}Response`),
@@ -321,7 +322,7 @@ export const getCollectionsV5Options: RouteOptions = {
 
       // TODO: Cache owners count on collection instead of not allowing for big collections.
       if (query.includeOwnerCount) {
-        const collectionResult = await redb.oneOrNone(
+        const collectionResult = await idb.oneOrNone(
           `
               SELECT
                 collections.token_count
@@ -448,6 +449,7 @@ export const getCollectionsV5Options: RouteOptions = {
           ${floorAskSelectQuery}
           collections.token_count,
           collections.created_at,
+          collections.minted_timestamp,
           (
             SELECT
               COUNT(*)
@@ -783,6 +785,7 @@ export const getCollectionsV5Options: RouteOptions = {
                 }))
               : undefined,
             contractKind: r.contract_kind,
+            mintedTimestamp: r.minted_timestamp,
           };
         })
       );

@@ -1,83 +1,47 @@
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
-import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
 import axios from "axios";
 import _ from "lodash";
 import pLimit from "p-limit";
 
-import { idb, pgp, redb } from "@/common/db";
+import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import { acquireLock, redis } from "@/common/redis";
-import tracer from "@/common/tracer";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import { Collections } from "@/models/collections";
+import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/seaport-base/check";
 import * as tokenSet from "@/orderbook/token-sets";
-import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 
-import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
-import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
 
 export type OrderInfo = {
-  kind?: "full";
   orderParams: Sdk.SeaportBase.Types.OrderComponents;
   metadata: OrderMetadata;
-  isReservoir?: boolean;
-  isOpenSea?: boolean;
-  openSeaOrderParams?: OpenseaOrderParams;
-};
-
-export declare type OpenseaOrderParams = {
-  kind: Sdk.SeaportBase.Types.OrderKind;
-  side: "buy" | "sell";
-  hash: string;
-  price?: string;
-  paymentToken?: string;
-  amount?: number;
-  startTime?: number;
-  endTime?: number;
-  contract: string;
-  tokenId?: string;
-  offerer?: string;
-  taker?: string;
-  isDynamic?: boolean;
-  collectionSlug: string;
-  attributeKey?: string;
-  attributeValue?: string;
 };
 
 type SaveResult = {
   id: string;
   status: string;
   unfillable?: boolean;
-  delay?: number;
 };
 
-export const save = async (
-  orderInfos: OrderInfo[],
-  validateBidValue?: boolean
-): Promise<SaveResult[]> => {
+export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
 
   const handleOrder = async (
     orderParams: Sdk.SeaportBase.Types.OrderComponents,
-    metadata: OrderMetadata,
-    isReservoir?: boolean,
-    isOpenSea?: boolean,
-    openSeaOrderParams?: OpenseaOrderParams
+    metadata: OrderMetadata
   ) => {
     try {
-      const order = new Sdk.SeaportV14.Order(config.chainId, orderParams);
+      const order = new Sdk.Alienswap.Order(config.chainId, orderParams);
       const info = order.getInfo();
       const id = order.hash();
 
@@ -117,11 +81,9 @@ export const save = async (
 
       // Check: order has a supported conduit
       if (
-        ![
-          HashZero,
-          Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
-          Sdk.SeaportBase.Addresses.OriginConduitKey[config.chainId],
-        ].includes(order.params.conduitKey)
+        ![HashZero, Sdk.SeaportBase.Addresses.ReservoirConduitKey[config.chainId]].includes(
+          order.params.conduitKey
+        )
       ) {
         return results.push({
           id,
@@ -138,24 +100,13 @@ export const save = async (
       }
 
       const currentTime = now();
-      const inTheFutureThreshold = 7 * 24 * 60 * 60;
 
       // Check: order has a valid start time
       const startTime = order.params.startTime;
-      if (startTime - inTheFutureThreshold >= currentTime) {
-        // TODO: Add support for not-yet-valid orders
+      if (startTime - 60 >= currentTime) {
         return results.push({
           id,
           status: "invalid-start-time",
-        });
-      }
-
-      // Delay the validation of the order if it's start time is very soon in the future
-      if (startTime > currentTime) {
-        return results.push({
-          id,
-          status: "delayed",
-          delay: startTime - currentTime + 5,
         });
       }
 
@@ -185,10 +136,6 @@ export const save = async (
         });
       }
 
-      const isProtectedOffer =
-        Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId] === order.params.zone &&
-        info.side === "buy";
-
       // Check: order has a known zone
       if (order.params.orderType > 1) {
         if (
@@ -197,9 +144,7 @@ export const save = async (
             AddressZero,
             // Cancellation zone
             Sdk.SeaportV14.Addresses.CancellationZone[config.chainId],
-          ].includes(order.params.zone) &&
-          // Protected offers zone
-          !isProtectedOffer
+          ].includes(order.params.zone)
         ) {
           return results.push({
             id,
@@ -218,31 +163,20 @@ export const save = async (
         });
       }
 
-      // Make sure no zero signatures are allowed
-      if (order.params.signature && /^0x0+$/g.test(order.params.signature)) {
-        order.params.signature = undefined;
-      }
-
       // Check: order has a valid signature
-      if (metadata.fromOnChain || (isOpenSea && !order.params.signature)) {
-        // Skip if:
-        // - the order was validated on-chain
-        // - the order is coming from OpenSea and it doesn't have a signature
-      } else {
-        try {
-          await order.checkSignature(baseProvider);
-        } catch {
-          return results.push({
-            id,
-            status: "invalid-signature",
-          });
-        }
+      try {
+        await order.checkSignature(baseProvider);
+      } catch {
+        return results.push({
+          id,
+          status: "invalid-signature",
+        });
       }
 
       // Check: order fillability
       let fillabilityStatus = "fillable";
       let approvalStatus = "approved";
-      const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+      const exchange = new Sdk.Alienswap.Exchange(config.chainId);
       try {
         await offChainCheck(order, exchange, {
           onChainApprovalRecheck: true,
@@ -268,152 +202,65 @@ export const save = async (
 
       // Check and save: associated token set
       let tokenSetId: string | undefined;
-      let schemaHash: string | undefined;
+      const schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
 
-      if (openSeaOrderParams && openSeaOrderParams.kind !== "single-token") {
-        const collection = await getCollection(openSeaOrderParams);
-        if (!collection) {
-          return results.push({
-            id,
-            status: "unknown-collection",
-          });
-        }
+      switch (order.params.kind) {
+        case "single-token": {
+          const typedInfo = info as typeof info & { tokenId: string };
+          const tokenId = typedInfo.tokenId;
 
-        schemaHash = generateSchemaHash();
-
-        switch (openSeaOrderParams.kind) {
-          case "contract-wide": {
-            const ts = await tokenSet.dynamicCollectionNonFlagged.save({
-              collection: collection.id,
-            });
-            if (ts) {
-              tokenSetId = ts.id;
-              schemaHash = ts.schemaHash;
-            }
-
-            // Mark the order as being partial in order to force filling through the order-fetcher service
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (order.params as any).partial = true;
-
-            break;
-          }
-
-          case "token-list": {
-            const schema = {
-              kind: "attribute",
-              data: {
-                collection: collection.id,
-                attributes: [
-                  {
-                    key: openSeaOrderParams.attributeKey,
-                    value: openSeaOrderParams.attributeValue,
-                  },
-                ],
-              },
-            };
-
-            schemaHash = generateSchemaHash(schema);
-
-            // Fetch all tokens matching the attributes
-            const tokens = await redb.manyOrNone(
-              `
-                SELECT token_attributes.token_id
-                FROM token_attributes
-                WHERE token_attributes.collection_id = $/collection/
-                  AND token_attributes.key = $/key/
-                  AND token_attributes.value = $/value/
-                ORDER BY token_attributes.token_id
-              `,
-              {
-                collection: collection.id,
-                key: openSeaOrderParams.attributeKey,
-                value: openSeaOrderParams.attributeValue,
-              }
-            );
-
-            if (tokens.length) {
-              const tokensIds = tokens.map((r) => r.token_id);
-              const merkleTree = generateMerkleTree(tokensIds);
-
-              tokenSetId = `list:${info.contract}:${merkleTree.getHexRoot()}`;
-
-              await tokenSet.tokenList.save([
-                {
-                  id: tokenSetId,
-                  schema,
-                  schemaHash: generateSchemaHash(schema),
-                  items: {
-                    contract: info.contract,
-                    tokenIds: tokensIds,
-                  },
-                } as TokenSet,
-              ]);
-            }
-
-            break;
-          }
-        }
-      } else {
-        schemaHash = metadata.schemaHash ?? generateSchemaHash(metadata.schema);
-
-        switch (order.params.kind) {
-          case "single-token": {
-            const typedInfo = info as typeof info & { tokenId: string };
-            const tokenId = typedInfo.tokenId;
-
-            tokenSetId = `token:${info.contract}:${tokenId}`;
-            if (tokenId) {
-              await tokenSet.singleToken.save([
-                {
-                  id: tokenSetId,
-                  schemaHash,
-                  contract: info.contract,
-                  tokenId,
-                },
-              ]);
-            }
-
-            break;
-          }
-
-          case "contract-wide": {
-            tokenSetId = `contract:${info.contract}`;
-            await tokenSet.contractWide.save([
+          tokenSetId = `token:${info.contract}:${tokenId}`;
+          if (tokenId) {
+            await tokenSet.singleToken.save([
               {
                 id: tokenSetId,
                 schemaHash,
                 contract: info.contract,
+                tokenId,
+              },
+            ]);
+          }
+
+          break;
+        }
+
+        case "contract-wide": {
+          tokenSetId = `contract:${info.contract}`;
+          await tokenSet.contractWide.save([
+            {
+              id: tokenSetId,
+              schemaHash,
+              contract: info.contract,
+            },
+          ]);
+
+          break;
+        }
+
+        case "token-list": {
+          const typedInfo = info as typeof info & { merkleRoot: string };
+          const merkleRoot = typedInfo.merkleRoot;
+
+          if (merkleRoot) {
+            tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
+
+            const ts = await tokenSet.tokenList.save([
+              {
+                id: tokenSetId,
+                schemaHash,
+                schema: metadata.schema,
               },
             ]);
 
-            break;
+            logger.info(
+              "orders-alienswap-save",
+              `TokenList. orderId=${id}, tokenSetId=${tokenSetId}, schemaHash=${schemaHash}, metadata=${JSON.stringify(
+                metadata
+              )}, ts=${JSON.stringify(ts)}`
+            );
           }
 
-          case "token-list": {
-            const typedInfo = info as typeof info & { merkleRoot: string };
-            const merkleRoot = typedInfo.merkleRoot;
-
-            if (merkleRoot) {
-              tokenSetId = `list:${info.contract}:${bn(merkleRoot).toHexString()}`;
-
-              const ts = await tokenSet.tokenList.save([
-                {
-                  id: tokenSetId,
-                  schemaHash,
-                  schema: metadata.schema,
-                },
-              ]);
-
-              logger.info(
-                "orders-seaport-v1.4-save",
-                `TokenList. orderId=${id}, tokenSetId=${tokenSetId}, schemaHash=${schemaHash}, metadata=${JSON.stringify(
-                  metadata
-                )}, ts=${JSON.stringify(ts)}`
-              );
-            }
-
-            break;
-          }
+          break;
         }
       }
 
@@ -445,12 +292,6 @@ export const save = async (
       }
 
       // Handle: royalties
-      const openSeaFeeRecipients = [
-        "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
-        "0x8de9c5a032463c561423387a9648c5c7bcc5bc90",
-        "0x0000a26b00c1f0df003000390027140000faa719",
-      ];
-
       let openSeaRoyalties: royalties.Royalty[];
 
       if (order.params.kind === "single-token") {
@@ -535,35 +376,13 @@ export const save = async (
 
       // Handle: source
       const sources = await Sources.getInstance();
-      let source: SourcesEntity | undefined;
+      let source: SourcesEntity | undefined = await sources.getOrInsert("alienswap.xyz");
 
+      // If cross posting, source should always be opensea.
       const sourceHash = bn(order.params.salt)._hex.slice(0, 10);
       const matchedSource = sources.getByDomainHash(sourceHash);
       if (matchedSource) {
         source = matchedSource;
-      }
-
-      if (isOpenSea) {
-        source = await sources.getOrInsert("opensea.io");
-      }
-
-      // If the order is native, override any default source
-      if (isReservoir) {
-        if (metadata.source) {
-          // If we can detect the marketplace (only OpenSea for now) do not override
-          if (
-            _.isEmpty(
-              _.intersection(
-                feeBreakdown.map(({ recipient }) => recipient),
-                openSeaFeeRecipients
-              )
-            )
-          ) {
-            source = await sources.getOrInsert(metadata.source);
-          }
-        } else {
-          source = undefined;
-        }
       }
 
       // Handle: price conversion
@@ -624,41 +443,6 @@ export const save = async (
       }
       const normalizedValue = bn(prices.nativePrice).toString();
 
-      if (info.side === "buy" && order.params.kind === "single-token" && validateBidValue) {
-        const typedInfo = info as typeof info & { tokenId: string };
-        const tokenId = typedInfo.tokenId;
-        const seaportBidPercentageThreshold = 80;
-
-        try {
-          const collectionFloorAskValue = await getCollectionFloorAskValue(
-            info.contract,
-            Number(tokenId)
-          );
-
-          if (collectionFloorAskValue) {
-            const percentage = (Number(value.toString()) / collectionFloorAskValue) * 100;
-
-            if (percentage < seaportBidPercentageThreshold) {
-              return results.push({
-                id,
-                status: "bid-too-low",
-              });
-            }
-          }
-        } catch (error) {
-          logger.warn(
-            "orders-seaport-v1.4-save",
-            `Bid value validation - error. orderId=${id}, contract=${info.contract}, tokenId=${tokenId}, error=${error}`
-          );
-        }
-      }
-
-      if (isOpenSea && !order.params.signature) {
-        // Mark the order as being partial in order to force filling through the order-fetcher service
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (order.params as any).partial = true;
-      }
-
       // Handle: off-chain cancellation via replacement
       if (order.params.zone === Sdk.SeaportV14.Addresses.CancellationZone[config.chainId]) {
         const replacedOrderResult = await idb.oneOrNone(
@@ -696,7 +480,7 @@ export const save = async (
         : "'infinity'";
       orderValues.push({
         id,
-        kind: "seaport-v1.4",
+        kind: order.getKind(),
         side: info.side,
         fillability_status: fillabilityStatus,
         approval_status: approvalStatus,
@@ -714,17 +498,19 @@ export const save = async (
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: bn(order.params.counter).toString(),
         source_id_int: source?.id,
-        is_reservoir: isReservoir ? isReservoir : null,
+        is_reservoir: null,
         contract: toBuffer(info.contract),
-        conduit: toBuffer(exchange.deriveConduit(order.params.conduitKey)),
+        conduit: toBuffer(
+          new Sdk.Alienswap.Exchange(config.chainId).deriveConduit(order.params.conduitKey)
+        ),
         fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
         dynamic: info.isDynamic ?? null,
         raw_data: order.params,
         expiration: validTo,
-        missing_royalties: isProtectedOffer ? null : missingRoyalties,
-        normalized_value: isProtectedOffer ? null : normalizedValue,
-        currency_normalized_value: isProtectedOffer ? null : currencyNormalizedValue,
+        missing_royalties: missingRoyalties,
+        normalized_value: normalizedValue,
+        currency_normalized_value: currencyNormalizedValue,
         originated_at: metadata.originatedAt ?? null,
       });
 
@@ -743,14 +529,8 @@ export const save = async (
       });
     } catch (error) {
       logger.warn(
-        "orders-seaport-v1.4-save",
-        `Failed to handle order (will retry). orderParams=${JSON.stringify(
-          orderParams
-        )}, metadata=${JSON.stringify(
-          metadata
-        )}, isReservoir=${isReservoir}, openSeaOrderParams=${JSON.stringify(
-          openSeaOrderParams
-        )}, error=${error}`
+        "orders-alienswap-save",
+        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
       );
     }
   };
@@ -760,14 +540,9 @@ export const save = async (
   await Promise.all(
     orderInfos.map((orderInfo) =>
       limit(async () =>
-        tracer.trace("handleOrder", { resource: "seaportV14Save" }, () =>
-          handleOrder(
-            orderInfo.orderParams as Sdk.SeaportBase.Types.OrderComponents,
-            orderInfo.metadata,
-            orderInfo.isReservoir,
-            orderInfo.isOpenSea,
-            orderInfo.openSeaOrderParams
-          )
+        handleOrder(
+          orderInfo.orderParams as Sdk.SeaportBase.Types.OrderComponents,
+          orderInfo.metadata
         )
       )
     )
@@ -832,98 +607,4 @@ export const save = async (
   }
 
   return results;
-};
-
-const getCollection = async (
-  orderParams: OpenseaOrderParams
-): Promise<{
-  id: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  royalties: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  new_royalties: any;
-  token_set_id: string | null;
-} | null> => {
-  if (orderParams.kind === "single-token") {
-    return redb.oneOrNone(
-      `
-        SELECT
-          collections.id,
-          collections.royalties,
-          collections.new_royalties,
-          collections.token_set_id
-        FROM tokens
-        JOIN collections
-          ON tokens.collection_id = collections.id
-        WHERE tokens.contract = $/contract/
-          AND tokens.token_id = $/tokenId/
-        LIMIT 1
-      `,
-      {
-        contract: toBuffer(orderParams.contract),
-        tokenId: orderParams.tokenId,
-      }
-    );
-  } else {
-    const collection = await redb.oneOrNone(
-      `
-        SELECT
-          collections.id,
-          collections.royalties,
-          collections.new_royalties,
-          collections.token_set_id
-        FROM collections
-        WHERE collections.contract = $/contract/
-          AND collections.slug = $/collectionSlug/
-        ORDER BY created_at DESC  
-        LIMIT 1  
-      `,
-      {
-        contract: toBuffer(orderParams.contract),
-        collectionSlug: orderParams.collectionSlug,
-      }
-    );
-
-    if (!collection) {
-      const lockAcquired = await acquireLock(
-        `unknown-slug-refresh-contract-collections-metadata-lock:${orderParams.contract}:${orderParams.collectionSlug}`,
-        60 * 60
-      );
-
-      logger.info(
-        "orders-seaport-v1.4-save-partial",
-        `Unknown Collection. orderId=${orderParams.hash}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, lockAcquired=${lockAcquired}`
-      );
-
-      if (lockAcquired) {
-        // Try to refresh the contract collections metadata.
-        await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
-      }
-    }
-
-    return collection;
-  }
-};
-
-const getCollectionFloorAskValue = async (
-  contract: string,
-  tokenId: number
-): Promise<number | undefined> => {
-  if (getNetworkSettings().multiCollectionContracts.includes(contract)) {
-    const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-    return collection?.floorSellValue;
-  } else {
-    const collectionFloorAskValue = await redis.get(`collection-floor-ask:${contract}`);
-
-    if (collectionFloorAskValue) {
-      return Number(collectionFloorAskValue);
-    } else {
-      const collection = await Collections.getByContractAndTokenId(contract, tokenId);
-      const collectionFloorAskValue = collection?.floorSellValue || 0;
-
-      await redis.set(`collection-floor-ask:${contract}`, collectionFloorAskValue, "EX", 3600);
-
-      return collectionFloorAskValue;
-    }
-  }
 };

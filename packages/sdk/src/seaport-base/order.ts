@@ -5,6 +5,7 @@ import { BigNumberish } from "@ethersproject/bignumber";
 export enum SeaportOrderKind {
   SEAPORT_V11 = "seaport",
   SEAPORT_V14 = "seaport-v1.4",
+  ALIENSWAP = "alienswap",
 }
 
 export interface IOrder {
@@ -18,6 +19,9 @@ export interface IOrder {
   getMatchingPrice(timestampOverride?: number): BigNumberish;
 
   hash(): string;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getSignatureData(): any;
 }
 
 export const ORDER_EIP712_TYPES = {

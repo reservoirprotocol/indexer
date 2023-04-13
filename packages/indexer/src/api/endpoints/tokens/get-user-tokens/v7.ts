@@ -483,7 +483,8 @@ export const getUserTokensV7Options: RouteOptions = {
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, c.metadata, c.royalties,
-               c.royalties_bps, o.kind AS floor_sell_kind,
+               c.royalties_bps, 
+               (SELECT kind FROM orders WHERE id = t.floor_sell_id) AS floor_sell_kind,
                ${query.includeRawData ? "o.raw_data," : ""}
                ${
                  query.useNonFlaggedFloorAsk

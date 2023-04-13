@@ -4,15 +4,10 @@ import { BigNumberish } from "@ethersproject/bignumber";
 import { redb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { getBuildInfo } from "@/orderbook/orders/seaport-v1.4/build/utils";
+import { getBuildInfo } from "@/orderbook/orders/alienswap/build/utils";
 import { BaseOrderBuildOptions } from "@/orderbook/orders/seaport-base/build/utils";
-import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 
 interface BuildOrderOptions extends BaseOrderBuildOptions {
-  // TODO: refactor
-  // The following combinations are possible:
-  // - collection + attributes
-  // - tokenSetId
   tokenSetId?: string;
   collection?: string;
   attributes?: { key: string; value: string }[];
@@ -66,31 +61,13 @@ export const build = async (options: BuildOrderOptions) => {
       "buy"
     );
 
-    if (options.orderbook === "opensea") {
-      const buildCollectionOfferParams = await OpenSeaApi.buildTraitOffer(
-        options.maker,
-        options.quantity || 1,
-        attributeResult.collectionSlug,
-        options.attributes[0].key,
-        options.attributes[0].value
-      );
+    const excludeFlaggedTokens = options.excludeFlaggedTokens
+      ? "AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
+      : "";
 
-      // Use the zone returned from OpenSea's API
-      buildInfo.params.zone = buildCollectionOfferParams.partialParameters.zone;
-
-      // When cross-posting to OpenSea, if the result from their API is not
-      // a contract-wide order, then switch to using a token-list builder
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      merkleRoot =
-        buildCollectionOfferParams.partialParameters.consideration[0].identifierOrCriteria;
-    } else {
-      const excludeFlaggedTokens = options.excludeFlaggedTokens
-        ? "AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
-        : "";
-
-      // Fetch all tokens matching the attributes
-      const tokens = await redb.manyOrNone(
-        `
+    // Fetch all tokens matching the attributes
+    const tokens = await redb.manyOrNone(
+      `
         SELECT
           token_attributes.token_id
         FROM token_attributes
@@ -107,17 +84,16 @@ export const build = async (options: BuildOrderOptions) => {
           ${excludeFlaggedTokens}
         ORDER BY token_attributes.token_id
       `,
-        {
-          collection: options.collection,
-          key: options.attributes[0].key,
-          value: options.attributes[0].value,
-        }
-      );
+      {
+        collection: options.collection,
+        key: options.attributes[0].key,
+        value: options.attributes[0].value,
+      }
+    );
 
-      tokenIds = tokens.map(({ token_id }) => token_id);
-    }
+    tokenIds = tokens.map(({ token_id }) => token_id);
 
-    return builder?.build({ ...buildInfo.params, tokenIds, merkleRoot }, Sdk.SeaportV14.Order);
+    return builder?.build({ ...buildInfo.params, tokenIds, merkleRoot }, Sdk.Alienswap.Order);
   } else {
     // Fetch all tokens matching the token set
     const tokens = await redb.manyOrNone(
@@ -144,6 +120,6 @@ export const build = async (options: BuildOrderOptions) => {
 
     const tokenIds = tokens.map(({ token_id }) => token_id);
 
-    return builder?.build({ ...buildInfo.params, tokenIds }, Sdk.SeaportV14.Order);
+    return builder?.build({ ...buildInfo.params, tokenIds }, Sdk.Alienswap.Order);
   }
 };
