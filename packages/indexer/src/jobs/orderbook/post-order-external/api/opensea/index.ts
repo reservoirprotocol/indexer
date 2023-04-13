@@ -52,9 +52,7 @@ export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => 
     .catch((error) => {
       logger.error(
         "opensea-orderbook-api",
-        `Post OpenSea order error. order=${JSON.stringify(
-          order
-        )}, apiKey=${apiKey}, error=${error}, responseStatus=${
+        `Post OpenSea order error. apiKey=${apiKey}, error=${error}, responseStatus=${
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );
@@ -219,9 +217,7 @@ export const postCollectionOffer = async (
     .catch((error) => {
       logger.error(
         "opensea-orderbook-api",
-        `Post OpenSea collection offer error. order=${JSON.stringify(
-          order
-        )}, collectionSlug=${collectionSlug}, apiKey=${apiKey}, data=${data}, error=${error}, responseStatus=${
+        `Post OpenSea collection offer error. collectionSlug=${collectionSlug}, apiKey=${apiKey}, data=${data}, error=${error}, responseStatus=${
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );
