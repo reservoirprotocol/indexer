@@ -24,5 +24,6 @@ const normalize = (order: Types.OrderParams): Types.OrderParams => {
 
   return {
     pool: lc(order.pool),
+    externalFilter: lc(order.externalFilter),
   };
 };

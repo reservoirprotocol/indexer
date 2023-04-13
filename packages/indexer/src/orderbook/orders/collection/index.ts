@@ -335,12 +335,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       );
 
       const isERC20 = pool.token !== Sdk.Common.Addresses.Eth[config.chainId];
+      const externalFilterAddress = await poolContract.externalFilter();
 
       // Handle bids
       try {
         if ([CollectionPoolType.TOKEN, CollectionPoolType.TRADE].includes(pool.poolType)) {
           // For now, we don't handle bids from pools with dynamic external filters.
-          if ((await poolContract.externalFilter()) !== AddressZero) {
+          if (externalFilterAddress !== AddressZero) {
             return;
           }
 
@@ -409,6 +410,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             // Prepare raw order data
             const sdkOrder: Sdk.Collection.Order = new Sdk.Collection.Order(config.chainId, {
               pool: orderParams.pool,
+              externalFilter: externalFilterAddress,
             });
 
             // Check if this is new order or update
@@ -699,6 +701,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   // Handle: core sdk order
                   const sdkOrder: Sdk.Collection.Order = new Sdk.Collection.Order(config.chainId, {
                     pool: orderParams.pool,
+                    externalFilter: externalFilterAddress,
                   });
 
                   const orderResult = await redb.oneOrNone(
