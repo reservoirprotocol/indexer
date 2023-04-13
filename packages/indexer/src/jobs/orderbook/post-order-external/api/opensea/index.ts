@@ -183,6 +183,11 @@ export const postCollectionOffer = async (
   collectionSlug: string,
   apiKey: string
 ) => {
+  // Skip posting orders that already expired
+  if (order.params.endTime <= now()) {
+    throw new InvalidRequestError("Order is expired");
+  }
+
   const url = `${getOpenseaBaseUrl()}/v2/offers`;
 
   const data = JSON.stringify({
@@ -236,6 +241,11 @@ export const postTraitOffer = async (
   attribute: { key: string; value: string },
   apiKey: string
 ) => {
+  // Skip posting orders that already expired
+  if (order.params.endTime <= now()) {
+    throw new InvalidRequestError("Order is expired");
+  }
+
   const url = `https://${getOpenseaSubDomain()}.opensea.io/v2/offers`;
   const data = JSON.stringify({
     criteria: {
