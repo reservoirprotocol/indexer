@@ -50,16 +50,16 @@ export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => 
       }
     )
     .catch((error) => {
+      if (error.response) {
+        handleErrorResponse(error.response);
+      }
+
       logger.error(
         "opensea-orderbook-api",
         `Post OpenSea order error. apiKey=${apiKey}, error=${error}, responseStatus=${
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );
-
-      if (error.response) {
-        handleErrorResponse(error.response);
-      }
 
       throw new Error(`Failed to post order to OpenSea`);
     });
@@ -103,16 +103,16 @@ export const buildCollectionOffer = async (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((response) => response.data as any)
       .catch((error) => {
+        if (error.response) {
+          handleErrorResponse(error.response);
+        }
+
         logger.error(
           "opensea-orderbook-api",
           `Build OpenSea collection offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, apiKey=${apiKey}, error=${error}, responseStatus=${
             error.response?.status
           }, responseData=${JSON.stringify(error.response?.data)}`
         );
-
-        if (error.response) {
-          handleErrorResponse(error.response);
-        }
 
         throw new Error(`Failed to build OpenSea collection offer`);
       })
@@ -162,16 +162,16 @@ export const buildTraitOffer = async (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((response) => response.data as any)
       .catch((error) => {
+        if (error.response) {
+          handleErrorResponse(error.response);
+        }
+
         logger.error(
           "opensea_orderbook_api",
           `Build OpenSea trait offer error. offerer=${offerer}, quantity=${quantity}, collectionSlug=${collectionSlug}, traitType=${traitType}, traitValue=${traitValue}, apiKey=${apiKey}, error=${error}, responseStatus=${
             error.response?.status
           }, responseData=${JSON.stringify(error.response?.data)}`
         );
-
-        if (error.response) {
-          handleErrorResponse(error.response);
-        }
 
         throw new Error(`Failed to build OpenSea trait offer`);
       })
@@ -220,16 +220,16 @@ export const postCollectionOffer = async (
             },
     })
     .catch((error) => {
+      if (error.response) {
+        handleErrorResponse(error.response);
+      }
+
       logger.error(
         "opensea-orderbook-api",
         `Post OpenSea collection offer error. collectionSlug=${collectionSlug}, apiKey=${apiKey}, data=${data}, error=${error}, responseStatus=${
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );
-
-      if (error.response) {
-        handleErrorResponse(error.response);
-      }
 
       throw new Error(`Failed to post offer to OpenSea`);
     });
@@ -281,6 +281,10 @@ export const postTraitOffer = async (
             },
     })
     .catch((error) => {
+      if (error.response) {
+        handleErrorResponse(error.response);
+      }
+
       logger.error(
         "opensea-orderbook-api",
         `Post OpenSea trait offer error. order=${JSON.stringify(
@@ -289,10 +293,6 @@ export const postTraitOffer = async (
           error.response?.status
         }, responseData=${JSON.stringify(error.response?.data)}`
       );
-
-      if (error.response) {
-        handleErrorResponse(error.response);
-      }
 
       throw new Error(`Failed to post offer to OpenSea`);
     });

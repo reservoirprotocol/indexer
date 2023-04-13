@@ -123,7 +123,7 @@ if (config.doBackgroundWork) {
 
             await addToQueue(job.data, delay, true);
 
-            logger.info(
+            logger.warn(
               QUEUE_NAME,
               `Post Order Throttled. orderbook=${orderbook}, orderbookApiKey=${orderbookApiKey}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
