@@ -124,14 +124,14 @@ export const postOrderV4Options: RouteOptions = {
         };
       }[];
 
-      // Only Seaport v1.4 and fork supports bulk orders
+      // Only Seaport v1.4 and forks support bulk orders
       if (items.length > 1) {
         if (
           !items.every(
             (item) => item.order.kind === "seaport-v1.4" || item.order.kind === "alienswap"
           )
         ) {
-          throw Boom.badRequest("Bulk orders are only supported on Seaport v1.4");
+          throw Boom.badRequest("Bulk orders are only supported on Seaport v1.4 and forks");
         }
       }
 
@@ -384,7 +384,6 @@ export const postOrderV4Options: RouteOptions = {
                   const [result] = await orders.alienswap.save([
                     {
                       orderParams: order.data,
-                      isReservoir: true,
                       metadata: {
                         schema,
                         source,
@@ -399,11 +398,11 @@ export const postOrderV4Options: RouteOptions = {
                 if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {
                   const orderResult = await idb.oneOrNone(
                     `
-                    SELECT
-                      orders.token_set_id
-                    FROM orders
-                    WHERE orders.id = $/id/
-                  `,
+                      SELECT
+                        orders.token_set_id
+                      FROM orders
+                      WHERE orders.id = $/id/
+                    `,
                     { id: orderId }
                   );
 

@@ -1,16 +1,16 @@
-import { AddressZero } from "@ethersproject/constants";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
+import axios from "axios";
 import _ from "lodash";
 import pLimit from "p-limit";
-import axios from "axios";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
-import tracer from "@/common/tracer";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
+import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
@@ -20,20 +20,16 @@ import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
-import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
 
 export type OrderInfo = {
-  kind?: "full";
   orderParams: Sdk.SeaportBase.Types.OrderComponents;
   metadata: OrderMetadata;
-  isReservoir?: boolean;
 };
 
 type SaveResult = {
   id: string;
   status: string;
   unfillable?: boolean;
-  delay?: number;
 };
 
 export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
@@ -42,8 +38,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
   const handleOrder = async (
     orderParams: Sdk.SeaportBase.Types.OrderComponents,
-    metadata: OrderMetadata,
-    isReservoir?: boolean
+    metadata: OrderMetadata
   ) => {
     try {
       const order = new Sdk.Alienswap.Order(config.chainId, orderParams);
@@ -84,6 +79,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         });
       }
 
+      // Check: order has a supported conduit
+      if (
+        ![HashZero, Sdk.SeaportBase.Addresses.ReservoirConduitKey[config.chainId]].includes(
+          order.params.conduitKey
+        )
+      ) {
+        return results.push({
+          id,
+          status: "unsupported-conduit",
+        });
+      }
+
       // Check: order has a non-zero price
       if (bn(info.price).lte(0)) {
         return results.push({
@@ -93,24 +100,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       }
 
       const currentTime = now();
-      const inTheFutureThreshold = 7 * 24 * 60 * 60;
 
       // Check: order has a valid start time
       const startTime = order.params.startTime;
-      if (startTime - inTheFutureThreshold >= currentTime) {
-        // TODO: Add support for not-yet-valid orders
+      if (startTime - 60 >= currentTime) {
         return results.push({
           id,
           status: "invalid-start-time",
-        });
-      }
-
-      // Delay the validation of the order if it's start time is very soon in the future
-      if (startTime > currentTime) {
-        return results.push({
-          id,
-          status: "delayed",
-          delay: startTime - currentTime + 5,
         });
       }
 
@@ -389,15 +385,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         source = matchedSource;
       }
 
-      // If the order is native, override any default source
-      if (isReservoir) {
-        if (metadata.source) {
-          source = await sources.getOrInsert(metadata.source);
-        } else {
-          source = undefined;
-        }
-      }
-
       // Handle: price conversion
       const currency = info.paymentToken;
 
@@ -511,7 +498,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
         nonce: bn(order.params.counter).toString(),
         source_id_int: source?.id,
-        is_reservoir: isReservoir ? isReservoir : null,
+        is_reservoir: null,
         contract: toBuffer(info.contract),
         conduit: toBuffer(
           new Sdk.Alienswap.Exchange(config.chainId).deriveConduit(order.params.conduitKey)
@@ -543,10 +530,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     } catch (error) {
       logger.warn(
         "orders-alienswap-save",
-        `Failed to handle order (will retry). orderParams=${JSON.stringify(
-          orderParams
-        )}, metadata=${JSON.stringify(metadata)}, isReservoir=${isReservoir}
-        )}, error=${error}`
+        `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
       );
     }
   };
@@ -556,12 +540,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   await Promise.all(
     orderInfos.map((orderInfo) =>
       limit(async () =>
-        tracer.trace("handleOrder", { resource: "alienswapSave" }, () =>
-          handleOrder(
-            orderInfo.orderParams as Sdk.SeaportBase.Types.OrderComponents,
-            orderInfo.metadata,
-            orderInfo.isReservoir
-          )
+        handleOrder(
+          orderInfo.orderParams as Sdk.SeaportBase.Types.OrderComponents,
+          orderInfo.metadata
         )
       )
     )

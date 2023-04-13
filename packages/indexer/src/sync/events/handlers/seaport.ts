@@ -12,6 +12,15 @@ import * as utils from "@/events-sync/utils";
 import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
+const getSeaportOrderKindFromSubKind = (subKind: EventSubKind) => {
+  if (subKind.startsWith("seaport-v1.4")) {
+    return "seaport-v1.4";
+  } else if (subKind.startsWith("alienswap")) {
+    return "alienswap";
+  }
+  return "seaport";
+};
+
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // Keep track of all events within the currently processing transaction
   let currentTx: string | undefined;
@@ -27,22 +36,28 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   )) {
     const txHash = baseEventParams.txHash;
 
-    if (!seaportV14MatchedOrderIds[txHash]) {
-      seaportV14MatchedOrderIds[txHash] = new Set<string>();
-    }
     const eventData1 = getEventData(["seaport-v1.4-orders-matched"])[0];
-    const parsedLog1 = eventData1.abi.parseLog(log);
-    for (const orderId of parsedLog1.args["orderHashes"]) {
-      seaportV14MatchedOrderIds[txHash].add(orderId);
+    if (eventData1.addresses?.[baseEventParams.address]) {
+      if (!seaportV14MatchedOrderIds[txHash]) {
+        seaportV14MatchedOrderIds[txHash] = new Set<string>();
+      }
+
+      const parsedLog1 = eventData1.abi.parseLog(log);
+      for (const orderId of parsedLog1.args["orderHashes"]) {
+        seaportV14MatchedOrderIds[txHash].add(orderId);
+      }
     }
 
-    if (!alienswapMatchedOrderIds[txHash]) {
-      alienswapMatchedOrderIds[txHash] = new Set<string>();
-    }
     const eventData2 = getEventData(["alienswap-orders-matched"])[0];
-    const parsedLog2 = eventData2.abi.parseLog(log);
-    for (const orderId of parsedLog2.args["orderHashes"]) {
-      alienswapMatchedOrderIds[txHash].add(orderId);
+    if (eventData2.addresses?.[baseEventParams.address]) {
+      if (!alienswapMatchedOrderIds[txHash]) {
+        alienswapMatchedOrderIds[txHash] = new Set<string>();
+      }
+
+      const parsedLog2 = eventData2.abi.parseLog(log);
+      for (const orderId of parsedLog2.args["orderHashes"]) {
+        alienswapMatchedOrderIds[txHash].add(orderId);
+      }
     }
   }
 
@@ -420,12 +435,3 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
     ({ orderId }) => !orderIdsToSkip.has(orderId!)
   );
 };
-
-function getSeaportOrderKindFromSubKind(subKind: EventSubKind) {
-  if (subKind.startsWith("seaport-v1.4")) {
-    return "seaport-v1.4";
-  } else if (subKind.startsWith("alienswap")) {
-    return "alienswap";
-  }
-  return "seaport";
-}

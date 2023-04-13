@@ -23,12 +23,15 @@ import * as blurCheck from "@/orderbook/orders/blur/check";
 import * as looksRareV2SellToken from "@/orderbook/orders/looks-rare-v2/build/sell/token";
 import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
 
+import * as seaportBaseCheck from "@/orderbook/orders/seaport-base/check";
+
 // Seaport
 import * as seaportSellToken from "@/orderbook/orders/seaport-v1.1/build/sell/token";
-import * as seaportCheck from "@/orderbook/orders/seaport-base/check";
 
 // Seaport v1.4
 import * as seaportV14SellToken from "@/orderbook/orders/seaport-v1.4/build/sell/token";
+
+// Alienswap
 import * as alienswapSellToken from "@/orderbook/orders/alienswap/build/sell/token";
 
 // X2Y2
@@ -611,7 +614,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 // Check the order's fillability
                 const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
                 try {
-                  await seaportCheck.offChainCheck(order, exchange, {
+                  await seaportBaseCheck.offChainCheck(order, exchange, {
                     onChainApprovalRecheck: true,
                   });
                 } catch (error: any) {
@@ -707,7 +710,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 // Check the order's fillability
                 const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
                 try {
-                  await seaportCheck.offChainCheck(order, exchange, {
+                  await seaportBaseCheck.offChainCheck(order, exchange, {
                     onChainApprovalRecheck: true,
                   });
                 } catch (error: any) {
@@ -783,7 +786,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 // Check the order's fillability
                 const exchange = new Sdk.Alienswap.Exchange(config.chainId);
                 try {
-                  await seaportCheck.offChainCheck(order, exchange, {
+                  await seaportBaseCheck.offChainCheck(order, exchange, {
                     onChainApprovalRecheck: true,
                   });
                 } catch (error: any) {
@@ -1082,7 +1085,7 @@ export const getExecuteListV5Options: RouteOptions = {
         })
       );
 
-      // Post any bulk orders together
+      // Post any seaport-v1.4 bulk orders together
       {
         const orders = bulkOrders["seaport-v1.4"];
         if (orders.length === 1) {
@@ -1144,7 +1147,7 @@ export const getExecuteListV5Options: RouteOptions = {
         }
       }
 
-      // alienswap bulk orders
+      // Post any alienswap bulk orders together
       {
         const orders = bulkOrders["alienswap"];
         if (orders.length === 1) {

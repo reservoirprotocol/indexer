@@ -174,6 +174,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("benddao.xyz");
       case "superrare":
         return sources.getOrInsert("superrare.com");
+      case "alienswap":
+        return sources.getOrInsert("alienswap.xyz");
 
       case "mint": {
         if (address && mintsSources.has(address)) {
@@ -305,26 +307,11 @@ export const generateListingDetailsV6 = (
     }
 
     case "seaport": {
-      if (order.rawData && !order.rawData.partial) {
-        return {
-          kind: "seaport",
-          ...common,
-          order: new Sdk.SeaportV11.Order(config.chainId, order.rawData),
-        };
-      } else {
-        // Sorry for all the below `any` types
-        return {
-          // eslint-disable-next-line
-          kind: "seaport-partial" as any,
-          ...common,
-          order: {
-            contract: token.contract,
-            tokenId: token.tokenId,
-            id: order.id,
-            // eslint-disable-next-line
-          } as any,
-        };
-      }
+      return {
+        kind: "seaport",
+        ...common,
+        order: new Sdk.SeaportV11.Order(config.chainId, order.rawData),
+      };
     }
 
     case "seaport-v1.4": {
@@ -350,7 +337,6 @@ export const generateListingDetailsV6 = (
       }
     }
 
-    // doesn't support partial order
     case "alienswap": {
       return {
         kind: "alienswap",
@@ -470,53 +456,37 @@ export const generateBidDetailsV6 = async (
 
   switch (order.kind) {
     case "seaport": {
-      if (order.rawData && !order.rawData.partial) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const extraArgs: any = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const extraArgs: any = {};
 
-        const sdkOrder = new Sdk.SeaportV11.Order(config.chainId, order.rawData);
-        if (sdkOrder.params.kind?.includes("token-list")) {
-          // When filling a "token-list" order, we also need to pass in the
-          // full list of tokens the order was made on (in order to be able
-          // to generate a valid merkle proof)
-          const tokens = await idb.manyOrNone(
-            `
+      const sdkOrder = new Sdk.SeaportV11.Order(config.chainId, order.rawData);
+      if (sdkOrder.params.kind?.includes("token-list")) {
+        // When filling a "token-list" order, we also need to pass in the
+        // full list of tokens the order was made on (in order to be able
+        // to generate a valid merkle proof)
+        const tokens = await idb.manyOrNone(
+          `
+            SELECT
+              token_sets_tokens.token_id
+            FROM token_sets_tokens
+            WHERE token_sets_tokens.token_set_id = (
               SELECT
-                token_sets_tokens.token_id
-              FROM token_sets_tokens
-              WHERE token_sets_tokens.token_set_id = (
-                SELECT
-                  orders.token_set_id
-                FROM orders
-                WHERE orders.id = $/id/
-              )
-            `,
-            { id: sdkOrder.hash() }
-          );
-          extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
-        }
-
-        return {
-          kind: "seaport",
-          ...common,
-          extraArgs,
-          order: sdkOrder,
-        };
-      } else {
-        // Sorry for all the below `any` types
-        return {
-          // eslint-disable-next-line
-          kind: "seaport-partial" as any,
-          ...common,
-          order: {
-            contract: token.contract,
-            tokenId: token.tokenId,
-            id: order.id,
-            unitPrice: order.unitPrice,
-            // eslint-disable-next-line
-          } as any,
-        };
+                orders.token_set_id
+              FROM orders
+              WHERE orders.id = $/id/
+            )
+          `,
+          { id: sdkOrder.hash() }
+        );
+        extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
       }
+
+      return {
+        kind: "seaport",
+        ...common,
+        extraArgs,
+        order: sdkOrder,
+      };
     }
 
     case "seaport-v1.4": {
@@ -570,11 +540,34 @@ export const generateBidDetailsV6 = async (
     }
 
     case "alienswap": {
+      const extraArgs: any = {};
+
       const sdkOrder = new Sdk.Alienswap.Order(config.chainId, order.rawData);
+      if (sdkOrder.params.kind?.includes("token-list")) {
+        // When filling a "token-list" order, we also need to pass in the
+        // full list of tokens the order was made on (in order to be able
+        // to generate a valid merkle proof)
+        const tokens = await idb.manyOrNone(
+          `
+            SELECT
+              token_sets_tokens.token_id
+            FROM token_sets_tokens
+            WHERE token_sets_tokens.token_set_id = (
+              SELECT
+                orders.token_set_id
+              FROM orders
+              WHERE orders.id = $/id/
+            )
+          `,
+          { id: sdkOrder.hash() }
+        );
+        extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
+      }
       return {
         kind: "alienswap",
         ...common,
         order: sdkOrder,
+        extraArgs,
       };
     }
 

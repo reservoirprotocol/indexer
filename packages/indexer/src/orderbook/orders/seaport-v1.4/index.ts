@@ -115,6 +115,7 @@ export const save = async (
         });
       }
 
+      // Check: order has a supported conduit
       if (
         ![
           HashZero,

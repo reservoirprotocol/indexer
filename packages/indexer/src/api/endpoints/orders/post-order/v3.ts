@@ -238,17 +238,22 @@ export const postOrderV3Options: RouteOptions = {
 
           let crossPostingOrder;
 
-          let orderId = "";
+          let orderId: string;
           switch (order.kind) {
             case "seaport":
               orderId = new Sdk.SeaportV11.Order(config.chainId, order.data).hash();
               break;
+
             case "seaport-v1.4":
               orderId = new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
               break;
+
             case "alienswap":
               orderId = new Sdk.Alienswap.Order(config.chainId, order.data).hash();
               break;
+
+            default:
+              throw new Error("Unreachable");
           }
 
           if (orderbook === "opensea") {
@@ -306,7 +311,6 @@ export const postOrderV3Options: RouteOptions = {
               const [result] = await orders.alienswap.save([
                 {
                   orderParams: order.data,
-                  isReservoir: true,
                   metadata: {
                     schema,
                     source,
