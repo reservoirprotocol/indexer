@@ -339,6 +339,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Handle bids
       try {
         if ([CollectionPoolType.TOKEN, CollectionPoolType.TRADE].includes(pool.poolType)) {
+          // For now, we don't handle bids from pools with dynamic external filters.
+          if ((await poolContract.externalFilter()) !== AddressZero) {
+            return;
+          }
+
           const tokenBalance: BigNumber = await poolContract.liquidity();
 
           const {
