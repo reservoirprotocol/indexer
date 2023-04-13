@@ -116,6 +116,7 @@ export const save = async (
         });
       }
 
+      // Check: order has a supported conduit
       if (
         ![
           HashZero,
@@ -535,13 +536,16 @@ export const save = async (
 
       // Handle: source
       const sources = await Sources.getInstance();
-      let source: SourcesEntity | undefined = await sources.getOrInsert("opensea.io");
+      let source: SourcesEntity | undefined;
 
-      // If cross posting, source should always be opensea.
       const sourceHash = bn(order.params.salt)._hex.slice(0, 10);
       const matchedSource = sources.getByDomainHash(sourceHash);
       if (matchedSource) {
         source = matchedSource;
+      }
+
+      if (isOpenSea) {
+        source = await sources.getOrInsert("opensea.io");
       }
 
       // If the order is native, override any default source

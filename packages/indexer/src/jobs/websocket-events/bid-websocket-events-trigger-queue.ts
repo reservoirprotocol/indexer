@@ -8,7 +8,7 @@ import { randomUUID } from "crypto";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
 
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { getJoiPriceObject } from "@/common/joi";
 import { fromBuffer, getNetAmount } from "@/common/utils";
 import { Sources } from "@/models/sources";
@@ -43,7 +43,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
       const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
-      const rawResult = await redb.oneOrNone(
+      const rawResult = await idb.oneOrNone(
         `
             SELECT orders.id,
             orders.kind,
@@ -61,6 +61,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             orders.normalized_value,
             orders.currency_normalized_value,
             orders.missing_royalties,
+            orders.nonce,
             DYNAMIC,
             DATE_PART('epoch', LOWER(orders.valid_between)) AS valid_from,
             COALESCE(NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'), 0) AS valid_until,
@@ -109,6 +110,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         status: rawResult.status,
         tokenSetId: rawResult.token_set_id,
         tokenSetSchemaHash: fromBuffer(rawResult.token_set_schema_hash),
+        nonce: Number(rawResult.nonce),
         contract: fromBuffer(rawResult.contract),
         maker: fromBuffer(rawResult.maker),
         taker: fromBuffer(rawResult.taker),

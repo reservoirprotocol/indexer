@@ -126,6 +126,12 @@ export const triggerByModule = {
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.SeaportV14.Addresses.Exchange[chainId],
     ]),
+  AlienswapModule: async (chainId: number) =>
+    dv("AlienswapModule", "v1", [
+      DEPLOYER,
+      Sdk.RouterV6.Addresses.Router[chainId],
+      Sdk.Alienswap.Addresses.Exchange[chainId],
+    ]),
   SudoswapModule: async (chainId: number) =>
     dv("SudoswapModule", "v1", [
       DEPLOYER,

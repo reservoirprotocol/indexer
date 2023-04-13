@@ -178,7 +178,9 @@ export const isSubsetNonceCancelled = async (
 ): Promise<boolean> => {
   const nonceCancelResult = await idb.oneOrNone(
     `
-      SELECT nonce FROM looksrare_v2_subset_nonce_cancel_events
+      SELECT
+        1
+      FROM looksrare_v2_subset_nonce_cancel_events
       WHERE maker = $/maker/
         AND nonce = $/nonce/
       LIMIT 1

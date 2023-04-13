@@ -14,8 +14,8 @@ import { bn, regex } from "@/common/utils";
 import { config } from "@/config/index";
 
 // LooksRare
-import * as looksRareBuyToken from "@/orderbook/orders/looks-rare/build/buy/token";
-import * as looksRareBuyCollection from "@/orderbook/orders/looks-rare/build/buy/collection";
+import * as looksRareV2BuyToken from "@/orderbook/orders/looks-rare-v2/build/buy/token";
+import * as looksRareV2BuyCollection from "@/orderbook/orders/looks-rare-v2/build/buy/collection";
 
 // Seaport
 import * as seaportBuyAttribute from "@/orderbook/orders/seaport-v1.1/build/buy/attribute";
@@ -108,6 +108,7 @@ export const getExecuteBidV4Options: RouteOptions = {
               "seaport",
               "seaport-v1.4",
               "looks-rare",
+              "looks-rare-v2",
               "x2y2",
               "universe",
               "forward",
@@ -258,6 +259,10 @@ export const getExecuteBidV4Options: RouteOptions = {
         // Force usage of seaport-v1.4
         if (params.orderKind === "seaport") {
           params.orderKind = "seaport-v1.4";
+        }
+        // Force usage of looks-rare-v2
+        if (params.orderKind === "looks-rare") {
+          params.orderKind = "looks-rare-v2";
         }
 
         if (tokenSetId && tokenSetId.startsWith("list") && tokenSetId.split(":").length !== 3) {
@@ -606,7 +611,7 @@ export const getExecuteBidV4Options: RouteOptions = {
             continue;
           }
 
-          case "looks-rare": {
+          case "looks-rare-v2": {
             if (!["reservoir", "looks-rare"].includes(params.orderbook)) {
               throw Boom.badRequest(
                 "Only `reservoir` and `looks-rare` are supported as orderbooks"
@@ -619,17 +624,17 @@ export const getExecuteBidV4Options: RouteOptions = {
               throw Boom.badRequest("LooksRare does not support token-list bids");
             }
 
-            let order: Sdk.LooksRare.Order | undefined;
+            let order: Sdk.LooksRareV2.Order | undefined;
             if (token) {
               const [contract, tokenId] = token.split(":");
-              order = await looksRareBuyToken.build({
+              order = await looksRareV2BuyToken.build({
                 ...params,
                 maker,
                 contract,
                 tokenId,
               });
             } else if (collection && !attributeKey && !attributeValue) {
-              order = await looksRareBuyCollection.build({
+              order = await looksRareV2BuyCollection.build({
                 ...params,
                 maker,
                 collection,
@@ -646,12 +651,12 @@ export const getExecuteBidV4Options: RouteOptions = {
             let approvalTx: TxData | undefined;
             const wethApproval = await currency.getAllowance(
               maker,
-              Sdk.LooksRare.Addresses.Exchange[config.chainId]
+              Sdk.LooksRareV2.Addresses.Exchange[config.chainId]
             );
             if (bn(wethApproval).lt(bn(order.params.price))) {
               approvalTx = currency.approveTransaction(
                 maker,
-                Sdk.LooksRare.Addresses.Exchange[config.chainId]
+                Sdk.LooksRareV2.Addresses.Exchange[config.chainId]
               );
             }
 
@@ -674,7 +679,7 @@ export const getExecuteBidV4Options: RouteOptions = {
                   method: "POST",
                   body: {
                     order: {
-                      kind: "looks-rare",
+                      kind: "looks-rare-v2",
                       data: {
                         ...order.params,
                       },

@@ -43,20 +43,22 @@ export const getBuildInfo = async (
   // Use OpenSea's conduit for sharing approvals (where available)
   const conduitKey = Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId];
 
+  // Generate the salt
+  let salt = options.source
+    ? padSourceToSalt(options.source, options.salt ?? getRandomBytes(16).toString())
+    : undefined;
+
   // No zone by default
   let zone = AddressZero;
   if (options.useOffChainCancellation) {
+    if (options.orderbook === "opensea") {
+      throw new Error("Off-chain cancellation not supported when cross-posting to OpenSea");
+    }
+
     zone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
-  }
-
-  const source = options.orderbook === "opensea" ? "opensea.io" : options.source;
-
-  // Generate the salt
-  let salt = source
-    ? padSourceToSalt(source, options.salt ?? getRandomBytes(16).toString())
-    : undefined;
-  if (options.replaceOrderId) {
-    salt = options.replaceOrderId;
+    if (options.replaceOrderId) {
+      salt = options.replaceOrderId;
+    }
   }
 
   const buildParams: Sdk.SeaportBase.BaseBuildParams = {

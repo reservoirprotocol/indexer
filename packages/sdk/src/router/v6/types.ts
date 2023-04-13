@@ -80,6 +80,10 @@ export type GenericOrder =
       order: Sdk.SeaportBase.Types.PartialOrder;
     }
   | {
+      kind: "alienswap";
+      order: Sdk.Alienswap.Order;
+    }
+  | {
       kind: "cryptopunks";
       order: Sdk.CryptoPunks.Order;
     }

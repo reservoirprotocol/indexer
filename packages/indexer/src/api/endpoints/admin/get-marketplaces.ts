@@ -87,7 +87,7 @@ export const getMarketplaces: RouteOptions = {
         },
         feeBps: 0.02,
         orderbook: "looks-rare",
-        orderKind: "looks-rare",
+        orderKind: "looks-rare-v2",
         listingEnabled: false,
       },
       {

@@ -34,7 +34,8 @@ export const getExecuteCancelV3Options: RouteOptions = {
         "zeroex-v4-erc1155",
         "universe",
         "rarible",
-        "flow"
+        "flow",
+        "alienswap"
       ),
       token: Joi.string().pattern(regex.token),
       maxFeePerGas: Joi.string()
@@ -96,6 +97,12 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
         case "seaport-v1.4": {
           const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+          cancelTx = exchange.cancelAllOrdersTx(maker);
+          break;
+        }
+
+        case "alienswap": {
+          const exchange = new Sdk.Alienswap.Exchange(config.chainId);
           cancelTx = exchange.cancelAllOrdersTx(maker);
           break;
         }
@@ -191,7 +198,9 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
       const cancellationZone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
       const areAllOracleCancellable = orderResults.every(
-        (o) => o.kind === "seaport-v1.4" && o.raw_data.zone === cancellationZone
+        (o) =>
+          (o.kind === "seaport-v1.4" || o.kind === "alienswap") &&
+          o.raw_data.zone === cancellationZone
       );
       if (areAllOracleCancellable) {
         return {
@@ -255,6 +264,16 @@ export const getExecuteCancelV3Options: RouteOptions = {
             return new Sdk.SeaportV14.Order(config.chainId, dbOrder.raw_data);
           });
           const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+
+          cancelTx = exchange.cancelOrdersTx(maker, orders);
+          break;
+        }
+
+        case "alienswap": {
+          const orders = orderResults.map((dbOrder) => {
+            return new Sdk.Alienswap.Order(config.chainId, dbOrder.raw_data);
+          });
+          const exchange = new Sdk.Alienswap.Exchange(config.chainId);
 
           cancelTx = exchange.cancelOrdersTx(maker, orders);
           break;

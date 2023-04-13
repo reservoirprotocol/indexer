@@ -13,10 +13,6 @@ import { baseProvider } from "@/common/provider";
 import { bn, regex } from "@/common/utils";
 import { config } from "@/config/index";
 
-// LooksRare
-import * as looksRareBuyToken from "@/orderbook/orders/looks-rare/build/buy/token";
-import * as looksRareBuyCollection from "@/orderbook/orders/looks-rare/build/buy/collection";
-
 // Seaport
 import * as seaportBuyAttribute from "@/orderbook/orders/seaport-v1.1/build/buy/attribute";
 import * as seaportBuyToken from "@/orderbook/orders/seaport-v1.1/build/buy/token";
@@ -73,11 +69,11 @@ export const getExecuteBidV2Options: RouteOptions = {
         .description("Amount bidder is willing to offer in wei. Example: `1000000000000000000`")
         .required(),
       orderKind: Joi.string()
-        .valid("looks-rare", "zeroex-v4", "seaport")
+        .valid("zeroex-v4", "seaport")
         .default("seaport")
         .description("Exchange protocol used to create order. Example: `seaport`"),
       orderbook: Joi.string()
-        .valid("reservoir", "opensea", "looks-rare")
+        .valid("reservoir", "opensea")
         .default("reservoir")
         .description("Orderbook where order is placed. Example: `Reservoir`"),
       source: Joi.string().description(
@@ -442,106 +438,6 @@ export const getExecuteBidV2Options: RouteOptions = {
             query: {
               ...query,
               expirationTime: order.params.expiry,
-              nonce: order.params.nonce,
-            },
-          };
-        }
-
-        case "looks-rare": {
-          if (!["reservoir", "looks-rare"].includes(query.orderbook)) {
-            throw Boom.badRequest("Unsupported orderbook");
-          }
-
-          if (query.fee || query.feeRecipient) {
-            throw Boom.badRequest("LooksRare does not support explicit fees");
-          }
-
-          if (query.excludeFlaggedTokens) {
-            throw Boom.badRequest("LooksRare does not support token-list bids");
-          }
-
-          let order: Sdk.LooksRare.Order | undefined;
-          if (token) {
-            const [contract, tokenId] = token.split(":");
-            order = await looksRareBuyToken.build({
-              ...query,
-              contract,
-              tokenId,
-            });
-          } else if (collection && !attributeKey && !attributeValue) {
-            order = await looksRareBuyCollection.build({
-              ...query,
-              collection,
-            });
-          } else {
-            throw Boom.badRequest("LooksRare only supports single-token or collection-wide bids");
-          }
-
-          if (!order) {
-            throw Boom.internal("Failed to generate order");
-          }
-
-          // Check the maker's approval
-          let approvalTx: TxData | undefined;
-          const wethApproval = await weth.getAllowance(
-            query.maker,
-            Sdk.LooksRare.Addresses.Exchange[config.chainId]
-          );
-          if (bn(wethApproval).lt(bn(order.params.price))) {
-            approvalTx = weth.approveTransaction(
-              query.maker,
-              Sdk.LooksRare.Addresses.Exchange[config.chainId]
-            );
-          }
-
-          const hasSignature = query.v && query.r && query.s;
-          return {
-            steps: [
-              {
-                ...steps[0],
-                status: !wrapEthTx ? "complete" : "incomplete",
-                data: wrapEthTx,
-              },
-              {
-                ...steps[1],
-                status: !approvalTx ? "complete" : "incomplete",
-                data: approvalTx,
-              },
-              {
-                ...steps[2],
-                status: hasSignature ? "complete" : "incomplete",
-                data: hasSignature ? undefined : order.getSignatureData(),
-              },
-              {
-                ...steps[3],
-                status: "incomplete",
-                data: !hasSignature
-                  ? undefined
-                  : {
-                      endpoint: "/order/v2",
-                      method: "POST",
-                      body: {
-                        order: {
-                          kind: "looks-rare",
-                          data: {
-                            ...order.params,
-                            v: query.v,
-                            r: query.r,
-                            s: query.s,
-                          },
-                        },
-                        tokenSetId,
-                        collection:
-                          collection && !attributeKey && !attributeValue ? collection : undefined,
-                        orderbook: query.orderbook,
-                        source: query.source,
-                      },
-                    },
-              },
-            ],
-            query: {
-              ...query,
-              expirationTime: order.params.endTime,
               nonce: order.params.nonce,
             },
           };

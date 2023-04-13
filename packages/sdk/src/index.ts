@@ -25,6 +25,7 @@ import * as Quixotic from "./quixotic";
 import * as Rarible from "./rarible";
 import * as SeaportV11 from "./seaport-v1.1";
 import * as SeaportV14 from "./seaport-v1.4";
+import * as Alienswap from "./alienswap";
 import * as SeaportBase from "./seaport-base";
 import * as Sudoswap from "./sudoswap";
 import * as SuperRare from "./superrare";
@@ -69,6 +70,7 @@ export {
   Rarible,
   SeaportV11,
   SeaportV14,
+  Alienswap,
   SeaportBase,
   Sudoswap,
   SuperRare,
