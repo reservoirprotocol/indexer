@@ -203,7 +203,12 @@ export const routerOnRecoverableError = async (
 
   logger.warn(
     "router-on-recoverable-error",
-    JSON.stringify({ kind, status: error.response?.status, error: error.response?.data, data })
+    JSON.stringify({
+      kind,
+      status: error.response?.status,
+      error: error.response?.data?.error,
+      data,
+    })
   );
 };
 

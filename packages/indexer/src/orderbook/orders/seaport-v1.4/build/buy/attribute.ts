@@ -75,6 +75,9 @@ export const build = async (options: BuildOrderOptions) => {
         options.attributes[0].value
       );
 
+      // Use the zone returned from OpenSea's API
+      buildInfo.params.zone = buildCollectionOfferParams.partialParameters.zone;
+
       // When cross-posting to OpenSea, if the result from their API is not
       // a contract-wide order, then switch to using a token-list builder
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

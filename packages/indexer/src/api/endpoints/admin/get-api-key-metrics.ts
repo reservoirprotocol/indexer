@@ -61,6 +61,7 @@ export const getApiKeyMetrics: RouteOptions = {
         Joi.object({
           time: Joi.string(),
           apiCallsCount: Joi.number(),
+          pointsConsumed: Joi.number(),
           key: Joi.string().uuid().optional(),
           route: Joi.string().optional(),
           statusCode: Joi.number().optional(),
@@ -117,22 +118,22 @@ export const getApiKeyMetrics: RouteOptions = {
 
     switch (query.groupBy) {
       case 1:
-        select = `${timeColumnName}, SUM(api_calls_count) AS "api_calls_count"`;
+        select = `${timeColumnName}, SUM(api_calls_count) AS "api_calls_count", SUM(points) AS "points_consumed"`;
         groupBy = `GROUP BY ${timeColumnName}`;
         break;
 
       case 2:
-        select = `${timeColumnName}, api_key, SUM(api_calls_count) AS "api_calls_count"`;
+        select = `${timeColumnName}, api_key, SUM(api_calls_count) AS "api_calls_count", SUM(points) AS "points_consumed"`;
         groupBy = `GROUP BY ${timeColumnName}, api_key`;
         break;
 
       case 3:
-        select = `${timeColumnName}, api_key, route, SUM(api_calls_count) AS "api_calls_count"`;
+        select = `${timeColumnName}, api_key, route, SUM(api_calls_count) AS "api_calls_count", SUM(points) AS "points_consumed"`;
         groupBy = `GROUP BY ${timeColumnName}, api_key, route`;
         break;
 
       case 4:
-        select = `${timeColumnName}, api_key, route, status_code, SUM(api_calls_count) AS "api_calls_count"`;
+        select = `${timeColumnName}, api_key, route, status_code, SUM(api_calls_count) AS "api_calls_count", SUM(points) AS "points_consumed"`;
         groupBy = `GROUP BY ${timeColumnName}, api_key, route, status_code`;
         break;
     }
@@ -154,6 +155,7 @@ export const getApiKeyMetrics: RouteOptions = {
         metrics: _.map(metrics, (metric) => ({
           time: metric[timeColumnName].toISOString(),
           apiCallsCount: _.toNumber(metric.api_calls_count),
+          pointsConsumed: _.toNumber(metric.points_consumed),
           key: metric?.api_key,
           route: metric?.route,
           statusCode: metric?.status_code,
