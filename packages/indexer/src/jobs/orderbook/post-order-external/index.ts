@@ -135,7 +135,7 @@ if (config.doBackgroundWork) {
               QUEUE_NAME,
               `Post Order Failed - Invalid Order. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
                 orderData
-              )}, retry=${retry}, error=${error}`
+              )}, retry=${retry}, error=${error}, errorKind=${error.kind}`
             );
 
             if (crossPostingOrderId) {
@@ -146,7 +146,7 @@ if (config.doBackgroundWork) {
               );
             }
 
-            if ((error as InvalidRequestError).kind === InvalidRequestErrorKind.InvalidFees) {
+            if (error.kind === InvalidRequestErrorKind.InvalidFees) {
               // If fees are invalid, refresh the collection metadata to refresh the fees
               const rawResult = await redb.oneOrNone(
                 `

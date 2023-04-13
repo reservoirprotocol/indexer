@@ -37,9 +37,9 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      try {
-        const { data } = job.data as EventInfo;
+      const { data } = job.data as EventInfo;
 
+      try {
         const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
         const rawResult = await idb.oneOrNone(
@@ -170,7 +170,9 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
       } catch (error) {
         logger.error(
           QUEUE_NAME,
-          `Error processing websocket event. error=${JSON.stringify(error)}`
+          `Error processing websocket event. data=${JSON.stringify(data)}, error=${JSON.stringify(
+            error
+          )}`
         );
 
         throw error;

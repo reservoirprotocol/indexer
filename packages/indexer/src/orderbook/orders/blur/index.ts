@@ -6,6 +6,7 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
+import { redis } from "@/common/redis";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
@@ -356,8 +357,18 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
           });
         }
 
+        // Handle: royalties
+        let feeBps = 0;
+        const feeBreakdown: { kind: string; recipient: string; bps: number }[] = [];
+        const royaltyData = await redis.get(`blur-royalties:${orderParams.collection}`);
+        if (royaltyData) {
+          feeBreakdown.push({ ...JSON.parse(royaltyData), kind: "royalty" });
+          feeBps += feeBreakdown[0].bps;
+        }
+
         // Handle: price
         const price = parseEther(orderParams.pricePoints[0].price).toString();
+        const value = bn(price).sub(bn(price).mul(feeBps).div(10000)).toString();
 
         const totalQuantity = orderParams.pricePoints
           .map((p) => p.executableSize)
@@ -376,10 +387,10 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
           maker: toBuffer(Sdk.Blur.Addresses.Beth[config.chainId]),
           taker: toBuffer(AddressZero),
           price,
-          value: price,
+          value,
           currency: toBuffer(Sdk.Blur.Addresses.Beth[config.chainId]),
           currency_price: price,
-          currency_value: price,
+          currency_value: value,
           needs_conversion: null,
           quantity_remaining: totalQuantity.toString(),
           valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
@@ -388,9 +399,8 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
           is_reservoir: null,
           contract: toBuffer(orderParams.collection),
           conduit: null,
-          // TODO: Include royalty fees
-          fee_bps: 0,
-          fee_breakdown: null,
+          fee_bps: feeBps,
+          fee_breakdown: feeBreakdown,
           dynamic: null,
           raw_data: orderParams,
           expiration: validTo,
@@ -445,8 +455,18 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
             { id }
           );
         } else {
+          // Handle: royalties
+          let feeBps = 0;
+          const feeBreakdown: { kind: string; recipient: string; bps: number }[] = [];
+          const royaltyData = await redis.get(`blur-royalties:${orderParams.collection}`);
+          if (royaltyData) {
+            feeBreakdown.push({ ...JSON.parse(royaltyData), kind: "royalty" });
+            feeBps += feeBreakdown[0].bps;
+          }
+
           // Handle: price
           const price = parseEther(currentBid.pricePoints[0].price).toString();
+          const value = bn(price).sub(bn(price).mul(feeBps).div(10000)).toString();
 
           const totalQuantity = currentBid.pricePoints
             .map((p) => p.executableSize)
@@ -458,8 +478,8 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
                 fillability_status = 'fillable',
                 price = $/price/,
                 currency_price = $/price/,
-                value = $/price/,
-                currency_value = $/price/,
+                value = $/value/,
+                currency_value = $/value/,
                 quantity_remaining = $/totalQuantity/,
                 valid_between = tstzrange(date_trunc('seconds', now()), 'Infinity', '[]'),
                 expiration = 'Infinity',
@@ -470,6 +490,7 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
             {
               id,
               price,
+              value,
               totalQuantity,
               rawData: currentBid,
             }

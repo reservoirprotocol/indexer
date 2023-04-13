@@ -602,6 +602,9 @@ export const getUserTokensV7Options: RouteOptions = {
         const topBidCurrency = r.top_bid_currency
           ? fromBuffer(r.top_bid_currency)
           : Sdk.Common.Addresses.Weth[config.chainId];
+        const collectionFloorSellCurrency = r.collection_floor_sell_currency
+          ? fromBuffer(r.collection_floor_sell_currency)
+          : Sdk.Common.Addresses.Eth[config.chainId];
         const floorSellSource = r.floor_sell_value
           ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
           : undefined;
@@ -630,7 +633,7 @@ export const getUserTokensV7Options: RouteOptions = {
                         nativeAmount: String(r.collection_floor_sell_value),
                       },
                     },
-                    fromBuffer(r.collection_floor_sell_currency),
+                    collectionFloorSellCurrency,
                     query.displayCurrency
                   )
                 : null,

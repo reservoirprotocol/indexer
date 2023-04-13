@@ -38,10 +38,8 @@ if (config.doBackgroundWork) {
                 orders.id,
                 orders.fillability_status
               FROM orders
-              WHERE orders.kind = 'seaport'
+              WHERE orders.kind = 'looks-rare'
                 AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
-                AND orders.conduit = '\\x1e0049783f008a0085193e00003d00cd54003c71'
-                AND orders.contract IS NOT NULL
                 AND orders.id > $/id/
               ORDER BY orders.id
               LIMIT $/limit/
@@ -89,8 +87,9 @@ if (config.doBackgroundWork) {
 
   if (config.chainId === 1) {
     redlock
-      .acquire([`${QUEUE_NAME}-lock-5`], 60 * 60 * 24 * 30 * 1000)
+      .acquire([`${QUEUE_NAME}-lock-6`], 60 * 60 * 24 * 30 * 1000)
       .then(async () => {
+        await addToQueue("0x0" + HashZero.slice(3));
         await addToQueue("0x3" + HashZero.slice(3));
         await addToQueue("0x6" + HashZero.slice(3));
         await addToQueue("0x9" + HashZero.slice(3));
