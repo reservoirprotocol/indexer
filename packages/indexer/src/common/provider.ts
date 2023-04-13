@@ -3,9 +3,16 @@ import Arweave from "arweave";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
+import getUuidByString from "uuid-by-string";
 
 // Use a static provider to avoid redundant `eth_chainId` calls
-export const baseProvider = new StaticJsonRpcProvider(config.baseNetworkHttpUrl, config.chainId);
+export const baseProvider = new StaticJsonRpcProvider(
+  {
+    url: config.baseNetworkHttpUrl,
+    headers: { "x-session-hash": getUuidByString(`${config.baseNetworkHttpUrl}${config.chainId}`) },
+  },
+  config.chainId
+);
 
 // https://github.com/ethers-io/ethers.js/issues/1053#issuecomment-808736570
 export const safeWebSocketSubscription = (

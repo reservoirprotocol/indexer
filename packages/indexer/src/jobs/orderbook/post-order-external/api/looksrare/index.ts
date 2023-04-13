@@ -1,4 +1,3 @@
-import { joinSignature } from "@ethersproject/bytes";
 import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 
@@ -14,17 +13,9 @@ import {
 export const RATE_LIMIT_REQUEST_COUNT = 120;
 export const RATE_LIMIT_INTERVAL = 60;
 
-export const postOrder = async (order: Sdk.LooksRare.Order, apiKey: string) => {
+export const postOrder = async (order: Sdk.LooksRareV2.Order, apiKey: string) => {
   const lrOrder = {
     ...order.params,
-    signature: joinSignature({
-      v: order.params.v!,
-      r: order.params.r!,
-      s: order.params.s!,
-    }),
-    tokenId: order.params.kind === "single-token" ? order.params.tokenId : null,
-    // For now, no order kinds have any additional params
-    params: [],
   };
 
   // Skip posting orders that already expired
@@ -38,7 +29,7 @@ export const postOrder = async (order: Sdk.LooksRare.Order, apiKey: string) => {
 
   await axios
     .post(
-      `https://${config.chainId === 5 ? "api-goerli." : "api."}looksrare.org/api/v1/orders`,
+      `https://${config.chainId === 5 ? "api-goerli." : "api."}looksrare.org/api/v2/orders`,
       JSON.stringify(lrOrder),
       {
         headers:

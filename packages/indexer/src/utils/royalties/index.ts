@@ -2,7 +2,7 @@ import { AddressZero } from "@ethersproject/constants";
 import _ from "lodash";
 
 import { idb } from "@/common/db";
-import { toBuffer } from "@/common/utils";
+import { regex, toBuffer } from "@/common/utils";
 import * as registry from "@/utils/royalties/registry";
 
 export type Royalty = {
@@ -149,7 +149,9 @@ export const updateRoyaltySpec = async (
 ) => {
   // For safety, skip any zero bps or recipients
   royalties = royalties
-    ? royalties.filter(({ bps, recipient }) => bps && recipient !== AddressZero)
+    ? royalties.filter(
+        ({ bps, recipient }) => bps && recipient !== AddressZero && recipient.match(regex.address)
+      )
     : undefined;
 
   // Fetch the current royalties

@@ -7,6 +7,7 @@ import { config } from "@/config/index";
 import {
   RequestWasThrottledError,
   InvalidRequestError,
+  InvalidRequestErrorKind,
 } from "@/jobs/orderbook/post-order-external/api/errors";
 import { getOpenseaBaseUrl, getOpenseaNetworkName, getOpenseaSubDomain } from "@/config/network";
 
@@ -307,9 +308,23 @@ const handleErrorResponse = (response: any) => {
 
       throw new RequestWasThrottledError("Request was throttled by OpenSea", delay);
     }
-    case 400:
-      throw new InvalidRequestError(
-        `Request was rejected by OpenSea. error=${response.data.errors?.toString()}`
-      );
+    case 400: {
+      const error = response.data.errors?.toString();
+      const message = `Request was rejected by OpenSea. error=${error}`;
+
+      const invalidFeeErrors = [
+        "You have provided a fee",
+        "You have not provided all required creator fees",
+        "You have provided fees that we cannot attribute to OpenSea or the collection",
+      ];
+
+      for (const invalidFeeError of invalidFeeErrors) {
+        if (error.startsWith(invalidFeeError)) {
+          throw new InvalidRequestError(message, InvalidRequestErrorKind.InvalidFees);
+        }
+      }
+
+      throw new InvalidRequestError(message);
+    }
   }
 };

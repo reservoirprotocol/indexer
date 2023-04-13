@@ -20,8 +20,8 @@ import * as b from "@/utils/auth/blur";
 import * as blurBuyCollection from "@/orderbook/orders/blur/build/buy/collection";
 
 // LooksRare
-import * as looksRareBuyToken from "@/orderbook/orders/looks-rare/build/buy/token";
-import * as looksRareBuyCollection from "@/orderbook/orders/looks-rare/build/buy/collection";
+import * as looksRareV2BuyToken from "@/orderbook/orders/looks-rare-v2/build/buy/token";
+import * as looksRareV2BuyCollection from "@/orderbook/orders/looks-rare-v2/build/buy/collection";
 
 // Seaport
 import * as seaportBuyAttribute from "@/orderbook/orders/seaport-v1.1/build/buy/attribute";
@@ -44,10 +44,6 @@ import * as zeroExV4BuyCollection from "@/orderbook/orders/zeroex-v4/build/buy/c
 
 // Universe
 import * as universeBuyToken from "@/orderbook/orders/universe/build/buy/token";
-
-// Infinity
-import * as infinityBuyToken from "@/orderbook/orders/infinity/build/buy/token";
-import * as infinityBuyCollection from "@/orderbook/orders/infinity/build/buy/collection";
 
 // Flow
 import * as flowBuyToken from "@/orderbook/orders/flow/build/buy/token";
@@ -118,9 +114,9 @@ export const getExecuteBidV5Options: RouteOptions = {
               "seaport",
               "seaport-v1.4",
               "looks-rare",
+              "looks-rare-v2",
               "x2y2",
               "universe",
-              "infinity",
               "flow"
             )
             .default("seaport-v1.4")
@@ -136,16 +132,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             }),
           }).description("Additional options."),
           orderbook: Joi.string()
-            .valid(
-              "blur",
-              "reservoir",
-              "opensea",
-              "looks-rare",
-              "x2y2",
-              "universe",
-              "infinity",
-              "flow"
-            )
+            .valid("blur", "reservoir", "opensea", "looks-rare", "x2y2", "universe", "flow")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
@@ -328,11 +315,7 @@ export const getExecuteBidV5Options: RouteOptions = {
           let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
           if (!blurAuthChallenge) {
             blurAuthChallenge = (await axios
-              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`, {
-                headers: {
-                  "X-Api-Key": config.orderFetcherApiKey,
-                },
-              })
+              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
               .then((response) => response.data.authChallenge)) as b.AuthChallenge;
 
             await b.saveAuthChallenge(
@@ -389,6 +372,10 @@ export const getExecuteBidV5Options: RouteOptions = {
           // Force usage of seaport-v1.4
           if (params.orderKind === "seaport") {
             params.orderKind = "seaport-v1.4";
+          }
+          // Force usage of looks-rare-v2
+          if (params.orderKind === "looks-rare") {
+            params.orderKind = "looks-rare-v2";
           }
 
           // Only single-contract token sets are biddable
@@ -844,7 +831,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                 break;
               }
 
-              case "looks-rare": {
+              case "looks-rare-v2": {
                 if (!["reservoir", "looks-rare"].includes(params.orderbook)) {
                   return errors.push({
                     message: "Unsupported orderbook",
@@ -864,17 +851,17 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
-                let order: Sdk.LooksRare.Order;
+                let order: Sdk.LooksRareV2.Order;
                 if (token) {
                   const [contract, tokenId] = token.split(":");
-                  order = await looksRareBuyToken.build({
+                  order = await looksRareV2BuyToken.build({
                     ...params,
                     maker,
                     contract,
                     tokenId,
                   });
                 } else if (collection) {
-                  order = await looksRareBuyCollection.build({
+                  order = await looksRareV2BuyCollection.build({
                     ...params,
                     maker,
                     collection,
@@ -890,12 +877,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                 let approvalTx: TxData | undefined;
                 const wethApproval = await currency.getAllowance(
                   maker,
-                  Sdk.LooksRare.Addresses.Exchange[config.chainId]
+                  Sdk.LooksRareV2.Addresses.Exchange[config.chainId]
                 );
                 if (bn(wethApproval).lt(bn(order.params.price))) {
                   approvalTx = currency.approveTransaction(
                     maker,
-                    Sdk.LooksRare.Addresses.Exchange[config.chainId]
+                    Sdk.LooksRareV2.Addresses.Exchange[config.chainId]
                   );
                 }
 
@@ -913,7 +900,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                       method: "POST",
                       body: {
                         order: {
-                          kind: "looks-rare",
+                          kind: "looks-rare-v2",
                           data: {
                             ...order.params,
                           },
@@ -932,101 +919,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                 break;
               }
 
-              case "infinity": {
-                if (!["infinity"].includes(params.orderbook)) {
-                  return errors.push({
-                    message: "Unsupported orderbook",
-                    orderIndex: i,
-                  });
-                }
-
-                if (params.fees?.length) {
-                  return errors.push({
-                    message: "Custom fees not supported",
-                    orderIndex: i,
-                  });
-                }
-                if (params.excludeFlaggedTokens) {
-                  return errors.push({
-                    message: "Flagged tokens exclusion not supported",
-                    orderIndex: i,
-                  });
-                }
-
-                let order: Sdk.Infinity.Order;
-                if (token) {
-                  const [contract, tokenId] = token.split(":");
-                  order = await infinityBuyToken.build({
-                    ...params,
-                    orderbook: "infinity",
-                    maker,
-                    contract,
-                    tokenId,
-                  });
-                } else if (collection) {
-                  order = await infinityBuyCollection.build({
-                    ...params,
-                    orderbook: "infinity",
-                    maker,
-                    contract: collection,
-                  });
-                } else {
-                  return errors.push({
-                    message: "Only token and collection bids are supported",
-                    orderIndex: i,
-                  });
-                }
-
-                let approvalTx: TxData | undefined;
-                const wethApproval = await currency.getAllowance(
-                  maker,
-                  Sdk.Infinity.Addresses.Exchange[config.chainId]
-                );
-
-                if (
-                  bn(wethApproval).lt(bn(order.params.startPrice)) ||
-                  bn(wethApproval).lt(bn(order.params.endPrice))
-                ) {
-                  approvalTx = currency.approveTransaction(
-                    maker,
-                    Sdk.Infinity.Addresses.Exchange[config.chainId]
-                  );
-                }
-
-                steps[2].items.push({
-                  status: !approvalTx ? "complete" : "incomplete",
-                  data: approvalTx,
-                  orderIndexes: [i],
-                });
-                steps[3].items.push({
-                  status: "incomplete",
-                  data: {
-                    sign: order.getSignatureData(),
-                    post: {
-                      endpoint: "/order/v3",
-                      method: "POST",
-                      body: {
-                        order: {
-                          kind: "infinity",
-                          data: {
-                            ...order.params,
-                          },
-                        },
-                        tokenSetId,
-                        collection,
-                        orderbook: params.orderbook,
-                        source,
-                      },
-                    },
-                  },
-                  orderIndexes: [i],
-                });
-
-                break;
-              }
-
               case "flow": {
-                if (!["infinity"].includes(params.orderbook)) {
+                if (!["flow"].includes(params.orderbook)) {
                   return errors.push({
                     message: "Unsupported orderbook",
                     orderIndex: i,

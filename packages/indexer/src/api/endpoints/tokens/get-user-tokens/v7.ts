@@ -182,6 +182,7 @@ export const getUserTokensV7Options: RouteOptions = {
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
+              kind: Joi.string().allow(null),
               validFrom: Joi.number().unsafe().allow(null),
               validUntil: Joi.number().unsafe().allow(null),
               source: Joi.object().allow(null),
@@ -225,16 +226,27 @@ export const getUserTokensV7Options: RouteOptions = {
           AND nft_balances.token_id <= $/endTokenId${i}/)
         `);
       } else if (id.match(/^0x[a-f0-9]{40}:[a-zA-Z]+-.+$/g)) {
+        const collectionParts = id.split(":");
+
         (query as any)[`collection${i}`] = id;
+        (query as any)[`contract${i}`] = toBuffer(collectionParts[0]);
 
         // List based collections
         tokensCollectionFilters.push(`
           collection_id = $/collection${i}/
         `);
+
+        nftBalanceCollectionFilters.push(`(nft_balances.contract = $/contract${i}/)`);
       } else {
         // Contract side collection
         (query as any)[`contract${i}`] = toBuffer(id);
+        (query as any)[`collection${i}`] = id;
+
         nftBalanceCollectionFilters.push(`(nft_balances.contract = $/contract${i}/)`);
+
+        tokensCollectionFilters.push(`
+          collection_id = $/collection${i}/
+        `);
       }
     };
 
@@ -471,7 +483,7 @@ export const getUserTokensV7Options: RouteOptions = {
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, c.metadata, c.royalties,
-               c.royalties_bps, 
+               c.royalties_bps, o.kind AS floor_sell_kind,
                ${query.includeRawData ? "o.raw_data," : ""}
                ${
                  query.useNonFlaggedFloorAsk
@@ -706,6 +718,7 @@ export const getUserTokensV7Options: RouteOptions = {
                   )
                 : null,
               maker: r.floor_sell_maker ? fromBuffer(r.floor_sell_maker) : null,
+              kind: r.floor_sell_kind,
               validFrom: r.floor_sell_value ? r.floor_sell_valid_from : null,
               validUntil: r.floor_sell_value ? r.floor_sell_valid_to : null,
               source: {

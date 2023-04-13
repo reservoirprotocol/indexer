@@ -10,9 +10,10 @@ import { regex } from "@/common/utils";
 const version = "v1";
 
 export const getCrossPostingOrdersV1Options: RouteOptions = {
-  description: "Cross posting orders",
-  notes: "Get a list of cross posting orders with status",
-  tags: ["api", "Orders"],
+  description: "Check cross posting status",
+  notes:
+    "This API can be used to check the status of cross posted listings and bids.\n\n Input your `crossPostingOrderId` into the `ids` param and submit for the status. \n\n The `crossPostingOrderId` is returned in the `execute/bids` and `execute/asks` response as well as the `onProgess` callback for the SDK. \n\n Note: ReservoirKit does not return a `crossPostingOrderId`.",
+  tags: ["api", "Create Orders (list & bid)"],
   plugins: {
     "hapi-swagger": {
       order: 5,

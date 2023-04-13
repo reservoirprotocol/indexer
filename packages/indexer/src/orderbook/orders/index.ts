@@ -14,13 +14,13 @@ export * as x2y2 from "@/orderbook/orders/x2y2";
 export * as zeroExV4 from "@/orderbook/orders/zeroex-v4";
 export * as zora from "@/orderbook/orders/zora";
 export * as universe from "@/orderbook/orders/universe";
-export * as infinity from "@/orderbook/orders/infinity";
 export * as flow from "@/orderbook/orders/flow";
 export * as blur from "@/orderbook/orders/blur";
 export * as rarible from "@/orderbook/orders/rarible";
 export * as nftx from "@/orderbook/orders/nftx";
 export * as manifold from "@/orderbook/orders/manifold";
 export * as superrare from "@/orderbook/orders/superrare";
+export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
 
 // Imports
 import * as Sdk from "@reservoir0x/sdk";
@@ -61,7 +61,6 @@ export type OrderKind =
   | "universe"
   | "nftx"
   | "blur"
-  | "infinity"
   | "flow"
   | "forward"
   | "manifold"
@@ -73,7 +72,8 @@ export type OrderKind =
   | "superrare"
   | "zeroex-v2"
   | "zeroex-v3"
-  | "treasure";
+  | "treasure"
+  | "looks-rare-v2";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -128,6 +128,7 @@ export const getOrderSourceByOrderKind = async (
       case "foundation":
         return sources.getOrInsert("foundation.app");
       case "looks-rare":
+      case "looks-rare-v2":
         return sources.getOrInsert("looksrare.org");
       case "seaport":
       case "seaport-v1.4":
@@ -155,8 +156,6 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("nftx.io");
       case "blur":
         return sources.getOrInsert("blur.io");
-      case "infinity":
-        return sources.getOrInsert("infinity.xyz");
       case "flow":
         return sources.getOrInsert("flow.so");
       case "manifold":
@@ -360,15 +359,6 @@ export const generateListingDetailsV6 = (
       };
     }
 
-    case "infinity": {
-      const sdkOrder = new Sdk.Infinity.Order(config.chainId, order.rawData);
-      return {
-        kind: "infinity",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
     case "flow": {
       const sdkOrder = new Sdk.Flow.Order(config.chainId, order.rawData);
       return {
@@ -415,6 +405,14 @@ export const generateListingDetailsV6 = (
         kind: "superrare",
         ...common,
         order: new Sdk.SuperRare.Order(config.chainId, order.rawData),
+      };
+    }
+
+    case "looks-rare-v2": {
+      return {
+        kind: "looks-rare-v2",
+        ...common,
+        order: new Sdk.LooksRareV2.Order(config.chainId, order.rawData),
       };
     }
 
@@ -619,15 +617,6 @@ export const generateBidDetailsV6 = async (
       };
     }
 
-    case "infinity": {
-      const sdkOrder = new Sdk.Infinity.Order(config.chainId, order.rawData);
-      return {
-        kind: "infinity",
-        ...common,
-        order: sdkOrder,
-      };
-    }
-
     case "flow": {
       const sdkOrder = new Sdk.Flow.Order(config.chainId, order.rawData);
       return {
@@ -683,6 +672,15 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.Blur.Order(config.chainId, order.rawData);
       return {
         kind: "blur",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
+    case "looks-rare-v2": {
+      const sdkOrder = new Sdk.LooksRareV2.Order(config.chainId, order.rawData);
+      return {
+        kind: "looks-rare-v2",
         ...common,
         order: sdkOrder,
       };

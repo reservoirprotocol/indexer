@@ -111,7 +111,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             bps: 200,
           },
           orderbook: "looks-rare",
-          orderKind: "looks-rare",
+          orderKind: "looks-rare-v2",
           listingEnabled: false,
         },
         {

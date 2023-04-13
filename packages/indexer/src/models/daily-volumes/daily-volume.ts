@@ -267,7 +267,7 @@ export class DailyVolume {
             FROM fill_events_2 fe2
             JOIN tokens t ON fe2.token_id = t.token_id AND fe2.contract = t.contract
             WHERE fe2.price > 0
-            AND fe.is_deleted = 0
+            AND "fe2".is_deleted = 0
             AND "fe2"."timestamp" < $/yesterdayTimestamp/
             AND "fe2".timestamp >= $/endYesterdayTimestamp/
             ${collectionId ? "AND t.collection_id = $/collectionId/" : ""}

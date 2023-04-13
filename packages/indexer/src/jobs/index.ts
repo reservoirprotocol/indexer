@@ -35,6 +35,7 @@ import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsync
 import * as backfillCancelSeaport11Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
 import * as backfillInvalidatedOrders from "@/jobs/backfill/backfill-invalidated-orders";
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
+import * as backfillExpiredOrders2 from "@/jobs/backfill/backfill-expired-orders-2";
 import * as backfillFoundationSales from "@/jobs/backfill/backfill-foundation-sales";
 import * as backfillMints from "@/jobs/backfill/backfill-mints";
 import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
@@ -155,6 +156,7 @@ export const allJobQueues = [
   backfillCancelSeaport11Orders.queue,
   backfillInvalidatedOrders.queue,
   backfillExpiredOrders.queue,
+  backfillExpiredOrders2.queue,
   backfillFoundationSales.queue,
   backfillMints.queue,
   backfillSaleRoyalties.queue,

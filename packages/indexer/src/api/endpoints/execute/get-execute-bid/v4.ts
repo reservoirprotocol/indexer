@@ -14,8 +14,8 @@ import { bn, regex } from "@/common/utils";
 import { config } from "@/config/index";
 
 // LooksRare
-import * as looksRareBuyToken from "@/orderbook/orders/looks-rare/build/buy/token";
-import * as looksRareBuyCollection from "@/orderbook/orders/looks-rare/build/buy/collection";
+import * as looksRareV2BuyToken from "@/orderbook/orders/looks-rare-v2/build/buy/token";
+import * as looksRareV2BuyCollection from "@/orderbook/orders/looks-rare-v2/build/buy/collection";
 
 // Seaport
 import * as seaportBuyAttribute from "@/orderbook/orders/seaport-v1.1/build/buy/attribute";
@@ -43,10 +43,6 @@ import * as universeBuyToken from "@/orderbook/orders/universe/build/buy/token";
 import * as forwardBuyAttribute from "@/orderbook/orders/forward/build/buy/attribute";
 import * as forwardBuyToken from "@/orderbook/orders/forward/build/buy/token";
 import * as forwardBuyCollection from "@/orderbook/orders/forward/build/buy/collection";
-
-// Infinity
-import * as infinityBuyToken from "@/orderbook/orders/infinity/build/buy/token";
-import * as infinityBuyCollection from "@/orderbook/orders/infinity/build/buy/collection";
 
 // Flow
 import * as flowBuyToken from "@/orderbook/orders/flow/build/buy/token";
@@ -112,16 +108,16 @@ export const getExecuteBidV4Options: RouteOptions = {
               "seaport",
               "seaport-v1.4",
               "looks-rare",
+              "looks-rare-v2",
               "x2y2",
               "universe",
               "forward",
-              "infinity",
               "flow"
             )
             .default("seaport-v1.4")
             .description("Exchange protocol used to create order. Example: `seaport-v1.4`"),
           orderbook: Joi.string()
-            .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow")
+            .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "flow")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
@@ -263,6 +259,10 @@ export const getExecuteBidV4Options: RouteOptions = {
         // Force usage of seaport-v1.4
         if (params.orderKind === "seaport") {
           params.orderKind = "seaport-v1.4";
+        }
+        // Force usage of looks-rare-v2
+        if (params.orderKind === "looks-rare") {
+          params.orderKind = "looks-rare-v2";
         }
 
         if (tokenSetId && tokenSetId.startsWith("list") && tokenSetId.split(":").length !== 3) {
@@ -611,7 +611,7 @@ export const getExecuteBidV4Options: RouteOptions = {
             continue;
           }
 
-          case "looks-rare": {
+          case "looks-rare-v2": {
             if (!["reservoir", "looks-rare"].includes(params.orderbook)) {
               throw Boom.badRequest(
                 "Only `reservoir` and `looks-rare` are supported as orderbooks"
@@ -624,17 +624,17 @@ export const getExecuteBidV4Options: RouteOptions = {
               throw Boom.badRequest("LooksRare does not support token-list bids");
             }
 
-            let order: Sdk.LooksRare.Order | undefined;
+            let order: Sdk.LooksRareV2.Order | undefined;
             if (token) {
               const [contract, tokenId] = token.split(":");
-              order = await looksRareBuyToken.build({
+              order = await looksRareV2BuyToken.build({
                 ...params,
                 maker,
                 contract,
                 tokenId,
               });
             } else if (collection && !attributeKey && !attributeValue) {
-              order = await looksRareBuyCollection.build({
+              order = await looksRareV2BuyCollection.build({
                 ...params,
                 maker,
                 collection,
@@ -651,12 +651,12 @@ export const getExecuteBidV4Options: RouteOptions = {
             let approvalTx: TxData | undefined;
             const wethApproval = await currency.getAllowance(
               maker,
-              Sdk.LooksRare.Addresses.Exchange[config.chainId]
+              Sdk.LooksRareV2.Addresses.Exchange[config.chainId]
             );
             if (bn(wethApproval).lt(bn(order.params.price))) {
               approvalTx = currency.approveTransaction(
                 maker,
-                Sdk.LooksRare.Addresses.Exchange[config.chainId]
+                Sdk.LooksRareV2.Addresses.Exchange[config.chainId]
               );
             }
 
@@ -679,7 +679,7 @@ export const getExecuteBidV4Options: RouteOptions = {
                   method: "POST",
                   body: {
                     order: {
-                      kind: "looks-rare",
+                      kind: "looks-rare-v2",
                       data: {
                         ...order.params,
                       },
@@ -689,96 +689,6 @@ export const getExecuteBidV4Options: RouteOptions = {
                       collection && !attributeKey && !attributeValue ? collection : undefined,
                     orderbook: params.orderbook,
                     orderbookApiKey: params.orderbookApiKey,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            // Go on with the next bid
-            continue;
-          }
-
-          case "infinity": {
-            if (!["infinity"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `infinity` is supported as orderbook");
-            }
-
-            if (params.fees?.length) {
-              throw Boom.badRequest("Infinity does not support custom fees");
-            }
-
-            if (params.excludeFlaggedTokens) {
-              throw Boom.badRequest("Infinity does not support excluded token bids");
-            }
-
-            if (attributeKey || attributeValue) {
-              throw Boom.badRequest("Infinity does not support attribute bids");
-            }
-
-            let order: Sdk.Infinity.Order | undefined;
-            if (token) {
-              const [contract, tokenId] = token.split(":");
-              order = await infinityBuyToken.build({
-                ...params,
-                maker,
-                collection: contract,
-                tokenId,
-              });
-            } else if (collection) {
-              order = await infinityBuyCollection.build({ ...params, maker, collection });
-            }
-
-            if (!order) {
-              throw Boom.internal("Failed to generate order");
-            }
-
-            let approvalTx: TxData | undefined;
-            const wethApproval = await currency.getAllowance(
-              maker,
-              Sdk.Infinity.Addresses.Exchange[config.chainId]
-            );
-
-            if (
-              bn(wethApproval).lt(bn(order.params.startPrice)) ||
-              bn(wethApproval).lt(bn(order.params.endPrice))
-            ) {
-              approvalTx = currency.approveTransaction(
-                maker,
-                Sdk.Infinity.Addresses.Exchange[config.chainId]
-              );
-            }
-
-            steps[1].items.push({
-              status: !wrapEthTx ? "complete" : "incomplete",
-              data: wrapEthTx,
-              orderIndex: i,
-            });
-            steps[2].items.push({
-              status: !approvalTx ? "complete" : "incomplete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-
-            steps[3].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v3",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: "infinity",
-                      data: {
-                        ...order.params,
-                      },
-                    },
-                    tokenSetId,
-                    collection:
-                      collection && !attributeKey && !attributeValue ? collection : undefined,
-                    orderbook: params.orderbook,
                     source,
                   },
                 },

@@ -20,8 +20,8 @@ import * as blurSellToken from "@/orderbook/orders/blur/build/sell/token";
 import * as blurCheck from "@/orderbook/orders/blur/check";
 
 // LooksRare
-import * as looksRareSellToken from "@/orderbook/orders/looks-rare/build/sell/token";
-import * as looksRareCheck from "@/orderbook/orders/looks-rare/check";
+import * as looksRareV2SellToken from "@/orderbook/orders/looks-rare-v2/build/sell/token";
+import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
 
 // Seaport
 import * as seaportSellToken from "@/orderbook/orders/seaport-v1.1/build/sell/token";
@@ -41,10 +41,6 @@ import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 // Universe
 import * as universeSellToken from "@/orderbook/orders/universe/build/sell/token";
 import * as universeCheck from "@/orderbook/orders/universe/check";
-
-// Infinity
-import * as infinitySellToken from "@/orderbook/orders/infinity/build/sell/token";
-import * as infinityCheck from "@/orderbook/orders/infinity/check";
 
 // Flow
 import * as flowSellToken from "@/orderbook/orders/flow/build/sell/token";
@@ -98,12 +94,12 @@ export const getExecuteListV5Options: RouteOptions = {
             .valid(
               "blur",
               "looks-rare",
+              "looks-rare-v2",
               "zeroex-v4",
               "seaport",
               "seaport-v1.4",
               "x2y2",
               "universe",
-              "infinity",
               "flow"
             )
             .default("seaport-v1.4")
@@ -119,16 +115,7 @@ export const getExecuteListV5Options: RouteOptions = {
             }),
           }).description("Additional options."),
           orderbook: Joi.string()
-            .valid(
-              "blur",
-              "opensea",
-              "looks-rare",
-              "reservoir",
-              "x2y2",
-              "universe",
-              "infinity",
-              "flow"
-            )
+            .valid("blur", "opensea", "looks-rare", "reservoir", "x2y2", "universe", "flow")
             .default("reservoir")
             .description("Orderbook where order is placed. Example: `Reservoir`"),
           orderbookApiKey: Joi.string().description("Optional API key for the target orderbook"),
@@ -285,11 +272,7 @@ export const getExecuteListV5Options: RouteOptions = {
           let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
           if (!blurAuthChallenge) {
             blurAuthChallenge = (await axios
-              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`, {
-                headers: {
-                  "X-Api-Key": config.orderFetcherApiKey,
-                },
-              })
+              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
               .then((response) => response.data.authChallenge)) as b.AuthChallenge;
 
             await b.saveAuthChallenge(
@@ -342,6 +325,10 @@ export const getExecuteListV5Options: RouteOptions = {
           // Force usage of seaport-v1.4
           if (params.orderKind === "seaport") {
             params.orderKind = "seaport-v1.4";
+          }
+          // Force usage of looks-rare-v2
+          if (params.orderKind === "looks-rare") {
+            params.orderKind = "looks-rare-v2";
           }
 
           // For now, ERC20 listings are only supported on Seaport
@@ -506,74 +493,6 @@ export const getExecuteListV5Options: RouteOptions = {
                         },
                         orderbook: params.orderbook,
                         orderbookApiKey: params.orderbookApiKey,
-                        source,
-                      },
-                    },
-                  },
-                  orderIndexes: [i],
-                });
-
-                break;
-              }
-
-              case "infinity": {
-                if (!["infinity"].includes(params.orderbook)) {
-                  return errors.push({ message: "Unsupported orderbook", orderIndex: i });
-                }
-
-                const order = await infinitySellToken.build({
-                  ...params,
-                  orderbook: "infinity",
-                  maker,
-                  contract,
-                  tokenId,
-                });
-
-                // Will be set if an approval is needed before listing
-                let approvalTx: TxData | undefined;
-
-                // Check the order's fillability
-                try {
-                  await infinityCheck.offChainCheck(order, { onChainApprovalRecheck: true });
-                } catch (error: any) {
-                  switch (error.message) {
-                    case "no-balance-no-approval":
-                    case "no-balance": {
-                      return errors.push({ message: "Maker does not own token", orderIndex: i });
-                    }
-
-                    case "no-approval": {
-                      // Generate an approval transaction
-                      approvalTx = new Sdk.Common.Helpers.Erc721(
-                        baseProvider,
-                        contract
-                      ).approveTransaction(maker, Sdk.Infinity.Addresses.Exchange[config.chainId]);
-
-                      break;
-                    }
-                  }
-                }
-
-                steps[1].items.push({
-                  status: approvalTx ? "incomplete" : "complete",
-                  data: approvalTx,
-                  orderIndexes: [i],
-                });
-                steps[2].items.push({
-                  status: "incomplete",
-                  data: {
-                    sign: order.getSignatureData(),
-                    post: {
-                      endpoint: "/order/v3",
-                      method: "POST",
-                      body: {
-                        order: {
-                          kind: params.orderKind,
-                          data: {
-                            ...order.params,
-                          },
-                        },
-                        orderbook: params.orderbook,
                         source,
                       },
                     },
@@ -816,7 +735,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 break;
               }
 
-              case "looks-rare": {
+              case "looks-rare-v2": {
                 if (!["reservoir", "looks-rare"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
@@ -824,7 +743,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   return errors.push({ message: "Custom fees not supported", orderIndex: i });
                 }
 
-                const order = await looksRareSellToken.build({
+                const order = await looksRareV2SellToken.build({
                   ...params,
                   maker,
                   contract,
@@ -836,7 +755,7 @@ export const getExecuteListV5Options: RouteOptions = {
 
                 // Check the order's fillability
                 try {
-                  await looksRareCheck.offChainCheck(order, { onChainApprovalRecheck: true });
+                  await looksRareV2Check.offChainCheck(order, { onChainApprovalRecheck: true });
                 } catch (error: any) {
                   switch (error.message) {
                     case "no-balance-no-approval":
@@ -857,9 +776,7 @@ export const getExecuteListV5Options: RouteOptions = {
                           : new Sdk.Common.Helpers.Erc1155(baseProvider, order.params.collection)
                       ).approveTransaction(
                         maker,
-                        contractKind === "erc721"
-                          ? Sdk.LooksRare.Addresses.TransferManagerErc721[config.chainId]
-                          : Sdk.LooksRare.Addresses.TransferManagerErc1155[config.chainId]
+                        Sdk.LooksRareV2.Addresses.TransferManager[config.chainId]
                       );
 
                       break;
@@ -881,7 +798,7 @@ export const getExecuteListV5Options: RouteOptions = {
                       method: "POST",
                       body: {
                         order: {
-                          kind: "looks-rare",
+                          kind: "looks-rare-v2",
                           data: {
                             ...order.params,
                           },

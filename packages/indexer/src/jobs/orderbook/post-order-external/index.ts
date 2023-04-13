@@ -13,18 +13,19 @@ import * as OpenSeaApi from "@/jobs/orderbook/post-order-external/api/opensea";
 import * as LooksrareApi from "@/jobs/orderbook/post-order-external/api/looksrare";
 import * as X2Y2Api from "@/jobs/orderbook/post-order-external/api/x2y2";
 import * as UniverseApi from "@/jobs/orderbook/post-order-external/api/universe";
-import * as InfinityApi from "@/jobs/orderbook/post-order-external/api/infinity";
 import * as FlowApi from "@/jobs/orderbook/post-order-external/api/flow";
 
 import {
-  RequestWasThrottledError,
   InvalidRequestError,
+  InvalidRequestErrorKind,
+  RequestWasThrottledError,
 } from "@/jobs/orderbook/post-order-external/api/errors";
 import { redb } from "@/common/db";
 import { RateLimiterRedis, RateLimiterRes } from "rate-limiter-flexible";
 import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import { CrossPostingOrderStatus } from "@/models/cross-posting-orders";
 import { TSTAttribute, TSTCollection, TSTCollectionNonFlagged } from "@/orderbook/token-sets/utils";
+import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 
 const QUEUE_NAME = "orderbook-post-order-external-queue";
 const MAX_RETRIES = 5;
@@ -47,11 +48,7 @@ if (config.doBackgroundWork) {
       const { crossPostingOrderId, orderId, orderData, orderSchema, orderbook } =
         job.data as PostOrderExternalParams;
 
-      if (
-        !["blur", "opensea", "looks-rare", "x2y2", "universe", "infinity", "flow"].includes(
-          orderbook
-        )
-      ) {
+      if (!["blur", "opensea", "looks-rare", "x2y2", "universe", "flow"].includes(orderbook)) {
         if (crossPostingOrderId) {
           await crossPostingOrdersModel.updateOrderStatus(
             crossPostingOrderId,
@@ -148,6 +145,41 @@ if (config.doBackgroundWork) {
                 error.message
               );
             }
+
+            if ((error as InvalidRequestError).kind === InvalidRequestErrorKind.InvalidFees) {
+              // If fees are invalid, refresh the collection metadata to refresh the fees
+              const rawResult = await redb.oneOrNone(
+                `
+                SELECT
+                  tokens.contract,
+                  tokens.token_id,
+                  collections.id AS "collection_id",
+                  collections.community
+                FROM orders
+                JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id
+                JOIN tokens tokens on tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id
+                JOIN collections ON collections.id = tokens.collection_id
+                WHERE orders.id = $/id/
+                LIMIT 1
+              `,
+                { id: orderId }
+              );
+
+              if (rawResult) {
+                logger.info(
+                  QUEUE_NAME,
+                  `Post Order Failed - Invalid Fees. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+                    orderData
+                  )}, retry: ${retry}`
+                );
+
+                await collectionUpdatesMetadata.addToQueue(
+                  rawResult.contract,
+                  rawResult.token_id,
+                  rawResult.community
+                );
+              }
+            }
           } else if (retry < MAX_RETRIES) {
             // If we got an unknown error from the api, reschedule job based on fixed delay.
             logger.info(
@@ -202,8 +234,6 @@ const getOrderbookDefaultApiKey = (orderbook: string) => {
       return config.x2y2ApiKey;
     case "universe":
       return "";
-    case "infinity":
-      return config.infinityApiKey;
     case "flow":
       return config.flowApiKey;
   }
@@ -242,12 +272,6 @@ const getRateLimiter = (orderbook: string) => {
         storeClient: rateLimitRedis,
         points: UniverseApi.RATE_LIMIT_REQUEST_COUNT,
         duration: UniverseApi.RATE_LIMIT_INTERVAL,
-      });
-    case "infinity":
-      return new RateLimiterRedis({
-        storeClient: rateLimitRedis,
-        points: InfinityApi.RATE_LIMIT_REQUEST_COUNT,
-        duration: InfinityApi.RATE_LIMIT_INTERVAL,
       });
     case "flow":
       return new RateLimiterRedis({
@@ -311,9 +335,9 @@ const postOrder = async (
     }
 
     case "looks-rare": {
-      const order = new Sdk.LooksRare.Order(
+      const order = new Sdk.LooksRareV2.Order(
         config.chainId,
-        orderData as Sdk.LooksRare.Types.MakerOrderParams
+        orderData as Sdk.LooksRareV2.Types.MakerOrderParams
       );
       return LooksrareApi.postOrder(order, orderbookApiKey);
     }
@@ -327,21 +351,13 @@ const postOrder = async (
       return X2Y2Api.postOrder(orderData as Sdk.X2Y2.Types.LocalOrder, orderbookApiKey);
     }
 
-    case "infinity": {
-      const order = new Sdk.Infinity.Order(
-        config.chainId,
-        orderData as Sdk.Infinity.Types.OrderInput
-      );
-      return InfinityApi.postOrders(order, orderbookApiKey);
-    }
-
     case "flow": {
       const order = new Sdk.Flow.Order(config.chainId, orderData as Sdk.Flow.Types.OrderInput);
       return FlowApi.postOrders(order, orderbookApiKey);
     }
 
     case "blur": {
-      return BlurApi.postOrder(orderData as BlurApi.BlurData, orderbookApiKey);
+      return BlurApi.postOrder(orderData as BlurApi.BlurData);
     }
   }
 
@@ -361,7 +377,7 @@ export type PostOrderExternalParams =
   | {
       crossPostingOrderId: number;
       orderId: string;
-      orderData: Sdk.LooksRare.Types.MakerOrderParams;
+      orderData: Sdk.LooksRareV2.Types.MakerOrderParams;
       orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
       orderbook: "looks-rare";
       orderbookApiKey?: string | null;
@@ -382,15 +398,6 @@ export type PostOrderExternalParams =
       orderData: Sdk.Universe.Types.Order;
       orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
       orderbook: "universe";
-      orderbookApiKey?: string | null;
-      retry?: number;
-    }
-  | {
-      crossPostingOrderId: number;
-      orderId: string;
-      orderData: Sdk.Infinity.Types.OrderInput;
-      orderSchema?: TSTCollection | TSTCollectionNonFlagged | TSTAttribute;
-      orderbook: "infinity";
       orderbookApiKey?: string | null;
       retry?: number;
     }
