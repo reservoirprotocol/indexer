@@ -3424,7 +3424,7 @@ export class Router {
       const detail = executionsWithDetails[0].detail;
 
       const routerLevelTxData = this.contracts.router.interface.encodeFunctionData("execute", [
-        execution,
+        [execution],
       ]);
 
       // Use the on-received ERC721/ERC1155 hooks for approval-less bid filling
