@@ -6,7 +6,7 @@ import { searchForCall } from "@georgeroman/evm-tx-simulator";
 import { bn } from "@/common/utils";
 import { config } from "@/config/index";
 import { baseProvider } from "@/common/provider";
-import { getEventData } from "@/events-sync/data";
+import { EventSubKind, getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
 import { getERC20Transfer } from "@/events-sync/handlers/utils/erc20";
@@ -19,22 +19,41 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
   const orderIdsToSkip = new Set<string>();
 
-  // For each transaction keep track of the orders that were explicitly matched
-  const matchedOrderIds: { [txHash: string]: Set<string> } = {};
-  for (const { baseEventParams, log } of events.filter(
-    ({ subKind }) => subKind === "seaport-v1.4-orders-matched"
+  const seaportV14MatchedOrderIds: { [txHash: string]: Set<string> } = {};
+  const alienswapMatchedOrderIds: { [txHash: string]: Set<string> } = {};
+
+  for (const { baseEventParams, log } of events.filter(({ subKind }) =>
+    ["seaport-v1.4-orders-matched", "alienswap-orders-matched"].includes(subKind)
   )) {
     const txHash = baseEventParams.txHash;
-    if (!matchedOrderIds[txHash]) {
-      matchedOrderIds[txHash] = new Set<string>();
+
+    if (!seaportV14MatchedOrderIds[txHash]) {
+      seaportV14MatchedOrderIds[txHash] = new Set<string>();
+    }
+    const eventData1 = getEventData(["seaport-v1.4-orders-matched"])[0];
+    const parsedLog1 = eventData1.abi.parseLog(log);
+    for (const orderId of parsedLog1.args["orderHashes"]) {
+      seaportV14MatchedOrderIds[txHash].add(orderId);
     }
 
-    const eventData = getEventData(["seaport-v1.4-orders-matched"])[0];
-    const parsedLog = eventData.abi.parseLog(log);
-    for (const orderId of parsedLog.args["orderHashes"]) {
-      matchedOrderIds[txHash].add(orderId);
+    if (!alienswapMatchedOrderIds[txHash]) {
+      alienswapMatchedOrderIds[txHash] = new Set<string>();
+    }
+    const eventData2 = getEventData(["alienswap-orders-matched"])[0];
+    const parsedLog2 = eventData2.abi.parseLog(log);
+    for (const orderId of parsedLog2.args["orderHashes"]) {
+      alienswapMatchedOrderIds[txHash].add(orderId);
     }
   }
+
+  // For each transaction keep track of the orders that were explicitly matched
+  const matchedOrderIds: {
+    "seaport-v1.4": { [txHash: string]: Set<string> };
+    alienswap: { [txHash: string]: Set<string> };
+  } = {
+    "seaport-v1.4": seaportV14MatchedOrderIds,
+    alienswap: alienswapMatchedOrderIds,
+  };
 
   // Handle the events
   let i = 0;
@@ -47,12 +66,13 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
+      case "alienswap-order-cancelled":
       case "seaport-order-cancelled":
       case "seaport-v1.4-order-cancelled": {
         const parsedLog = eventData.abi.parseLog(log);
         const orderId = parsedLog.args["orderHash"].toLowerCase();
 
-        const orderKind = subKind.startsWith("seaport-v1.4") ? "seaport-v1.4" : "seaport";
+        const orderKind = getSeaportOrderKindFromSubKind(subKind);
         onChainData.cancelEvents.push({
           orderKind,
           orderId,
@@ -75,13 +95,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
+      case "alienswap-counter-incremented":
       case "seaport-counter-incremented":
       case "seaport-v1.4-counter-incremented": {
         const parsedLog = eventData.abi.parseLog(log);
         const maker = parsedLog.args["offerer"].toLowerCase();
         const newCounter = parsedLog.args["newCounter"].toString();
 
-        const orderKind = subKind.startsWith("seaport-v1.4") ? "seaport-v1.4" : "seaport";
+        const orderKind = getSeaportOrderKindFromSubKind(subKind);
         onChainData.bulkCancelEvents.push({
           orderKind,
           maker,
@@ -92,6 +113,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
+      case "alienswap-order-filled":
       case "seaport-order-filled":
       case "seaport-v1.4-order-filled": {
         const parsedLog = eventData.abi.parseLog(log);
@@ -106,9 +128,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        const orderKind = subKind.startsWith("seaport-v1.4") ? "seaport-v1.4" : "seaport";
+        const orderKind = getSeaportOrderKindFromSubKind(subKind);
         const exchange =
-          orderKind === "seaport-v1.4"
+          orderKind === "seaport-v1.4" || orderKind === "alienswap"
             ? new Sdk.SeaportV14.Exchange(config.chainId)
             : new Sdk.SeaportV11.Exchange(config.chainId);
 
@@ -117,8 +139,18 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           // If the order was explicitly matched, make sure to exclude it if
           // the transaction sender is the order's offerer (since this means
           // that the order was just auxiliary most of the time)
-          const matched = matchedOrderIds[baseEventParams.txHash];
-          if (matched && matched.has(orderId)) {
+          const seaportV14Matched = matchedOrderIds["seaport-v1.4"][baseEventParams.txHash];
+          if (seaportV14Matched && seaportV14Matched.has(orderId)) {
+            const txSender = await utils
+              .fetchTransaction(baseEventParams.txHash)
+              .then(({ from }) => from);
+            if (maker === txSender) {
+              break;
+            }
+          }
+
+          const alienswapMatched = matchedOrderIds["alienswap"][baseEventParams.txHash];
+          if (alienswapMatched && alienswapMatched.has(orderId)) {
             const txSender = await utils
               .fetchTransaction(baseEventParams.txHash)
               .then(({ from }) => from);
@@ -388,3 +420,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
     ({ orderId }) => !orderIdsToSkip.has(orderId!)
   );
 };
+
+function getSeaportOrderKindFromSubKind(subKind: EventSubKind) {
+  if (subKind.startsWith("seaport-v1.4")) {
+    return "seaport-v1.4";
+  } else if (subKind.startsWith("alienswap")) {
+    return "alienswap";
+  }
+  return "seaport";
+}

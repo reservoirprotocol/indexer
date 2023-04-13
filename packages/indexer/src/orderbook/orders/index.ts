@@ -9,6 +9,7 @@ export * as foundation from "@/orderbook/orders/foundation";
 export * as looksRare from "@/orderbook/orders/looks-rare";
 export * as seaport from "@/orderbook/orders/seaport-v1.1";
 export * as seaportV14 from "@/orderbook/orders/seaport-v1.4";
+export * as alienswap from "@/orderbook/orders/alienswap";
 export * as sudoswap from "@/orderbook/orders/sudoswap";
 export * as x2y2 from "@/orderbook/orders/x2y2";
 export * as zeroExV4 from "@/orderbook/orders/zeroex-v4";
@@ -49,6 +50,7 @@ export type OrderKind =
   | "x2y2"
   | "seaport"
   | "seaport-v1.4"
+  | "alienswap"
   | "rarible"
   | "element-erc721"
   | "element-erc1155"
@@ -343,6 +345,15 @@ export const generateListingDetailsV6 = (
       }
     }
 
+    // doesn't support partial order
+    case "alienswap": {
+      return {
+        kind: "alienswap",
+        ...common,
+        order: new Sdk.Alienswap.Order(config.chainId, order.rawData),
+      };
+    }
+
     case "zora-v3": {
       return {
         kind: "zora",
@@ -551,6 +562,15 @@ export const generateBidDetailsV6 = async (
           } as any,
         };
       }
+    }
+
+    case "alienswap": {
+      const sdkOrder = new Sdk.Alienswap.Order(config.chainId, order.rawData);
+      return {
+        kind: "alienswap",
+        ...common,
+        order: sdkOrder,
+      };
     }
 
     case "looks-rare": {

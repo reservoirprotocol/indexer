@@ -23,6 +23,8 @@ addPlatformAddress("seaport-v1.4", [
   "0x0000a26b00c1f0df003000390027140000faa719",
 ]);
 
+addPlatformAddress("alienswap", ["0x0b22c0359b550da6cf3766d8c0d7ffc00e28a136"]);
+
 addPlatformAddress("wyvern-v2", [
   "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
   "0x8de9c5a032463c561423387a9648c5c7bcc5bc90",
@@ -47,5 +49,6 @@ export const supportedExchanges: Map<OrderKind, string> = new Map();
 supportedExchanges.set("blur", Sdk.Blur.Addresses.Exchange[config.chainId]);
 supportedExchanges.set("seaport", Sdk.SeaportV11.Addresses.Exchange[config.chainId]);
 supportedExchanges.set("seaport-v1.4", Sdk.SeaportV14.Addresses.Exchange[config.chainId]);
+supportedExchanges.set("alienswap", Sdk.Alienswap.Addresses.Exchange[config.chainId]);
 supportedExchanges.set("x2y2", Sdk.X2Y2.Addresses.Exchange[config.chainId]);
 supportedExchanges.set("looks-rare", Sdk.LooksRare.Addresses.Exchange[config.chainId]);

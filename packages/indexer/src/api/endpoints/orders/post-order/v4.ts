@@ -46,7 +46,8 @@ export const postOrderV4Options: RouteOptions = {
                   "x2y2",
                   "universe",
                   "forward",
-                  "flow"
+                  "flow",
+                  "alienswap"
                 )
                 .required(),
               data: Joi.object().required(),
@@ -65,7 +66,7 @@ export const postOrderV4Options: RouteOptions = {
             tokenSetId: Joi.string(),
             isNonFlagged: Joi.boolean(),
             bulkData: Joi.object({
-              kind: "seaport-v1.4",
+              kind: Joi.string().valid("seaport-v1.4", "alienswap").default("seaport-v1.4"),
               data: Joi.object({
                 orderIndex: Joi.number().required(),
                 merkleProof: Joi.array().items(Joi.string()).required(),
@@ -115,7 +116,7 @@ export const postOrderV4Options: RouteOptions = {
         isNonFlagged?: boolean;
         source?: string;
         bulkData?: {
-          kind: "seaport-v1.4";
+          kind: "seaport-v1.4" | "alienswap";
           data: {
             orderIndex: number;
             merkleProof: string[];
@@ -123,9 +124,13 @@ export const postOrderV4Options: RouteOptions = {
         };
       }[];
 
-      // Only Seaport v1.4 supports bulk orders
+      // Only Seaport v1.4 and fork supports bulk orders
       if (items.length > 1) {
-        if (!items.every((item) => item.order.kind === "seaport-v1.4")) {
+        if (
+          !items.every(
+            (item) => item.order.kind === "seaport-v1.4" || item.order.kind === "alienswap"
+          )
+        ) {
           throw Boom.badRequest("Bulk orders are only supported on Seaport v1.4");
         }
       }
@@ -164,6 +169,14 @@ export const postOrderV4Options: RouteOptions = {
               if (bulkData?.kind === "seaport-v1.4") {
                 // Encode the merkle proof of inclusion together with the signature
                 order.data.signature = new Sdk.SeaportV14.Exchange(
+                  config.chainId
+                ).encodeBulkOrderProofAndSignature(
+                  bulkData.data.orderIndex,
+                  bulkData.data.merkleProof,
+                  signature
+                );
+              } else if (bulkData?.kind === "alienswap") {
+                order.data.signature = new Sdk.Alienswap.Exchange(
                   config.chainId
                 ).encodeBulkOrderProofAndSignature(
                   bulkData.data.orderIndex,
@@ -306,6 +319,7 @@ export const postOrderV4Options: RouteOptions = {
               }
             }
 
+            case "alienswap":
             case "seaport":
             case "seaport-v1.4": {
               if (!["opensea", "reservoir"].includes(orderbook)) {
@@ -338,31 +352,48 @@ export const postOrderV4Options: RouteOptions = {
                   orderbookApiKey,
                 });
               } else if (orderbook === "reservoir") {
-                const [result] =
-                  order.kind === "seaport"
-                    ? await orders.seaport.save([
-                        {
-                          orderParams: order.data,
-                          isReservoir: true,
-                          metadata: {
-                            schema,
-                            source,
-                          },
-                        },
-                      ])
-                    : await orders.seaportV14.save([
-                        {
-                          orderParams: order.data,
-                          isReservoir: true,
-                          metadata: {
-                            schema,
-                            source,
-                          },
-                        },
-                      ]);
-
-                if (!["success", "already-exists"].includes(result.status)) {
-                  return results.push({ message: result.status, orderIndex: i, orderId });
+                if (order.kind === "seaport") {
+                  const [result] = await orders.seaport.save([
+                    {
+                      orderParams: order.data,
+                      isReservoir: true,
+                      metadata: {
+                        schema,
+                        source,
+                      },
+                    },
+                  ]);
+                  if (!["success", "already-exists"].includes(result.status)) {
+                    return results.push({ message: result.status, orderIndex: i, orderId });
+                  }
+                } else if (order.kind == "seaport-v1.4") {
+                  const [result] = await orders.seaportV14.save([
+                    {
+                      orderParams: order.data,
+                      isReservoir: true,
+                      metadata: {
+                        schema,
+                        source,
+                      },
+                    },
+                  ]);
+                  if (!["success", "already-exists"].includes(result.status)) {
+                    return results.push({ message: result.status, orderIndex: i, orderId });
+                  }
+                } else {
+                  const [result] = await orders.alienswap.save([
+                    {
+                      orderParams: order.data,
+                      isReservoir: true,
+                      metadata: {
+                        schema,
+                        source,
+                      },
+                    },
+                  ]);
+                  if (!["success", "already-exists"].includes(result.status)) {
+                    return results.push({ message: result.status, orderIndex: i, orderId });
+                  }
                 }
 
                 if (config.forwardReservoirApiKeys.includes(request.headers["x-api-key"])) {

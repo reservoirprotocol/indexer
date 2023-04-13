@@ -158,6 +158,16 @@ export const getExecuteCancelV2Options: RouteOptions = {
           break;
         }
 
+        case "alienswap": {
+          const order = new Sdk.Alienswap.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.Alienswap.Exchange(config.chainId);
+
+          cancelTx = exchange.cancelOrderTx(maker, order);
+          orderSide = order.getInfo()!.side;
+
+          break;
+        }
+
         case "looks-rare": {
           const order = new Sdk.LooksRare.Order(config.chainId, orderResult.raw_data);
           const exchange = new Sdk.LooksRare.Exchange(config.chainId);
