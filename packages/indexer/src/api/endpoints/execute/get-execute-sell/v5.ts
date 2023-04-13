@@ -212,6 +212,7 @@ export const getExecuteSellV5Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const sourceId = orderResult.source_id_int;
+      const source = sourceId ? sources.get(sourceId)?.domain ?? null : null;
 
       const path = [
         {
@@ -219,7 +220,7 @@ export const getExecuteSellV5Options: RouteOptions = {
           contract,
           tokenId,
           quantity: payload.quantity ?? 1,
-          source: sourceId ? sources.get(sourceId)?.domain ?? null : null,
+          source,
           // TODO: Add support for multiple currencies
           currency: Sdk.Common.Addresses.Weth[config.chainId],
           quote: formatEth(orderResult.price),
@@ -232,6 +233,7 @@ export const getExecuteSellV5Options: RouteOptions = {
           kind: orderResult.kind,
           unitPrice: orderResult.price,
           rawData: orderResult.raw_data,
+          source: source || undefined,
         },
         {
           kind: orderResult.token_kind,
@@ -251,7 +253,7 @@ export const getExecuteSellV5Options: RouteOptions = {
         cbApiKey: config.cbApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
       });
-      const { txData } = await router.fillBidsTx([bidDetails!], payload.taker, {
+      const { txs } = await router.fillBidsTx([bidDetails!], payload.taker, {
         source: payload.source,
       });
 
@@ -353,7 +355,7 @@ export const getExecuteSellV5Options: RouteOptions = {
       steps[1].items.push({
         status: "incomplete",
         data: {
-          ...txData,
+          ...txs[0].txData,
           maxFeePerGas: payload.maxFeePerGas ? bn(payload.maxFeePerGas).toHexString() : undefined,
           maxPriorityFeePerGas: payload.maxPriorityFeePerGas
             ? bn(payload.maxPriorityFeePerGas).toHexString()

@@ -2419,6 +2419,10 @@ export class Router {
       partial?: boolean;
       // Force filling via the approval proxy
       forceApprovalProxy?: boolean;
+      // Needed for filling Blur orders
+      blurAuth?: {
+        accessToken: string;
+      };
       // Callback for handling recoverable errors
       onRecoverableError?: (
         kind: string,
@@ -2464,12 +2468,17 @@ export class Router {
         const order = detail.order as Sdk.Universe.Order;
         const exchange = new Sdk.Universe.Exchange(this.chainId);
         return {
-          txData: await exchange.fillOrderTx(taker, order, {
-            amount: Number(detail.amount ?? 1),
-            source: options?.source,
-          }),
-          success: [true],
-          approvals: [approval],
+          txs: [
+            {
+              approvals: [approval],
+              txData: await exchange.fillOrderTx(taker, order, {
+                amount: Number(detail.amount ?? 1),
+                source: options?.source,
+              }),
+              orderIds: [detail.orderId],
+            },
+          ],
+          success: { [detail.orderId]: true },
         };
       }
     }
@@ -2502,11 +2511,16 @@ export class Router {
 
         const exchange = new Sdk.Forward.Exchange(this.chainId);
         return {
-          txData: exchange.fillOrderTx(taker, order, matchParams, {
-            source: options?.source,
-          }),
-          success: [true],
-          approvals: [approval],
+          txs: [
+            {
+              approvals: [approval],
+              txData: exchange.fillOrderTx(taker, order, matchParams, {
+                source: options?.source,
+              }),
+              orderIds: [detail.orderId],
+            },
+          ],
+          success: { [detail.orderId]: true },
         };
       }
     }
@@ -2535,16 +2549,130 @@ export class Router {
 
         const exchange = new Sdk.LooksRareV2.Exchange(this.chainId);
         return {
-          txData: exchange.fillOrderTx(taker, order, matchOrder, {
-            source: options?.source,
-          }),
-          success: [true],
-          approvals: [approval],
+          txs: [
+            {
+              approvals: [approval],
+              txData: exchange.fillOrderTx(taker, order, matchOrder, {
+                source: options?.source,
+              }),
+              orderIds: [detail.orderId],
+            },
+          ],
+          success: { [detail.orderId]: true },
         };
       }
     }
 
+    const txs: {
+      approvals: NFTApproval[];
+      txData: TxData;
+      orderIds: string[];
+    }[] = [];
+    const success: { [orderId: string]: boolean } = {};
+
     // CASE 2
+    // Handle orders which require special handling such as direct filling
+
+    const blurDetails = details.filter((d) => d.source === "blur.io");
+    if (blurDetails.length) {
+      const url = `${this.options?.orderFetcherBaseUrl}/api/blur-offer`;
+
+      try {
+        // We'll have one transaction per contract
+        const result: {
+          [contract: string]: {
+            from: string;
+            to: string;
+            data: string;
+            value: string;
+            path: { contract: string; tokenId: string }[];
+            errors: { tokenId: string; reason: string }[];
+          };
+        } = await axios
+          .post(url, {
+            taker,
+            tokens: blurDetails.map((d) => ({
+              contract: d.contract,
+              tokenId: d.tokenId,
+              price: d.price,
+            })),
+            authToken: options?.blurAuth?.accessToken,
+          })
+          .then((response) => response.data.calldata);
+
+        for (const [contract, data] of Object.entries(result)) {
+          const successfulBlurDetails: BidDetails[] = [];
+          for (const { tokenId } of data.path) {
+            const detail = blurDetails.find(
+              (d) => d.contract === contract && d.tokenId === tokenId
+            );
+            if (detail) {
+              successfulBlurDetails.push(detail);
+            }
+          }
+
+          // Expose errors
+          for (const { tokenId, reason } of data.errors) {
+            if (options?.onRecoverableError) {
+              const detail = blurDetails.find(
+                (d) => d.contract === contract && d.tokenId === tokenId
+              );
+              if (detail) {
+                await options.onRecoverableError("order-fetcher-blur-offers", new Error(reason), {
+                  orderId: detail.orderId,
+                  additionalInfo: { detail, taker, url },
+                });
+              }
+            }
+          }
+
+          // If we have at least one Blur detail, we should go ahead with the calldata returned by Blur
+          if (successfulBlurDetails.length) {
+            // Mark the orders handled by Blur as successful
+            const orderIds: string[] = [];
+            for (const d of successfulBlurDetails) {
+              success[d.orderId] = true;
+              orderIds.push(d.orderId);
+            }
+
+            txs.push({
+              approvals: [],
+              txData: {
+                from: data.from,
+                to: data.to,
+                data: data.data + generateSourceBytes(options?.source),
+                value: data.value,
+              },
+              orderIds,
+            });
+          }
+        }
+      } catch (error) {
+        if (options?.onRecoverableError) {
+          for (const detail of blurDetails) {
+            if (!success[detail.orderId]) {
+              await options.onRecoverableError("order-fetcher-blur-offers", error, {
+                orderId: detail.orderId,
+                additionalInfo: { detail, taker, url },
+              });
+            }
+          }
+        }
+
+        if (!options?.partial) {
+          throw new Error(getErrorMessage(error));
+        }
+      }
+    }
+
+    // Check if we still have any Blur bids for which we didn't properly generate calldata
+    if (blurDetails.find((d) => !success[d.orderId])) {
+      if (!options?.partial) {
+        throw new Error("Could not fetch calldata for all Blur bids");
+      }
+    }
+
+    // CASE 3
     // Handle exchanges which do have a router module implemented by filling through the router
 
     // Step 1
@@ -2629,7 +2757,7 @@ export class Router {
         }
 
         default: {
-          throw new Error("Unreachable");
+          continue;
         }
       }
 
@@ -2653,8 +2781,10 @@ export class Router {
     // Handle calldata generation
 
     // Generate router executions
-    const executions: ExecutionInfo[] = [];
-    const success: boolean[] = details.map(() => false);
+    const executionsWithDetails: {
+      detail: BidDetails;
+      execution: ExecutionInfo;
+    }[] = [];
 
     for (let i = 0; i < details.length; i++) {
       const detail = details[i];
@@ -2673,25 +2803,28 @@ export class Router {
             }
           );
 
-          executions.push({
-            module: module.address,
-            data: module.interface.encodeFunctionData(
-              detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-              [
-                matchParams,
-                order.params,
-                {
-                  fillTo: taker,
-                  refundTo: taker,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                },
-                detail.fees ?? [],
-              ]
-            ),
-            value: 0,
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData(
+                detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                [
+                  matchParams,
+                  order.params,
+                  {
+                    fillTo: taker,
+                    refundTo: taker,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                  },
+                  detail.fees ?? [],
+                ]
+              ),
+              value: 0,
+            },
           });
 
-          success[i] = true;
+          success[detail.orderId] = true;
 
           break;
         }
@@ -2707,34 +2840,37 @@ export class Router {
           });
 
           const exchange = new Sdk.SeaportV11.Exchange(this.chainId);
-          executions.push({
-            module: module.address,
-            data: module.interface.encodeFunctionData(
-              detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-              [
-                {
-                  parameters: {
-                    ...order.params,
-                    totalOriginalConsiderationItems: order.params.consideration.length,
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData(
+                detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                [
+                  {
+                    parameters: {
+                      ...order.params,
+                      totalOriginalConsiderationItems: order.params.consideration.length,
+                    },
+                    numerator: matchParams.amount ?? 1,
+                    denominator: order.getInfo()!.amount,
+                    signature: order.params.signature,
+                    extraData: await exchange.getExtraData(order),
                   },
-                  numerator: matchParams.amount ?? 1,
-                  denominator: order.getInfo()!.amount,
-                  signature: order.params.signature,
-                  extraData: await exchange.getExtraData(order),
-                },
-                matchParams.criteriaResolvers ?? [],
-                {
-                  fillTo: taker,
-                  refundTo: taker,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                },
-                detail.fees ?? [],
-              ]
-            ),
-            value: 0,
+                  matchParams.criteriaResolvers ?? [],
+                  {
+                    fillTo: taker,
+                    refundTo: taker,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                  },
+                  detail.fees ?? [],
+                ]
+              ),
+              value: 0,
+            },
           });
 
-          success[i] = true;
+          success[detail.orderId] = true;
 
           break;
         }
@@ -2757,34 +2893,37 @@ export class Router {
             const result = await axios.get(url);
 
             const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
-            executions.push({
-              module: module.address,
-              data: module.interface.encodeFunctionData(
-                detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-                [
-                  {
-                    parameters: {
-                      ...fullOrder.params,
-                      totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+            executionsWithDetails.push({
+              detail,
+              execution: {
+                module: module.address,
+                data: module.interface.encodeFunctionData(
+                  detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                  [
+                    {
+                      parameters: {
+                        ...fullOrder.params,
+                        totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                      },
+                      numerator: detail.amount ?? 1,
+                      denominator: fullOrder.getInfo()!.amount,
+                      signature: fullOrder.params.signature,
+                      extraData: result.data.extraData,
                     },
-                    numerator: detail.amount ?? 1,
-                    denominator: fullOrder.getInfo()!.amount,
-                    signature: fullOrder.params.signature,
-                    extraData: result.data.extraData,
-                  },
-                  result.data.criteriaResolvers ?? [],
-                  {
-                    fillTo: taker,
-                    refundTo: taker,
-                    revertIfIncomplete: Boolean(!options?.partial),
-                  },
-                  detail.fees ?? [],
-                ]
-              ),
-              value: 0,
+                    result.data.criteriaResolvers ?? [],
+                    {
+                      fillTo: taker,
+                      refundTo: taker,
+                      revertIfIncomplete: Boolean(!options?.partial),
+                    },
+                    detail.fees ?? [],
+                  ]
+                ),
+                value: 0,
+              },
             });
 
-            success[i] = true;
+            success[detail.orderId] = true;
           } catch (error) {
             if (options?.onRecoverableError) {
               options.onRecoverableError("order-fetcher-opensea-offer", error, {
@@ -2816,34 +2955,37 @@ export class Router {
           });
 
           const exchange = new Sdk.SeaportV14.Exchange(this.chainId);
-          executions.push({
-            module: module.address,
-            data: module.interface.encodeFunctionData(
-              detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-              [
-                {
-                  parameters: {
-                    ...order.params,
-                    totalOriginalConsiderationItems: order.params.consideration.length,
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData(
+                detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                [
+                  {
+                    parameters: {
+                      ...order.params,
+                      totalOriginalConsiderationItems: order.params.consideration.length,
+                    },
+                    numerator: matchParams.amount ?? 1,
+                    denominator: order.getInfo()!.amount,
+                    signature: order.params.signature,
+                    extraData: await exchange.getExtraData(order, matchParams),
                   },
-                  numerator: matchParams.amount ?? 1,
-                  denominator: order.getInfo()!.amount,
-                  signature: order.params.signature,
-                  extraData: await exchange.getExtraData(order, matchParams),
-                },
-                matchParams.criteriaResolvers ?? [],
-                {
-                  fillTo: taker,
-                  refundTo: taker,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                },
-                detail.fees ?? [],
-              ]
-            ),
-            value: 0,
+                  matchParams.criteriaResolvers ?? [],
+                  {
+                    fillTo: taker,
+                    refundTo: taker,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                  },
+                  detail.fees ?? [],
+                ]
+              ),
+              value: 0,
+            },
           });
 
-          success[i] = true;
+          success[detail.orderId] = true;
 
           break;
         }
@@ -2875,52 +3017,60 @@ export class Router {
 
               // Fill directly
               return {
-                txData: {
-                  from: taker,
-                  to: Sdk.SeaportV14.Addresses.Exchange[this.chainId],
-                  data: result.data.calldata + generateSourceBytes(options?.source),
-                },
-                success: [true],
-                approvals: [
+                txs: [
                   {
-                    contract,
-                    owner,
-                    operator,
-                    txData: generateNFTApprovalTxData(contract, owner, operator),
+                    txData: {
+                      from: taker,
+                      to: Sdk.SeaportV14.Addresses.Exchange[this.chainId],
+                      data: result.data.calldata + generateSourceBytes(options?.source),
+                    },
+                    approvals: [
+                      {
+                        contract,
+                        owner,
+                        operator,
+                        txData: generateNFTApprovalTxData(contract, owner, operator),
+                      },
+                    ],
+                    orderIds: [detail.orderId],
                   },
                 ],
+                success: { [detail.orderId]: true },
               };
             }
 
             const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
-            executions.push({
-              module: module.address,
-              data: module.interface.encodeFunctionData(
-                detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-                [
-                  {
-                    parameters: {
-                      ...fullOrder.params,
-                      totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+            executionsWithDetails.push({
+              detail,
+              execution: {
+                module: module.address,
+                data: module.interface.encodeFunctionData(
+                  detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                  [
+                    {
+                      parameters: {
+                        ...fullOrder.params,
+                        totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                      },
+                      numerator: detail.amount ?? 1,
+                      denominator: fullOrder.getInfo()!.amount,
+                      signature: fullOrder.params.signature,
+                      extraData: result.data.extraData,
                     },
-                    numerator: detail.amount ?? 1,
-                    denominator: fullOrder.getInfo()!.amount,
-                    signature: fullOrder.params.signature,
-                    extraData: result.data.extraData,
-                  },
-                  result.data.criteriaResolvers ?? [],
-                  {
-                    fillTo: taker,
-                    refundTo: taker,
-                    revertIfIncomplete: Boolean(!options?.partial),
-                  },
-                  detail.fees ?? [],
-                ]
-              ),
-              value: 0,
+                    result.data.criteriaResolvers ?? [],
+                    {
+                      fillTo: taker,
+                      refundTo: taker,
+                      revertIfIncomplete: Boolean(!options?.partial),
+                    },
+                    detail.fees ?? [],
+                  ]
+                ),
+                value: 0,
+              },
             });
 
-            success[i] = true;
+            success[detail.orderId] = true;
           } catch (error) {
             if (options?.onRecoverableError) {
               options.onRecoverableError("order-fetcher-opensea-offer", error, {
@@ -2952,34 +3102,37 @@ export class Router {
           });
 
           const exchange = new Sdk.Alienswap.Exchange(this.chainId);
-          executions.push({
-            module: module.address,
-            data: module.interface.encodeFunctionData(
-              detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-              [
-                {
-                  parameters: {
-                    ...order.params,
-                    totalOriginalConsiderationItems: order.params.consideration.length,
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData(
+                detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                [
+                  {
+                    parameters: {
+                      ...order.params,
+                      totalOriginalConsiderationItems: order.params.consideration.length,
+                    },
+                    numerator: matchParams.amount ?? 1,
+                    denominator: order.getInfo()!.amount,
+                    signature: order.params.signature,
+                    extraData: await exchange.getExtraData(order),
                   },
-                  numerator: matchParams.amount ?? 1,
-                  denominator: order.getInfo()!.amount,
-                  signature: order.params.signature,
-                  extraData: await exchange.getExtraData(order),
-                },
-                matchParams.criteriaResolvers ?? [],
-                {
-                  fillTo: taker,
-                  refundTo: taker,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                },
-                detail.fees ?? [],
-              ]
-            ),
-            value: 0,
+                  matchParams.criteriaResolvers ?? [],
+                  {
+                    fillTo: taker,
+                    refundTo: taker,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                  },
+                  detail.fees ?? [],
+                ]
+              ),
+              value: 0,
+            },
           });
 
-          success[i] = true;
+          success[detail.orderId] = true;
 
           break;
         }
@@ -2988,27 +3141,30 @@ export class Router {
           const order = detail.order as Sdk.Sudoswap.Order;
           const module = this.contracts.sudoswapModule;
 
-          executions.push({
-            module: module.address,
-            data: module.interface.encodeFunctionData("sell", [
-              order.params.pair,
-              detail.tokenId,
-              bn(order.params.extra.prices[0]).sub(
-                // Take into account the protocol fee of 0.5%
-                bn(order.params.extra.prices[0]).mul(50).div(10000)
-              ),
-              Math.floor(Date.now() / 1000) + 10 * 60,
-              {
-                fillTo: taker,
-                refundTo: taker,
-                revertIfIncomplete: Boolean(!options?.partial),
-              },
-              detail.fees ?? [],
-            ]),
-            value: 0,
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("sell", [
+                order.params.pair,
+                detail.tokenId,
+                bn(order.params.extra.prices[0]).sub(
+                  // Take into account the protocol fee of 0.5%
+                  bn(order.params.extra.prices[0]).mul(50).div(10000)
+                ),
+                Math.floor(Date.now() / 1000) + 10 * 60,
+                {
+                  fillTo: taker,
+                  refundTo: taker,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                },
+                detail.fees ?? [],
+              ]),
+              value: 0,
+            },
           });
 
-          success[i] = true;
+          success[detail.orderId] = true;
 
           break;
         }
@@ -3019,35 +3175,38 @@ export class Router {
 
           try {
             const exchange = new Sdk.X2Y2.Exchange(this.chainId, String(this.options?.x2y2ApiKey));
-            executions.push({
-              module: module.address,
-              data: module.interface.encodeFunctionData(
-                detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-                [
-                  exchange.contract.interface.decodeFunctionData(
-                    "run",
-                    await exchange.fetchInput(
-                      // For X2Y2, the module acts as the taker proxy
-                      module.address,
-                      order,
-                      {
-                        tokenId: detail.tokenId,
-                        source: options?.source,
-                      }
-                    )
-                  ).input,
-                  {
-                    fillTo: taker,
-                    refundTo: taker,
-                    revertIfIncomplete: Boolean(!options?.partial),
-                  },
-                  detail.fees ?? [],
-                ]
-              ),
-              value: 0,
+            executionsWithDetails.push({
+              detail,
+              execution: {
+                module: module.address,
+                data: module.interface.encodeFunctionData(
+                  detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                  [
+                    exchange.contract.interface.decodeFunctionData(
+                      "run",
+                      await exchange.fetchInput(
+                        // For X2Y2, the module acts as the taker proxy
+                        module.address,
+                        order,
+                        {
+                          tokenId: detail.tokenId,
+                          source: options?.source,
+                        }
+                      )
+                    ).input,
+                    {
+                      fillTo: taker,
+                      refundTo: taker,
+                      revertIfIncomplete: Boolean(!options?.partial),
+                    },
+                    detail.fees ?? [],
+                  ]
+                ),
+                value: 0,
+              },
             });
 
-            success[i] = true;
+            success[detail.orderId] = true;
           } catch (error) {
             if (options?.onRecoverableError) {
               options.onRecoverableError("x2y2-offer", error, {
@@ -3081,41 +3240,47 @@ export class Router {
             }
 
             if (detail.contractKind === "erc721") {
-              executions.push({
-                module: module.address,
-                data: module.interface.encodeFunctionData("acceptERC721Offer", [
-                  order.getRaw(),
-                  order.params,
-                  {
-                    fillTo: taker,
-                    refundTo: taker,
-                    revertIfIncomplete: Boolean(!options?.partial),
-                  },
-                  detail.tokenId,
-                  detail.fees ?? [],
-                ]),
-                value: 0,
+              executionsWithDetails.push({
+                detail,
+                execution: {
+                  module: module.address,
+                  data: module.interface.encodeFunctionData("acceptERC721Offer", [
+                    order.getRaw(),
+                    order.params,
+                    {
+                      fillTo: taker,
+                      refundTo: taker,
+                      revertIfIncomplete: Boolean(!options?.partial),
+                    },
+                    detail.tokenId,
+                    detail.fees ?? [],
+                  ]),
+                  value: 0,
+                },
               });
             } else {
-              executions.push({
-                module: module.address,
-                data: module.interface.encodeFunctionData("acceptERC1155Offer", [
-                  order.getRaw(),
-                  order.params,
-                  detail.amount ?? 1,
-                  {
-                    fillTo: taker,
-                    refundTo: taker,
-                    revertIfIncomplete: Boolean(!options?.partial),
-                  },
-                  detail.tokenId,
-                  detail.fees ?? [],
-                ]),
-                value: 0,
+              executionsWithDetails.push({
+                detail,
+                execution: {
+                  module: module.address,
+                  data: module.interface.encodeFunctionData("acceptERC1155Offer", [
+                    order.getRaw(),
+                    order.params,
+                    detail.amount ?? 1,
+                    {
+                      fillTo: taker,
+                      refundTo: taker,
+                      revertIfIncomplete: Boolean(!options?.partial),
+                    },
+                    detail.tokenId,
+                    detail.fees ?? [],
+                  ]),
+                  value: 0,
+                },
               });
             }
 
-            success[i] = true;
+            success[detail.orderId] = true;
           } catch (error) {
             if (options?.onRecoverableError) {
               options.onRecoverableError("zeroex-v4-offer", error, {
@@ -3140,41 +3305,47 @@ export class Router {
           const module = this.contracts.elementModule;
 
           if (detail.contractKind === "erc721") {
-            executions.push({
-              module: module.address,
-              data: module.interface.encodeFunctionData("acceptERC721Offer", [
-                order.getRaw(),
-                order.params,
-                {
-                  fillTo: taker,
-                  refundTo: taker,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                },
-                detail.tokenId,
-                detail.fees ?? [],
-              ]),
-              value: 0,
+            executionsWithDetails.push({
+              detail,
+              execution: {
+                module: module.address,
+                data: module.interface.encodeFunctionData("acceptERC721Offer", [
+                  order.getRaw(),
+                  order.params,
+                  {
+                    fillTo: taker,
+                    refundTo: taker,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                  },
+                  detail.tokenId,
+                  detail.fees ?? [],
+                ]),
+                value: 0,
+              },
             });
           } else {
-            executions.push({
-              module: module.address,
-              data: module.interface.encodeFunctionData("acceptERC1155Offer", [
-                order.getRaw(),
-                order.params,
-                detail.amount ?? 1,
-                {
-                  fillTo: taker,
-                  refundTo: taker,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                },
-                detail.tokenId,
-                detail.fees ?? [],
-              ]),
-              value: 0,
+            executionsWithDetails.push({
+              detail,
+              execution: {
+                module: module.address,
+                data: module.interface.encodeFunctionData("acceptERC1155Offer", [
+                  order.getRaw(),
+                  order.params,
+                  detail.amount ?? 1,
+                  {
+                    fillTo: taker,
+                    refundTo: taker,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                  },
+                  detail.tokenId,
+                  detail.fees ?? [],
+                ]),
+                value: 0,
+              },
             });
           }
 
-          success[i] = true;
+          success[detail.orderId] = true;
 
           break;
         }
@@ -3186,21 +3357,24 @@ export class Router {
           const tokenId = detail.tokenId;
           order.params.specificIds = [tokenId];
 
-          executions.push({
-            module: module.address,
-            data: module.interface.encodeFunctionData("sell", [
-              [order.params],
-              {
-                fillTo: taker,
-                refundTo: taker,
-                revertIfIncomplete: Boolean(!options?.partial),
-              },
-              detail.fees ?? [],
-            ]),
-            value: 0,
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("sell", [
+                [order.params],
+                {
+                  fillTo: taker,
+                  refundTo: taker,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                },
+                detail.fees ?? [],
+              ]),
+              value: 0,
+            },
           });
 
-          success[i] = true;
+          success[detail.orderId] = true;
 
           break;
         }
@@ -3215,79 +3389,76 @@ export class Router {
             ...(detail.extraArgs || {}),
           });
 
-          executions.push({
-            module: module.address,
-            data: module.interface.encodeFunctionData(
-              detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-              [
-                encodeForMatchOrders(order.params),
-                order.params.signature,
-                encodeForMatchOrders(matchParams),
-                "0x",
-                {
-                  fillTo: taker,
-                  refundTo: taker,
-                  revertIfIncomplete: Boolean(!options?.partial),
-                },
-                detail.fees ?? [],
-              ]
-            ),
-            value: 0,
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData(
+                detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                [
+                  encodeForMatchOrders(order.params),
+                  order.params.signature,
+                  encodeForMatchOrders(matchParams),
+                  "0x",
+                  {
+                    fillTo: taker,
+                    refundTo: taker,
+                    revertIfIncomplete: Boolean(!options?.partial),
+                  },
+                  detail.fees ?? [],
+                ]
+              ),
+              value: 0,
+            },
           });
 
-          success[i] = true;
+          success[detail.orderId] = true;
 
           break;
-        }
-
-        default: {
-          throw new Error("Unreachable");
         }
       }
     }
 
-    if (!executions.length) {
-      throw new Error("Could not fill any of the requested orders");
-    }
+    if (executionsWithDetails.length === 1 && !options?.forceApprovalProxy) {
+      const execution = executionsWithDetails[0].execution;
+      const detail = executionsWithDetails[0].detail;
 
-    if (executions.length === 1 && !options?.forceApprovalProxy) {
       const routerLevelTxData = this.contracts.router.interface.encodeFunctionData("execute", [
-        executions,
+        execution,
       ]);
 
       // Use the on-received ERC721/ERC1155 hooks for approval-less bid filling
-      const detail = details[success.findIndex(Boolean)];
       if (detail.contractKind === "erc721") {
-        return {
+        txs.push({
           txData: {
             from: taker,
             to: detail.contract,
             data:
               new Interface(ERC721Abi).encodeFunctionData(
                 "safeTransferFrom(address,address,uint256,bytes)",
-                [taker, executions[0].module, detail.tokenId, routerLevelTxData]
+                [taker, execution.module, detail.tokenId, routerLevelTxData]
               ) + generateSourceBytes(options?.source),
           },
-          success,
           approvals: [],
-        };
+          orderIds: [detail.orderId],
+        });
       } else {
-        return {
+        txs.push({
           txData: {
             from: taker,
             to: detail.contract,
             data:
               new Interface(ERC1155Abi).encodeFunctionData(
                 "safeTransferFrom(address,address,uint256,uint256,bytes)",
-                [taker, executions[0].module, detail.tokenId, detail.amount ?? 1, routerLevelTxData]
+                [taker, execution.module, detail.tokenId, detail.amount ?? 1, routerLevelTxData]
               ) + generateSourceBytes(options?.source),
           },
-          success,
           approvals: [],
-        };
+          orderIds: [detail.orderId],
+        });
       }
-    } else {
-      return {
+    } else if (executionsWithDetails.length >= 1) {
+      txs.push({
         txData: {
           from: taker,
           to: this.contracts.approvalProxy.address,
@@ -3295,18 +3466,28 @@ export class Router {
             "bulkTransferWithExecute",
             [
               nftTransferItems,
-              executions,
+              executionsWithDetails.map(({ execution }) => execution),
               Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
             ]
           ),
         },
-        success,
         // Ensure approvals are unique
         approvals: uniqBy(
-          approvals.filter((_, i) => success[i]),
+          // TODO: Exclude approvals for unsuccessfull items
+          approvals,
           ({ txData: { from, to, data } }) => `${from}-${to}-${data}`
         ),
-      };
+        orderIds: executionsWithDetails.map(({ detail }) => detail.orderId),
+      });
     }
+
+    if (!txs.length) {
+      throw new Error("Could not fill any of the requested orders");
+    }
+
+    return {
+      txs,
+      success,
+    };
   }
 }

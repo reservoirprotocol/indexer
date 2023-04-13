@@ -294,6 +294,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const sourceId = orderResult.source_id_int;
+      const source = sourceId ? sources.get(sourceId)?.domain ?? null : null;
 
       // Handle fees on top
       const feesOnTop: Sdk.RouterV6.Types.Fee[] = [];
@@ -319,7 +320,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           contract,
           tokenId,
           quantity: payload.quantity ?? 1,
-          source: sourceId ? sources.get(sourceId)?.domain ?? null : null,
+          source,
           currency: fromBuffer(orderResult.currency),
           quote: formatPrice(
             totalPrice,
@@ -359,6 +360,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           kind: orderResult.kind,
           unitPrice: orderResult.price,
           rawData: orderResult.raw_data,
+          source: source || undefined,
           fees,
           isProtected:
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -478,7 +480,10 @@ export const getExecuteSellV6Options: RouteOptions = {
         throw boomError;
       }
 
-      const { txData, approvals } = result;
+      const { txs } = result;
+
+      const txData = txs[0].txData;
+      const approvals = txs[0].approvals;
 
       // Direct filling on OpenSea might require an approval
       if (txData.to === Sdk.SeaportV14.Addresses.Exchange[config.chainId]) {

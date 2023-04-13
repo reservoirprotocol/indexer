@@ -116,6 +116,10 @@ export type GenericOrder =
       order: Sdk.Blur.Order;
     }
   | {
+      kind: "blur-bid";
+      order: Sdk.Blur.Types.BlurBidPool;
+    }
+  | {
       kind: "manifold";
       order: Sdk.Manifold.Order;
     }
@@ -176,6 +180,8 @@ export type BidFillDetails = {
   contractKind: "erc721" | "erc1155";
   contract: string;
   tokenId: string;
+  price: string;
+  source?: string;
   // Relevant for partially-fillable orders
   amount?: number | string;
   // Relevant for merkle orders
@@ -189,9 +195,12 @@ export type BidFillDetails = {
 export type BidDetails = GenericOrder & BidFillDetails;
 
 export type FillBidsResult = {
-  txData: TxData;
-  approvals: NFTApproval[];
-  success: boolean[];
+  txs: {
+    approvals: NFTApproval[];
+    txData: TxData;
+    orderIds: string[];
+  }[];
+  success: { [orderId: string]: boolean };
 };
 
 // Swaps
