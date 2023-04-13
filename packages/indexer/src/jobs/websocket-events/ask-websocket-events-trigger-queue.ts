@@ -40,11 +40,6 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
       try {
         const { data } = job.data as EventInfo;
 
-        // log order id for debugging
-        if (data.kind === "new-order") {
-          logger.info(QUEUE_NAME, `Processing websocket event, orderId=${data.orderId}`);
-        }
-
         const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
         const rawResult = await idb.oneOrNone(
