@@ -24,6 +24,7 @@ import "@/jobs/update-attribute";
 import "@/jobs/websocket-events";
 import "@/jobs/metrics";
 import "@/jobs/opensea-orders";
+import "@/jobs/monitoring";
 
 // Export all job queues for monitoring through the BullMQ UI
 
