@@ -184,7 +184,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
       const orderResult = orderResults[0];
 
       // When bulk-cancelling, make sure all orders have the same kind
-      const supportedKinds = ["seaport", "seaport-v1.4"];
+      const supportedKinds = ["seaport", "seaport-v1.4", "alienswap"];
       if (isBulkCancel) {
         const supportsBulkCancel =
           supportedKinds.includes(orderResult.kind) &&
@@ -197,12 +197,20 @@ export const getExecuteCancelV3Options: RouteOptions = {
       // Handle off-chain cancellations
 
       const cancellationZone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
-      const areAllOracleCancellable = orderResults.every(
-        (o) =>
-          (o.kind === "seaport-v1.4" || o.kind === "alienswap") &&
-          o.raw_data.zone === cancellationZone
+      const areAllSeaportV14OracleCancellable = orderResults.every(
+        (o) => o.kind === "seaport-v1.4" && o.raw_data.zone === cancellationZone
       );
-      if (areAllOracleCancellable) {
+      const areAllAlienswapOracleCancellable = orderResults.every(
+        (o) => o.kind === "alienswap" && o.raw_data.zone === cancellationZone
+      );
+      let allOracleCancellableKind = "";
+      if (areAllSeaportV14OracleCancellable) {
+        allOracleCancellableKind = "seaport-v1.4";
+      } else if (areAllAlienswapOracleCancellable) {
+        allOracleCancellableKind = "alienswap";
+      }
+
+      if (allOracleCancellableKind) {
         return {
           steps: [
             {
@@ -233,6 +241,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
                       method: "POST",
                       body: {
                         orderIds: orderResults.map((o) => o.id).sort(),
+                        orderKind: allOracleCancellableKind,
                       },
                     },
                   },

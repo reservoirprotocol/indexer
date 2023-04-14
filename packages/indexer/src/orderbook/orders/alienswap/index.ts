@@ -469,6 +469,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             {
               newOrders: [order.params],
               replacedOrders: [replacedOrderResult.raw_data],
+              orderKind: "alienswap",
             }
           );
         }
