@@ -108,6 +108,11 @@ export const getOrdersBidsV5Options: RouteOptions = {
       endTimestamp: Joi.number().description(
         "Get events before a particular unix timestamp (inclusive)"
       ),
+      excludeEOA: Joi.boolean()
+        .default(false)
+        .description(
+          "Exclude orders that can only be filled by EOAs, to support filling with smart contracts."
+        ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -373,6 +378,10 @@ export const getOrdersBidsV5Options: RouteOptions = {
 
       if (orderStatusFilter) {
         conditions.push(orderStatusFilter);
+      }
+
+      if (query.excludeEOA) {
+        conditions.push(`orders.kind != 'blur'`);
       }
 
       if (query.continuation) {

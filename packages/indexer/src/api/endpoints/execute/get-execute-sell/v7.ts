@@ -95,6 +95,11 @@ export const getExecuteSellV7Options: RouteOptions = {
         .default(false)
         .description("If true, only the filling path will be returned."),
       normalizeRoyalties: Joi.boolean().default(false).description("Charge any missing royalties."),
+      excludeEOA: Joi.boolean()
+        .default(false)
+        .description(
+          "Exclude orders that can only be filled by EOAs, to support filling with smart contracts."
+        ),
       allowInactiveOrderIds: Joi.boolean()
         .default(false)
         .description(
@@ -508,6 +513,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 AND orders.maker != $/taker/
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
                 ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
+                ${payload.excludeEOA ? " AND orders.kind != 'blur'" : ""}
                 ${item.exactOrderSource ? " AND orders.source_id_int = $/sourceId/" : ""}
               ORDER BY ${
                 payload.normalizeRoyalties ? "orders.normalized_value" : "orders.value"
