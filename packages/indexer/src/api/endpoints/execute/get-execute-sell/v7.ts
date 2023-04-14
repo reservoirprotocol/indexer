@@ -901,11 +901,6 @@ export const getExecuteSellV7Options: RouteOptions = {
       // won't affect the client, which might be polling the API and
       // expect to get the steps returned in the same order / at the
       // same index.
-      if (!approvals.length) {
-        // If no approvals are returned from the router then those
-        // are not actually needed and we can cut their steps
-        steps = [steps[0], ...steps.slice(2)];
-      }
       if (!blurAuth) {
         // If we reached this point and the Blur auth is missing then we
         // can be sure that no Blur orders were requested and it is safe

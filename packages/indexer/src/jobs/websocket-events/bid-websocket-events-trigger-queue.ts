@@ -8,7 +8,7 @@ import { randomUUID } from "crypto";
 import _ from "lodash";
 import * as Sdk from "@reservoir0x/sdk";
 
-import { redb } from "@/common/db";
+import { idb } from "@/common/db";
 import { getJoiPriceObject } from "@/common/joi";
 import { fromBuffer, getNetAmount } from "@/common/utils";
 import { Sources } from "@/models/sources";
@@ -44,7 +44,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
       try {
         const criteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
-        const rawResult = await redb.oneOrNone(
+        const rawResult = await idb.oneOrNone(
           `
             SELECT orders.id,
             orders.kind,
