@@ -163,7 +163,7 @@ if (config.doBackgroundWork) {
                   tokens.token_id,
                   collections.id AS "collection_id",
                   collections.community
-                FROM tokens tokens on tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id
+                FROM tokens
                 JOIN collections ON collections.id = tokens.collection_id
                 WHERE tokens.contract = $/contract/ AND tokens.token_id = $/tokenId/
                 LIMIT 1
