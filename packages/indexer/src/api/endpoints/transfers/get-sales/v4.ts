@@ -38,6 +38,11 @@ export const getSalesV4Options: RouteOptions = {
       includeTokenMetadata: Joi.boolean().description(
         "If enabled, also include token metadata in the response."
       ),
+      includeDeleted: Joi.boolean()
+        .description(
+          "If enabled, include sales that have been deleted. In some cases the backfilling process deletes sales that are no longer relevant or have been reverted."
+        )
+        .default(false),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -49,7 +54,7 @@ export const getSalesV4Options: RouteOptions = {
           "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/sales/v4?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/sales/v4?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`"
         ),
       orderBy: Joi.string()
-        .valid("price", "time")
+        .valid("price", "time", "updated_at")
         .description("Order the items are returned in the response."),
       sortDirection: Joi.string()
         .lowercase()
@@ -63,10 +68,10 @@ export const getSalesV4Options: RouteOptions = {
           "Filter to a particular transaction. Example: `0x04654cc4c81882ed4d20b958e0eeb107915d75730110cce65333221439de6afc`"
         ),
       startTimestamp: Joi.number().description(
-        "Get events after a particular unix timestamp (inclusive)"
+        "Get events after a particular unix timestamp (inclusive). Relative to the orderBy time filters."
       ),
       endTimestamp: Joi.number().description(
-        "Get events before a particular unix timestamp (inclusive)"
+        "Get events before a particular unix timestamp (inclusive). Relative to the orderBy time filters."
       ),
       limit: Joi.number()
         .integer()
@@ -183,6 +188,10 @@ export const getSalesV4Options: RouteOptions = {
         paginationFilter = `
         AND (fill_events_2.price) ${inequalitySymbol} ($/price/)
       `;
+      } else if (query.orderBy && query.orderBy === "updated_at") {
+        paginationFilter = `
+        AND (updated_ts, fill_events_2.log_index, fill_events_2.batch_index) ${inequalitySymbol} ($/timestamp/, $/logIndex/, $/batchIndex/)
+        `;
       } else {
         paginationFilter = `
         AND (fill_events_2.timestamp, fill_events_2.log_index, fill_events_2.batch_index) ${inequalitySymbol} ($/timestamp/, $/logIndex/, $/batchIndex/)
@@ -200,15 +209,20 @@ export const getSalesV4Options: RouteOptions = {
 
     // Default to ordering by time
     let queryOrderBy = `ORDER BY fill_events_2.timestamp ${query.sortDirection}, fill_events_2.log_index ${query.sortDirection}, fill_events_2.batch_index ${query.sortDirection}`;
-
-    if (query.orderBy && query.orderBy === "price") {
-      queryOrderBy = `ORDER BY fill_events_2.price ${query.sortDirection}`;
-    }
-
-    const timestampFilter = `
+    let timestampFilter = `
       AND (fill_events_2.timestamp >= $/startTimestamp/ AND
       fill_events_2.timestamp <= $/endTimestamp/)
     `;
+
+    if (query.orderBy && query.orderBy === "price") {
+      queryOrderBy = `ORDER BY fill_events_2.price ${query.sortDirection}`;
+    } else if (query.orderBy && query.orderBy === "updated_at") {
+      queryOrderBy = `ORDER BY fill_events_2.updated_at ${query.sortDirection}`;
+      timestampFilter = `
+        AND (updated_at >= $/startTimestamp/ AND
+        updated_at <= $/endTimestamp/)
+      `;
+    }
 
     try {
       const baseQuery = `
@@ -253,7 +267,10 @@ export const getSalesV4Options: RouteOptions = {
             fill_events_2.marketplace_fee_bps,
             fill_events_2.royalty_fee_breakdown,
             fill_events_2.marketplace_fee_breakdown,
-            fill_events_2.paid_full_royalty
+            fill_events_2.paid_full_royalty,
+            fill_events_2.is_deleted,
+            extract(epoch from updated_at) updated_ts,
+            fill_events_2.created_at
           FROM fill_events_2
           LEFT JOIN currencies
             ON fill_events_2.currency = currencies.contract
@@ -263,7 +280,7 @@ export const getSalesV4Options: RouteOptions = {
             ${tokenFilter}
             ${paginationFilter}
             ${timestampFilter}
-            AND is_deleted = 0
+            ${query.includeDeleted ? "AND TRUE" : "AND is_deleted = 0"}
             ${queryOrderBy}
           LIMIT $/limit/
         ) AS fill_events_2_data
@@ -339,6 +356,9 @@ export const getSalesV4Options: RouteOptions = {
           txHash: r.tx_hash,
           logIndex: r.log_index,
           batchIndex: r.batch_index,
+          isDeleted: Boolean(r.is_deleted),
+          createdAt: new Date(r.created_at).toISOString(),
+          updatedAt: new Date(r.updated_ts * 1000).toISOString(),
         });
       });
 

@@ -438,6 +438,7 @@ export const getJoiOrderObject = async (order: {
     | Sdk.Nftx.Types.OrderParams;
   normalizeRoyalties: boolean;
   missingRoyalties: any;
+  includeDynamicPricing?: boolean;
   dynamic?: boolean;
   token?: string;
 }) => {
@@ -508,18 +509,19 @@ export const getJoiOrderObject = async (order: {
     validUntil: Number(order.validUntil),
     quantityFilled: Number(order.quantityFilled),
     quantityRemaining: Number(order.quantityRemaining),
-    dynamicPricing: order.dynamic
-      ? await getJoiDynamicPricingObject(
-          order.dynamic,
-          order.kind,
-          order.normalizeRoyalties,
-          order.rawData,
-          order.prices.currency ? fromBuffer(order.prices.currency) : undefined,
-          order.missingRoyalties ? order.missingRoyalties : undefined
-        )
-      : order.dynamic !== undefined
-      ? null
-      : undefined,
+    dynamicPricing:
+      order.includeDynamicPricing && order.dynamic
+        ? await getJoiDynamicPricingObject(
+            order.dynamic,
+            order.kind,
+            order.normalizeRoyalties,
+            order.rawData,
+            order.prices.currency ? fromBuffer(order.prices.currency) : undefined,
+            order.missingRoyalties ? order.missingRoyalties : undefined
+          )
+        : order.dynamic !== undefined
+        ? null
+        : undefined,
     criteria: order.criteria,
     source: {
       id: source?.address,

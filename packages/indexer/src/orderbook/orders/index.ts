@@ -432,6 +432,7 @@ export const generateBidDetailsV6 = async (
     unitPrice: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rawData: any;
+    source?: string;
     fees?: Sdk.RouterV6.Types.Fee[];
     isProtected?: boolean;
   },
@@ -448,6 +449,8 @@ export const generateBidDetailsV6 = async (
     contractKind: token.kind,
     contract: token.contract,
     tokenId: token.tokenId,
+    price: order.unitPrice,
+    source: order.source,
     amount: token.amount ?? 1,
     owner: token.owner,
     isProtected: order.isProtected,
@@ -687,9 +690,9 @@ export const generateBidDetailsV6 = async (
     }
 
     case "blur": {
-      const sdkOrder = new Sdk.Blur.Order(config.chainId, order.rawData);
+      const sdkOrder = order.rawData as Sdk.Blur.Types.BlurBidPool;
       return {
-        kind: "blur",
+        kind: "blur-bid",
         ...common,
         order: sdkOrder,
       };

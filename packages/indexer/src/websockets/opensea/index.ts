@@ -23,7 +23,6 @@ import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handl
 import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
 import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/handlers/collection_offer";
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
-import { Tokens } from "@/models/tokens";
 import MetadataApi from "@/utils/metadata-api";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 
@@ -115,18 +114,28 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       }
 
       const [, contract, tokenId] = event.payload.item.nft_id.split("/");
-      const token = await Tokens.getByContractAndTokenId(contract, tokenId);
 
-      logger.debug(
-        "opensea-websocket-item-metadata-update-event",
-        `Metadata received. contract=${contract}, tokenId=${tokenId}, event=${JSON.stringify(
-          event
-        )}, token=${JSON.stringify(token)}`
-      );
-
-      if (!token || token.metadataIndexed) {
-        return;
-      }
+      // const token = await ridb.oneOrNone(
+      //   `SELECT metadata_indexed
+      //         FROM tokens
+      //         WHERE contract = $/contract/
+      //         AND token_id = $/tokenId/`,
+      //   {
+      //     contract: toBuffer(contract),
+      //     tokenId,
+      //   }
+      // );
+      //
+      // logger.debug(
+      //   "opensea-websocket-item-metadata-update-event",
+      //   `Metadata received. contract=${contract}, tokenId=${tokenId}, event=${JSON.stringify(
+      //     event
+      //   )}, token=${JSON.stringify(token)}`
+      // );
+      //
+      // if (!token || token.metadata_indexed) {
+      //   return;
+      // }
 
       const metadata = {
         asset_contract: {

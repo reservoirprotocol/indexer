@@ -1,10 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { BigNumber } from "@ethersproject/bignumber";
+import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
+import * as Sdk from "@reservoir0x/sdk";
+import _ from "lodash";
 import Joi from "joi";
 
 import { redbAlt } from "@/common/db";
 import { logger } from "@/common/logger";
+import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
 import {
   buildContinuation,
   formatEth,
@@ -13,17 +18,12 @@ import {
   splitContinuation,
   toBuffer,
 } from "@/common/utils";
+import { config } from "@/config/index";
+import { CollectionSets } from "@/models/collection-sets";
+import { ContractSets } from "@/models/contract-sets";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-import _ from "lodash";
-import { getJoiPriceObject, JoiOrderCriteria, JoiPrice } from "@/common/joi";
 import { Orders } from "@/utils/orders";
-import { ContractSets } from "@/models/contract-sets";
-import * as Boom from "@hapi/boom";
-import { CollectionSets } from "@/models/collection-sets";
-import { BigNumber } from "@ethersproject/bignumber";
-import * as Sdk from "@reservoir0x/sdk";
-import { config } from "@/config/index";
 
 const version = "v4";
 
@@ -40,7 +40,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
     params: Joi.object({
       user: Joi.string()
         .lowercase()
-        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .pattern(regex.address)
         .description(
           "Filter to a particular user. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00`"
         ),
@@ -67,6 +67,11 @@ export const getUserTopBidsV4Options: RouteOptions = {
       includeCriteriaMetadata: Joi.boolean()
         .default(true)
         .description("If true, criteria metadata is included in the response."),
+      excludeEOA: Joi.boolean()
+        .default(false)
+        .description(
+          "Exclude orders that can only be filled by EOAs, to support filling with smart contracts."
+        ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -257,6 +262,7 @@ export const getUserTopBidsV4Options: RouteOptions = {
             AND o.side = 'buy'
             AND o.fillability_status = 'fillable'
             AND o.approval_status = 'approved'
+            ${query.excludeEOA ? " AND o.kind != 'blur'" : ""}
             ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
             AND o.maker != $/user/
             ORDER BY o.value DESC

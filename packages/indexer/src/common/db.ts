@@ -62,7 +62,7 @@ export const redbAlt = pgp({
 export const ridb = pgp({
   connectionString: config.readReplicaDatabaseUrl,
   keepAlive: true,
-  max: 60,
+  max: config.chainId === 1 ? 250 : 60,
   connectionTimeoutMillis: 30 * 1000,
   query_timeout: 5 * 60 * 1000,
   statement_timeout: 5 * 60 * 1000,

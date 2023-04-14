@@ -27,6 +27,10 @@ export const postCancelSignatureV1Options: RouteOptions = {
         .min(1)
         .required()
         .description("Ids of the orders to cancel"),
+      orderKind: Joi.string()
+        .valid("seaport-v1.4", "alienswap")
+        .default("seaport-v1.4")
+        .description("Exchange protocol used to bulk cancel order. Example: `seaport-v1.4`"),
     }),
   },
   response: {
@@ -46,6 +50,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
     try {
       const signature = query.signature;
       const orderIds = payload.orderIds;
+      const orderKind = payload.orderKind;
 
       const ordersResult = await idb.manyOrNone(
         `
@@ -69,6 +74,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
         {
           signature,
           orders: ordersResult.map((o) => o.raw_data),
+          orderKind,
         }
       );
 

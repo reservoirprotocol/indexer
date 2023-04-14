@@ -4,6 +4,9 @@ import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import { FillBidsResult } from "@reservoir0x/sdk/src/router/v6/types";
+import { TxData } from "@reservoir0x/sdk/src/utils";
+import axios from "axios";
+import _ from "lodash";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -14,7 +17,8 @@ import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/util
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { generateBidDetailsV6, routerOnRecoverableError } from "@/orderbook/orders";
-import { getNftApproval } from "@/orderbook/orders/common/helpers";
+import * as commonHelpers from "@/orderbook/orders/common/helpers";
+import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
@@ -89,6 +93,11 @@ export const getExecuteSellV6Options: RouteOptions = {
         .default(false)
         .description(
           "If true, do not filter out inactive orders (only relevant for order id filtering)."
+        ),
+      excludeEOA: Joi.boolean()
+        .default(false)
+        .description(
+          "Exclude orders that can only be filled by EOAs, to support filling with smart contracts."
         ),
       maxFeePerGas: Joi.string()
         .pattern(regex.number)
@@ -267,6 +276,7 @@ export const getExecuteSellV6Options: RouteOptions = {
                 AND orders.quantity_remaining >= $/quantity/
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
                 ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
+                ${payload.excludeEOA ? " AND orders.kind != 'blur'" : ""}
                 ${isFlagged ? "AND orders.kind NOT IN ('x2y2', 'seaport')" : ""}
               ORDER BY orders.value DESC
             `,
@@ -294,6 +304,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       const sources = await Sources.getInstance();
       const sourceId = orderResult.source_id_int;
+      const source = sourceId ? sources.get(sourceId)?.domain ?? null : null;
 
       // Handle fees on top
       const feesOnTop: Sdk.RouterV6.Types.Fee[] = [];
@@ -319,7 +330,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           contract,
           tokenId,
           quantity: payload.quantity ?? 1,
-          source: sourceId ? sources.get(sourceId)?.domain ?? null : null,
+          source,
           currency: fromBuffer(orderResult.currency),
           quote: formatPrice(
             totalPrice,
@@ -359,6 +370,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           kind: orderResult.kind,
           unitPrice: orderResult.price,
           rawData: orderResult.raw_data,
+          source: source || undefined,
           fees,
           isProtected:
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -396,7 +408,7 @@ export const getExecuteSellV6Options: RouteOptions = {
       }
 
       // Set up generic filling steps
-      const steps: {
+      let steps: {
         id: string;
         action: string;
         description: string;
@@ -406,6 +418,13 @@ export const getExecuteSellV6Options: RouteOptions = {
           data?: any;
         }[];
       }[] = [
+        {
+          id: "auth",
+          action: "Sign in to Blur",
+          description: "Some marketplaces require signing an auth message before filling",
+          kind: "signature",
+          items: [],
+        },
         {
           id: "nft-approval",
           action: "Approve NFT contract",
@@ -422,6 +441,119 @@ export const getExecuteSellV6Options: RouteOptions = {
           items: [],
         },
       ];
+
+      // Custom gas settings
+      const maxFeePerGas = payload.maxFeePerGas
+        ? bn(payload.maxFeePerGas).toHexString()
+        : undefined;
+      const maxPriorityFeePerGas = payload.maxPriorityFeePerGas
+        ? bn(payload.maxPriorityFeePerGas).toHexString()
+        : undefined;
+
+      // Handle Blur authentication
+      let blurAuth: b.Auth | undefined;
+      if (path.some((p) => p.source === "blur.io")) {
+        const missingApprovals: TxData[] = [];
+
+        const contracts = _.uniqBy(path, (p) => p.contract).map((p) => p.contract);
+        for (const contract of contracts) {
+          const operator = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];
+          const isApproved = await commonHelpers.getNftApproval(contract, payload.taker, operator);
+          if (!isApproved) {
+            missingApprovals.push({
+              maxFeePerGas,
+              maxPriorityFeePerGas,
+              ...new Sdk.Common.Helpers.Erc721(baseProvider, contract).approveTransaction(
+                payload.taker,
+                operator
+              ),
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any);
+          }
+        }
+
+        if (payload.blurAuth) {
+          blurAuth = { accessToken: payload.blurAuth };
+        } else {
+          const blurAuthId = b.getAuthId(payload.taker);
+
+          blurAuth = await b.getAuth(blurAuthId);
+          if (!blurAuth) {
+            const blurAuthChallengeId = b.getAuthChallengeId(payload.taker);
+
+            let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+            if (!blurAuthChallenge) {
+              blurAuthChallenge = (await axios
+                .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${payload.taker}`)
+                .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+
+              await b.saveAuthChallenge(
+                blurAuthChallengeId,
+                blurAuthChallenge,
+                // Give a 1 minute buffer for the auth challenge to expire
+                Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+              );
+            }
+
+            steps[0].items.push({
+              status: "incomplete",
+              data: {
+                sign: {
+                  signatureKind: "eip191",
+                  message: blurAuthChallenge.message,
+                },
+                post: {
+                  endpoint: "/execute/auth-signature/v1",
+                  method: "POST",
+                  body: {
+                    kind: "blur",
+                    id: blurAuthChallengeId,
+                  },
+                },
+              },
+            });
+
+            // Force the client to poll
+            steps[1].items.push({
+              status: "incomplete",
+            });
+
+            // Return an early since any next steps are dependent on the Blur auth
+            return {
+              steps,
+              path,
+            };
+          }
+        }
+
+        steps[0].items.push({
+          status: "complete",
+        });
+
+        if (missingApprovals.length) {
+          for (const approval of missingApprovals) {
+            steps[1].items.push({
+              status: "incomplete",
+              data: {
+                ...approval,
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+              },
+            });
+          }
+
+          // Force the client to poll
+          steps[2].items.push({
+            status: "incomplete",
+          });
+
+          // Return an early since any next steps are dependent on the approvals
+          return {
+            steps,
+            path,
+          };
+        }
+      }
 
       if (
         orderResult?.raw_data?.zone ===
@@ -470,6 +602,7 @@ export const getExecuteSellV6Options: RouteOptions = {
             });
             await routerOnRecoverableError(kind, error, data);
           },
+          blurAuth,
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
@@ -478,17 +611,24 @@ export const getExecuteSellV6Options: RouteOptions = {
         throw boomError;
       }
 
-      const { txData, approvals } = result;
+      const { txs } = result;
+
+      const txData = txs[0].txData;
+      const approvals = txs[0].approvals;
 
       // Direct filling on OpenSea might require an approval
       if (txData.to === Sdk.SeaportV14.Addresses.Exchange[config.chainId]) {
         const conduit = new Sdk.SeaportV14.Exchange(config.chainId).deriveConduit(
           Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
         );
-        const isApproved = await getNftApproval(bidDetails.contract, payload.taker, conduit);
+        const isApproved = await commonHelpers.getNftApproval(
+          bidDetails.contract,
+          payload.taker,
+          conduit
+        );
 
         if (!isApproved) {
-          steps[0].items.push({
+          steps[1].items.push({
             status: "incomplete",
             data: {
               ...approvals[0].txData,
@@ -505,7 +645,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       // Forward / Rarible bids are to be filled directly (because we have no modules for them yet)
       if (bidDetails.kind === "forward") {
-        const isApproved = await getNftApproval(
+        const isApproved = await commonHelpers.getNftApproval(
           bidDetails.contract,
           payload.taker,
           Sdk.Forward.Addresses.Exchange[config.chainId]
@@ -522,7 +662,7 @@ export const getExecuteSellV6Options: RouteOptions = {
                   bidDetails.contract
                 ).approveTransaction(payload.taker, Sdk.Forward.Addresses.Exchange[config.chainId]);
 
-          steps[0].items.push({
+          steps[1].items.push({
             status: "incomplete",
             data: {
               ...approveTx,
@@ -538,7 +678,7 @@ export const getExecuteSellV6Options: RouteOptions = {
       }
 
       if (bidDetails.kind === "flow") {
-        const isApproved = await getNftApproval(
+        const isApproved = await commonHelpers.getNftApproval(
           bidDetails.contract,
           payload.taker,
           Sdk.Flow.Addresses.Exchange[config.chainId]
@@ -556,7 +696,7 @@ export const getExecuteSellV6Options: RouteOptions = {
                   bidDetails.contract
                 ).approveTransaction(payload.taker, Sdk.Flow.Addresses.Exchange[config.chainId]);
 
-          steps[0].items.push({
+          steps[1].items.push({
             status: "incomplete",
             data: {
               ...approveTx,
@@ -572,7 +712,7 @@ export const getExecuteSellV6Options: RouteOptions = {
       }
 
       if (bidDetails.kind === "rarible") {
-        const isApproved = await getNftApproval(
+        const isApproved = await commonHelpers.getNftApproval(
           bidDetails.contract,
           payload.taker,
           Sdk.Rarible.Addresses.NFTTransferProxy[config.chainId]
@@ -592,7 +732,7 @@ export const getExecuteSellV6Options: RouteOptions = {
                   Sdk.Rarible.Addresses.NFTTransferProxy[config.chainId]
                 );
 
-          steps[0].items.push({
+          steps[1].items.push({
             status: "incomplete",
             data: {
               ...approveTx,
@@ -607,7 +747,7 @@ export const getExecuteSellV6Options: RouteOptions = {
         }
       }
 
-      steps[1].items.push({
+      steps[2].items.push({
         status: "incomplete",
         data: {
           ...txData,
@@ -617,6 +757,17 @@ export const getExecuteSellV6Options: RouteOptions = {
             : undefined,
         },
       });
+
+      // Warning! When filtering the steps, we should ensure that it
+      // won't affect the client, which might be polling the API and
+      // expect to get the steps returned in the same order / at the
+      // same index.
+      if (!blurAuth) {
+        // If we reached this point and the Blur auth is missing then we
+        // can be sure that no Blur orders were requested and it is safe
+        // to remove the auth step
+        steps = steps.slice(1);
+      }
 
       return {
         steps,
