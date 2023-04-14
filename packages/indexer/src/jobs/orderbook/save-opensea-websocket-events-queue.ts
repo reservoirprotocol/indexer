@@ -1,11 +1,10 @@
 import { Queue, QueueScheduler, Worker } from "bullmq";
 
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import AWS from "aws-sdk";
 import { OpenseaWebsocketEvents } from "@/models/opensea-websocket-events";
-import cron from "node-cron";
 import { randomUUID } from "crypto";
 import _ from "lodash";
 
@@ -118,15 +117,15 @@ export const addToQueue = async () => {
   await queue.add(randomUUID(), {});
 };
 
-if (config.doWebsocketWork) {
-  cron.schedule(
-    "*/10 * * * * *",
-    async () =>
-      await redlock
-        .acquire(["orderbook-save-opensea-websocket-events-queue-cron-lock"], (10 - 5) * 1000)
-        .then(async () => addToQueue())
-        .catch(() => {
-          // Skip on any errors
-        })
-  );
-}
+// if (config.doWebsocketWork) {
+//   cron.schedule(
+//     "*/10 * * * * *",
+//     async () =>
+//       await redlock
+//         .acquire(["orderbook-save-opensea-websocket-events-queue-cron-lock"], (10 - 5) * 1000)
+//         .then(async () => addToQueue())
+//         .catch(() => {
+//           // Skip on any errors
+//         })
+//   );
+// }
