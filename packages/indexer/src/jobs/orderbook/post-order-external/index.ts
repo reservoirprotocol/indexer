@@ -155,6 +155,15 @@ if (config.doBackgroundWork) {
               );
               const orderInfo = order.getInfo();
 
+              logger.info(
+                QUEUE_NAME,
+                `Post Order Failed - Invalid Fees Debug. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, contract=${
+                  orderInfo?.contract
+                }, tokenId=${orderInfo?.tokenId}, orderId=${orderId}, orderData=${JSON.stringify(
+                  orderData
+                )}, retry: ${retry}`
+              );
+
               if (orderInfo?.contract && orderInfo.tokenId) {
                 const rawResult = await redb.oneOrNone(
                   `
