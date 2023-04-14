@@ -14,7 +14,6 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
-import { OpenseaWebsocketEvents } from "@/models/opensea-websocket-events";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { generateHash, getSupportedChainName } from "@/websockets/opensea/utils";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
@@ -63,7 +62,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           `Processing event. network=${network}, event=${JSON.stringify(event)}`
         );
 
-        await saveEvent(event);
+        // await saveEvent(event);
 
         const eventType = event.event_type as EventType;
         const openSeaOrderParams = handleEvent(eventType, event.payload);
@@ -174,19 +173,19 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
   });
 }
 
-const saveEvent = async (event: BaseStreamMessage<unknown>) => {
-  if (!config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName) {
-    return;
-  }
-
-  const openseaWebsocketEvents = new OpenseaWebsocketEvents();
-  await openseaWebsocketEvents.add([
-    {
-      event,
-      createdAt: new Date().toISOString(),
-    },
-  ]);
-};
+// const saveEvent = async (event: BaseStreamMessage<unknown>) => {
+//   if (!config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName) {
+//     return;
+//   }
+//
+//   const openseaWebsocketEvents = new OpenseaWebsocketEvents();
+//   await openseaWebsocketEvents.add([
+//     {
+//       event,
+//       createdAt: new Date().toISOString(),
+//     },
+//   ]);
+// };
 
 export const getEventHash = (event: BaseStreamMessage<unknown>): string => {
   /* eslint-disable @typescript-eslint/no-explicit-any */
