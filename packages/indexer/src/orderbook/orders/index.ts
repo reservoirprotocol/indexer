@@ -6,7 +6,6 @@ export * as cryptopunks from "@/orderbook/orders/cryptopunks";
 export * as element from "@/orderbook/orders/element";
 export * as forward from "@/orderbook/orders/forward";
 export * as foundation from "@/orderbook/orders/foundation";
-export * as looksRare from "@/orderbook/orders/looks-rare";
 export * as seaport from "@/orderbook/orders/seaport-v1.1";
 export * as seaportV14 from "@/orderbook/orders/seaport-v1.4";
 export * as alienswap from "@/orderbook/orders/alienswap";
@@ -756,14 +755,6 @@ export const generateListingDetailsV5 = (
       };
     }
 
-    case "looks-rare": {
-      return {
-        kind: "looks-rare",
-        ...common,
-        order: new Sdk.LooksRare.Order(config.chainId, order.rawData),
-      };
-    }
-
     case "x2y2": {
       return {
         kind: "x2y2",
@@ -904,15 +895,6 @@ export const generateBidDetailsV5 = async (
           } as any,
         };
       }
-    }
-
-    case "looks-rare": {
-      const sdkOrder = new Sdk.LooksRare.Order(config.chainId, order.rawData);
-      return {
-        kind: "looks-rare",
-        ...common,
-        order: sdkOrder,
-      };
     }
 
     case "zeroex-v4-erc721":

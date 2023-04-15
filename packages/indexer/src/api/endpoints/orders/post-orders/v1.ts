@@ -29,7 +29,6 @@ export const postOrdersV1Options: RouteOptions = {
             .lowercase()
             .valid(
               "blur",
-              "looks-rare",
               "zeroex-v4",
               "x2y2",
               "seaport",

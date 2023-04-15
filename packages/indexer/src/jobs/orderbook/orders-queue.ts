@@ -86,11 +86,6 @@ if (config.doBackgroundWork) {
 
 export type GenericOrderInfo =
   | {
-      kind: "looks-rare";
-      info: orders.looksRare.OrderInfo;
-      validateBidValue?: boolean;
-    }
-  | {
       kind: "zeroex-v4";
       info: orders.zeroExV4.OrderInfo;
       validateBidValue?: boolean;
@@ -219,11 +214,6 @@ export const jobProcessor = async (job: Job) => {
 
       case "zora-v3": {
         result = await orders.zora.save([info]);
-        break;
-      }
-
-      case "looks-rare": {
-        result = await orders.looksRare.save([info]);
         break;
       }
 

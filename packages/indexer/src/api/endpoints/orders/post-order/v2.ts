@@ -31,16 +31,10 @@ export const postOrderV2Options: RouteOptions = {
     }),
     payload: Joi.object({
       order: Joi.object({
-        kind: Joi.string()
-          .lowercase()
-          .valid("opensea", "looks-rare", "zeroex-v4", "seaport", "x2y2")
-          .required(),
+        kind: Joi.string().lowercase().valid("opensea", "zeroex-v4", "seaport", "x2y2").required(),
         data: Joi.object().required(),
       }),
-      orderbook: Joi.string()
-        .lowercase()
-        .valid("reservoir", "opensea", "looks-rare")
-        .default("reservoir"),
+      orderbook: Joi.string().lowercase().valid("reservoir", "opensea").default("reservoir"),
       orderbookApiKey: Joi.string(),
       source: Joi.string().description("The name of the source"),
       attribute: Joi.object({
@@ -230,62 +224,6 @@ export const postOrderV2Options: RouteOptions = {
             if (!["success", "already-exists"].includes(result.status)) {
               const error = Boom.badRequest(result.status);
               error.output.payload.orderId = result.id;
-              throw error;
-            }
-          }
-
-          return {
-            message: "Success",
-            orderId,
-            crossPostingOrderId: crossPostingOrder?.id,
-            crossPostingOrderStatus: crossPostingOrder?.status,
-          };
-        }
-
-        case "looks-rare": {
-          if (!["looks-rare", "reservoir"].includes(orderbook)) {
-            throw new Error("Unsupported orderbook");
-          }
-
-          let crossPostingOrder;
-
-          const orderId = new Sdk.LooksRare.Order(
-            config.chainId,
-            order.data as Sdk.LooksRare.Types.MakerOrderParams
-          ).hash();
-
-          if (orderbook === "looks-rare") {
-            crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-              orderId,
-              kind: order.kind,
-              orderbook,
-              source,
-              schema,
-              rawData: order.data,
-            } as crossPostingOrdersModel.CrossPostingOrder);
-
-            await postOrderExternal.addToQueue({
-              crossPostingOrderId: crossPostingOrder.id,
-              orderId,
-              orderData: order.data,
-              orderSchema: schema,
-              orderbook,
-              orderbookApiKey,
-            });
-          } else {
-            const orderInfo: orders.looksRare.OrderInfo = {
-              orderParams: order.data,
-              metadata: {
-                schema,
-                source,
-              },
-            };
-
-            const [result] = await orders.looksRare.save([orderInfo]);
-
-            if (!["success", "already-exists"].includes(result.status)) {
-              const error = Boom.badRequest(result.status);
-              error.output.payload.orderId = orderId;
               throw error;
             }
           }
