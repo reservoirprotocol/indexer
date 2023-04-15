@@ -10,6 +10,11 @@
         "internalType": "address",
         "name": "router",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "exchange",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -91,62 +96,23 @@
   },
   {
     "inputs": [],
-    "name": "ERC1155_INTERFACE",
-    "outputs": [
-      {
-        "internalType": "bytes4",
-        "name": "",
-        "type": "bytes4"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "ERC1155_TRANSFER_MANAGER",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "ERC721_INTERFACE",
-    "outputs": [
-      {
-        "internalType": "bytes4",
-        "name": "",
-        "type": "bytes4"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "ERC721_TRANSFER_MANAGER",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "EXCHANGE",
     "outputs": [
       {
-        "internalType": "contract ILooksRare",
+        "internalType": "contract ILooksRareV2",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "TRANSFER_MANAGER",
+    "outputs": [
+      {
+        "internalType": "contract ITransferManager",
         "name": "",
         "type": "address"
       }
@@ -159,75 +125,38 @@
       {
         "components": [
           {
-            "internalType": "bool",
-            "name": "isOrderAsk",
-            "type": "bool"
+            "internalType": "enum ILooksRareV2.QuoteType",
+            "name": "quoteType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "globalNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "subsetNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "orderNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "strategyId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum ILooksRareV2.CollectionType",
+            "name": "collectionType",
+            "type": "uint8"
           },
           {
             "internalType": "address",
-            "name": "taker",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "price",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "minPercentageToAsk",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes",
-            "name": "params",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct ILooksRare.TakerOrder",
-        "name": "takerAsk",
-        "type": "tuple"
-      },
-      {
-        "components": [
-          {
-            "internalType": "bool",
-            "name": "isOrderAsk",
-            "type": "bool"
-          },
-          {
-            "internalType": "address",
-            "name": "signer",
-            "type": "address"
-          },
-          {
-            "internalType": "contract IERC165",
             "name": "collection",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "price",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "amount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "strategy",
             "type": "address"
           },
           {
@@ -236,9 +165,9 @@
             "type": "address"
           },
           {
-            "internalType": "uint256",
-            "name": "nonce",
-            "type": "uint256"
+            "internalType": "address",
+            "name": "signer",
+            "type": "address"
           },
           {
             "internalType": "uint256",
@@ -252,32 +181,66 @@
           },
           {
             "internalType": "uint256",
-            "name": "minPercentageToAsk",
+            "name": "price",
             "type": "uint256"
           },
           {
+            "internalType": "uint256[]",
+            "name": "itemIds",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "amounts",
+            "type": "uint256[]"
+          },
+          {
             "internalType": "bytes",
-            "name": "params",
+            "name": "additionalParameters",
             "type": "bytes"
-          },
-          {
-            "internalType": "uint8",
-            "name": "v",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "r",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "s",
-            "type": "bytes32"
           }
         ],
-        "internalType": "struct ILooksRare.MakerOrder",
+        "internalType": "struct ILooksRareV2.MakerOrder",
         "name": "makerBid",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "takerAdditionalParameters",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "makerSignature",
+        "type": "bytes"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "root",
+            "type": "bytes32"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bytes32",
+                "name": "value",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "enum ILooksRareV2.MerkleTreeNodePosition",
+                "name": "position",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct ILooksRareV2.MerkleTreeNode[]",
+            "name": "proof",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct ILooksRareV2.MerkleTree",
+        "name": "merkleTree",
         "type": "tuple"
       },
       {
@@ -330,75 +293,38 @@
       {
         "components": [
           {
-            "internalType": "bool",
-            "name": "isOrderAsk",
-            "type": "bool"
+            "internalType": "enum ILooksRareV2.QuoteType",
+            "name": "quoteType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "globalNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "subsetNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "orderNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "strategyId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum ILooksRareV2.CollectionType",
+            "name": "collectionType",
+            "type": "uint8"
           },
           {
             "internalType": "address",
-            "name": "taker",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "price",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "minPercentageToAsk",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes",
-            "name": "params",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct ILooksRare.TakerOrder",
-        "name": "takerAsk",
-        "type": "tuple"
-      },
-      {
-        "components": [
-          {
-            "internalType": "bool",
-            "name": "isOrderAsk",
-            "type": "bool"
-          },
-          {
-            "internalType": "address",
-            "name": "signer",
-            "type": "address"
-          },
-          {
-            "internalType": "contract IERC165",
             "name": "collection",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "price",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "amount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "strategy",
             "type": "address"
           },
           {
@@ -407,9 +333,9 @@
             "type": "address"
           },
           {
-            "internalType": "uint256",
-            "name": "nonce",
-            "type": "uint256"
+            "internalType": "address",
+            "name": "signer",
+            "type": "address"
           },
           {
             "internalType": "uint256",
@@ -423,32 +349,66 @@
           },
           {
             "internalType": "uint256",
-            "name": "minPercentageToAsk",
+            "name": "price",
             "type": "uint256"
           },
           {
+            "internalType": "uint256[]",
+            "name": "itemIds",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "amounts",
+            "type": "uint256[]"
+          },
+          {
             "internalType": "bytes",
-            "name": "params",
+            "name": "additionalParameters",
             "type": "bytes"
-          },
-          {
-            "internalType": "uint8",
-            "name": "v",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "r",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "s",
-            "type": "bytes32"
           }
         ],
-        "internalType": "struct ILooksRare.MakerOrder",
+        "internalType": "struct ILooksRareV2.MakerOrder",
         "name": "makerBid",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "takerAdditionalParameters",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "makerSignature",
+        "type": "bytes"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "root",
+            "type": "bytes32"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bytes32",
+                "name": "value",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "enum ILooksRareV2.MerkleTreeNodePosition",
+                "name": "position",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct ILooksRareV2.MerkleTreeNode[]",
+            "name": "proof",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct ILooksRareV2.MerkleTree",
+        "name": "merkleTree",
         "type": "tuple"
       },
       {
@@ -501,75 +461,38 @@
       {
         "components": [
           {
-            "internalType": "bool",
-            "name": "isOrderAsk",
-            "type": "bool"
+            "internalType": "enum ILooksRareV2.QuoteType",
+            "name": "quoteType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "globalNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "subsetNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "orderNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "strategyId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum ILooksRareV2.CollectionType",
+            "name": "collectionType",
+            "type": "uint8"
           },
           {
             "internalType": "address",
-            "name": "taker",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "price",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "minPercentageToAsk",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes",
-            "name": "params",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct ILooksRare.TakerOrder",
-        "name": "takerBid",
-        "type": "tuple"
-      },
-      {
-        "components": [
-          {
-            "internalType": "bool",
-            "name": "isOrderAsk",
-            "type": "bool"
-          },
-          {
-            "internalType": "address",
-            "name": "signer",
-            "type": "address"
-          },
-          {
-            "internalType": "contract IERC165",
             "name": "collection",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "price",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "amount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "strategy",
             "type": "address"
           },
           {
@@ -578,9 +501,9 @@
             "type": "address"
           },
           {
-            "internalType": "uint256",
-            "name": "nonce",
-            "type": "uint256"
+            "internalType": "address",
+            "name": "signer",
+            "type": "address"
           },
           {
             "internalType": "uint256",
@@ -594,32 +517,61 @@
           },
           {
             "internalType": "uint256",
-            "name": "minPercentageToAsk",
+            "name": "price",
             "type": "uint256"
           },
           {
+            "internalType": "uint256[]",
+            "name": "itemIds",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "amounts",
+            "type": "uint256[]"
+          },
+          {
             "internalType": "bytes",
-            "name": "params",
+            "name": "additionalParameters",
             "type": "bytes"
-          },
-          {
-            "internalType": "uint8",
-            "name": "v",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "r",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "s",
-            "type": "bytes32"
           }
         ],
-        "internalType": "struct ILooksRare.MakerOrder",
+        "internalType": "struct ILooksRareV2.MakerOrder",
         "name": "makerAsk",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "makerSignature",
+        "type": "bytes"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "root",
+            "type": "bytes32"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bytes32",
+                "name": "value",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "enum ILooksRareV2.MerkleTreeNodePosition",
+                "name": "position",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct ILooksRareV2.MerkleTreeNode[]",
+            "name": "proof",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct ILooksRareV2.MerkleTree",
+        "name": "merkleTree",
         "type": "tuple"
       },
       {
@@ -677,75 +629,38 @@
       {
         "components": [
           {
-            "internalType": "bool",
-            "name": "isOrderAsk",
-            "type": "bool"
+            "internalType": "enum ILooksRareV2.QuoteType",
+            "name": "quoteType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "globalNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "subsetNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "orderNonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "strategyId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum ILooksRareV2.CollectionType",
+            "name": "collectionType",
+            "type": "uint8"
           },
           {
             "internalType": "address",
-            "name": "taker",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "price",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "minPercentageToAsk",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes",
-            "name": "params",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct ILooksRare.TakerOrder[]",
-        "name": "takerBids",
-        "type": "tuple[]"
-      },
-      {
-        "components": [
-          {
-            "internalType": "bool",
-            "name": "isOrderAsk",
-            "type": "bool"
-          },
-          {
-            "internalType": "address",
-            "name": "signer",
-            "type": "address"
-          },
-          {
-            "internalType": "contract IERC165",
             "name": "collection",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "price",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "amount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "strategy",
             "type": "address"
           },
           {
@@ -754,9 +669,9 @@
             "type": "address"
           },
           {
-            "internalType": "uint256",
-            "name": "nonce",
-            "type": "uint256"
+            "internalType": "address",
+            "name": "signer",
+            "type": "address"
           },
           {
             "internalType": "uint256",
@@ -770,32 +685,61 @@
           },
           {
             "internalType": "uint256",
-            "name": "minPercentageToAsk",
+            "name": "price",
             "type": "uint256"
           },
           {
+            "internalType": "uint256[]",
+            "name": "itemIds",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "amounts",
+            "type": "uint256[]"
+          },
+          {
             "internalType": "bytes",
-            "name": "params",
+            "name": "additionalParameters",
             "type": "bytes"
-          },
-          {
-            "internalType": "uint8",
-            "name": "v",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "r",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "s",
-            "type": "bytes32"
           }
         ],
-        "internalType": "struct ILooksRare.MakerOrder[]",
+        "internalType": "struct ILooksRareV2.MakerOrder[]",
         "name": "makerAsks",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "makerSignatures",
+        "type": "bytes[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "root",
+            "type": "bytes32"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bytes32",
+                "name": "value",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "enum ILooksRareV2.MerkleTreeNodePosition",
+                "name": "position",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct ILooksRareV2.MerkleTreeNode[]",
+            "name": "proof",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct ILooksRareV2.MerkleTree[]",
+        "name": "merkleTrees",
         "type": "tuple[]"
       },
       {
@@ -1002,5 +946,9 @@
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
   }
 ]

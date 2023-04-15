@@ -295,6 +295,7 @@ export const saveListings = async (orderInfos: ListingOrderInfo[]): Promise<Save
 export type BidOrderInfo = {
   orderParams: Sdk.Blur.Types.BlurBidPool;
   metadata: OrderMetadata;
+  fullUpdate?: boolean;
 };
 
 const getBlurBidId = (collection: string) =>
@@ -305,7 +306,7 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
 
-  const handleOrder = async ({ orderParams }: BidOrderInfo) => {
+  const handleOrder = async ({ orderParams, fullUpdate }: BidOrderInfo) => {
     const id = getBlurBidId(orderParams.collection);
 
     // const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, "blur");
@@ -426,15 +427,27 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
           });
         }
 
-        // Update the current bid in place
-        for (const newPricePoint of bidUpdates.pricePoints) {
-          const existingPricePointIndex = currentBid.pricePoints.findIndex(
-            (pp) => pp.price === newPricePoint.price
-          );
-          if (existingPricePointIndex !== -1) {
-            currentBid.pricePoints[existingPricePointIndex] = newPricePoint;
-          } else {
-            currentBid.pricePoints.push(newPricePoint);
+        if (fullUpdate) {
+          // Assume `JSON.stringify` is deterministic
+          if (JSON.stringify(currentBid.pricePoints) === JSON.stringify(bidUpdates.pricePoints)) {
+            return results.push({
+              id,
+              status: "redundant",
+            });
+          }
+
+          currentBid.pricePoints = bidUpdates.pricePoints;
+        } else {
+          // Update the current bid in place
+          for (const newPricePoint of bidUpdates.pricePoints) {
+            const existingPricePointIndex = currentBid.pricePoints.findIndex(
+              (pp) => Number(pp.price) === Number(newPricePoint.price)
+            );
+            if (existingPricePointIndex !== -1) {
+              currentBid.pricePoints[existingPricePointIndex] = newPricePoint;
+            } else {
+              currentBid.pricePoints.push(newPricePoint);
+            }
           }
         }
 

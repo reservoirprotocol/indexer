@@ -41,6 +41,11 @@ export const LooksRareModule: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x71f52a45b4d79977156e410314e1cb16814dbc3b",
 };
 
+export const LooksRareV2Module: ChainIdToAddress = {
+  [Network.Ethereum]: "0x9561e33b68d7c21e4010f027d751d417127cc5b5",
+  [Network.EthereumGoerli]: "0x9561e33b68d7c21e4010f027d751d417127cc5b5",
+};
+
 export const SeaportModule: ChainIdToAddress = {
   [Network.Ethereum]: "0xd8741e5e73fbc7b30863282de5595e49359910d2",
   [Network.EthereumGoerli]: "0xd8741e5e73fbc7b30863282de5595e49359910d2",
@@ -93,5 +98,5 @@ export const RaribleModule: ChainIdToAddress = {
 };
 
 export const SuperRareModule: ChainIdToAddress = {
-  // TODO: Deploy SuperRareModule to mainnet
+  [Network.Ethereum]: "0x512a6a1a74f1f08aac8155605b9da8ace46b3d9c",
 };

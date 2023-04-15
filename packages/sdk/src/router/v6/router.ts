@@ -1,6 +1,6 @@
 import { Interface } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
-import { AddressZero } from "@ethersproject/constants";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import axios from "axios";
 
@@ -37,13 +37,14 @@ import ApprovalProxyAbi from "./abis/ApprovalProxy.json";
 // Modules
 import ElementModuleAbi from "./abis/ElementModule.json";
 import FoundationModuleAbi from "./abis/FoundationModule.json";
-import LooksRareModuleAbi from "./abis/LooksRareModule.json";
+import LooksRareV2ModuleAbi from "./abis/LooksRareV2Module.json";
 import NFTXModuleAbi from "./abis/NFTXModule.json";
 import RaribleModuleAbi from "./abis/RaribleModule.json";
 import SeaportModuleAbi from "./abis/SeaportModule.json";
 import SeaportV14ModuleAbi from "./abis/SeaportV14Module.json";
 import AlienswapModuleAbi from "./abis/AlienswapModule.json";
 import SudoswapModuleAbi from "./abis/SudoswapModule.json";
+import SuperRareModuleAbi from "./abis/SuperRareModule.json";
 import SwapModuleAbi from "./abis/SwapModule.json";
 import X2Y2ModuleAbi from "./abis/X2Y2Module.json";
 import ZeroExV4ModuleAbi from "./abis/ZeroExV4Module.json";
@@ -88,9 +89,9 @@ export class Router {
         FoundationModuleAbi,
         provider
       ),
-      looksRareModule: new Contract(
-        Addresses.LooksRareModule[chainId] ?? AddressZero,
-        LooksRareModuleAbi,
+      looksRareV2Module: new Contract(
+        Addresses.LooksRareV2Module[chainId] ?? AddressZero,
+        LooksRareV2ModuleAbi,
         provider
       ),
       seaportModule: new Contract(
@@ -106,6 +107,11 @@ export class Router {
       sudoswapModule: new Contract(
         Addresses.SudoswapModule[chainId] ?? AddressZero,
         SudoswapModuleAbi,
+        provider
+      ),
+      superRareModule: new Contract(
+        Addresses.SuperRareModule[chainId] ?? AddressZero,
+        SuperRareModuleAbi,
         provider
       ),
       x2y2Module: new Contract(
@@ -368,38 +374,6 @@ export class Router {
       }
     }
 
-    // TODO: Add LooksRareV2 router module
-    if (details.some(({ kind }) => kind === "looks-rare-v2")) {
-      if (options?.relayer) {
-        throw new Error("Relayer not supported for LooksRareV2 orders");
-      }
-
-      if (details.length > 1) {
-        throw new Error("LooksRareV2 sweeping is not supported");
-      } else {
-        if (options?.globalFees?.length) {
-          throw new Error("Fees not supported for LooksRareV2 orders");
-        }
-
-        const detail = details[0];
-
-        const order = detail.order as Sdk.LooksRareV2.Order;
-        const exchange = new Sdk.LooksRareV2.Exchange(this.chainId);
-        const matchOrder = order.buildMatching(taker);
-
-        return {
-          txs: [
-            {
-              approvals: [],
-              txData: exchange.fillOrderTx(taker, order, matchOrder),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
-      }
-    }
-
     if (details.some(({ kind }) => kind === "blur")) {
       if (options?.relayer) {
         throw new Error("Relayer not supported for Blur orders");
@@ -550,51 +524,6 @@ export class Router {
 
     await Promise.all(
       details.map(async (detail, i) => {
-        if (detail.kind === "seaport-partial") {
-          const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
-
-          let url = `${this.options?.orderFetcherBaseUrl}/api/listing`;
-          url += `?contract=${detail.contract}`;
-          url += `&tokenId=${detail.tokenId}`;
-          url += order.unitPrice ? `&unitPrice=${order.unitPrice}` : "";
-          url += `&orderHash=${order.id}`;
-          url += `&taker=${taker}`;
-          url += `&chainId=${this.chainId}`;
-          url += "&protocolVersion=v1.1";
-          url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
-
-          try {
-            const result = await axios.get(url);
-
-            // Override the details
-            const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
-            details[i] = {
-              ...detail,
-              kind: "seaport",
-              order: fullOrder,
-            };
-          } catch (error) {
-            if (options?.onRecoverableError) {
-              options.onRecoverableError("order-fetcher-opensea-listing", error, {
-                orderId: detail.orderId,
-                additionalInfo: {
-                  detail,
-                  taker,
-                  url,
-                },
-              });
-            }
-
-            if (!options?.partial) {
-              throw new Error(getErrorMessage(error));
-            }
-          }
-        }
-      })
-    );
-
-    await Promise.all(
-      details.map(async (detail, i) => {
         if (detail.kind === "seaport-v1.4-partial") {
           const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
 
@@ -642,81 +571,6 @@ export class Router {
 
     // If all orders are Seaport, then fill on Seaport directly
     // TODO: Directly fill for other exchanges as well
-
-    if (
-      details.every(
-        ({ kind, fees, currency, order }) =>
-          kind === "seaport" &&
-          buyInCurrency === currency &&
-          // All orders must have the same currency and conduit
-          currency === details[0].currency &&
-          (order as Sdk.SeaportV11.Order).params.conduitKey ===
-            (details[0].order as Sdk.SeaportV11.Order).params.conduitKey &&
-          !fees?.length
-      ) &&
-      !options?.globalFees?.length &&
-      !options?.forceRouter &&
-      !options?.relayer
-    ) {
-      const exchange = new Sdk.SeaportV11.Exchange(this.chainId);
-
-      const conduit = exchange.deriveConduit(
-        (details[0].order as Sdk.SeaportV11.Order).params.conduitKey
-      );
-
-      let approval: FTApproval | undefined;
-      if (!isETH(this.chainId, details[0].currency)) {
-        approval = {
-          currency: details[0].currency,
-          amount: details[0].price,
-          owner: taker,
-          operator: conduit,
-          txData: generateFTApprovalTxData(details[0].currency, taker, conduit),
-        };
-      }
-
-      if (details.length === 1) {
-        const order = details[0].order as Sdk.SeaportV11.Order;
-        return {
-          txs: [
-            {
-              approvals: approval ? [approval] : [],
-              txData: await exchange.fillOrderTx(
-                taker,
-                order,
-                order.buildMatching({ amount: details[0].amount }),
-                {
-                  ...options,
-                  ...options?.directFillingData,
-                }
-              ),
-              orderIds: [details[0].orderId],
-            },
-          ],
-          success: { [details[0].orderId]: true },
-        };
-      } else {
-        const orders = details.map((d) => d.order as Sdk.SeaportV11.Order);
-        return {
-          txs: [
-            {
-              approvals: approval ? [approval] : [],
-              txData: await exchange.fillOrdersTx(
-                taker,
-                orders,
-                orders.map((order, i) => order.buildMatching({ amount: details[i].amount })),
-                {
-                  ...options,
-                  ...options?.directFillingData,
-                }
-              ),
-              orderIds: details.map((d) => d.orderId),
-            },
-          ],
-          success: Object.fromEntries(details.map((d) => [d.orderId, true])),
-        };
-      }
-    }
 
     if (
       details.every(
@@ -907,8 +761,8 @@ export class Router {
     const elementErc721V2Details: ListingDetails[] = [];
     const elementErc1155Details: ListingDetails[] = [];
     const foundationDetails: ListingDetails[] = [];
-    const looksRareDetails: ListingDetails[] = [];
-    // Only `seaport` and `seaport-v1.4` support non-ETH listings
+    const looksRareV2Details: ListingDetails[] = [];
+    // Only `seaport`, `seaport-v1.4` and `alienswap` support non-ETH listings
     const seaportDetails: PerCurrencyListingDetails = {};
     const seaportV14Details: PerCurrencyListingDetails = {};
     const alienswapDetails: PerCurrencyListingDetails = {};
@@ -945,8 +799,8 @@ export class Router {
           detailsRef = foundationDetails;
           break;
 
-        case "looks-rare":
-          detailsRef = looksRareDetails;
+        case "looks-rare-v2":
+          detailsRef = looksRareV2Details;
           break;
 
         case "seaport":
@@ -1237,12 +1091,12 @@ export class Router {
       }
     }
 
-    // Handle LooksRare listings
-    if (looksRareDetails.length) {
-      const orders = looksRareDetails.map((d) => d.order as Sdk.LooksRare.Order);
-      const module = this.contracts.looksRareModule;
+    // Handle LooksRareV2 listings
+    if (looksRareV2Details.length) {
+      const orders = looksRareV2Details.map((d) => d.order as Sdk.LooksRareV2.Order);
+      const module = this.contracts.looksRareV2Module;
 
-      const fees = getFees(looksRareDetails);
+      const fees = getFees(looksRareV2Details);
       const price = orders.map((order) => bn(order.params.price)).reduce((a, b) => a.add(b), bn(0));
       const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
       const totalPrice = price.add(feeAmount);
@@ -1252,11 +1106,9 @@ export class Router {
         data:
           orders.length === 1
             ? module.interface.encodeFunctionData("acceptETHListing", [
-                orders[0].buildMatching(
-                  // For LooksRare, the module acts as the taker proxy
-                  module.address
-                ),
                 orders[0].params,
+                orders[0].params.signature!,
+                orders[0].params.merkleTree ?? { root: HashZero, proof: [] },
                 {
                   fillTo: taker,
                   refundTo: relayer,
@@ -1266,13 +1118,9 @@ export class Router {
                 fees,
               ])
             : module.interface.encodeFunctionData("acceptETHListings", [
-                orders.map((order) =>
-                  order.buildMatching(
-                    // For LooksRare, the module acts as the taker proxy
-                    module.address
-                  )
-                ),
                 orders.map((order) => order.params),
+                orders.map((order) => order.params.signature!),
+                orders.map((order) => order.params.merkleTree ?? { root: HashZero, proof: [] }),
                 {
                   fillTo: taker,
                   refundTo: relayer,
@@ -1291,12 +1139,12 @@ export class Router {
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
-        details: looksRareDetails,
+        details: looksRareV2Details,
         executionIndex: executions.length - 1,
       });
 
       // Mark the listings as successfully handled
-      for (const { orderId } of looksRareDetails) {
+      for (const { orderId } of looksRareV2Details) {
         success[orderId] = true;
         orderIds.push(orderId);
       }
@@ -2704,8 +2552,8 @@ export class Router {
       // Generate permit item
       let module: Contract;
       switch (detail.kind) {
-        case "looks-rare": {
-          module = this.contracts.looksRareModule;
+        case "looks-rare-v2": {
+          module = this.contracts.looksRareV2Module;
           break;
         }
 
@@ -2790,18 +2638,9 @@ export class Router {
       const detail = details[i];
 
       switch (detail.kind) {
-        case "looks-rare": {
-          const order = detail.order as Sdk.LooksRare.Order;
-          const module = this.contracts.looksRareModule;
-
-          const matchParams = order.buildMatching(
-            // For LooksRare, the module acts as the taker proxy
-            module.address,
-            {
-              tokenId: detail.tokenId,
-              ...(detail.extraArgs || {}),
-            }
-          );
+        case "looks-rare-v2": {
+          const order = detail.order as Sdk.LooksRareV2.Order;
+          const module = this.contracts.looksRareV2Module;
 
           executionsWithDetails.push({
             detail,
@@ -2810,8 +2649,14 @@ export class Router {
               data: module.interface.encodeFunctionData(
                 detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
                 [
-                  matchParams,
                   order.params,
+                  order.buildMatching(
+                    // The module acts as the taker proxy
+                    module.address,
+                    { tokenId: detail.tokenId }
+                  ).additionalParameters,
+                  order.params.signature!,
+                  order.params.merkleTree ?? { root: HashZero, proof: [] },
                   {
                     fillTo: taker,
                     refundTo: taker,
