@@ -26,6 +26,7 @@ import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import { CrossPostingOrderStatus } from "@/models/cross-posting-orders";
 import { TSTAttribute, TSTCollection, TSTCollectionNonFlagged } from "@/orderbook/token-sets/utils";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
+import { toBuffer } from "@/common/utils";
 
 const QUEUE_NAME = "orderbook-post-order-external-queue";
 const MAX_RETRIES = 5;
@@ -148,36 +149,51 @@ if (config.doBackgroundWork) {
 
             if (error.kind === InvalidRequestErrorKind.InvalidFees) {
               // If fees are invalid, refresh the collection metadata to refresh the fees
-              const rawResult = await redb.oneOrNone(
-                `
+              const order = new Sdk.SeaportV14.Order(
+                config.chainId,
+                orderData as Sdk.SeaportBase.Types.OrderComponents
+              );
+              const orderInfo = order.getInfo();
+
+              logger.info(
+                QUEUE_NAME,
+                `Post Order Failed - Invalid Fees Debug. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, contract=${
+                  orderInfo?.contract
+                }, tokenId=${orderInfo?.tokenId}, orderId=${orderId}, orderData=${JSON.stringify(
+                  orderData
+                )}, retry: ${retry}`
+              );
+
+              if (orderInfo?.contract && orderInfo.tokenId) {
+                const rawResult = await redb.oneOrNone(
+                  `
                 SELECT
                   tokens.contract,
                   tokens.token_id,
                   collections.id AS "collection_id",
                   collections.community
-                FROM orders
-                JOIN token_sets_tokens ON orders.token_set_id = token_sets_tokens.token_set_id
-                JOIN tokens tokens on tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id
+                FROM tokens
                 JOIN collections ON collections.id = tokens.collection_id
-                WHERE orders.id = $/id/
+                WHERE tokens.contract = $/contract/ AND tokens.token_id = $/tokenId/
                 LIMIT 1
               `,
-                { id: orderId }
-              );
-
-              if (rawResult) {
-                logger.info(
-                  QUEUE_NAME,
-                  `Post Order Failed - Invalid Fees. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
-                    orderData
-                  )}, retry: ${retry}`
+                  { contract: toBuffer(orderInfo.contract), tokenId: orderInfo.tokenId }
                 );
 
-                await collectionUpdatesMetadata.addToQueue(
-                  rawResult.contract,
-                  rawResult.token_id,
-                  rawResult.community
-                );
+                if (rawResult) {
+                  logger.info(
+                    QUEUE_NAME,
+                    `Post Order Failed - Invalid Fees. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+                      orderData
+                    )}, retry: ${retry}`
+                  );
+
+                  await collectionUpdatesMetadata.addToQueue(
+                    rawResult.contract,
+                    rawResult.token_id,
+                    rawResult.community
+                  );
+                }
               }
             }
           } else if (retry < MAX_RETRIES) {

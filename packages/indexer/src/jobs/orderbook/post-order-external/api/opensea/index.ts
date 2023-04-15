@@ -324,13 +324,6 @@ const handleErrorResponse = (response: any) => {
         "You have provided fees that we cannot attribute to OpenSea or the collection",
       ];
 
-      logger.info(
-        "opensea-orderbook-api",
-        `handleErrorResponse. error=${error}, message=${message}, invalidFeeErrors=${JSON.stringify(
-          invalidFeeErrors
-        )}`
-      );
-
       for (const invalidFeeError of invalidFeeErrors) {
         if (error.startsWith(invalidFeeError)) {
           throw new InvalidRequestError(message, InvalidRequestErrorKind.InvalidFees);
