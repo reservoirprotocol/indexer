@@ -2373,44 +2373,6 @@ export class Router {
       }
     }
 
-    // TODO: Add LooksRareV2 router module
-    if (details.some(({ kind }) => kind === "looks-rare-v2")) {
-      if (details.length > 1) {
-        throw new Error("LooksRareV2 multi-selling is not supported");
-      } else {
-        const detail = details[0];
-
-        // Approve LooksRareV2's Exchange contract
-        const approval = {
-          contract: detail.contract,
-          owner: taker,
-          operator: Sdk.LooksRareV2.Addresses.TransferManager[this.chainId],
-          txData: generateNFTApprovalTxData(
-            detail.contract,
-            taker,
-            Sdk.LooksRareV2.Addresses.TransferManager[this.chainId]
-          ),
-        };
-
-        const order = detail.order as Sdk.LooksRareV2.Order;
-        const matchOrder = order.buildMatching(taker);
-
-        const exchange = new Sdk.LooksRareV2.Exchange(this.chainId);
-        return {
-          txs: [
-            {
-              approvals: [approval],
-              txData: exchange.fillOrderTx(taker, order, matchOrder, {
-                source: options?.source,
-              }),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
-      }
-    }
-
     const txs: {
       approvals: NFTApproval[];
       txData: TxData;
@@ -2716,75 +2678,6 @@ export class Router {
           });
 
           success[detail.orderId] = true;
-
-          break;
-        }
-
-        case "seaport-partial": {
-          const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
-          const module = this.contracts.seaportModule;
-
-          let url = `${this.options?.orderFetcherBaseUrl}/api/offer`;
-          url += `?orderHash=${order.id}`;
-          url += `&contract=${order.contract}`;
-          url += `&tokenId=${order.tokenId}`;
-          url += `&taker=${detail.owner ?? taker}`;
-          url += `&chainId=${this.chainId}`;
-          url += "&protocolVersion=v1.1";
-          url += order.unitPrice ? `&unitPrice=${order.unitPrice}` : "";
-          url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
-
-          try {
-            const result = await axios.get(url);
-
-            const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
-            executionsWithDetails.push({
-              detail,
-              execution: {
-                module: module.address,
-                data: module.interface.encodeFunctionData(
-                  detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-                  [
-                    {
-                      parameters: {
-                        ...fullOrder.params,
-                        totalOriginalConsiderationItems: fullOrder.params.consideration.length,
-                      },
-                      numerator: detail.amount ?? 1,
-                      denominator: fullOrder.getInfo()!.amount,
-                      signature: fullOrder.params.signature,
-                      extraData: result.data.extraData,
-                    },
-                    result.data.criteriaResolvers ?? [],
-                    {
-                      fillTo: taker,
-                      refundTo: taker,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                    },
-                    detail.fees ?? [],
-                  ]
-                ),
-                value: 0,
-              },
-            });
-
-            success[detail.orderId] = true;
-          } catch (error) {
-            if (options?.onRecoverableError) {
-              options.onRecoverableError("order-fetcher-opensea-offer", error, {
-                orderId: detail.orderId,
-                additionalInfo: {
-                  detail,
-                  taker,
-                  url,
-                },
-              });
-            }
-
-            if (!options?.partial) {
-              throw new Error(getErrorMessage(error));
-            }
-          }
 
           break;
         }
