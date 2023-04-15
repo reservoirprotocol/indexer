@@ -68,8 +68,10 @@ if (config.doBackgroundWork) {
 }
 
 export const addToQueue = async (collection: string) => {
-  const delayInSeconds = 5 * 60;
+  const delayInSeconds = 10 * 60;
+  const halfDelayInSeconds = delayInSeconds / 2;
 
+  // At most one job per collection per `delayInSeconds` seconds
   const lockKey = `blur-bids-refresh-lock:${collection}`;
   const lock = await redis.get(lockKey);
   if (!lock) {
@@ -79,7 +81,8 @@ export const addToQueue = async (collection: string) => {
       { collection },
       {
         jobId: collection,
-        delay: delayInSeconds * 1000,
+        // Each job is randomly delayed so as to avoid too many concurrent requests
+        delay: (halfDelayInSeconds + Math.random() * halfDelayInSeconds) * 1000,
       }
     );
   }
