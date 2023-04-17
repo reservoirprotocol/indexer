@@ -1399,6 +1399,125 @@ export class Router {
       }
     }
 
+    // Handle Alienswap listings
+    if (Object.keys(alienswapDetails).length) {
+      const exchange = new Sdk.Alienswap.Exchange(this.chainId);
+      for (const currency of Object.keys(alienswapDetails)) {
+        const currencyDetails = alienswapDetails[currency];
+
+        const orders = currencyDetails.map((d) => d.order as Sdk.Alienswap.Order);
+        const module = this.contracts.alienswapModule;
+
+        const fees = getFees(currencyDetails);
+        const price = orders
+          .map((order, i) =>
+            bn(order.getMatchingPrice())
+              .mul(currencyDetails[i].amount ?? 1)
+              .div(order.getInfo()!.amount)
+          )
+          .reduce((a, b) => a.add(b), bn(0));
+        const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+        const totalPrice = price.add(feeAmount);
+
+        const currencyIsETH = isETH(this.chainId, currency);
+        const buyInCurrencyIsETH = isETH(this.chainId, buyInCurrency);
+
+        executions.push({
+          module: module.address,
+          data:
+            orders.length === 1
+              ? module.interface.encodeFunctionData(
+                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listing`,
+                  [
+                    {
+                      parameters: {
+                        ...orders[0].params,
+                        totalOriginalConsiderationItems: orders[0].params.consideration.length,
+                      },
+                      numerator: currencyDetails[0].amount ?? 1,
+                      denominator: orders[0].getInfo()!.amount,
+                      signature: orders[0].params.signature,
+                      extraData: await exchange.getExtraData(orders[0], {
+                        amount: currencyDetails[0].amount ?? 1,
+                      }),
+                    },
+                    {
+                      fillTo: taker,
+                      refundTo: relayer,
+                      revertIfIncomplete: Boolean(!options?.partial),
+                      amount: price,
+                      // Only needed for ERC20 listings
+                      token: currency,
+                    },
+                    fees,
+                  ]
+                )
+              : module.interface.encodeFunctionData(
+                  `accept${currencyIsETH ? "ETH" : "ERC20"}Listings`,
+                  [
+                    await Promise.all(
+                      orders.map(async (order, i) => {
+                        const totalAmount = order.getInfo()!.amount;
+                        const filledAmount = currencyDetails[i].amount ?? 1;
+
+                        const orderData = {
+                          parameters: {
+                            ...order.params,
+                            totalOriginalConsiderationItems: order.params.consideration.length,
+                          },
+                          numerator: filledAmount,
+                          denominator: totalAmount,
+                          signature: order.params.signature,
+                          extraData: await exchange.getExtraData(orders[0], {
+                            amount: filledAmount,
+                          }),
+                        };
+
+                        if (currencyIsETH) {
+                          return {
+                            order: orderData,
+                            price: bn(orders[i].getMatchingPrice())
+                              .mul(filledAmount)
+                              .div(totalAmount),
+                          };
+                        } else {
+                          return orderData;
+                        }
+                      })
+                    ),
+                    {
+                      fillTo: taker,
+                      refundTo: relayer,
+                      revertIfIncomplete: Boolean(!options?.partial),
+                      amount: price,
+                      // Only needed for ERC20 listings
+                      token: currency,
+                    },
+                    fees,
+                  ]
+                ),
+          value: buyInCurrencyIsETH && currencyIsETH ? totalPrice : 0,
+        });
+
+        // Track any possibly required swap
+        swapDetails.push({
+          tokenIn: buyInCurrency,
+          tokenOut: currency,
+          tokenOutAmount: totalPrice,
+          recipient: module.address,
+          refundTo: relayer,
+          details: currencyDetails,
+          executionIndex: executions.length - 1,
+        });
+
+        // Mark the listings as successfully handled
+        for (const { orderId } of currencyDetails) {
+          success[orderId] = true;
+          orderIds.push(orderId);
+        }
+      }
+    }
+
     // Handle Sudoswap listings
     if (sudoswapDetails.length) {
       const orders = sudoswapDetails.map((d) => d.order as Sdk.Sudoswap.Order);
