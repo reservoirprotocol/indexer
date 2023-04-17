@@ -10,6 +10,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, formatEth, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
 import { generateBidDetailsV6 } from "@/orderbook/orders";
 import { getNftApproval } from "@/orderbook/orders/common/helpers";
@@ -252,6 +253,9 @@ export const getExecuteSellV5Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
+        orderFetcherMetadata: {
+          apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
+        },
       });
       const { txs } = await router.fillBidsTx([bidDetails!], payload.taker, {
         source: payload.source,
