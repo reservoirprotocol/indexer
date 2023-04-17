@@ -37,8 +37,8 @@ if (config.doBackgroundWork) {
               job.data.lock = lock;
               await ArchiveBidEvents.archive();
             })
-            .catch(() => {
-              // Skip on any errors
+            .catch((error) => {
+              logger.error(QUEUE_NAME, `Bid events archive errored: ${error}`);
             });
           break;
       }
