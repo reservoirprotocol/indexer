@@ -9,6 +9,7 @@ import "@/jobs/collections-refresh";
 import "@/jobs/collection-updates";
 import "@/jobs/currencies";
 import "@/jobs/daily-volumes";
+import "@/jobs/data-archive";
 import "@/jobs/data-export";
 import "@/jobs/events-sync";
 import "@/jobs/fill-updates";
@@ -66,6 +67,7 @@ import * as currencies from "@/jobs/currencies/index";
 import * as dailyVolumes from "@/jobs/daily-volumes/daily-volumes";
 import * as oneDayVolumes from "@/jobs/daily-volumes/1day-volumes";
 
+import * as processArchiveData from "@/jobs/data-archive/process-archive-data";
 import * as exportData from "@/jobs/data-export/export-data";
 
 import * as eventsSyncProcessResyncRequest from "@/jobs/events-sync/process-resync-request-queue";
@@ -188,6 +190,8 @@ export const allJobQueues = [
 
   dailyVolumes.queue,
   oneDayVolumes.queue,
+
+  processArchiveData.queue,
 
   exportData.queue,
 
