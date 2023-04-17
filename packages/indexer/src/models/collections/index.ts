@@ -1,13 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import axios from "axios";
 import _ from "lodash";
 
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
 import { toBuffer, now } from "@/common/utils";
-import { config } from "@/config/index";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import {
   CollectionsEntity,
@@ -15,6 +12,7 @@ import {
   CollectionsEntityUpdateParams,
 } from "@/models/collections/collections-entity";
 import { Tokens } from "@/models/tokens";
+import { updateBlurRoyalties } from "@/utils/blur";
 import MetadataApi from "@/utils/metadata-api";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
@@ -141,21 +139,7 @@ export class Collections {
     await marketplaceFees.updateMarketplaceFeeSpec(collection.id, "opensea", openseaFees);
 
     // Blur
-    if (openseaFees?.length) {
-      try {
-        const minimumRoyaltyBps = await axios
-          .get(`${config.orderFetcherBaseUrl}/api/blur-collection-fees?collection=${collection.id}`)
-          .then((response) => response.data.minimumRoyaltyBps as number);
-        if (minimumRoyaltyBps > 0) {
-          await redis.set(
-            `blur-royalties:${collection.id}`,
-            JSON.stringify({ recipient: openseaFees[0].recipient, bps: minimumRoyaltyBps })
-          );
-        }
-      } catch {
-        // Skip errors
-      }
-    }
+    await updateBlurRoyalties(collection.id);
 
     // Refresh any contract blacklists
     await marketplaceBlacklist.updateMarketplaceBlacklist(collection.contract);

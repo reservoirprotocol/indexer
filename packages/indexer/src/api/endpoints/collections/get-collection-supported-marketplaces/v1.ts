@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { getNetworkSettings } from "@/config/network";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
+import { getBlurRoyalties } from "@/utils/blur";
 import * as marketplaceFees from "@/utils/marketplace-fees";
-import * as Boom from "@hapi/boom";
 
 type Marketplace = {
   name: string;
@@ -126,7 +127,55 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderKind: "x2y2",
           listingEnabled: false,
         },
-        {
+      ];
+
+      // Handle OpenSea
+      {
+        let openseaMarketplaceFees: { bps: number; recipient: string }[] =
+          collectionResult.marketplace_fees?.opensea;
+        if (collectionResult.marketplace_fees?.opensea == null) {
+          openseaMarketplaceFees = await marketplaceFees.getCollectionOpenseaFees(
+            params.collection,
+            collectionResult.contract
+          );
+        }
+
+        const openseaRoyalties: { bps: number; recipient: string }[] =
+          collectionResult.new_royalties?.opensea;
+
+        let maxOpenseaRoyaltiesBps: number | undefined;
+        if (openseaRoyalties) {
+          maxOpenseaRoyaltiesBps = openseaRoyalties
+            .map(({ bps }) => bps)
+            .reduce((a, b) => a + b, 0);
+        }
+
+        const openseaMarketplace = {
+          name: "OpenSea",
+          imageUrl: `https://${
+            getNetworkSettings().subDomain
+          }.reservoir.tools/redirect/sources/opensea/logo/v2`,
+          fee: {
+            bps: openseaMarketplaceFees[0]?.bps ?? 0,
+          },
+          royalties: maxOpenseaRoyaltiesBps
+            ? {
+                minBps: Math.min(maxOpenseaRoyaltiesBps, 50),
+                maxBps: maxOpenseaRoyaltiesBps,
+              }
+            : undefined,
+          orderbook: "opensea",
+          orderKind: "seaport-v1.4",
+          listingEnabled: false,
+        };
+
+        marketplaces.push(openseaMarketplace);
+      }
+
+      // Handle Blur
+      {
+        const royalties = await getBlurRoyalties(params.collection);
+        marketplaces.push({
           name: "Blur",
           imageUrl: `https://${
             getNetworkSettings().subDomain
@@ -134,51 +183,20 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           fee: {
             bps: 0,
           },
+          royalties: royalties
+            ? {
+                minBps: royalties.minimumRoyaltyBps,
+                // If the maximum royalty is not available for Blur, use the OpenSea one
+                maxBps:
+                  royalties.maximumRoyaltyBps ??
+                  marketplaces[marketplaces.length - 1].royalties?.maxBps,
+              }
+            : undefined,
           orderbook: "blur",
           orderKind: "blur",
           listingEnabled: false,
-        },
-      ];
-
-      let openseaMarketplaceFees: { bps: number; recipient: string }[] =
-        collectionResult.marketplace_fees?.opensea;
-
-      if (collectionResult.marketplace_fees?.opensea == null) {
-        openseaMarketplaceFees = await marketplaceFees.getCollectionOpenseaFees(
-          params.collection,
-          collectionResult.contract
-        );
+        });
       }
-
-      const openseaRoyalties: { bps: number; recipient: string }[] =
-        collectionResult.new_royalties?.opensea;
-
-      let maxOpenseaRoyaltiesBps;
-
-      if (openseaRoyalties) {
-        maxOpenseaRoyaltiesBps = openseaRoyalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
-      }
-
-      const openseaMarketplace = {
-        name: "OpenSea",
-        imageUrl: `https://${
-          getNetworkSettings().subDomain
-        }.reservoir.tools/redirect/sources/opensea/logo/v2`,
-        fee: {
-          bps: openseaMarketplaceFees[0]?.bps ?? 0,
-        },
-        royalties: maxOpenseaRoyaltiesBps
-          ? {
-              minBps: Math.min(maxOpenseaRoyaltiesBps, 50),
-              maxBps: maxOpenseaRoyaltiesBps,
-            }
-          : undefined,
-        orderbook: "opensea",
-        orderKind: "seaport-v1.4",
-        listingEnabled: false,
-      };
-
-      marketplaces.push(openseaMarketplace);
 
       marketplaces.forEach((marketplace) => {
         let listableOrderbooks = ["reservoir"];
@@ -200,14 +218,13 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             break;
           }
         }
+
         marketplace.listingEnabled = !!(
           marketplace.orderbook && listableOrderbooks.includes(marketplace.orderbook)
         );
       });
 
-      return {
-        marketplaces: marketplaces,
-      };
+      return { marketplaces };
     } catch (error) {
       logger.error(
         `get-collection-supported-marketplaces-${version}-handler`,

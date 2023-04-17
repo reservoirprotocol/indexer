@@ -6,7 +6,6 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
@@ -15,6 +14,7 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/blur/check";
 import * as tokenSet from "@/orderbook/token-sets";
+import { getBlurRoyalties } from "@/utils/blur";
 // import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 type SaveResult = {
@@ -318,6 +318,8 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
     // }
 
     try {
+      const royalties = await getBlurRoyalties(orderParams.collection);
+
       const orderResult = await idb.oneOrNone(
         `
           SELECT
@@ -361,9 +363,12 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
         // Handle: royalties
         let feeBps = 0;
         const feeBreakdown: { kind: string; recipient: string; bps: number }[] = [];
-        const royaltyData = await redis.get(`blur-royalties:${orderParams.collection}`);
-        if (royaltyData) {
-          feeBreakdown.push({ ...JSON.parse(royaltyData), kind: "royalty" });
+        if (royalties) {
+          feeBreakdown.push({
+            recipient: royalties.recipient,
+            bps: royalties.minimumRoyaltyBps,
+            kind: "royalty",
+          });
           feeBps += feeBreakdown[0].bps;
         }
 
@@ -471,9 +476,12 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
           // Handle: royalties
           let feeBps = 0;
           const feeBreakdown: { kind: string; recipient: string; bps: number }[] = [];
-          const royaltyData = await redis.get(`blur-royalties:${orderParams.collection}`);
-          if (royaltyData) {
-            feeBreakdown.push({ ...JSON.parse(royaltyData), kind: "royalty" });
+          if (royalties) {
+            feeBreakdown.push({
+              recipient: royalties.recipient,
+              bps: royalties.minimumRoyaltyBps,
+              kind: "royalty",
+            });
             feeBps += feeBreakdown[0].bps;
           }
 
