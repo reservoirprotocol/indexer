@@ -145,6 +145,7 @@ export const getUserTokensV7Options: RouteOptions = {
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
+              openseaVerificationStatus: Joi.string().allow("", null),
               floorAskPrice: JoiPrice.allow(null),
               royaltiesBps: Joi.number().allow(null),
               royalties: Joi.array().items(
@@ -482,10 +483,9 @@ export const getUserTokensV7Options: RouteOptions = {
                t.rarity_score, ${selectLastSale}
                top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
-               c.name as collection_name, con.kind, c.metadata, c.royalties,
-               c.royalties_bps, 
-               (SELECT kind FROM orders WHERE id = t.floor_sell_id) AS floor_sell_kind,
-               ${query.includeRawData ? "o.raw_data," : ""}
+               c.name as collection_name, con.kind, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
+               c.royalties_bps, ot.kind AS floor_sell_kind,
+               ${query.includeRawData ? "ot.raw_data AS floor_sell_raw_data," : ""}
                ${
                  query.useNonFlaggedFloorAsk
                    ? "c.floor_sell_value"
@@ -517,6 +517,7 @@ export const getUserTokensV7Options: RouteOptions = {
           ${tokensJoin}
           JOIN collections c ON c.id = t.collection_id
           LEFT JOIN orders o ON o.id = c.floor_sell_id
+          LEFT JOIN orders ot ON ot.id = t.floor_sell_id
           JOIN contracts con ON b.contract = con.address
       `;
 
@@ -623,6 +624,7 @@ export const getUserTokensV7Options: RouteOptions = {
               id: r.collection_id,
               name: r.collection_name,
               imageUrl: r.metadata?.imageUrl,
+              openseaVerificationStatus: r.opensea_verification_status,
               floorAskPrice: r.collection_floor_sell_value
                 ? await getJoiPriceObject(
                     {
@@ -732,7 +734,7 @@ export const getUserTokensV7Options: RouteOptions = {
                 icon: floorSellSource?.getIcon(),
                 url: floorSellSource?.metadata.url,
               },
-              rawData: query.includeRawData ? r.raw_data : undefined,
+              rawData: query.includeRawData ? r.floor_sell_raw_data : undefined,
             },
             acquiredAt: acquiredTime,
           },

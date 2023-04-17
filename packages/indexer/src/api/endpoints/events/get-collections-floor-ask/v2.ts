@@ -226,12 +226,14 @@ export const getCollectionsFloorAskV2Options: RouteOptions = {
                 {
                   gross: {
                     amount: String(
-                      query.normalizeRoyalties
+                      query.normalizeRoyalties && r.order_currency_normalized_value
                         ? r.order_currency_normalized_value
                         : r.order_currency_price ?? r.price
                     ),
                     nativeAmount: String(
-                      query.normalizeRoyalties ? r.order_currency_normalized_value : r.price
+                      query.normalizeRoyalties && r.order_currency_normalized_value
+                        ? r.order_currency_normalized_value
+                        : r.price
                     ),
                   },
                 },
