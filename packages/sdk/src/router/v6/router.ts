@@ -55,6 +55,7 @@ type SetupOptions = {
   openseaApiKey?: string;
   cbApiKey?: string;
   orderFetcherBaseUrl?: string;
+  orderFetcherMetadata?: object;
 };
 
 export class Router {
@@ -435,6 +436,7 @@ export class Router {
               isFlagged: d.isFlagged,
             })),
             authToken: options?.blurAuth?.accessToken,
+            metadata: this.options?.orderFetcherMetadata,
           })
           .then((response) => response.data.calldata);
 
@@ -527,18 +529,18 @@ export class Router {
         if (detail.kind === "seaport-v1.4-partial") {
           const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
 
-          let url = `${this.options?.orderFetcherBaseUrl}/api/listing`;
-          url += `?contract=${detail.contract}`;
-          url += `&tokenId=${detail.tokenId}`;
-          url += order.unitPrice ? `&unitPrice=${order.unitPrice}` : "";
-          url += `&orderHash=${order.id}`;
-          url += `&taker=${taker}`;
-          url += `&chainId=${this.chainId}`;
-          url += "&protocolVersion=v1.4";
-          url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
-
           try {
-            const result = await axios.get(url);
+            const result = await axios.post(`${this.options?.orderFetcherBaseUrl}/api/listing`, {
+              contract: detail.contract,
+              tokenId: detail.tokenId,
+              unitPrice: order.unitPrice,
+              orderHash: order.id,
+              taker,
+              chainId: this.chainId,
+              protocolVersion: "1.4",
+              openseaApiKey: this.options?.openseaApiKey,
+              metadata: this.options?.orderFetcherMetadata,
+            });
 
             // Override the details
             const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
@@ -554,7 +556,6 @@ export class Router {
                 additionalInfo: {
                   detail,
                   taker,
-                  url,
                 },
               });
             }
@@ -2518,8 +2519,6 @@ export class Router {
 
     const blurDetails = details.filter((d) => d.source === "blur.io");
     if (blurDetails.length) {
-      const url = `${this.options?.orderFetcherBaseUrl}/api/blur-offer`;
-
       try {
         // We'll have one transaction per contract
         const result: {
@@ -2532,7 +2531,7 @@ export class Router {
             errors: { tokenId: string; reason: string }[];
           };
         } = await axios
-          .post(url, {
+          .post(`${this.options?.orderFetcherBaseUrl}/api/blur-offer`, {
             taker,
             tokens: blurDetails.map((d) => ({
               contract: d.contract,
@@ -2563,7 +2562,7 @@ export class Router {
               if (detail) {
                 await options.onRecoverableError("order-fetcher-blur-offers", new Error(reason), {
                   orderId: detail.orderId,
-                  additionalInfo: { detail, taker, url },
+                  additionalInfo: { detail, taker },
                 });
               }
             }
@@ -2596,7 +2595,7 @@ export class Router {
             if (!success[detail.orderId]) {
               await options.onRecoverableError("order-fetcher-blur-offers", error, {
                 orderId: detail.orderId,
-                additionalInfo: { detail, taker, url },
+                additionalInfo: { detail, taker },
               });
             }
           }
@@ -2865,19 +2864,19 @@ export class Router {
           const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
           const module = this.contracts.seaportV14Module;
 
-          let url = `${this.options?.orderFetcherBaseUrl}/api/offer`;
-          url += `?orderHash=${order.id}`;
-          url += `&contract=${order.contract}`;
-          url += `&tokenId=${order.tokenId}`;
-          url += `&taker=${detail.isProtected ? taker : detail.owner ?? taker}`;
-          url += `&chainId=${this.chainId}`;
-          url += "&protocolVersion=v1.4";
-          url += order.unitPrice ? `&unitPrice=${order.unitPrice}` : "";
-          url += detail.isProtected ? "&isProtected=true" : "";
-          url += this.options?.openseaApiKey ? `&openseaApiKey=${this.options.openseaApiKey}` : "";
-
           try {
-            const result = await axios.get(url);
+            const result = await axios.post(`${this.options?.orderFetcherBaseUrl}/api/offer`, {
+              orderHash: order.id,
+              contract: order.contract,
+              tokenId: order.tokenId,
+              taker: detail.isProtected ? taker : detail.owner ?? taker,
+              chainId: this.chainId,
+              protocolVersion: "1.4",
+              unitPrice: order.unitPrice,
+              isProtected: detail.isProtected,
+              openseaApiKey: this.options?.openseaApiKey,
+              metadata: this.options?.orderFetcherMetadata,
+            });
 
             if (result.data.calldata) {
               const contract = detail.contract;
@@ -2949,7 +2948,6 @@ export class Router {
                 additionalInfo: {
                   detail,
                   taker,
-                  url,
                 },
               });
             }
