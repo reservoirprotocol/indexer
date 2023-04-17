@@ -582,8 +582,9 @@ export class Router {
           // All orders must have the same conduit
           (order as Sdk.SeaportV14.Order).params.conduitKey ===
             (details[0].order as Sdk.SeaportV14.Order).params.conduitKey &&
-          // Fulfiller conduit must match offerer conduit
-          (options?.directFillingData?.conduitKey
+          // Fulfiller conduit must match offerer conduit for non-ETH orders
+          (options?.directFillingData?.conduitKey &&
+          currency !== Sdk.Common.Addresses.Eth[this.chainId]
             ? options.directFillingData.conduitKey ===
               (details[0].order as Sdk.SeaportV14.Order).params.conduitKey
             : true) &&
@@ -663,8 +664,9 @@ export class Router {
           // All orders must have the same conduit
           (order as Sdk.Alienswap.Order).params.conduitKey ===
             (details[0].order as Sdk.Alienswap.Order).params.conduitKey &&
-          // Fulfiller conduit must match offerer conduit
-          (options?.directFillingData?.conduitKey
+          // Fulfiller conduit must match offerer conduit for non-ETH orders
+          (options?.directFillingData?.conduitKey &&
+          currency !== Sdk.Common.Addresses.Eth[this.chainId]
             ? options.directFillingData.conduitKey ===
               (details[0].order as Sdk.Alienswap.Order).params.conduitKey
             : true) &&
