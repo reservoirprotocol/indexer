@@ -109,30 +109,31 @@ export class ArchiveBidEvents {
         });
       });
 
-      // Update the GZIP file to S3
+      // Upload the GZIP file to S3
       const gzFileContent = fs.readFileSync(filenameGzip);
 
       const s3 = new AWS.S3({
         region: "us-east-1",
       });
 
-      await s3
-        .putObject({
-          Bucket: s3Bucket,
-          Key: s3Key,
-          Body: gzFileContent,
-          ContentType: "gzip",
-        })
-        .promise();
+      try {
+        await s3
+          .putObject({
+            Bucket: s3Bucket,
+            Key: s3Key,
+            Body: gzFileContent,
+            ContentType: "gzip",
+          })
+          .promise();
 
-      // Delete local files
-      await fs.promises.unlink(filename);
-      await fs.promises.unlink(filenameGzip);
+        // Delete local files
+        await fs.promises.unlink(filename);
+        await fs.promises.unlink(filenameGzip);
 
-      // Delete from DB
-      let deletedRowsResult;
-      do {
-        const deleteQuery = `
+        // Delete from DB
+        let deletedRowsResult;
+        do {
+          const deleteQuery = `
             DELETE FROM ${ArchiveBidEvents.tableName}
             WHERE id IN (
               SELECT id
@@ -144,8 +145,15 @@ export class ArchiveBidEvents {
             )
           `;
 
-        deletedRowsResult = await idb.result(deleteQuery);
-      } while (deletedRowsResult.rowCount === limit);
+          deletedRowsResult = await idb.result(deleteQuery);
+        } while (deletedRowsResult.rowCount === limit);
+      } catch (error) {
+        // Delete local files
+        await fs.promises.unlink(filename);
+        await fs.promises.unlink(filenameGzip);
+
+        throw error;
+      }
 
       logger.info(
         "archive-bid-events",

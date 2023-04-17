@@ -5,7 +5,7 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { ArchiveBidEvents } from "@/jobs/data-archive/archive-bid-events";
-const QUEUE_NAME = "archive-data-queue";
+const QUEUE_NAME = "process-archive-data-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
