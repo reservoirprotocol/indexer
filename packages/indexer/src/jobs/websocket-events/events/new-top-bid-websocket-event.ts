@@ -1,9 +1,7 @@
 import { idb, redb } from "@/common/db";
-import * as Pusher from "pusher";
 import { formatEth, fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import _ from "lodash";
-import { config } from "@/config/index";
 import { redis, redisWebsocketPublisher } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Sources } from "@/models/sources";
@@ -163,34 +161,6 @@ export class NewTopBidWebsocketEvent {
       );
     } catch (e) {
       logger.error("top-bids-websocket-event", `Error triggering event. ${e}`);
-    }
-
-    const server = new Pusher.default({
-      appId: config.websocketServerAppId,
-      key: config.websocketServerAppKey,
-      secret: config.websocketServerAppSecret,
-      host: config.websocketServerHost,
-      useTLS: true,
-    });
-
-    if (payloads.length > 1) {
-      const payloadsBatches = _.chunk(payloads, Number(config.websocketServerEventMaxBatchSize));
-
-      await Promise.all(
-        payloadsBatches.map((payloadsBatch) =>
-          server.triggerBatch(
-            payloadsBatch.map((payload) => {
-              return {
-                channel: "top-bids",
-                name: "new-top-bid",
-                data: JSON.stringify(payload),
-              };
-            })
-          )
-        )
-      );
-    } else {
-      await server.trigger("top-bids", "new-top-bid", JSON.stringify(payloads[0]));
     }
   }
 

@@ -413,8 +413,6 @@ export class Router {
 
     // Generate calldata for the above Blur-compatible listings
     if (blurCompatibleListings.length) {
-      const url = `${this.options?.orderFetcherBaseUrl}/api/blur-listing`;
-
       try {
         // We'll have one transaction per contract
         const result: {
@@ -427,7 +425,7 @@ export class Router {
             errors: { tokenId: string; reason: string }[];
           };
         } = await axios
-          .post(url, {
+          .post(`${this.options?.orderFetcherBaseUrl}/api/blur-listing`, {
             taker,
             tokens: blurCompatibleListings.map((d) => ({
               contract: d.contract,
@@ -460,7 +458,7 @@ export class Router {
               if (listing) {
                 await options.onRecoverableError("order-fetcher-blur-listings", new Error(reason), {
                   orderId: listing.orderId,
-                  additionalInfo: { detail: listing, taker, url },
+                  additionalInfo: { detail: listing, taker },
                 });
               }
             }
@@ -493,7 +491,7 @@ export class Router {
             if (detail.source === "blur.io" && !success[detail.orderId]) {
               await options.onRecoverableError("order-fetcher-blur-listings", error, {
                 orderId: detail.orderId,
-                additionalInfo: { detail, taker, url },
+                additionalInfo: { detail, taker },
               });
             }
           }

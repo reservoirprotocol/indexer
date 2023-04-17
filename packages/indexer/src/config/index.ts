@@ -108,13 +108,6 @@ export const config = {
   // Used to prevent redis from being overloaded in heavy process like backfilling
   redisMaxMemoryGB: Number(process.env.REDIS_MAX_MEMORY_GB || 25),
 
-  websocketServerHost: String(process.env.WEBSOCKET_SERVER_HOST),
-  websocketServerAppId: String(process.env.WEBSOCKET_SERVER_APP_ID),
-  websocketServerAppKey: String(process.env.WEBSOCKET_SERVER_APP_KEY),
-  websocketServerAppSecret: String(process.env.WEBSOCKET_SERVER_APP_SECRET),
-  websocketServerEventMaxSizeInKb: String(process.env.WEBSOCKET_SERVER_EVENT_MAX_SIZE_IN_KB || 100),
-  websocketServerEventMaxBatchSize: String(process.env.WEBSOCKET_SERVER_EVENT_MAX_BATCH_SIZE || 10),
-
   maxParallelTokenRefreshJobs: Number(process.env.MAX_PARALLEL_TOKEN_REFRESH_JOBS || 1),
   maxParallelTokenCollectionSlugRefreshJobs: Number(
     process.env.MAX_PARALLEL_TOKEN_COLLECTION_SLUG_REFRESH_JOBS || 1

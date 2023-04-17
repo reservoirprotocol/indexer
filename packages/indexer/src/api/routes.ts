@@ -25,7 +25,6 @@ import * as transfersEndpoints from "@/api/endpoints/transfers";
 import * as syncEndpoints from "@/api/endpoints/sync";
 import * as assetsEndpoints from "@/api/endpoints/assets";
 import * as sourcesEndpoints from "@/api/endpoints/sources";
-import * as websocketEndpoints from "@/api/endpoints/websocket";
 import * as debugEndpoints from "@/api/endpoints/debug";
 
 export const setupRoutes = (server: Server) => {
@@ -1364,14 +1363,6 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/sources/v1",
     options: sourcesEndpoints.getSourcesV1Options,
-  });
-
-  // Websocket
-
-  server.route({
-    method: "POST",
-    path: "/websocket/user-auth",
-    options: websocketEndpoints.postWebsocketUserAuthOptions,
   });
 
   // Debug APIs
