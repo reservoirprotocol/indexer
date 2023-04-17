@@ -82,7 +82,7 @@ export const addToQueue = async (collection: string) => {
       {
         jobId: collection,
         // Each job is randomly delayed so as to avoid too many concurrent requests
-        delay: (halfDelayInSeconds + Math.random() * halfDelayInSeconds) * 1000,
+        delay: Math.floor(halfDelayInSeconds + Math.random() * halfDelayInSeconds) * 1000,
       }
     );
   }

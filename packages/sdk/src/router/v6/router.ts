@@ -577,10 +577,16 @@ export class Router {
         ({ kind, fees, currency, order }) =>
           kind === "seaport-v1.4" &&
           buyInCurrency === currency &&
-          // All orders must have the same currency and conduit
+          // All orders must have the same currency
           currency === details[0].currency &&
+          // All orders must have the same conduit
           (order as Sdk.SeaportV14.Order).params.conduitKey ===
             (details[0].order as Sdk.SeaportV14.Order).params.conduitKey &&
+          // Fulfiller conduit must match offerer conduit
+          (options?.directFillingData?.conduitKey
+            ? options.directFillingData.conduitKey ===
+              (details[0].order as Sdk.SeaportV14.Order).params.conduitKey
+            : true) &&
           !fees?.length
       ) &&
       !options?.globalFees?.length &&
@@ -652,10 +658,16 @@ export class Router {
         ({ kind, fees, currency, order }) =>
           kind === "alienswap" &&
           buyInCurrency === currency &&
-          // All orders must have the same currency and conduit
+          // All orders must have the same currency
           currency === details[0].currency &&
+          // All orders must have the same conduit
           (order as Sdk.Alienswap.Order).params.conduitKey ===
             (details[0].order as Sdk.Alienswap.Order).params.conduitKey &&
+          // Fulfiller conduit must match offerer conduit
+          (options?.directFillingData?.conduitKey
+            ? options.directFillingData.conduitKey ===
+              (details[0].order as Sdk.Alienswap.Order).params.conduitKey
+            : true) &&
           !fees?.length
       ) &&
       !options?.globalFees?.length &&
