@@ -26,6 +26,7 @@ import * as royalties from "@/utils/royalties";
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
+import { topBidsCache } from "@/models/top-bids-caching";
 
 export type OrderInfo = {
   kind?: "full";
@@ -630,19 +631,33 @@ export const save = async (
         const seaportBidPercentageThreshold = 80;
 
         try {
-          const collectionFloorAskValue = await getCollectionFloorAskValue(
+          const collectionTopBidValue = await topBidsCache.getCollectionTopBidValue(
             info.contract,
             Number(tokenId)
           );
 
-          if (collectionFloorAskValue) {
-            const percentage = (Number(value.toString()) / collectionFloorAskValue) * 100;
-
-            if (percentage < seaportBidPercentageThreshold) {
+          if (collectionTopBidValue) {
+            if (Number(value.toString()) <= collectionTopBidValue) {
               return results.push({
                 id,
                 status: "bid-too-low",
               });
+            }
+          } else {
+            const collectionFloorAskValue = await getCollectionFloorAskValue(
+              info.contract,
+              Number(tokenId)
+            );
+
+            if (collectionFloorAskValue) {
+              const percentage = (Number(value.toString()) / collectionFloorAskValue) * 100;
+
+              if (percentage < seaportBidPercentageThreshold) {
+                return results.push({
+                  id,
+                  status: "bid-too-low",
+                });
+              }
             }
           }
         } catch (error) {

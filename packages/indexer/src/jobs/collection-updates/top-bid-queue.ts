@@ -3,12 +3,13 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { toBuffer } from "@/common/utils";
+import { now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "../websocket-events/websocket-event-router";
+import { topBidsCache } from "@/models/top-bids-caching";
 
 const QUEUE_NAME = "collection-updates-top-bid-queue";
 
@@ -106,6 +107,10 @@ if (config.doBackgroundWork) {
               y.top_buy_id,
               y.top_buy_source_id_int,
               y.top_buy_valid_between,
+              coalesce(
+                nullif(date_part('epoch', upper(y.top_buy_valid_between)), 'Infinity'),
+                0
+              ) AS valid_until,
               y.top_buy_maker,
               y.top_buy_value,
               y.old_top_buy_value,
@@ -120,7 +125,7 @@ if (config.doBackgroundWork) {
               WHERE orders.id = y.top_buy_id
               LIMIT 1
             ) z ON TRUE
-            RETURNING order_id
+            RETURNING order_id, valid_until, top_buy_value, token_set_id
           `,
           {
             kind,
@@ -129,6 +134,24 @@ if (config.doBackgroundWork) {
             txTimestamp,
           }
         );
+
+        if (collectionTopBid?.order_id) {
+          // cache the new top bid
+
+          const expiry = new Date();
+          // set redis expiry as seconds until the top bid expires
+          expiry.setSeconds(collectionTopBid?.valid_until - now());
+          const seconds = expiry.getSeconds();
+
+          await topBidsCache.cacheCollectionTopBidValue(
+            collectionId,
+            Number(collectionTopBid?.top_buy_value.toString()),
+            seconds
+          );
+        } else {
+          // clear the cache
+          await topBidsCache.clearCacheCollectionTopBidValue(collectionId);
+        }
 
         if (kind === "new-order" && collectionTopBid?.order_id) {
           await WebsocketEventRouter({
