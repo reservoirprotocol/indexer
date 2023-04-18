@@ -752,10 +752,6 @@ export const getExecuteBuyV7Options: RouteOptions = {
           forceRouter: payload.forceRouter,
           relayer: payload.relayer,
           globalFees: feesOnTop,
-          // TODO: Move this defaulting to the core SDK
-          directFillingData: {
-            conduitKey: Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
-          },
           blurAuth,
           onRecoverableError: async (kind, error, data) => {
             errors.push({

@@ -165,9 +165,6 @@ export class Router {
       forceRouter?: boolean;
       // Skip any errors (either off-chain or on-chain)
       partial?: boolean;
-      // Any extra data relevant when filling natively
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      directFillingData?: any;
       // Wallet used for relaying the fill transaction
       relayer?: string;
       // Needed for filling Blur orders
@@ -305,23 +302,6 @@ export class Router {
         const order = detail.order as Sdk.Flow.Order;
         const exchange = new Sdk.Flow.Exchange(this.chainId);
 
-        if (options?.directFillingData) {
-          return {
-            txs: [
-              {
-                approvals: approval ? [approval] : [],
-                txData: exchange.takeOrdersTx(taker, [
-                  {
-                    order,
-                    tokens: options.directFillingData,
-                  },
-                ]),
-                orderIds: [detail.orderId],
-              },
-            ],
-            success: { [detail.orderId]: true },
-          };
-        }
         return {
           txs: [
             {
@@ -581,12 +561,6 @@ export class Router {
           // All orders must have the same conduit
           (order as Sdk.SeaportV14.Order).params.conduitKey ===
             (details[0].order as Sdk.SeaportV14.Order).params.conduitKey &&
-          // Fulfiller conduit must match offerer conduit for non-ETH orders
-          (options?.directFillingData?.conduitKey &&
-          currency !== Sdk.Common.Addresses.Eth[this.chainId]
-            ? options.directFillingData.conduitKey ===
-              (details[0].order as Sdk.SeaportV14.Order).params.conduitKey
-            : true) &&
           !fees?.length
       ) &&
       !options?.globalFees?.length &&
@@ -595,9 +569,8 @@ export class Router {
     ) {
       const exchange = new Sdk.SeaportV14.Exchange(this.chainId);
 
-      const conduit = exchange.deriveConduit(
-        (details[0].order as Sdk.SeaportV14.Order).params.conduitKey
-      );
+      const conduitKey = (details[0].order as Sdk.SeaportV14.Order).params.conduitKey;
+      const conduit = exchange.deriveConduit(conduitKey);
 
       let approval: FTApproval | undefined;
       if (!isETH(this.chainId, details[0].currency)) {
@@ -622,7 +595,7 @@ export class Router {
                 order.buildMatching({ amount: details[0].amount }),
                 {
                   ...options,
-                  ...options?.directFillingData,
+                  conduitKey,
                 }
               ),
               orderIds: [details[0].orderId],
@@ -642,7 +615,7 @@ export class Router {
                 orders.map((order, i) => order.buildMatching({ amount: details[i].amount })),
                 {
                   ...options,
-                  ...options?.directFillingData,
+                  conduitKey,
                 }
               ),
               orderIds: details.map((d) => d.orderId),
@@ -663,12 +636,6 @@ export class Router {
           // All orders must have the same conduit
           (order as Sdk.Alienswap.Order).params.conduitKey ===
             (details[0].order as Sdk.Alienswap.Order).params.conduitKey &&
-          // Fulfiller conduit must match offerer conduit for non-ETH orders
-          (options?.directFillingData?.conduitKey &&
-          currency !== Sdk.Common.Addresses.Eth[this.chainId]
-            ? options.directFillingData.conduitKey ===
-              (details[0].order as Sdk.Alienswap.Order).params.conduitKey
-            : true) &&
           !fees?.length
       ) &&
       !options?.globalFees?.length &&
@@ -677,9 +644,8 @@ export class Router {
     ) {
       const exchange = new Sdk.Alienswap.Exchange(this.chainId);
 
-      const conduit = exchange.deriveConduit(
-        (details[0].order as Sdk.Alienswap.Order).params.conduitKey
-      );
+      const conduitKey = (details[0].order as Sdk.Alienswap.Order).params.conduitKey;
+      const conduit = exchange.deriveConduit(conduitKey);
 
       let approval: FTApproval | undefined;
       if (!isETH(this.chainId, details[0].currency)) {
@@ -704,7 +670,7 @@ export class Router {
                 order.buildMatching({ amount: details[0].amount }),
                 {
                   ...options,
-                  ...options?.directFillingData,
+                  conduitKey,
                 }
               ),
               orderIds: [details[0].orderId],
@@ -724,7 +690,7 @@ export class Router {
                 orders.map((order, i) => order.buildMatching({ amount: details[i].amount })),
                 {
                   ...options,
-                  ...options?.directFillingData,
+                  conduitKey,
                 }
               ),
               orderIds: details.map((d) => d.orderId),

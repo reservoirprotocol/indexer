@@ -807,12 +807,6 @@ export const getExecuteBuyV6Options: RouteOptions = {
           globalFees: buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId] ? feesOnTop : [],
           partial: payload.partial,
           forceRouter: payload.forceRouter,
-          directFillingData: {
-            conduitKey:
-              config.chainId === 1
-                ? "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000"
-                : undefined,
-          },
           relayer: payload.relayer,
           blurAuth,
           onRecoverableError: async (kind, error, data) => {
