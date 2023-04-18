@@ -44,7 +44,13 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { trigger, tokenSetId, order } = job.data as OrderInfo;
 
+      logger.info(QUEUE_NAME, `Processing job ${job.id} for orderId=${order.id}, ${job.data}`);
+
       try {
+        order.contract = toBuffer(order.contract);
+        order.maker = toBuffer(order.maker);
+        order.currency = toBuffer(order.currency);
+
         if (tokenSetId) {
           // Update token floor
           const floorAskInfo: tokenUpdatesNormalizedFloorAsk.FloorAskInfo = {

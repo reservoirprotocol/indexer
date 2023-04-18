@@ -45,7 +45,11 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { id, trigger, tokenSetId, order } = job.data as OrderInfo;
 
+      logger.info(QUEUE_NAME, `Processing job ${job.id} for orderId=${id}, ${job.data}`);
       try {
+        order.contract = toBuffer(order.contract);
+        order.maker = toBuffer(order.maker);
+        order.currency = toBuffer(order.currency);
         if (!tokenSetId) {
           logger.error(QUEUE_NAME, `No token set ID found for orderId=${id}, ${job.data}`);
           return;

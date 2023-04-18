@@ -11,6 +11,7 @@ import { TriggerKind } from "@/jobs/order-updates/types";
 
 import * as buyOrderQueue from "@/jobs/order-updates/order-updates-buy-order";
 import * as sellOrderQueue from "@/jobs/order-updates/order-updates-sell-order";
+import { fromBuffer } from "@/common/utils";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -78,6 +79,12 @@ if (config.doBackgroundWork) {
 
           side = order?.side;
           tokenSetId = order?.tokenSetId;
+          order = {
+            ...order,
+            contract: fromBuffer(order.contract),
+            maker: fromBuffer(order.maker),
+            currency: fromBuffer(order.currency),
+          };
         }
 
         if (side && tokenSetId) {
