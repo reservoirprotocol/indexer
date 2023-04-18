@@ -99,22 +99,15 @@ if (config.doBackgroundWork) {
           }
         }
 
-        // Log order latency
-        if (order && order.validBetween) {
-          logger.info("order-latency", `logging order latency with kind ${trigger.kind}`);
+        // Log order latency for new orders
+        if (order && order.validBetween && trigger.kind === "new-order") {
           const orderStart = Math.floor(
             new Date(JSON.parse(order.validBetween)[0]).getTime() / 1000
           );
           const currentTime = Math.floor(Date.now() / 1000);
           const source = (await Sources.getInstance()).get(order.sourceIdInt);
-          logger.info(
-            "order-latency",
-            JSON.stringify({
-              latency: currentTime - orderStart,
-              source: source?.getTitle(),
-            })
-          );
-          if (trigger.kind === "new-order" && orderStart <= currentTime) {
+
+          if (orderStart <= currentTime) {
             logger.info(
               "order-latency",
               JSON.stringify({
