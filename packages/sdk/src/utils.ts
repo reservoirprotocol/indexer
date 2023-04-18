@@ -49,9 +49,11 @@ export const getErrorMessage = (error: any) => {
 
 // Misc
 
-export const generateSourceBytes = (source?: string) => {
-  return source ? keccak256(toUtf8Bytes(source)).slice(2, 10) : "";
-};
+export const getSourceHash = (source?: string) =>
+  source ? keccak256(toUtf8Bytes(source)).slice(2, 10) : "";
+
+export const generateSourceBytes = (source?: string) =>
+  getSourceHash("reservoir.tools") + getSourceHash(source);
 
 export const getSourceV1 = (calldata: string) => {
   // Use the ASCII US (unit separator) character (code = 31) as a delimiter

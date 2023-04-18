@@ -47,12 +47,8 @@ export const getBuildInfo = async (
     zone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
   }
 
-  const source = options.source;
-
   // Generate the salt
-  let salt = source
-    ? padSourceToSalt(source, options.salt ?? getRandomBytes(16).toString())
-    : undefined;
+  let salt = padSourceToSalt(options.salt ?? getRandomBytes(16).toString(), options.source);
   if (options.replaceOrderId) {
     salt = options.replaceOrderId;
   }

@@ -1,5 +1,5 @@
 import * as Sdk from "@reservoir0x/sdk";
-import { generateSourceBytes } from "@reservoir0x/sdk/dist/utils";
+import { getSourceHash } from "@reservoir0x/sdk/dist/utils";
 
 import { bn } from "@/common/utils";
 
@@ -31,8 +31,8 @@ export type OrderBuildInfo = {
   kind: "erc721" | "erc1155";
 };
 
-export const padSourceToSalt = (source: string, salt: string) => {
-  const sourceHash = generateSourceBytes(source);
-  const saltHex = bn(salt)._hex.slice(6);
-  return bn(`0x${sourceHash}${saltHex}`).toString();
+export const padSourceToSalt = (salt: string, source?: string) => {
+  const prefix = getSourceHash(source) + getSourceHash("reservoir.tools");
+  const saltPaddedTo32Bytes = bn(salt).toHexString().slice(2).padStart(64, "0");
+  return bn(`0x${prefix}${saltPaddedTo32Bytes.slice(prefix.length)}`).toString();
 };
