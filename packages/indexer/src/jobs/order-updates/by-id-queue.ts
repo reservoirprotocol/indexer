@@ -8,6 +8,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
+import { Sources } from "@/models/sources";
 
 import * as buyOrderQueue from "@/jobs/order-updates/order-updates-buy-order";
 import * as sellOrderQueue from "@/jobs/order-updates/order-updates-sell-order";
@@ -96,6 +97,22 @@ if (config.doBackgroundWork) {
           if (side === "sell") {
             await sellOrderQueue.addToQueue([job.data]);
           }
+        }
+
+        // Log order latency
+        const orderStart = Math.floor(
+          new Date(JSON.parse(order.valid_between)[0]).getTime() / 1000
+        );
+        const currentTime = Math.floor(Date.now() / 1000);
+        const source = (await Sources.getInstance()).get(order.source_id_int);
+        if (trigger.kind === "new-order" && orderStart <= currentTime) {
+          logger.info(
+            "order-latency",
+            JSON.stringify({
+              latency: currentTime - orderStart,
+              source: source?.getTitle(),
+            })
+          );
         }
 
         // handle triggering websocket events
