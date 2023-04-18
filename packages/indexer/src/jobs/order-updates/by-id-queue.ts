@@ -100,19 +100,21 @@ if (config.doBackgroundWork) {
         }
 
         // Log order latency
-        const orderStart = Math.floor(
-          new Date(JSON.parse(order.valid_between)[0]).getTime() / 1000
-        );
-        const currentTime = Math.floor(Date.now() / 1000);
-        const source = (await Sources.getInstance()).get(order.source_id_int);
-        if (trigger.kind === "new-order" && orderStart <= currentTime) {
-          logger.info(
-            "order-latency",
-            JSON.stringify({
-              latency: currentTime - orderStart,
-              source: source?.getTitle(),
-            })
+        if (order && order.valid_between) {
+          const orderStart = Math.floor(
+            new Date(JSON.parse(order.valid_between)[0]).getTime() / 1000
           );
+          const currentTime = Math.floor(Date.now() / 1000);
+          const source = (await Sources.getInstance()).get(order.source_id_int);
+          if (trigger.kind === "new-order" && orderStart <= currentTime) {
+            logger.info(
+              "order-latency",
+              JSON.stringify({
+                latency: currentTime - orderStart,
+                source: source?.getTitle(),
+              })
+            );
+          }
         }
 
         // handle triggering websocket events
