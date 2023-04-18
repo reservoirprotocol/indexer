@@ -38,7 +38,7 @@ if (config.doBackgroundWork) {
   worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { id } = job.data as OrderInfo;
+      const { id, trigger } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
       try {
