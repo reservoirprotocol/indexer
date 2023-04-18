@@ -44,7 +44,10 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { trigger, tokenSetId, order } = job.data as OrderInfo;
 
-      logger.info(QUEUE_NAME, `Processing job ${job.id} for orderId=${order.id}, ${job.data}`);
+      logger.info(
+        QUEUE_NAME,
+        `Processing job ${job.id} for orderId=${order.id}, jobData=${JSON.stringify(job.data)}`
+      );
 
       try {
         order.contract = toBuffer(order.contract);
