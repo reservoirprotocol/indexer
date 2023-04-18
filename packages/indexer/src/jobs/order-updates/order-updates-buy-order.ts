@@ -50,9 +50,6 @@ if (config.doBackgroundWork) {
         `Processing job ${job.id} for orderId=${id}, jobData=${JSON.stringify(job.data)}`
       );
       try {
-        order.contract = toBuffer(order.contract);
-        order.maker = toBuffer(order.maker);
-        order.currency = toBuffer(order.currency);
         if (!tokenSetId) {
           logger.error(QUEUE_NAME, `No token set ID found for orderId=${id}, ${job.data}`);
           return;
@@ -163,6 +160,9 @@ if (config.doBackgroundWork) {
         }
 
         if (order) {
+          order.contract = toBuffer(order.contract);
+          order.maker = toBuffer(order.maker);
+          order.currency = toBuffer(order.currency);
           if (order.side === "buy") {
             // Insert a corresponding bid event
             await idb.none(

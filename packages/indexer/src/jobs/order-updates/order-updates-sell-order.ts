@@ -50,10 +50,6 @@ if (config.doBackgroundWork) {
       );
 
       try {
-        order.contract = toBuffer(order.contract);
-        order.maker = toBuffer(order.maker);
-        order.currency = toBuffer(order.currency);
-
         if (tokenSetId) {
           // Update token floor
           const floorAskInfo: tokenUpdatesNormalizedFloorAsk.FloorAskInfo = {
@@ -70,6 +66,9 @@ if (config.doBackgroundWork) {
         }
 
         if (order) {
+          order.contract = toBuffer(order.contract);
+          order.maker = toBuffer(order.maker);
+          order.currency = toBuffer(order.currency);
           // Insert a corresponding ask order event
           if (order.side === "sell") {
             await idb.none(
