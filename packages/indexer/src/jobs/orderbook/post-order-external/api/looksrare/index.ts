@@ -65,7 +65,7 @@ export const postOrder = async (order: Sdk.LooksRareV2.Order, apiKey: string) =>
           case 401:
             throw new InvalidRequestError(
               `Request was rejected by LooksRare. error=${JSON.stringify(
-                error.response.data.message
+                error.response.data.errors ?? error.response.data.message
               )}`
             );
         }

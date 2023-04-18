@@ -467,9 +467,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   steps[1].items.push({
                     status: "incomplete",
                     data:
-                      params.currency === BETH
-                        ? { ...wrapTx, to: Sdk.Blur.Addresses.Beth[config.chainId] }
-                        : wrapTx,
+                      params.currency === BETH ? { ...wrapTx, to: BETH } : { ...wrapTx, to: WETH },
                     orderIndexes: [i],
                   });
                 }
@@ -513,49 +511,60 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                 // TODO: Return an error if the collection is not supported by Blur
 
-                const { signData, marketplaceData } = await blurBuyCollection.build({
-                  ...params,
-                  maker,
-                  contract: collection,
-                  authToken: blurAuth!,
-                });
+                const needsBethWrapping = steps[1].items.find(
+                  (i) => i.status === "incomplete" && i.data?.to === BETH
+                );
+                if (needsBethWrapping) {
+                  // Force the client to poll
+                  // (since Blur won't release the calldata unless you have enough BETH in your wallet)
+                  steps[3].items.push({
+                    status: "incomplete",
+                  });
+                } else {
+                  const { signData, marketplaceData } = await blurBuyCollection.build({
+                    ...params,
+                    maker,
+                    contract: collection,
+                    authToken: blurAuth!,
+                  });
 
-                steps[3].items.push({
-                  status: "incomplete",
-                  data: {
-                    sign: {
-                      signatureKind: "eip712",
-                      domain: signData.domain,
-                      types: signData.types,
-                      value: signData.value,
-                      primaryType: _TypedDataEncoder.getPrimaryType(signData.types),
-                    },
-                    post: {
-                      endpoint: "/order/v4",
-                      method: "POST",
-                      body: {
-                        items: [
-                          {
-                            order: {
-                              kind: "blur",
-                              data: {
-                                maker,
-                                marketplaceData,
-                                authToken: blurAuth!,
-                                isCollectionBid: true,
+                  steps[3].items.push({
+                    status: "incomplete",
+                    data: {
+                      sign: {
+                        signatureKind: "eip712",
+                        domain: signData.domain,
+                        types: signData.types,
+                        value: signData.value,
+                        primaryType: _TypedDataEncoder.getPrimaryType(signData.types),
+                      },
+                      post: {
+                        endpoint: "/order/v4",
+                        method: "POST",
+                        body: {
+                          items: [
+                            {
+                              order: {
+                                kind: "blur",
+                                data: {
+                                  maker,
+                                  marketplaceData,
+                                  authToken: blurAuth!,
+                                  isCollectionBid: true,
+                                },
                               },
+                              collection,
+                              orderbook: params.orderbook,
+                              orderbookApiKey: params.orderbookApiKey,
                             },
-                            collection,
-                            orderbook: params.orderbook,
-                            orderbookApiKey: params.orderbookApiKey,
-                          },
-                        ],
-                        source,
+                          ],
+                          source,
+                        },
                       },
                     },
-                  },
-                  orderIndexes: [i],
-                });
+                    orderIndexes: [i],
+                  });
+                }
 
                 break;
               }
