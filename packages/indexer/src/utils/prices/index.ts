@@ -126,7 +126,7 @@ const getCachedUSDPrice = async (
       `
         SELECT
           extract('epoch' from usd_prices.timestamp) AS "timestamp",
-          ${config.chainId === 10 ? `trunc(usd_prices.value) AS "value"` : `usd_prices.value`}
+          usd_prices.value
         FROM usd_prices
         WHERE usd_prices.currency = $/currency/
           AND usd_prices.timestamp <= date_trunc('day', to_timestamp($/timestamp/))
