@@ -115,15 +115,31 @@ export const getPoolNFTs = async (vault: string, provider: Provider) => {
 
 export const getPoolFees = async (address: string, provider: Provider) => {
   const iface = new Interface([
-    "function mintFee() view returns (uint256)",
-    "function targetRedeemFee() view returns (uint256)",
+    "function vaultId() view returns (uint256)",
+    `
+      function vaultFees(uint256 vaultId)
+        view
+        returns (
+            uint256 mintFee,
+            uint256 randomRedeemFee,
+            uint256 targetRedeemFee,
+            uint256 randomSwapFee,
+            uint256 targetSwapFee
+        )
+      `,
   ]);
 
   const vault = new Contract(address, iface, provider);
-  const [mintFee, redeemFee] = await Promise.all([vault.mintFee(), vault.targetRedeemFee()]);
+  const vaultId = await vault.vaultId();
+
+  const result = await new Contract(
+    Addresses.VaultFactory[await provider.getNetwork().then((n) => n.chainId)],
+    iface,
+    provider
+  ).vaultFees(vaultId);
 
   return {
-    mintFee: mintFee.toString(),
-    redeemFee: redeemFee.toString(),
+    mintFee: result.mintFee.toString(),
+    redeemFee: result.targetRedeemFee.toString(),
   };
 };

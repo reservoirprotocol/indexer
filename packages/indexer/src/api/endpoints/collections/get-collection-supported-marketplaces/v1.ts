@@ -2,6 +2,7 @@
 
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
+import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
 import { redb } from "@/common/db";
@@ -24,6 +25,9 @@ type Marketplace = {
   orderbook: string | null;
   orderKind: string | null;
   listingEnabled: boolean;
+  minimumBidExpiry?: number;
+  minimumPrecision?: string;
+  supportedBidCurrencies: string[];
 };
 
 const version = "v1";
@@ -63,6 +67,9 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderbook: Joi.string().allow(null),
           orderKind: Joi.string().allow(null),
           listingEnabled: Joi.boolean(),
+          minimumBidExpiry: Joi.number(),
+          minimumPrecision: Joi.string(),
+          supportedBidCurrencies: Joi.array().items(Joi.string()),
         })
       ),
     }),
@@ -90,42 +97,42 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
         throw Boom.badRequest(`Collection ${params.collection} not found`);
       }
 
+      const ns = getNetworkSettings();
+
       const marketplaces: Marketplace[] = [
         {
           name: "Reservoir",
-          imageUrl: `https://${
-            getNetworkSettings().subDomain
-          }.reservoir.tools/redirect/sources/reservoir/logo/v2`,
+          imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/reservoir/logo/v2`,
           fee: {
             bps: 0,
           },
           orderbook: "reservoir",
           orderKind: "seaport-v1.4",
           listingEnabled: true,
+          supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
         },
         {
           name: "LooksRare",
-          imageUrl: `https://${
-            getNetworkSettings().subDomain
-          }.reservoir.tools/redirect/sources/looksrare/logo/v2`,
+          imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/looksrare/logo/v2`,
           fee: {
             bps: 200,
           },
           orderbook: "looks-rare",
           orderKind: "looks-rare-v2",
           listingEnabled: false,
+          minimumBidExpiry: 15 * 60,
+          supportedBidCurrencies: [Sdk.Common.Addresses.Weth[config.chainId]],
         },
         {
           name: "X2Y2",
-          imageUrl: `https://${
-            getNetworkSettings().subDomain
-          }.reservoir.tools/redirect/sources/x2y2/logo/v2`,
+          imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/x2y2/logo/v2`,
           fee: {
             bps: 50,
           },
           orderbook: "x2y2",
           orderKind: "x2y2",
           listingEnabled: false,
+          supportedBidCurrencies: [Sdk.Common.Addresses.Weth[config.chainId]],
         },
       ];
 
@@ -150,11 +157,9 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             .reduce((a, b) => a + b, 0);
         }
 
-        const openseaMarketplace = {
+        marketplaces.push({
           name: "OpenSea",
-          imageUrl: `https://${
-            getNetworkSettings().subDomain
-          }.reservoir.tools/redirect/sources/opensea/logo/v2`,
+          imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/opensea/logo/v2`,
           fee: {
             bps: openseaMarketplaceFees[0]?.bps ?? 0,
           },
@@ -167,9 +172,9 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderbook: "opensea",
           orderKind: "seaport-v1.4",
           listingEnabled: false,
-        };
-
-        marketplaces.push(openseaMarketplace);
+          minimumBidExpiry: 15 * 60,
+          supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
+        });
       }
 
       // Handle Blur
@@ -177,9 +182,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
         const royalties = await getBlurRoyalties(params.collection);
         marketplaces.push({
           name: "Blur",
-          imageUrl: `https://${
-            getNetworkSettings().subDomain
-          }.reservoir.tools/redirect/sources/blur.io/logo/v2`,
+          imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/blur.io/logo/v2`,
           fee: {
             bps: 0,
           },
@@ -195,6 +198,9 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderbook: "blur",
           orderKind: "blur",
           listingEnabled: false,
+          minimumPrecision: "0.01",
+          minimumBidExpiry: 10 * 24 * 60 * 60,
+          supportedBidCurrencies: [Sdk.Blur.Addresses.Beth[config.chainId]],
         });
       }
 

@@ -497,6 +497,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                 if (!["blur"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
+                if (params.fees?.length) {
+                  return errors.push({
+                    message: "Custom fees not supported",
+                    orderIndex: i,
+                  });
+                }
 
                 if (!collection) {
                   return errors.push({
