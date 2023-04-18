@@ -178,7 +178,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
       }
 
       // Handle Blur
-      {
+      if (Sdk.Blur.Addresses.Beth[config.chainId]) {
         const royalties = await getBlurRoyalties(params.collection);
         marketplaces.push({
           name: "Blur",

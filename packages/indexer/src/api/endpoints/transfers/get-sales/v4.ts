@@ -173,7 +173,7 @@ export const getSalesV4Options: RouteOptions = {
     }
 
     if (query.continuation) {
-      const contArr = splitContinuation(query.continuation, /^(\d+)_(\d+)_(\d+)_(\d+)$/);
+      const contArr = splitContinuation(query.continuation, /^(.+)_(\d+)_(\d+)_(\d+)$/);
 
       if (contArr.length !== 4) {
         throw Boom.badRequest("Invalid continuation string used");
@@ -219,8 +219,8 @@ export const getSalesV4Options: RouteOptions = {
     } else if (query.orderBy && query.orderBy === "updated_at") {
       queryOrderBy = `ORDER BY fill_events_2.updated_at ${query.sortDirection}`;
       timestampFilter = `
-        AND (extract(epoch from fill_events_2.updated_at) >= $/startTimestamp/ AND
-        extract(epoch from fill_events_2.updated_at) <= $/endTimestamp/)
+        AND fill_events_2.updated_at >= to_timestamp($/startTimestamp/) AND
+        fill_events_2.updated_at <= to_timestamp($/endTimestamp/)
       `;
     }
 
