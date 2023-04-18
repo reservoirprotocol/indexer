@@ -77,6 +77,13 @@ if (config.doBackgroundWork) {
             `,
             { id }
           );
+          if (!order) {
+            logger.error(
+              QUEUE_NAME,
+              `Failed to find order with id ${id} for order info ${JSON.stringify(job.data)}`
+            );
+            return;
+          }
 
           side = order?.side;
           tokenSetId = order?.tokenSetId;
