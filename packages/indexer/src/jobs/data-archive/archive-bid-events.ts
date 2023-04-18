@@ -34,6 +34,28 @@ export class ArchiveBidEvents {
     return !_.isEmpty(event);
   }
 
+  static async fileExists(bucket: string, key: string) {
+    const s3 = new AWS.S3({
+      region: "us-east-1",
+    });
+
+    try {
+      await s3
+        .headObject({
+          Bucket: bucket,
+          Key: key,
+        })
+        .promise();
+      return true;
+    } catch (error: any) {
+      if (error.code === "NotFound") {
+        return false;
+      }
+
+      throw error;
+    }
+  }
+
   static async archive() {
     const limit = 5000;
     let events;
@@ -117,6 +139,16 @@ export class ArchiveBidEvents {
       });
 
       try {
+        if (await ArchiveBidEvents.fileExists(s3Bucket, s3Key)) {
+          logger.error("archive-bid-events", `${s3Key} already exist in bucket ${s3Bucket}`);
+
+          // Delete local files
+          await fs.promises.unlink(filename);
+          await fs.promises.unlink(filenameGzip);
+
+          return;
+        }
+
         await s3
           .putObject({
             Bucket: s3Bucket,
