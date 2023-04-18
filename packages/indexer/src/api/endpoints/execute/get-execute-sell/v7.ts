@@ -115,7 +115,9 @@ export const getExecuteSellV7Options: RouteOptions = {
         .description("Optional custom gas settings."),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
-      openseaApiKey: Joi.string().description("Optional OpenSea API key used for filling."),
+      openseaApiKey: Joi.string().description(
+        "Optional OpenSea API key used for filling. You don't need to pass your own key, but if you don't, you are more likely to be rate-limited."
+      ),
     }),
   },
   response: {
