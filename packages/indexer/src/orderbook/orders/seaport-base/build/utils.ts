@@ -23,6 +23,7 @@ export interface BaseOrderBuildOptions {
   royaltyBps?: number;
   excludeFlaggedTokens?: boolean;
   source?: string;
+  conduitKey?: string;
 }
 
 export type OrderBuildInfo = {

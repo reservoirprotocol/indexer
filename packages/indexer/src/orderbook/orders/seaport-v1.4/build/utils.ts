@@ -41,7 +41,8 @@ export const getBuildInfo = async (
   const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
 
   // Use OpenSea's conduit for sharing approvals (where available)
-  const conduitKey = Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId];
+  const conduitKey =
+    options.conduitKey ?? Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId];
 
   // Generate the salt
   let salt = options.source

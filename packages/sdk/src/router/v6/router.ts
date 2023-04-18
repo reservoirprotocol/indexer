@@ -504,7 +504,8 @@ export class Router {
 
     await Promise.all(
       details.map(async (detail, i) => {
-        if (detail.kind === "seaport-v1.4-partial") {
+        if (["seaport-partial", "seaport-v1.4-partial"].includes(detail.kind)) {
+          const protocolVersion = detail.kind === "seaport-partial" ? "v1.1" : "v1.4";
           const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
 
           try {
@@ -515,17 +516,23 @@ export class Router {
               orderHash: order.id,
               taker,
               chainId: this.chainId,
-              protocolVersion: "1.4",
+              protocolVersion,
               openseaApiKey: this.options?.openseaApiKey,
               metadata: this.options?.orderFetcherMetadata,
             });
 
             // Override the details
-            const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
             details[i] = {
               ...detail,
-              kind: "seaport-v1.4",
-              order: fullOrder,
+              ...(protocolVersion === "v1.1"
+                ? {
+                    kind: "seaport",
+                    order: new Sdk.SeaportV11.Order(this.chainId, result.data.order),
+                  }
+                : {
+                    kind: "seaport-v1.4",
+                    order: new Sdk.SeaportV14.Order(this.chainId, result.data.order),
+                  }),
             };
           } catch (error) {
             if (options?.onRecoverableError) {
