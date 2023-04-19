@@ -2,7 +2,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { acquireLock, redis, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { ArchiveBidEvents } from "@/jobs/data-archive/archive-bid-events";
 const QUEUE_NAME = "process-archive-data-queue";
@@ -31,15 +31,15 @@ if (config.doBackgroundWork) {
       switch (tableName) {
         case "bid_events":
           // Archive bid events
-          await redlock
-            .acquire([getLockName(tableName)], (5 * 60 - 5) * 1000)
-            .then(async (lock) => {
-              job.data.lock = lock;
+          if (await acquireLock(getLockName(tableName), 60 * 60)) {
+            job.data.lock = true;
+
+            try {
               await ArchiveBidEvents.archive();
-            })
-            .catch((error) => {
+            } catch (error) {
               logger.error(QUEUE_NAME, `Bid events archive errored: ${error}`);
-            });
+            }
+          }
           break;
       }
     },
@@ -55,7 +55,7 @@ if (config.doBackgroundWork) {
     if (lock) {
       switch (tableName) {
         case "bid_events":
-          await redlock.release(lock); // Release the lock
+          await releaseLock(getLockName(tableName)); // Release the lock
 
           // Check if archiving should continue
           if (await ArchiveBidEvents.continueArchive()) {

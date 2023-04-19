@@ -219,6 +219,10 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
             listableOrderbooks = ["reservoir", "opensea", "looks-rare", "x2y2"];
             break;
           }
+          case 10: {
+            listableOrderbooks = ["reservoir", "opensea"];
+            break;
+          }
           case 137: {
             listableOrderbooks = ["reservoir", "opensea"];
             break;

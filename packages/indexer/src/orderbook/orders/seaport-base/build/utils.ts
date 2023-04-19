@@ -32,7 +32,10 @@ export type OrderBuildInfo = {
 };
 
 export const padSourceToSalt = (salt: string, source?: string) => {
-  const prefix = getSourceHash(source) + getSourceHash("reservoir.tools");
+  const prefix =
+    source === "reservoir.tools"
+      ? getSourceHash(source)
+      : getSourceHash(source) + getSourceHash("reservoir.tools");
   const saltPaddedTo32Bytes = bn(salt).toHexString().slice(2).padStart(64, "0");
   return bn(`0x${prefix}${saltPaddedTo32Bytes.slice(prefix.length)}`).toString();
 };

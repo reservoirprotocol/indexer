@@ -80,6 +80,11 @@ export class ArchiveBidEvents {
       let continuation = "";
       let count = 0;
 
+      logger.info(
+        "archive-bid-events",
+        `start archive from ${ArchiveBidEvents.tableName} [${startTime} to ${endTime}]`
+      );
+
       // Get all relevant events for the given time frame
       do {
         const query = `
@@ -108,6 +113,11 @@ export class ArchiveBidEvents {
 
         count += _.size(events);
 
+        logger.info(
+          "archive-bid-events",
+          `Collected ${count} records from ${ArchiveBidEvents.tableName} [${startTime} to ${endTime}]`
+        );
+
         // Construct the JSON object
         jsonEvents = jsonEvents.concat(JSON.parse(JSON.stringify(events)));
         continuation = `AND created_at > '${_.last(events).created_at}' AND id > ${
@@ -117,6 +127,8 @@ export class ArchiveBidEvents {
 
       // Write to JSON file
       await fs.promises.writeFile(filename, JSON.stringify(jsonEvents));
+
+      logger.info("archive-bid-events", `Created JSON file [${startTime} to ${endTime}]`);
 
       // Compress the JSON file to GZIP file
       const sourceStream = createReadStream(filename);
@@ -130,6 +142,8 @@ export class ArchiveBidEvents {
           resolve();
         });
       });
+
+      logger.info("archive-bid-events", `Created GZIP file [${startTime} to ${endTime}]`);
 
       // Upload the GZIP file to S3
       const gzFileContent = fs.readFileSync(filenameGzip);
@@ -157,6 +171,8 @@ export class ArchiveBidEvents {
             ContentType: "gzip",
           })
           .promise();
+
+        logger.info("archive-bid-events", `Uploaded GZIP to S3 [${startTime} to ${endTime}]`);
 
         // Delete local files
         await fs.promises.unlink(filename);
