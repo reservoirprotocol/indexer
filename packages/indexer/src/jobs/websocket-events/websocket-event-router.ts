@@ -38,6 +38,7 @@ export const WebsocketEventRouter = async ({
 
 export enum WebsocketEventKind {
   NewTopBid = "new-top-bid",
+  NewTokenBid = "new-token-bid",
   SellOrder = "sell-order",
   BuyOrder = "buy-order",
 }

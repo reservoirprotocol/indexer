@@ -297,6 +297,8 @@ export const getNetworkSettings = (): NetworkSettings => {
           ...defaultNetworkSettings.supportedBidCurrencies,
           // Backed USDC
           "0x68b7e050e6e2c7efe11439045c9d49813c1724b8": true,
+          // USDC
+          "0x07865c6e87b9f70255377e024ace6630c1eaa37f": true,
         },
         onStartup: async () => {
           // Insert the native currency
