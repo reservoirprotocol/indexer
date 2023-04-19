@@ -9,6 +9,7 @@ import { config } from "@/config/index";
 import * as es from "@/events-sync/storage";
 
 import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
+import { assignAttributionToFillEvents } from "@/events-sync/handlers/attribution";
 import { assignWashTradingScoreToFillEvents } from "@/events-sync/handlers/utils/fills";
 
 const QUEUE_NAME = "fill-post-process";
@@ -39,6 +40,7 @@ if (config.doBackgroundWork) {
         await Promise.all([
           assignRoyaltiesToFillEvents(allFillEvents),
           assignWashTradingScoreToFillEvents(allFillEvents),
+          assignAttributionToFillEvents(allFillEvents),
         ]);
 
         const queries: PgPromiseQuery[] = allFillEvents.map((event) => {
@@ -52,6 +54,10 @@ if (config.doBackgroundWork) {
                 marketplace_fee_breakdown = $/marketplaceFeeBreakdown:json/,
                 paid_full_royalty = $/paidFullRoyalty/,
                 net_amount = $/netAmount/,
+                order_source_id_int = $/orderSourceId/,
+                fill_source_id = $/fillSourceId/,
+                aggregator_source_id = $/aggregatorSourceId/,
+                taker = $/taker/,
                 updated_at = now()
               WHERE tx_hash = $/txHash/
                 AND log_index = $/logIndex/
@@ -68,6 +74,10 @@ if (config.doBackgroundWork) {
               txHash: toBuffer(event.baseEventParams.txHash),
               logIndex: event.baseEventParams.logIndex,
               batchIndex: event.baseEventParams.batchIndex,
+              fillSourceId: event.fillSourceId || null,
+              aggregatorSourceId: event.aggregatorSourceId || null,
+              orderSourceId: event.orderSourceId || null,
+              taker: toBuffer(event.taker),
             },
           };
         });

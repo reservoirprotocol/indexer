@@ -9,6 +9,7 @@ import {
   PartialFillEvent,
   StateCache,
   getFillEventsFromTx,
+  getOrderInfos,
 } from "@/events-sync/handlers/royalties";
 import {
   platformFeeRecipientsRegistry,
@@ -87,6 +88,20 @@ export async function extractRoyalties(
     fillEvents = (await getFillEventsFromTxOnChain(txHash)).fillEvents;
   }
 
+  const orderIds: string[] = [];
+  fillEvents.forEach((c) => {
+    if (c.orderId && !cache.orderInfos.get(c.orderId)) {
+      orderIds.push(c.orderId);
+    }
+  });
+
+  const orderInfos = await getOrderInfos(orderIds);
+  orderInfos.forEach((info) => {
+    cache.orderInfos.set(info.orderId, info);
+  });
+
+  const orderInfo = fillEvent.orderId ? cache.orderInfos.get(fillEvent.orderId) : null;
+
   // For every fill event, get the current royalties (ones cached in our database)
   const fillEventsWithRoyaltyData = await Promise.all(
     fillEvents.map(async (f) => {
@@ -112,6 +127,7 @@ export async function extractRoyalties(
 
   // The (sub)call where the current fill occured
   let subcallToAnalyze = txTrace.calls;
+  let hasMultiplteCalls = false;
 
   const exchangeAddress = supportedExchanges.get(fillEvent.orderKind);
   if (exchangeAddress) {
@@ -131,6 +147,7 @@ export async function extractRoyalties(
       // to further analyze
       subcallToAnalyze = exchangeCalls[0];
     } else {
+      hasMultiplteCalls = true;
       // If there are multiple calls to the exchange in the current
       // transaction then we try to look for the (sub)call where we
       // find the current fill event's token
@@ -246,10 +263,53 @@ export async function extractRoyalties(
   notRoyaltyRecipients.add(Sdk.Common.Addresses.Weth[config.chainId]);
   notRoyaltyRecipients.add(Sdk.Common.Addresses.Eth[config.chainId]);
   notRoyaltyRecipients.add(Sdk.BendDao.Addresses.BendWETH[config.chainId]);
+  notRoyaltyRecipients.add("0x0b292a7748e52c89f93e66482026c92a335e0d41");
+
   fillEvents.forEach((fillEvent) => {
     notRoyaltyRecipients.add(fillEvent.maker);
     notRoyaltyRecipients.add(fillEvent.taker);
   });
+
+  const hasMultiple =
+    fillEvents.length > 1 &&
+    !fillEvents.every((c) => c.contract === fillEvent.contract) &&
+    !hasMultiplteCalls &&
+    ["seaport", "seaport-v1.4"].includes(fillEvent.orderKind);
+
+  const payments = paymentsToAnalyze.filter((_) => {
+    return !platformFeeRecipientsRegistry.has(_.to);
+  });
+
+  // Split payments by sale transfer
+  const tempPosArr: number[] = [];
+  const chunkedPayments = fillEvents.map((item, index, all) => {
+    const nextCursor = index + 1;
+    const totalSize = all.length;
+    const nextFillEvent = nextCursor > totalSize ? null : all[nextCursor];
+    const lastIndex = index == 0 ? 0 : tempPosArr[index - 1];
+
+    // Find the next fillEvent position
+    const matchIndex = nextFillEvent
+      ? payments.findIndex((c, index) =>
+          fillEvent.orderSide === "sell"
+            ? c.to === nextFillEvent.maker
+            : c.to === nextFillEvent.taker && index >= lastIndex
+        )
+      : payments.findIndex(
+          (c, index) =>
+            (c.token.includes("erc721") || c.token.includes("erc1155")) && index >= lastIndex
+        );
+    const realtedPayments = matchIndex == -1 ? [] : payments.slice(lastIndex, matchIndex);
+    tempPosArr.push(matchIndex);
+    return {
+      fillEvent: item,
+      lastIndex,
+      matchIndex,
+      realtedPayments,
+    };
+  });
+
+  const currentPayments = chunkedPayments.find((c) => c.fillEvent.orderId === fillEvent.orderId);
 
   const sameContractFillsWithRoyaltyData = fillEventsWithRoyaltyData.filter((c) => {
     return c.contract != contract;
@@ -328,9 +388,22 @@ export async function extractRoyalties(
           excludeOtherRecipients &&
           !notRoyaltyRecipients.has(address);
 
+        // For multiple sales we should check if it in the range of payments
+        let isInRange =
+          hasMultiple && !shareSameRecipient
+            ? currentPayments?.realtedPayments.find(
+                (c) => c.to.toLowerCase() === address.toLowerCase()
+              )
+            : true;
+
+        // Match with the order's fee breakdown
+        if (!isInRange) {
+          isInRange = orderInfo?.feeBreakdown.find((c) => c.recipient === address) != null;
+        }
+
         // For now we exclude AMMs which don't pay royalties
         const isAMM = ["sudoswap", "nftx"].includes(fillEvent.orderKind);
-        if (recipientIsEligible && !isAMM) {
+        if (recipientIsEligible && !isAMM && isInRange) {
           // Reset the bps
           royalty.bps = bps;
           royaltyFeeBreakdown.push(royalty);

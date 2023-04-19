@@ -153,8 +153,12 @@ export const fetchTransactionLogs = async (txHash: string) =>
     });
   });
 
-export const extractAttributionData = async (
-  txHash: string,
+export const extractAttributionDataByTransaction = async (
+  tx: {
+    from: string;
+    to: string;
+    data: string;
+  },
   orderKind: OrderKind,
   options?: {
     address?: string;
@@ -180,7 +184,7 @@ export const extractAttributionData = async (
   const routers = await getRouters();
 
   // Properly set the taker when filling through router contracts
-  const tx = await fetchTransaction(txHash);
+  // const tx = await fetchTransaction(txHash);
   let router = routers.get(tx.to);
   if (!router) {
     // Handle cases where we transfer directly to the router when filling bids
@@ -249,4 +253,17 @@ export const extractAttributionData = async (
     aggregatorSource,
     taker,
   };
+};
+
+export const extractAttributionData = async (
+  txHash: string,
+  orderKind: OrderKind,
+  options?: {
+    address?: string;
+    orderId?: string;
+  }
+) => {
+  // Properly set the taker when filling through router contracts
+  const tx = await fetchTransaction(txHash);
+  return extractAttributionDataByTransaction(tx, orderKind, options);
 };

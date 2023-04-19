@@ -46,9 +46,10 @@ describe("Royalties", () => {
         contract: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
         tokenId: "5449",
         royaltyFeeBps: 0,
-        marketplaceFeeBps: 450,
+        marketplaceFeeBps: 200,
       },
     ];
+    // console.log("fillEvents", fillEvents.length)
     await assignRoyaltiesToFillEvents(fillEvents, false, true);
     for (let index = 0; index < fillEvents.length; index++) {
       const fillEvent = fillEvents[index];
@@ -458,4 +459,321 @@ describe("Royalties", () => {
       }
     }
   });
+
+  it("multiple-sales-case-3", async () => {
+    const { fillEvents } = await getFillEventsFromTx(
+      "0x4e982dd1572f9c7559340b7ec0ad1ee9cd26b79af75c79ac9c044cd5e0316638"
+    );
+
+    const testCollectionRoyalties = [
+      {
+        collection: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+        data: [
+          {
+            bps: 250,
+            recipient: "0xaae7ac476b117bccafe2f05f582906be44bc8ff1",
+          },
+        ],
+      },
+      {
+        collection: "0x49cf6f5d44e70224e2e23fdcdd2c053f30ada28b",
+        data: [
+          {
+            bps: 500,
+            recipient: "0xe65b6865dbce299ae6a20efcc7543362540741d8",
+          },
+        ],
+      },
+      {
+        collection: "0x8a90cab2b38dba80c64b7734e58ee1db38b8992e",
+        data: [
+          {
+            bps: 500,
+            recipient: "0xd1f124cc900624e1ff2d923180b3924147364380",
+          },
+        ],
+      },
+      {
+        collection: "0xed5af388653567af2f388e6224dc7c4b3241c544",
+        data: [
+          {
+            bps: 500,
+            recipient: "0xb4d24dacbdffa1bbf9a624044484b3feeb7fdf74",
+          },
+        ],
+      },
+      {
+        collection: "0x1a92f7381b9f03921564a437210bb9396471050c",
+        data: [
+          {
+            bps: 500,
+            recipient: "0xd98d29beb788ff04e7a648775fcb083282ae9c4b",
+          },
+        ],
+      },
+      {
+        collection: "0x7bd29408f11d2bfc23c34f18275bbf23bb716bc7",
+        data: [
+          {
+            bps: 500,
+            recipient: "0xa858ddc0445d8131dac4d1de01f834ffcba52ef1",
+          },
+        ],
+      },
+      {
+        collection: "0xe785e82358879f061bc3dcac6f0444462d4b5330",
+        data: [
+          {
+            bps: 400,
+            recipient: "0xb1ab2274b58b23d2a701f164b9a641efc69bc3f1",
+          },
+        ],
+      },
+      {
+        collection: "0x306b1ea3ecdf94ab739f1910bbda052ed4a9f949",
+        data: [
+          {
+            bps: 500,
+            recipient: "0xb4d24dacbdffa1bbf9a624044484b3feeb7fdf74",
+          },
+        ],
+      },
+      {
+        collection: "0x59468516a8259058bad1ca5f8f4bff190d30e066",
+        data: [
+          {
+            bps: 500,
+            recipient: "0x8fe67ebcf516efb408e537bd390dfde4fae7448d",
+          },
+        ],
+      },
+      {
+        collection: "0x1cb1a5e65610aeff2551a50f76a87a7d3fb649c6",
+        data: [
+          {
+            bps: 250,
+            recipient: "0x794b675c0e69fe8f586909ca98915243cf689672",
+          },
+        ],
+      },
+      {
+        collection: "0x2acab3dea77832c09420663b0e1cb386031ba17b",
+        data: [
+          {
+            bps: 500,
+            recipient: "0x0aa795e44c5e54b363d119c89b1658781d007d7e",
+          },
+        ],
+      },
+    ];
+
+    mockGetRoyalties.mockImplementation(async (contract: string) => {
+      const matched = testCollectionRoyalties.find((c) => c.collection === contract);
+      return matched?.data ?? [];
+    });
+
+    const feesList = [
+      {
+        contract: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+        tokenId: "5372",
+        royaltyFeeBps: 0,
+        marketplaceFeeBps: 250,
+        royaltyFeeBreakdown: [],
+        marketplaceFeeBreakdown: [
+          {
+            recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+            bps: 250,
+          },
+        ],
+      },
+      {
+        contract: "0x49cf6f5d44e70224e2e23fdcdd2c053f30ada28b",
+        tokenId: "13509",
+        royaltyFeeBps: 500,
+        marketplaceFeeBps: 250,
+        royaltyFeeBreakdown: [
+          {
+            recipient: "0xe65b6865dbce299ae6a20efcc7543362540741d8",
+            bps: 500,
+          },
+        ],
+        marketplaceFeeBreakdown: [
+          {
+            recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+            bps: 250,
+          },
+        ],
+      },
+      {
+        contract: "0x8a90cab2b38dba80c64b7734e58ee1db38b8992e",
+        tokenId: "2280",
+        royaltyFeeBps: 500,
+        marketplaceFeeBps: 250,
+        royaltyFeeBreakdown: [
+          {
+            recipient: "0xd1f124cc900624e1ff2d923180b3924147364380",
+            bps: 500,
+          },
+        ],
+        marketplaceFeeBreakdown: [
+          {
+            recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+            bps: 250,
+          },
+        ],
+      },
+      {
+        contract: "0xed5af388653567af2f388e6224dc7c4b3241c544",
+        tokenId: "3881",
+        royaltyFeeBps: 0,
+        marketplaceFeeBps: 250,
+        royaltyFeeBreakdown: [],
+        marketplaceFeeBreakdown: [
+          {
+            recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+            bps: 250,
+          },
+        ],
+      },
+      {
+        contract: "0x1a92f7381b9f03921564a437210bb9396471050c",
+        tokenId: "2220",
+        royaltyFeeBps: 500,
+        marketplaceFeeBps: 250,
+        royaltyFeeBreakdown: [
+          {
+            recipient: "0x267be1c1d684f78cb4f6a176c4911b741e4ffdc0",
+            bps: 500,
+          },
+        ],
+        marketplaceFeeBreakdown: [
+          {
+            recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+            bps: 250,
+          },
+        ],
+      },
+      {
+        contract: "0x7bd29408f11d2bfc23c34f18275bbf23bb716bc7",
+        tokenId: "17713",
+        royaltyFeeBps: 0,
+        marketplaceFeeBps: 250,
+        royaltyFeeBreakdown: [],
+        marketplaceFeeBreakdown: [
+          {
+            recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+            bps: 250,
+          },
+        ],
+      },
+      {
+        contract: "0xe785e82358879f061bc3dcac6f0444462d4b5330",
+        tokenId: "3836",
+        royaltyFeeBps: 400,
+        marketplaceFeeBps: 250,
+        royaltyFeeBreakdown: [
+          {
+            recipient: "0xb1ab2274b58b23d2a701f164b9a641efc69bc3f1",
+            bps: 400,
+          },
+        ],
+        marketplaceFeeBreakdown: [
+          {
+            recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+            bps: 250,
+          },
+        ],
+      },
+      {
+        contract: "0x306b1ea3ecdf94ab739f1910bbda052ed4a9f949",
+        tokenId: "11059",
+        royaltyFeeBps: 0,
+        marketplaceFeeBps: 250,
+        royaltyFeeBreakdown: [],
+        marketplaceFeeBreakdown: [
+          {
+            recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+            bps: 250,
+          },
+        ],
+      },
+      {
+        contract: "0x59468516a8259058bad1ca5f8f4bff190d30e066",
+        tokenId: "3545",
+        royaltyFeeBps: 500,
+        marketplaceFeeBps: 250,
+        royaltyFeeBreakdown: [
+          {
+            recipient: "0x8fe67ebcf516efb408e537bd390dfde4fae7448d",
+            bps: 500,
+          },
+        ],
+        marketplaceFeeBreakdown: [
+          {
+            recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+            bps: 250,
+          },
+        ],
+      },
+      {
+        contract: "0x1cb1a5e65610aeff2551a50f76a87a7d3fb649c6",
+        tokenId: "4237",
+        royaltyFeeBps: 250,
+        marketplaceFeeBps: 250,
+        royaltyFeeBreakdown: [
+          {
+            recipient: "0x794b675c0e69fe8f586909ca98915243cf689672",
+            bps: 250,
+          },
+        ],
+        marketplaceFeeBreakdown: [
+          {
+            recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+            bps: 250,
+          },
+        ],
+      },
+      {
+        contract: "0x2acab3dea77832c09420663b0e1cb386031ba17b",
+        tokenId: "9682",
+        royaltyFeeBps: 500,
+        marketplaceFeeBps: 250,
+        royaltyFeeBreakdown: [
+          {
+            recipient: "0x7b42a219bb14d0719757a391d7cc6aa7f371e144",
+            bps: 500,
+          },
+        ],
+        marketplaceFeeBreakdown: [
+          {
+            recipient: "0x0000a26b00c1f0df003000390027140000faa719",
+            bps: 250,
+          },
+        ],
+      },
+    ];
+
+    // console.log("fillEvents", fillEvents.length)
+    await assignRoyaltiesToFillEvents(fillEvents, false, true);
+
+    for (let index = 0; index < fillEvents.length; index++) {
+      const fillEvent = fillEvents[index];
+      const matchFee = feesList.find(
+        (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
+      );
+      if (matchFee) {
+        expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
+        expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
+      }
+    }
+  });
+
+  // multiple sales
+  // 0x37481ca6ad411fd79cf479b2265363492ce45b29616d94891a426e71048660a4
+
+  // 0x2f76c9669b424dd67fdbdddab5bc41b12d1f0bff9e22a7fe38ebef5d4214990e
+  // 0x4e982dd1572f9c7559340b7ec0ad1ee9cd26b79af75c79ac9c044cd5e0316638
+
+  // USDC
+  // 0xb24a8ac1a3368e950a155d9e46154dfac54cc0dc4de94aa9f802982ce104803e
 });

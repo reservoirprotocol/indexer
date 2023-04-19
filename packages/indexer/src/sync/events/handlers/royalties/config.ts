@@ -39,10 +39,7 @@ addPlatformAddress("sudoswap", [
   "0x4e2f98c96e2d595a83afa35888c4af58ac343e44",
   "0xb16c1342e617a5b6e4b631eb114483fdb289c0a4",
 ]);
-addPlatformAddress("bend-dao", [
-  "0xf3ab1d58ce6b9e0d42b8958c918649305e1b1d26",
-  "0x0b292a7748e52c89f93e66482026c92a335e0d41",
-]);
+addPlatformAddress("bend-dao", ["0xf3ab1d58ce6b9e0d42b8958c918649305e1b1d26"]);
 
 // List of supported exchanges
 export const supportedExchanges: Map<OrderKind, string> = new Map();
