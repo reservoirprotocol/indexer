@@ -6,13 +6,13 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
+import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
 import { Sources } from "@/models/sources";
 
 import * as buyOrderQueue from "@/jobs/order-updates/order-updates-buy-order";
 import * as sellOrderQueue from "@/jobs/order-updates/order-updates-sell-order";
-import { fromBuffer } from "@/common/utils";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -108,24 +108,26 @@ if (config.doBackgroundWork) {
 
         // Log order latency for new orders
         if (order && order.validBetween && trigger.kind === "new-order") {
-          const orderStart = Math.floor(
-            new Date(JSON.parse(order.validBetween)[0]).getTime() / 1000
-          );
-          const currentTime = Math.floor(Date.now() / 1000);
-          const source = (await Sources.getInstance()).get(order.sourceIdInt);
-
-          if (orderStart <= currentTime) {
-            logger.info(
-              "order-latency",
-              JSON.stringify({
-                latency: currentTime - orderStart,
-                source: source?.getTitle(),
-              })
+          try {
+            const orderStart = Math.floor(
+              new Date(JSON.parse(order.validBetween)[0]).getTime() / 1000
             );
+            const currentTime = Math.floor(Date.now() / 1000);
+            const source = (await Sources.getInstance()).get(order.sourceIdInt);
+
+            if (orderStart <= currentTime) {
+              logger.info(
+                "order-latency",
+                JSON.stringify({
+                  latency: currentTime - orderStart,
+                  source: source?.getTitle(),
+                })
+              );
+            }
+          } catch {
+            // Ignore errors
           }
         }
-
-        // handle triggering websocket events
       } catch (error) {
         logger.error(
           QUEUE_NAME,

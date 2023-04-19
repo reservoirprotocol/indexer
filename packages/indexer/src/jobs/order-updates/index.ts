@@ -23,4 +23,5 @@ import "@/jobs/order-updates/cron/oracle-orders-queue";
 
 // Misc
 
+import "@/jobs/order-updates/misc/blur-bids-buffer";
 import "@/jobs/order-updates/misc/blur-bids-refresh";

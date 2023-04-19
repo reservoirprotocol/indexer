@@ -106,6 +106,7 @@ import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-que
 import * as erc20OrdersCron from "@/jobs/order-updates/cron/erc20-orders-queue";
 import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-queue";
 import * as oracleOrdersCron from "@/jobs/order-updates/cron/oracle-orders-queue";
+import * as blurBidsBufferMisc from "@/jobs/order-updates/misc/blur-bids-buffer";
 import * as blurBidsRefreshMisc from "@/jobs/order-updates/misc/blur-bids-refresh";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
@@ -231,6 +232,7 @@ export const allJobQueues = [
   erc20OrdersCron.queue,
   expiredOrdersCron.queue,
   oracleOrdersCron.queue,
+  blurBidsBufferMisc.queue,
   blurBidsRefreshMisc.queue,
 
   orderbookOrders.queue,
