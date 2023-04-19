@@ -5,7 +5,7 @@ import { config } from "@/config/index";
 
 export class OpenseaIndexerApi {
   static async fastTokenSync(token: string) {
-    return await axios
+    return axios
       .post(`${config.openseaIndexerApiBaseUrl}/fast-token-sync`, { token }, { timeout: 60000 })
       .catch((error) => {
         logger.error("fast_token_sync", `Failed to sync token=${token}, error=${error}`);
@@ -14,7 +14,7 @@ export class OpenseaIndexerApi {
   }
 
   static async fastContractSync(contract: string) {
-    return await axios
+    return axios
       .post(
         `${config.openseaIndexerApiBaseUrl}/fast-contract-sync`,
         { contract },

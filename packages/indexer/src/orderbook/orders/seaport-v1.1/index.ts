@@ -141,15 +141,6 @@ export const save = async (
         });
       }
 
-      // Delay the validation of the order if it's start time is very soon in the future
-      if (startTime > currentTime) {
-        return results.push({
-          id,
-          status: "delayed",
-          delay: startTime - currentTime + 5,
-        });
-      }
-
       // Check: order is not expired
       const endTime = order.params.endTime;
       if (currentTime >= endTime) {
