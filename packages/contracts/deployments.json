@@ -101,5 +101,11 @@
     "v1": {
       "1": "0x512a6a1a74f1f08aac8155605b9da8ace46b3d9c"
     }
+  },
+  "AlienswapModule": {
+    "v1": {
+      "1": "0xb56fa88072f5e299331cbb810d25075f6caa889c",
+      "5": "0xb56fa88072f5e299331cbb810d25075f6caa889c"
+    }
   }
 }

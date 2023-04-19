@@ -132,14 +132,12 @@ export class Collections {
     );
     await royalties.refreshDefaultRoyalties(collection.id);
 
-    // Refresh marketplace fees
+    // Refresh Blur royalties (which get stored separately)
+    await updateBlurRoyalties(collection.id);
 
-    // OpenSea
+    // Refresh OpenSea marketplace fees
     const openseaFees = collection.openseaFees as royalties.Royalty[] | undefined;
     await marketplaceFees.updateMarketplaceFeeSpec(collection.id, "opensea", openseaFees);
-
-    // Blur
-    await updateBlurRoyalties(collection.id);
 
     // Refresh any contract blacklists
     await marketplaceBlacklist.updateMarketplaceBlacklist(collection.contract);

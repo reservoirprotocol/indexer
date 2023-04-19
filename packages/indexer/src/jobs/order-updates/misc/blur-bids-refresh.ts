@@ -67,23 +67,27 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (collection: string) => {
-  const delayInSeconds = 10 * 60;
-  const halfDelayInSeconds = delayInSeconds / 2;
+export const addToQueue = async (collection: string, force = false) => {
+  if (force) {
+    await queue.add(collection, { collection });
+  } else {
+    const delayInSeconds = 10 * 60;
+    const halfDelayInSeconds = delayInSeconds / 2;
 
-  // At most one job per collection per `delayInSeconds` seconds
-  const lockKey = `blur-bids-refresh-lock:${collection}`;
-  const lock = await redis.get(lockKey);
-  if (!lock) {
-    await redis.set(lockKey, "locked", "EX", delayInSeconds - 1);
-    await queue.add(
-      collection,
-      { collection },
-      {
-        jobId: collection,
-        // Each job is randomly delayed so as to avoid too many concurrent requests
-        delay: Math.floor(halfDelayInSeconds + Math.random() * halfDelayInSeconds) * 1000,
-      }
-    );
+    // At most one job per collection per `delayInSeconds` seconds
+    const lockKey = `blur-bids-refresh-lock:${collection}`;
+    const lock = await redis.get(lockKey);
+    if (!lock) {
+      await redis.set(lockKey, "locked", "EX", delayInSeconds - 1);
+      await queue.add(
+        collection,
+        { collection },
+        {
+          jobId: collection,
+          // Each job is randomly delayed so as to avoid too many concurrent requests
+          delay: Math.floor(halfDelayInSeconds + Math.random() * halfDelayInSeconds) * 1000,
+        }
+      );
+    }
   }
 };
