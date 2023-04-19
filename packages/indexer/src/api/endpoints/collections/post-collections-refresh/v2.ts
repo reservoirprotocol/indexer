@@ -225,18 +225,16 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
               collection: collection.id,
             },
           };
-          if (method === "opensea") {
-            if (collection.slug) {
-              metadataIndexInfo = {
-                kind: "full-collection-by-slug",
-                data: {
-                  method,
-                  contract: collection.contract,
-                  slug: collection.slug,
-                  collection: collection.id,
-                },
-              };
-            }
+          if (method === "opensea" && collection.slug) {
+            metadataIndexInfo = {
+              kind: "full-collection-by-slug",
+              data: {
+                method,
+                contract: collection.contract,
+                slug: collection.slug,
+                collection: collection.id,
+              },
+            };
           }
 
           // Refresh the collection tokens metadata

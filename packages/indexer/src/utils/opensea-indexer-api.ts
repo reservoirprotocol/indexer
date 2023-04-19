@@ -1,7 +1,7 @@
-import { config } from "../config";
 import axios from "axios";
 
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
 
 export class OpenseaIndexerApi {
   static async fastTokenSync(token: string) {
@@ -21,7 +21,7 @@ export class OpenseaIndexerApi {
         { timeout: 60000 }
       )
       .catch((error) => {
-        logger.error("fast_token_sync", `Failed to sync contract=${contract}, error=${error}`);
+        logger.error("fast_contract_sync", `Failed to sync contract=${contract}, error=${error}`);
         return false;
       });
   }
