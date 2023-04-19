@@ -536,8 +536,6 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
   const limit = pLimit(20);
   await Promise.all(orderInfos.map((orderInfo) => limit(() => handleOrder(orderInfo))));
 
-  logger.info("orders-blur-save", JSON.stringify(results));
-
   if (orderValues.length) {
     const columns = new pgp.helpers.ColumnSet(
       [
