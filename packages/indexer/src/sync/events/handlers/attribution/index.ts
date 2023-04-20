@@ -71,12 +71,7 @@ export async function extractAttributionInsideTx(
   const attributionData = await utils.extractAttributionDataByTransaction(realTx, orderKind, {
     orderId,
   });
-  return {
-    taker: attributionData.taker,
-    orderSourceId: attributionData.orderSource?.id,
-    aggregatorSourceId: attributionData.aggregatorSource?.id,
-    fillSourceId: attributionData.fillSource?.id,
-  };
+  return attributionData;
 }
 
 export const assignAttributionToFillEvents = async (
@@ -101,10 +96,10 @@ export const assignAttributionToFillEvents = async (
             enableCache
           );
           if (result) {
-            fillEvent.aggregatorSourceId = result.aggregatorSourceId;
-            fillEvent.orderSourceId = result.orderSourceId;
+            fillEvent.aggregatorSourceId = result.aggregatorSource?.id;
+            fillEvent.orderSourceId = result.orderSource?.id;
             if (result.taker) fillEvent.taker = result.taker;
-            fillEvent.fillSourceId = result.fillSourceId;
+            fillEvent.fillSourceId = result.fillSource?.id;
           }
         } catch {
           //   logger.error(
