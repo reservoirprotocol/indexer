@@ -20,11 +20,22 @@ import {
   getCollectionPool,
   saveCollectionPool,
 } from "@/models/collection-pools";
-import { BigNumber, ethers } from "ethers";
+import { BigNumber, BigNumberish, ethers } from "ethers";
 import { TokenIDs } from "fummpel";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { generateMerkleTree } from "@reservoir0x/sdk/src/common/helpers/merkle";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
+import MerkleTree from "merkletreejs";
+
+const hashFn = (tokenId: BigNumberish) => keccak256(["uint256"], [tokenId]);
+
+const generateMerkleTree = (tokenIds: BigNumberish[]) => {
+  if (!tokenIds.length) {
+    throw new Error("Could not generate merkle tree");
+  }
+
+  const leaves = tokenIds.map(hashFn);
+  return new MerkleTree(leaves, keccak256, { sort: true });
+};
 
 const factoryAddress = Sdk.Collection.Addresses.CollectionPoolFactory[config.chainId];
 

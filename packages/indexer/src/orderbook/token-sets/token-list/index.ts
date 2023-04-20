@@ -38,7 +38,7 @@ export type TokenSet = {
     | {
         kind: "token-set";
         data: {
-          collection: string;
+          collection?: string;
           tokenSetId: string;
         };
       };
