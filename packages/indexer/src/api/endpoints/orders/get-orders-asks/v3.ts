@@ -307,7 +307,7 @@ export const getOrdersAsksV3Options: RouteOptions = {
               ELSE 'active'
             END
           ) AS status,
-          extract(epoch from orders.updated_at) AS updated_at
+          orders.updated_at
           ${query.includeRawData ? ", orders.raw_data" : ""}
           ${query.includeMetadata ? `, ${metadataBuildQuery}` : ""}
         FROM orders

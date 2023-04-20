@@ -111,8 +111,8 @@ export class ArchiveBidEvents {
 
         // Construct the JSON object
         jsonEventsArray = jsonEventsArray.concat(JSON.parse(JSON.stringify(events)));
-        continuation = `AND created_at > '${_.last(events).created_at}' AND id > ${
-          _.last(events).id
+        continuation = `AND created_at > '${_.last(events)?.created_at}' AND id > ${
+          _.last(events)?.id
         }`;
       } while (limit === _.size(events));
 
