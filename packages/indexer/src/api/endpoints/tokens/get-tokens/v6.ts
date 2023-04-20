@@ -680,7 +680,8 @@ export const getTokensV6Options: RouteOptions = {
       }
 
       if (query.tokenName) {
-        conditions.push(`t.name = $/tokenName/`);
+        query.tokenName = "%" + query.tokenName + "%";
+        conditions.push(`t.name ILIKE $/tokenName/`);
       }
 
       if (query.tokenSetId) {
