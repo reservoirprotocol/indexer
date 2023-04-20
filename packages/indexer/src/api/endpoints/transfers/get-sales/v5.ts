@@ -29,18 +29,20 @@ export const getSalesV5Options: RouteOptions = {
           Joi.string().lowercase().pattern(regex.address)
         )
         .description("Array of contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"),
-      token: Joi.string()
-        .lowercase()
-        .pattern(regex.token)
-        .description(
-          "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
-        ),
-      tokens: Joi.array()
-        .items(Joi.string().lowercase().pattern(regex.token))
-        .max(20)
-        .description(
-          "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
-        ),
+      tokens: Joi.alternatives().try(
+        Joi.array()
+          .max(20)
+          .items(Joi.string().lowercase().pattern(regex.token))
+          .description(
+            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+          ),
+        Joi.string()
+          .lowercase()
+          .pattern(regex.token)
+          .description(
+            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+          )
+      ),
       includeTokenMetadata: Joi.boolean().description(
         "If enabled, also include token metadata in the response."
       ),
@@ -89,7 +91,7 @@ export const getSalesV5Options: RouteOptions = {
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
     })
-      .oxor("contract", "token", "collection", "txHash")
+      .oxor("contract", "tokens", "collection", "txHash")
       .with("attributes", "collection"),
   },
   response: {
