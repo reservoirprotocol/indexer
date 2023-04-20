@@ -9,10 +9,10 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { JoiOrder, getJoiOrderObject } from "@/common/joi";
 import { buildContinuation, regex, splitContinuation, toBuffer } from "@/common/utils";
-import { Sources } from "@/models/sources";
-import { Orders } from "@/utils/orders";
 import { Attributes } from "@/models/attributes";
 import { CollectionSets } from "@/models/collection-sets";
+import { Sources } from "@/models/sources";
+import { Orders } from "@/utils/orders";
 
 const version = "v5";
 
@@ -102,6 +102,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
       includeRawData: Joi.boolean()
         .default(false)
         .description("If true, raw data is included in the response."),
+      includeDepth: Joi.boolean()
+        .default(false)
+        .description("If true, the depth of each order is included in the response."),
       startTimestamp: Joi.number().description(
         "Get events after a particular unix timestamp (inclusive)"
       ),
@@ -203,9 +206,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
           ) AS expiration,
           orders.is_reservoir,
           extract(epoch from orders.created_at) AS created_at,
-          orders.updated_at,
+          extract(epoch from orders.updated_at) AS updated_at,
           (${criteriaBuildQuery}) AS criteria
-          ${query.includeRawData ? ", orders.raw_data" : ""}
+          ${query.includeRawData || query.includeDepth ? ", orders.raw_data" : ""}
         FROM orders
       `;
 
@@ -343,17 +346,17 @@ export const getOrdersBidsV5Options: RouteOptions = {
           }
 
           collectionSetFilter = `
-          JOIN LATERAL (
-            SELECT
-              contract,
-              token_id
-            FROM
-              token_sets_tokens
-            WHERE
-              token_sets_tokens.token_set_id = orders.token_set_id
-            LIMIT 1) tst ON TRUE
-          JOIN tokens ON tokens.contract = tst.contract
-            AND tokens.token_id = tst.token_id
+            JOIN LATERAL (
+              SELECT
+                contract,
+                token_id
+              FROM
+                token_sets_tokens
+              WHERE
+                token_sets_tokens.token_set_id = orders.token_set_id
+              LIMIT 1) tst ON TRUE
+            JOIN tokens ON tokens.contract = tst.contract
+              AND tokens.token_id = tst.token_id
           `;
 
           conditions.push(`tokens.collection_id IN ($/collectionsIds:csv/)`);
@@ -433,8 +436,8 @@ export const getOrdersBidsV5Options: RouteOptions = {
         }
       }
 
-      const result = rawResult.map(async (r) => {
-        return await getJoiOrderObject({
+      const result = rawResult.map(async (r) =>
+        getJoiOrderObject({
           id: r.id,
           kind: r.kind,
           side: r.side,
@@ -473,9 +476,11 @@ export const getOrdersBidsV5Options: RouteOptions = {
           rawData: r.raw_data,
           normalizeRoyalties: query.normalizeRoyalties,
           missingRoyalties: r.missing_royalties,
+          includeDepth: query.includeDepth,
+          displayCurrency: query.displayCurrency,
           token: query.token,
-        });
-      });
+        })
+      );
 
       return {
         orders: await Promise.all(result),
