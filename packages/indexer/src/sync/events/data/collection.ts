@@ -112,7 +112,7 @@ export const swapNftInPool: EventData = {
       uint256 inputAmount,
       uint256 tradeFee,
       uint256 protocolFee,
-      tuple[] royaltyDue
+      (uint256 amount, address recipient)
     )`,
   ]),
 };
@@ -128,7 +128,7 @@ export const swapNftOutPool: EventData = {
       uint256 outputAmount,
       uint256 tradeFee,
       uint256 protocolFee,
-      tuple[] royaltyDue
+      (uint256 amount, address recipient)
     )`,
   ]),
 };
