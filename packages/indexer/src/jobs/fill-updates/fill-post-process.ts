@@ -9,7 +9,6 @@ import { config } from "@/config/index";
 import * as es from "@/events-sync/storage";
 
 import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
-import { assignAttributionToFillEvents } from "@/events-sync/handlers/attribution";
 import { assignWashTradingScoreToFillEvents } from "@/events-sync/handlers/utils/fills";
 
 const QUEUE_NAME = "fill-post-process";
@@ -40,7 +39,6 @@ if (config.doBackgroundWork) {
         await Promise.all([
           assignRoyaltiesToFillEvents(allFillEvents),
           assignWashTradingScoreToFillEvents(allFillEvents),
-          assignAttributionToFillEvents(allFillEvents),
         ]);
 
         const queries: PgPromiseQuery[] = allFillEvents.map((event) => {

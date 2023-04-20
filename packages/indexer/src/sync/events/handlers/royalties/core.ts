@@ -299,13 +299,13 @@ export async function extractRoyalties(
           (c, index) =>
             (c.token.includes("erc721") || c.token.includes("erc1155")) && index >= lastIndex
         );
-    const realtedPayments = matchIndex == -1 ? [] : payments.slice(lastIndex, matchIndex);
+    const relatedPayments = matchIndex == -1 ? [] : payments.slice(lastIndex, matchIndex);
     tempPosArr.push(matchIndex);
     return {
       fillEvent: item,
       lastIndex,
       matchIndex,
-      realtedPayments,
+      relatedPayments,
     };
   });
 
@@ -391,7 +391,7 @@ export async function extractRoyalties(
         // For multiple sales we should check if it in the range of payments
         let isInRange =
           hasMultiple && !shareSameRecipient
-            ? currentPayments?.realtedPayments.find(
+            ? currentPayments?.relatedPayments.find(
                 (c) => c.to.toLowerCase() === address.toLowerCase()
               )
             : true;

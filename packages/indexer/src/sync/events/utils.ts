@@ -15,6 +15,7 @@ import { getTransactionLogs, saveTransactionLogs } from "@/models/transaction-lo
 import { getTransactionTraces, saveTransactionTraces } from "@/models/transaction-traces";
 import { OrderKind, getOrderSourceByOrderId, getOrderSourceByOrderKind } from "@/orderbook/orders";
 import { getRouters } from "@/utils/routers";
+import { extractAttributionInsideTx } from "@/events-sync/handlers/attribution";
 
 export const fetchBlock = async (blockNumber: number, force = false) => {
   if (!force) {
@@ -265,5 +266,13 @@ export const extractAttributionData = async (
 ) => {
   // Properly set the taker when filling through router contracts
   const tx = await fetchTransaction(txHash);
+  try {
+    const result = await extractAttributionInsideTx(tx, orderKind, options?.orderId, true);
+    if (result) {
+      return result;
+    }
+  } catch {
+    // Skip error
+  }
   return extractAttributionDataByTransaction(tx, orderKind, options);
 };

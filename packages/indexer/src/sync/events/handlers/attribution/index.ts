@@ -6,6 +6,8 @@ import * as Sdk from "@reservoir0x/sdk";
 import { redis } from "@/common/redis";
 import * as utils from "@/events-sync/utils";
 import { TransactionTrace } from "@/models/transaction-traces";
+import { Transaction } from "@/models/transactions";
+import { OrderKind } from "@/orderbook/orders";
 
 export const allExchanges: string[] = [
   Sdk.RouterV6.Addresses.Router[config.chainId],
@@ -17,8 +19,13 @@ export const allExchanges: string[] = [
   Sdk.LooksRare.Addresses.Exchange[config.chainId],
 ];
 
-export async function extractAttribution(fillEvent: es.fills.Event, useCache?: boolean) {
-  const { txHash } = fillEvent.baseEventParams;
+export async function extractAttributionInsideTx(
+  tx: Pick<Transaction, "hash" | "from" | "to" | "value" | "data" | "blockTimestamp">,
+  orderKind: OrderKind,
+  orderId?: string,
+  useCache?: boolean
+) {
+  const txHash = tx.hash;
   // Fetch the current transaction's trace
   let txTrace: TransactionTrace | undefined;
   const cacheKeyTrace = `fetch-transaction-trace:${txHash}`;
@@ -39,10 +46,8 @@ export async function extractAttribution(fillEvent: es.fills.Event, useCache?: b
     return null;
   }
 
-  const tx = await utils.fetchTransaction(txHash);
-
-  // For safe
-  const isExecTransaction = tx.data.includes("0x6a761202") || tx.to === fillEvent.taker;
+  // For Safe
+  const isExecTransaction = tx.data.includes("0x6a761202");
   if (!isExecTransaction) {
     return;
   }
@@ -63,13 +68,9 @@ export async function extractAttribution(fillEvent: es.fills.Event, useCache?: b
     to: callToAnalyze.to,
     data: callToAnalyze.input,
   };
-  const attributionData = await utils.extractAttributionDataByTransaction(
-    realTx,
-    fillEvent.orderKind,
-    {
-      orderId: fillEvent.orderId,
-    }
-  );
+  const attributionData = await utils.extractAttributionDataByTransaction(realTx, orderKind, {
+    orderId,
+  });
   return {
     taker: attributionData.taker,
     orderSourceId: attributionData.orderSource?.id,
@@ -92,7 +93,13 @@ export const assignAttributionToFillEvents = async (
         }
 
         try {
-          const result = await extractAttribution(fillEvent, enableCache);
+          const tx = await utils.fetchTransaction(fillEvent.baseEventParams.txHash);
+          const result = await extractAttributionInsideTx(
+            tx,
+            fillEvent.orderKind,
+            fillEvent.orderId,
+            enableCache
+          );
           if (result) {
             fillEvent.aggregatorSourceId = result.aggregatorSourceId;
             fillEvent.orderSourceId = result.orderSourceId;
