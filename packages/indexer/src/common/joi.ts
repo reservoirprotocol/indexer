@@ -405,7 +405,7 @@ export const getJoiDynamicPricingObject = async (
   }
 };
 
-const getJoiBidDepthObject = async (
+export const getJoiBidDepthObject = async (
   kind: OrderKind,
   price: string,
   currency: string,
@@ -438,7 +438,7 @@ const getJoiBidDepthObject = async (
       const order = rawData as Sdk.Nftx.Types.OrderParams;
       return Promise.all(
         order.extra.prices.map(async (price) => ({
-          price: getJoiPriceObject(
+          price: await getJoiPriceObject(
             {
               gross: {
                 amount: price,

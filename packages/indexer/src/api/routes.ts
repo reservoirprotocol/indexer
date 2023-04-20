@@ -943,6 +943,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/orders/depth/v1",
+    options: ordersEndpoints.getOrdersDepthV1Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/orders/executed/v1",
     options: ordersEndpoints.getOrderExecutedV1Options,
   });

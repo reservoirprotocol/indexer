@@ -53,8 +53,6 @@ if (config.doBackgroundWork) {
             },
           ]);
           await blurBidsRefresh.addToQueue(collection);
-
-          logger.info(QUEUE_NAME, JSON.stringify({ collection, pricePoints }));
         }
       } catch (error) {
         logger.error(

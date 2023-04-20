@@ -95,8 +95,8 @@ export const getCollectionTopBidOracleV2Options: RouteOptions = {
           WHERE orders.side = 'buy'
             AND orders.fillability_status = 'fillable'
             AND orders.approval_status = 'approved'
-            AND token_sets.collection = $/collection/
-            AND token_sets_.attribute_id IS NULL
+            AND token_sets.collection_id = $/collection/
+            AND token_sets.attribute_id IS NULL
           LIMIT 1
         `,
         {
