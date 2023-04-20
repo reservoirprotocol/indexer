@@ -69,6 +69,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
           "Filter to an array of contracts. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
       status: Joi.string()
+        .when("ids", {
+          is: Joi.exist(),
+          then: Joi.valid("active", "inactive", "expired", "cancelled", "filled", "any"),
+          otherwise: Joi.valid("active"),
+        })
         .when("maker", {
           is: Joi.exist(),
           then: Joi.valid("active", "inactive", "expired", "cancelled", "filled"),
@@ -77,6 +82,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .when("contracts", {
           is: Joi.exist(),
           then: Joi.valid("active", "any"),
+          otherwise: Joi.valid("active"),
+        })
+        .when("sortBy", {
+          is: Joi.valid("updatedAt"),
+          then: Joi.valid("any", "active").default("any"),
           otherwise: Joi.valid("active"),
         })
         .description(
@@ -113,7 +123,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       sortBy: Joi.string()
-        .valid("createdAt", "price")
+        .valid("createdAt", "price", "updatedAt")
         .default("createdAt")
         .description(
           "Order the items are returned in the response, Sorting by price allowed only when filtering by token"
@@ -201,7 +211,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
               ELSE 'active'
             END
           ) AS status,
-          orders.updated_at,
+          extract(epoch from orders.updated_at) AS updated_at,
           (${criteriaBuildQuery}) AS criteria
           ${query.includeRawData || query.includeDynamicPricing ? ", orders.raw_data" : ""}
         FROM orders
@@ -220,11 +230,17 @@ export const getOrdersAsksV4Options: RouteOptions = {
       // Filters
       const conditions: string[] =
         query.startTimestamp || query.endTimestamp
-          ? [
-              `orders.created_at >= to_timestamp($/startTimestamp/)`,
-              `orders.created_at <= to_timestamp($/endTimestamp/)`,
-              `orders.side = 'sell'`,
-            ]
+          ? query.sortBy === "updatedAt"
+            ? [
+                `orders.updated_at >= to_timestamp($/startTimestamp/)`,
+                `orders.updated_at <= to_timestamp($/endTimestamp/)`,
+                `orders.side = 'sell'`,
+              ]
+            : [
+                `orders.created_at >= to_timestamp($/startTimestamp/)`,
+                `orders.created_at <= to_timestamp($/endTimestamp/)`,
+                `orders.side = 'sell'`,
+              ]
           : [`orders.side = 'sell'`];
 
       let communityFilter = "";
@@ -237,8 +253,70 @@ export const getOrdersAsksV4Options: RouteOptions = {
         } else {
           conditions.push(`orders.id = $/ids/`);
         }
-      } else {
-        orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+      }
+
+      /*
+      Since status = any is allowed when sorting by updatedAt, this if statement blocks 
+      requests which include expensive query params (token, tokenSetId, community, etc.) 
+      unless "maker" or "ids" are passed (as any status is already permitted when using these params)
+      */
+      if (
+        query.sortBy === "updatedAt" &&
+        !query.maker &&
+        !query.ids &&
+        query.status !== "active" &&
+        (query.token ||
+          query.tokenSetId ||
+          query.community ||
+          query.collectionsSetId ||
+          query.native ||
+          query.source)
+      ) {
+        throw Boom.badRequest(
+          `You must provide one of the following: [ids, maker, contracts] in order to filter querys with sortBy = updatedAt and status != 'active.`
+        );
+      }
+
+      // TODO Remove this restriction once an index is created for updatedAt and contracts
+      if (query.sortBy === "updatedAt" && query.contracts && query.status === "any") {
+        throw Boom.badRequest(
+          `Cannot filter by contracts while sortBy = "updatedAt" and status = "any"`
+        );
+      }
+
+      switch (query.status) {
+        case "active": {
+          orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+          break;
+        }
+        case "inactive": {
+          // Potentially-valid orders
+          orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved')`;
+          break;
+        }
+        case "expired": {
+          orderStatusFilter = `orders.fillability_status = 'expired'`;
+          break;
+        }
+        case "filled": {
+          orderStatusFilter = `orders.fillability_status = 'filled'`;
+          break;
+        }
+        case "cancelled": {
+          orderStatusFilter = `orders.fillability_status = 'cancelled'`;
+          break;
+        }
+        case "any": {
+          orderStatusFilter = "";
+
+          // Fix for the issue with negative prices for dutch auction orders
+          // (eg. due to orders not properly expired on time)
+          conditions.push(`coalesce(orders.price, 0) >= 0`);
+          break;
+        }
+        default: {
+          orderStatusFilter = `orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'`;
+        }
       }
 
       if (query.token) {
@@ -270,37 +348,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
 
         (query as any).contractsFilter = query.contracts.map(toBuffer);
         conditions.push(`orders.contract IN ($/contractsFilter:list/)`);
-
-        if (query.status === "any") {
-          orderStatusFilter = "";
-
-          // Fix for the issue with negative prices for dutch auction orders
-          // (eg. due to orders not properly expired on time)
-          conditions.push(`coalesce(orders.price, 0) >= 0`);
-        }
       }
 
       if (query.maker) {
-        switch (query.status) {
-          case "inactive": {
-            // Potentially-valid orders
-            orderStatusFilter = `orders.fillability_status = 'no-balance' OR (orders.fillability_status = 'fillable' AND orders.approval_status != 'approved')`;
-            break;
-          }
-          case "expired": {
-            orderStatusFilter = `orders.fillability_status = 'expired'`;
-            break;
-          }
-          case "filled": {
-            orderStatusFilter = `orders.fillability_status = 'filled'`;
-            break;
-          }
-          case "cancelled": {
-            orderStatusFilter = `orders.fillability_status = 'cancelled'`;
-            break;
-          }
-        }
-
         (query as any).maker = toBuffer(query.maker);
         conditions.push(`orders.maker = $/maker/`);
 
@@ -366,22 +416,28 @@ export const getOrdersAsksV4Options: RouteOptions = {
       }
 
       if (query.continuation) {
-        const [priceOrCreatedAt, id] = splitContinuation(
+        const [priceOrCreatedAtOrUpdatedAt, id] = splitContinuation(
           query.continuation,
           /^\d+(.\d+)?_0x[a-f0-9]{64}$/
         );
-        (query as any).priceOrCreatedAt = priceOrCreatedAt;
+        (query as any).priceOrCreatedAtOrUpdatedAt = priceOrCreatedAtOrUpdatedAt;
         (query as any).id = id;
 
         if (query.sortBy === "price") {
           if (query.normalizeRoyalties) {
-            conditions.push(`(orders.normalized_value, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+            conditions.push(
+              `(orders.normalized_value, orders.id) > ($/priceOrCreatedAtOrUpdatedAt/, $/id/)`
+            );
           } else {
-            conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAt/, $/id/)`);
+            conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAtOrUpdatedAt/, $/id/)`);
           }
+        } else if (query.sortBy === "updatedAt") {
+          conditions.push(
+            `(orders.updated_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
+          );
         } else {
           conditions.push(
-            `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAt/), $/id/)`
+            `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
           );
         }
       }
@@ -400,6 +456,8 @@ export const getOrdersAsksV4Options: RouteOptions = {
         } else {
           baseQuery += ` ORDER BY orders.price, orders.id`;
         }
+      } else if (query.sortBy === "updatedAt") {
+        baseQuery += ` ORDER BY orders.updated_at DESC, orders.id DESC`;
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
@@ -422,6 +480,10 @@ export const getOrdersAsksV4Options: RouteOptions = {
               rawResult[rawResult.length - 1].price + "_" + rawResult[rawResult.length - 1].id
             );
           }
+        } else if (query.sortBy === "updatedAt") {
+          continuation = buildContinuation(
+            rawResult[rawResult.length - 1].updated_at + "_" + rawResult[rawResult.length - 1].id
+          );
         } else {
           continuation = buildContinuation(
             rawResult[rawResult.length - 1].created_at + "_" + rawResult[rawResult.length - 1].id

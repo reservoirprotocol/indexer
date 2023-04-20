@@ -3299,9 +3299,9 @@
     phoenix "^1.6.2"
 
 "@openzeppelin/contracts@3.4.1-solc-0.7-2", "@openzeppelin/contracts@3.4.2-solc-0.7", "@openzeppelin/contracts@4.7.0", "@openzeppelin/contracts@^4.4.0", "@openzeppelin/contracts@^4.7.3":
-  version "4.8.2"
-  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.8.2.tgz#d815ade0027b50beb9bcca67143c6bcc3e3923d6"
-  integrity sha512-kEUOgPQszC0fSYWpbh2kT94ltOJwj1qfT2DWo+zVttmGmf97JZ99LspePNaeeaLhCImaHVeBbjaQFZQn7+Zc5g==
+  version "4.8.3"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.8.3.tgz#cbef3146bfc570849405f59cba18235da95a252a"
+  integrity sha512-bQHV8R9Me8IaJoJ2vPG4rXcL7seB7YVuskr4f+f5RyOStSZetwzkWtoqDMl5erkBJy0lDRUnIR2WIkPiC0GJlg==
 
 "@pnpm/config.env-replace@^1.0.0":
   version "1.0.0"
@@ -3937,6 +3937,13 @@
   version "1.0.34"
   resolved "https://registry.npmjs.org/@types/json-stable-stringify/-/json-stable-stringify-1.0.34.tgz"
   integrity sha512-s2cfwagOQAS8o06TcwKfr9Wx11dNGbH2E9vJz1cqV+a/LOyhWNLUNd6JSRYNzvB4d29UuJX2M0Dj9vE1T8fRXw==
+
+"@types/jsonstream@^0.8.31":
+  version "0.8.31"
+  resolved "https://registry.yarnpkg.com/@types/jsonstream/-/jsonstream-0.8.31.tgz#8df1c36c80dbb36e40794217d782022455d1e89a"
+  integrity sha512-32nJ7wl+q0lebxHo8iXqpmgLmkj6lYNHKp97+h8qteQ6O6IKnY+GyD/Eitqi4ul2Bbw3MScfRKtaHxt8gpC98w==
+  dependencies:
+    "@types/node" "*"
 
 "@types/keyv@^3.1.4":
   version "3.1.4"

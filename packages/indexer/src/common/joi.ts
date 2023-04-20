@@ -537,7 +537,7 @@ export const getJoiOrderObject = async (order: {
     isDynamic:
       order.dynamic !== undefined ? Boolean(order.dynamic || order.kind === "sudoswap") : undefined,
     createdAt: new Date(order.createdAt * 1000).toISOString(),
-    updatedAt: new Date(order.updatedAt).toISOString(),
+    updatedAt: new Date(order.updatedAt * 1000).toISOString(),
     rawData: order.includeRawData ? order.rawData : undefined,
   };
 };
