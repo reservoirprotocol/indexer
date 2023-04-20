@@ -74,7 +74,7 @@ export class ArchiveBidEvents {
       const s3Key = `${ArchiveBidEvents.tableName}${format(
         new Date(event.created_at),
         `/yyyy/MM/dd/HH-00`
-      )}.gz`;
+      )}.json.gz`;
       const startTime = format(new Date(event.created_at), "yyyy-MM-dd HH:00:00");
       const endTime = format(add(new Date(event.created_at), { hours: 1 }), "yyyy-MM-dd HH:00:00");
       let jsonEventsArray: any[] = [];
