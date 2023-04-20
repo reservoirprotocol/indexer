@@ -71,7 +71,9 @@ export const getOrdersAsksV4Options: RouteOptions = {
       status: Joi.string()
         .when("ids", {
           is: Joi.exist(),
-          then: Joi.valid("active", "inactive", "expired", "cancelled", "filled", "any"),
+          then: Joi.valid("active", "inactive", "expired", "cancelled", "filled", "any").default(
+            "any"
+          ),
           otherwise: Joi.valid("active"),
         })
         .when("maker", {
