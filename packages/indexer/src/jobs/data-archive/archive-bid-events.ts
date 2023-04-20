@@ -71,12 +71,23 @@ export class ArchiveBidEvents {
       const s3Bucket = `${
         config.chainId === 5 ? "dev" : "prod"
       }-unuevenlabs-database-backup-${getNetworkName()}`;
+
+      const startTimeMinute = Math.trunc(_.toNumber(format(new Date(event.created_at), "m")) / 10);
+      const startTime = format(new Date(event.created_at), `yyyy-MM-dd HH:${startTimeMinute}0:00`);
+
+      const endTimeMinute = Math.trunc(
+        _.toNumber(format(add(new Date(event.created_at), { minutes: 10 }), "m")) / 10
+      );
+      const endTime = format(
+        add(new Date(event.created_at), { minutes: 10 }),
+        `yyyy-MM-dd HH:${endTimeMinute}0:00`
+      );
+
       const s3Key = `${ArchiveBidEvents.tableName}${format(
         new Date(event.created_at),
-        `/yyyy/MM/dd/HH-00`
+        `/yyyy/MM/dd/HH-${startTimeMinute}0`
       )}.json.gz`;
-      const startTime = format(new Date(event.created_at), "yyyy-MM-dd HH:00:00");
-      const endTime = format(add(new Date(event.created_at), { hours: 1 }), "yyyy-MM-dd HH:00:00");
+
       let jsonEventsArray: any[] = [];
       let continuation = "";
       let count = 0;
