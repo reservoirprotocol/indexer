@@ -25,7 +25,7 @@ if (config.doBackgroundWork) {
         "paused",
         "repeat"
       );
-      logger.info("queue-monitoring", JSON.stringify({ queue: queue.name, ...jobCount }));
+      logger.info("queue-monitoring", JSON.stringify({ queue: queue.name, jobCount }));
     }
   });
 }
