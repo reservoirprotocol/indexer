@@ -41,6 +41,13 @@ export class Exchange {
     return taker.sendTransaction(tx);
   }
 
+  public async isGranted(order: Order, provider: Provider) {
+    const granted = await this.transferManager
+      .connect(provider)
+      .hasUserApprovedOperator(order.params.signer, Addresses.Exchange[this.chainId]);
+    return granted;
+  }
+
   public async grantApprovals(maker: Signer, operators: string[]) {
     const tx = this.grantApprovalsTx(await maker.getAddress(), operators);
     return maker.sendTransaction(tx);

@@ -1012,6 +1012,19 @@ export const getExecuteBidV5Options: RouteOptions = {
                   });
                 }
 
+                const exchange = new Sdk.LooksRareV2.Exchange(config.chainId);
+                const granted = await exchange.isGranted(order, baseProvider);
+                if (!granted) {
+                  const grantApprovalsTx = await exchange.grantApprovalsTx(order.params.signer, [
+                    exchange.contract.address,
+                  ]);
+                  steps[1].items.push({
+                    status: !granted ? "incomplete" : "complete",
+                    data: grantApprovalsTx,
+                    orderIndexes: [i],
+                  });
+                }
+
                 // Check the maker's approval
                 let approvalTx: TxData | undefined;
                 const wethApproval = await currency.getAllowance(

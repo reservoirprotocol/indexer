@@ -854,6 +854,19 @@ export const getExecuteListV5Options: RouteOptions = {
                   tokenId,
                 });
 
+                const exchange = new Sdk.LooksRareV2.Exchange(config.chainId);
+                const granted = await exchange.isGranted(order, baseProvider);
+                if (!granted) {
+                  const grantApprovalsTx = await exchange.grantApprovalsTx(order.params.signer, [
+                    exchange.contract.address,
+                  ]);
+                  steps[1].items.push({
+                    status: !granted ? "incomplete" : "complete",
+                    data: grantApprovalsTx,
+                    orderIndexes: [i],
+                  });
+                }
+
                 // Will be set if an approval is needed before listing
                 let approvalTx: TxData | undefined;
 
