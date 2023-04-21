@@ -88,9 +88,11 @@ export class ArchiveBidEvents {
         `/yyyy/MM/dd/HH-${startTimeMinute}0`
       )}.json.gz`;
 
-      let jsonEventsArray: any[] = [];
       let continuation = "";
       let count = 0;
+
+      // Open stream to JSON file
+      const writerStream = fs.createWriteStream(filename);
 
       // Get all relevant events for the given time frame
       do {
@@ -118,24 +120,22 @@ export class ArchiveBidEvents {
           };
         });
 
+        // Stream to JSON file
+        events.forEach((item) => {
+          writerStream.write(JSON.stringify(item) + EOL);
+        });
+
         count += _.size(events);
 
-        // Construct the JSON object
-        jsonEventsArray = jsonEventsArray.concat(JSON.parse(JSON.stringify(events)));
         continuation = `AND created_at > '${_.last(events)?.created_at}' AND id > ${
           _.last(events)?.id
         }`;
       } while (limit === _.size(events));
 
-      // Stream to JSON file
-      const writerStream = fs.createWriteStream(filename);
-
-      jsonEventsArray.forEach((item) => {
-        writerStream.write(JSON.stringify(item) + EOL);
-      });
-
+      // Close Stream
       writerStream.end();
 
+      // Wait for JSON file stream to finish
       await new Promise<void>((resolve) => {
         writerStream.on("finish", () => {
           resolve();

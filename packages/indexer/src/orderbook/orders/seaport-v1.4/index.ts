@@ -945,7 +945,19 @@ const getCollectionFloorAskValue = async (
     if (collectionFloorAskValue) {
       return Number(collectionFloorAskValue);
     } else {
-      const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+      const query = `
+        SELECT floorSellValue
+        FROM collections
+        WHERE collections.contract = $/contract/
+          AND collections.token_id_range @> $/tokenId/::NUMERIC(78, 0)
+        LIMIT 1
+      `;
+
+      const collection = await redb.oneOrNone(query, {
+        contract: toBuffer(contract),
+        tokenId,
+      });
+
       const collectionFloorAskValue = collection?.floorSellValue || 0;
 
       await redis.set(`collection-floor-ask:${contract}`, collectionFloorAskValue, "EX", 3600);

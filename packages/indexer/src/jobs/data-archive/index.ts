@@ -9,7 +9,7 @@ import { redlock } from "@/common/redis";
 if (config.doBackgroundWork) {
   // Schedule cron to archive bid events table
   cron.schedule(
-    "30 0 * * *",
+    "*/5 * * * *",
     async () =>
       await redlock
         .acquire([`data-archive-cron-lock`], (5 * 60 - 5) * 1000)

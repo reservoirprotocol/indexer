@@ -1,4 +1,5 @@
 import { BigNumber } from "@ethersproject/bignumber";
+import { parseEther } from "@ethersproject/units";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -218,11 +219,23 @@ export const getExecuteSellV7Options: RouteOptions = {
           .reduce((a, b) => a.add(b), bn(0));
 
         // Handle dynamically-priced orders
-        if (["sudoswap", "nftx"].includes(order.kind)) {
+        if (["blur", "sudoswap", "nftx"].includes(order.kind)) {
+          // TODO: Handle the case when the next best-priced order in the database
+          // has a better price than the current dynamically-priced order (because
+          // of a quantity > 1 being filled on this current order).
+
           let poolId: string;
           let priceList: string[];
 
-          if (order.kind === "sudoswap") {
+          if (order.kind === "blur") {
+            const rawData = order.rawData as Sdk.Blur.Types.BlurBidPool;
+            poolId = rawData.collection;
+            priceList = rawData.pricePoints
+              .map((pp) =>
+                Array.from({ length: pp.executableSize }, () => parseEther(pp.price).toString())
+              )
+              .flat();
+          } else if (order.kind === "sudoswap") {
             const rawData = order.rawData as Sdk.Sudoswap.OrderParams;
             poolId = rawData.pair;
             priceList = rawData.extra.prices;
