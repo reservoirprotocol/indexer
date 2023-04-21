@@ -6,6 +6,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
+import { updateBlurRoyalties } from "@/utils/blur";
 
 const QUEUE_NAME = "blur-bids-refresh";
 
@@ -49,6 +50,15 @@ if (config.doBackgroundWork) {
             },
           },
         ]);
+
+        // Also refresh the royalties
+        const lockKey = `blur-royalties-refresh-lock:${collection}`;
+        const lock = await redis.get(lockKey);
+        if (!lock) {
+          await redis.set(lockKey, "locked", "EX", 3600 - 5);
+          await updateBlurRoyalties(collection);
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         logger.error(

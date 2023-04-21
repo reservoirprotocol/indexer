@@ -1,3 +1,4 @@
+import { AddressZero } from "@ethersproject/constants";
 import axios from "axios";
 
 import { redb } from "@/common/db";
@@ -12,27 +13,26 @@ export const updateBlurRoyalties = async (collection: string) => {
         (response) => response.data as { minimumRoyaltyBps: number; maximumRoyaltyBps: number }
       );
 
-    if (minimumRoyaltyBps > 0 || maximumRoyaltyBps > 0) {
-      const result = await redb.oneOrNone(
-        `
-          SELECT
-            collections.new_royalties
-          FROM collections
-          WHERE collections.id = $/collection/
-        `,
-        { collection }
-      );
-      if (result?.new_royalties?.opensea.length) {
-        await redis.set(
-          `blur-royalties:${collection}`,
-          JSON.stringify({
-            recipient: result.new_royalties.opensea[0].recipient,
-            bps: minimumRoyaltyBps,
-            maxBps: maximumRoyaltyBps,
-          })
-        );
-      }
-    }
+    const result = await redb.oneOrNone(
+      `
+        SELECT
+          collections.new_royalties
+        FROM collections
+        WHERE collections.id = $/collection/
+      `,
+      { collection }
+    );
+
+    await redis.set(
+      `blur-royalties:${collection}`,
+      JSON.stringify({
+        recipient: result.new_royalties?.opensea?.[0].recipient ?? AddressZero,
+        bps: minimumRoyaltyBps,
+        maxBps: maximumRoyaltyBps,
+      })
+    );
+
+    return getBlurRoyalties(collection);
   } catch {
     // Skip errors
   }
