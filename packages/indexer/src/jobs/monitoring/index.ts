@@ -1,1 +1,1 @@
-import "@/jobs/monitoring/metadata-queue-length";
+import "@/jobs/monitoring/queue-monitoring";
