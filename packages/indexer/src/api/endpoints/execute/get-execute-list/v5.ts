@@ -857,11 +857,11 @@ export const getExecuteListV5Options: RouteOptions = {
                 const exchange = new Sdk.LooksRareV2.Exchange(config.chainId);
                 const granted = await exchange.isGranted(order, baseProvider);
                 if (!granted) {
-                  const grantApprovalsTx = await exchange.grantApprovalsTx(order.params.signer, [
+                  const grantApprovalsTx = exchange.grantApprovalsTx(order.params.signer, [
                     exchange.contract.address,
                   ]);
                   steps[1].items.push({
-                    status: !granted ? "incomplete" : "complete",
+                    status: "incomplete",
                     data: grantApprovalsTx,
                     orderIndexes: [i],
                   });

@@ -255,7 +255,7 @@ export const JoiOrderCriteria = Joi.alternatives(
 
 export const JoiOrderDepth = Joi.array().items(
   Joi.object({
-    price: JoiPrice,
+    price: Joi.number().unsafe(),
     quantity: Joi.number(),
   })
 );
@@ -405,15 +405,23 @@ export const getJoiDynamicPricingObject = async (
   }
 };
 
-export const getJoiBidDepthObject = async (
+export const getJoiOrderDepthObject = async (
   kind: OrderKind,
-  price: string,
+  currencyPrice: string,
   currency: string,
   quantityRemaining: number,
   rawData: any,
-  totalFeeBps: number,
+  totalFeeBps?: number,
   displayCurrency?: string
 ) => {
+  // By default, show all prices in the native currency of the chain
+  if (!displayCurrency) {
+    displayCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+  }
+
+  const precisionDecimals = 4;
+  const scale = (value: number) => Number(value.toFixed(precisionDecimals));
+
   switch (kind) {
     case "sudoswap": {
       const order = rawData as Sdk.Sudoswap.OrderParams;
@@ -428,7 +436,7 @@ export const getJoiBidDepthObject = async (
             currency,
             displayCurrency,
             totalFeeBps
-          ),
+          ).then((p) => scale((p.netAmount ?? p.amount).decimal)),
           quantity: 1,
         }))
       );
@@ -447,45 +455,49 @@ export const getJoiBidDepthObject = async (
             currency,
             displayCurrency,
             totalFeeBps
-          ),
+          ).then((p) => scale((p.netAmount ?? p.amount).decimal)),
           quantity: 1,
         }))
       );
     }
 
     case "blur": {
-      const order = rawData as Sdk.Blur.Types.BlurBidPool;
-      return Promise.all(
-        order.pricePoints.map(async ({ price, executableSize }) => ({
-          price: await getJoiPriceObject(
-            {
-              gross: {
-                amount: parseEther(price).toString(),
+      if (rawData.pricePoints) {
+        // Bids are a special case
+        const order = rawData as Sdk.Blur.Types.BlurBidPool;
+        return Promise.all(
+          order.pricePoints.map(async ({ price, executableSize }) => ({
+            price: await getJoiPriceObject(
+              {
+                gross: {
+                  amount: parseEther(price).toString(),
+                },
               },
-            },
-            currency,
-            displayCurrency,
-            totalFeeBps
-          ),
-          quantity: executableSize,
-        }))
-      );
+              currency,
+              displayCurrency,
+              totalFeeBps
+            ).then((p) => scale((p.netAmount ?? p.amount).decimal)),
+            quantity: Number(executableSize),
+          }))
+        );
+      }
     }
 
+    // eslint-disable-next-line no-fallthrough
     default: {
       return [
         {
           price: await getJoiPriceObject(
             {
               gross: {
-                amount: price,
+                amount: currencyPrice,
               },
             },
             currency,
             displayCurrency,
             totalFeeBps
-          ),
-          quantity: quantityRemaining,
+          ).then((p) => scale((p.netAmount ?? p.amount).decimal)),
+          quantity: Number(quantityRemaining),
         },
       ];
     }
@@ -639,18 +651,17 @@ export const getJoiOrderObject = async (order: {
     createdAt: new Date(order.createdAt * 1000).toISOString(),
     updatedAt: new Date(order.updatedAt * 1000).toISOString(),
     rawData: order.includeRawData ? order.rawData : undefined,
-    depth:
-      order.includeDepth && order.side === "buy"
-        ? await getJoiBidDepthObject(
-            order.kind,
-            order.prices.gross.amount,
-            currency,
-            Number(order.quantityRemaining),
-            order.rawData,
-            feeBps,
-            order.displayCurrency
-          )
-        : undefined,
+    depth: order.includeDepth
+      ? await getJoiOrderDepthObject(
+          order.kind,
+          order.prices.gross.amount,
+          currency,
+          Number(order.quantityRemaining),
+          order.rawData,
+          order.side === "buy" ? feeBps : undefined,
+          order.displayCurrency
+        )
+      : undefined,
   };
 };
 

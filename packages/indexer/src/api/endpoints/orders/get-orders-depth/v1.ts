@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Request, RouteOptions } from "@hapi/hapi";
+import _ from "lodash";
 import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { JoiOrderDepth, getJoiBidDepthObject } from "@/common/joi";
-import { bn, fromBuffer, regex, toBuffer } from "@/common/utils";
+import { JoiOrderDepth, getJoiOrderDepthObject } from "@/common/joi";
+import { fromBuffer, regex, toBuffer } from "@/common/utils";
 
 const version = "v1";
 
@@ -52,12 +53,14 @@ export const getOrdersDepthV1Options: RouteOptions = {
     const query = request.query as any;
 
     try {
+      const side = query.side as "buy" | "sell";
+
       const limit = 1000;
       const results = await redb.manyOrNone(
         `
           SELECT
             orders.kind,
-            orders.price,
+            orders.currency_price,
             orders.currency,
             orders.quantity_remaining,
             orders.raw_data,
@@ -65,19 +68,31 @@ export const getOrdersDepthV1Options: RouteOptions = {
           FROM orders
           ${
             query.token
-              ? `
-                JOIN token_sets_tokens
-                  ON token_sets_tokens.token_set_id = orders.token_set_id
-              `
+              ? side === "buy"
+                ? `
+                  JOIN token_sets_tokens
+                    ON orders.token_set_id = token_sets_tokens.token_set_id
+                `
+                : ""
               : ""
           }
           ${
             query.collection
-              ? `
-                JOIN token_sets
-                  ON token_sets.id = orders.token_set_id
-                  AND token_sets.schema_hash = orders.token_set_schema_hash
-              `
+              ? side === "buy"
+                ? `
+                  JOIN token_sets
+                    ON orders.token_set_id = token_sets.id
+                    AND orders.token_set_schema_hash = token_sets.schema_hash
+                `
+                : !query.collection.match(regex.address)
+                ? `
+                  JOIN token_sets_tokens
+                    ON orders.token_set_id = token_sets_tokens.token_set_id
+                  JOIN tokens
+                    ON token_sets_tokens.contract = tokens.contract
+                    AND token_sets_tokens.token_id = tokens.token_id
+                `
+                : ""
               : ""
           }
           WHERE orders.side = $/side/
@@ -85,27 +100,34 @@ export const getOrdersDepthV1Options: RouteOptions = {
             AND orders.approval_status = 'approved'
             ${
               query.token
-                ? `
-                  AND token_sets_tokens.contract = $/contract/
-                  AND token_sets_tokens.token_id = $/tokenId/
-                `
+                ? side === "buy"
+                  ? `
+                    AND token_sets_tokens.contract = $/contract/
+                    AND token_sets_tokens.token_id = $/tokenId/
+                  `
+                  : " AND orders.token_set_id = $/tokenSetId/"
                 : ""
             }
             ${
               query.collection
-                ? `
-                  AND token_sets.collection_id = $/collection/
-                  AND token_sets.attribute_id IS NULL
-                `
+                ? side === "buy"
+                  ? `
+                    AND token_sets.collection_id = $/collection/
+                    AND token_sets.attribute_id IS NULL
+                  `
+                  : !query.collection.match(regex.address)
+                  ? " AND tokens.collection_id = $/collection/"
+                  : " AND orders.contract = $/contract/"
                 : ""
             }
-          ORDER BY orders.value DESC
+          ORDER BY orders.value ${side === "buy" ? "DESC" : ""}
           LIMIT $/limit/
         `,
         {
-          side: query.side,
-          contract: query.token && toBuffer(query.token.split(":")[0]),
+          side,
+          contract: query.token ? toBuffer(query.token.split(":")[0]) : toBuffer(query.collection),
           tokenId: query.token && query.token.split(":")[1],
+          tokenSetId: query.token && `token:${query.token}`,
           collection: query.collection,
           limit,
         }
@@ -113,26 +135,36 @@ export const getOrdersDepthV1Options: RouteOptions = {
 
       const depth = await Promise.all(
         results.map(async (r) =>
-          getJoiBidDepthObject(
+          getJoiOrderDepthObject(
             r.kind,
-            r.price,
+            r.currency_price,
             fromBuffer(r.currency),
             r.quantity_remaining,
             r.raw_data,
-            r.fee_bps
+            side === "buy" ? r.fee_bps : undefined,
+            query.displayCurrency
           )
         )
-      ).then((r) =>
-        r
-          .flat()
-          .sort((a, b) =>
-            bn(a.price.netAmount?.raw ?? a.price.amount.raw).lte(
-              bn(b.price.netAmount?.raw ?? b.price.amount.raw)
-            )
-              ? -1
-              : 1
+      )
+        .then((r) => r.flat())
+        .then((r) =>
+          _.reduce(
+            r,
+            (aggregate, value) => {
+              const currentQuantity = aggregate.get(value.price);
+              if (currentQuantity) {
+                aggregate.set(value.price, currentQuantity + value.quantity);
+              } else {
+                aggregate.set(value.price, value.quantity);
+              }
+              return aggregate;
+            },
+            new Map<number, number>()
           )
-      );
+        )
+        .then((r) => [...r.entries()])
+        .then((r) => r.map(([price, quantity]) => ({ price, quantity })))
+        .then((r) => _.orderBy(r, ["price"], [side === "buy" ? "desc" : "asc"]));
 
       return { depth };
     } catch (error) {

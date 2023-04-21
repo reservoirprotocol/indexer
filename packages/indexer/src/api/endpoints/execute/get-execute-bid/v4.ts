@@ -647,19 +647,6 @@ export const getExecuteBidV4Options: RouteOptions = {
               throw Boom.internal("Failed to generate order");
             }
 
-            const exchange = new Sdk.LooksRareV2.Exchange(config.chainId);
-            const granted = await exchange.isGranted(order, baseProvider);
-            if (!granted) {
-              const grantApprovalsTx = await exchange.grantApprovalsTx(order.params.signer, [
-                exchange.contract.address,
-              ]);
-              steps[1].items.push({
-                status: !granted ? "incomplete" : "complete",
-                data: grantApprovalsTx,
-                orderIndex: i,
-              });
-            }
-
             // Check the maker's approval
             let approvalTx: TxData | undefined;
             const wethApproval = await currency.getAllowance(
