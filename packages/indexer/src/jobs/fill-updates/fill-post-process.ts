@@ -52,10 +52,6 @@ if (config.doBackgroundWork) {
                 marketplace_fee_breakdown = $/marketplaceFeeBreakdown:json/,
                 paid_full_royalty = $/paidFullRoyalty/,
                 net_amount = $/netAmount/,
-                order_source_id_int = $/orderSourceId/,
-                fill_source_id = $/fillSourceId/,
-                aggregator_source_id = $/aggregatorSourceId/,
-                taker = $/taker/,
                 updated_at = now()
               WHERE tx_hash = $/txHash/
                 AND log_index = $/logIndex/
@@ -72,10 +68,6 @@ if (config.doBackgroundWork) {
               txHash: toBuffer(event.baseEventParams.txHash),
               logIndex: event.baseEventParams.logIndex,
               batchIndex: event.baseEventParams.batchIndex,
-              fillSourceId: event.fillSourceId || null,
-              aggregatorSourceId: event.aggregatorSourceId || null,
-              orderSourceId: event.orderSourceId || null,
-              taker: toBuffer(event.taker),
             },
           };
         });
