@@ -92,7 +92,7 @@ export const addToQueue = async (batches: EventsBatch[], prioritized?: boolean) 
       data: { batch },
       opts: {
         priority: prioritized ? 1 : undefined,
-        jobId: config.chainId === 137 ? batch.id : undefined,
+        jobId: batch.id,
       },
     }))
   );

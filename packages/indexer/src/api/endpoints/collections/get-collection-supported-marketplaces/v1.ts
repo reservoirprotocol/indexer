@@ -14,6 +14,7 @@ import * as marketplaceFees from "@/utils/marketplace-fees";
 
 type Marketplace = {
   name: string;
+  domain?: string;
   imageUrl: string;
   fee: {
     bps: number;
@@ -56,6 +57,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
       marketplaces: Joi.array().items(
         Joi.object({
           name: Joi.string(),
+          domain: Joi.string().optional(),
           imageUrl: Joi.string(),
           fee: Joi.object({
             bps: Joi.number(),
@@ -113,6 +115,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
         },
         {
           name: "LooksRare",
+          domain: "looksrare.org",
           imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/looksrare/logo/v2`,
           fee: {
             bps: 200,
@@ -125,6 +128,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
         },
         {
           name: "X2Y2",
+          domain: "x2y2.io",
           imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/x2y2/logo/v2`,
           fee: {
             bps: 50,
@@ -159,6 +163,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
 
         marketplaces.push({
           name: "OpenSea",
+          domain: "opensea.io",
           imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/opensea/logo/v2`,
           fee: {
             bps: openseaMarketplaceFees[0]?.bps ?? 0,
@@ -182,6 +187,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
         const royalties = await getBlurRoyalties(params.collection);
         marketplaces.push({
           name: "Blur",
+          domain: "blur.io",
           imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/blur.io/logo/v2`,
           fee: {
             bps: 0,

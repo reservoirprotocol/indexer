@@ -133,6 +133,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         metadataMintDelay: 900,
+        realtimeSyncFrequencySeconds: 5,
         enableMetadataAutoRefresh: true,
         washTradingExcludedContracts: [
           // ArtBlocks Contracts
