@@ -201,6 +201,15 @@ export const getNetworkSettings = (): NetworkSettings => {
             },
           ],
           [
+            "0x5e6602B762F76d8BFDC7321AA0B787B1E67b187F",
+            {
+              contract: "0x5e6602B762F76d8BFDC7321AA0B787B1E67b187F",
+              name: "KRED",
+              symbol: "KRED",
+              decimals: 18,
+            },
+          ],
+          [
             "0xefe804a604fd3175220d5a4f2fc1a048c479c592",
             {
               contract: "0xefe804a604fd3175220d5a4f2fc1a048c479c592",
