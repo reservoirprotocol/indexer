@@ -263,6 +263,8 @@ export async function extractRoyalties(
   notRoyaltyRecipients.add(Sdk.Common.Addresses.Weth[config.chainId]);
   notRoyaltyRecipients.add(Sdk.Common.Addresses.Eth[config.chainId]);
   notRoyaltyRecipients.add(Sdk.BendDao.Addresses.BendWETH[config.chainId]);
+
+  // Exclude BendDAO suspicious liquidator
   notRoyaltyRecipients.add("0x0b292a7748e52c89f93e66482026c92a335e0d41");
 
   fillEvents.forEach((fillEvent) => {

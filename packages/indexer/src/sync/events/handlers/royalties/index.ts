@@ -1,7 +1,7 @@
 import { BigNumberish } from "@ethersproject/bignumber";
 import pLimit from "p-limit";
 
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import * as fallback from "@/events-sync/handlers/royalties/core";
 import * as es from "@/events-sync/storage";
@@ -110,7 +110,7 @@ export const getFillEventsFromTx = async (txHash: string): Promise<PartialFillEv
 
 export const getOrderInfos = async (orderIds: string[]): Promise<OrderInfo[]> => {
   if (!orderIds.length) return [];
-  const results = await idb.manyOrNone(
+  const results = await redb.manyOrNone(
     `
       SELECT
         orders.id,
@@ -184,7 +184,7 @@ export const assignRoyaltiesToFillEvents = async (
               );
             }
           }
-        } catch (error) {
+        } catch {
           // logger.error(
           //   "assign-royalties-to-fill-events",
           //   JSON.stringify({
