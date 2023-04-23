@@ -946,7 +946,7 @@ const getCollectionFloorAskValue = async (
       return Number(collectionFloorAskValue);
     } else {
       const query = `
-        SELECT floorSellValue
+        SELECT floor_sell_value
         FROM collections
         WHERE collections.contract = $/contract/
           AND collections.token_id_range @> $/tokenId/::NUMERIC(78, 0)
