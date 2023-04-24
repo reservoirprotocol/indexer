@@ -136,11 +136,6 @@ export type GenericOrderInfo =
       validateBidValue?: boolean;
     }
   | {
-      kind: "forward";
-      info: orders.forward.OrderInfo;
-      validateBidValue?: boolean;
-    }
-  | {
       kind: "flow";
       info: orders.flow.OrderInfo;
       validateBidValue?: boolean;
@@ -199,11 +194,6 @@ export const jobProcessor = async (job: Job) => {
 
       case "foundation": {
         result = await orders.foundation.save([info]);
-        break;
-      }
-
-      case "forward": {
-        result = await orders.forward.save([info]);
         break;
       }
 

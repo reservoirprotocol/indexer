@@ -2436,48 +2436,6 @@ export class Router {
       }
     }
 
-    // TODO: Add Forward router module
-    if (details.some(({ kind }) => kind === "forward")) {
-      if (details.length > 1) {
-        throw new Error("Forward multi-selling is not supported");
-      } else {
-        const detail = details[0];
-
-        // Approve Forward's Exchange contract
-        const approval = {
-          contract: detail.contract,
-          owner: taker,
-          operator: Sdk.Forward.Addresses.Exchange[this.chainId],
-          txData: generateNFTApprovalTxData(
-            detail.contract,
-            taker,
-            Sdk.Forward.Addresses.Exchange[this.chainId]
-          ),
-        };
-
-        const order = detail.order as Sdk.Forward.Order;
-        const matchParams = order.buildMatching({
-          tokenId: detail.tokenId,
-          amount: detail.amount ?? 1,
-          ...(detail.extraArgs ?? {}),
-        });
-
-        const exchange = new Sdk.Forward.Exchange(this.chainId);
-        return {
-          txs: [
-            {
-              approvals: [approval],
-              txData: exchange.fillOrderTx(taker, order, matchParams, {
-                source: options?.source,
-              }),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
-      }
-    }
-
     const txs: {
       approvals: NFTApproval[];
       txData: TxData;

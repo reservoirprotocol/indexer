@@ -91,16 +91,6 @@ export const extractEventsBatches = async (
             data: kindToEvents.get("element") ?? [],
           },
           {
-            kind: "forward",
-            data: kindToEvents.has("forward")
-              ? [
-                  ...kindToEvents.get("forward")!,
-                  // To properly validate bids, we need some additional events
-                  ...events.filter((e) => e.subKind === "erc20-transfer"),
-                ]
-              : [],
-          },
-          {
             kind: "foundation",
             data: kindToEvents.get("foundation") ?? [],
           },

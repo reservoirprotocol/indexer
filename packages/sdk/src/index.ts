@@ -13,7 +13,6 @@ import * as CryptoVoxels from "./cryptovoxels";
 import * as Decentraland from "./decentraland";
 import * as Element from "./element";
 import * as Flow from "./flow";
-import * as Forward from "./forward";
 import * as Foundation from "./foundation";
 import * as LooksRare from "./looks-rare";
 import * as Manifold from "./manifold";
@@ -58,7 +57,6 @@ export {
   Decentraland,
   Element,
   Flow,
-  Forward,
   Foundation,
   LooksRare,
   Manifold,

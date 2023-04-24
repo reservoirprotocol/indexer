@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { AddressZero } from "@ethersproject/constants";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -92,7 +91,6 @@ export const getExecuteListV4Options: RouteOptions = {
               "zeroex-v4",
               "seaport",
               "seaport-v1.4",
-              "seaport-forward",
               "x2y2",
               "universe",
               "flow"
@@ -165,7 +163,7 @@ export const getExecuteListV4Options: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      let maker = payload.maker;
+      const maker = payload.maker;
       const source = payload.source;
 
       // Set up generic listing steps
@@ -378,20 +376,9 @@ export const getExecuteListV4Options: RouteOptions = {
             continue;
           }
 
-          case "seaport":
-          case "seaport-forward": {
+          case "seaport": {
             if (!["reservoir"].includes(params.orderbook)) {
               throw Boom.badRequest("Only `reservoir` is supported as orderbook");
-            }
-
-            const isForward = params.orderKind === "seaport-forward";
-            if (isForward) {
-              maker = await new Sdk.Forward.Exchange(config.chainId).contract
-                .connect(baseProvider)
-                .vaults(maker);
-              if (maker === AddressZero) {
-                throw Boom.badRequest("Maker has no Forward vault");
-              }
             }
 
             const order = await seaportSellToken.build({
@@ -400,7 +387,6 @@ export const getExecuteListV4Options: RouteOptions = {
               contract,
               tokenId,
               source,
-              orderType: isForward ? Sdk.SeaportBase.Types.OrderType.PARTIAL_OPEN : undefined,
             });
             if (!order) {
               throw Boom.internal("Failed to generate order");
@@ -423,11 +409,6 @@ export const getExecuteListV4Options: RouteOptions = {
 
                 case "no-approval": {
                   // Generate an approval transaction
-
-                  if (isForward) {
-                    throw Boom.badRequest("Token is not approved");
-                  }
-
                   const info = order.getInfo()!;
 
                   const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";

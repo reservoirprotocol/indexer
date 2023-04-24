@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { splitSignature } from "@ethersproject/bytes";
+import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 
 import { logger } from "@/common/logger";
@@ -8,6 +10,8 @@ import {
   InvalidRequestError,
   RequestWasThrottledError,
 } from "@/jobs/orderbook/post-order-external/api/errors";
+
+import * as orderbook from "@/jobs/orderbook/orders-queue";
 
 // Blur default rate limit - 60 requests per minute
 export const RATE_LIMIT_REQUEST_COUNT = 60;
@@ -20,6 +24,7 @@ export type BlurData = {
   authToken: string;
   signature: string;
   isCollectionBid?: boolean;
+  originalData?: Sdk.Blur.Types.BaseOrder;
 };
 
 export async function postOrder(order: BlurData): Promise<void> {
@@ -32,6 +37,21 @@ export async function postOrder(order: BlurData): Promise<void> {
       signature: order.signature,
       isCollectionBid: order.isCollectionBid ? "true" : undefined,
     });
+
+    if (order.originalData) {
+      const { v, r, s } = splitSignature(order.signature);
+
+      // If the cross-posting was successful, save the order directly
+      await orderbook.addToQueue([
+        {
+          kind: "blur",
+          info: {
+            orderParams: { ...order.originalData, v, r, s },
+            metadata: {},
+          },
+        },
+      ]);
+    }
   } catch (err: any) {
     if (err?.response) {
       logger.error(

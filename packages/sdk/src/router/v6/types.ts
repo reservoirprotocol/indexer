@@ -108,10 +108,6 @@ export type GenericOrder =
       order: Sdk.Rarible.Order;
     }
   | {
-      kind: "forward";
-      order: Sdk.Forward.Order;
-    }
-  | {
       kind: "blur";
       order: Sdk.Blur.Order;
     }
