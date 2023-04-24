@@ -110,7 +110,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       partial: Joi.boolean()
         .default(false)
         .description("If true, any off-chain or on-chain errors will be skipped."),
-      forceStandardFilling: Joi.boolean()
+      forceRouter: Joi.boolean()
         .default(false)
         .description(
           "If true, filling will be forced to use the common 'approval + transfer' method instead of the approval-less 'on-received hook' method"
@@ -867,7 +867,7 @@ export const getExecuteSellV7Options: RouteOptions = {
 
       const { customTokenAddresses } = getNetworkSettings();
       const forceApprovalProxy =
-        payload.forceStandardFilling || customTokenAddresses.includes(bidDetails[0].contract);
+        payload.forceRouter || customTokenAddresses.includes(bidDetails[0].contract);
 
       const errors: { orderId: string; message: string }[] = [];
 
