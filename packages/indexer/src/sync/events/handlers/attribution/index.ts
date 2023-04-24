@@ -1,12 +1,13 @@
-import { config } from "@/config/index";
 import { searchForCall } from "@georgeroman/evm-tx-simulator";
 import * as Sdk from "@reservoir0x/sdk";
+
+import { config } from "@/config/index";
 import { redis } from "@/common/redis";
 import * as utils from "@/events-sync/utils";
-import { TransactionTrace } from "@/models/transaction-traces";
 import { Transaction } from "@/models/transactions";
+import { TransactionTrace } from "@/models/transaction-traces";
 
-// Router should in top of the list
+// Router should be the top of the list
 export const allExchanges: string[] = [
   Sdk.RouterV6.Addresses.Router[config.chainId],
   Sdk.Blur.Addresses.Exchange[config.chainId],
@@ -21,13 +22,14 @@ export async function extractNestedTx(
   tx: Pick<Transaction, "hash" | "from" | "to" | "data">,
   useCache?: boolean
 ) {
-  // For Safe
+  // Handle Gnosis Safe executions
   const isExecTransaction = tx.data.includes("0x6a761202");
   if (!isExecTransaction) {
     return null;
   }
 
   const txHash = tx.hash;
+
   // Fetch the current transaction's trace
   let txTrace: TransactionTrace | undefined;
   const cacheKeyTrace = `fetch-transaction-trace:${txHash}`;
@@ -37,6 +39,7 @@ export async function extractNestedTx(
       txTrace = JSON.parse(result) as TransactionTrace;
     }
   }
+
   if (!txTrace) {
     txTrace = await utils.fetchTransactionTrace(txHash);
     if (useCache) {
@@ -58,12 +61,14 @@ export async function extractNestedTx(
     }
   }
 
-  if (!callToAnalyze) return null;
-  const nestedTx = {
+  if (!callToAnalyze) {
+    return null;
+  }
+
+  return {
     hash: tx.hash,
     from: callToAnalyze.from,
     to: callToAnalyze.to,
     data: callToAnalyze.input,
   };
-  return nestedTx;
 }

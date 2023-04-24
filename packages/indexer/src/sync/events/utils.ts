@@ -7,16 +7,20 @@ import _ from "lodash";
 
 import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
+import { extractNestedTx } from "@/events-sync/handlers/attribution";
 import { getBlocks, saveBlock } from "@/models/blocks";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { getTransaction, saveTransaction, saveTransactions } from "@/models/transactions";
+import {
+  Transaction,
+  getTransaction,
+  saveTransaction,
+  saveTransactions,
+} from "@/models/transactions";
 import { getTransactionLogs, saveTransactionLogs } from "@/models/transaction-logs";
 import { getTransactionTraces, saveTransactionTraces } from "@/models/transaction-traces";
 import { OrderKind, getOrderSourceByOrderId, getOrderSourceByOrderKind } from "@/orderbook/orders";
 import { getRouters } from "@/utils/routers";
-import { extractNestedTx } from "@/events-sync/handlers/attribution";
-import { Transaction } from "@/models/transactions";
 
 export const fetchBlock = async (blockNumber: number, force = false) => {
   if (!force) {
@@ -179,9 +183,7 @@ export const extractAttributionData = async (
     orderSource = await getOrderSourceByOrderKind(orderKind, options?.address);
   }
 
-  const routers = await getRouters();
-
-  // Properly set the taker when filling through router contracts
+  // Handle internal transactions
   let tx: Pick<Transaction, "hash" | "from" | "to" | "data"> = await fetchTransaction(txHash);
   try {
     const nestedTx = await extractNestedTx(tx, true);
@@ -191,6 +193,9 @@ export const extractAttributionData = async (
   } catch {
     // Skip errors
   }
+
+  // Properly set the taker when filling through router contracts
+  const routers = await getRouters();
 
   let router = routers.get(tx.to);
   if (!router) {
