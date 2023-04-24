@@ -1,5 +1,5 @@
 import { redb } from "@/common/db";
-import { getBlurRoyalties, updateBlurRoyalties } from "@/utils/blur";
+import { getOrUpdateBlurRoyalties } from "@/utils/blur";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -36,12 +36,8 @@ export const getBuildInfo = async (options: BaseOrderBuildOptions): Promise<Orde
   }
 
   // Include royalties
-  let royalties = await getBlurRoyalties(options.contract);
-  if (!royalties) {
-    royalties = await updateBlurRoyalties(options.contract);
-  }
-
   let feeRate = 0;
+  const royalties = await getOrUpdateBlurRoyalties(options.contract);
   if (royalties) {
     feeRate = royalties.maximumRoyaltyBps;
     if (options.royaltyBps !== undefined) {

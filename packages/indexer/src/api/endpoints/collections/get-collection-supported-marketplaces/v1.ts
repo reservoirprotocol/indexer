@@ -9,7 +9,7 @@ import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import { getBlurRoyalties } from "@/utils/blur";
+import { getOrUpdateBlurRoyalties } from "@/utils/blur";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 
 type Marketplace = {
@@ -184,7 +184,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
 
       // Handle Blur
       if (Sdk.Blur.Addresses.Beth[config.chainId]) {
-        const royalties = await getBlurRoyalties(params.collection);
+        const royalties = await getOrUpdateBlurRoyalties(params.collection);
         marketplaces.push({
           name: "Blur",
           domain: "blur.io",

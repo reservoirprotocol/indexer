@@ -52,3 +52,11 @@ export const getBlurRoyalties = async (collection: string) => {
     };
   }
 };
+
+export const getOrUpdateBlurRoyalties = async (collection: string) => {
+  let royalties = await getBlurRoyalties(collection);
+  if (!royalties) {
+    royalties = await updateBlurRoyalties(collection);
+  }
+  return royalties;
+};
