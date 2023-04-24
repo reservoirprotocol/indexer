@@ -102,7 +102,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .default(false)
         .description("If true, only the path will be returned."),
       forceRouter: Joi.boolean().description(
-        "If true, all fills will be executed through the router."
+        "If true, all fills will be executed through the router (where possible)"
       ),
       currency: Joi.string()
         .valid(Sdk.Common.Addresses.Eth[config.chainId])
@@ -721,7 +721,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             // Force the client to poll
             steps[1].items.push({
               status: "incomplete",
-              tip: "This step is dependent on the previous one, so make sure to complete that one",
+              tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
             });
 
             // Return an early since any next steps are dependent on the Blur auth

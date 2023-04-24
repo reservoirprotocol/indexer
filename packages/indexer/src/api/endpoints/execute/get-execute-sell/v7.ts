@@ -110,6 +110,11 @@ export const getExecuteSellV7Options: RouteOptions = {
       partial: Joi.boolean()
         .default(false)
         .description("If true, any off-chain or on-chain errors will be skipped."),
+      forceStandardFilling: Joi.boolean()
+        .default(false)
+        .description(
+          "If true, filling will be forced to use the common 'approval + transfer' method instead of the approval-less 'on-received hook' method"
+        ),
       maxFeePerGas: Joi.string().pattern(regex.number).description("Optional custom gas settings."),
       maxPriorityFeePerGas: Joi.string()
         .pattern(regex.number)
@@ -776,7 +781,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             // Force the client to poll
             steps[1].items.push({
               status: "incomplete",
-              tip: "This step is dependent on the previous one, so make sure to complete that one",
+              tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
             });
 
             // Return an early since any next steps are dependent on the Blur auth
@@ -806,7 +811,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           // Force the client to poll
           steps[2].items.push({
             status: "incomplete",
-            tip: "This step is dependent on the previous one, so make sure to complete that one",
+            tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
           });
 
           // Return an early since any next steps are dependent on the approvals
@@ -861,7 +866,8 @@ export const getExecuteSellV7Options: RouteOptions = {
       });
 
       const { customTokenAddresses } = getNetworkSettings();
-      const forceApprovalProxy = customTokenAddresses.includes(bidDetails[0].contract);
+      const forceApprovalProxy =
+        payload.forceStandardFilling || customTokenAddresses.includes(bidDetails[0].contract);
 
       const errors: { orderId: string; message: string }[] = [];
 
