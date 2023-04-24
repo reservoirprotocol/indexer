@@ -85,6 +85,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
       const collectionResult = await redb.oneOrNone(
         `
           SELECT
+            collections.royalties,
             collections.new_royalties,
             collections.marketplace_fees,
             collections.contract
@@ -105,23 +106,11 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
 
       const marketplaces: Marketplace[] = [
         {
-          name: "Reservoir",
-          imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/reservoir/logo/v2`,
-          fee: {
-            bps: 0,
-          },
-          orderbook: "reservoir",
-          orderKind: "seaport-v1.4",
-          listingEnabled: true,
-          customFeesSupported: true,
-          supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
-        },
-        {
           name: "LooksRare",
           domain: "looksrare.org",
           imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/looksrare/logo/v2`,
           fee: {
-            bps: 200,
+            bps: 50,
           },
           orderbook: "looks-rare",
           orderKind: "looks-rare-v2",
@@ -145,10 +134,32 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
         },
       ];
 
+      type Royalty = { bps: number; recipient: string };
+
+      // Handle Reservoir
+      {
+        const royalties: Royalty[] = collectionResult.royalties ?? [];
+        marketplaces.push({
+          name: "Reservoir",
+          imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/reservoir/logo/v2`,
+          fee: {
+            bps: 0,
+          },
+          royalties: {
+            minBps: 0,
+            maxBps: royalties.map((r) => r.bps).reduce((a, b) => a + b, 0),
+          },
+          orderbook: "reservoir",
+          orderKind: "seaport-v1.4",
+          listingEnabled: true,
+          customFeesSupported: true,
+          supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
+        });
+      }
+
       // Handle OpenSea
       {
-        let openseaMarketplaceFees: { bps: number; recipient: string }[] =
-          collectionResult.marketplace_fees?.opensea;
+        let openseaMarketplaceFees: Royalty[] = collectionResult.marketplace_fees?.opensea;
         if (collectionResult.marketplace_fees?.opensea == null) {
           openseaMarketplaceFees = await marketplaceFees.getCollectionOpenseaFees(
             params.collection,
@@ -156,8 +167,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           );
         }
 
-        const openseaRoyalties: { bps: number; recipient: string }[] =
-          collectionResult.new_royalties?.opensea;
+        const openseaRoyalties: Royalty[] = collectionResult.new_royalties?.opensea;
 
         let maxOpenseaRoyaltiesBps: number | undefined;
         if (openseaRoyalties) {
