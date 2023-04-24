@@ -26,6 +26,7 @@ type Marketplace = {
   orderbook: string | null;
   orderKind: string | null;
   listingEnabled: boolean;
+  customFeesSupported: boolean;
   minimumBidExpiry?: number;
   minimumPrecision?: string;
   supportedBidCurrencies: string[];
@@ -69,6 +70,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderbook: Joi.string().allow(null),
           orderKind: Joi.string().allow(null),
           listingEnabled: Joi.boolean(),
+          customFeesSupported: Joi.boolean(),
           minimumBidExpiry: Joi.number(),
           minimumPrecision: Joi.string(),
           supportedBidCurrencies: Joi.array().items(Joi.string()),
@@ -111,6 +113,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderbook: "reservoir",
           orderKind: "seaport-v1.4",
           listingEnabled: true,
+          customFeesSupported: true,
           supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
         },
         {
@@ -124,6 +127,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderKind: "looks-rare-v2",
           listingEnabled: false,
           minimumBidExpiry: 15 * 60,
+          customFeesSupported: false,
           supportedBidCurrencies: [Sdk.Common.Addresses.Weth[config.chainId]],
         },
         {
@@ -136,6 +140,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderbook: "x2y2",
           orderKind: "x2y2",
           listingEnabled: false,
+          customFeesSupported: false,
           supportedBidCurrencies: [Sdk.Common.Addresses.Weth[config.chainId]],
         },
       ];
@@ -177,6 +182,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderbook: "opensea",
           orderKind: "seaport-v1.4",
           listingEnabled: false,
+          customFeesSupported: false,
           minimumBidExpiry: 15 * 60,
           supportedBidCurrencies: Object.keys(ns.supportedBidCurrencies),
         });
@@ -204,6 +210,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           orderbook: "blur",
           orderKind: "blur",
           listingEnabled: false,
+          customFeesSupported: false,
           minimumPrecision: "0.01",
           minimumBidExpiry: 10 * 24 * 60 * 60,
           supportedBidCurrencies: [Sdk.Blur.Addresses.Beth[config.chainId]],
