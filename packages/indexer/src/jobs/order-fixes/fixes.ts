@@ -276,11 +276,6 @@ if (config.doBackgroundWork) {
                 }
               }
 
-              logger.info(
-                QUEUE_NAME,
-                `Detected order status: id=${data.id} fillability=${fillabilityStatus}, approval=${approvalStatus}`
-              );
-
               const fixResult = await idb.oneOrNone(
                 `
                   UPDATE orders SET
