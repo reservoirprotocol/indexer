@@ -131,7 +131,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       excludeEOA: Joi.boolean()
         .default(false)
         .description(
-          "Exclude orders that can only be filled by EOAs, to support filling with smart contracts."
+          "Exclude orders that can only be filled by EOAs, to support filling with smart contracts. If marked `true`, blur will be excluded."
         ),
       maxFeePerGas: Joi.string().pattern(regex.number).description("Optional custom gas settings."),
       maxPriorityFeePerGas: Joi.string()

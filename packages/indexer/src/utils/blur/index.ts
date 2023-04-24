@@ -26,7 +26,7 @@ export const updateBlurRoyalties = async (collection: string) => {
     await redis.set(
       `blur-royalties:${collection}`,
       JSON.stringify({
-        recipient: result.new_royalties?.opensea?.[0].recipient ?? AddressZero,
+        recipient: result.new_royalties?.opensea?.[0]?.recipient ?? AddressZero,
         bps: minimumRoyaltyBps,
         maxBps: maximumRoyaltyBps,
       })

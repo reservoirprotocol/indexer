@@ -201,30 +201,32 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
       // Handle Blur
       if (Sdk.Blur.Addresses.Beth[config.chainId]) {
         const royalties = await getOrUpdateBlurRoyalties(params.collection);
-        marketplaces.push({
-          name: "Blur",
-          domain: "blur.io",
-          imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/blur.io/logo/v2`,
-          fee: {
-            bps: 0,
-          },
-          royalties: royalties
-            ? {
-                minBps: royalties.minimumRoyaltyBps,
-                // If the maximum royalty is not available for Blur, use the OpenSea one
-                maxBps:
-                  royalties.maximumRoyaltyBps ??
-                  marketplaces[marketplaces.length - 1].royalties?.maxBps,
-              }
-            : undefined,
-          orderbook: "blur",
-          orderKind: "blur",
-          listingEnabled: false,
-          customFeesSupported: false,
-          minimumPrecision: "0.01",
-          minimumBidExpiry: 10 * 24 * 60 * 60,
-          supportedBidCurrencies: [Sdk.Blur.Addresses.Beth[config.chainId]],
-        });
+        if (royalties) {
+          marketplaces.push({
+            name: "Blur",
+            domain: "blur.io",
+            imageUrl: `https://${ns.subDomain}.reservoir.tools/redirect/sources/blur.io/logo/v2`,
+            fee: {
+              bps: 0,
+            },
+            royalties: royalties
+              ? {
+                  minBps: royalties.minimumRoyaltyBps,
+                  // If the maximum royalty is not available for Blur, use the OpenSea one
+                  maxBps:
+                    royalties.maximumRoyaltyBps ??
+                    marketplaces[marketplaces.length - 1].royalties?.maxBps,
+                }
+              : undefined,
+            orderbook: "blur",
+            orderKind: "blur",
+            listingEnabled: false,
+            customFeesSupported: false,
+            minimumPrecision: "0.01",
+            minimumBidExpiry: 10 * 24 * 60 * 60,
+            supportedBidCurrencies: [Sdk.Blur.Addresses.Beth[config.chainId]],
+          });
+        }
       }
 
       marketplaces.forEach((marketplace) => {
