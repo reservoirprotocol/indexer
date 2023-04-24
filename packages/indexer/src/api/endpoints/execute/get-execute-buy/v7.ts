@@ -157,6 +157,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             .items(
               Joi.object({
                 status: Joi.string().valid("complete", "incomplete").required(),
+                tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
               })
@@ -645,6 +646,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         kind: string;
         items: {
           status: string;
+          tip?: string;
           orderIds?: string[];
           data?: object;
         }[];
@@ -719,6 +721,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
             // Force the client to poll
             steps[1].items.push({
               status: "incomplete",
+              tip: "This step is dependent on the previous one, so make sure to complete that one",
             });
 
             // Return an early since any next steps are dependent on the Blur auth
