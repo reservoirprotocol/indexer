@@ -19,6 +19,7 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Orders } from "@/utils/orders";
 import { TokenSets } from "@/models/token-sets";
+import { ContractSets } from "@/models/contract-sets";
 
 const version = "v4";
 
@@ -60,6 +61,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set."),
+      contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
       contracts: Joi.alternatives()
         .try(
           Joi.array().max(80).items(Joi.string().lowercase().pattern(regex.address)),
@@ -347,6 +349,13 @@ export const getOrdersAsksV4Options: RouteOptions = {
         if (contractFilter) {
           query.contractFilter = toBuffer(contractFilter);
           conditions.push(`orders.contract = $/contractFilter/`);
+        }
+      }
+
+      if (query.contractsSetId) {
+        query.contracts = await ContractSets.getContracts(query.contractsSetId);
+        if (_.isEmpty(query.contracts)) {
+          throw Boom.badRequest(`No contracts for contracts set ${query.contractsSetId}`);
         }
       }
 
