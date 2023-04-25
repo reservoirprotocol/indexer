@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { keccak256 } from "@ethersproject/solidity";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -9,8 +10,9 @@ import Joi from "joi";
 
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, fromBuffer, regex, toBuffer } from "@/common/utils";
+import { bn, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import * as b from "@/utils/auth/blur";
 
 const version = "v3";
 
@@ -147,39 +149,105 @@ export const getExecuteCancelV3Options: RouteOptions = {
           throw Boom.badRequest("Only Blur bids can be cancelled together");
         }
 
-        if (!payload.blurAuth) {
-          throw Boom.badRequest("Blur auth is required");
-        }
+        // Set up generic filling steps
+        const steps: {
+          id: string;
+          action: string;
+          description: string;
+          kind: string;
+          items: {
+            status: string;
+            tip?: string;
+            data?: object;
+          }[];
+        }[] = [
+          {
+            id: "auth",
+            action: "Sign in to Blur",
+            description: "Some marketplaces require signing an auth message before filling",
+            kind: "signature",
+            items: [],
+          },
+          {
+            id: "cancellation-signature",
+            action: "Cancel order",
+            description: "Authorize the cancellation of the order",
+            kind: "signature",
+            items: [],
+          },
+        ];
 
-        let globalMaker: string | undefined;
-        const bidsByContract: { [contract: string]: string[] } = {};
-        for (const orderId of payload.orderIds) {
-          const [, maker, contract, price] = orderId.split(":");
+        // Handle Blur authentication
+        const blurAuthId = b.getAuthId(payload.taker);
+        const blurAuth = await b.getAuth(blurAuthId);
+        if (!blurAuth) {
+          const blurAuthChallengeId = b.getAuthChallengeId(payload.taker);
 
-          if (!globalMaker) {
-            globalMaker = maker;
-          } else if (maker !== globalMaker) {
-            throw Boom.badRequest("All Blur bids must have the same maker");
+          let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+          if (!blurAuthChallenge) {
+            blurAuthChallenge = (await axios
+              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${payload.taker}`)
+              .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+
+            await b.saveAuthChallenge(
+              blurAuthChallengeId,
+              blurAuthChallenge,
+              // Give a 1 minute buffer for the auth challenge to expire
+              Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+            );
           }
 
-          if (!bidsByContract[contract]) {
-            bidsByContract[contract] = [];
-          }
-          bidsByContract[contract].push(price);
+          steps[0].items.push({
+            status: "incomplete",
+            data: {
+              sign: {
+                signatureKind: "eip191",
+                message: blurAuthChallenge.message,
+              },
+              post: {
+                endpoint: "/execute/auth-signature/v1",
+                method: "POST",
+                body: {
+                  kind: "blur",
+                  id: blurAuthChallengeId,
+                },
+              },
+            },
+          });
+
+          // Force the client to poll
+          steps[1].items.push({
+            status: "incomplete",
+            tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
+          });
+
+          return { steps };
+        } else {
+          steps[0].items.push({
+            status: "complete",
+          });
         }
 
-        await Promise.all(
-          Object.entries(bidsByContract).map(async ([contract, prices]) => {
-            await axios.post(`${config.orderFetcherBaseUrl}/api/blur-cancel-collection-bids`, {
-              maker: globalMaker,
-              contract,
-              prices,
-              authToken: payload.blurAuth,
-            });
-          })
-        );
+        const orderIds = payload.orderIds.sort();
+        steps[1].items.push({
+          status: "incomplete",
+          data: {
+            sign: {
+              signatureKind: "eip191",
+              message: keccak256(["string[]"], [orderIds]),
+            },
+            post: {
+              endpoint: "/execute/cancel-signature/v1",
+              method: "POST",
+              body: {
+                orderIds,
+                orderKind: "blur-bid",
+              },
+            },
+          },
+        });
 
-        return { steps: [] };
+        return steps;
       }
 
       // Fetch the orders to get cancelled

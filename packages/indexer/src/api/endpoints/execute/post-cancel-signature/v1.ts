@@ -1,3 +1,5 @@
+import { keccak256 } from "@ethersproject/solidity";
+import { recoverAddress } from "@ethersproject/transactions";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import axios from "axios";
@@ -28,7 +30,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
         .required()
         .description("Ids of the orders to cancel"),
       orderKind: Joi.string()
-        .valid("seaport-v1.4", "alienswap")
+        .valid("seaport-v1.4", "alienswap", "blur-bid")
         .default("seaport-v1.4")
         .description("Exchange protocol used to bulk cancel order. Example: `seaport-v1.4`"),
     }),
@@ -52,41 +54,83 @@ export const postCancelSignatureV1Options: RouteOptions = {
       const orderIds = payload.orderIds;
       const orderKind = payload.orderKind;
 
-      const ordersResult = await idb.manyOrNone(
-        `
-          SELECT
-            orders.maker,
-            orders.raw_data
-          FROM orders
-          WHERE orders.id IN ($/ids:list/)
-          ORDER BY orders.id
-        `,
-        { ids: orderIds }
-      );
-      if (ordersResult.length !== orderIds.length) {
-        throw Boom.badRequest("Could not find all relevant orders");
-      }
+      switch (orderKind) {
+        case "blur-bid": {
+          let globalMaker: string | undefined;
+          const bidsByContract: { [contract: string]: string[] } = {};
+          for (const orderId of orderIds) {
+            const [, maker, contract, price] = orderId.split(":");
 
-      try {
-        await axios.post(
-          `https://seaport-oracle-${
-            config.chainId === 1 ? "mainnet" : "goerli"
-          }.up.railway.app/api/cancellations`,
-          {
-            signature,
-            orders: ordersResult.map((o) => o.raw_data),
-            orderKind,
+            if (!globalMaker) {
+              globalMaker = maker;
+            } else if (maker !== globalMaker) {
+              throw Boom.badRequest("All orders must have the same maker");
+            }
+
+            if (!bidsByContract[contract]) {
+              bidsByContract[contract] = [];
+            }
+            bidsByContract[contract].push(price);
           }
-        );
 
-        return { message: "Success" };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        if (error.response?.data) {
-          throw Boom.badRequest(error.response.data.message);
+          const signer = recoverAddress(keccak256(["string[]"], [orderIds.sort()]), signature);
+          if (globalMaker?.toLowerCase() !== signer.toLowerCase()) {
+            throw Boom.unauthorized("Invalid signature");
+          }
+
+          await Promise.all(
+            Object.entries(bidsByContract).map(async ([contract, prices]) => {
+              await axios.post(`${config.orderFetcherBaseUrl}/api/blur-cancel-collection-bids`, {
+                maker: globalMaker,
+                contract,
+                prices,
+                authToken: payload.blurAuth,
+              });
+            })
+          );
+
+          return { message: "Success" };
         }
 
-        throw Boom.badRequest("Cancellation failed");
+        case "alienswap":
+        case "seaport-v1.4": {
+          const ordersResult = await idb.manyOrNone(
+            `
+              SELECT
+                orders.maker,
+                orders.raw_data
+              FROM orders
+              WHERE orders.id IN ($/ids:list/)
+              ORDER BY orders.id
+            `,
+            { ids: orderIds }
+          );
+          if (ordersResult.length !== orderIds.length) {
+            throw Boom.badRequest("Could not find all relevant orders");
+          }
+
+          try {
+            await axios.post(
+              `https://seaport-oracle-${
+                config.chainId === 1 ? "mainnet" : "goerli"
+              }.up.railway.app/api/cancellations`,
+              {
+                signature,
+                orders: ordersResult.map((o) => o.raw_data),
+                orderKind,
+              }
+            );
+
+            return { message: "Success" };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } catch (error: any) {
+            if (error.response?.data) {
+              throw Boom.badRequest(error.response.data.message);
+            }
+
+            throw Boom.badRequest("Cancellation failed");
+          }
+        }
       }
     } catch (error) {
       logger.error(`post-cancel-signature-${version}-handler`, `Handler failure: ${error}`);

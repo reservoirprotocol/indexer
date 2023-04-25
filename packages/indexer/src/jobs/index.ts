@@ -230,6 +230,8 @@ export const allJobQueues = [
   orderRevalidations.queue,
 
   orderUpdatesById.queue,
+  orderUpdatesBuyOrder.queue,
+  orderUpdatesSellOrder.queue,
   orderUpdatesByMaker.queue,
   bundleOrderUpdatesByMaker.queue,
   dynamicOrdersCron.queue,

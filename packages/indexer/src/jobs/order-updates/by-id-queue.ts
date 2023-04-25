@@ -97,7 +97,8 @@ if (config.doBackgroundWork) {
 
         if (side && tokenSetId) {
           job.data = { ...job.data, tokenSetId, side, order };
-          if (side === "buy") {
+
+          if (side === "buy" && !tokenSetId.startsWith("token")) {
             await buyOrderQueue.addToQueue([job.data]);
           }
 
@@ -136,7 +137,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 50 }
+    { connection: redis.duplicate(), concurrency: 75 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
