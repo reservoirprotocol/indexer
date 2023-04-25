@@ -5,8 +5,8 @@ import { idb, redb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import * as fallback from "@/events-sync/handlers/royalties/core";
 import * as es from "@/events-sync/storage";
-import { Royalty } from "@/utils/royalties";
 import { OrderKind } from "@/orderbook/orders";
+import { Royalty } from "@/utils/royalties";
 
 const registry = new Map<string, RoyaltyAdapter>();
 registry.set("fallback", fallback as RoyaltyAdapter);
@@ -109,7 +109,10 @@ export const getFillEventsFromTx = async (txHash: string): Promise<PartialFillEv
 };
 
 export const getOrderInfos = async (orderIds: string[]): Promise<OrderInfo[]> => {
-  if (!orderIds.length) return [];
+  if (!orderIds.length) {
+    return [];
+  }
+
   const results = await redb.manyOrNone(
     `
       SELECT

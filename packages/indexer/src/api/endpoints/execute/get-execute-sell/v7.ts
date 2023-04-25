@@ -93,6 +93,11 @@ export const getExecuteSellV7Options: RouteOptions = {
         .lowercase()
         .pattern(regex.domain)
         .description("Filling source used for attribution."),
+      feesOnTop: Joi.array()
+        .items(Joi.string().pattern(regex.fee))
+        .description(
+          "List of fees (formatted as `feeRecipient:feeAmount`) to be taken when filling.\nThe currency used for any fees on top matches the accepted bid's currency.\nExample: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:1000000000000000`"
+        ),
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the filling path will be returned."),
@@ -209,7 +214,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           currency: string;
           rawData: object;
           builtInFeeBps: number;
-          feesOnTop?: Sdk.RouterV6.Types.Fee[];
+          fees?: Sdk.RouterV6.Types.Fee[];
         },
         token: {
           kind: "erc721" | "erc1155";
@@ -219,10 +224,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           owner?: string;
         }
       ) => {
-        const feesOnTop = payload.normalizeRoyalties ? order.feesOnTop ?? [] : [];
-        const totalFeeOnTop = feesOnTop
-          .map(({ amount }) => bn(amount))
-          .reduce((a, b) => a.add(b), bn(0));
+        const fees = payload.normalizeRoyalties ? order.fees ?? [] : [];
+        const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
 
         // Handle dynamically-priced orders
         if (["blur", "sudoswap", "nftx"].includes(order.kind)) {
@@ -280,7 +283,7 @@ export const getExecuteSellV7Options: RouteOptions = {
 
         const source = order.sourceId !== null ? sources.get(order.sourceId)?.domain ?? null : null;
 
-        const netPrice = price.sub(price.mul(order.builtInFeeBps).div(10000)).sub(totalFeeOnTop);
+        const netPrice = price.sub(price.mul(order.builtInFeeBps).div(10000)).sub(totalFee);
         path.push({
           orderId: order.id,
           contract: token.contract,
@@ -300,7 +303,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               unitPrice: order.price,
               rawData: order.rawData,
               source: source || undefined,
-              fees: feesOnTop,
+              fees,
               isProtected:
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (order.rawData as any).zone ===
@@ -494,7 +497,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               currency: fromBuffer(result.currency),
               rawData: result.raw_data,
               builtInFeeBps: result.fee_bps,
-              feesOnTop: result.missing_royalties,
+              fees: result.missing_royalties,
             },
             {
               kind: result.token_kind,
@@ -636,7 +639,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 currency,
                 rawData: result.raw_data,
                 builtInFeeBps: result.fee_bps,
-                feesOnTop: result.missing_royalties,
+                fees: result.missing_royalties,
               },
               {
                 kind: result.token_kind,
@@ -876,6 +879,10 @@ export const getExecuteSellV7Options: RouteOptions = {
         result = await router.fillBidsTx(bidDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
+          globalFees: payload.feesOnTop?.map((fee: string) => {
+            const [recipient, amount] = fee.split(":");
+            return { recipient, amount };
+          }),
           forceApprovalProxy,
           onRecoverableError: async (kind, error, data) => {
             errors.push({

@@ -29,6 +29,12 @@ export const postResyncSaleRoyalties: RouteOptions = {
           fromTimestamp: Joi.number().required(),
           toTimestamp: Joi.number().required(),
         }),
+      }),
+      Joi.object({
+        kind: "transaction",
+        data: Joi.object({
+          txHash: Joi.string().pattern(regex.bytes32).required(),
+        }),
       })
     ),
   },

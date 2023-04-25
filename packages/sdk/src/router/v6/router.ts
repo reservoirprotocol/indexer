@@ -15,7 +15,6 @@ import {
   FillBidsResult,
   FillListingsResult,
   ListingDetails,
-  ListingFillDetails,
   NFTApproval,
   PerCurrencyListingDetails,
   PerPoolSwapDetails,
@@ -200,11 +199,10 @@ export class Router {
       if (details.length > 1) {
         throw new Error("Universe sweeping is not supported");
       } else {
-        if (options?.globalFees?.length) {
+        const detail = details[0];
+        if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Universe orders");
         }
-
-        const detail = details[0];
 
         let approval: FTApproval | undefined;
         if (!isETH(this.chainId, detail.currency)) {
@@ -248,11 +246,10 @@ export class Router {
       if (details.length > 1) {
         throw new Error("Cryptopunks sweeping is not supported");
       } else {
-        if (options?.globalFees?.length) {
+        const detail = details[0];
+        if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Cryptopunks orders");
         }
-
-        const detail = details[0];
 
         const order = detail.order as Sdk.CryptoPunks.Order;
         const exchange = new Sdk.CryptoPunks.Exchange(this.chainId);
@@ -278,11 +275,10 @@ export class Router {
       if (details.length > 1) {
         throw new Error("Flow sweeping is not supported");
       } else {
-        if (options?.globalFees?.length) {
+        const detail = details[0];
+        if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Flow orders");
         }
-
-        const detail = details[0];
 
         let approval: FTApproval | undefined;
         if (!isETH(this.chainId, detail.currency)) {
@@ -324,11 +320,10 @@ export class Router {
       if (details.length > 1) {
         throw new Error("Manifold sweeping is not supported");
       } else {
-        if (options?.globalFees?.length) {
+        const detail = details[0];
+        if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Manifold orders");
         }
-
-        const detail = details[0];
 
         const order = detail.order as Sdk.Manifold.Order;
         const exchange = new Sdk.Manifold.Exchange(this.chainId);
@@ -355,12 +350,6 @@ export class Router {
       }
     }
 
-    if (details.some(({ kind }) => kind === "blur")) {
-      if (options?.relayer) {
-        throw new Error("Relayer not supported for Blur orders");
-      }
-    }
-
     const txs: {
       approvals: FTApproval[];
       txData: TxData;
@@ -380,8 +369,16 @@ export class Router {
     // Extract any Blur-compatible listings
     const blurCompatibleListings: ListingDetails[] = [];
     if (details.find((d) => d.source === "blur.io")) {
+      if (options?.relayer) {
+        throw new Error("Relayer not supported when filling Blur orders");
+      }
+
       for (let i = 0; i < details.length; i++) {
         const detail = details[i];
+        if (detail.fees?.length || options?.globalFees?.length) {
+          throw new Error("Fees not supported when filling Blur orders");
+        }
+
         if (
           detail.contractKind === "erc721" &&
           ["blur.io", "opensea.io", "looksrare.org", "x2y2.io"].includes(detail.source!)
@@ -708,30 +705,24 @@ export class Router {
       }
     }
 
-    const getFees = (ownDetails: ListingFillDetails[]) => [
-      // Global fees
-      ...(options?.globalFees ?? [])
-        .filter(
-          ({ amount, recipient }) =>
-            // Skip zero amounts and/or recipients
-            bn(amount).gt(0) && recipient !== AddressZero
-        )
-        .map(({ recipient, amount }) => ({
+    const numDetailsToConsider = details.filter((d) => !success[d.orderId]).length;
+    const getFees = (ownDetails: ListingDetails[]) =>
+      [
+        // Global fees
+        ...(options?.globalFees ?? []).map(({ recipient, amount }) => ({
           recipient,
-          // The fees are averaged over the number of listings to fill
+          // The global fees are averaged over the number of listings to fill
           // TODO: Also take into account the quantity filled for ERC1155
-          amount: bn(amount).mul(ownDetails.length).div(details.length),
+          amount: bn(amount).mul(ownDetails.length).div(numDetailsToConsider),
         })),
-      // Local fees
-      // TODO: Should not split the local fees among all executions
-      ...ownDetails.flatMap(({ fees }) =>
-        (fees ?? []).filter(
-          ({ amount, recipient }) =>
-            // Skip zero amounts and/or recipients
-            bn(amount).gt(0) && recipient !== AddressZero
-        )
-      ),
-    ];
+        // Local fees
+        // TODO: Should not split the local fees among all executions
+        ...ownDetails.flatMap(({ fees }) => fees ?? []),
+      ].filter(
+        ({ amount, recipient }) =>
+          // Skip zero amounts and/or recipients
+          bn(amount).gt(0) && recipient !== AddressZero
+      );
 
     // Keep track of any approvals that might be needed
     const approvals: FTApproval[] = [];
@@ -2370,6 +2361,8 @@ export class Router {
       source?: string;
       // Skip any errors (either off-chain or on-chain)
       partial?: boolean;
+      // Will be split among all bids to get filled
+      globalFees?: Fee[];
       // Force filling via the approval proxy
       forceApprovalProxy?: boolean;
       // Needed for filling Blur orders
@@ -2405,6 +2398,9 @@ export class Router {
         throw new Error("Universe multi-selling is not supported");
       } else {
         const detail = details[0];
+        if (detail.fees?.length || options?.globalFees?.length) {
+          throw new Error("Fees not supported for Universe orders");
+        }
 
         // Approve Universe's Exchange contract
         const approval = {
@@ -2448,6 +2444,10 @@ export class Router {
 
     const blurDetails = details.filter((d) => d.source === "blur.io");
     if (blurDetails.length) {
+      if (blurDetails.some((d) => d.fees?.length) || options?.globalFees?.length) {
+        throw new Error("Fees not supported for Blur orders");
+      }
+
       try {
         // We'll have one transaction per contract
         const result: {
@@ -2651,6 +2651,26 @@ export class Router {
     // Step 2
     // Handle calldata generation
 
+    const numDetailsToConsider = details.filter(
+      (d) => !success[d.orderId] && !d.isProtected
+    ).length;
+    const getFees = (ownDetail: BidDetails) =>
+      [
+        // Global fees
+        ...(options?.globalFees ?? []).map(({ recipient, amount }) => ({
+          recipient,
+          // The global fees are averaged over the number of bids to fill
+          // TODO: Also take into account the quantity filled for ERC1155
+          amount: bn(amount).div(numDetailsToConsider),
+        })),
+        // Local fees
+        ...(ownDetail.fees ?? []),
+      ].filter(
+        ({ amount, recipient }) =>
+          // Skip zero amounts and/or recipients
+          bn(amount).gt(0) && recipient !== AddressZero
+      );
+
     // Generate router executions
     const executionsWithDetails: {
       detail: BidDetails;
@@ -2659,6 +2679,7 @@ export class Router {
 
     for (let i = 0; i < details.length; i++) {
       const detail = details[i];
+      const fees = getFees(detail);
 
       switch (detail.kind) {
         case "looks-rare-v2": {
@@ -2685,7 +2706,7 @@ export class Router {
                     refundTo: taker,
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
-                  detail.fees ?? [],
+                  fees,
                 ]
               ),
               value: 0,
@@ -2731,7 +2752,7 @@ export class Router {
                     refundTo: taker,
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
-                  detail.fees ?? [],
+                  fees,
                 ]
               ),
               value: 0,
@@ -2777,7 +2798,7 @@ export class Router {
                     refundTo: taker,
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
-                  detail.fees ?? [],
+                  fees,
                 ]
               ),
               value: 0,
@@ -2792,6 +2813,12 @@ export class Router {
         case "seaport-v1.4-partial": {
           const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
           const module = this.contracts.seaportV14Module;
+
+          if (detail.isProtected) {
+            if (detail.fees?.length || options?.globalFees?.length) {
+              throw new Error("Fees not supported for protected OpenSea orders");
+            }
+          }
 
           try {
             const result = await axios.post(`${this.options?.orderFetcherBaseUrl}/api/offer`, {
@@ -2862,7 +2889,7 @@ export class Router {
                       refundTo: taker,
                       revertIfIncomplete: Boolean(!options?.partial),
                     },
-                    detail.fees ?? [],
+                    fees,
                   ]
                 ),
                 value: 0,
@@ -2923,7 +2950,7 @@ export class Router {
                     refundTo: taker,
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
-                  detail.fees ?? [],
+                  fees,
                 ]
               ),
               value: 0,
@@ -2956,7 +2983,7 @@ export class Router {
                   refundTo: taker,
                   revertIfIncomplete: Boolean(!options?.partial),
                 },
-                detail.fees ?? [],
+                fees,
               ]),
               value: 0,
             },
@@ -2997,7 +3024,7 @@ export class Router {
                       refundTo: taker,
                       revertIfIncomplete: Boolean(!options?.partial),
                     },
-                    detail.fees ?? [],
+                    fees,
                   ]
                 ),
                 value: 0,
@@ -3051,7 +3078,7 @@ export class Router {
                       revertIfIncomplete: Boolean(!options?.partial),
                     },
                     detail.tokenId,
-                    detail.fees ?? [],
+                    fees,
                   ]),
                   value: 0,
                 },
@@ -3071,7 +3098,7 @@ export class Router {
                       revertIfIncomplete: Boolean(!options?.partial),
                     },
                     detail.tokenId,
-                    detail.fees ?? [],
+                    fees,
                   ]),
                   value: 0,
                 },
@@ -3116,7 +3143,7 @@ export class Router {
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
                   detail.tokenId,
-                  detail.fees ?? [],
+                  fees,
                 ]),
                 value: 0,
               },
@@ -3136,7 +3163,7 @@ export class Router {
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
                   detail.tokenId,
-                  detail.fees ?? [],
+                  fees,
                 ]),
                 value: 0,
               },
@@ -3166,7 +3193,7 @@ export class Router {
                   refundTo: taker,
                   revertIfIncomplete: Boolean(!options?.partial),
                 },
-                detail.fees ?? [],
+                fees,
               ]),
               value: 0,
             },
@@ -3203,7 +3230,7 @@ export class Router {
                     refundTo: taker,
                     revertIfIncomplete: Boolean(!options?.partial),
                   },
-                  detail.fees ?? [],
+                  fees,
                 ]
               ),
               value: 0,

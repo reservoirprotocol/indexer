@@ -88,6 +88,7 @@ export async function extractRoyalties(
     fillEvents = (await getFillEventsFromTxOnChain(txHash)).fillEvents;
   }
 
+  // Extract the orders associated to the current fill events
   const orderIds: string[] = [];
   fillEvents.forEach((c) => {
     if (c.orderId && !cache.orderInfos.get(c.orderId)) {
@@ -95,12 +96,13 @@ export async function extractRoyalties(
     }
   });
 
+  // Get the infos of the orders associated to the current fill events
   const orderInfos = await getOrderInfos(orderIds);
   orderInfos.forEach((info) => {
     cache.orderInfos.set(info.orderId, info);
   });
 
-  const orderInfo = fillEvent.orderId ? cache.orderInfos.get(fillEvent.orderId) : null;
+  const orderInfo = fillEvent.orderId ? cache.orderInfos.get(fillEvent.orderId) : undefined;
 
   // For every fill event, get the current royalties (ones cached in our database)
   const fillEventsWithRoyaltyData = await Promise.all(
@@ -127,7 +129,8 @@ export async function extractRoyalties(
 
   // The (sub)call where the current fill occured
   let subcallToAnalyze = txTrace.calls;
-  let hasMultiplteCalls = false;
+  // Whether the exchange was called multiple times or not
+  let hasMultipleCalls = false;
 
   const exchangeAddress = supportedExchanges.get(fillEvent.orderKind);
   if (exchangeAddress) {
@@ -147,7 +150,8 @@ export async function extractRoyalties(
       // to further analyze
       subcallToAnalyze = exchangeCalls[0];
     } else {
-      hasMultiplteCalls = true;
+      hasMultipleCalls = true;
+
       // If there are multiple calls to the exchange in the current
       // transaction then we try to look for the (sub)call where we
       // find the current fill event's token
@@ -260,11 +264,12 @@ export async function extractRoyalties(
 
   // Some addresses we know for sure cannot be royalty recipients
   const notRoyaltyRecipients = new Set();
+  // Common addresses
   notRoyaltyRecipients.add(Sdk.Common.Addresses.Weth[config.chainId]);
   notRoyaltyRecipients.add(Sdk.Common.Addresses.Eth[config.chainId]);
   notRoyaltyRecipients.add(Sdk.BendDao.Addresses.BendWETH[config.chainId]);
-
-  // Exclude BendDAO suspicious liquidator
+  // Misc addresses
+  // (BendDAO suspicious liquidator)
   notRoyaltyRecipients.add("0x0b292a7748e52c89f93e66482026c92a335e0d41");
 
   fillEvents.forEach((fillEvent) => {
@@ -275,34 +280,35 @@ export async function extractRoyalties(
   const hasMultiple =
     fillEvents.length > 1 &&
     !fillEvents.every((c) => c.contract === fillEvent.contract) &&
-    !hasMultiplteCalls &&
+    !hasMultipleCalls &&
     ["seaport", "seaport-v1.4"].includes(fillEvent.orderKind);
 
   const payments = paymentsToAnalyze.filter((_) => {
     return !platformFeeRecipientsRegistry.has(_.to);
   });
 
-  // Split payments by sale transfer
-  const tempPosArr: number[] = [];
-  const chunkedPayments = fillEvents.map((item, index, all) => {
-    const nextCursor = index + 1;
+  // Try to split the fill events and their associated payments
+  const tmpIndexes: number[] = [];
+  const chunkedFillEvents = fillEvents.map((item, i, all) => {
     const totalSize = all.length;
+
+    const nextCursor = i + 1;
     const nextFillEvent = nextCursor > totalSize ? null : all[nextCursor];
-    const lastIndex = index == 0 ? 0 : tempPosArr[index - 1];
+    const lastIndex = i == 0 ? 0 : tmpIndexes[i - 1];
 
     // Find the next fillEvent position
     const matchIndex = nextFillEvent
-      ? payments.findIndex((c, index) =>
+      ? payments.findIndex((c, i) =>
           fillEvent.orderSide === "sell"
             ? c.to === nextFillEvent.maker
-            : c.to === nextFillEvent.taker && index >= lastIndex
+            : c.to === nextFillEvent.taker && i >= lastIndex
         )
       : payments.findIndex(
-          (c, index) =>
-            (c.token.includes("erc721") || c.token.includes("erc1155")) && index >= lastIndex
+          (c, i) => (c.token.includes("erc721") || c.token.includes("erc1155")) && i >= lastIndex
         );
+    tmpIndexes.push(matchIndex);
+
     const relatedPayments = matchIndex == -1 ? [] : payments.slice(lastIndex, matchIndex);
-    tempPosArr.push(matchIndex);
     return {
       fillEvent: item,
       lastIndex,
@@ -311,7 +317,7 @@ export async function extractRoyalties(
     };
   });
 
-  const currentPayments = chunkedPayments.find((c) => c.fillEvent.orderId === fillEvent.orderId);
+  const currentFillEvent = chunkedFillEvents.find((c) => c.fillEvent.orderId === fillEvent.orderId);
 
   const sameContractFillsWithRoyaltyData = fillEventsWithRoyaltyData.filter((c) => {
     return c.contract != contract;
@@ -390,10 +396,11 @@ export async function extractRoyalties(
           excludeOtherRecipients &&
           !notRoyaltyRecipients.has(address);
 
-        // For multiple sales we should check if it in the range of payments
+        // For multiple sales, we should check if the current payment is
+        // in the range of payments associated to the current fill event
         let isInRange =
           hasMultiple && !shareSameRecipient
-            ? currentPayments?.relatedPayments.find(
+            ? currentFillEvent?.relatedPayments.find(
                 (c) => c.to.toLowerCase() === address.toLowerCase()
               )
             : true;

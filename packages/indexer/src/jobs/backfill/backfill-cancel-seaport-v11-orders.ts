@@ -46,7 +46,8 @@ if (config.doBackgroundWork) {
             ),
             y AS (
               UPDATE orders SET
-                fillability_status = 'cancelled'
+                fillability_status = 'cancelled',
+                updated_at = now()
               FROM x
               WHERE orders.id = x.id
             )
