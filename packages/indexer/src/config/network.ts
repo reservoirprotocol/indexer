@@ -157,6 +157,7 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0xac335e6855df862410f96f345f93af4f96351a87",
           "0x81c6686fbe1594d599ac86a0d8e81d84a2f9bcf2",
           "0x06d51314d152ca4f88d691f87b40cf3bf453df7c",
+          "0x39fdf1b13dd5b86eb8b7fdd50bce4607beae0722",
         ],
         multiCollectionContracts: [
           // ArtBlocks Contracts
