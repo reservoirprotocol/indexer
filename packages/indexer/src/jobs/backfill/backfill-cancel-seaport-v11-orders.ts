@@ -38,7 +38,7 @@ if (config.doBackgroundWork) {
                 orders.id,
                 orders.fillability_status
               FROM orders
-              WHERE orders.kind = 'looks-rare'
+              WHERE orders.kind = 'seaport'
                 AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
                 AND orders.id > $/id/
               ORDER BY orders.id
@@ -86,9 +86,9 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  if (config.chainId === 1) {
+  if ([5, 10, 137, 42161].includes(config.chainId)) {
     redlock
-      .acquire([`${QUEUE_NAME}-lock-6`], 60 * 60 * 24 * 30 * 1000)
+      .acquire([`${QUEUE_NAME}-lock-1`], 60 * 60 * 24 * 30 * 1000)
       .then(async () => {
         await addToQueue("0x0" + HashZero.slice(3));
         await addToQueue("0x3" + HashZero.slice(3));
