@@ -100,6 +100,8 @@ import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import * as orderUpdatesBuyOrder from "@/jobs/order-updates/order-updates-buy-order-queue";
+import * as orderUpdatesSellOrder from "@/jobs/order-updates/order-updates-sell-order-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle-queue";
 import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-queue";
@@ -142,6 +144,8 @@ import * as openseaOrdersFetchQueue from "@/jobs/opensea-orders/fetch-queue";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
+  orderUpdatesBuyOrder.worker,
+  orderUpdatesSellOrder.worker,
   orderUpdatesByMaker.worker,
   bundleOrderUpdatesByMaker.worker,
   dynamicOrdersCron.worker,

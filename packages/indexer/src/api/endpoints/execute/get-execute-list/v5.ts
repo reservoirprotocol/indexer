@@ -285,13 +285,11 @@ export const getExecuteListV5Options: RouteOptions = {
       };
 
       // Handle Blur authentication
-      let blurAuth: string | undefined;
+      let blurAuth: b.Auth | undefined;
       if (params.some((p) => p.orderKind === "blur")) {
         const blurAuthId = b.getAuthId(maker);
 
-        blurAuth = await b
-          .getAuth(blurAuthId)
-          .then((auth) => (auth ? auth.accessToken : undefined));
+        blurAuth = await b.getAuth(blurAuthId);
         if (!blurAuth) {
           const blurAuthChallengeId = b.getAuthChallengeId(maker);
 
@@ -393,7 +391,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   maker,
                   contract,
                   tokenId,
-                  authToken: blurAuth!,
+                  authToken: blurAuth!.accessToken,
                 });
 
                 // Will be set if an approval is needed before listing
@@ -445,7 +443,7 @@ export const getExecuteListV5Options: RouteOptions = {
                                 id: order.hash(),
                                 maker,
                                 marketplaceData,
-                                authToken: blurAuth!,
+                                authToken: blurAuth!.accessToken,
                                 originalData: order.params,
                               },
                             },

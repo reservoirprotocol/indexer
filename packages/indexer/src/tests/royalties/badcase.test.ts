@@ -8,7 +8,6 @@ import { getRoyalties } from "@/utils/royalties";
 
 jest.setTimeout(1000 * 1000);
 
-jest.mock("@/utils/royalties");
 const mockGetRoyalties = getRoyalties as jest.MockedFunction<typeof getRoyalties>;
 
 jest.setTimeout(1000 * 1000);
@@ -768,12 +767,101 @@ describe("Royalties", () => {
     }
   });
 
-  // multiple sales
-  // 0x37481ca6ad411fd79cf479b2265363492ce45b29616d94891a426e71048660a4
+  it("usdc-case", async () => {
+    const { fillEvents } = await getFillEventsFromTx(
+      "0xb24a8ac1a3368e950a155d9e46154dfac54cc0dc4de94aa9f802982ce104803e"
+    );
 
+    const testCollectionRoyalties = [
+      {
+        collection: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+        data: [
+          {
+            bps: 250,
+            recipient: "0xaae7ac476b117bccafe2f05f582906be44bc8ff1",
+          },
+        ],
+      },
+    ];
+
+    mockGetRoyalties.mockImplementation(async (contract: string) => {
+      const matched = testCollectionRoyalties.find((c) => c.collection === contract);
+      return matched?.data ?? [];
+    });
+
+    const feesList = [
+      {
+        contract: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+        tokenId: "7159",
+        royaltyFeeBps: 250,
+        marketplaceFeeBps: 250,
+      },
+    ];
+
+    await assignRoyaltiesToFillEvents(fillEvents, false, true);
+
+    for (let index = 0; index < fillEvents.length; index++) {
+      const fillEvent = fillEvents[index];
+      const matchFee = feesList.find(
+        (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
+      );
+
+      // console.log("fillEvent", fillEvent);
+      if (matchFee) {
+        expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
+        expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
+      }
+    }
+  });
+
+  it("wyvern-case", async () => {
+    const { fillEvents } = await getFillEventsFromTx(
+      "0x67533A3C28F93589B9899E2A822F3658ADF8AA9E754D807FBA0E80A46CA0C7D4"
+    );
+
+    const testCollectionRoyalties = [
+      {
+        collection: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+        data: [
+          {
+            bps: 250,
+            recipient: "0xaae7ac476b117bccafe2f05f582906be44bc8ff1",
+          },
+        ],
+      },
+    ];
+
+    mockGetRoyalties.mockImplementation(async (contract: string) => {
+      const matched = testCollectionRoyalties.find((c) => c.collection === contract);
+      return matched?.data ?? [];
+    });
+
+    const feesList = [
+      {
+        contract: "0x49cf6f5d44e70224e2e23fdcdd2c053f30ada28b",
+        tokenId: "8471",
+        royaltyFeeBps: 0,
+        marketplaceFeeBps: 750,
+      },
+    ];
+
+    await assignRoyaltiesToFillEvents(fillEvents, false, true);
+
+    for (let index = 0; index < fillEvents.length; index++) {
+      const fillEvent = fillEvents[index];
+      const matchFee = feesList.find(
+        (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
+      );
+
+      // console.log("fillEvent", fillEvent);
+      if (matchFee) {
+        expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
+        expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
+      }
+    }
+  });
+
+  // multiple sales
   // 0x2f76c9669b424dd67fdbdddab5bc41b12d1f0bff9e22a7fe38ebef5d4214990e
   // 0x4e982dd1572f9c7559340b7ec0ad1ee9cd26b79af75c79ac9c044cd5e0316638
-
-  // USDC
-  // 0xb24a8ac1a3368e950a155d9e46154dfac54cc0dc4de94aa9f802982ce104803e
 });

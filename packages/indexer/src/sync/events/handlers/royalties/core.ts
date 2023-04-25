@@ -21,11 +21,12 @@ import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { TransactionTrace } from "@/models/transaction-traces";
 import { Royalty, getRoyalties } from "@/utils/royalties";
+import { splitPayments } from "./payments";
 
 const findMatchingPayment = (payments: Payment[], fillEvent: PartialFillEvent) =>
   payments.find((payment) => paymentMatches(payment, fillEvent));
 
-const paymentMatches = (payment: Payment, fillEvent: PartialFillEvent) => {
+export const paymentMatches = (payment: Payment, fillEvent: PartialFillEvent) => {
   // Cover regular ERC721/ERC1155 transfers
   const matchesNFTTransfer = payment.token.includes(`${fillEvent.contract}:${fillEvent.tokenId}`);
   // But also non-standard ERC20 transfers (which some NFTs still use)
@@ -43,9 +44,11 @@ export async function extractRoyalties(
   const creatorRoyaltyFeeBreakdown: Royalty[] = [];
   const marketplaceFeeBreakdown: Royalty[] = [];
   const royaltyFeeBreakdown: Royalty[] = [];
+  const royaltyFeeOnTop: Royalty[] = [];
 
   const { txHash } = fillEvent.baseEventParams;
-  const { tokenId, contract, price, currency } = fillEvent;
+  const { tokenId, contract, currency } = fillEvent;
+  const price = fillEvent.currencyPrice ?? fillEvent.price;
 
   // Fetch the current transaction's trace
   let txTrace: TransactionTrace | undefined;
@@ -129,8 +132,16 @@ export async function extractRoyalties(
 
   // The (sub)call where the current fill occured
   let subcallToAnalyze = txTrace.calls;
-  // Whether the exchange was called multiple times or not
-  let hasMultipleCalls = false;
+  const globalState = getStateChange(txTrace.calls);
+
+  const routerCall = searchForCall(
+    txTrace.calls,
+    {
+      // Reservoir Router
+      sigHashes: ["0x760f2a0b"],
+    },
+    0
+  );
 
   const exchangeAddress = supportedExchanges.get(fillEvent.orderKind);
   if (exchangeAddress) {
@@ -140,7 +151,11 @@ export async function extractRoyalties(
     for (let i = 0; i < 20; i++) {
       const exchangeCall = searchForCall(txTrace.calls, { to: exchangeAddress }, i);
       if (exchangeCall) {
-        exchangeCalls.push(exchangeCall);
+        const payments = getPayments(exchangeCall);
+        // Filter no payments call
+        if (payments.length) {
+          exchangeCalls.push(exchangeCall);
+        }
       }
     }
 
@@ -150,8 +165,6 @@ export async function extractRoyalties(
       // to further analyze
       subcallToAnalyze = exchangeCalls[0];
     } else {
-      hasMultipleCalls = true;
-
       // If there are multiple calls to the exchange in the current
       // transaction then we try to look for the (sub)call where we
       // find the current fill event's token
@@ -277,45 +290,12 @@ export async function extractRoyalties(
     notRoyaltyRecipients.add(fillEvent.taker);
   });
 
-  const hasMultiple =
-    fillEvents.length > 1 &&
-    !fillEvents.every((c) => c.contract === fillEvent.contract) &&
-    !hasMultipleCalls &&
-    ["seaport", "seaport-v1.4"].includes(fillEvent.orderKind);
-
   const payments = paymentsToAnalyze.filter((_) => {
     return !platformFeeRecipientsRegistry.has(_.to);
   });
 
   // Try to split the fill events and their associated payments
-  const tmpIndexes: number[] = [];
-  const chunkedFillEvents = fillEvents.map((item, i, all) => {
-    const totalSize = all.length;
-
-    const nextCursor = i + 1;
-    const nextFillEvent = nextCursor > totalSize ? null : all[nextCursor];
-    const lastIndex = i == 0 ? 0 : tmpIndexes[i - 1];
-
-    // Find the next fillEvent position
-    const matchIndex = nextFillEvent
-      ? payments.findIndex((c, i) =>
-          fillEvent.orderSide === "sell"
-            ? c.to === nextFillEvent.maker
-            : c.to === nextFillEvent.taker && i >= lastIndex
-        )
-      : payments.findIndex(
-          (c, i) => (c.token.includes("erc721") || c.token.includes("erc1155")) && i >= lastIndex
-        );
-    tmpIndexes.push(matchIndex);
-
-    const relatedPayments = matchIndex == -1 ? [] : payments.slice(lastIndex, matchIndex);
-    return {
-      fillEvent: item,
-      lastIndex,
-      matchIndex,
-      relatedPayments,
-    };
-  });
+  const { chunkedFillEvents, isReliable, hasMultiple } = splitPayments(fillEvents, payments);
 
   const currentFillEvent = chunkedFillEvents.find((c) => c.fillEvent.orderId === fillEvent.orderId);
 
@@ -328,8 +308,10 @@ export async function extractRoyalties(
 
   // Iterate through all of the state changes of the (sub)call associated to the current fill event
   const state = getStateChange(subcallToAnalyze);
+
   for (const address in state) {
     const { tokenBalanceState } = state[address];
+    const globalChange = globalState[address];
 
     const ETH = Sdk.Common.Addresses.Eth[config.chainId];
     const BETH = Sdk.Blur.Addresses.Beth[config.chainId];
@@ -339,6 +321,38 @@ export async function extractRoyalties(
         ? // The fill event will map any BETH fills to ETH so we need to cover that here
           tokenBalanceState[`native:${ETH}`] || tokenBalanceState[`erc20:${BETH}`]
         : tokenBalanceState[`erc20:${currency}`];
+
+    try {
+      // Fees on the top, make sure it's a single-sale transaction
+      if (fillEvents.length === 1 && routerCall && globalChange) {
+        const { tokenBalanceState } = globalChange;
+        const globalBalanceChange =
+          currency === ETH
+            ? // The fill event will map any BETH fills to ETH so we need to cover that here
+              tokenBalanceState[`native:${ETH}`] || tokenBalanceState[`erc20:${BETH}`]
+            : tokenBalanceState[`erc20:${currency}`];
+
+        if (globalBalanceChange && !globalBalanceChange.startsWith("-")) {
+          const balanceChangeAmount =
+            balanceChange && !balanceChange.startsWith("-") ? bn(balanceChange) : bn(0);
+          const paidOnTop = bn(globalBalanceChange).sub(balanceChangeAmount);
+          const topFeeBps = paidOnTop.gt(0) ? paidOnTop.mul(10000).div(bn(price)) : bn(0);
+          if (topFeeBps.gt(0)) {
+            royaltyFeeOnTop.push({
+              recipient: address,
+              bps: topFeeBps.toNumber(),
+            });
+          }
+        }
+      }
+    } catch {
+      // Skip any errors
+    }
+
+    // For multiple sales we should check if it in the range of payments
+    const matchRangePayment = currentFillEvent?.relatedPayments.find(
+      (c) => c.to.toLowerCase() === address.toLowerCase()
+    );
 
     // If the balance change is positive that means a payment was received
     if (balanceChange && !balanceChange.startsWith("-")) {
@@ -352,9 +366,13 @@ export async function extractRoyalties(
 
       if (knownPlatformFeeRecipients.includes(address)) {
         // This is a marketplace fee payment
-
         // Reset the bps
         royalty.bps = bn(balanceChange).mul(10000).div(sameProtocolTotalPrice).toNumber();
+
+        // Calculate by matched payment amount in split payments
+        if (matchRangePayment && isReliable && hasMultiple) {
+          royalty.bps = bn(matchRangePayment.amount).mul(10000).div(fillEvent.price).toNumber();
+        }
 
         marketplaceFeeBreakdown.push(royalty);
       } else {
@@ -407,7 +425,7 @@ export async function extractRoyalties(
 
         // Match with the order's fee breakdown
         if (!isInRange) {
-          isInRange = orderInfo?.feeBreakdown.find((c) => c.recipient === address) != null;
+          isInRange = Boolean(orderInfo?.feeBreakdown.find((c) => c.recipient === address));
         }
 
         // For now we exclude AMMs which don't pay royalties
@@ -424,6 +442,10 @@ export async function extractRoyalties(
   const getTotalRoyaltyBps = (royalties: Royalty[]) =>
     royalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
 
+  if (royaltyFeeOnTop.length) {
+    royaltyFeeOnTop.forEach((c) => royaltyFeeBreakdown.push(c));
+  }
+
   const creatorRoyaltyFeeBps = getTotalRoyaltyBps(creatorRoyaltyFeeBreakdown);
   const royaltyFeeBps = getTotalRoyaltyBps(royaltyFeeBreakdown);
   const creatorBps = Math.min(...royalties.map(getTotalRoyaltyBps));
@@ -431,6 +453,7 @@ export async function extractRoyalties(
   const paidFullRoyalty = creatorRoyaltyFeeBps >= creatorBps;
 
   return {
+    royaltyFeeOnTop,
     royaltyFeeBps,
     marketplaceFeeBps: getTotalRoyaltyBps(marketplaceFeeBreakdown),
     royaltyFeeBreakdown,

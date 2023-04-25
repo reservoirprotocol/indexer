@@ -329,13 +329,11 @@ export const getExecuteBidV5Options: RouteOptions = {
       };
 
       // Handle Blur authentication
-      let blurAuth: string | undefined;
+      let blurAuth: b.Auth | undefined;
       if (params.some((p) => p.orderKind === "blur")) {
         const blurAuthId = b.getAuthId(maker);
 
-        blurAuth = await b
-          .getAuth(blurAuthId)
-          .then((auth) => (auth ? auth.accessToken : undefined));
+        blurAuth = await b.getAuth(blurAuthId);
         if (!blurAuth) {
           const blurAuthChallengeId = b.getAuthChallengeId(maker);
 
@@ -528,7 +526,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                     ...params,
                     maker,
                     contract: collection,
-                    authToken: blurAuth!,
+                    authToken: blurAuth!.accessToken,
                   });
 
                   steps[3].items.push({
@@ -552,7 +550,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                                 data: {
                                   maker,
                                   marketplaceData,
-                                  authToken: blurAuth!,
+                                  authToken: blurAuth!.accessToken,
                                   isCollectionBid: true,
                                 },
                               },

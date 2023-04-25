@@ -266,8 +266,8 @@ export const start = async (): Promise<void> => {
     return reply.continue;
   });
 
-  server.ext("onPreHandler", (request, h) => {
-    ApiKeyManager.logRequest(request);
+  server.ext("onPreHandler", async (request, h) => {
+    ApiKeyManager.logRequest(request).catch();
     return h.continue;
   });
 

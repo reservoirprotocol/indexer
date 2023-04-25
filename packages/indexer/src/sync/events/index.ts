@@ -134,6 +134,7 @@ export const extractEventsBatches = async (
             kind: "wyvern",
             data: kindToEvents.has("wyvern")
               ? [
+                  ...events.filter((e) => e.subKind === "erc721-transfer"),
                   ...kindToEvents.get("wyvern")!,
                   // To properly validate bids, we need some additional events
                   ...events.filter((e) => e.subKind === "erc20-transfer"),
