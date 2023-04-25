@@ -130,6 +130,13 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .description(
           "Order the items are returned in the response, Sorting by price allowed only when filtering by token"
         ),
+      sortDirection: Joi.string()
+        .lowercase()
+        .when("sortBy", {
+          is: Joi.valid("updatedAt"),
+          then: Joi.valid("asc", "desc").default("desc"),
+          otherwise: Joi.valid("desc").default("desc"),
+        }),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),
@@ -459,7 +466,11 @@ export const getOrdersAsksV4Options: RouteOptions = {
           baseQuery += ` ORDER BY orders.price, orders.id`;
         }
       } else if (query.sortBy === "updatedAt") {
-        baseQuery += ` ORDER BY orders.updated_at DESC, orders.id DESC`;
+        if (query.sortDirection === "asc") {
+          baseQuery += ` ORDER BY orders.updated_at ASC, orders.id ASC`;
+        } else {
+          baseQuery += ` ORDER BY orders.updated_at DESC, orders.id DESC`;
+        }
       } else {
         baseQuery += ` ORDER BY orders.created_at DESC, orders.id DESC`;
       }
