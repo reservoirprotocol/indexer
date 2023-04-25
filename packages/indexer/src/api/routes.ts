@@ -165,9 +165,9 @@ export const setupRoutes = (server: Server) => {
   // Admin
 
   server.route({
-    method: "GET",
+    method: "POST",
     path: "/admin/api-keys/metrics",
-    options: adminEndpoints.getApiKeyMetrics,
+    options: adminEndpoints.postApiKeyMetrics,
   });
 
   server.route({

@@ -12,7 +12,7 @@ import * as Boom from "@hapi/boom";
 
 const Joi = JoiBase.extend(JoiDate);
 
-export const getApiKeyMetrics: RouteOptions = {
+export const postApiKeyMetrics: RouteOptions = {
   description: "Get API usage metrics for the given API key",
   notes: "Get API usage metrics for the given API key",
   tags: ["api", "x-admin"],
@@ -26,7 +26,7 @@ export const getApiKeyMetrics: RouteOptions = {
     headers: Joi.object({
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
-    query: Joi.object({
+    payload: Joi.object({
       keys: Joi.alternatives()
         .try(
           Joi.array().items(Joi.string().uuid()).min(1).max(50).description("Array API keys"),
@@ -67,9 +67,9 @@ export const getApiKeyMetrics: RouteOptions = {
           statusCode: Joi.number().optional(),
         })
       ),
-    }).label("getApiKeyMetricsResponse"),
+    }).label("postApiKeyMetricsResponse"),
     failAction: (_request, _h, error) => {
-      logger.error("get-api-key-metrics-handler", `Wrong response schema: ${error}`);
+      logger.error("post-api-key-metrics-handler", `Wrong response schema: ${error}`);
       throw error;
     },
   },
@@ -78,17 +78,17 @@ export const getApiKeyMetrics: RouteOptions = {
       throw Boom.unauthorized("Wrong or missing admin API key");
     }
 
-    const query = request.query as any;
+    const payload = request.payload as any;
 
     let tableName = "monthly_api_usage";
     let timeColumnName = "month";
 
-    switch (query.granularity) {
+    switch (payload.granularity) {
       case "hourly":
         tableName = "hourly_api_usage";
         timeColumnName = "hour";
-        query.startTime = query.startTime
-          ? query.startTime
+        payload.startTime = payload.startTime
+          ? payload.startTime
           : sub(new Date(), {
               hours: 24,
             }).toISOString();
@@ -97,16 +97,16 @@ export const getApiKeyMetrics: RouteOptions = {
       case "daily":
         tableName = "daily_api_usage";
         timeColumnName = "day";
-        query.startTime = query.startTime
-          ? query.startTime
+        payload.startTime = payload.startTime
+          ? payload.startTime
           : sub(new Date(), {
               days: 7,
             }).toISOString();
         break;
 
       case "monthly":
-        query.startTime = query.startTime
-          ? query.startTime
+        payload.startTime = payload.startTime
+          ? payload.startTime
           : sub(new Date(), {
               months: 12,
             }).toISOString();
@@ -116,7 +116,7 @@ export const getApiKeyMetrics: RouteOptions = {
     let select = "";
     let groupBy = "";
 
-    switch (query.groupBy) {
+    switch (payload.groupBy) {
       case 1:
         select = `${timeColumnName}, SUM(api_calls_count) AS "api_calls_count", SUM(points) AS "points_consumed"`;
         groupBy = `GROUP BY ${timeColumnName}`;
@@ -142,14 +142,14 @@ export const getApiKeyMetrics: RouteOptions = {
       SELECT ${select}
       FROM ${tableName}
       WHERE api_key IN ($/keys:csv/)
-      ${query.startTime ? `AND ${timeColumnName} >= $/startTime/` : ``}
-      ${query.endTime ? `AND ${timeColumnName} <= $/endTime/` : ``}
+      ${payload.startTime ? `AND ${timeColumnName} >= $/startTime/` : ``}
+      ${payload.endTime ? `AND ${timeColumnName} <= $/endTime/` : ``}
       ${groupBy}
       ORDER BY ${timeColumnName} ASC
     `;
 
     try {
-      const metrics = await redb.manyOrNone(baseQuery, query);
+      const metrics = await redb.manyOrNone(baseQuery, payload);
 
       return {
         metrics: _.map(metrics, (metric) => ({
@@ -162,7 +162,7 @@ export const getApiKeyMetrics: RouteOptions = {
         })),
       };
     } catch (error) {
-      logger.error("get-api-key-metrics-handler", `Handler failure: ${error}`);
+      logger.error("post-api-key-metrics-handler", `Handler failure: ${error}`);
       throw error;
     }
   },
