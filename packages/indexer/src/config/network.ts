@@ -153,7 +153,11 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
           "0x32d4be5ee74376e08038d652d4dc26e62c67f436",
         ],
-        washTradingBlacklistedAddresses: ["0xac335e6855df862410f96f345f93af4f96351a87"],
+        washTradingBlacklistedAddresses: [
+          "0xac335e6855df862410f96f345f93af4f96351a87",
+          "0x81c6686fbe1594d599ac86a0d8e81d84a2f9bcf2",
+          "0x06d51314d152ca4f88d691f87b40cf3bf453df7c",
+        ],
         multiCollectionContracts: [
           // ArtBlocks Contracts
           "0x059edd72cd353df5106d2b9cc5ab83a52287ac3a",
