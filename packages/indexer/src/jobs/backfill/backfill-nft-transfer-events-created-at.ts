@@ -25,26 +25,25 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async () => {
       const limit = 1000;
-      const results = await idb.manyOrNone(
+      const results = await idb.result(
         `
             UPDATE nft_transfer_events nte SET
                 created_at = to_timestamp(x.timestamp)
             FROM (
-                SELECT timestamp, block_hash, tx_hash, log_index
+                SELECT timestamp, tx_hash, log_index, batch_index
                 FROM nft_transfer_events
                 WHERE created_at IS NULL
                 LIMIT 1000
             ) x
-            WHERE nte.block_hash = x.block_hash AND nte.tx_hash = x.tx_hash AND nte.log_index = x.log_index
-            RETURNING created_at
+            WHERE nte.tx_hash = x.tx_hash AND nte.log_index = x.log_index AND nte.batch_index = x.batch_index
           `
       );
 
-      if (results.length == limit) {
+      if (results.rowCount == limit) {
         await addToQueue();
       }
 
-      logger.info(QUEUE_NAME, `Processed ${results.length} events. limit=${limit}`);
+      logger.info(QUEUE_NAME, `Processed ${results.rowCount} events. limit=${limit}`);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

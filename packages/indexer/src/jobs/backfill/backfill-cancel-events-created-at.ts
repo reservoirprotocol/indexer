@@ -25,7 +25,7 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async () => {
       const limit = 1000;
-      const results = await idb.manyOrNone(
+      const results = await idb.result(
         `
             UPDATE cancel_events ce SET
                 created_at = to_timestamp(x.timestamp)
@@ -36,15 +36,14 @@ if (config.doBackgroundWork) {
                 LIMIT 1000
             ) x
             WHERE ce.block_hash = x.block_hash AND ce.tx_hash = x.tx_hash AND ce.log_index = x.log_index
-            RETURNING created_at
           `
       );
 
-      if (results.length == limit) {
+      if (results.rowCount == limit) {
         await addToQueue();
       }
 
-      logger.info(QUEUE_NAME, `Processed ${results.length} events. limit=${limit}`);
+      logger.info(QUEUE_NAME, `Processed ${results.rowCount} events. limit=${limit}`);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
