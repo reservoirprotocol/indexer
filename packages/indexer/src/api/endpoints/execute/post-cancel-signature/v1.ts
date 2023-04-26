@@ -1,5 +1,5 @@
 import { keccak256 } from "@ethersproject/solidity";
-import { recoverAddress } from "@ethersproject/transactions";
+import { verifyMessage } from "@ethersproject/wallet";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import axios from "axios";
@@ -8,6 +8,7 @@ import Joi from "joi";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
+import * as b from "@/utils/auth/blur";
 
 const version = "v1";
 
@@ -22,6 +23,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
   validate: {
     query: Joi.object({
       signature: Joi.string().required().description("Cancellation signature"),
+      auth: Joi.string().description("Optional auth token used instead of the signature"),
     }),
     payload: Joi.object({
       orderIds: Joi.array()
@@ -54,6 +56,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
       const orderIds = payload.orderIds;
       const orderKind = payload.orderKind;
 
+      let auth = query.auth;
       switch (orderKind) {
         case "blur-bid": {
           let globalMaker: string | undefined;
@@ -73,9 +76,13 @@ export const postCancelSignatureV1Options: RouteOptions = {
             bidsByContract[contract].push(price);
           }
 
-          const signer = recoverAddress(keccak256(["string[]"], [orderIds.sort()]), signature);
-          if (globalMaker?.toLowerCase() !== signer.toLowerCase()) {
-            throw Boom.unauthorized("Invalid signature");
+          if (!auth) {
+            const signer = verifyMessage(keccak256(["string[]"], [orderIds.sort()]), signature);
+            if (globalMaker?.toLowerCase() !== signer.toLowerCase()) {
+              throw Boom.unauthorized("Invalid signature");
+            }
+
+            auth = await b.getAuth(b.getAuthId(signer)).then((a) => a?.accessToken);
           }
 
           await Promise.all(
@@ -84,7 +91,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
                 maker: globalMaker,
                 contract,
                 prices,
-                authToken: payload.blurAuth,
+                authToken: auth,
               });
             })
           );
