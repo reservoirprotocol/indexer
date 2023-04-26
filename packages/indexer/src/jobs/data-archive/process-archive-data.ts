@@ -28,7 +28,7 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { tableName } = job.data;
+      const { tableName, type } = job.data;
 
       switch (tableName) {
         case "bid_events":
@@ -47,7 +47,7 @@ if (config.doBackgroundWork) {
 
         case "orders":
           // Archive bid events
-          if (await acquireLock(getLockName(tableName), 60 * 5 - 5)) {
+          if (type === "bids" && (await acquireLock(getLockName(tableName), 60 * 5 - 5))) {
             job.data.lock = true;
 
             try {
@@ -91,7 +91,7 @@ if (config.doBackgroundWork) {
             // Check if archiving should continue
             const archiveBidOrders = new ArchiveBidOrders();
             if (await archiveBidOrders.continueArchive()) {
-              await addToQueue(tableName);
+              await addToQueue(tableName, type);
             }
           }
           break;
