@@ -80,7 +80,7 @@ export const postAuthSignatureV1Options: RouteOptions = {
               60
           );
 
-          break;
+          return { auth: await b.getAuth(authId) };
         }
 
         case "opensea": {
@@ -111,11 +111,9 @@ export const postAuthSignatureV1Options: RouteOptions = {
             24 * 59 * 60
           );
 
-          break;
+          return { auth: o.getAuth(authId) };
         }
       }
-
-      return { message: "Success" };
     } catch (error) {
       logger.error(`post-auth-signature-${version}-handler`, `Handler failure: ${error}`);
       throw error;
