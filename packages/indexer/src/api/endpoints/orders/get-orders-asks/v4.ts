@@ -154,6 +154,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
         .description("Return result in given currency"),
     })
       .oxor("token", "tokenSetId")
+      .oxor("contracts", "contractsSetId")
       .with("community", "maker")
       .with("collectionsSetId", "maker"),
   },
