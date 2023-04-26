@@ -284,8 +284,7 @@ export const getCollectionsV5Options: RouteOptions = {
             orders.normalized_value AS top_buy_normalized_value,
             orders.currency_normalized_value AS top_buy_currency_normalized_value
           FROM token_sets
-          LEFT JOIN orders
-            ON token_sets.top_buy_id = orders.id
+          JOIN orders ON token_sets.top_buy_id = orders.id
           WHERE token_sets.collection_id = x.id
           ORDER BY token_sets.top_buy_value DESC NULLS LAST
           LIMIT 1
@@ -708,7 +707,7 @@ export const getCollectionsV5Options: RouteOptions = {
             topBid: query.includeTopBid
               ? {
                   id: r.top_buy_id,
-                  sourceDomain: sources.get(r.top_buy_source_id_int)?.domain,
+                  sourceDomain: r.top_buy_id ? sources.get(r.top_buy_source_id_int)?.domain : null,
                   price: r.top_buy_id
                     ? await getJoiPriceObject(
                         {
