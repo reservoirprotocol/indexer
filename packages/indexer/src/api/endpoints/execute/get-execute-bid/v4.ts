@@ -11,6 +11,7 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, regex } from "@/common/utils";
 import { config } from "@/config/index";
+import { ExecutionsBuffer } from "@/utils/executions";
 
 // LooksRare
 import * as looksRareV2BuyToken from "@/orderbook/orders/looks-rare-v2/build/buy/token";
@@ -182,6 +183,16 @@ export const getExecuteBidV4Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const payload = request.payload as any;
+
+    const executionsBuffer = new ExecutionsBuffer();
+    const addExecution = (orderId: string, quantity?: number) =>
+      executionsBuffer.addFromRequest(request, {
+        side: "buy",
+        action: "create",
+        user: payload.maker,
+        orderId,
+        quantity: quantity ?? 1,
+      });
 
     try {
       const maker = payload.maker;
@@ -393,6 +404,8 @@ export const getExecuteBidV4Options: RouteOptions = {
               orderIndex: i,
             });
 
+            addExecution(order.hash(), params.quantity);
+
             // Go on with the next bid
             continue;
           }
@@ -500,6 +513,8 @@ export const getExecuteBidV4Options: RouteOptions = {
               orderIndex: i,
             });
 
+            addExecution(order.hash(), params.quantity);
+
             // Go on with the next bid
             continue;
           }
@@ -600,6 +615,8 @@ export const getExecuteBidV4Options: RouteOptions = {
               orderIndex: i,
             });
 
+            addExecution(order.hash(), params.quantity);
+
             // Go on with the next bid
             continue;
           }
@@ -688,6 +705,8 @@ export const getExecuteBidV4Options: RouteOptions = {
               },
               orderIndex: i,
             });
+
+            addExecution(order.hash(), params.quantity);
 
             // Go on with the next bid
             continue;
@@ -779,6 +798,8 @@ export const getExecuteBidV4Options: RouteOptions = {
               orderIndex: i,
             });
 
+            addExecution(order.hash(), params.quantity);
+
             // Go on with the next bid
             continue;
           }
@@ -868,6 +889,8 @@ export const getExecuteBidV4Options: RouteOptions = {
               orderIndex: i,
             });
 
+            addExecution(new Sdk.X2Y2.Exchange(config.chainId, "").hash(order), params.quantity);
+
             // Go on with the next bid
             continue;
           }
@@ -952,6 +975,8 @@ export const getExecuteBidV4Options: RouteOptions = {
               orderIndex: i,
             });
 
+            addExecution(order.hashOrderKey(), params.quantity);
+
             // Go on with the next bid
             continue;
           }
@@ -995,6 +1020,8 @@ export const getExecuteBidV4Options: RouteOptions = {
           }));
         }
       }
+
+      await executionsBuffer.flush();
 
       return { steps };
     } catch (error) {

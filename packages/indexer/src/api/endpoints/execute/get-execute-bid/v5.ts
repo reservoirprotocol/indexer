@@ -15,6 +15,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as b from "@/utils/auth/blur";
+import { ExecutionsBuffer } from "@/utils/executions";
 
 // Blur
 import * as blurBuyCollection from "@/orderbook/orders/blur/build/buy/collection";
@@ -217,6 +218,16 @@ export const getExecuteBidV5Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const payload = request.payload as any;
+
+    const executionsBuffer = new ExecutionsBuffer();
+    const addExecution = (orderId: string, quantity?: number) =>
+      executionsBuffer.addFromRequest(request, {
+        side: "buy",
+        action: "create",
+        user: payload.maker,
+        orderId,
+        quantity: quantity ?? 1,
+      });
 
     try {
       const maker = payload.maker as string;
@@ -565,6 +576,11 @@ export const getExecuteBidV5Options: RouteOptions = {
                     },
                     orderIndexes: [i],
                   });
+
+                  addExecution(
+                    new Sdk.Blur.Order(config.chainId, signData.value).hash(),
+                    params.quantity
+                  );
                 }
 
                 break;
@@ -662,6 +678,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   },
                   orderIndexes: [i],
                 });
+
+                addExecution(order.hash(), params.quantity);
 
                 break;
               }
@@ -773,6 +791,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndex: i,
                 });
 
+                addExecution(order.hash(), params.quantity);
+
                 break;
               }
 
@@ -871,6 +891,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndex: i,
                 });
 
+                addExecution(order.hash(), params.quantity);
+
                 break;
               }
 
@@ -968,6 +990,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
+                addExecution(order.hash(), params.quantity);
+
                 break;
               }
 
@@ -1055,6 +1079,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   },
                   orderIndexes: [i],
                 });
+
+                addExecution(order.hash(), params.quantity);
 
                 break;
               }
@@ -1149,6 +1175,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
+                addExecution(order.hash(), params.quantity);
+
                 break;
               }
 
@@ -1239,6 +1267,11 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
+                addExecution(
+                  new Sdk.X2Y2.Exchange(config.chainId, "").hash(order),
+                  params.quantity
+                );
+
                 break;
               }
 
@@ -1306,6 +1339,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   },
                   orderIndexes: [i],
                 });
+
+                addExecution(order.hashOrderKey(), params.quantity);
 
                 break;
               }
@@ -1527,6 +1562,8 @@ export const getExecuteBidV5Options: RouteOptions = {
         // to remove the auth step
         steps = steps.slice(1);
       }
+
+      await executionsBuffer.flush();
 
       return { steps, errors };
     } catch (error) {

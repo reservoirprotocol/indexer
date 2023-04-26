@@ -14,6 +14,7 @@ import { now, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as b from "@/utils/auth/blur";
+import { ExecutionsBuffer } from "@/utils/executions";
 
 // Blur
 import * as blurSellToken from "@/orderbook/orders/blur/build/sell/token";
@@ -199,6 +200,16 @@ export const getExecuteListV5Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const payload = request.payload as any;
+
+    const executionsBuffer = new ExecutionsBuffer();
+    const addExecution = (orderId: string, quantity?: number) =>
+      executionsBuffer.addFromRequest(request, {
+        side: "sell",
+        action: "create",
+        user: payload.maker,
+        orderId,
+        quantity: quantity ?? 1,
+      });
 
     const maker = payload.maker as string;
     const source = payload.source as string | undefined;
@@ -422,6 +433,8 @@ export const getExecuteListV5Options: RouteOptions = {
                   }
                 }
 
+                const signData = order.getSignatureData();
+
                 steps[1].items.push({
                   status: approvalTx ? "incomplete" : "complete",
                   data: approvalTx,
@@ -430,7 +443,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 steps[2].items.push({
                   status: "incomplete",
                   data: {
-                    sign: order.getSignatureData(),
+                    sign: signData,
                     post: {
                       endpoint: "/order/v4",
                       method: "POST",
@@ -457,6 +470,11 @@ export const getExecuteListV5Options: RouteOptions = {
                   },
                   orderIndexes: [i],
                 });
+
+                addExecution(
+                  new Sdk.Blur.Order(config.chainId, signData.value).hash(),
+                  params.quantity
+                );
 
                 break;
               }
@@ -529,6 +547,8 @@ export const getExecuteListV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
+                addExecution(order.hash(), params.quantity);
+
                 break;
               }
 
@@ -596,6 +616,8 @@ export const getExecuteListV5Options: RouteOptions = {
                   },
                   orderIndexes: [i],
                 });
+
+                addExecution(order.hash(), params.quantity);
 
                 break;
               }
@@ -673,6 +695,8 @@ export const getExecuteListV5Options: RouteOptions = {
                   },
                   orderIndexes: [i],
                 });
+
+                addExecution(order.hash(), params.quantity);
 
                 break;
               }
@@ -762,6 +786,8 @@ export const getExecuteListV5Options: RouteOptions = {
                   orderIndex: i,
                 });
 
+                addExecution(order.hash(), params.quantity);
+
                 break;
               }
 
@@ -837,6 +863,8 @@ export const getExecuteListV5Options: RouteOptions = {
                   source,
                   orderIndex: i,
                 });
+
+                addExecution(order.hash(), params.quantity);
 
                 break;
               }
@@ -931,6 +959,8 @@ export const getExecuteListV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
+                addExecution(order.hash(), params.quantity);
+
                 break;
               }
 
@@ -1017,6 +1047,11 @@ export const getExecuteListV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
+                addExecution(
+                  new Sdk.X2Y2.Exchange(config.chainId, "").hash(order),
+                  params.quantity
+                );
+
                 break;
               }
 
@@ -1092,6 +1127,8 @@ export const getExecuteListV5Options: RouteOptions = {
                   },
                   orderIndexes: [i],
                 });
+
+                addExecution(order.hashOrderKey(), params.quantity);
 
                 break;
               }
@@ -1267,6 +1304,8 @@ export const getExecuteListV5Options: RouteOptions = {
         // to remove the auth step
         steps = steps.slice(1);
       }
+
+      await executionsBuffer.flush();
 
       const perfTime2 = performance.now();
 
