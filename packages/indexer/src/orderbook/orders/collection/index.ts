@@ -330,6 +330,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           `function getRoyaltyRecipient(address payable erc2981Recipient) view returns (address payable)`,
           `function getAllHeldIds() view returns (uint256[])`,
           `function tokenIDFilterRoot() view returns (bytes32)`,
+          `function externalFilter() public view returns (address)`,
         ]),
         baseProvider
       );
