@@ -4,7 +4,9 @@ import { randomUUID } from "crypto";
 import { logger } from "@/common/logger";
 import { acquireLock, redis, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
-import { ArchiveBidEvents } from "@/jobs/data-archive/archive-bid-events";
+import { ArchiveBidEvents } from "@/jobs/data-archive/archive-classes/archive-bid-events";
+import { ArchiveBidOrders } from "@/jobs/data-archive/archive-classes/archive-bid-orders";
+import { ArchiveManager } from "@/jobs/data-archive/archive-manager";
 const QUEUE_NAME = "process-archive-data-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
@@ -35,9 +37,24 @@ if (config.doBackgroundWork) {
             job.data.lock = true;
 
             try {
-              await ArchiveBidEvents.archive();
+              const archiveBidEvents = new ArchiveBidEvents();
+              await ArchiveManager.archive(archiveBidEvents);
             } catch (error) {
               logger.error(QUEUE_NAME, `Bid events archive errored: ${error}`);
+            }
+          }
+          break;
+
+        case "orders":
+          // Archive bid events
+          if (await acquireLock(getLockName(tableName), 60 * 5 - 5)) {
+            job.data.lock = true;
+
+            try {
+              const archiveBidOrders = new ArchiveBidOrders();
+              await ArchiveManager.archive(archiveBidOrders);
+            } catch (error) {
+              logger.error(QUEUE_NAME, `Bid orders archive errored: ${error}`);
             }
           }
           break;
@@ -50,18 +67,35 @@ if (config.doBackgroundWork) {
   );
 
   worker.on("completed", async (job) => {
-    const { tableName, lock } = job.data;
+    const { tableName, lock, type } = job.data;
 
     if (lock) {
       switch (tableName) {
         case "bid_events":
-          await releaseLock(getLockName(tableName)); // Release the lock
+          {
+            await releaseLock(getLockName(tableName)); // Release the lock
 
-          // Check if archiving should continue
-          if (await ArchiveBidEvents.continueArchive()) {
-            await addToQueue(tableName);
+            // Check if archiving should continue
+            const archiveBidEvents = new ArchiveBidEvents();
+            if (await archiveBidEvents.continueArchive()) {
+              await addToQueue(tableName);
+            }
+          }
+
+          break;
+
+        case "orders": {
+          if (type === "bids") {
+            await releaseLock(getLockName(tableName)); // Release the lock
+
+            // Check if archiving should continue
+            const archiveBidOrders = new ArchiveBidOrders();
+            if (await archiveBidOrders.continueArchive()) {
+              await addToQueue(tableName);
+            }
           }
           break;
+        }
       }
     }
   });
@@ -75,6 +109,6 @@ function getLockName(tableName: string) {
   return `${tableName}-archive-cron-lock`;
 }
 
-export const addToQueue = async (tableName: string) => {
-  await queue.add(randomUUID(), { tableName });
+export const addToQueue = async (tableName: string, type = "") => {
+  await queue.add(randomUUID(), { tableName, type });
 };
