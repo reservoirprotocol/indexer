@@ -34,16 +34,12 @@ export const Usdc: ChainIdToAddress = {
   [Network.Optimism]: "0x7f5c764cbc14f9669b88837ca1490cca17c31607",
 };
 
-export const RoyaltyRegistry: ChainIdToAddress = {
-  [Network.Ethereum]: "0xad2184fb5dbcfc05d8f056542fb25b04fa32a95d",
-  [Network.EthereumGoerli]: "0x644611f32769aaecceadec6462c9495b23b40520",
-  [Network.Polygon]: "0xe7c9cb6d966f76f3b5142167088927bf34966a1f",
-};
-
 export const RoyaltyEngine: ChainIdToAddress = {
   [Network.Ethereum]: "0x0385603ab55642cb4dd5de3ae9e306809991804f",
   [Network.EthereumGoerli]: "0xe7c9cb6d966f76f3b5142167088927bf34966a1f",
   [Network.Polygon]: "0x28edfcf0be7e86b07493466e7631a213bde8eef2",
+  [Network.Optimism]: "0xef770dfb6d5620977213f55f99bfd781d04bbe15",
+  [Network.Arbitrum]: "0xef770dfb6d5620977213f55f99bfd781d04bbe15",
 };
 
 export const Permit2: ChainIdToAddress = {
