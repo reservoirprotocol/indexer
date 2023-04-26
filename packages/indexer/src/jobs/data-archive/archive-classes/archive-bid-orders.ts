@@ -33,7 +33,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
 
   async continueArchive() {
     const nextBatchTime = await this.getNextBatchStartTime();
-    return !_.isEmpty(nextBatchTime);
+    return !_.isNull(nextBatchTime);
   }
 
   getTableName() {
