@@ -141,29 +141,26 @@ export const addEvents = async (events: Event[]) => {
         "expiration" = EXCLUDED."expiration",
         "updated_at" = now()
     `);
-
-    try {
-      // Log average latency of fill events
-      logger.info(
-        "sales-latency",
-        JSON.stringify({
-          latency: Math.round(
-            fillValues.reduce(
-              (acc, event) => acc + Math.floor(Date.now() / 1000) - event.timestamp,
-              0
-            ) / fillValues.length
-          ),
-        })
-      );
-    } catch (error) {
-      logger.error("sales-latency", `Failed to log sales latency ${error}`);
-    }
   }
 
   if (queries.length) {
     // No need to buffer through the write queue since there
     // are no chances of database deadlocks in this scenario
     await idb.none(pgp.helpers.concat(queries));
+
+    try {
+      // Log fill events ingestion latency
+      for (const event of fillValues) {
+        logger.info(
+          "sales-latency",
+          JSON.stringify({
+            latency: Math.floor(Date.now() / 1000) - event.timestamp,
+          })
+        );
+      }
+    } catch (error) {
+      logger.error("sales-latency", `Failed to log sales latency ${error}`);
+    }
   }
 };
 
