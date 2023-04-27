@@ -30,8 +30,7 @@ export const getCollectionsV5Options: RouteOptions = {
     expiresIn: 10000,
   },
   description: "Collections",
-  notes:
-    "Useful for getting multiple collections to show in a marketplace, or search for particular collections.",
+  notes: "Use this API to explore a collection’s metadata and statistics (sales, volume, etc).",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
@@ -59,7 +58,9 @@ export const getCollectionsV5Options: RouteOptions = {
           Joi.array().items(Joi.string().lowercase().pattern(regex.address)).max(20),
           Joi.string().lowercase().pattern(regex.address)
         )
-        .description("Array of contracts. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"),
+        .description(
+          "Array of contracts. Max amount is 20. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       name: Joi.string()
         .lowercase()
         .description("Search for collections that match a string. Example: `bored`"),
@@ -77,7 +78,7 @@ export const getCollectionsV5Options: RouteOptions = {
           }),
         })
         .description(
-          "If true, attributes will be included in the response. (supported only when filtering to a particular collection using `id` or `slug`)"
+          "If true, attributes will be included in the response. Must filter by `id` or `slug` to a particular collection."
         ),
       includeOwnerCount: Joi.boolean()
         .when("id", {
@@ -90,7 +91,7 @@ export const getCollectionsV5Options: RouteOptions = {
           }),
         })
         .description(
-          "If true, owner count will be included in the response. (supported only when filtering to a particular collection using `id` or `slug` and for collections with less than 50k tokens)"
+          "If true, owner count will be included in the response. Must filter by `id` or `slug` to a particular collection and the collection has less than 50k tokens."
         ),
       includeSalesCount: Joi.boolean()
         .when("id", {
@@ -103,7 +104,7 @@ export const getCollectionsV5Options: RouteOptions = {
           }),
         })
         .description(
-          "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. (supported only when filtering to a particular collection using `id` or `slug`)"
+          "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. Must filter by `id` or `slug` to a particular collection."
         ),
       normalizeRoyalties: Joi.boolean()
         .default(false)
@@ -115,7 +116,7 @@ export const getCollectionsV5Options: RouteOptions = {
         })
         .default(false)
         .description(
-          "If true, return the non flagged floor ask. (only supported when `normalizeRoyalties` is false)"
+          "If true, return the non flagged floor ask. Supported only when `normalizeRoyalties` is false."
         ),
       sortBy: Joi.string()
         .valid(
@@ -127,20 +128,22 @@ export const getCollectionsV5Options: RouteOptions = {
           "floorAskPrice"
         )
         .default("allTimeVolume")
-        .description("Order the items are returned in the response."),
+        .description(
+          "Order the items are returned in the response. Options are `#DayVolume`, `createdAt`, or `floorAskPrice`"
+        ),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(20)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Default and max limit is 20."),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency"),
     }).oxor("id", "slug", "name", "collectionsSetId", "community", "contract"),
   },
   response: {

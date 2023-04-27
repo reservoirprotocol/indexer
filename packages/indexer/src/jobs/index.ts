@@ -45,6 +45,7 @@ import * as backfillUpdateMissingMetadata from "@/jobs/backfill/backfill-update-
 import * as backfillNftBalancesLastTokenAppraisalValue from "@/jobs/backfill/backfill-nft-balances-last-token-appraisal-value";
 import * as backfillCancelEventsCreatedAt from "@/jobs/backfill/backfill-cancel-events-created-at";
 import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
+import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -175,6 +176,7 @@ export const allJobQueues = [
   backfillNftBalancesLastTokenAppraisalValue.queue,
   backfillCancelEventsCreatedAt.queue,
   backfillNftTransferEventsCreatedAt.queue,
+  backfillCollectionsRoyalties.queue,
 
   currencies.queue,
 

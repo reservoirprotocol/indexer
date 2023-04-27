@@ -14,6 +14,8 @@ const version = "v2";
 
 export const postTokenSetsV2Options: RouteOptions = {
   description: "Create token set",
+  notes:
+    "Use this API to create a `tokenSetId` to call specific tokens from a collection.\n\n Example: Input of `0xd774557b647330c91bf44cfeab205095f7e6c367:1` and `0xd774557b647330c91bf44cfeab205095f7e6c367:2` will output `list:0xd774557b647330c91bf44cfeab205095f7e6c367:0xb6fd98eeb7e08fc521f11511289afe4d8e873fd7a3fb76ab757fa47c23f596e9`/n/n Note: Include `list:` when using this `tokenSetId` for it to work successfully.",
   tags: ["api", "Tokens"],
   plugins: {
     "hapi-swagger": {

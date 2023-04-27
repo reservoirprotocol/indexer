@@ -105,7 +105,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         "If true, all fills will be executed through the router (where possible)"
       ),
       currency: Joi.string()
-        .valid(Sdk.Common.Addresses.Eth[config.chainId])
+        .default(Sdk.Common.Addresses.Eth[config.chainId])
         .description("Currency to be used for purchases."),
       normalizeRoyalties: Joi.boolean().default(false).description("Charge any missing royalties."),
       allowInactiveOrderIds: Joi.boolean()

@@ -55,7 +55,12 @@ export const getTokensFloorAskV4Options: RouteOptions = {
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
       continuation: Joi.string().pattern(regex.base64),
-      limit: Joi.number().integer().min(1).max(1000).default(50),
+      limit: Joi.number()
+        .integer()
+        .min(1)
+        .max(1000)
+        .default(50)
+        .description("Amount of items returned in response. Max limit is 1000."),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)

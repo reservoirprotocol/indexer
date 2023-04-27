@@ -90,7 +90,7 @@ export class ApiKeyManager {
     // Static admin API key
     if (key === config.adminApiKey) {
       return new ApiKeyEntity({
-        key: config.adminApiKey,
+        key: "00000000-0000-0000-0000-000000000000",
         app_name: "Indexer Admin",
         website: "reservoir.tools",
         email: "backend@unevenlabs.com",

@@ -76,6 +76,7 @@ if (config.doBackgroundWork) {
                 orders.normalized_value,
                 orders.currency_normalized_value,
                 orders.raw_data,
+                orders.originated_at AS "originatedAt",
                 token_sets_tokens.contract,
                 token_sets_tokens.token_id AS "tokenId"
               FROM orders
@@ -471,7 +472,7 @@ if (config.doBackgroundWork) {
         if (order && order.validBetween && trigger.kind === "new-order") {
           try {
             const orderStart = Math.floor(
-              new Date(JSON.parse(order.validBetween)[0]).getTime() / 1000
+              new Date(order.originatedAt ?? JSON.parse(order.validBetween)[0]).getTime() / 1000
             );
             const currentTime = Math.floor(Date.now() / 1000);
             const source = (await Sources.getInstance()).get(order.sourceIdInt);

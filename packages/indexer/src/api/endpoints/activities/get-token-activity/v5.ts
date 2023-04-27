@@ -20,7 +20,8 @@ const version = "v5";
 
 export const getTokenActivityV5Options: RouteOptions = {
   description: "Token activity",
-  notes: "This API can be used to build a feed for a token",
+  notes:
+    "This API can be used to build a feed for a token activity including sales, asks, transfers, mints, bids, canceled bids, and cancel asks types.",
   tags: ["api", "Activity"],
   plugins: {
     "hapi-swagger": {
@@ -43,12 +44,12 @@ export const getTokenActivityV5Options: RouteOptions = {
         .min(1)
         .max(20)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned. Default and max is 20."),
       sortBy: Joi.string()
         .valid("eventTimestamp", "createdAt")
         .default("eventTimestamp")
         .description(
-          "Order the items are returned in the response, eventTimestamp = The blockchain event time, createdAt - The time in which event was recorded"
+          "Order the items are returned in the response. The blockchain event time is `eventTimestamp`. The event time recorded is `createdAt`."
         ),
       includeMetadata: Joi.boolean()
         .default(true)
@@ -71,7 +72,7 @@ export const getTokenActivityV5Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency"),
     }),
   },
   response: {

@@ -392,6 +392,15 @@ export const getNetworkSettings = (): NetworkSettings => {
               decimals: 18,
             },
           ],
+          [
+            "0x3b45a986621f91eb51be84547fbd9c26d0d46d02",
+            {
+              contract: "0x3b45a986621f91eb51be84547fbd9c26d0d46d02",
+              name: "Gold Bar Currency",
+              symbol: "GXB",
+              decimals: 18,
+            },
+          ],
         ]),
         coingecko: {
           networkId: "polygon-pos",

@@ -36,7 +36,8 @@ const version = "v1";
 
 export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
   description: "Supported marketplaces by collection",
-  notes: "Supported marketplaces by collection",
+  notes:
+    "The ReservoirKit `ListModal` client utilizes this API to identify the marketplace(s) it can list on.",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {

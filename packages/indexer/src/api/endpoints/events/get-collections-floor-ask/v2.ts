@@ -62,7 +62,7 @@ export const getCollectionsFloorAskV2Options: RouteOptions = {
         .min(1)
         .max(1000)
         .default(50)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 1000."),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
