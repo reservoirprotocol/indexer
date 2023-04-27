@@ -9,8 +9,8 @@ export const newPool: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event NewPool(
-      address collection,
-      address poolAddress
+      address indexed collection,
+      address indexed poolAddress
     )`,
   ]),
 };
