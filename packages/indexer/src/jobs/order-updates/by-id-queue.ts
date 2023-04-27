@@ -492,7 +492,7 @@ if (config.doBackgroundWork) {
                   latency: currentTime - orderStart,
                   source: source?.getTitle(),
                   orderType,
-                  ingestMethod,
+                  ingestMethod: ingestMethod ?? "rest",
                 })
               );
             }

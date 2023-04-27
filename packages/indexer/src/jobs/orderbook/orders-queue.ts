@@ -226,12 +226,12 @@ export const jobProcessor = async (job: Job) => {
       }
 
       case "seaport": {
-        result = await orders.seaport.save([info], validateBidValue, ingestMethod ?? "rest");
+        result = await orders.seaport.save([info], validateBidValue, ingestMethod);
         break;
       }
 
       case "seaport-v1.4": {
-        result = await orders.seaportV14.save([info], validateBidValue, ingestMethod ?? "rest");
+        result = await orders.seaportV14.save([info], validateBidValue, ingestMethod);
         break;
       }
 
@@ -261,12 +261,12 @@ export const jobProcessor = async (job: Job) => {
       }
 
       case "blur": {
-        result = await orders.blur.saveListings([info], ingestMethod ?? "rest");
+        result = await orders.blur.saveListings([info], ingestMethod);
         break;
       }
 
       case "blur-bid": {
-        result = await orders.blur.saveBids([info], ingestMethod ?? "rest");
+        result = await orders.blur.saveBids([info], ingestMethod);
         break;
       }
 
