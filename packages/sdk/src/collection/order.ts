@@ -1,5 +1,5 @@
 import * as Types from "./types";
-import { lc } from "../utils";
+import { lc, s } from "../utils";
 
 export class Order {
   public chainId: number;
@@ -24,6 +24,10 @@ const normalize = (order: Types.OrderParams): Types.OrderParams => {
 
   return {
     pool: lc(order.pool),
+    tokenId: order.tokenId ? s(order.tokenId) : undefined,
     externalFilter: lc(order.externalFilter),
+    extra: {
+      prices: order.extra.prices.map(s),
+    },
   };
 };

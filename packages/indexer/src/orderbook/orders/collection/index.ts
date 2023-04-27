@@ -415,6 +415,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             const sdkOrder: Sdk.Collection.Order = new Sdk.Collection.Order(config.chainId, {
               pool: orderParams.pool,
               externalFilter: externalFilterAddress,
+              extra: {
+                prices: [],
+              },
             });
 
             // Check if this is new order or update
@@ -716,6 +719,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   const sdkOrder: Sdk.Collection.Order = new Sdk.Collection.Order(config.chainId, {
                     pool: orderParams.pool,
                     externalFilter: externalFilterAddress,
+                    extra: {
+                      prices: [],
+                    },
                   });
 
                   const orderResult = await redb.oneOrNone(
