@@ -51,6 +51,7 @@ if (config.doBackgroundWork) {
                   },
                   metadata: {},
                 },
+                ingestMethod: "websocket",
               },
             ]);
             await blurBidsRefresh.addToQueue(collection);

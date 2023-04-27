@@ -89,95 +89,113 @@ export type GenericOrderInfo =
       kind: "zeroex-v4";
       info: orders.zeroExV4.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "foundation";
       info: orders.foundation.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "x2y2";
       info: orders.x2y2.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "seaport";
       info: orders.seaport.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "seaport-v1.4";
       info: orders.seaportV14.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "cryptopunks";
       info: orders.cryptopunks.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "zora-v3";
       info: orders.zora.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "sudoswap";
       info: orders.sudoswap.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "universe";
       info: orders.universe.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "rarible";
       info: orders.rarible.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "flow";
       info: orders.flow.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "blur";
       info: orders.blur.ListingOrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "blur-bid";
       info: orders.blur.BidOrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "manifold";
       info: orders.manifold.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "element";
       info: orders.element.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "nftx";
       info: orders.nftx.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "superrare";
       info: orders.superrare.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "looks-rare-v2";
       info: orders.looksRareV2.OrderInfo;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     };
 
 export const jobProcessor = async (job: Job) => {
-  const { kind, info, validateBidValue } = job.data as GenericOrderInfo;
+  const { kind, info, validateBidValue, ingestMethod } = job.data as GenericOrderInfo;
 
   let result: { status: string; delay?: number }[] = [];
   try {
@@ -208,12 +226,12 @@ export const jobProcessor = async (job: Job) => {
       }
 
       case "seaport": {
-        result = await orders.seaport.save([info], validateBidValue);
+        result = await orders.seaport.save([info], validateBidValue, ingestMethod ?? "rest");
         break;
       }
 
       case "seaport-v1.4": {
-        result = await orders.seaportV14.save([info], validateBidValue);
+        result = await orders.seaportV14.save([info], validateBidValue, ingestMethod ?? "rest");
         break;
       }
 
@@ -243,12 +261,12 @@ export const jobProcessor = async (job: Job) => {
       }
 
       case "blur": {
-        result = await orders.blur.saveListings([info]);
+        result = await orders.blur.saveListings([info], ingestMethod ?? "rest");
         break;
       }
 
       case "blur-bid": {
-        result = await orders.blur.saveBids([info]);
+        result = await orders.blur.saveBids([info], ingestMethod ?? "rest");
         break;
       }
 

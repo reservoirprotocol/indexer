@@ -83,6 +83,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
                 openSeaOrderParams,
               },
               validateBidValue: true,
+              ingestMethod: "websocket",
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any;
 

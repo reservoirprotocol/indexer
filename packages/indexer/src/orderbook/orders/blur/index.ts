@@ -31,7 +31,10 @@ export type ListingOrderInfo = {
   metadata: OrderMetadata;
 };
 
-export const saveListings = async (orderInfos: ListingOrderInfo[]): Promise<SaveResult[]> => {
+export const saveListings = async (
+  orderInfos: ListingOrderInfo[],
+  ingestMethod?: "websocket" | "rest"
+): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
 
@@ -282,6 +285,7 @@ export const saveListings = async (orderInfos: ListingOrderInfo[]): Promise<Save
               trigger: {
                 kind: "new-order",
               },
+              ingestMethod,
             } as ordersUpdateById.OrderInfo)
         )
     );
@@ -302,7 +306,10 @@ const getBlurBidId = (collection: string) =>
   // Buy orders have a single order id per collection
   keccak256(["string", "address"], ["blur", collection]);
 
-export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]> => {
+export const saveBids = async (
+  orderInfos: BidOrderInfo[],
+  ingestMethod?: "websocket" | "rest"
+): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
 
@@ -588,6 +595,7 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
               trigger: {
                 kind: "new-order",
               },
+              ingestMethod,
             } as ordersUpdateById.OrderInfo)
         )
     );
