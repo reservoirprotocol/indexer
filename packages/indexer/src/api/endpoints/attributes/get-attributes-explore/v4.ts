@@ -193,7 +193,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
                   date_part('epoch', lower(orders.valid_between)) AS "top_buy_valid_from",
                   coalesce(nullif(date_part('epoch', upper(orders.valid_between)), 'Infinity'), 0) AS "top_buy_valid_until"
           FROM token_sets
-          LEFT JOIN orders ON token_sets.top_buy_id = orders.id
+          JOIN orders ON token_sets.top_buy_id = orders.id
           WHERE token_sets.attribute_id = attributes.id
           ORDER BY token_sets.top_buy_value DESC NULLS LAST
           LIMIT 1
