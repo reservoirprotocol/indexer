@@ -78,7 +78,7 @@ export const getExecuteBidV4Options: RouteOptions = {
             .description(
               "Bid on a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
             ),
-          tokenSetId: Joi.string().lowercase().description("Bid on a particular token set."),
+          tokenSetId: Joi.string().description("Bid on a particular token set."),
           collection: Joi.string()
             .lowercase()
             .description(

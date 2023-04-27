@@ -8,6 +8,7 @@ import _ from "lodash";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
@@ -204,7 +205,9 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         }
 
         // Refresh Blur bids
-        await blurBidsRefresh.addToQueue(collection.id, true);
+        if (collection.id.match(regex.address)) {
+          await blurBidsRefresh.addToQueue(collection.id, true);
+        }
 
         // Refresh listings
         await OpenseaIndexerApi.fastContractSync(collection.contract);

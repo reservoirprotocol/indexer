@@ -33,11 +33,9 @@ export const getTokensIdsV4Options: RouteOptions = {
         .description(
           "Filter to a particular contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
-      tokenSetId: Joi.string()
-        .lowercase()
-        .description(
-          "Filter to a particular token set. Example: `token:CONTRACT:TOKEN_ID` representing a single token within contract, `contract:CONTRACT` representing a whole contract, `range:CONTRACT:START_TOKEN_ID:END_TOKEN_ID` representing a continuous token id range within a contract and `list:CONTRACT:TOKEN_IDS_HASH` representing a list of token ids within a contract."
-        ),
+      tokenSetId: Joi.string().description(
+        "Filter to a particular token set. Example: `token:CONTRACT:TOKEN_ID` representing a single token within contract, `contract:CONTRACT` representing a whole contract, `range:CONTRACT:START_TOKEN_ID:END_TOKEN_ID` representing a continuous token id range within a contract and `list:CONTRACT:TOKEN_IDS_HASH` representing a list of token ids within a contract."
+      ),
       flagStatus: Joi.number()
         .allow(-1, 0, 1)
         .description("-1 = All tokens (default)\n0 = Non flagged tokens\n1 = Flagged tokens"),

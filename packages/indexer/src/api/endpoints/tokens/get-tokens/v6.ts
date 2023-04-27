@@ -91,7 +91,6 @@ export const getTokensV6Options: RouteOptions = {
           )
       ),
       tokenSetId: Joi.string()
-        .lowercase()
         .description(
           "Filter to a particular token set. `Example: token:0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270:129000685`"
         )

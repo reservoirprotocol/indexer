@@ -307,6 +307,10 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
   const orderValues: DbOrder[] = [];
 
   const handleOrder = async ({ orderParams, fullUpdate }: BidOrderInfo) => {
+    if (!fullUpdate && !orderParams.pricePoints.length) {
+      return;
+    }
+
     const id = getBlurBidId(orderParams.collection);
 
     // const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, "blur");

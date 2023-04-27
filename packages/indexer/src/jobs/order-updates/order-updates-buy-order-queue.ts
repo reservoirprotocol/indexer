@@ -51,8 +51,9 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        let buyOrderResult = await idb.manyOrNone(
-          `
+        if (!tokenSetId.startsWith("token")) {
+          let buyOrderResult = await idb.manyOrNone(
+            `
                 WITH x AS (
                   SELECT
                     token_sets.id AS token_set_id,
@@ -92,65 +93,66 @@ if (config.doBackgroundWork) {
                   top_buy_value AS "topBuyValue",
                   top_buy_id AS "topBuyId"
               `,
-          { tokenSetId }
-        );
+            { tokenSetId }
+          );
 
-        if (!buyOrderResult.length && trigger.kind === "revalidation") {
-          // When revalidating, force revalidation of the attribute / collection
-          const tokenSetsResult = await ridb.manyOrNone(
-            `
+          if (!buyOrderResult.length && trigger.kind === "revalidation") {
+            // When revalidating, force revalidation of the attribute / collection
+            const tokenSetsResult = await ridb.manyOrNone(
+              `
                   SELECT
                     token_sets.collection_id,
                     token_sets.attribute_id
                   FROM token_sets
                   WHERE token_sets.id = $/tokenSetId/
                 `,
-            {
-              tokenSetId,
-            }
-          );
-
-          if (tokenSetsResult.length) {
-            buyOrderResult = tokenSetsResult.map(
-              (result: { collection_id: any; attribute_id: any }) => ({
-                kind: trigger.kind,
-                collectionId: result.collection_id,
-                attributeId: result.attribute_id,
-                txHash: trigger.txHash || null,
-                txTimestamp: trigger.txTimestamp || null,
-              })
+              {
+                tokenSetId,
+              }
             );
-          }
-        }
 
-        if (buyOrderResult.length) {
-          if (
-            trigger.kind === "new-order" &&
-            buyOrderResult[0].topBuyId &&
-            buyOrderResult[0].attributeId
-          ) {
-            await WebsocketEventRouter({
-              eventKind: WebsocketEventKind.NewTopBid,
-              eventInfo: {
-                orderId: buyOrderResult[0].topBuyId,
-              },
-            });
-          }
-
-          for (const result of buyOrderResult) {
-            if (!_.isNull(result.attributeId)) {
-              await handleNewBuyOrder.addToQueue(result);
-            }
-
-            if (!_.isNull(result.collectionId) && !tokenSetId.startsWith("token")) {
-              await collectionUpdatesTopBid.addToQueue([
-                {
-                  collectionId: result.collectionId,
+            if (tokenSetsResult.length) {
+              buyOrderResult = tokenSetsResult.map(
+                (result: { collection_id: any; attribute_id: any }) => ({
                   kind: trigger.kind,
+                  collectionId: result.collection_id,
+                  attributeId: result.attribute_id,
                   txHash: trigger.txHash || null,
                   txTimestamp: trigger.txTimestamp || null,
-                } as collectionUpdatesTopBid.TopBidInfo,
-              ]);
+                })
+              );
+            }
+          }
+
+          if (buyOrderResult.length) {
+            if (
+              trigger.kind === "new-order" &&
+              buyOrderResult[0].topBuyId &&
+              buyOrderResult[0].attributeId
+            ) {
+              await WebsocketEventRouter({
+                eventKind: WebsocketEventKind.NewTopBid,
+                eventInfo: {
+                  orderId: buyOrderResult[0].topBuyId,
+                },
+              });
+            }
+
+            for (const result of buyOrderResult) {
+              if (!_.isNull(result.attributeId)) {
+                await handleNewBuyOrder.addToQueue(result);
+              }
+
+              if (!_.isNull(result.collectionId) && !tokenSetId.startsWith("token")) {
+                await collectionUpdatesTopBid.addToQueue([
+                  {
+                    collectionId: result.collectionId,
+                    kind: trigger.kind,
+                    txHash: trigger.txHash || null,
+                    txTimestamp: trigger.txTimestamp || null,
+                  } as collectionUpdatesTopBid.TopBidInfo,
+                ]);
+              }
             }
           }
         }
