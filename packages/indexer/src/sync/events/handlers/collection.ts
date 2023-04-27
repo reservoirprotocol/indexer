@@ -22,7 +22,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   for (const { subKind, baseEventParams, log } of events) {
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
-      case "collection-swap-nft-in-pool": {
+      case "collection-swap-nft-out-pool": {
         const swapTokenForAnyNFTs = "0x28b8aee1";
         const swapTokenForSpecificNFTs = "0x6d8b99f7";
 
@@ -186,7 +186,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      case "collection-swap-nft-out-pool": {
+      case "collection-swap-nft-in-pool": {
         const swapNFTsForToken = "0xa6ad64b2";
 
         const txHash = baseEventParams.txHash;
