@@ -34,6 +34,7 @@ import RouterAbi from "./abis/ReservoirV6_0_1.json";
 // Misc
 import ApprovalProxyAbi from "./abis/ApprovalProxy.json";
 // Modules
+import CollectionModuleAbi from "./abis/CollectionModule.json";
 import ElementModuleAbi from "./abis/ElementModule.json";
 import FoundationModuleAbi from "./abis/FoundationModule.json";
 import LooksRareV2ModuleAbi from "./abis/LooksRareV2Module.json";
@@ -81,6 +82,11 @@ export class Router {
         provider
       ),
       // Initialize modules
+      collectionModule: new Contract(
+        Addresses.CollectionModule[chainId] ?? AddressZero,
+        CollectionModuleAbi,
+        provider
+      ),
       elementModule: new Contract(
         Addresses.ElementModule[chainId] ?? AddressZero,
         ElementModuleAbi,
@@ -791,6 +797,7 @@ export class Router {
     const seaportV15Details: PerCurrencyListingDetails = {};
     const alienswapDetails: PerCurrencyListingDetails = {};
     const sudoswapDetails: ListingDetails[] = [];
+    const collectionDetails: ListingDetails[] = [];
     const x2y2Details: ListingDetails[] = [];
     const zeroexV4Erc721Details: ListingDetails[] = [];
     const zeroexV4Erc1155Details: ListingDetails[] = [];
@@ -818,6 +825,10 @@ export class Router {
             : elementErc1155Details;
           break;
         }
+
+        case "collection":
+          detailsRef = collectionDetails;
+          break;
 
         case "foundation":
           detailsRef = foundationDetails;
@@ -1652,6 +1663,62 @@ export class Router {
           success[orderId] = true;
           orderIds.push(orderId);
         }
+      }
+    }
+
+    // Handle Collection listings
+    if (collectionDetails.length) {
+      const orders = collectionDetails.map((d) => d.order as Sdk.Collection.Order);
+      const module = this.contracts.collectionModule;
+
+      const fees = getFees(collectionDetails);
+      const price = orders
+        .map((order) =>
+          bn(
+            order.params.extra.prices[
+              // Handle multiple listings from the same pool
+              orders
+                .filter((o) => o.params.pool === order.params.pool)
+                .findIndex((o) => o.params.tokenId === order.params.tokenId)
+            ]
+          )
+        )
+        .reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
+      executions.push({
+        module: module.address,
+        data: module.interface.encodeFunctionData("buyWithETH", [
+          collectionDetails.map((d) => (d.order as Sdk.Collection.Order).params.pool),
+          collectionDetails.map((d) => d.tokenId),
+          Math.floor(Date.now() / 1000) + 10 * 60,
+          {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            amount: price,
+          },
+          fees,
+        ]),
+        value: totalPrice,
+      });
+
+      // Track any possibly required swap
+      swapDetails.push({
+        tokenIn: buyInCurrency,
+        tokenOut: Sdk.Common.Addresses.Eth[this.chainId],
+        tokenOutAmount: totalPrice,
+        recipient: module.address,
+        refundTo: relayer,
+        details: collectionDetails,
+        executionIndex: executions.length - 1,
+      });
+
+      // Mark the listings as successfully handled
+      for (const { orderId } of collectionDetails) {
+        success[orderId] = true;
+        orderIds.push(orderId);
       }
     }
 
@@ -2806,6 +2873,11 @@ export class Router {
           break;
         }
 
+        case "collection": {
+          module = this.contracts.collectionModule;
+          break;
+        }
+
         case "nftx": {
           module = this.contracts.nftxModule;
           break;
@@ -3338,6 +3410,32 @@ export class Router {
           });
 
           success[detail.orderId] = true;
+
+          break;
+        }
+
+        case "collection": {
+          const order = detail.order as Sdk.Collection.Order;
+          const module = this.contracts.collectionModule;
+
+          executions.push({
+            module: module.address,
+            data: module.interface.encodeFunctionData("sell", [
+              order.params.pool,
+              detail.tokenId,
+              bn(order.params.extra.prices[0]),
+              Math.floor(Date.now() / 1000) + 10 * 60,
+              {
+                fillTo: taker,
+                refundTo: taker,
+                revertIfIncomplete: Boolean(!options?.partial),
+              },
+              detail.fees ?? [],
+            ]),
+            value: 0,
+          });
+
+          success[i] = true;
 
           break;
         }

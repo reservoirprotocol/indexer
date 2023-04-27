@@ -42,6 +42,12 @@ export const SwapModule: ChainIdToAddress = {
 
 // Exchange modules
 
+// TODO update address post-deployment
+export const CollectionModule: ChainIdToAddress = {
+  [Network.Ethereum]: "0xdeadbeef",
+  [Network.EthereumGoerli]: "0xdeadbeef",
+};
+
 export const FoundationModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x29155db9c01ac5412ad03c577d71bd9d0e90db97",
 };
