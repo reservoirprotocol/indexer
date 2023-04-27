@@ -87,6 +87,20 @@ export class ApiKeyManager {
    * @param key
    */
   public static async getApiKey(key: string): Promise<ApiKeyEntity | null> {
+    // Static admin API key
+    if (key === config.adminApiKey) {
+      return new ApiKeyEntity({
+        key: config.adminApiKey,
+        app_name: "Indexer Admin",
+        website: "reservoir.tools",
+        email: "backend@unevenlabs.com",
+        created_at: "1970-01-01T00:00:00.000Z",
+        active: true,
+        tier: 5,
+        permissions: {},
+      });
+    }
+
     const cachedApiKey = ApiKeyManager.apiKeys.get(key);
     if (cachedApiKey) {
       return cachedApiKey;

@@ -149,8 +149,13 @@ export const start = async (): Promise<void> => {
   ]);
 
   server.ext("onPostAuth", async (request, reply) => {
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    if ((request as any).isInjected || request.route.path === "/livez") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isInjected = (request as any).isInjected;
+    if (isInjected) {
+      request.headers["x-api-key"] = config.adminApiKey;
+    }
+
+    if (isInjected || request.route.path === "/livez") {
       return reply.continue;
     }
 
