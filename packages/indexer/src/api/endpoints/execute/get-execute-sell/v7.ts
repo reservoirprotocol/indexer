@@ -24,6 +24,7 @@ import * as nftx from "@/orderbook/orders/nftx";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
+import { ExecutionsBuffer } from "@/utils/executions";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v7";
@@ -949,6 +950,37 @@ export const getExecuteSellV7Options: RouteOptions = {
         // to remove the auth step
         steps = steps.slice(1);
       }
+
+      const executionsBuffer = new ExecutionsBuffer();
+      for (const item of path) {
+        const calldata = txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data;
+
+        let orderId = item.orderId;
+        if (calldata && item.source === "blur.io") {
+          // Blur bids don't have the correct order id so we have to override it
+          const orders = new Sdk.Blur.Exchange(config.chainId).getMatchedOrdersFromCalldata(
+            calldata
+          );
+
+          const index = orders.findIndex(
+            ({ sell }) =>
+              sell.params.collection === item.contract && sell.params.tokenId === item.tokenId
+          );
+          if (index !== -1) {
+            orderId = orders[index].buy.hash();
+          }
+        }
+
+        executionsBuffer.addFromRequest(request, {
+          side: "sell",
+          action: "fill",
+          user: payload.taker,
+          orderId,
+          quantity: item.quantity,
+          calldata,
+        });
+      }
+      await executionsBuffer.flush();
 
       const perfTime2 = performance.now();
 

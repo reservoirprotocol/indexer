@@ -22,6 +22,7 @@ import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
+import { ExecutionsBuffer } from "@/utils/executions";
 
 const version = "v6";
 
@@ -916,11 +917,26 @@ export const getExecuteBuyV6Options: RouteOptions = {
         steps = steps.slice(1);
       }
 
+      // Remove any unsuccessfully handled listings from the path
+      const successfullPath = path.filter((p) => success[p.orderId]);
+
+      const executionsBuffer = new ExecutionsBuffer();
+      for (const item of successfullPath) {
+        executionsBuffer.addFromRequest(request, {
+          side: "buy",
+          action: "fill",
+          user: payload.taker,
+          orderId: item.orderId,
+          quantity: item.quantity,
+          calldata: txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data,
+        });
+      }
+      await executionsBuffer.flush();
+
       return {
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         errors,
-        // Remove any unsuccessfully handled listings from the path
-        path: path.filter((p) => success[p.orderId]),
+        path: successfullPath,
       };
     } catch (error) {
       if (!(error instanceof Boom.Boom)) {

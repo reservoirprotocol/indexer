@@ -21,6 +21,7 @@ import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import * as onChainData from "@/utils/on-chain-data";
+import { ExecutionsBuffer } from "@/utils/executions";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
@@ -858,6 +859,19 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // to remove the auth step
         steps = steps.slice(1);
       }
+
+      const executionsBuffer = new ExecutionsBuffer();
+      for (const item of path) {
+        executionsBuffer.addFromRequest(request, {
+          side: "buy",
+          action: "fill",
+          user: payload.taker,
+          orderId: item.orderId,
+          quantity: item.quantity,
+          calldata: txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data,
+        });
+      }
+      await executionsBuffer.flush();
 
       const perfTime2 = performance.now();
 
