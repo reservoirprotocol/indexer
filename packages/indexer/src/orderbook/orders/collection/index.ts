@@ -233,11 +233,11 @@ export const getPoolDetails = async (address: string) =>
   getCollectionPool(address).catch(async () => {
     if (Sdk.Collection.Addresses.CollectionPoolFactory[config.chainId]) {
       const poolIface = new Interface([
-        "function nft() view returns (address)",
-        "function token() view returns (address)",
-        "function bondingCurve() view returns (address)",
-        "function poolType() view returns (uint8)",
-        "function poolVariant() view returns (uint8)",
+        "function nft() public pure returns (address)",
+        "function token() public pure returns (address)",
+        "function bondingCurve() public pure returns (address)",
+        "function poolType() public pure returns (uint8)",
+        "function poolVariant() public pure returns (uint8)",
       ]);
 
       try {
@@ -252,7 +252,7 @@ export const getPoolDetails = async (address: string) =>
         const factory = new Contract(
           Sdk.Collection.Addresses.CollectionPoolFactory[config.chainId],
           new Interface([
-            "function isPoolVariant(address potentialPool, uint8 variant) view returns (bool)",
+            "function isPoolVariant(address potentialPool, uint8 variant) public view returns (bool)",
           ]),
           baseProvider
         );
@@ -296,11 +296,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const nftContract = new Contract(
         pool.nft,
         new Interface([
-          `function royaltyInfo(uint256 tokenId, uint256 salePrice) view returns (
+          `function royaltyInfo(uint256 tokenId, uint256 salePrice) external view returns (
             address receiver,
             uint256 royaltyAmount
           )`,
-          `function supportsInterface(bytes4 interfaceId) view returns (bool)`,
+          `function supportsInterface(bytes4 interfaceId) external view returns (bool)`,
         ])
       );
 
@@ -308,7 +308,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         pool.address,
         new Interface([
           `
-            function getBuyNFTQuote(uint256) view returns (
+            function getBuyNFTQuote(uint256) public view returns (
               tuple(uint128 spotPrice,uint128 delta,bytes props,bytes state) newParams,
               uint256 totalAmount,
               uint256 inputAmount,
