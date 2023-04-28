@@ -21,7 +21,7 @@ const version = "v5";
 export const getTokenActivityV5Options: RouteOptions = {
   description: "Token activity",
   notes:
-    "This API can be used to build a feed for a token activity including sales, asks, transfers, mints, bids, canceled bids, and cancel asks types.",
+    "This API can be used to build a feed for a token activity including sales, asks, transfers, mints, bids, cancelled bids, and cancelled asks types.",
   tags: ["api", "Activity"],
   plugins: {
     "hapi-swagger": {

@@ -56,17 +56,17 @@ export const getUserCollectionsV3Options: RouteOptions = {
         .min(0)
         .max(10000)
         .default(0)
-        .description("Use offset to request the next batch of items."),
+        .description("Use offset to request the next batch of items. Max is 10,000."),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(100)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. max limit is 100."),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency."),
     }),
   },
   response: {

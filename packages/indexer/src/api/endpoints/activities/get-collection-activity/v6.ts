@@ -21,7 +21,7 @@ const version = "v6";
 export const getCollectionActivityV6Options: RouteOptions = {
   description: "Collection activity",
   notes:
-    "This API can be used to build a feed for a collection including sales, asks, transfers, mints, bids, canceled bids, and cancel asks types.",
+    "This API can be used to build a feed for a collection including sales, asks, transfers, mints, bids, cancelled bids, and cancelled asks types.",
   tags: ["api", "Activity"],
   timeout: {
     server: 20 * 1000,
@@ -54,7 +54,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
         .min(1)
         .default(50)
         .description(
-          "Amount of items returned. Default is 50. Max limit is 50 when `includedMetadata=true` otherwise max limit is 1000"
+          "Amount of items returned. Max limit is 50 when `includedMetadata=true` otherwise max limit is 1000."
         )
         .when("includeMetadata", {
           is: true,

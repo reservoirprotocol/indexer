@@ -57,17 +57,18 @@ export const postSimulateOrderV1Options: RouteOptions = {
         revalidate?: boolean;
       }
     ) => {
-      logger.warn(
-        `post-revalidate-order-${version}-handler`,
-        JSON.stringify({
-          error: "stale-order",
-          callTrace: options?.callTrace,
-          payload: options?.payload,
-          orderId: id,
-        })
-      );
-
       if (!payload.skipRevalidation && options?.revalidate) {
+        logger.warn(
+          `post-revalidate-order-${version}-handler`,
+          JSON.stringify({
+            error: "stale-order",
+            callTrace: options?.callTrace,
+            payload: options?.payload,
+            orderId: id,
+            status,
+          })
+        );
+
         // Revalidate the order
         await inject({
           method: "POST",
