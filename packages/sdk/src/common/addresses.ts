@@ -11,6 +11,7 @@ export const Eth: ChainIdToAddress = {
   [Network.Polygon]: AddressZero,
   [Network.Arbitrum]: AddressZero,
   [Network.Avalanche]: AddressZero,
+  [Network.ScrollAlpha]: AddressZero,
 };
 
 export const Weth: ChainIdToAddress = {
@@ -25,6 +26,7 @@ export const Weth: ChainIdToAddress = {
   [Network.Polygon]: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
   // Avalanche: Wrapped AVAX
   [Network.Avalanche]: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+  [Network.ScrollAlpha]: "0x7160570bb153edd0ea1775ec2b2ac9b65f1ab61b",
 };
 
 // TODO: Include addresses across all supported chains

@@ -2560,7 +2560,8 @@ export class Router {
 
       const contract = detail.contract;
       const owner = taker;
-      const operator = new Sdk.SeaportV11.Exchange(this.chainId).deriveConduit(
+      const conduitController = new Sdk.SeaportBase.ConduitController(this.chainId);
+      const operator = conduitController.deriveConduit(
         Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId]
       );
 

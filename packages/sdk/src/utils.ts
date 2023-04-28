@@ -103,6 +103,8 @@ export enum Network {
   Polygon = 137,
   Arbitrum = 42161,
   Avalanche = 43114,
+  // Scroll
+  ScrollAlpha = 534353,
 }
 
 export type ChainIdToAddress = { [chainId: number]: string };

@@ -27,6 +27,9 @@ export const getNetworkName = () => {
     case 42161:
       return "arbitrum";
 
+    case 534353:
+      return "scroll-alpha";
+
     default:
       return "unknown";
   }
@@ -447,6 +450,40 @@ export const getNetworkSettings = (): NetworkSettings => {
         coingecko: {
           networkId: "arbitrum-one",
         },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Scroll Alpha
+    case 534353: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        subDomain: "api-scroll-alpha",
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
