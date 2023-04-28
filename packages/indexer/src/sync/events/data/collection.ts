@@ -22,8 +22,8 @@ export const tokenDeposit: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event TokenDeposit(
-      address collection,
-      address token,
+      address indexed collection,
+      address indexed token,
       uint256 amount
     )`,
   ]),
@@ -36,8 +36,8 @@ export const tokenWithdrawal: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event TokenWithdrawal(
-      address collection,
-      address token,
+      address indexed collection,
+      address indexed token,
       uint256 amount
     )`,
   ]),
@@ -50,7 +50,7 @@ export const nftDeposit: EventData = {
   numTopics: 2,
   abi: new Interface([
     `event NFTDeposit(
-      address collection,
+      address indexed collection,
       uint256 numNFTs,
       uint256 rawBuyPrice,
       uint256 rawSellPrice
@@ -65,7 +65,7 @@ export const nftWithdrawal: EventData = {
   numTopics: 2,
   abi: new Interface([
     `event NFTWithdrawal(
-      address collection,
+      address indexed collection,
       uint256 numNFTs,
       uint256 rawBuyPrice,
       uint256 rawSellPrice
@@ -80,7 +80,7 @@ export const accruedTradeFeeWithdrawal: EventData = {
   numTopics: 2,
   abi: new Interface([
     `event AccruedTradeFeeWithdrawal(
-      address collection,
+      address indexed collection,
       address token,
       uint256 amount
     )`,
@@ -94,8 +94,8 @@ export const acceptsTokenIds: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event AcceptsTokenIDs(
-      address _collection,
-      bytes32 _root,
+      address indexed _collection,
+      bytes32 indexed _root,
       bytes _data
     )`,
   ]),
@@ -112,7 +112,7 @@ export const swapNftInPool: EventData = {
       uint256 inputAmount,
       uint256 tradeFee,
       uint256 protocolFee,
-      (uint256 amount, address recipient)[] royaltyDue
+      tuple(uint256 amount, address recipient)[] royaltyDue
     )`,
   ]),
 };
@@ -128,7 +128,7 @@ export const swapNftOutPool: EventData = {
       uint256 outputAmount,
       uint256 tradeFee,
       uint256 protocolFee,
-      (uint256 amount, address recipient)[] royaltyDue
+      tuple(uint256 amount, address recipient)[] royaltyDue
     )`,
   ]),
 };
@@ -200,7 +200,7 @@ export const royaltyRecipientFallbackUpdate: EventData = {
   numTopics: 2,
   abi: new Interface([
     `event RoyaltyRecipientFallbackUpdate(
-      address newFallback
+      address payable indexed newFallback
     )`,
   ]),
 };
@@ -212,8 +212,8 @@ export const externalFilterSet: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event ExternalFilterSet(
-      address collection,
-      address filterAddress
+      address indexed collection,
+      address indexed filterAddress
     )`,
   ]),
 };
@@ -261,7 +261,7 @@ export const assetRecipientChange: EventData = {
   numTopics: 2,
   abi: new Interface([
     `event AssetRecipientChange(
-      address a
+      address indexed a
     )`,
   ]),
 };
