@@ -747,7 +747,8 @@ export const getExecuteSellV6Options: RouteOptions = {
         let orderId = item.orderId;
         if (calldata && item.source === "blur.io") {
           // Blur bids don't have the correct order id so we have to override it
-          const orders = new Sdk.Blur.Exchange(config.chainId).getMatchedOrdersFromCalldata(
+          const orders = await new Sdk.Blur.Exchange(config.chainId).getMatchedOrdersFromCalldata(
+            baseProvider,
             calldata
           );
 

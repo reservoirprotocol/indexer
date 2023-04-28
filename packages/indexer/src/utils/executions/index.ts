@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 
 import { idb, pgp } from "@/common/db";
 import { toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 
 export type Execution = {
   requestData: object;
@@ -33,12 +34,15 @@ export class ExecutionsBuffer {
       "side" | "action" | "user" | "orderId" | "quantity" | "calldata"
     >
   ) {
-    this.executions.push({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      requestData: request.payload as any,
-      apiKey: request.headers["x-api-key"],
-      ...partialExecution,
-    });
+    // Skip injected requests
+    if (request.headers["x-api-key"] !== config.adminApiKey) {
+      this.executions.push({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        requestData: request.payload as any,
+        apiKey: request.headers["x-api-key"],
+        ...partialExecution,
+      });
+    }
   }
 
   public async flush() {
@@ -76,6 +80,8 @@ export class ExecutionsBuffer {
       });
     }
 
-    await idb.none(pgp.helpers.insert(values, columns));
+    if (values.length) {
+      await idb.none(pgp.helpers.insert(values, columns));
+    }
   }
 }

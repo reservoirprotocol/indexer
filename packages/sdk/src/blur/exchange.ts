@@ -59,8 +59,19 @@ export class Exchange {
 
   // --- Get bids from calldata ---
 
-  public getMatchedOrdersFromCalldata(calldata: string): { buy: Order; sell: Order }[] {
-    const buildOrder = (values: Result) =>
+  private nonceCache: { [user: string]: string } = {};
+  public async getMatchedOrdersFromCalldata(
+    provider: Provider,
+    calldata: string
+  ): Promise<{ buy: Order; sell: Order }[]> {
+    const getNonce = async (user: string) => {
+      if (!this.nonceCache[user]) {
+        this.nonceCache[user] = (await this.getNonce(provider, user)).toString();
+      }
+      return this.nonceCache[user];
+    };
+
+    const buildOrder = async (values: Result, retrieveNonce = false) =>
       new Order(this.chainId, {
         // Force the kind since it's irrelevant
         kind: "erc721-single-token",
@@ -72,7 +83,6 @@ export class Exchange {
         amount: values.order.amount,
         paymentToken: values.order.paymentToken,
         price: values.order.price,
-        nonce: values.order.nonce,
         listingTime: values.order.listingTime,
         expirationTime: values.order.expirationTime,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,6 +91,7 @@ export class Exchange {
           recipient: f.recipient,
         })),
         salt: values.order.salt,
+        nonce: retrieveNonce ? await getNonce(values.order.trader) : "0",
         extraParams: values.order.extraParams,
         extraSignature: values.extraSignature,
         signatureVersion: values.signatureVersion,
@@ -93,8 +104,8 @@ export class Exchange {
         const result = this.contract.interface.decodeFunctionData("execute", calldata);
         return [
           {
-            buy: buildOrder(result.buy),
-            sell: buildOrder(result.sell),
+            buy: await buildOrder(result.buy, true),
+            sell: await buildOrder(result.sell),
           },
         ];
       }
@@ -102,11 +113,13 @@ export class Exchange {
       // `bulkExecute`
       case "0xb3be57f8": {
         const result = this.contract.interface.decodeFunctionData("bulkExecute", calldata);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return result.executions.map((e: any) => ({
-          buy: buildOrder(e.buy),
-          sell: buildOrder(e.sell),
-        }));
+        return Promise.all(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          result.executions.map(async (e: any) => ({
+            buy: await buildOrder(e.buy, true),
+            sell: await buildOrder(e.sell),
+          }))
+        );
       }
 
       default: {
