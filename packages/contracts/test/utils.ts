@@ -83,10 +83,14 @@ export const setupConduit = async (
 
   const conduitKey = `${deployer.address}000000000000000000000000`;
 
-  await deployer.sendTransaction({
-    to: Sdk.SeaportBase.Addresses.ConduitController[chainId],
-    data: iface.encodeFunctionData("createConduit", [conduitKey, deployer.address]),
-  });
+  try {
+    await deployer.sendTransaction({
+      to: Sdk.SeaportBase.Addresses.ConduitController[chainId],
+      data: iface.encodeFunctionData("createConduit", [conduitKey, deployer.address]),
+    });
+  } catch {
+    // Skip any errors (conduit already created)
+  }
 
   for (const channel of channels) {
     await deployer.sendTransaction({

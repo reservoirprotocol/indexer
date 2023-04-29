@@ -39,7 +39,7 @@ if (config.doBackgroundWork) {
     },
     {
       connection: redis.duplicate(),
-      concurrency: 3,
+      concurrency: config.chainId === 56 ? 20 : 3,
     }
   );
   worker.on("error", (error) => {

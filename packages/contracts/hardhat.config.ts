@@ -79,10 +79,6 @@ const config: HardhatUserConfig = {
     },
     localhost: {
       url: "http://127.0.0.1:8545",
-      forking: {
-        url: networkConfig.url,
-        blockNumber: Number(process.env.BLOCK_NUMBER),
-      },
     },
     // Testnets
     goerli: getNetworkConfig(5),

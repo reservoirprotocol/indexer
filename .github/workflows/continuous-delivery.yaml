@@ -130,6 +130,10 @@ jobs:
             ${{ github.sha }} \
             indexer-api-polygon
           ./utils/version_update.sh \
+            ./prod/platform/indexer-api-bsc.yaml \
+            ${{ github.sha }} \
+            indexer-api-bsc
+          ./utils/version_update.sh \
             ./prod/platform/indexer-worker.yaml \
             ${{ github.sha }} \
             indexer-worker
@@ -157,6 +161,10 @@ jobs:
             ./prod/platform/indexer-worker-polygon-3.yaml \
             ${{ github.sha }} \
             indexer-worker-polygon-3
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-bsc.yaml \
+            ${{ github.sha }} \
+            indexer-worker-bsc
           ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-ethereum.yaml \
             ${{ github.sha }} \

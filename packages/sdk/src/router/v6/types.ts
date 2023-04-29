@@ -68,15 +68,19 @@ export type GenericOrder =
       order: Sdk.SeaportV11.Order;
     }
   | {
-      kind: "seaport-partial";
-      order: Sdk.SeaportBase.Types.PartialOrder;
-    }
-  | {
       kind: "seaport-v1.4";
       order: Sdk.SeaportV14.Order;
     }
   | {
       kind: "seaport-v1.4-partial";
+      order: Sdk.SeaportBase.Types.PartialOrder;
+    }
+  | {
+      kind: "seaport-v1.5";
+      order: Sdk.SeaportV15.Order;
+    }
+  | {
+      kind: "seaport-v1.5-partial";
       order: Sdk.SeaportBase.Types.PartialOrder;
     }
   | {

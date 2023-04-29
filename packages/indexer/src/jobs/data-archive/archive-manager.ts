@@ -62,6 +62,16 @@ export class ArchiveManager {
         `/yyyy/MM/dd/HH-${startTimeMinute}0`
       )}.json.gz`;
 
+      // todo remove this after backfill
+      // If the file exist remove records from db and start queue agin
+      if (await ArchiveManager.fileExists(s3Bucket, s3Key)) {
+        logger.error("database-archive", `${s3Key} already exist in bucket ${s3Bucket}`);
+
+        // Delete from DB
+        await archiveClass.deleteFromTable(startTime, endTime);
+        return;
+      }
+
       const count = await archiveClass.generateJsonFile(filename, startTime, endTime);
 
       // If not records were found

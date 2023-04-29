@@ -21,6 +21,9 @@ export const getNetworkName = () => {
     case 10:
       return "optimism";
 
+    case 56:
+      return "bsc";
+
     case 137:
       return "polygon";
 
@@ -42,6 +45,9 @@ export const getOpenseaNetworkName = () => {
 
     case 10:
       return "optimism";
+
+    case 56:
+      return "bsc";
 
     case 137:
       return "matic";
@@ -365,6 +371,43 @@ export const getNetworkSettings = (): NetworkSettings => {
                   'ETH',
                   18,
                   '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // BSC
+    case 56: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        subDomain: "api-bsc",
+        coingecko: {
+          networkId: "binance-smart-chain",
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Binance Coin',
+                  'BNB',
+                  18,
+                  '{"coingeckoCurrencyId": "binancecoin", "image": "https://assets.coingecko.com/coins/images/12591/large/binance-coin-logo.png"}'
                 ) ON CONFLICT DO NOTHING
               `
             ),

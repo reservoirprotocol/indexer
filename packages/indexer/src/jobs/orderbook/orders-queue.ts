@@ -116,6 +116,12 @@ export type GenericOrderInfo =
       ingestMethod?: "websocket" | "rest";
     }
   | {
+      kind: "seaport-v1.5";
+      info: orders.seaportV15.OrderInfo;
+      validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
+    }
+  | {
       kind: "cryptopunks";
       info: orders.cryptopunks.OrderInfo;
       validateBidValue?: boolean;
@@ -232,6 +238,11 @@ export const jobProcessor = async (job: Job) => {
 
       case "seaport-v1.4": {
         result = await orders.seaportV14.save([info], validateBidValue, ingestMethod);
+        break;
+      }
+
+      case "seaport-v1.5": {
+        result = await orders.seaportV15.save([info], validateBidValue, ingestMethod);
         break;
       }
 

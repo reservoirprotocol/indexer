@@ -95,7 +95,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           otherwise: Joi.valid("active"),
         })
         .description(
-          "active = currently valid\ninactive = temporarily invalid\nexpired, cancelled, filled = permanently invalid\nany = any status\nAvailable when filtering by maker, otherwise only valid orders will be returned"
+          "active*^º = currently valid\ninactive*^ = temporarily invalid\nexpired*^, canceled*^, filled*^ = permanently invalid\nany*º = any status\n* when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
         ),
       source: Joi.string()
         .pattern(regex.domain)
