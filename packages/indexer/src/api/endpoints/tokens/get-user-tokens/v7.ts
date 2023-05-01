@@ -159,6 +159,7 @@ export const getUserTokensV7Options: RouteOptions = {
             topBid: Joi.object({
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
+              source: Joi.object().allow(null),
             }).optional(),
             lastAppraisalValue: Joi.number().unsafe().allow(null),
             attributes: Joi.array()
@@ -379,6 +380,7 @@ export const getUserTokensV7Options: RouteOptions = {
           null AS top_bid_currency,
           null AS top_bid_currency_price,
           null AS top_bid_currency_value,
+          null AS top_bid_source_id_int,
           ${selectFloorData}
           ${selectRoyaltyBreakdown}
         FROM tokens t
@@ -425,7 +427,8 @@ export const getUserTokensV7Options: RouteOptions = {
             o.value AS "top_bid_value",
             o.currency AS "top_bid_currency",
             o.currency_price AS "top_bid_currency_price",
-            o.currency_value AS "top_bid_currency_value"
+            o.currency_value AS "top_bid_currency_value",
+            o.source_id_int AS "top_bid_source_id_int"
           FROM "orders" "o"
           JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
           WHERE "tst"."contract" = "b"."contract"
@@ -481,7 +484,7 @@ export const getUserTokensV7Options: RouteOptions = {
                t.name, t.image, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
                t.rarity_score, ${selectLastSale}
-               top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
+               top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
                c.name as collection_name, con.kind, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
                c.royalties_bps, ot.kind AS floor_sell_kind,
@@ -609,6 +612,9 @@ export const getUserTokensV7Options: RouteOptions = {
         const floorSellSource = r.floor_sell_value
           ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
           : undefined;
+        const topBidSource = r.top_bid_source_id_int
+          ? sources.get(Number(r.top_bid_source_id_int), contract, tokenId)
+          : undefined;
         const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
         return {
           token: {
@@ -682,6 +688,13 @@ export const getUserTokensV7Options: RouteOptions = {
                         query.displayCurrency
                       )
                     : null,
+                  source: {
+                    id: topBidSource?.address,
+                    domain: topBidSource?.domain,
+                    name: topBidSource?.metadata.title || topBidSource?.name,
+                    icon: topBidSource?.getIcon(),
+                    url: topBidSource?.metadata.url,
+                  },
                 }
               : undefined,
             lastAppraisalValue: r.last_token_appraisal_value
