@@ -1,9 +1,7 @@
 import { idb, redb } from "@/common/db";
-import * as Pusher from "pusher";
 import { formatEth, fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import _ from "lodash";
-import { config } from "@/config/index";
 import { redis, redisWebsocketPublisher } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Sources } from "@/models/sources";
@@ -63,11 +61,6 @@ export class NewTopBidWebsocketEvent {
     );
 
     if (await NewTopBidWebsocketEvent.isRateLimited(order.token_set_id)) {
-      logger.info(
-        "new-top-bid-websocket-event",
-        `Rate limited. orderId=${data.orderId}, tokenSetId=${order.token_set_id}`
-      );
-
       return;
     }
 
@@ -143,10 +136,6 @@ export class NewTopBidWebsocketEvent {
     }
 
     try {
-      logger.info(
-        "top-bids-websocket-event",
-        `Triggering event. orderId=${data.orderId}, tokenSetId=${order.token_set_id}`
-      );
       await Promise.all(
         payloads.map((payload) =>
           redisWebsocketPublisher.publish(
@@ -163,34 +152,6 @@ export class NewTopBidWebsocketEvent {
       );
     } catch (e) {
       logger.error("top-bids-websocket-event", `Error triggering event. ${e}`);
-    }
-
-    const server = new Pusher.default({
-      appId: config.websocketServerAppId,
-      key: config.websocketServerAppKey,
-      secret: config.websocketServerAppSecret,
-      host: config.websocketServerHost,
-      useTLS: true,
-    });
-
-    if (payloads.length > 1) {
-      const payloadsBatches = _.chunk(payloads, Number(config.websocketServerEventMaxBatchSize));
-
-      await Promise.all(
-        payloadsBatches.map((payloadsBatch) =>
-          server.triggerBatch(
-            payloadsBatch.map((payload) => {
-              return {
-                channel: "top-bids",
-                name: "new-top-bid",
-                data: JSON.stringify(payload),
-              };
-            })
-          )
-        )
-      );
-    } else {
-      await server.trigger("top-bids", "new-top-bid", JSON.stringify(payloads[0]));
     }
   }
 

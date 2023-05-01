@@ -71,7 +71,6 @@ export async function extractOnChainData(enhancedEvents: EnhancedEvent[], skipPr
 export async function getFillEventsFromTx(txHash: string) {
   const events = await getEnhancedEventsFromTx(txHash);
   const allOnChainData = await extractOnChainData(events);
-
   let fillEvents: es.fills.Event[] = [];
   for (let i = 0; i < allOnChainData.length; i++) {
     const data = allOnChainData[i];

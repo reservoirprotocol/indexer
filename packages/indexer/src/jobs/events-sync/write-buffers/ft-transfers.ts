@@ -1,7 +1,7 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
-import { idb } from "@/common/db";
+import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
@@ -31,7 +31,7 @@ if (config.doBackgroundWork) {
       const { query } = job.data;
 
       try {
-        await idb.none(query);
+        await edb.none(query);
       } catch (error) {
         logger.error(QUEUE_NAME, `Failed flushing ft transfer events to the database: ${error}`);
         throw error;
@@ -39,7 +39,7 @@ if (config.doBackgroundWork) {
     },
     {
       connection: redis.duplicate(),
-      concurrency: 3,
+      concurrency: config.chainId === 56? 1 : 3,
     }
   );
   worker.on("error", (error) => {

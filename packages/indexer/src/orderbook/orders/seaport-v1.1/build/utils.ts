@@ -41,7 +41,6 @@ export const getBuildInfo = async (
   }
 
   const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
-  const source = options.source;
 
   const buildParams: Sdk.SeaportBase.BaseBuildParams = {
     offerer: options.maker,
@@ -61,9 +60,7 @@ export const getBuildInfo = async (
     conduitKey: HashZero,
     startTime: options.listingTime || now() - 1 * 60,
     endTime: options.expirationTime || now() + 6 * 30 * 24 * 3600,
-    salt: source
-      ? padSourceToSalt(source, options.salt ?? getRandomBytes(16).toString())
-      : undefined,
+    salt: padSourceToSalt(options.salt ?? getRandomBytes(16).toString(), options.source),
     counter: (await exchange.getCounter(baseProvider, options.maker)).toString(),
     orderType: options.orderType,
   };

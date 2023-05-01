@@ -6,7 +6,6 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
@@ -15,6 +14,7 @@ import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/blur/check";
 import * as tokenSet from "@/orderbook/token-sets";
+import { getBlurRoyalties } from "@/utils/blur";
 // import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 type SaveResult = {
@@ -31,7 +31,10 @@ export type ListingOrderInfo = {
   metadata: OrderMetadata;
 };
 
-export const saveListings = async (orderInfos: ListingOrderInfo[]): Promise<SaveResult[]> => {
+export const saveListings = async (
+  orderInfos: ListingOrderInfo[],
+  ingestMethod?: "websocket" | "rest"
+): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
 
@@ -282,6 +285,7 @@ export const saveListings = async (orderInfos: ListingOrderInfo[]): Promise<Save
               trigger: {
                 kind: "new-order",
               },
+              ingestMethod,
             } as ordersUpdateById.OrderInfo)
         )
     );
@@ -295,17 +299,25 @@ export const saveListings = async (orderInfos: ListingOrderInfo[]): Promise<Save
 export type BidOrderInfo = {
   orderParams: Sdk.Blur.Types.BlurBidPool;
   metadata: OrderMetadata;
+  fullUpdate?: boolean;
 };
 
 const getBlurBidId = (collection: string) =>
   // Buy orders have a single order id per collection
   keccak256(["string", "address"], ["blur", collection]);
 
-export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]> => {
+export const saveBids = async (
+  orderInfos: BidOrderInfo[],
+  ingestMethod?: "websocket" | "rest"
+): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
 
-  const handleOrder = async ({ orderParams }: BidOrderInfo) => {
+  const handleOrder = async ({ orderParams, fullUpdate }: BidOrderInfo) => {
+    if (!fullUpdate && !orderParams.pricePoints.length) {
+      return;
+    }
+
     const id = getBlurBidId(orderParams.collection);
 
     // const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, "blur");
@@ -317,6 +329,8 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
     // }
 
     try {
+      const royalties = await getBlurRoyalties(orderParams.collection);
+
       const orderResult = await idb.oneOrNone(
         `
           SELECT
@@ -360,9 +374,12 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
         // Handle: royalties
         let feeBps = 0;
         const feeBreakdown: { kind: string; recipient: string; bps: number }[] = [];
-        const royaltyData = await redis.get(`blur-royalties:${orderParams.collection}`);
-        if (royaltyData) {
-          feeBreakdown.push({ ...JSON.parse(royaltyData), kind: "royalty" });
+        if (royalties) {
+          feeBreakdown.push({
+            recipient: royalties.recipient,
+            bps: royalties.minimumRoyaltyBps,
+            kind: "royalty",
+          });
           feeBps += feeBreakdown[0].bps;
         }
 
@@ -426,15 +443,27 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
           });
         }
 
-        // Update the current bid in place
-        for (const newPricePoint of bidUpdates.pricePoints) {
-          const existingPricePointIndex = currentBid.pricePoints.findIndex(
-            (pp) => pp.price === newPricePoint.price
-          );
-          if (existingPricePointIndex !== -1) {
-            currentBid.pricePoints[existingPricePointIndex] = newPricePoint;
-          } else {
-            currentBid.pricePoints.push(newPricePoint);
+        if (fullUpdate) {
+          // Assume `JSON.stringify` is deterministic
+          if (JSON.stringify(currentBid.pricePoints) === JSON.stringify(bidUpdates.pricePoints)) {
+            return results.push({
+              id,
+              status: "redundant",
+            });
+          }
+
+          currentBid.pricePoints = bidUpdates.pricePoints;
+        } else {
+          // Update the current bid in place
+          for (const newPricePoint of bidUpdates.pricePoints) {
+            const existingPricePointIndex = currentBid.pricePoints.findIndex(
+              (pp) => Number(pp.price) === Number(newPricePoint.price)
+            );
+            if (existingPricePointIndex !== -1) {
+              currentBid.pricePoints[existingPricePointIndex] = newPricePoint;
+            } else {
+              currentBid.pricePoints.push(newPricePoint);
+            }
           }
         }
 
@@ -458,9 +487,12 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
           // Handle: royalties
           let feeBps = 0;
           const feeBreakdown: { kind: string; recipient: string; bps: number }[] = [];
-          const royaltyData = await redis.get(`blur-royalties:${orderParams.collection}`);
-          if (royaltyData) {
-            feeBreakdown.push({ ...JSON.parse(royaltyData), kind: "royalty" });
+          if (royalties) {
+            feeBreakdown.push({
+              recipient: royalties.recipient,
+              bps: royalties.minimumRoyaltyBps,
+              kind: "royalty",
+            });
             feeBps += feeBreakdown[0].bps;
           }
 
@@ -515,8 +547,6 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
   const limit = pLimit(20);
   await Promise.all(orderInfos.map((orderInfo) => limit(() => handleOrder(orderInfo))));
 
-  logger.info("orders-blur-save", JSON.stringify(results));
-
   if (orderValues.length) {
     const columns = new pgp.helpers.ColumnSet(
       [
@@ -565,6 +595,7 @@ export const saveBids = async (orderInfos: BidOrderInfo[]): Promise<SaveResult[]
               trigger: {
                 kind: "new-order",
               },
+              ingestMethod,
             } as ordersUpdateById.OrderInfo)
         )
     );

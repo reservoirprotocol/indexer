@@ -1,12 +1,12 @@
 import { BigNumberish } from "@ethersproject/bignumber";
 import pLimit from "p-limit";
 
-import { idb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import * as fallback from "@/events-sync/handlers/royalties/core";
 import * as es from "@/events-sync/storage";
-import { Royalty } from "@/utils/royalties";
 import { OrderKind } from "@/orderbook/orders";
+import { Royalty } from "@/utils/royalties";
 
 const registry = new Map<string, RoyaltyAdapter>();
 registry.set("fallback", fallback as RoyaltyAdapter);
@@ -19,8 +19,21 @@ export type RoyaltyResult = {
   paidFullRoyalty: boolean;
 };
 
+type FeeBreakdown = {
+  kind: string;
+  recipient: string;
+  bps: number;
+};
+
+type OrderInfo = {
+  orderId: string;
+  feeBps: number;
+  feeBreakdown: FeeBreakdown[];
+};
+
 export type StateCache = {
   royalties: Map<string, Royalty[][]>;
+  orderInfos: Map<string, OrderInfo>;
 };
 
 export interface RoyaltyAdapter {
@@ -33,11 +46,14 @@ export interface RoyaltyAdapter {
 }
 
 export type PartialFillEvent = {
+  orderId?: string;
   orderKind: OrderKind;
+  orderSide: string;
   contract: string;
   tokenId: string;
   currency: string;
   price: string;
+  currencyPrice?: string;
   amount: string;
   maker: string;
   taker: string;
@@ -51,7 +67,9 @@ export const getFillEventsFromTx = async (txHash: string): Promise<PartialFillEv
   const results = await idb.manyOrNone(
     `
       SELECT
+        fill_events_2.order_id,
         fill_events_2.order_kind,
+        fill_events_2.order_side,
         fill_events_2.contract,
         fill_events_2.token_id,
         fill_events_2.currency,
@@ -71,10 +89,13 @@ export const getFillEventsFromTx = async (txHash: string): Promise<PartialFillEv
   return (
     results
       .map((r) => ({
+        orderId: r.order_id,
         orderKind: r.order_kind,
+        orderSide: r.order_side,
         contract: fromBuffer(r.contract),
         tokenId: r.token_id,
         currency: fromBuffer(r.currency),
+        currencyPrice: r.currency_price,
         price: r.price,
         amount: r.amount,
         maker: fromBuffer(r.maker),
@@ -87,6 +108,32 @@ export const getFillEventsFromTx = async (txHash: string): Promise<PartialFillEv
       // Exclude mints
       .filter((r) => r.orderKind !== "mint")
   );
+};
+
+export const getOrderInfos = async (orderIds: string[]): Promise<OrderInfo[]> => {
+  if (!orderIds.length) {
+    return [];
+  }
+
+  const results = await redb.manyOrNone(
+    `
+      SELECT
+        orders.id,
+        orders.fee_bps,
+        orders.fee_breakdown
+      FROM orders
+      WHERE orders.id IN ($/orderIds:csv/)
+    `,
+    {
+      orderIds,
+    }
+  );
+
+  return results.map((r) => ({
+    orderId: r.id,
+    feeBps: r.fee_bps,
+    feeBreakdown: r.fee_breakdown,
+  }));
 };
 
 const checkFeeIsValid = (result: RoyaltyResult) =>
@@ -103,6 +150,7 @@ export const assignRoyaltiesToFillEvents = async (
 ) => {
   const cache: StateCache = {
     royalties: new Map(),
+    orderInfos: new Map(),
   };
 
   const limit = pLimit(50);
@@ -136,7 +184,7 @@ export const assignRoyaltiesToFillEvents = async (
               fillEvent.paidFullRoyalty = result.paidFullRoyalty;
 
               fillEvent.netAmount = subFeeWithBps(
-                fillEvent.price,
+                fillEvent.currencyPrice ?? fillEvent.price,
                 result.royaltyFeeBps + result.marketplaceFeeBps
               );
             }

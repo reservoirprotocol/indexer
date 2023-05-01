@@ -20,7 +20,8 @@ const version = "v6";
 
 export const getCollectionActivityV6Options: RouteOptions = {
   description: "Collection activity",
-  notes: "This API can be used to build a feed for a collection",
+  notes:
+    "This API can be used to build a feed for a collection including sales, asks, transfers, mints, bids, cancelled bids, and cancelled asks types.",
   tags: ["api", "Activity"],
   timeout: {
     server: 20 * 1000,
@@ -46,14 +47,14 @@ export const getCollectionActivityV6Options: RouteOptions = {
       attributes: Joi.object()
         .unknown()
         .description(
-          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/owners/v1?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/owners/v1?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`"
+          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/collections/activity/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attribute[Type]=Original` or `https://api.reservoir.tools/collections/activity/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attribute[Type]=Original&attribute[Type]=Sibling`"
         ),
       limit: Joi.number()
         .integer()
         .min(1)
         .default(50)
         .description(
-          "Amount of items returned in response. If `includeMetadata=true` max limit is 50, otherwise max limit is 1,000."
+          "Amount of items returned. Max limit is 50 when `includedMetadata=true` otherwise max limit is 1000."
         )
         .when("includeMetadata", {
           is: true,
@@ -64,14 +65,14 @@ export const getCollectionActivityV6Options: RouteOptions = {
         .valid("eventTimestamp", "createdAt")
         .default("eventTimestamp")
         .description(
-          "Order the items are returned in the response, eventTimestamp = The blockchain event time, createdAt - The time in which event was recorded"
+          "Order the items are returned in the response. The blockchain event time is `eventTimestamp`. The event time recorded is `createdAt`."
         ),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
       includeMetadata: Joi.boolean()
         .default(true)
-        .description("If true, metadata is included in the response."),
+        .description("If true, metadata is included in the response. If true, max limit is 50."),
       types: Joi.alternatives()
         .try(
           Joi.array().items(
@@ -87,7 +88,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency"),
     })
       .xor("collection", "collectionsSetId", "community")
       .with("attributes", "collection"),

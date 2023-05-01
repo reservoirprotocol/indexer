@@ -21,6 +21,7 @@ export type SourcesMetadata = {
   tokenUrlGoerli?: string;
   tokenUrlArbitrum?: string;
   tokenUrlOptimism?: string;
+  tokenUrlBsc?: string;
 };
 
 export class SourcesEntity {

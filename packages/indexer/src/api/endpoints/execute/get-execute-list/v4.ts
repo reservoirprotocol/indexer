@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { AddressZero } from "@ethersproject/constants";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -13,6 +12,7 @@ import { baseProvider } from "@/common/provider";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
+import { ExecutionsBuffer } from "@/utils/executions";
 
 // LooksRare
 import * as looksRareV2SellToken from "@/orderbook/orders/looks-rare-v2/build/sell/token";
@@ -92,7 +92,6 @@ export const getExecuteListV4Options: RouteOptions = {
               "zeroex-v4",
               "seaport",
               "seaport-v1.4",
-              "seaport-forward",
               "x2y2",
               "universe",
               "flow"
@@ -164,8 +163,18 @@ export const getExecuteListV4Options: RouteOptions = {
   handler: async (request: Request) => {
     const payload = request.payload as any;
 
+    const executionsBuffer = new ExecutionsBuffer();
+    const addExecution = (orderId: string, quantity?: number) =>
+      executionsBuffer.addFromRequest(request, {
+        side: "sell",
+        action: "create",
+        user: payload.maker,
+        orderId,
+        quantity: quantity ?? 1,
+      });
+
     try {
-      let maker = payload.maker;
+      const maker = payload.maker;
       const source = payload.source;
 
       // Set up generic listing steps
@@ -302,6 +311,8 @@ export const getExecuteListV4Options: RouteOptions = {
               orderIndex: i,
             });
 
+            addExecution(order.hash(), params.quantity);
+
             // Go on with the next listing
             continue;
           }
@@ -374,24 +385,15 @@ export const getExecuteListV4Options: RouteOptions = {
               orderIndex: i,
             });
 
+            addExecution(order.hash(), params.quantity);
+
             // Go on with the next listing
             continue;
           }
 
-          case "seaport":
-          case "seaport-forward": {
+          case "seaport": {
             if (!["reservoir"].includes(params.orderbook)) {
               throw Boom.badRequest("Only `reservoir` is supported as orderbook");
-            }
-
-            const isForward = params.orderKind === "seaport-forward";
-            if (isForward) {
-              maker = await new Sdk.Forward.Exchange(config.chainId).contract
-                .connect(baseProvider)
-                .vaults(maker);
-              if (maker === AddressZero) {
-                throw Boom.badRequest("Maker has no Forward vault");
-              }
             }
 
             const order = await seaportSellToken.build({
@@ -400,7 +402,6 @@ export const getExecuteListV4Options: RouteOptions = {
               contract,
               tokenId,
               source,
-              orderType: isForward ? Sdk.SeaportBase.Types.OrderType.PARTIAL_OPEN : undefined,
             });
             if (!order) {
               throw Boom.internal("Failed to generate order");
@@ -423,11 +424,6 @@ export const getExecuteListV4Options: RouteOptions = {
 
                 case "no-approval": {
                   // Generate an approval transaction
-
-                  if (isForward) {
-                    throw Boom.badRequest("Token is not approved");
-                  }
-
                   const info = order.getInfo()!;
 
                   const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";
@@ -469,6 +465,8 @@ export const getExecuteListV4Options: RouteOptions = {
               },
               orderIndex: i,
             });
+
+            addExecution(order.hash(), params.quantity);
 
             // Go on with the next listing
             continue;
@@ -558,6 +556,8 @@ export const getExecuteListV4Options: RouteOptions = {
               orderIndex: i,
             });
 
+            addExecution(order.hash(), params.quantity);
+
             // Go on with the next listing
             continue;
           }
@@ -580,6 +580,19 @@ export const getExecuteListV4Options: RouteOptions = {
             });
             if (!order) {
               throw Boom.internal("Failed to generate order");
+            }
+
+            const exchange = new Sdk.LooksRareV2.Exchange(config.chainId);
+            const granted = await exchange.isGranted(order, baseProvider);
+            if (!granted) {
+              const grantApprovalsTx = exchange.grantApprovalsTx(order.params.signer, [
+                exchange.contract.address,
+              ]);
+              steps[1].items.push({
+                status: "incomplete",
+                data: grantApprovalsTx,
+                orderIndex: i,
+              });
             }
 
             // Will be set if an approval is needed before listing
@@ -644,6 +657,8 @@ export const getExecuteListV4Options: RouteOptions = {
               },
               orderIndex: i,
             });
+
+            addExecution(order.hash(), params.quantity);
 
             // Go on with the next listing
             continue;
@@ -732,6 +747,8 @@ export const getExecuteListV4Options: RouteOptions = {
               orderIndex: i,
             });
 
+            addExecution(new Sdk.X2Y2.Exchange(config.chainId, "").hash(order), params.quantity);
+
             // Go on with the next listing
             continue;
           }
@@ -812,6 +829,9 @@ export const getExecuteListV4Options: RouteOptions = {
               },
               orderIndex: i,
             });
+
+            addExecution(order.hashOrderKey(), params.quantity);
+
             // Go on with the next listing
             continue;
           }
@@ -830,6 +850,8 @@ export const getExecuteListV4Options: RouteOptions = {
           }));
         }
       }
+
+      await executionsBuffer.flush();
 
       return { steps };
     } catch (error) {

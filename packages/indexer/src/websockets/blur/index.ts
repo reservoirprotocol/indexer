@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as orderbook from "@/jobs/orderbook/orders-queue";
+import { addToQueue } from "@/jobs/order-updates/misc/blur-bids-buffer";
 
 const COMPONENT = "blur-websocket";
 
@@ -29,18 +29,9 @@ if (config.doWebsocketWork && config.blurWsUrl && config.blurWsApiKey) {
         updates: Sdk.Blur.Types.BlurBidPricePoint[];
       } = JSON.parse(message);
 
-      await orderbook.addToQueue([
-        {
-          kind: "blur-bid",
-          info: {
-            orderParams: {
-              collection: parsedMessage.contractAddress.toLowerCase(),
-              pricePoints: parsedMessage.updates,
-            },
-            metadata: {},
-          },
-        },
-      ]);
+      const collection = parsedMessage.contractAddress.toLowerCase();
+      const pricePoints = parsedMessage.updates;
+      await addToQueue(collection, pricePoints);
     } catch (error) {
       logger.error(COMPONENT, `Error handling bid: ${error} (message = ${message})`);
     }

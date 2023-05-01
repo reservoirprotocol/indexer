@@ -85,6 +85,28 @@ export const getCollectionTopBidOracleV2Options: RouteOptions = {
     }
 
     try {
+      const collectionHasTopBid = await redb.oneOrNone(
+        `
+          SELECT
+            1
+          FROM orders
+          JOIN token_sets
+            ON orders.token_set_id = token_sets.id
+          WHERE orders.side = 'buy'
+            AND orders.fillability_status = 'fillable'
+            AND orders.approval_status = 'approved'
+            AND token_sets.collection_id = $/collection/
+            AND token_sets.attribute_id IS NULL
+          LIMIT 1
+        `,
+        {
+          collection: query.collection,
+        }
+      );
+      if (!collectionHasTopBid) {
+        throw Boom.badRequest("Collection has no top bid");
+      }
+
       const spotQuery = `
         SELECT
           e.price

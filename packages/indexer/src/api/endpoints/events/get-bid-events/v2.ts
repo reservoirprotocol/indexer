@@ -3,7 +3,7 @@
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 
-import { redb } from "@/common/db";
+import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import {
   buildContinuation,
@@ -195,7 +195,7 @@ export const getBidEventsV2Options: RouteOptions = {
       // Pagination
       baseQuery += ` LIMIT $/limit/`;
 
-      const rawResult = await redb.manyOrNone(baseQuery, query);
+      const rawResult = await edb.manyOrNone(baseQuery, query);
 
       let continuation = null;
       if (rawResult.length === query.limit) {

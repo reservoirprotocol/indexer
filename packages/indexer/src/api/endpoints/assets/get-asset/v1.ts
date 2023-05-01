@@ -30,12 +30,13 @@ export const getAssetV1Options: RouteOptions = {
   },
   handler: async (request: Request, response) => {
     const query = request.query as any;
-    const decryptedAsset = decrypt(query.asset);
-    const imageWithQueryParams = Assets.addImageParams(
-      decryptedAsset,
-      _.omit(request.query, ["asset"])
-    );
     try {
+      const decryptedAsset = decrypt(query.asset);
+      const imageWithQueryParams = Assets.addImageParams(
+        decryptedAsset,
+        _.omit(request.query, ["asset"])
+      );
+
       return response
         .redirect(imageWithQueryParams)
         .header("cache-control", `${1000 * 60 * 60 * 24 * 30}`);

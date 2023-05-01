@@ -21,11 +21,17 @@ export const getNetworkName = () => {
     case 10:
       return "optimism";
 
+    case 56:
+      return "bsc";
+
     case 137:
       return "polygon";
 
     case 42161:
       return "arbitrum";
+
+    case 534353:
+      return "scroll-alpha";
 
     default:
       return "unknown";
@@ -39,6 +45,9 @@ export const getOpenseaNetworkName = () => {
 
     case 10:
       return "optimism";
+
+    case 56:
+      return "bsc";
 
     case 137:
       return "matic";
@@ -133,6 +142,7 @@ export const getNetworkSettings = (): NetworkSettings => {
       return {
         ...defaultNetworkSettings,
         metadataMintDelay: 900,
+        realtimeSyncFrequencySeconds: 5,
         enableMetadataAutoRefresh: true,
         washTradingExcludedContracts: [
           // ArtBlocks Contracts
@@ -152,7 +162,12 @@ export const getNetworkSettings = (): NetworkSettings => {
           "0x942bc2d3e7a589fe5bd4a5c6ef9727dfd82f5c8a",
           "0x32d4be5ee74376e08038d652d4dc26e62c67f436",
         ],
-        washTradingBlacklistedAddresses: ["0xac335e6855df862410f96f345f93af4f96351a87"],
+        washTradingBlacklistedAddresses: [
+          "0xac335e6855df862410f96f345f93af4f96351a87",
+          "0x81c6686fbe1594d599ac86a0d8e81d84a2f9bcf2",
+          "0x06d51314d152ca4f88d691f87b40cf3bf453df7c",
+          "0x39fdf1b13dd5b86eb8b7fdd50bce4607beae0722",
+        ],
         multiCollectionContracts: [
           // ArtBlocks Contracts
           "0x059edd72cd353df5106d2b9cc5ab83a52287ac3a",
@@ -361,6 +376,43 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
       };
     }
+    // BSC
+    case 56: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        subDomain: "api-bsc",
+        coingecko: {
+          networkId: "binance-smart-chain",
+        },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Binance Coin',
+                  'BNB',
+                  18,
+                  '{"coingeckoCurrencyId": "binancecoin", "image": "https://assets.coingecko.com/coins/images/12591/large/binance-coin-logo.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
     // Polygon
     case 137: {
       return {
@@ -368,9 +420,9 @@ export const getNetworkSettings = (): NetworkSettings => {
         metadataMintDelay: 180,
         enableWebSocket: true,
         realtimeSyncMaxBlockLag: 32,
-        realtimeSyncFrequencySeconds: 5,
+        realtimeSyncFrequencySeconds: 2,
         lastBlockLatency: 8,
-        headBlockDelay: 5,
+        headBlockDelay: 0,
         backfillBlockBatchSize: 60,
         reorgCheckFrequency: [30],
         subDomain: "api-polygon",
@@ -381,6 +433,15 @@ export const getNetworkSettings = (): NetworkSettings => {
               contract: "0xba777ae3a3c91fcd83ef85bfe65410592bdd0f7c",
               name: "BitCone",
               symbol: "CONE",
+              decimals: 18,
+            },
+          ],
+          [
+            "0x3b45a986621f91eb51be84547fbd9c26d0d46d02",
+            {
+              contract: "0x3b45a986621f91eb51be84547fbd9c26d0d46d02",
+              name: "Gold Bar Currency",
+              symbol: "GXB",
               decimals: 18,
             },
           ],
@@ -430,6 +491,40 @@ export const getNetworkSettings = (): NetworkSettings => {
         coingecko: {
           networkId: "arbitrum-one",
         },
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    // Scroll Alpha
+    case 534353: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        subDomain: "api-scroll-alpha",
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([

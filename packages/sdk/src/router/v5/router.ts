@@ -2,7 +2,6 @@ import { Interface } from "@ethersproject/abi";
 import { Provider } from "@ethersproject/abstract-provider";
 import { AddressZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
-import axios from "axios";
 
 import * as Addresses from "./addresses";
 import { ExchangeKind, BidDetails, ListingDetails } from "./types";
@@ -98,28 +97,6 @@ export class Router {
         });
       }
     }
-
-    // Handle partial seaport orders:
-    // - fetch the full order data for each partial order (concurrently)
-    // - remove any partial order from the details
-    await Promise.all(
-      details
-        .filter(({ kind }) => kind === "seaport-partial")
-        .map(async (detail) => {
-          const order = detail.order as Sdk.SeaportBase.Types.PartialOrder;
-          const result = await axios.get(
-            `${this.options?.orderFetcherBaseUrl}/api/listing?orderHash=${order.id}&contract=${order.contract}&tokenId=${order.tokenId}&taker=${taker}&chainId=${this.chainId}`
-          );
-
-          const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
-          details.push({
-            ...detail,
-            kind: "seaport",
-            order: fullOrder,
-          });
-        })
-    );
-    details = details.filter(({ kind }) => kind !== "seaport-partial");
 
     // If all orders are Seaport, then we fill on Seaport directly
     // TODO: Once the modular router is implemented, a refactoring
@@ -653,29 +630,6 @@ export class Router {
           filler,
           order,
           matchParams,
-          // Force using `fulfillAdvancedOrder` to pass router selector whitelist
-          {
-            recipient: filler,
-          }
-        ),
-        exchangeKind: ExchangeKind.SEAPORT,
-      };
-    } else if (kind === "seaport-partial") {
-      order = order as Sdk.SeaportBase.Types.PartialOrder;
-      const result = await axios.get(
-        `${this.options?.orderFetcherBaseUrl}/api/offer?orderHash=${order.id}&contract=${order.contract}&tokenId=${order.tokenId}&taker=${taker}&chainId=${this.chainId}`
-      );
-
-      const fullOrder = new Sdk.SeaportV11.Order(this.chainId, result.data.order);
-
-      const exchange = new Sdk.SeaportV11.Exchange(this.chainId);
-      return {
-        tx: await exchange.fillOrderTx(
-          filler,
-          fullOrder,
-          {
-            criteriaResolvers: result.data.criteriaResolvers ?? [],
-          },
           // Force using `fulfillAdvancedOrder` to pass router selector whitelist
           {
             recipient: filler,

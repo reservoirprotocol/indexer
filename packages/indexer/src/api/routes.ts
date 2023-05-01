@@ -25,7 +25,6 @@ import * as transfersEndpoints from "@/api/endpoints/transfers";
 import * as syncEndpoints from "@/api/endpoints/sync";
 import * as assetsEndpoints from "@/api/endpoints/assets";
 import * as sourcesEndpoints from "@/api/endpoints/sources";
-import * as websocketEndpoints from "@/api/endpoints/websocket";
 import * as debugEndpoints from "@/api/endpoints/debug";
 
 export const setupRoutes = (server: Server) => {
@@ -166,9 +165,9 @@ export const setupRoutes = (server: Server) => {
   // Admin
 
   server.route({
-    method: "GET",
+    method: "POST",
     path: "/admin/api-keys/metrics",
-    options: adminEndpoints.getApiKeyMetrics,
+    options: adminEndpoints.postApiKeyMetrics,
   });
 
   server.route({
@@ -944,6 +943,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/orders/depth/v1",
+    options: ordersEndpoints.getOrdersDepthV1Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/orders/executed/v1",
     options: ordersEndpoints.getOrderExecutedV1Options,
   });
@@ -1328,6 +1333,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/sales/v5",
+    options: transfersEndpoints.getSalesV5Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/sales/bulk/v1",
     options: transfersEndpoints.getSalesBulkV1Options,
   });
@@ -1364,14 +1375,6 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/sources/v1",
     options: sourcesEndpoints.getSourcesV1Options,
-  });
-
-  // Websocket
-
-  server.route({
-    method: "POST",
-    path: "/websocket/user-auth",
-    options: websocketEndpoints.postWebsocketUserAuthOptions,
   });
 
   // Debug APIs

@@ -35,8 +35,8 @@ if (config.doBackgroundWork) {
           SELECT
             orders.id
           FROM orders
-          WHERE orders.updated_at >= to_timestamp(1678402800::double precision)
-            AND orders.updated_at <= to_timestamp(1678834800::double precision)
+          WHERE orders.updated_at >= to_timestamp(1682632800::double precision)
+            AND orders.updated_at <= to_timestamp(1682950998::double precision)
             AND approval_status = 'disabled'::order_approval_status_t
             AND orders.id > $/orderId/
           LIMIT ${limit}
@@ -73,9 +73,9 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  if (config.chainId === 1) {
+  if (config.chainId === 137) {
     redlock
-      .acquire([`${QUEUE_NAME}-lock`], 60 * 60 * 24 * 30 * 1000)
+      .acquire([`${QUEUE_NAME}-lock-3`], 60 * 60 * 24 * 30 * 1000)
       .then(async () => {
         await addToQueue(HashZero);
       })

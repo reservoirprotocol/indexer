@@ -14,13 +14,15 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
-import { OrderKind, generateListingDetailsV6, routerOnRecoverableError } from "@/orderbook/orders";
+import { OrderKind, generateListingDetailsV6, routerOnErrorCallback } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
+import { ExecutionsBuffer } from "@/utils/executions";
 
 const version = "v6";
 
@@ -791,6 +793,9 @@ export const getExecuteBuyV6Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
+        orderFetcherMetadata: {
+          apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
+        },
       });
 
       const errors: { orderId: string; message: string }[] = [];
@@ -803,20 +808,14 @@ export const getExecuteBuyV6Options: RouteOptions = {
           globalFees: buyInCurrency === Sdk.Common.Addresses.Eth[config.chainId] ? feesOnTop : [],
           partial: payload.partial,
           forceRouter: payload.forceRouter,
-          directFillingData: {
-            conduitKey:
-              config.chainId === 1
-                ? "0x0000007b02230091a7ed01230072f7006a004d60a8d4e71d599b8104250f0000"
-                : undefined,
-          },
           relayer: payload.relayer,
           blurAuth,
-          onRecoverableError: async (kind, error, data) => {
+          onError: async (kind, error, data) => {
             errors.push({
               orderId: data.orderId,
               message: error.response?.data ?? error.message,
             });
-            await routerOnRecoverableError(kind, error, data);
+            await routerOnErrorCallback(kind, error, data);
           },
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -918,11 +917,26 @@ export const getExecuteBuyV6Options: RouteOptions = {
         steps = steps.slice(1);
       }
 
+      // Remove any unsuccessfully handled listings from the path
+      const successfullPath = path.filter((p) => success[p.orderId]);
+
+      const executionsBuffer = new ExecutionsBuffer();
+      for (const item of successfullPath) {
+        executionsBuffer.addFromRequest(request, {
+          side: "buy",
+          action: "fill",
+          user: payload.taker,
+          orderId: item.orderId,
+          quantity: item.quantity,
+          calldata: txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data,
+        });
+      }
+      await executionsBuffer.flush();
+
       return {
         steps: blurAuth ? [steps[0], ...steps.slice(1).filter((s) => s.items.length)] : steps,
         errors,
-        // Remove any unsuccessfully handled listings from the path
-        path: path.filter((p) => success[p.orderId]),
+        path: successfullPath,
       };
     } catch (error) {
       if (!(error instanceof Boom.Boom)) {

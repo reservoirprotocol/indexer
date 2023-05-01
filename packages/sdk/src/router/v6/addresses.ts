@@ -9,6 +9,7 @@ export const Router: ChainIdToAddress = {
   [Network.Polygon]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
   [Network.Optimism]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
   [Network.Arbitrum]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
+  [Network.ScrollAlpha]: "0xd17f3e7ab95ca115a7e89610cde1f0b01248fe9a",
 };
 
 // Approval proxy
@@ -19,6 +20,7 @@ export const ApprovalProxy: ChainIdToAddress = {
   [Network.Polygon]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.Optimism]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.Arbitrum]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
+  [Network.ScrollAlpha]: "0xae4acac642fc0330e37c4ef20434934ee9636bc9",
 };
 
 // Utility modules
@@ -41,6 +43,11 @@ export const LooksRareModule: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x71f52a45b4d79977156e410314e1cb16814dbc3b",
 };
 
+export const LooksRareV2Module: ChainIdToAddress = {
+  [Network.Ethereum]: "0x9561e33b68d7c21e4010f027d751d417127cc5b5",
+  [Network.EthereumGoerli]: "0x9561e33b68d7c21e4010f027d751d417127cc5b5",
+};
+
 export const SeaportModule: ChainIdToAddress = {
   [Network.Ethereum]: "0xd8741e5e73fbc7b30863282de5595e49359910d2",
   [Network.EthereumGoerli]: "0xd8741e5e73fbc7b30863282de5595e49359910d2",
@@ -57,9 +64,12 @@ export const SeaportV14Module: ChainIdToAddress = {
   [Network.Arbitrum]: "0x07c163b007b3db7ccffef77848a766047d8ffc2d",
 };
 
+export const SeaportV15Module: ChainIdToAddress = {};
+
 export const AlienswapModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0xf7db74785a2e3991627996a84ac72b9310b24951",
-  [Network.EthereumGoerli]: "0xaba7bc68e4e75c290d1181f053328fac89875caf",
+  [Network.Ethereum]: "0xb56fa88072f5e299331cbb810d25075f6caa889c",
+  [Network.EthereumGoerli]: "0xb56fa88072f5e299331cbb810d25075f6caa889c",
+  [Network.ScrollAlpha]: "0x60275b726b9aB1FdC6c2d3d8072F234FAb5DdaeB",
 };
 
 export const SudoswapModule: ChainIdToAddress = {
@@ -93,5 +103,5 @@ export const RaribleModule: ChainIdToAddress = {
 };
 
 export const SuperRareModule: ChainIdToAddress = {
-  // TODO: Deploy SuperRareModule to mainnet
+  [Network.Ethereum]: "0x512a6a1a74f1f08aac8155605b9da8ace46b3d9c",
 };

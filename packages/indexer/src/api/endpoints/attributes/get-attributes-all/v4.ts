@@ -15,6 +15,8 @@ const version = "v4";
 
 export const getAttributesAllV4Options: RouteOptions = {
   description: "All attributes",
+  notes:
+    "Use this API to see all possible attributes within a collection.\n\n- `floorAskPrice` for all attributes might not be returned on collections with more than 10k tokens. \n\n- Attributes are case sensitive.",
   tags: ["api", "Attributes"],
   plugins: {
     "hapi-swagger": {

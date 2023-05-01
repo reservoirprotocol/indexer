@@ -1,21 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { defaultAbiCoder } from "@ethersproject/abi";
 import { splitSignature } from "@ethersproject/bytes";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
 import Joi from "joi";
 
-import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
+import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import * as orders from "@/orderbook/orders";
 
 import * as postOrderExternal from "@/jobs/orderbook/post-order-external";
-import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 
 const version = "v3";
 
@@ -29,9 +27,7 @@ export const postOrderV3Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      signature: Joi.string()
-        .lowercase()
-        .pattern(/^0x[a-fA-F0-9]+$/),
+      signature: Joi.string().lowercase().pattern(regex.bytes),
     }),
     payload: Joi.object({
       order: Joi.object({
@@ -44,10 +40,8 @@ export const postOrderV3Options: RouteOptions = {
             "zeroex-v4",
             "seaport",
             "seaport-v1.4",
-            "seaport-forward",
             "x2y2",
             "universe",
-            "forward",
             "flow",
             "alienswap"
           )
@@ -355,126 +349,6 @@ export const postOrderV3Options: RouteOptions = {
           };
         }
 
-        case "seaport-forward": {
-          if (!["opensea", "reservoir"].includes(orderbook)) {
-            throw new Error("Unknown orderbook");
-          }
-
-          let crossPostingOrder;
-
-          const orderId = new Sdk.SeaportV11.Order(config.chainId, order.data).hash();
-
-          const orderComponents = order.data as Sdk.SeaportBase.Types.OrderComponents;
-          const tokenOffer = orderComponents.offer[0];
-
-          // Forward EIP1271 signature
-          orderComponents.signature = defaultAbiCoder.encode(
-            [
-              `tuple(
-                uint8,
-                address,
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                tuple(uint256,address)[],
-                bytes
-              )`,
-              "bytes",
-            ],
-            [
-              [
-                tokenOffer.itemType,
-                tokenOffer.token,
-                tokenOffer.identifierOrCriteria,
-                tokenOffer.endAmount,
-                orderComponents.startTime,
-                orderComponents.endTime,
-                orderComponents.salt,
-                orderComponents.consideration.map(({ endAmount, recipient }) => [
-                  endAmount,
-                  recipient,
-                ]),
-                orderComponents.signature!,
-              ],
-              await inject({
-                method: "GET",
-                url: `/oracle/collections/floor-ask/v4?token=${tokenOffer.token}:${tokenOffer.identifierOrCriteria}`,
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                payload: { order },
-              })
-                .then((response) => JSON.parse(response.payload))
-                .then((response) =>
-                  defaultAbiCoder.encode(
-                    [
-                      `tuple(
-                        bytes32,
-                        bytes,
-                        uint256,
-                        bytes
-                      )`,
-                    ],
-                    [
-                      [
-                        response.message.id,
-                        response.message.payload,
-                        response.message.timestamp,
-                        response.message.signature,
-                      ],
-                    ]
-                  )
-                ),
-            ]
-          );
-
-          if (orderbook === "opensea") {
-            crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-              orderId,
-              kind: order.kind,
-              orderbook,
-              source,
-              schema,
-              rawData: order.data,
-            } as crossPostingOrdersModel.CrossPostingOrder);
-
-            await postOrderExternal.addToQueue({
-              crossPostingOrderId: crossPostingOrder.id,
-              orderId,
-              orderData: order.data,
-              orderSchema: schema,
-              orderbook,
-              orderbookApiKey,
-            });
-          } else {
-            const [result] = await orders.seaport.save([
-              {
-                orderParams: order.data,
-                isReservoir: true,
-                metadata: {
-                  schema,
-                  source,
-                },
-              },
-            ]);
-
-            if (!["success", "already-exists"].includes(result.status)) {
-              const error = Boom.badRequest(result.status);
-              error.output.payload.orderId = orderId;
-              throw error;
-            }
-          }
-
-          return {
-            message: "Success",
-            orderId,
-            crossPostingOrderId: crossPostingOrder?.id,
-            crossPostingOrderStatus: crossPostingOrder?.status,
-          };
-        }
-
         case "looks-rare-v2": {
           if (!["looks-rare", "reservoir"].includes(orderbook)) {
             throw new Error("Unknown orderbook");
@@ -652,32 +526,6 @@ export const postOrderV3Options: RouteOptions = {
             crossPostingOrderId: crossPostingOrder.id,
             crossPostingOrderStatus: crossPostingOrder?.status,
           };
-        }
-
-        case "forward": {
-          if (!["reservoir"].includes(orderbook)) {
-            throw new Error("Unknown orderbook");
-          }
-
-          const orderInfo: orders.forward.OrderInfo = {
-            orderParams: order.data,
-            metadata: {
-              schema,
-              source,
-            },
-          };
-
-          const [result] = await orders.forward.save([orderInfo]);
-
-          if (result.status === "already-exists") {
-            return { message: "Success", orderId: result.id };
-          }
-
-          if (result.status !== "success") {
-            throw Boom.badRequest(result.status);
-          }
-
-          return { message: "Success", orderId: result.id };
         }
       }
 

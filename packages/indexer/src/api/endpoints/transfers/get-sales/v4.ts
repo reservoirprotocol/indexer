@@ -15,10 +15,10 @@ const version = "v4";
 export const getSalesV4Options: RouteOptions = {
   description: "Sales",
   notes: "Get recent sales for a contract or token.",
-  tags: ["api", "Sales"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
-      order: 8,
+      deprecated: true,
     },
   },
   validate: {
@@ -173,7 +173,7 @@ export const getSalesV4Options: RouteOptions = {
     }
 
     if (query.continuation) {
-      const contArr = splitContinuation(query.continuation, /^(\d+)_(\d+)_(\d+)_(\d+)$/);
+      const contArr = splitContinuation(query.continuation, /^(.+)_(\d+)_(\d+)_(\d+)$/);
 
       if (contArr.length !== 4) {
         throw Boom.badRequest("Invalid continuation string used");
@@ -190,7 +190,7 @@ export const getSalesV4Options: RouteOptions = {
       `;
       } else if (query.orderBy && query.orderBy === "updated_at") {
         paginationFilter = `
-        AND (updated_ts, fill_events_2.log_index, fill_events_2.batch_index) ${inequalitySymbol} ($/timestamp/, $/logIndex/, $/batchIndex/)
+        AND (extract(epoch from fill_events_2.updated_at), fill_events_2.log_index, fill_events_2.batch_index) ${inequalitySymbol} ($/timestamp/, $/logIndex/, $/batchIndex/)
         `;
       } else {
         paginationFilter = `
@@ -219,8 +219,8 @@ export const getSalesV4Options: RouteOptions = {
     } else if (query.orderBy && query.orderBy === "updated_at") {
       queryOrderBy = `ORDER BY fill_events_2.updated_at ${query.sortDirection}`;
       timestampFilter = `
-        AND (updated_at >= $/startTimestamp/ AND
-        updated_at <= $/endTimestamp/)
+        AND fill_events_2.updated_at >= to_timestamp($/startTimestamp/) AND
+        fill_events_2.updated_at <= to_timestamp($/endTimestamp/)
       `;
     }
 
@@ -269,7 +269,7 @@ export const getSalesV4Options: RouteOptions = {
             fill_events_2.marketplace_fee_breakdown,
             fill_events_2.paid_full_royalty,
             fill_events_2.is_deleted,
-            extract(epoch from updated_at) updated_ts,
+            extract(epoch from fill_events_2.updated_at) updated_ts,
             fill_events_2.created_at
           FROM fill_events_2
           LEFT JOIN currencies
@@ -308,14 +308,12 @@ export const getSalesV4Options: RouteOptions = {
 
       let continuation = null;
       if (rawResult.length === query.limit) {
+        const result = rawResult[rawResult.length - 1];
+        const timestamp =
+          query.orderBy && query.orderBy === "updated_at" ? result.updated_ts : result.timestamp;
+
         continuation = buildContinuation(
-          rawResult[rawResult.length - 1].timestamp +
-            "_" +
-            rawResult[rawResult.length - 1].log_index +
-            "_" +
-            rawResult[rawResult.length - 1].batch_index +
-            "_" +
-            rawResult[rawResult.length - 1].price
+          timestamp + "_" + result.log_index + "_" + result.batch_index + "_" + result.price
         );
       }
 
