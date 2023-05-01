@@ -40,7 +40,7 @@ type erc721Token = {
   token_id: string;
   minted_timestamp: number;
   supply?: number;
-  remainingSupply?: number;
+  remaining_supply?: number;
 };
 
 type erc1155Token = {
@@ -103,7 +103,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
           token_id: event.tokenId,
           minted_timestamp: event.baseEventParams.timestamp,
           supply: 1,
-          remainingSupply: event.to === AddressZero ? 0 : 1,
+          remaining_supply: event.to === AddressZero ? 0 : 1,
         });
       } else {
         tokenValuesErc1155.push({
