@@ -11,9 +11,9 @@ const QUEUE_NAME = "events-sync-ft-transfers-write";
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
-    attempts: 10,
+    attempts: 15,
     backoff: {
-      type: "exponential",
+      type: "fixed",
       delay: 10000,
     },
     removeOnComplete: 5,

@@ -2,7 +2,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import axios from "axios";
 
 import { logger } from "@/common/logger";
-import { now } from "@/common/utils";
+import { bn, now } from "@/common/utils";
 import { config } from "@/config/index";
 import { getOpenseaBaseUrl, getOpenseaNetworkName, getOpenseaSubDomain } from "@/config/network";
 import {
@@ -25,6 +25,14 @@ export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => 
   // Skip posting orders that already expired
   if (order.params.endTime <= now()) {
     throw new InvalidRequestError("Order is expired");
+  }
+
+  // Make sure to convert any hex values to decimal
+  for (const item of order.params.consideration) {
+    item.identifierOrCriteria = bn(item.identifierOrCriteria).toString();
+  }
+  for (const item of order.params.offer) {
+    item.identifierOrCriteria = bn(item.identifierOrCriteria).toString();
   }
 
   await axios
