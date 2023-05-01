@@ -178,7 +178,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 20 }
+    { connection: redis.duplicate(), concurrency: 40 }
   );
 
   worker.on("error", (error) => {

@@ -176,8 +176,8 @@ export class Router {
       blurAuth?: {
         accessToken: string;
       };
-      // Callback for handling recoverable errors
-      onRecoverableError?: (
+      // Callback for handling errors
+      onError?: (
         kind: string,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         error: any,
@@ -185,6 +185,7 @@ export class Router {
           orderId: string;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           additionalInfo: any;
+          isUnrecoverable?: boolean;
         }
       ) => Promise<void>;
     }
@@ -381,10 +382,6 @@ export class Router {
 
       for (let i = 0; i < details.length; i++) {
         const detail = details[i];
-        if (detail.fees?.length || options?.globalFees?.length) {
-          throw new Error("Fees not supported when filling Blur orders");
-        }
-
         if (
           detail.contractKind === "erc721" &&
           ["blur.io", "opensea.io", "looksrare.org", "x2y2.io"].includes(detail.source!)
@@ -434,12 +431,12 @@ export class Router {
 
           // Expose errors
           for (const { tokenId, reason } of data.errors) {
-            if (options?.onRecoverableError) {
+            if (options?.onError) {
               const listing = blurCompatibleListings.find(
                 (d) => d.contract === contract && d.tokenId === tokenId
               );
               if (listing) {
-                await options.onRecoverableError("order-fetcher-blur-listings", new Error(reason), {
+                await options.onError("order-fetcher-blur-listings", new Error(reason), {
                   orderId: listing.orderId,
                   additionalInfo: { detail: listing, taker },
                 });
@@ -469,10 +466,10 @@ export class Router {
           }
         }
       } catch (error) {
-        if (options?.onRecoverableError) {
+        if (options?.onError) {
           for (const detail of details) {
             if (detail.source === "blur.io" && !success[detail.orderId]) {
-              await options.onRecoverableError("order-fetcher-blur-listings", error, {
+              await options.onError("order-fetcher-blur-listings", error, {
                 orderId: detail.orderId,
                 additionalInfo: { detail, taker },
               });
@@ -538,8 +535,8 @@ export class Router {
                   }),
             };
           } catch (error) {
-            if (options?.onRecoverableError) {
-              options.onRecoverableError("order-fetcher-opensea-listing", error, {
+            if (options?.onError) {
+              options.onError("order-fetcher-opensea-listing", error, {
                 orderId: detail.orderId,
                 additionalInfo: {
                   detail,
@@ -1879,10 +1876,14 @@ export class Router {
           success[x2y2Details[0].orderId] = true;
           orderIds.push(x2y2Details[0].orderId);
         } catch (error) {
-          if (options?.onRecoverableError) {
-            await options.onRecoverableError("x2y2-listing", error, {
+          if (options?.onError) {
+            await options.onError("x2y2-listing", error, {
               orderId: x2y2Details[0].orderId,
               additionalInfo: { detail: x2y2Details[0], taker },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              isUnrecoverable: (error as any).response?.data?.errors?.some((e: { code: number }) =>
+                Sdk.X2Y2.Helpers.UnrecoverableErrorCodes.includes(e.code)
+              ),
             });
           }
 
@@ -1910,8 +1911,8 @@ export class Router {
                   exchange.contract.interface.decodeFunctionData("run", input).input
               )
               .catch(async (error) => {
-                if (options?.onRecoverableError) {
-                  await options.onRecoverableError("x2y2-listing", error, {
+                if (options?.onError) {
+                  await options.onError("x2y2-listing", error, {
                     orderId: x2y2Details[i].orderId,
                     additionalInfo: { detail: x2y2Details[i], taker },
                   });
@@ -1975,8 +1976,8 @@ export class Router {
           await new Sdk.ZeroExV4.Exchange(this.chainId, String(this.options?.cbApiKey))
             .releaseOrder(taker, order)
             .catch(async (error) => {
-              if (options?.onRecoverableError) {
-                await options.onRecoverableError("zeroex-v4-erc721-listing", error, {
+              if (options?.onError) {
+                await options.onError("zeroex-v4-erc721-listing", error, {
                   orderId: zeroexV4Erc721Details[i].orderId,
                   additionalInfo: { detail: zeroexV4Erc721Details[i], taker },
                 });
@@ -2073,8 +2074,8 @@ export class Router {
           await new Sdk.ZeroExV4.Exchange(this.chainId, String(this.options?.cbApiKey))
             .releaseOrder(taker, order)
             .catch(async (error) => {
-              if (options?.onRecoverableError) {
-                await options.onRecoverableError("zeroex-v4-erc1155-listing", error, {
+              if (options?.onError) {
+                await options.onError("zeroex-v4-erc1155-listing", error, {
                   orderId: zeroexV4Erc1155Details[i].orderId,
                   additionalInfo: { detail: zeroexV4Erc1155Details[i], taker },
                 });
@@ -2488,8 +2489,8 @@ export class Router {
                   tx.orderIds = tx.orderIds.filter((orderId) => orderId !== detail.orderId);
                 });
 
-                if (options?.onRecoverableError) {
-                  await options.onRecoverableError("swap-generation", error, {
+                if (options?.onError) {
+                  await options.onError("swap-generation", error, {
                     orderId: detail.orderId,
                     additionalInfo: { detail, taker },
                   });
@@ -2578,8 +2579,8 @@ export class Router {
       blurAuth?: {
         accessToken: string;
       };
-      // Callback for handling recoverable errors
-      onRecoverableError?: (
+      // Callback for handling errors
+      onError?: (
         kind: string,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         error: any,
@@ -2587,6 +2588,7 @@ export class Router {
           orderId: string;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           additionalInfo: any;
+          isUnrecoverable?: boolean;
         }
       ) => Promise<void>;
     }
@@ -2653,10 +2655,6 @@ export class Router {
 
     const blurDetails = details.filter((d) => d.source === "blur.io");
     if (blurDetails.length) {
-      if (blurDetails.some((d) => d.fees?.length) || options?.globalFees?.length) {
-        throw new Error("Fees not supported for Blur orders");
-      }
-
       try {
         // We'll have one transaction per contract
         const result: {
@@ -2693,12 +2691,12 @@ export class Router {
 
           // Expose errors
           for (const { tokenId, reason } of data.errors) {
-            if (options?.onRecoverableError) {
+            if (options?.onError) {
               const detail = blurDetails.find(
                 (d) => d.contract === contract && d.tokenId === tokenId
               );
               if (detail) {
-                await options.onRecoverableError("order-fetcher-blur-offers", new Error(reason), {
+                await options.onError("order-fetcher-blur-offers", new Error(reason), {
                   orderId: detail.orderId,
                   additionalInfo: { detail, taker },
                 });
@@ -2728,10 +2726,10 @@ export class Router {
           }
         }
       } catch (error) {
-        if (options?.onRecoverableError) {
+        if (options?.onError) {
           for (const detail of blurDetails) {
             if (!success[detail.orderId]) {
-              await options.onRecoverableError("order-fetcher-blur-offers", error, {
+              await options.onError("order-fetcher-blur-offers", error, {
                 orderId: detail.orderId,
                 additionalInfo: { detail, taker },
               });
@@ -3113,8 +3111,8 @@ export class Router {
 
             success[detail.orderId] = true;
           } catch (error) {
-            if (options?.onRecoverableError) {
-              options.onRecoverableError("order-fetcher-opensea-offer", error, {
+            if (options?.onError) {
+              options.onError("order-fetcher-opensea-offer", error, {
                 orderId: detail.orderId,
                 additionalInfo: {
                   detail,
@@ -3265,8 +3263,8 @@ export class Router {
 
             success[detail.orderId] = true;
           } catch (error) {
-            if (options?.onRecoverableError) {
-              options.onRecoverableError("order-fetcher-opensea-offer", error, {
+            if (options?.onError) {
+              options.onError("order-fetcher-opensea-offer", error, {
                 orderId: detail.orderId,
                 additionalInfo: {
                   detail,
@@ -3400,13 +3398,17 @@ export class Router {
 
             success[detail.orderId] = true;
           } catch (error) {
-            if (options?.onRecoverableError) {
-              options.onRecoverableError("x2y2-offer", error, {
+            if (options?.onError) {
+              options.onError("x2y2-offer", error, {
                 orderId: detail.orderId,
                 additionalInfo: {
                   detail,
                   taker,
                 },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                isUnrecoverable: (error as any).response?.data?.errors?.some(
+                  (e: { code: number }) => Sdk.X2Y2.Helpers.UnrecoverableErrorCodes.includes(e.code)
+                ),
               });
             }
 
@@ -3474,8 +3476,8 @@ export class Router {
 
             success[detail.orderId] = true;
           } catch (error) {
-            if (options?.onRecoverableError) {
-              options.onRecoverableError("zeroex-v4-offer", error, {
+            if (options?.onError) {
+              options.onError("zeroex-v4-offer", error, {
                 orderId: detail.orderId,
                 additionalInfo: {
                   detail,

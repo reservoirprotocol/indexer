@@ -2,6 +2,7 @@ import { Filter } from "@ethersproject/abstract-provider";
 import _ from "lodash";
 import pLimit from "p-limit";
 
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { getNetworkSettings } from "@/config/network";
 import { baseProvider } from "@/common/provider";
@@ -19,7 +20,6 @@ import * as blockCheck from "@/jobs/events-sync/block-check-queue";
 import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 import { BlocksToCheck } from "@/jobs/events-sync/block-check-queue";
-import { idb } from "@/common/db";
 
 export const extractEventsBatches = async (
   enhancedEvents: EnhancedEvent[],

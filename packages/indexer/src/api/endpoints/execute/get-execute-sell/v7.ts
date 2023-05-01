@@ -18,7 +18,7 @@ import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
-import { OrderKind, generateBidDetailsV6, routerOnRecoverableError } from "@/orderbook/orders";
+import { OrderKind, generateBidDetailsV6, routerOnErrorCallback } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
@@ -885,12 +885,12 @@ export const getExecuteSellV7Options: RouteOptions = {
             return { recipient, amount };
           }),
           forceApprovalProxy,
-          onRecoverableError: async (kind, error, data) => {
+          onError: async (kind, error, data) => {
             errors.push({
               orderId: data.orderId,
               message: error.response?.data ? JSON.stringify(error.response.data) : error.message,
             });
-            await routerOnRecoverableError(kind, error, data);
+            await routerOnErrorCallback(kind, error, data);
           },
           blurAuth,
         });

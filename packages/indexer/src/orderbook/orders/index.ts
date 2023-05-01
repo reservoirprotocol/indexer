@@ -190,15 +190,17 @@ export const getOrderSourceByOrderKind = async (
   // In case nothing matched, return `undefined` by default
 };
 
-export const routerOnRecoverableError = async (
+export const routerOnErrorCallback = async (
   kind: string,
   error: any,
   data: {
     orderId: string;
     additionalInfo: any;
+    isUnrecoverable?: boolean;
   }
 ) => {
-  if (error.response?.status === 404) {
+  const isUnrecoverable = data.isUnrecoverable || error.response?.status === 404;
+  if (isUnrecoverable) {
     // Invalidate the order
     await orderRevalidations.addToQueue([{ id: data.orderId, status: "inactive" }]);
   }
@@ -207,7 +209,7 @@ export const routerOnRecoverableError = async (
     "router-on-recoverable-error",
     JSON.stringify({
       kind,
-      status: error.response?.status,
+      unrecoverable: isUnrecoverable,
       error: error.response?.data?.error,
       data,
     })

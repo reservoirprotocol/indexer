@@ -17,7 +17,7 @@ import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/util
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
-import { generateBidDetailsV6, routerOnRecoverableError } from "@/orderbook/orders";
+import { generateBidDetailsV6, routerOnErrorCallback } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
@@ -600,12 +600,12 @@ export const getExecuteSellV6Options: RouteOptions = {
       try {
         result = await router.fillBidsTx([bidDetails!], payload.taker, {
           source: payload.source,
-          onRecoverableError: async (kind, error, data) => {
+          onError: async (kind, error, data) => {
             errors.push({
               orderId: data.orderId,
               message: error.response?.data ?? error.message,
             });
-            await routerOnRecoverableError(kind, error, data);
+            await routerOnErrorCallback(kind, error, data);
           },
           blurAuth,
         });
