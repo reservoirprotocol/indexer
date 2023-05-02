@@ -15,7 +15,7 @@ import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/u
 import { offChainCheck } from "@/orderbook/orders/blur/check";
 import * as tokenSet from "@/orderbook/token-sets";
 import { getBlurRoyalties } from "@/utils/blur";
-// import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
+import { checkMarketplaceIsFiltered } from "@/utils/marketplace-blacklists";
 
 type SaveResult = {
   id: string;
@@ -319,14 +319,7 @@ export const saveBids = async (
     }
 
     const id = getBlurBidId(orderParams.collection);
-
-    // const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, "blur");
-    // if (isFiltered) {
-    //   return results.push({
-    //     id,
-    //     status: "filtered",
-    //   });
-    // }
+    const isFiltered = await checkMarketplaceIsFiltered(orderParams.collection, "blur");
 
     try {
       const royalties = await getBlurRoyalties(orderParams.collection);
@@ -334,13 +327,21 @@ export const saveBids = async (
       const orderResult = await idb.oneOrNone(
         `
           SELECT
-            orders.raw_data
+            orders.raw_data,
+            orders.fillability_status
           FROM orders
           WHERE orders.id = $/id/
         `,
         { id }
       );
       if (!orderResult) {
+        if (isFiltered) {
+          return results.push({
+            id,
+            status: "filtered",
+          });
+        }
+
         // Handle: token set
         const schemaHash = generateSchemaHash();
         const [{ id: tokenSetId }] = await tokenSet.contractWide.save([
@@ -477,12 +478,29 @@ export const saveBids = async (
           await idb.none(
             `
               UPDATE orders SET
-                fillability_status = 'filled',
+                fillability_status = 'no-balance',
                 updated_at = now()
               WHERE orders.id = $/id/
             `,
             { id }
           );
+        } else if (isFiltered) {
+          if (orderResult.fillability_status === "fillable") {
+            await idb.none(
+              `
+                UPDATE orders SET
+                  fillability_status = 'no-balance',
+                  updated_at = now()
+                WHERE orders.id = $/id/
+              `,
+              { id }
+            );
+          } else {
+            return results.push({
+              id,
+              status: "filtered",
+            });
+          }
         } else {
           // Handle: royalties
           let feeBps = 0;

@@ -327,15 +327,13 @@ export const getExecuteSellV7Options: RouteOptions = {
           }),
           feesOnTop: [
             // For now, the only additional fees are the normalized royalties
-            ...(await Promise.all(
-              additionalFees.map(async (f) => ({
-                kind: "royalty",
-                recipient: f.recipient,
-                bps: bn(f.amount).mul(10000).div(unitPrice).toNumber(),
-                amount: formatPrice(f.amount, currency.decimals, true),
-                rawAmount: bn(f.amount).toString(),
-              }))
-            )),
+            ...additionalFees.map((f) => ({
+              kind: "royalty",
+              recipient: f.recipient,
+              bps: bn(f.amount).mul(10000).div(unitPrice).toNumber(),
+              amount: formatPrice(f.amount, currency.decimals, true),
+              rawAmount: bn(f.amount).toString(),
+            })),
           ],
         });
 
@@ -714,9 +712,9 @@ export const getExecuteSellV7Options: RouteOptions = {
         throw Boom.badRequest("No available orders");
       }
 
-      // Include the fees on top in the path
+      // Include the global fees in the path
 
-      const feesOnTop = (payload.feesOnTop ?? []).map((fee: string) => {
+      const globalFees = (payload.feesOnTop ?? []).map((fee: string) => {
         const [recipient, amount] = fee.split(":");
         return { recipient, amount };
       });
@@ -749,7 +747,7 @@ export const getExecuteSellV7Options: RouteOptions = {
 
       for (const item of path) {
         if (ordersEligibleForGlobalFees.includes(item.orderId)) {
-          for (const f of feesOnTop) {
+          for (const f of globalFees) {
             await addGlobalFee(item, f);
           }
         }
@@ -964,7 +962,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         result = await router.fillBidsTx(bidDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
-          globalFees: feesOnTop,
+          globalFees,
           forceApprovalProxy,
           onError: async (kind, error, data) => {
             errors.push({
