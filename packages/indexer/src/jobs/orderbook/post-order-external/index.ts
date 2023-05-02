@@ -173,6 +173,8 @@ if (config.doBackgroundWork) {
                 SELECT
                   tokens.contract,
                   tokens.token_id,
+                  collections.royalties,
+                  collections.new_royalties,
                   collections.community
                 FROM collections
                 JOIN tokens ON tokens.collection_id = collections.id
@@ -189,6 +191,8 @@ if (config.doBackgroundWork) {
                 SELECT
                   tokens.contract,
                   tokens.token_id,
+                  collections.royalties,
+                  collections.new_royalties,
                   collections.community
                 FROM tokens
                 JOIN collections ON collections.id = tokens.collection_id

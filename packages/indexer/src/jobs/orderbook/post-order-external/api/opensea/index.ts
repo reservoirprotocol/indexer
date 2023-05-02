@@ -103,26 +103,28 @@ export const buildCollectionOffer = async (
     },
   };
 
-  return await axios
-    .request(options)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .then((response) => response.data as any)
-    .catch((error) => {
-      if (error.response) {
-        handleErrorResponse(error.response);
-      }
+  return (
+    axios
+      .request(options)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((response) => response.data as any)
+      .catch((error) => {
+        if (error.response) {
+          handleErrorResponse(error.response);
+        }
 
-      logger.error(
-        "opensea-orderbook-api",
-        `Build OpenSea collection offer error. options=${JSON.stringify(
-          options
-        )}, error=${error}, responseStatus=${error.response?.status}, responseData=${JSON.stringify(
-          error.response?.data
-        )}`
-      );
+        logger.error(
+          "opensea-orderbook-api",
+          `Build OpenSea collection offer error. options=${JSON.stringify(
+            options
+          )}, error=${error}, responseStatus=${
+            error.response?.status
+          }, responseData=${JSON.stringify(error.response?.data)}`
+        );
 
-      throw new Error(`Failed to build OpenSea collection offer`);
-    });
+        throw new Error(`Failed to build OpenSea collection offer`);
+      })
+  );
 };
 
 export const buildTraitOffer = async (
