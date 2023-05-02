@@ -15,11 +15,13 @@ import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
-import { generateBidDetailsV6, routerOnRecoverableError } from "@/orderbook/orders";
+import { generateBidDetailsV6, routerOnErrorCallback } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
+import { ExecutionsBuffer } from "@/utils/executions";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v6";
@@ -587,6 +589,9 @@ export const getExecuteSellV6Options: RouteOptions = {
         x2y2ApiKey: payload.x2y2ApiKey ?? config.x2y2ApiKey,
         cbApiKey: config.cbApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
+        orderFetcherMetadata: {
+          apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
+        },
       });
 
       const errors: { orderId: string; message: string }[] = [];
@@ -595,12 +600,12 @@ export const getExecuteSellV6Options: RouteOptions = {
       try {
         result = await router.fillBidsTx([bidDetails!], payload.taker, {
           source: payload.source,
-          onRecoverableError: async (kind, error, data) => {
+          onError: async (kind, error, data) => {
             errors.push({
               orderId: data.orderId,
               message: error.response?.data ?? error.message,
             });
-            await routerOnRecoverableError(kind, error, data);
+            await routerOnErrorCallback(kind, error, data);
           },
           blurAuth,
         });
@@ -643,40 +648,7 @@ export const getExecuteSellV6Options: RouteOptions = {
         }
       }
 
-      // Forward / Rarible bids are to be filled directly (because we have no modules for them yet)
-      if (bidDetails.kind === "forward") {
-        const isApproved = await commonHelpers.getNftApproval(
-          bidDetails.contract,
-          payload.taker,
-          Sdk.Forward.Addresses.Exchange[config.chainId]
-        );
-        if (!isApproved) {
-          const approveTx =
-            bidDetails.contractKind === "erc721"
-              ? new Sdk.Common.Helpers.Erc721(baseProvider, bidDetails.contract).approveTransaction(
-                  payload.taker,
-                  Sdk.Forward.Addresses.Exchange[config.chainId]
-                )
-              : new Sdk.Common.Helpers.Erc1155(
-                  baseProvider,
-                  bidDetails.contract
-                ).approveTransaction(payload.taker, Sdk.Forward.Addresses.Exchange[config.chainId]);
-
-          steps[1].items.push({
-            status: "incomplete",
-            data: {
-              ...approveTx,
-              maxFeePerGas: payload.maxFeePerGas
-                ? bn(payload.maxFeePerGas).toHexString()
-                : undefined,
-              maxPriorityFeePerGas: payload.maxPriorityFeePerGas
-                ? bn(payload.maxPriorityFeePerGas).toHexString()
-                : undefined,
-            },
-          });
-        }
-      }
-
+      // Flow / Rarible bids are to be filled directly (because we have no modules for them yet)
       if (bidDetails.kind === "flow") {
         const isApproved = await commonHelpers.getNftApproval(
           bidDetails.contract,
@@ -710,7 +682,6 @@ export const getExecuteSellV6Options: RouteOptions = {
           });
         }
       }
-
       if (bidDetails.kind === "rarible") {
         const isApproved = await commonHelpers.getNftApproval(
           bidDetails.contract,
@@ -768,6 +739,38 @@ export const getExecuteSellV6Options: RouteOptions = {
         // to remove the auth step
         steps = steps.slice(1);
       }
+
+      const executionsBuffer = new ExecutionsBuffer();
+      for (const item of path) {
+        const calldata = txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data;
+
+        let orderId = item.orderId;
+        if (calldata && item.source === "blur.io") {
+          // Blur bids don't have the correct order id so we have to override it
+          const orders = await new Sdk.Blur.Exchange(config.chainId).getMatchedOrdersFromCalldata(
+            baseProvider,
+            calldata
+          );
+
+          const index = orders.findIndex(
+            ({ sell }) =>
+              sell.params.collection === item.contract && sell.params.tokenId === item.tokenId
+          );
+          if (index !== -1) {
+            orderId = orders[index].buy.hash();
+          }
+        }
+
+        executionsBuffer.addFromRequest(request, {
+          side: "sell",
+          action: "fill",
+          user: payload.taker,
+          orderId,
+          quantity: item.quantity,
+          calldata,
+        });
+      }
+      await executionsBuffer.flush();
 
       return {
         steps,

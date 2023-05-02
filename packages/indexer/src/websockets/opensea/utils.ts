@@ -14,6 +14,8 @@ export const getSupportedChainName = () => {
       return "optimism";
     case 42161:
       return "arbitrum";
+    case 534353:
+      return "scroll-alpha";
     default:
       return "unknown";
   }

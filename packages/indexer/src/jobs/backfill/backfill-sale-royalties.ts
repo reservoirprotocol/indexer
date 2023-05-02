@@ -75,6 +75,57 @@ if (config.doBackgroundWork) {
             blockRange,
           }
         );
+      } else if (details.kind === "contract") {
+        // First get all relevant transactions
+        const tmpResult = await redb.manyOrNone(
+          `
+            SELECT
+              fill_events_2.tx_hash
+            FROM fill_events_2
+            WHERE fill_events_2.contract = $/contract/
+              AND fill_events_2.timestamp <= $/timestamp/
+              AND fill_events_2.timestamp > $/timestamp/ - $/timestampRange/
+              AND fill_events_2.order_kind != 'mint'
+            ORDER BY fill_events_2.timestamp DESC
+          `,
+          {
+            contract: toBuffer(details.data.contract),
+            timestamp: details.data.toTimestamp,
+            timestampRange,
+          }
+        );
+
+        // Then fetch all sales across all relevant transactions
+        // THIS IS IMPORTANT! For accurate results, we must have
+        // all sales within a given transaction processed in the
+        // same batch.
+        results = await redb.manyOrNone(
+          `
+            SELECT
+              fill_events_2.tx_hash,
+              fill_events_2.block,
+              fill_events_2.block_hash,
+              fill_events_2.log_index,
+              fill_events_2.batch_index,
+              fill_events_2.block,
+              fill_events_2.order_kind,
+              fill_events_2.order_id,
+              fill_events_2.order_side,
+              fill_events_2.maker,
+              fill_events_2.taker,
+              fill_events_2.price,
+              fill_events_2.contract,
+              fill_events_2.token_id,
+              fill_events_2.amount,
+              fill_events_2.currency,
+              fill_events_2.currency_price
+            FROM fill_events_2
+            WHERE fill_events_2.tx_hash IN ($/txHashes:list/)
+          `,
+          {
+            txHashes: tmpResult.map((r) => r.tx_hash),
+          }
+        );
       } else {
         results = await redb.manyOrNone(
           `
@@ -97,16 +148,10 @@ if (config.doBackgroundWork) {
               fill_events_2.currency,
               fill_events_2.currency_price
             FROM fill_events_2
-            WHERE fill_events_2.contract = $/contract/
-              AND fill_events_2.timestamp <= $/timestamp/
-              AND fill_events_2.timestamp > $/timestamp/ - $/timestampRange/
-              AND fill_events_2.order_kind != 'mint'
-            ORDER BY fill_events_2.timestamp DESC
+            WHERE fill_events_2.tx_hash = $/txHash/
           `,
           {
-            contract: toBuffer(details.data.contract),
-            timestamp: details.data.toTimestamp,
-            timestampRange,
+            txHash: toBuffer(details.data.txHash),
           }
         );
       }
@@ -240,7 +285,7 @@ if (config.doBackgroundWork) {
             data: { fromBlock: details.data.fromBlock, toBlock: nextBlock },
           });
         }
-      } else {
+      } else if (details.kind === "contract") {
         const nextTimestamp = details.data.toTimestamp - timestampRange;
         if (nextTimestamp >= details.data.fromTimestamp) {
           await addToQueue({
@@ -277,8 +322,14 @@ type Details =
         fromTimestamp: number;
         toTimestamp: number;
       };
+    }
+  | {
+      kind: "transaction";
+      data: {
+        txHash: string;
+      };
     };
 
 export const addToQueue = async (details: Details) => {
-  await queue.add(randomUUID(), details, { jobId: JSON.stringify(details) });
+  await queue.add(randomUUID(), details);
 };

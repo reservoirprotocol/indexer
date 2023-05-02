@@ -39,7 +39,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
         .description("Filter to a particular community. Example: `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -56,17 +58,17 @@ export const getUserCollectionsV3Options: RouteOptions = {
         .min(0)
         .max(10000)
         .default(0)
-        .description("Use offset to request the next batch of items."),
+        .description("Use offset to request the next batch of items. Max is 10,000."),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(100)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. max limit is 100."),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency."),
     }),
   },
   response: {
@@ -82,6 +84,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
             discordUrl: Joi.string().allow("", null),
             externalUrl: Joi.string().allow("", null),
             twitterUsername: Joi.string().allow("", null),
+            openseaVerificationStatus: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
             sampleImages: Joi.array().items(Joi.string().allow("", null)),
             tokenCount: Joi.string(),
@@ -169,7 +172,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
             WHERE "owner" = $/user/
               AND amount > 0
             ORDER BY last_token_appraisal_value DESC NULLS LAST
-            LIMIT 10000
+            LIMIT 15000
         ),
         token_images AS (
             SELECT tokens.collection_id, tokens.image,
@@ -193,6 +196,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
                 (collections.metadata ->> 'description')::TEXT AS "description",
                 (collections.metadata ->> 'externalUrl')::TEXT AS "external_url",
                 (collections.metadata ->> 'twitterUsername')::TEXT AS "twitter_username",
+                (collections.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
                 collections.contract,
                 collections.token_set_id,
                 collections.token_count,
@@ -310,6 +314,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
             discordUrl: r.discord_url,
             externalUrl: r.external_url,
             twitterUsername: r.twitter_username,
+            openseaVerificationStatus: r.opensea_verification_status,
             description: r.description,
             sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
             tokenCount: String(r.token_count),

@@ -51,12 +51,12 @@ export const getTransfersV3Options: RouteOptions = {
         .description(
           "Filter to a particular transaction. Example: `0x04654cc4c81882ed4d20b958e0eeb107915d75730110cce65333221439de6afc`"
         ),
-      limit: Joi.number().integer().min(1).max(100).default(20),
+      limit: Joi.number().integer().min(1).max(100).default(20).description("Max limit is 100."),
       continuation: Joi.string().pattern(regex.base64),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency"),
     })
       .oxor("contract", "token", "collection", "txHash")
       .or("contract", "token", "collection", "txHash")

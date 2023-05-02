@@ -1,4 +1,5 @@
 import { BigNumber } from "@ethersproject/bignumber";
+import { parseEther } from "@ethersproject/units";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -15,13 +16,15 @@ import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
+import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
-import { OrderKind, generateBidDetailsV6, routerOnRecoverableError } from "@/orderbook/orders";
+import { OrderKind, generateBidDetailsV6, routerOnErrorCallback } from "@/orderbook/orders";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
+import { ExecutionsBuffer } from "@/utils/executions";
 import { tryGetTokensSuspiciousStatus } from "@/utils/opensea";
 
 const version = "v7";
@@ -91,6 +94,11 @@ export const getExecuteSellV7Options: RouteOptions = {
         .lowercase()
         .pattern(regex.domain)
         .description("Filling source used for attribution."),
+      feesOnTop: Joi.array()
+        .items(Joi.string().pattern(regex.fee))
+        .description(
+          "List of fees (formatted as `feeRecipient:feeAmount`) to be taken when filling.\nThe currency used for any fees on top matches the accepted bid's currency.\nExample: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:1000000000000000`"
+        ),
       onlyPath: Joi.boolean()
         .default(false)
         .description("If true, only the filling path will be returned."),
@@ -108,13 +116,20 @@ export const getExecuteSellV7Options: RouteOptions = {
       partial: Joi.boolean()
         .default(false)
         .description("If true, any off-chain or on-chain errors will be skipped."),
+      forceRouter: Joi.boolean()
+        .default(false)
+        .description(
+          "If true, filling will be forced to use the common 'approval + transfer' method instead of the approval-less 'on-received hook' method"
+        ),
       maxFeePerGas: Joi.string().pattern(regex.number).description("Optional custom gas settings."),
       maxPriorityFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional custom gas settings."),
       // Various authorization keys
       x2y2ApiKey: Joi.string().description("Optional X2Y2 API key used for filling."),
-      openseaApiKey: Joi.string().description("Optional OpenSea API key used for filling."),
+      openseaApiKey: Joi.string().description(
+        "Optional OpenSea API key used for filling. You don't need to pass your own key, but if you don't, you are more likely to be rate-limited."
+      ),
     }),
   },
   response: {
@@ -129,6 +144,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             .items(
               Joi.object({
                 status: Joi.string().valid("complete", "incomplete").required(),
+                tip: Joi.string(),
                 data: Joi.object(),
               })
             )
@@ -199,7 +215,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           currency: string;
           rawData: object;
           builtInFeeBps: number;
-          feesOnTop?: Sdk.RouterV6.Types.Fee[];
+          fees?: Sdk.RouterV6.Types.Fee[];
         },
         token: {
           kind: "erc721" | "erc1155";
@@ -209,17 +225,27 @@ export const getExecuteSellV7Options: RouteOptions = {
           owner?: string;
         }
       ) => {
-        const feesOnTop = payload.normalizeRoyalties ? order.feesOnTop ?? [] : [];
-        const totalFeeOnTop = feesOnTop
-          .map(({ amount }) => bn(amount))
-          .reduce((a, b) => a.add(b), bn(0));
+        const fees = payload.normalizeRoyalties ? order.fees ?? [] : [];
+        const totalFee = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
 
         // Handle dynamically-priced orders
-        if (["sudoswap", "nftx"].includes(order.kind)) {
+        if (["blur", "sudoswap", "nftx"].includes(order.kind)) {
+          // TODO: Handle the case when the next best-priced order in the database
+          // has a better price than the current dynamically-priced order (because
+          // of a quantity > 1 being filled on this current order).
+
           let poolId: string;
           let priceList: string[];
 
-          if (order.kind === "sudoswap") {
+          if (order.kind === "blur") {
+            const rawData = order.rawData as Sdk.Blur.Types.BlurBidPool;
+            poolId = rawData.collection;
+            priceList = rawData.pricePoints
+              .map((pp) =>
+                Array.from({ length: pp.executableSize }, () => parseEther(pp.price).toString())
+              )
+              .flat();
+          } else if (order.kind === "sudoswap") {
             const rawData = order.rawData as Sdk.Sudoswap.OrderParams;
             poolId = rawData.pair;
             priceList = rawData.extra.prices;
@@ -258,7 +284,7 @@ export const getExecuteSellV7Options: RouteOptions = {
 
         const source = order.sourceId !== null ? sources.get(order.sourceId)?.domain ?? null : null;
 
-        const netPrice = price.sub(price.mul(order.builtInFeeBps).div(10000)).sub(totalFeeOnTop);
+        const netPrice = price.sub(price.mul(order.builtInFeeBps).div(10000)).sub(totalFee);
         path.push({
           orderId: order.id,
           contract: token.contract,
@@ -278,7 +304,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               unitPrice: order.price,
               rawData: order.rawData,
               source: source || undefined,
-              fees: feesOnTop,
+              fees,
               isProtected:
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (order.rawData as any).zone ===
@@ -472,7 +498,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               currency: fromBuffer(result.currency),
               rawData: result.raw_data,
               builtInFeeBps: result.fee_bps,
-              feesOnTop: result.missing_royalties,
+              fees: result.missing_royalties,
             },
             {
               kind: result.token_kind,
@@ -614,7 +640,7 @@ export const getExecuteSellV7Options: RouteOptions = {
                 currency,
                 rawData: result.raw_data,
                 builtInFeeBps: result.fee_bps,
-                feesOnTop: result.missing_royalties,
+                fees: result.missing_royalties,
               },
               {
                 kind: result.token_kind,
@@ -657,6 +683,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         kind: string;
         items: {
           status: string;
+          tip?: string;
           data?: object;
         }[];
       }[] = [
@@ -758,6 +785,7 @@ export const getExecuteSellV7Options: RouteOptions = {
             // Force the client to poll
             steps[1].items.push({
               status: "incomplete",
+              tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
             });
 
             // Return an early since any next steps are dependent on the Blur auth
@@ -787,6 +815,7 @@ export const getExecuteSellV7Options: RouteOptions = {
           // Force the client to poll
           steps[2].items.push({
             status: "incomplete",
+            tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
           });
 
           // Return an early since any next steps are dependent on the approvals
@@ -835,10 +864,14 @@ export const getExecuteSellV7Options: RouteOptions = {
         openseaApiKey: payload.openseaApiKey,
         cbApiKey: config.cbApiKey,
         orderFetcherBaseUrl: config.orderFetcherBaseUrl,
+        orderFetcherMetadata: {
+          apiKey: await ApiKeyManager.getApiKey(request.headers["x-api-key"]),
+        },
       });
 
       const { customTokenAddresses } = getNetworkSettings();
-      const forceApprovalProxy = customTokenAddresses.includes(bidDetails[0].contract);
+      const forceApprovalProxy =
+        payload.forceRouter || customTokenAddresses.includes(bidDetails[0].contract);
 
       const errors: { orderId: string; message: string }[] = [];
 
@@ -847,13 +880,17 @@ export const getExecuteSellV7Options: RouteOptions = {
         result = await router.fillBidsTx(bidDetails, payload.taker, {
           source: payload.source,
           partial: payload.partial,
+          globalFees: payload.feesOnTop?.map((fee: string) => {
+            const [recipient, amount] = fee.split(":");
+            return { recipient, amount };
+          }),
           forceApprovalProxy,
-          onRecoverableError: async (kind, error, data) => {
+          onError: async (kind, error, data) => {
             errors.push({
               orderId: data.orderId,
               message: error.response?.data ? JSON.stringify(error.response.data) : error.message,
             });
-            await routerOnRecoverableError(kind, error, data);
+            await routerOnErrorCallback(kind, error, data);
           },
           blurAuth,
         });
@@ -913,6 +950,38 @@ export const getExecuteSellV7Options: RouteOptions = {
         // to remove the auth step
         steps = steps.slice(1);
       }
+
+      const executionsBuffer = new ExecutionsBuffer();
+      for (const item of path) {
+        const calldata = txs.find((tx) => tx.orderIds.includes(item.orderId))?.txData.data;
+
+        let orderId = item.orderId;
+        if (calldata && item.source === "blur.io") {
+          // Blur bids don't have the correct order id so we have to override it
+          const orders = await new Sdk.Blur.Exchange(config.chainId).getMatchedOrdersFromCalldata(
+            baseProvider,
+            calldata
+          );
+
+          const index = orders.findIndex(
+            ({ sell }) =>
+              sell.params.collection === item.contract && sell.params.tokenId === item.tokenId
+          );
+          if (index !== -1) {
+            orderId = orders[index].buy.hash();
+          }
+        }
+
+        executionsBuffer.addFromRequest(request, {
+          side: "sell",
+          action: "fill",
+          user: payload.taker,
+          orderId,
+          quantity: item.quantity,
+          calldata,
+        });
+      }
+      await executionsBuffer.flush();
 
       const perfTime2 = performance.now();
 

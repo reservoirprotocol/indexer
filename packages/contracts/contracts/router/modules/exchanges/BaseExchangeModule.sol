@@ -164,35 +164,23 @@ abstract contract BaseExchangeModule is BaseModule {
     }
   }
 
-  function _sendAllERC721(
-    address to,
-    IERC721 token,
-    uint256 tokenId
-  ) internal {
+  function _sendAllERC721(address to, IERC721 token, uint256 tokenId) internal {
     if (token.ownerOf(tokenId) == address(this)) {
       token.safeTransferFrom(address(this), to, tokenId);
     }
   }
 
-  function _sendAllERC1155(
-    address to,
-    IERC1155 token,
-    uint256 tokenId
-  ) internal {
+  function _sendAllERC1155(address to, IERC1155 token, uint256 tokenId) internal {
     uint256 balance = token.balanceOf(address(this), tokenId);
     if (balance > 0) {
       token.safeTransferFrom(address(this), to, tokenId, balance, "");
     }
   }
 
-  function _approveERC20IfNeeded(
-    IERC20 token,
-    address spender,
-    uint256 amount
-  ) internal {
+  function _approveERC20IfNeeded(IERC20 token, address spender, uint256 amount) internal {
     uint256 allowance = token.allowance(address(this), spender);
     if (allowance < amount) {
-      token.approve(spender, amount - allowance);
+      token.approve(spender, type(uint256).max);
     }
   }
 

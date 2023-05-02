@@ -1,8 +1,6 @@
 import { redb } from "@/common/db";
-import * as Pusher from "pusher";
 import { formatEth, fromBuffer } from "@/common/utils";
 import { Orders } from "@/utils/orders";
-import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 
 export class NewActivityWebsocketEvent {
@@ -41,20 +39,13 @@ export class NewActivityWebsocketEvent {
       { activityId: data.activityId }
     );
 
-    const server = new Pusher.default({
-      appId: config.websocketServerAppId,
-      key: config.websocketServerAppKey,
-      secret: config.websocketServerAppSecret,
-      host: config.websocketServerHost,
-      useTLS: true,
-    });
-
     const sources = await Sources.getInstance();
 
     const orderSource = activity.order?.sourceIdInt
       ? sources.get(activity.order.sourceIdInt)
       : undefined;
 
+    // eslint-disable-next-line
     const payload = {
       activity: {
         type: activity.type,
@@ -102,8 +93,6 @@ export class NewActivityWebsocketEvent {
           : undefined,
       },
     };
-
-    await server.trigger("activities", "new-activity", JSON.stringify(payload));
   }
 }
 

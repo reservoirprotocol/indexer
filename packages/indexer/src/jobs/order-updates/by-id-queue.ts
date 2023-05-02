@@ -10,6 +10,7 @@ import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
+import { Sources } from "@/models/sources";
 
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
@@ -20,7 +21,7 @@ import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
-} from "../websocket-events/websocket-event-router";
+} from "@/jobs/websocket-events/websocket-event-router";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -46,7 +47,7 @@ if (config.doBackgroundWork) {
   worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { id, trigger } = job.data as OrderInfo;
+      const { id, trigger, ingestMethod } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
       try {
@@ -75,6 +76,7 @@ if (config.doBackgroundWork) {
                 orders.normalized_value,
                 orders.currency_normalized_value,
                 orders.raw_data,
+                orders.originated_at AS "originatedAt",
                 token_sets_tokens.contract,
                 token_sets_tokens.token_id AS "tokenId"
               FROM orders
@@ -466,7 +468,38 @@ if (config.doBackgroundWork) {
           }
         }
 
-        // handle triggering websocket events
+        // Log order latency for new orders
+        if (order && order.validBetween && trigger.kind === "new-order") {
+          try {
+            const orderStart = Math.floor(
+              new Date(order.originatedAt ?? JSON.parse(order.validBetween)[0]).getTime() / 1000
+            );
+            const currentTime = Math.floor(Date.now() / 1000);
+            const source = (await Sources.getInstance()).get(order.sourceIdInt);
+            const orderType =
+              side === "sell"
+                ? "listing"
+                : tokenSetId?.startsWith("token")
+                ? "token_offer"
+                : tokenSetId?.startsWith("list")
+                ? "attribute_offer"
+                : "collection_offer";
+
+            if (orderStart <= currentTime) {
+              logger.info(
+                "order-latency",
+                JSON.stringify({
+                  latency: currentTime - orderStart,
+                  source: source?.getTitle(),
+                  orderType,
+                  ingestMethod: ingestMethod ?? "rest",
+                })
+              );
+            }
+          } catch {
+            // Ignore errors
+          }
+        }
       } catch (error) {
         logger.error(
           QUEUE_NAME,
@@ -475,7 +508,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 50 }
+    { connection: redis.duplicate(), concurrency: 70 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
@@ -511,6 +544,7 @@ export type OrderInfo = {
   // we don't have an order to check against.
   tokenSetId?: string;
   side?: "sell" | "buy";
+  ingestMethod?: "websocket" | "rest";
 };
 
 export const addToQueue = async (orderInfos: OrderInfo[]) => {

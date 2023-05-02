@@ -12,20 +12,21 @@ interface BuildOrderOptions extends BaseOrderBuildOptions {
 export const build = async (options: BuildOrderOptions) => {
   const { feeRate } = await getBuildInfo(options);
 
-  let url = `${config.orderFetcherBaseUrl}/api/blur-create-listing`;
-  url += `?contract=${options.contract}`;
-  url += `&tokenId=${options.tokenId}`;
-  url += `&weiPrice=${options.weiPrice}`;
-  url += `&feeRate=${feeRate}`;
-  url += `&maker=${options.maker}`;
-  url += `&expirationTime=${options.expirationTime ?? now() + 24 * 3600}`;
-  url += `&authToken=${options.authToken}`;
-
   const response: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     signData: { value: any; domain: any; types: any };
     marketplaceData: string;
-  } = await axios.get(url).then((response) => response.data.data);
+  } = await axios
+    .post(`${config.orderFetcherBaseUrl}/api/blur-create-listing`, {
+      contract: options.contract,
+      tokenId: options.tokenId,
+      weiPrice: options.weiPrice,
+      feeRate,
+      maker: options.maker,
+      expirationTime: options.expirationTime ?? now() + 24 * 3600,
+      authToken: options.authToken,
+    })
+    .then((response) => response.data.data);
 
   return {
     order: new Sdk.Blur.Order(config.chainId, response.signData.value),

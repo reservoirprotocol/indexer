@@ -101,6 +101,12 @@ export const triggerByModule = {
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.LooksRare.Addresses.Exchange[chainId],
     ]),
+  LooksRareV2Module: async (chainId: number) =>
+    dv("LooksRareV2Module", "v1", [
+      DEPLOYER,
+      Sdk.RouterV6.Addresses.Router[chainId],
+      Sdk.LooksRareV2.Addresses.Exchange[chainId],
+    ]),
   NFTXModule: async (chainId: number) =>
     dv("NFTXModule", "v1", [
       DEPLOYER,
@@ -126,6 +132,12 @@ export const triggerByModule = {
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.SeaportV14.Addresses.Exchange[chainId],
     ]),
+  SeaportV15Module: async (chainId: number) =>
+    dv("SeaportV15Module", "v1", [
+      DEPLOYER,
+      Sdk.RouterV6.Addresses.Router[chainId],
+      Sdk.SeaportV14.Addresses.Exchange[chainId],
+    ]),
   AlienswapModule: async (chainId: number) =>
     dv("AlienswapModule", "v1", [
       DEPLOYER,
@@ -137,6 +149,12 @@ export const triggerByModule = {
       DEPLOYER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.Sudoswap.Addresses.Router[chainId],
+    ]),
+  SuperRareModule: async (chainId: number) =>
+    dv("SuperRareModule", "v1", [
+      DEPLOYER,
+      Sdk.RouterV6.Addresses.Router[chainId],
+      Sdk.SuperRare.Addresses.Bazaar[chainId],
     ]),
   SwapModule: async (chainId: number) =>
     dv("SwapModule", "v1", [
@@ -164,11 +182,5 @@ export const triggerByModule = {
       DEPLOYER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.Zora.Addresses.Exchange[chainId],
-    ]),
-  SuperRareModule: async (chainId: number) =>
-    dv("SuperRareModule", "v1", [
-      DEPLOYER,
-      Sdk.RouterV6.Addresses.Router[chainId],
-      Sdk.SuperRare.Addresses.Bazaar[chainId],
     ]),
 };

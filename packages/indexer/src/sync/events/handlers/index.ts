@@ -14,7 +14,6 @@ import * as blur from "@/events-sync/handlers/blur";
 import * as cryptopunks from "@/events-sync/handlers/cryptopunks";
 import * as decentraland from "@/events-sync/handlers/decentraland";
 import * as element from "@/events-sync/handlers/element";
-import * as forward from "@/events-sync/handlers/forward";
 import * as foundation from "@/events-sync/handlers/foundation";
 import * as looksrare from "@/events-sync/handlers/looks-rare";
 import * as nftx from "@/events-sync/handlers/nftx";
@@ -65,7 +64,6 @@ export const eventKindToHandler = new Map<
   ["cryptopunks", (e, d) => cryptopunks.handleEvents(e, d)],
   ["decentraland", (e, d) => decentraland.handleEvents(e, d)],
   ["element", (e, d) => element.handleEvents(e, d)],
-  ["forward", (e, d) => forward.handleEvents(e, d)],
   ["foundation", (e, d) => foundation.handleEvents(e, d)],
   ["looks-rare", (e, d) => looksrare.handleEvents(e, d)],
   ["nftx", (e, d) => nftx.handleEvents(e, d)],

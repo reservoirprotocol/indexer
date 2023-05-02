@@ -45,7 +45,6 @@ export const postOrderV4Options: RouteOptions = {
                   "seaport-v1.4",
                   "x2y2",
                   "universe",
-                  "forward",
                   "flow",
                   "alienswap"
                 )

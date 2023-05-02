@@ -9,6 +9,7 @@ import "@/jobs/collections-refresh";
 import "@/jobs/collection-updates";
 import "@/jobs/currencies";
 import "@/jobs/daily-volumes";
+import "@/jobs/data-archive";
 import "@/jobs/data-export";
 import "@/jobs/events-sync";
 import "@/jobs/fill-updates";
@@ -24,6 +25,7 @@ import "@/jobs/update-attribute";
 import "@/jobs/websocket-events";
 import "@/jobs/metrics";
 import "@/jobs/opensea-orders";
+import "@/jobs/monitoring";
 
 // Export all job queues for monitoring through the BullMQ UI
 
@@ -41,6 +43,9 @@ import * as backfillMints from "@/jobs/backfill/backfill-mints";
 import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 import * as backfillUpdateMissingMetadata from "@/jobs/backfill/backfill-update-missing-metadata";
 import * as backfillNftBalancesLastTokenAppraisalValue from "@/jobs/backfill/backfill-nft-balances-last-token-appraisal-value";
+import * as backfillCancelEventsCreatedAt from "@/jobs/backfill/backfill-cancel-events-created-at";
+import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
+import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -65,6 +70,7 @@ import * as currencies from "@/jobs/currencies/index";
 import * as dailyVolumes from "@/jobs/daily-volumes/daily-volumes";
 import * as oneDayVolumes from "@/jobs/daily-volumes/1day-volumes";
 
+import * as processArchiveData from "@/jobs/data-archive/process-archive-data";
 import * as exportData from "@/jobs/data-export/export-data";
 
 import * as eventsSyncProcessResyncRequest from "@/jobs/events-sync/process-resync-request-queue";
@@ -97,12 +103,16 @@ import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import * as orderUpdatesBuyOrder from "@/jobs/order-updates/order-updates-buy-order-queue";
+import * as orderUpdatesSellOrder from "@/jobs/order-updates/order-updates-sell-order-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as bundleOrderUpdatesByMaker from "@/jobs/order-updates/by-maker-bundle-queue";
 import * as dynamicOrdersCron from "@/jobs/order-updates/cron/dynamic-orders-queue";
 import * as erc20OrdersCron from "@/jobs/order-updates/cron/erc20-orders-queue";
 import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-queue";
 import * as oracleOrdersCron from "@/jobs/order-updates/cron/oracle-orders-queue";
+import * as blurBidsBufferMisc from "@/jobs/order-updates/misc/blur-bids-buffer";
+import * as blurBidsRefreshMisc from "@/jobs/order-updates/misc/blur-bids-refresh";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
@@ -137,6 +147,8 @@ import * as openseaOrdersFetchQueue from "@/jobs/opensea-orders/fetch-queue";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
+  orderUpdatesBuyOrder.worker,
+  orderUpdatesSellOrder.worker,
   orderUpdatesByMaker.worker,
   bundleOrderUpdatesByMaker.worker,
   dynamicOrdersCron.worker,
@@ -162,6 +174,9 @@ export const allJobQueues = [
   backfillSaleRoyalties.queue,
   backfillUpdateMissingMetadata.queue,
   backfillNftBalancesLastTokenAppraisalValue.queue,
+  backfillCancelEventsCreatedAt.queue,
+  backfillNftTransferEventsCreatedAt.queue,
+  backfillCollectionsRoyalties.queue,
 
   currencies.queue,
 
@@ -186,6 +201,8 @@ export const allJobQueues = [
 
   dailyVolumes.queue,
   oneDayVolumes.queue,
+
+  processArchiveData.queue,
 
   exportData.queue,
 
@@ -219,12 +236,16 @@ export const allJobQueues = [
   orderRevalidations.queue,
 
   orderUpdatesById.queue,
+  orderUpdatesBuyOrder.queue,
+  orderUpdatesSellOrder.queue,
   orderUpdatesByMaker.queue,
   bundleOrderUpdatesByMaker.queue,
   dynamicOrdersCron.queue,
   erc20OrdersCron.queue,
   expiredOrdersCron.queue,
   oracleOrdersCron.queue,
+  blurBidsBufferMisc.queue,
+  blurBidsRefreshMisc.queue,
 
   orderbookOrders.queue,
   orderbookPostOrderExternal.queue,

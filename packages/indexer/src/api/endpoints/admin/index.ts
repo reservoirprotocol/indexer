@@ -25,4 +25,4 @@ export * from "@/api/endpoints/admin/post-sync-events";
 export * from "@/api/endpoints/admin/post-update-api-key";
 export * from "@/api/endpoints/admin/post-update-rate-limit-rule";
 export * from "@/api/endpoints/admin/post-update-source";
-export * from "@/api/endpoints/admin/get-api-key-metrics";
+export * from "@/api/endpoints/admin/post-api-key-metrics";

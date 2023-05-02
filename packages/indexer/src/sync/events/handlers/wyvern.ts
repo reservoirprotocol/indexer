@@ -11,8 +11,11 @@ import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const handleEvents = async (events: EnhancedEvent[], _onChainData: OnChainData) => {
+export const handleEvents = async (_events: EnhancedEvent[], onChainData: OnChainData) => {
   const nftTransferEvents: es.nftTransfers.Event[] = [];
+
+  // re-sort
+  const events = _events.sort((a, b) => a.baseEventParams.logIndex - b.baseEventParams.logIndex);
 
   // Keep track of all events within the currently processing transaction
   let currentTx: string | undefined;
@@ -121,6 +124,7 @@ export const handleEvents = async (events: EnhancedEvent[], _onChainData: OnChai
           currencyPrice,
           baseEventParams.timestamp
         );
+
         if (!priceData.nativePrice) {
           // We must always have the native price
           break;

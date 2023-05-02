@@ -15,6 +15,7 @@ import { baseProvider } from "@/common/provider";
 import { bn, now, regex } from "@/common/utils";
 import { config } from "@/config/index";
 import * as b from "@/utils/auth/blur";
+import { ExecutionsBuffer } from "@/utils/executions";
 
 // Blur
 import * as blurBuyCollection from "@/orderbook/orders/blur/build/buy/collection";
@@ -58,7 +59,8 @@ const version = "v5";
 
 export const getExecuteBidV5Options: RouteOptions = {
   description: "Create bids (offers)",
-  notes: "Generate bids and submit them to multiple marketplaces",
+  notes:
+    "Generate bids and submit them to multiple marketplaces. Please use the `/cross-posting-orders/v1` to check the status on cross posted bids.\n We recommend using Reservoir SDK as it abstracts the process of iterating through steps, and returning callbacks that can be used to update your UI.",
   timeout: { server: 60000 },
   tags: ["api", "Create Orders (list & bid)"],
   plugins: {
@@ -89,21 +91,19 @@ export const getExecuteBidV5Options: RouteOptions = {
             .description(
               "Bid on a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
             ),
-          tokenSetId: Joi.string()
-            .lowercase()
-            .description(
-              "Bid on a particular token set. Example: `token:CONTRACT:TOKEN_ID` representing a single token within contract, `contract:CONTRACT` representing a whole contract, `range:CONTRACT:START_TOKEN_ID:END_TOKEN_ID` representing a continuous token id range within a contract and `list:CONTRACT:TOKEN_IDS_HASH` representing a list of token ids within a contract."
-            ),
+          tokenSetId: Joi.string().description(
+            "Bid on a particular token set. Example: `token:CONTRACT:TOKEN_ID` representing a single token within contract, `contract:CONTRACT` representing a whole contract, `range:CONTRACT:START_TOKEN_ID:END_TOKEN_ID` representing a continuous token id range within a contract and `list:CONTRACT:TOKEN_IDS_HASH` representing a list of token ids within a contract."
+          ),
           collection: Joi.string()
             .lowercase()
             .description(
               "Bid on a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
             ),
           attributeKey: Joi.string().description(
-            "Bid on a particular attribute key. Example: `Composition`"
+            "Bid on a particular attribute key. This is case sensitive. Example: `Composition`"
           ),
           attributeValue: Joi.string().description(
-            "Bid on a particular attribute value. Example: `Teddy (#33)`"
+            "Bid on a particular attribute value. This is case sensitive. Example: `Teddy (#33)`"
           ),
           quantity: Joi.number().description(
             "Quantity of tokens user is buying. Only compatible with ERC1155 tokens. Example: `5`"
@@ -129,6 +129,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             .description("Exchange protocol used to create order. Example: `seaport-v1.4`"),
           options: Joi.object({
             "seaport-v1.4": Joi.object({
+              conduitKey: Joi.string().pattern(regex.bytes32),
               useOffChainCancellation: Joi.boolean().required(),
               replaceOrderId: Joi.string().when("useOffChainCancellation", {
                 is: true,
@@ -146,12 +147,12 @@ export const getExecuteBidV5Options: RouteOptions = {
             .default(true)
             .description("If true, royalty amounts and recipients will be set automatically."),
           royaltyBps: Joi.number().description(
-            "Set a maximum amount of royalties to pay, rather than the full amount. Only relevant when using automated royalties. Note: OpenSea does not support values below 50 bps."
+            "Set a maximum amount of royalties to pay, rather than the full amount. Only relevant when using automated royalties. 1 BPS = 0.01% Note: OpenSea does not support values below 50 bps."
           ),
           fees: Joi.array()
             .items(Joi.string().pattern(regex.fee))
             .description(
-              "List of fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
+              "List of fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. 1 BPS = 0.01% Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
             ),
           excludeFlaggedTokens: Joi.boolean()
             .default(false)
@@ -194,6 +195,7 @@ export const getExecuteBidV5Options: RouteOptions = {
             .items(
               Joi.object({
                 status: Joi.string().valid("complete", "incomplete").required(),
+                tip: Joi.string(),
                 data: Joi.object(),
                 orderIndexes: Joi.array().items(Joi.number()),
               })
@@ -215,6 +217,16 @@ export const getExecuteBidV5Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const payload = request.payload as any;
+
+    const executionsBuffer = new ExecutionsBuffer();
+    const addExecution = (orderId: string, quantity?: number) =>
+      executionsBuffer.addFromRequest(request, {
+        side: "buy",
+        action: "create",
+        user: payload.maker,
+        orderId,
+        quantity: quantity ?? 1,
+      });
 
     try {
       const maker = payload.maker as string;
@@ -250,6 +262,7 @@ export const getExecuteBidV5Options: RouteOptions = {
         kind: string;
         items: {
           status: string;
+          tip?: string;
           data?: any;
           orderIndexes?: number[];
         }[];
@@ -326,13 +339,11 @@ export const getExecuteBidV5Options: RouteOptions = {
       };
 
       // Handle Blur authentication
-      let blurAuth: string | undefined;
+      let blurAuth: b.Auth | undefined;
       if (params.some((p) => p.orderKind === "blur")) {
         const blurAuthId = b.getAuthId(maker);
 
-        blurAuth = await b
-          .getAuth(blurAuthId)
-          .then((auth) => (auth ? auth.accessToken : undefined));
+        blurAuth = await b.getAuth(blurAuthId);
         if (!blurAuth) {
           const blurAuthChallengeId = b.getAuthChallengeId(maker);
 
@@ -371,6 +382,7 @@ export const getExecuteBidV5Options: RouteOptions = {
           // Force the client to poll
           steps[1].items.push({
             status: "incomplete",
+            tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
           });
 
           // Return an early since any next steps are dependent on the Blur auth
@@ -466,9 +478,7 @@ export const getExecuteBidV5Options: RouteOptions = {
                   steps[1].items.push({
                     status: "incomplete",
                     data:
-                      params.currency === BETH
-                        ? { ...wrapTx, to: Sdk.Blur.Addresses.Beth[config.chainId] }
-                        : wrapTx,
+                      params.currency === BETH ? { ...wrapTx, to: BETH } : { ...wrapTx, to: WETH },
                     orderIndexes: [i],
                   });
                 }
@@ -496,6 +506,12 @@ export const getExecuteBidV5Options: RouteOptions = {
                 if (!["blur"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
+                if (params.fees?.length) {
+                  return errors.push({
+                    message: "Custom fees not supported",
+                    orderIndex: i,
+                  });
+                }
 
                 if (!collection) {
                   return errors.push({
@@ -506,49 +522,65 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                 // TODO: Return an error if the collection is not supported by Blur
 
-                const { signData, marketplaceData } = await blurBuyCollection.build({
-                  ...params,
-                  maker,
-                  contract: collection,
-                  authToken: blurAuth!,
-                });
+                const needsBethWrapping = steps[1].items.find(
+                  (i) => i.status === "incomplete" && i.data?.to === BETH
+                );
+                if (needsBethWrapping) {
+                  // Force the client to poll
+                  // (since Blur won't release the calldata unless you have enough BETH in your wallet)
+                  steps[3].items.push({
+                    status: "incomplete",
+                  });
+                } else {
+                  const { signData, marketplaceData } = await blurBuyCollection.build({
+                    ...params,
+                    maker,
+                    contract: collection,
+                    authToken: blurAuth!.accessToken,
+                  });
 
-                steps[3].items.push({
-                  status: "incomplete",
-                  data: {
-                    sign: {
-                      signatureKind: "eip712",
-                      domain: signData.domain,
-                      types: signData.types,
-                      value: signData.value,
-                      primaryType: _TypedDataEncoder.getPrimaryType(signData.types),
-                    },
-                    post: {
-                      endpoint: "/order/v4",
-                      method: "POST",
-                      body: {
-                        items: [
-                          {
-                            order: {
-                              kind: "blur",
-                              data: {
-                                maker,
-                                marketplaceData,
-                                authToken: blurAuth!,
-                                isCollectionBid: true,
+                  steps[3].items.push({
+                    status: "incomplete",
+                    data: {
+                      sign: {
+                        signatureKind: "eip712",
+                        domain: signData.domain,
+                        types: signData.types,
+                        value: signData.value,
+                        primaryType: _TypedDataEncoder.getPrimaryType(signData.types),
+                      },
+                      post: {
+                        endpoint: "/order/v4",
+                        method: "POST",
+                        body: {
+                          items: [
+                            {
+                              order: {
+                                kind: "blur",
+                                data: {
+                                  maker,
+                                  marketplaceData,
+                                  authToken: blurAuth!.accessToken,
+                                  isCollectionBid: true,
+                                },
                               },
+                              collection,
+                              orderbook: params.orderbook,
+                              orderbookApiKey: params.orderbookApiKey,
                             },
-                            collection,
-                            orderbook: params.orderbook,
-                            orderbookApiKey: params.orderbookApiKey,
-                          },
-                        ],
-                        source,
+                          ],
+                          source,
+                        },
                       },
                     },
-                  },
-                  orderIndexes: [i],
-                });
+                    orderIndexes: [i],
+                  });
+
+                  addExecution(
+                    new Sdk.Blur.Order(config.chainId, signData.value).hash(),
+                    params.quantity
+                  );
+                }
 
                 break;
               }
@@ -646,6 +678,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
+                addExecution(order.hash(), params.quantity);
+
                 break;
               }
 
@@ -670,6 +704,7 @@ export const getExecuteBidV5Options: RouteOptions = {
 
                 const options = params.options?.[params.orderKind] as
                   | {
+                      conduitKey?: string;
                       useOffChainCancellation?: boolean;
                       replaceOrderId?: string;
                     }
@@ -754,6 +789,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   source,
                   orderIndex: i,
                 });
+
+                addExecution(order.hash(), params.quantity);
 
                 break;
               }
@@ -853,6 +890,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndex: i,
                 });
 
+                addExecution(order.hash(), params.quantity);
+
                 break;
               }
 
@@ -950,6 +989,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
+                addExecution(order.hash(), params.quantity);
+
                 break;
               }
 
@@ -1037,6 +1078,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   },
                   orderIndexes: [i],
                 });
+
+                addExecution(order.hash(), params.quantity);
 
                 break;
               }
@@ -1131,6 +1174,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
+                addExecution(order.hash(), params.quantity);
+
                 break;
               }
 
@@ -1221,6 +1266,11 @@ export const getExecuteBidV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
+                addExecution(
+                  new Sdk.X2Y2.Exchange(config.chainId, "").hash(order),
+                  params.quantity
+                );
+
                 break;
               }
 
@@ -1288,6 +1338,8 @@ export const getExecuteBidV5Options: RouteOptions = {
                   },
                   orderIndexes: [i],
                 });
+
+                addExecution(order.hashOrderKey(), params.quantity);
 
                 break;
               }
@@ -1509,6 +1561,8 @@ export const getExecuteBidV5Options: RouteOptions = {
         // to remove the auth step
         steps = steps.slice(1);
       }
+
+      await executionsBuffer.flush();
 
       return { steps, errors };
     } catch (error) {

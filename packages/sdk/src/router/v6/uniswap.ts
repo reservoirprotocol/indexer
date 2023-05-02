@@ -105,6 +105,7 @@ export const generateSwapExecutions = async (
       {
         protocols: [Protocol.V3],
         maxSwapsPerPath: 1,
+        maxSplits: 1,
       }
     );
 

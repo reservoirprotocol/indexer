@@ -57,11 +57,9 @@ export const getTokensDetailsV4Options: RouteOptions = {
             "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           )
       ),
-      tokenSetId: Joi.string()
-        .lowercase()
-        .description(
-          "Filter to a particular token set. `Example: token:0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270:129000685`"
-        ),
+      tokenSetId: Joi.string().description(
+        "Filter to a particular token set. `Example: token:0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270:129000685`"
+      ),
       attributes: Joi.object()
         .unknown()
         .description("Filter to a particular attribute. Example: `attributes[Type]=Original`"),

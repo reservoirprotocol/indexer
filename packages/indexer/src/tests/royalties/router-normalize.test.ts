@@ -1,96 +1,62 @@
 import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
-import { extractRoyalties } from "@/events-sync/handlers/royalties/core";
-import { getRoyalties } from "@/utils/royalties";
+import { assignRoyaltiesToFillEvents } from "@/events-sync/handlers/royalties";
 import { getFillEventsFromTx } from "@/events-sync/handlers/royalties/utils";
 import { jest, describe, it, expect } from "@jest/globals";
-
-import { StateCache } from "@/events-sync/handlers/royalties";
+import { getRoyalties } from "@/utils/royalties";
 
 jest.setTimeout(1000 * 1000);
 
 jest.mock("@/utils/royalties");
 const mockGetRoyalties = getRoyalties as jest.MockedFunction<typeof getRoyalties>;
 
-type TestCase = {
-  name: string;
-  tx: string;
-};
+jest.setTimeout(1000 * 1000);
+jest.mock("@/utils/royalties");
 
-describe("Royalties - Router normalize", () => {
-  const testCollectionRoyalties = [
-    {
-      collection: "0x33c6eec1723b12c46732f7ab41398de45641fa42",
-      data: [
-        {
-          recipient: "0x459fe44490075a2ec231794f9548238e99bf25c0",
-          bps: 750,
-        },
-      ],
-    },
-    {
-      collection: "0xe1d7a7c25d6bacd2af454a7e863e7b611248c3e5",
-      data: [
-        {
-          recipient: "0x5fc32481222d0444d4cc2196a79e544ce42a0ec5",
-          bps: 250,
-        },
-      ],
-    },
-  ];
-  const platformFees = [
-    {
-      kind: "x2y2",
-      feeBps: 50,
-    },
-    {
-      kind: "seaport",
-      feeBps: 250,
-    },
-  ];
+describe("Royalties Router", () => {
+  it("router", async () => {
+    const { fillEvents } = await getFillEventsFromTx(
+      "0x1e998171c0af9f93a2b3bf2999c65bb84b9bf664d91c08cf29f1b9d4fd8d6bc6"
+    );
 
-  const testFeeExtract = async (txHash: string) => {
+    const testCollectionRoyalties = [
+      {
+        collection: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+        data: [
+          {
+            bps: 250,
+            recipient: "0xaae7ac476b117bccafe2f05f582906be44bc8ff1",
+          },
+        ],
+      },
+    ];
+
     mockGetRoyalties.mockImplementation(async (contract: string) => {
       const matched = testCollectionRoyalties.find((c) => c.collection === contract);
       return matched?.data ?? [];
     });
+    const feesList = [
+      {
+        contract: "0xa319c382a702682129fcbf55d514e61a16f97f9c",
+        tokenId: "15000054",
+        royaltyFeeBps: 999,
+        marketplaceFeeBps: 50,
+      },
+    ];
 
-    const { fillEvents } = await getFillEventsFromTx(txHash);
-    const cache: StateCache = {
-      royalties: new Map(),
-    };
+    await assignRoyaltiesToFillEvents(fillEvents, false, true);
 
     for (let index = 0; index < fillEvents.length; index++) {
       const fillEvent = fillEvents[index];
-      const feeForPlatform = platformFees.find((_) => _.kind === fillEvent.orderKind);
-      const fees = await extractRoyalties(fillEvent, cache, false, true);
-
-      const matched = testCollectionRoyalties.find((c) => c.collection === fillEvent.contract);
-
-      if (matched) {
-        expect(fees?.royaltyFeeBps).toEqual(matched.data[0].bps);
-      }
-
-      if (feeForPlatform) {
-        // check
-        expect(fees?.marketplaceFeeBps).toEqual(feeForPlatform.feeBps);
+      const matchFee = feesList.find(
+        (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
+      );
+      // console.log("fillEvent", fillEvent)
+      if (matchFee) {
+        expect(fillEvent.royaltyFeeBps).toEqual(matchFee.royaltyFeeBps);
+        expect(fillEvent.marketplaceFeeBps).toEqual(matchFee.marketplaceFeeBps);
       }
     }
-  };
-
-  const txIds: TestCase[] = [
-    {
-      name: "reservoir-router-with-normalize",
-      tx: "0xc422678f7e2c0efc8e140debed5a5f6a3f8061bb0ff02b701046876ff81dbe35",
-    },
-    // {
-    //   name: "reservoir-router-with-normalize-missing-royalties",
-    //   tx: "0x8b18a4ae5893905f3d877594e662190d34b8cc36b3626335e686ef6281f35c08",
-    // },
-  ];
-
-  for (const { name, tx } of txIds) {
-    it(`${name}`, async () => testFeeExtract(tx));
-  }
+  });
 });

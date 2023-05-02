@@ -58,7 +58,9 @@ export const getUserTokensV7Options: RouteOptions = {
         .description("Filter to a particular community, e.g. `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -75,13 +77,13 @@ export const getUserTokensV7Options: RouteOptions = {
           .max(50)
           .items(Joi.string().lowercase().pattern(regex.token))
           .description(
-            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+            "Array of tokens. Max limit is 50. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           ),
         Joi.string()
           .lowercase()
           .pattern(regex.token)
           .description(
-            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+            "Array of tokens. Max limit is 50. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           )
       ),
       normalizeRoyalties: Joi.boolean()
@@ -90,7 +92,9 @@ export const getUserTokensV7Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("acquiredAt", "lastAppraisalValue")
         .default("acquiredAt")
-        .description("Order the items are returned in the response."),
+        .description(
+          "Order the items are returned in the response. Options are `acquiredAt` and `lastAppraisalValue`."
+        ),
       sortDirection: Joi.string()
         .lowercase()
         .valid("asc", "desc")
@@ -104,7 +108,7 @@ export const getUserTokensV7Options: RouteOptions = {
         .min(1)
         .max(200)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 200."),
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
@@ -125,7 +129,7 @@ export const getUserTokensV7Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency"),
     }),
   },
   response: {
@@ -145,6 +149,7 @@ export const getUserTokensV7Options: RouteOptions = {
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
+              openseaVerificationStatus: Joi.string().allow("", null),
               floorAskPrice: JoiPrice.allow(null),
               royaltiesBps: Joi.number().allow(null),
               royalties: Joi.array().items(
@@ -158,6 +163,7 @@ export const getUserTokensV7Options: RouteOptions = {
             topBid: Joi.object({
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
+              source: Joi.object().allow(null),
             }).optional(),
             lastAppraisalValue: Joi.number().unsafe().allow(null),
             attributes: Joi.array()
@@ -378,6 +384,7 @@ export const getUserTokensV7Options: RouteOptions = {
           null AS top_bid_currency,
           null AS top_bid_currency_price,
           null AS top_bid_currency_value,
+          null AS top_bid_source_id_int,
           ${selectFloorData}
           ${selectRoyaltyBreakdown}
         FROM tokens t
@@ -424,7 +431,8 @@ export const getUserTokensV7Options: RouteOptions = {
             o.value AS "top_bid_value",
             o.currency AS "top_bid_currency",
             o.currency_price AS "top_bid_currency_price",
-            o.currency_value AS "top_bid_currency_value"
+            o.currency_value AS "top_bid_currency_value",
+            o.source_id_int AS "top_bid_source_id_int"
           FROM "orders" "o"
           JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
           WHERE "tst"."contract" = "b"."contract"
@@ -480,12 +488,11 @@ export const getUserTokensV7Options: RouteOptions = {
                t.name, t.image, t.media, t.rarity_rank, t.collection_id, t.floor_sell_id, t.floor_sell_value, t.floor_sell_currency, t.floor_sell_currency_value,
                t.floor_sell_maker, t.floor_sell_valid_from, t.floor_sell_valid_to, t.floor_sell_source_id_int,
                t.rarity_score, ${selectLastSale}
-               top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value,
+               top_bid_id, top_bid_price, top_bid_value, top_bid_currency, top_bid_currency_price, top_bid_currency_value, top_bid_source_id_int,
                o.currency AS collection_floor_sell_currency, o.currency_price AS collection_floor_sell_currency_price,
-               c.name as collection_name, con.kind, c.metadata, c.royalties,
-               c.royalties_bps, 
-               (SELECT kind FROM orders WHERE id = t.floor_sell_id) AS floor_sell_kind,
-               ${query.includeRawData ? "o.raw_data," : ""}
+               c.name as collection_name, con.kind, c.metadata, c.royalties, (c.metadata ->> 'safelistRequestStatus')::TEXT AS "opensea_verification_status",
+               c.royalties_bps, ot.kind AS floor_sell_kind,
+               ${query.includeRawData ? "ot.raw_data AS floor_sell_raw_data," : ""}
                ${
                  query.useNonFlaggedFloorAsk
                    ? "c.floor_sell_value"
@@ -517,6 +524,7 @@ export const getUserTokensV7Options: RouteOptions = {
           ${tokensJoin}
           JOIN collections c ON c.id = t.collection_id
           LEFT JOIN orders o ON o.id = c.floor_sell_id
+          LEFT JOIN orders ot ON ot.id = t.floor_sell_id
           JOIN contracts con ON b.contract = con.address
       `;
 
@@ -608,6 +616,9 @@ export const getUserTokensV7Options: RouteOptions = {
         const floorSellSource = r.floor_sell_value
           ? sources.get(Number(r.floor_sell_source_id_int), contract, tokenId)
           : undefined;
+        const topBidSource = r.top_bid_source_id_int
+          ? sources.get(Number(r.top_bid_source_id_int), contract, tokenId)
+          : undefined;
         const acquiredTime = new Date(r.acquired_at * 1000).toISOString();
         return {
           token: {
@@ -623,6 +634,7 @@ export const getUserTokensV7Options: RouteOptions = {
               id: r.collection_id,
               name: r.collection_name,
               imageUrl: r.metadata?.imageUrl,
+              openseaVerificationStatus: r.opensea_verification_status,
               floorAskPrice: r.collection_floor_sell_value
                 ? await getJoiPriceObject(
                     {
@@ -680,6 +692,13 @@ export const getUserTokensV7Options: RouteOptions = {
                         query.displayCurrency
                       )
                     : null,
+                  source: {
+                    id: topBidSource?.address,
+                    domain: topBidSource?.domain,
+                    name: topBidSource?.metadata.title || topBidSource?.name,
+                    icon: topBidSource?.getIcon(),
+                    url: topBidSource?.metadata.url,
+                  },
                 }
               : undefined,
             lastAppraisalValue: r.last_token_appraisal_value
@@ -732,7 +751,7 @@ export const getUserTokensV7Options: RouteOptions = {
                 icon: floorSellSource?.getIcon(),
                 url: floorSellSource?.metadata.url,
               },
-              rawData: query.includeRawData ? r.raw_data : undefined,
+              rawData: query.includeRawData ? r.floor_sell_raw_data : undefined,
             },
             acquiredAt: acquiredTime,
           },

@@ -72,6 +72,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             COALESCE(NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'), 0) AS expiration,
             orders.is_reservoir,
             orders.created_at,
+            orders.updated_at,
             (
             CASE
               WHEN orders.fillability_status = 'filled' THEN 'filled'
@@ -152,6 +153,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           isReservoir: rawResult.is_reservoir,
           isDynamic: Boolean(rawResult.dynamic || rawResult.kind === "sudoswap"),
           createdAt: new Date(rawResult.created_at).toISOString(),
+          updatedAt: new Date(rawResult.updated_at).toISOString(),
           rawData: rawResult.raw_data,
         };
 
@@ -178,7 +180,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 20 }
+    { connection: redis.duplicate(), concurrency: 40 }
   );
 
   worker.on("error", (error) => {

@@ -1,6 +1,8 @@
-import * as Types from "./types";
-import { BaseOrderInfo } from "./builders/base";
 import { BigNumberish } from "@ethersproject/bignumber";
+
+import { BaseOrderInfo } from "./builders/base";
+import * as Types from "./types";
+import { SeaportBaseExchange } from "../seaport-base/exchange";
 
 export enum SeaportOrderKind {
   SEAPORT_V11 = "seaport",
@@ -11,6 +13,8 @@ export enum SeaportOrderKind {
 export interface IOrder {
   chainId: number;
   params: Types.OrderComponents;
+
+  exchange(): SeaportBaseExchange;
 
   getInfo(): BaseOrderInfo | undefined;
 

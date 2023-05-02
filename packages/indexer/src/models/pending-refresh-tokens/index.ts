@@ -39,4 +39,8 @@ export class PendingRefreshTokens {
 
     return [];
   }
+
+  public async length(): Promise<number> {
+    return await redis.llen(this.key);
+  }
 }
