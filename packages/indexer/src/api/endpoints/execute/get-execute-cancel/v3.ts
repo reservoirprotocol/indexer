@@ -149,6 +149,10 @@ export const getExecuteCancelV3Options: RouteOptions = {
           throw Boom.badRequest("Only Blur bids can be cancelled together");
         }
 
+        if (!payload.maker) {
+          throw Boom.badRequest("Missing maker");
+        }
+
         // Set up generic filling steps
         const steps: {
           id: string;
