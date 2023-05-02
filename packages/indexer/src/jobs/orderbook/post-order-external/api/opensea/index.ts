@@ -4,7 +4,7 @@ import axios, { AxiosRequestConfig } from "axios";
 import { logger } from "@/common/logger";
 import { bn, now } from "@/common/utils";
 import { config } from "@/config/index";
-import { getOpenseaBaseUrl, getOpenseaNetworkName, getOpenseaSubDomain } from "@/config/network";
+import { getOpenseaBaseUrl, getOpenseaNetworkName } from "@/config/network";
 import {
   RequestWasThrottledError,
   InvalidRequestError,
@@ -31,15 +31,23 @@ export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => 
     item.identifierOrCriteria = bn(item.identifierOrCriteria).toString();
   }
 
+  const url = `${getOpenseaBaseUrl()}/v2/orders/${getOpenseaNetworkName()}/seaport/${
+    order.getInfo()?.side === "sell" ? "listings" : "offers"
+  }`;
+
   const options: AxiosRequestConfig = {
     method: "POST",
-    url: config.openSeaApiUrl || getOpenseaBaseUrl(),
-    headers: {
-      url: `${getOpenseaBaseUrl()}/v2/orders/${getOpenseaNetworkName()}/seaport/${
-        order.getInfo()?.side === "sell" ? "listings" : "offers"
-      }`,
-      "X-Api-Key": config.chainId !== 5 ? apiKey || config.openSeaApiKey : undefined,
-    },
+    url: config.openSeaApiUrl || url,
+    headers:
+      config.chainId !== 5
+        ? {
+            url,
+            "Content-Type": "application/json",
+            "X-Api-Key": apiKey || config.openSeaApiKey,
+          }
+        : {
+            "Content-Type": "application/json",
+          },
     data: {
       parameters: {
         ...order.params,
@@ -85,13 +93,21 @@ export const buildCollectionOffer = async (
   collectionSlug: string,
   apiKey = ""
 ) => {
+  const url = `${getOpenseaBaseUrl()}/v2/offers/build`;
+
   const options: AxiosRequestConfig = {
     method: "post",
-    url: config.openSeaApiUrl || getOpenseaBaseUrl(),
-    headers: {
-      url: `${getOpenseaBaseUrl()}/v2/offers/build`,
-      "X-Api-Key": config.chainId !== 5 ? apiKey || config.openSeaApiKey : undefined,
-    },
+    url: config.openSeaApiUrl || url,
+    headers:
+      config.chainId !== 5
+        ? {
+            url,
+            "Content-Type": "application/json",
+            "X-Api-Key": apiKey || config.openSeaApiKey,
+          }
+        : {
+            "Content-Type": "application/json",
+          },
     data: {
       offerer,
       quantity,
@@ -135,13 +151,21 @@ export const buildTraitOffer = async (
   traitValue: string,
   apiKey = ""
 ) => {
+  const url = `${getOpenseaBaseUrl()}/v2/offers/build`;
+
   const options: AxiosRequestConfig = {
     method: "post",
-    url: config.openSeaApiUrl || getOpenseaBaseUrl(),
-    headers: {
-      url: `https://${getOpenseaSubDomain()}.opensea.io/v2/offers/build`,
-      "X-Api-Key": config.chainId !== 5 ? apiKey || config.openSeaApiKey : undefined,
-    },
+    url: config.openSeaApiUrl || url,
+    headers:
+      config.chainId !== 5
+        ? {
+            url,
+            "Content-Type": "application/json",
+            "X-Api-Key": apiKey || config.openSeaApiKey,
+          }
+        : {
+            "Content-Type": "application/json",
+          },
     data: {
       offerer,
       quantity,
@@ -191,13 +215,21 @@ export const postCollectionOffer = async (
     throw new InvalidRequestError("Order is expired");
   }
 
+  const url = `${getOpenseaBaseUrl()}/v2/offers`;
+
   const options: AxiosRequestConfig = {
     method: "post",
-    url: config.openSeaApiUrl || getOpenseaBaseUrl(),
-    headers: {
-      url: `${getOpenseaBaseUrl()}/v2/offers`,
-      "X-Api-Key": config.chainId !== 5 ? apiKey || config.openSeaApiKey : undefined,
-    },
+    url: config.openSeaApiUrl || url,
+    headers:
+      config.chainId !== 5
+        ? {
+            url,
+            "Content-Type": "application/json",
+            "X-Api-Key": apiKey || config.openSeaApiKey,
+          }
+        : {
+            "Content-Type": "application/json",
+          },
     data: {
       criteria: {
         collection: {
@@ -244,13 +276,21 @@ export const postTraitOffer = async (
     throw new InvalidRequestError("Order is expired");
   }
 
+  const url = `${getOpenseaBaseUrl()}/v2/offers`;
+
   const options: AxiosRequestConfig = {
     method: "post",
-    url: config.openSeaApiUrl || getOpenseaBaseUrl(),
-    headers: {
-      url: `${getOpenseaBaseUrl()}/v2/offers`,
-      "X-Api-Key": config.chainId !== 5 ? apiKey || config.openSeaApiKey : undefined,
-    },
+    url: config.openSeaApiUrl || url,
+    headers:
+      config.chainId !== 5
+        ? {
+            url,
+            "Content-Type": "application/json",
+            "X-Api-Key": apiKey || config.openSeaApiKey,
+          }
+        : {
+            "Content-Type": "application/json",
+          },
     data: {
       criteria: {
         collection: {
