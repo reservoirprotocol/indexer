@@ -355,7 +355,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             await poolContract.getSellNFTQuote(1);
 
           const id = getOrderId(orderParams.pool, "buy");
-          if (tokenBalance.lt(currencyPrice)) {
+          if (currencyPrice.lt(tokenBalance)) {
             // Determine how many NFTs can be bought (though the price will
             // increase with each unit)
             let numBuyableNFTs = 0;
