@@ -49,7 +49,7 @@ export const getCollectionsV5Options: RouteOptions = {
         .description("Filter to a particular collection slug. Example: `boredapeyachtclub`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description("Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"),
       community: Joi.string()
         .lowercase()
         .description("Filter to a particular community. Example: `artblocks`"),

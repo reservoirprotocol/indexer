@@ -8,7 +8,7 @@ import { RateLimitRules } from "@/models/rate-limit-rules";
 
 export const getApiKeyRateLimits: RouteOptions = {
   description: "Get rate limits for the given API key",
-  notes: "Get the rate limits for the given API key",
+  notes: "Get the rate limits for the given API key. Note: API keys are not universal across all available chains; please make a different key for every chain.",
   tags: ["api", "Management"],
   plugins: {
     "hapi-swagger": {

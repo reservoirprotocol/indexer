@@ -14,7 +14,7 @@ const version = "v5";
 
 export const getSalesV5Options: RouteOptions = {
   description: "Sales",
-  notes: "Get recent sales for a contract or token.",
+  notes: "Get recent sales for a contract or token. Array of contracts max limit is 20.",
   tags: ["api", "Sales"],
   plugins: {
     "hapi-swagger": {
@@ -28,23 +28,23 @@ export const getSalesV5Options: RouteOptions = {
           Joi.array().items(Joi.string().lowercase().pattern(regex.address)).max(20),
           Joi.string().lowercase().pattern(regex.address)
         )
-        .description("Array of contract. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"),
+        .description("Array of contract. Max limit is 20. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"),
       tokens: Joi.alternatives().try(
         Joi.array()
           .max(20)
           .items(Joi.string().lowercase().pattern(regex.token))
           .description(
-            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+            "Array of tokens. Max limit is 20. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           ),
         Joi.string()
           .lowercase()
           .pattern(regex.token)
           .description(
-            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+            "Array of tokens. Max limit is 20. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           )
       ),
       includeTokenMetadata: Joi.boolean().description(
-        "If enabled, also include token metadata in the response."
+        "If enabled, also include token metadata in the response. Default is false."
       ),
       includeDeleted: Joi.boolean()
         .description(
@@ -59,11 +59,11 @@ export const getSalesV5Options: RouteOptions = {
       attributes: Joi.object()
         .unknown()
         .description(
-          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/sales/v4?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/sales/v4?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`"
+          "Filter to a particular attribute. Attributes are case sensitive. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/sales/v4?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/sales/v4?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`"
         ),
       orderBy: Joi.string()
         .valid("price", "time", "updated_at")
-        .description("Order the items are returned in the response."),
+        .description("Order the items are returned in the response. Options are `price`, `time`, and `updated_at`. Default is `time`."),
       sortDirection: Joi.string()
         .lowercase()
         .valid("asc", "desc")
@@ -86,7 +86,7 @@ export const getSalesV5Options: RouteOptions = {
         .min(1)
         .max(1000)
         .default(100)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 1000."),
       continuation: Joi.string()
         .pattern(regex.base64)
         .description("Use continuation token to request next offset of items."),

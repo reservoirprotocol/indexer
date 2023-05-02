@@ -58,7 +58,7 @@ export const getUserTokensV7Options: RouteOptions = {
         .description("Filter to a particular community, e.g. `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description("Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -75,13 +75,13 @@ export const getUserTokensV7Options: RouteOptions = {
           .max(50)
           .items(Joi.string().lowercase().pattern(regex.token))
           .description(
-            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+            "Array of tokens. Max limit is 50. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           ),
         Joi.string()
           .lowercase()
           .pattern(regex.token)
           .description(
-            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+            "Array of tokens. Max limit is 50. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           )
       ),
       normalizeRoyalties: Joi.boolean()
@@ -90,7 +90,7 @@ export const getUserTokensV7Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("acquiredAt", "lastAppraisalValue")
         .default("acquiredAt")
-        .description("Order the items are returned in the response."),
+        .description("Order the items are returned in the response. Options are `acquiredAt` and `lastAppraisalValue`."),
       sortDirection: Joi.string()
         .lowercase()
         .valid("asc", "desc")
@@ -104,7 +104,7 @@ export const getUserTokensV7Options: RouteOptions = {
         .min(1)
         .max(200)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 200."),
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
@@ -125,7 +125,7 @@ export const getUserTokensV7Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency"),
     }),
   },
   response: {

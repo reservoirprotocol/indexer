@@ -153,24 +153,42 @@ if (config.doBackgroundWork) {
                 config.chainId,
                 orderData as Sdk.SeaportBase.Types.OrderComponents
               );
+
               const orderInfo = order.getInfo();
 
               logger.info(
                 QUEUE_NAME,
-                `Post Order Failed - Invalid Fees Debug. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, contract=${
-                  orderInfo?.contract
-                }, tokenId=${orderInfo?.tokenId}, orderId=${orderId}, orderData=${JSON.stringify(
-                  orderData
-                )}, retry: ${retry}`
+                `Post Order Failed - Invalid Fees Debug. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderKind=${
+                  order.params.kind
+                }, contract=${orderInfo?.contract}, tokenId=${
+                  orderInfo?.tokenId
+                }, orderId=${orderId}, orderData=${JSON.stringify(orderData)}, retry: ${retry}`
               );
 
-              if (orderInfo?.contract && orderInfo.tokenId) {
-                const rawResult = await redb.oneOrNone(
+              let rawResult;
+
+              if (order.params.kind !== "single-token") {
+                rawResult = await redb.oneOrNone(
                   `
                 SELECT
                   tokens.contract,
                   tokens.token_id,
-                  collections.id AS "collection_id",
+                  collections.community
+                FROM collections
+                JOIN tokens ON tokens.collection_id = collections.id
+                WHERE collections = $/collectionId/
+                LIMIT 1
+            `,
+                  {
+                    collectionId: orderSchema!.data.collection,
+                  }
+                );
+              } else if (orderInfo?.tokenId) {
+                rawResult = await redb.oneOrNone(
+                  `
+                SELECT
+                  tokens.contract,
+                  tokens.token_id,
                   collections.community
                 FROM tokens
                 JOIN collections ON collections.id = tokens.collection_id
@@ -179,21 +197,23 @@ if (config.doBackgroundWork) {
               `,
                   { contract: toBuffer(orderInfo.contract), tokenId: orderInfo.tokenId }
                 );
+              }
 
-                if (rawResult) {
-                  logger.info(
-                    QUEUE_NAME,
-                    `Post Order Failed - Invalid Fees. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
-                      orderData
-                    )}, retry: ${retry}`
-                  );
+              if (rawResult) {
+                logger.info(
+                  QUEUE_NAME,
+                  `Post Order Failed - Invalid Fees - Refreshing. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderKind=${
+                    order.params.kind
+                  }, orderId=${orderId}, orderData=${JSON.stringify(
+                    orderData
+                  )}, rawResult=${JSON.stringify(rawResult)}, retry: ${retry}`
+                );
 
-                  await collectionUpdatesMetadata.addToQueue(
-                    rawResult.contract,
-                    rawResult.token_id,
-                    rawResult.community
-                  );
-                }
+                await collectionUpdatesMetadata.addToQueue(
+                  rawResult.contract,
+                  rawResult.token_id,
+                  rawResult.community
+                );
               }
             }
           } else if (retry < MAX_RETRIES) {

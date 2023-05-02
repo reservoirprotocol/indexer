@@ -55,7 +55,7 @@ const version = "v5";
 
 export const getExecuteListV5Options: RouteOptions = {
   description: "Create asks (listings)",
-  notes: "Generate listings and submit them to multiple marketplaces",
+  notes: "Generate listings and submit them to multiple marketplaces. Please use the `/cross-posting-orders/v1` to check the status on cross posted bids.\n We recommend using Reservoir SDK as it abstracts the process of iterating through steps, and returning callbacks that can be used to update your UI.",
   tags: ["api", "Create Orders (list & bid)"],
   plugins: {
     "hapi-swagger": {
@@ -138,12 +138,12 @@ export const getExecuteListV5Options: RouteOptions = {
             .default(true)
             .description("If true, royalty amounts and recipients will be set automatically."),
           royaltyBps: Joi.number().description(
-            "Set a maximum amount of royalties to pay, rather than the full amount. Only relevant when using automated royalties. Note: OpenSea does not support values below 50 bps."
+            "Set a maximum amount of royalties to pay, rather than the full amount. Only relevant when using automated royalties. 1 BPS = 0.01% Note: OpenSea does not support values below 50 bps."
           ),
           fees: Joi.array()
             .items(Joi.string().pattern(regex.fee))
             .description(
-              "List of fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
+              "List of fees (formatted as `feeRecipient:feeBps`) to be bundled within the order. 1 BPS = 0.01% Example: `0xF296178d553C8Ec21A2fBD2c5dDa8CA9ac905A00:100`"
             ),
           listingTime: Joi.string()
             .pattern(regex.unixTimestamp)
