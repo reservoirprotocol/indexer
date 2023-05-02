@@ -333,6 +333,7 @@ export const postTraitOffer = async (
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const handleErrorResponse = (response: any) => {
   switch (response.status) {
+    case 503:
     case 429: {
       let delay = RATE_LIMIT_INTERVAL;
 
