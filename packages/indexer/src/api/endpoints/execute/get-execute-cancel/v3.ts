@@ -149,9 +149,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
           throw Boom.badRequest("Only Blur bids can be cancelled together");
         }
 
-        if (!payload.maker) {
-          throw Boom.badRequest("Missing maker");
-        }
+        const maker = payload.orderIds[0].split(":")[1];
 
         // Set up generic filling steps
         const steps: {
@@ -182,15 +180,15 @@ export const getExecuteCancelV3Options: RouteOptions = {
         ];
 
         // Handle Blur authentication
-        const blurAuthId = b.getAuthId(payload.taker);
+        const blurAuthId = b.getAuthId(maker);
         const blurAuth = await b.getAuth(blurAuthId);
         if (!blurAuth) {
-          const blurAuthChallengeId = b.getAuthChallengeId(payload.taker);
+          const blurAuthChallengeId = b.getAuthChallengeId(maker);
 
           let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
           if (!blurAuthChallenge) {
             blurAuthChallenge = (await axios
-              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${payload.taker}`)
+              .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
               .then((response) => response.data.authChallenge)) as b.AuthChallenge;
 
             await b.saveAuthChallenge(
@@ -251,7 +249,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
           },
         });
 
-        return steps;
+        return { steps };
       }
 
       // Fetch the orders to get cancelled
