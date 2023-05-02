@@ -173,6 +173,8 @@ if (config.doBackgroundWork) {
                 SELECT
                   tokens.contract,
                   tokens.token_id,
+                  collections.royalties,
+                  collections.new_royalties,
                   collections.community
                 FROM collections
                 JOIN tokens ON tokens.collection_id = collections.id
@@ -189,6 +191,8 @@ if (config.doBackgroundWork) {
                 SELECT
                   tokens.contract,
                   tokens.token_id,
+                  collections.royalties,
+                  collections.new_royalties,
                   collections.community
                 FROM tokens
                 JOIN collections ON collections.id = tokens.collection_id
@@ -263,7 +267,7 @@ const getOrderbookDefaultApiKey = (orderbook: string) => {
     case "blur":
       return config.orderFetcherApiKey;
     case "opensea":
-      return config.openSeaCrossPostingApiKey;
+      return config.openSeaApiKey;
     case "looks-rare":
       return config.looksRareApiKey;
     case "x2y2":

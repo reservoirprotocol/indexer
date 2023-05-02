@@ -919,3 +919,13 @@ export const getJoiSaleObject = async (sale: {
     updatedAt: sale.updatedAt,
   };
 };
+
+// --- Fees ---
+
+export const JoiExecuteFee = Joi.object({
+  kind: Joi.string(),
+  recipient: Joi.string().pattern(regex.address),
+  bps: Joi.number().unsafe(),
+  amount: Joi.number().unsafe(),
+  rawAmount: Joi.string().pattern(regex.number),
+});

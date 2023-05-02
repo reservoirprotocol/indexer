@@ -12,6 +12,7 @@ import Joi from "joi";
 import { inject } from "@/api/index";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { JoiExecuteFee } from "@/common/joi";
 import { baseProvider } from "@/common/provider";
 import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -167,21 +168,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           currency: Joi.string().lowercase().pattern(regex.address),
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
-          builtInFees: Joi.array().items(
-            Joi.object({
-              kind: Joi.string(),
-              recipient: Joi.string().pattern(regex.address),
-              bps: Joi.number(),
-            })
-          ),
-          feesOnTop: Joi.array().items(
-            Joi.object({
-              kind: Joi.string(),
-              recipient: Joi.string().pattern(regex.address),
-              amount: Joi.number().unsafe(),
-              rawAmount: Joi.string().pattern(regex.number),
-            })
-          ),
+          builtInFees: Joi.array().items(JoiExecuteFee),
+          feesOnTop: Joi.array().items(JoiExecuteFee),
         })
       ),
     }).label(`getExecuteSell${version.toUpperCase()}Response`),
@@ -197,6 +185,14 @@ export const getExecuteSellV7Options: RouteOptions = {
     const perfTime1 = performance.now();
 
     try {
+      type ExecuteFee = {
+        kind?: string;
+        recipient: string;
+        bps: number;
+        amount: number;
+        rawAmount: string;
+      };
+
       // Keep track of the bids and path to fill
       const bidDetails: BidDetails[] = [];
       let path: {
@@ -208,17 +204,8 @@ export const getExecuteSellV7Options: RouteOptions = {
         currency: string;
         quote: number;
         rawQuote: string;
-        builtInFees: {
-          kind: string;
-          recipient: string;
-          bps: number;
-        }[];
-        feesOnTop: {
-          kind?: string;
-          recipient: string;
-          amount: number;
-          rawAmount: string;
-        }[];
+        builtInFees: ExecuteFee[];
+        feesOnTop: ExecuteFee[];
       }[] = [];
 
       // Keep track of dynamically-priced orders (eg. from pools like Sudoswap and NFTX)
@@ -298,27 +285,27 @@ export const getExecuteSellV7Options: RouteOptions = {
         quantityFilled[order.id] += quantity;
 
         // Decrement the maker's available FT balance
-        const price = bn(order.price).mul(quantity);
+        const quantityAdjustedPrice = bn(order.price).mul(quantity);
         const key = getMakerBalancesKey(order.maker, order.currency);
         if (!makerBalances[key]) {
           makerBalances[key] = await commonHelpers.getFtBalance(order.currency, order.maker);
         }
-        makerBalances[key] = makerBalances[key].sub(price);
+        makerBalances[key] = makerBalances[key].sub(quantityAdjustedPrice);
 
+        const unitPrice = bn(order.price);
         const source = order.sourceId !== null ? sources.get(order.sourceId)?.domain ?? null : null;
-
-        // total fee = built-in fees + additional fees
-        const additionalFees = (payload.normalizeRoyalties ? order.additionalFees ?? [] : []).map(
-          (f) => ({ ...f, amount: bn(f.amount).mul(quantity) })
-        );
+        const additionalFees = payload.normalizeRoyalties ? order.additionalFees ?? [] : [];
         const builtInFees = order.builtInFees ?? [];
+
+        // Sum the built-in fees and any additional fees
         const totalFee = bn(
           builtInFees
-            .map(({ bps }) => bn(price).mul(bps).div(10000))
+            .map(({ bps }) => unitPrice.mul(bps).div(10000))
             .reduce((a, b) => a.add(b), bn(0))
         ).add(additionalFees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0)));
 
-        const netPrice = price.sub(totalFee);
+        const netPrice = unitPrice.sub(totalFee);
+        const currency = await getCurrency(order.currency);
         path.push({
           orderId: order.id,
           contract: token.contract,
@@ -326,16 +313,26 @@ export const getExecuteSellV7Options: RouteOptions = {
           quantity,
           source,
           currency: order.currency,
-          quote: formatPrice(netPrice, (await getCurrency(order.currency)).decimals, true),
+          quote: formatPrice(netPrice, currency.decimals, true),
           rawQuote: netPrice.toString(),
-          builtInFees,
+          builtInFees: builtInFees.map((f) => {
+            const rawAmount = unitPrice.mul(f.bps).div(10000).toString();
+            const amount = formatPrice(rawAmount, currency.decimals);
+
+            return {
+              ...f,
+              amount,
+              rawAmount,
+            };
+          }),
           feesOnTop: [
             // For now, the only additional fees are the normalized royalties
             ...(await Promise.all(
               additionalFees.map(async (f) => ({
                 kind: "royalty",
                 recipient: f.recipient,
-                amount: formatPrice(f.amount, (await getCurrency(order.currency)).decimals, true),
+                bps: bn(f.amount).mul(10000).div(unitPrice).toNumber(),
+                amount: formatPrice(f.amount, currency.decimals, true),
                 rawAmount: bn(f.amount).toString(),
               }))
             )),
@@ -732,11 +729,16 @@ export const getExecuteSellV7Options: RouteOptions = {
         // Global fees get split across all eligible orders
         fee.amount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
 
+        const itemGrossPrice = bn(item.rawQuote)
+          .add(item.builtInFees.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)))
+          .add(item.feesOnTop.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)));
+
         const amount = formatPrice(fee.amount, (await getCurrency(item.currency)).decimals, true);
         const rawAmount = bn(fee.amount).toString();
 
         item.feesOnTop.push({
           recipient: fee.recipient,
+          bps: bn(rawAmount).mul(10000).div(itemGrossPrice).toNumber(),
           amount,
           rawAmount,
         });
