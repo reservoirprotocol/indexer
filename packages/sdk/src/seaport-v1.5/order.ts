@@ -192,7 +192,7 @@ export class Order implements IOrder {
   }
 
   public getKind(): SeaportOrderKind {
-    return SeaportOrderKind.SEAPORT_V14;
+    return SeaportOrderKind.SEAPORT_V15;
   }
 
   public getMatchingPrice(timestampOverride?: number): BigNumberish {

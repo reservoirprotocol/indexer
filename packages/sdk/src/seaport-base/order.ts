@@ -7,6 +7,7 @@ import { SeaportBaseExchange } from "../seaport-base/exchange";
 export enum SeaportOrderKind {
   SEAPORT_V11 = "seaport",
   SEAPORT_V14 = "seaport-v1.4",
+  SEAPORT_V15 = "seaport-v1.5",
   ALIENSWAP = "alienswap",
 }
 

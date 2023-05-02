@@ -112,7 +112,11 @@ if (config.doBackgroundWork) {
         }
 
         if (tokenSetTopBid.length) {
-          if (kind === "new-order" && tokenSetTopBid[0].topBuyId && tokenSetTopBid[0].attributeId) {
+          if (
+            kind === "new-order" &&
+            tokenSetTopBid[0].topBuyId &&
+            _.isNull(tokenSetTopBid[0].collectionId)
+          ) {
             //  Only trigger websocket event for non collection offers.
             await WebsocketEventRouter({
               eventKind: WebsocketEventKind.NewTopBid,

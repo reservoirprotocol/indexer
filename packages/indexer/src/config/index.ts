@@ -113,4 +113,6 @@ export const config = {
   doProcessRealtime: Boolean(Number(process.env.DO_PROCESS_REALTIME)),
 
   enableDebug: Boolean(Number(process.env.ENABLE_DEBUG)),
+
+  enableSingleTokenOfferTopBid: Boolean(Number(process.env.ENABLE_DEBUG)),
 };
