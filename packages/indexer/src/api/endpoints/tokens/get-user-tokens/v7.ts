@@ -58,7 +58,9 @@ export const getUserTokensV7Options: RouteOptions = {
         .description("Filter to a particular community, e.g. `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"),
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -90,7 +92,9 @@ export const getUserTokensV7Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("acquiredAt", "lastAppraisalValue")
         .default("acquiredAt")
-        .description("Order the items are returned in the response. Options are `acquiredAt` and `lastAppraisalValue`."),
+        .description(
+          "Order the items are returned in the response. Options are `acquiredAt` and `lastAppraisalValue`."
+        ),
       sortDirection: Joi.string()
         .lowercase()
         .valid("asc", "desc")

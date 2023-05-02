@@ -48,7 +48,9 @@ export const getTokensV6Options: RouteOptions = {
         ),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`")
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        )
         .when("flagStatus", {
           is: Joi.exist(),
           then: Joi.forbidden(),
@@ -132,7 +134,9 @@ export const getTokensV6Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("floorAskPrice", "tokenId", "rarity")
         .default("floorAskPrice")
-        .description("Order the items are returned in the response. Options are `floorAskPrice`, `tokenId`, and `rarity`."),
+        .description(
+          "Order the items are returned in the response. Options are `floorAskPrice`, `tokenId`, and `rarity`."
+        ),
       sortDirection: Joi.string().lowercase().valid("asc", "desc"),
       currencies: Joi.alternatives().try(
         Joi.array()

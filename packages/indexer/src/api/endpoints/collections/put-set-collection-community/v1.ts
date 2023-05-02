@@ -12,7 +12,8 @@ const version = "v1";
 
 export const putSetCollectionCommunityV1Options: RouteOptions = {
   description: "Set a community for a specific collection",
-  notes: "This API requires an administrator API for execution. Explore and try the `/collections-sets/v1` or `/contracts-sets/v1` endpoints. Please contact technical support with more questions.",
+  notes:
+    "This API requires an administrator API for execution. Explore and try the `/collections-sets/v1` or `/contracts-sets/v1` endpoints. Please contact technical support with more questions.",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {

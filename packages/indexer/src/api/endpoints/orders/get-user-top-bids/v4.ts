@@ -58,7 +58,9 @@ export const getUserTopBidsV4Options: RouteOptions = {
         .description("Filter to a particular community. Example: `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"),
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
       optimizeCheckoutURL: Joi.boolean()
         .default(false)
         .description(
@@ -84,7 +86,9 @@ export const getUserTopBidsV4Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("topBidValue", "dateCreated", "orderExpiry", "floorDifferencePercentage")
         .default("topBidValue")
-        .description("Order of the items are returned in the response. Options are `topBidValue`, `dateCreated`, `orderExpiry`, and `floorDifferencePercentage`."),
+        .description(
+          "Order of the items are returned in the response. Options are `topBidValue`, `dateCreated`, `orderExpiry`, and `floorDifferencePercentage`."
+        ),
       sortDirection: Joi.string().lowercase().valid("asc", "desc").default("desc"),
       limit: Joi.number()
         .integer()

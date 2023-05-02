@@ -28,7 +28,9 @@ export const getSalesV5Options: RouteOptions = {
           Joi.array().items(Joi.string().lowercase().pattern(regex.address)).max(20),
           Joi.string().lowercase().pattern(regex.address)
         )
-        .description("Array of contract. Max limit is 20. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"),
+        .description(
+          "Array of contract. Max limit is 20. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+        ),
       tokens: Joi.alternatives().try(
         Joi.array()
           .max(20)
@@ -63,7 +65,9 @@ export const getSalesV5Options: RouteOptions = {
         ),
       orderBy: Joi.string()
         .valid("price", "time", "updated_at")
-        .description("Order the items are returned in the response. Options are `price`, `time`, and `updated_at`. Default is `time`."),
+        .description(
+          "Order the items are returned in the response. Options are `price`, `time`, and `updated_at`. Default is `time`."
+        ),
       sortDirection: Joi.string()
         .lowercase()
         .valid("asc", "desc")

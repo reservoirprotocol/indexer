@@ -25,7 +25,9 @@ export const getCollectionsSetOwnersDistributionV1Options: RouteOptions = {
       collectionsSetId: Joi.string()
         .lowercase()
         .required()
-        .description("Filter to a particular collections set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"),
+        .description(
+          "Filter to a particular collections set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
     }),
   },
   response: {

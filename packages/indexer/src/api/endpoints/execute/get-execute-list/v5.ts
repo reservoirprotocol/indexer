@@ -55,7 +55,8 @@ const version = "v5";
 
 export const getExecuteListV5Options: RouteOptions = {
   description: "Create asks (listings)",
-  notes: "Generate listings and submit them to multiple marketplaces. Please use the `/cross-posting-orders/v1` to check the status on cross posted bids.\n We recommend using Reservoir SDK as it abstracts the process of iterating through steps, and returning callbacks that can be used to update your UI.",
+  notes:
+    "Generate listings and submit them to multiple marketplaces. Please use the `/cross-posting-orders/v1` to check the status on cross posted bids.\n We recommend using Reservoir SDK as it abstracts the process of iterating through steps, and returning callbacks that can be used to update your UI.",
   tags: ["api", "Create Orders (list & bid)"],
   plugins: {
     "hapi-swagger": {

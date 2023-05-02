@@ -31,7 +31,9 @@ export const getOwnersV2Options: RouteOptions = {
     query: Joi.object({
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set id. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"),
+        .description(
+          "Filter to a particular collection set id. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
       collection: Joi.string()
         .lowercase()
         .pattern(/^0x[a-fA-F0-9]{40}:[0-9]+:[0-9]+$|^0x[a-fA-F0-9]{40}$/)
