@@ -26,6 +26,7 @@ import "@/jobs/websocket-events";
 import "@/jobs/metrics";
 import "@/jobs/opensea-orders";
 import "@/jobs/monitoring";
+import "@/jobs/token-set-updates";
 
 // Export all job queues for monitoring through the BullMQ UI
 
@@ -64,6 +65,8 @@ import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/r
 import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
 import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
+
+import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
 
 import * as currencies from "@/jobs/currencies/index";
 
@@ -191,6 +194,8 @@ export const allJobQueues = [
   collectionUpdatesNonFlaggedFloorAsk.queue,
   collectionSetCommunity.queue,
   collectionRecalcTokenCount.queue,
+
+  tokenSetUpdatesTopBid.queue,
 
   collectionUpdatesMetadata.queue,
   rarity.queue,

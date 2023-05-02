@@ -26,7 +26,7 @@ import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import { CrossPostingOrderStatus } from "@/models/cross-posting-orders";
 import { TSTAttribute, TSTCollection, TSTCollectionNonFlagged } from "@/orderbook/token-sets/utils";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
-import { toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 
 const QUEUE_NAME = "orderbook-post-order-external-queue";
 const MAX_RETRIES = 5;
@@ -206,7 +206,7 @@ if (config.doBackgroundWork) {
               if (rawResult) {
                 logger.info(
                   QUEUE_NAME,
-                  `Post Order Failed - Invalid Fees - Refreshing. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderKind=${
+                  `Post Order Failed - Invalid Fees - Refreshing. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderbookApiKey=${orderbookApiKey}, orderKind=${
                     order.params.kind
                   }, orderId=${orderId}, orderData=${JSON.stringify(
                     orderData
@@ -214,7 +214,7 @@ if (config.doBackgroundWork) {
                 );
 
                 await collectionUpdatesMetadata.addToQueue(
-                  rawResult.contract,
+                  fromBuffer(rawResult.contract),
                   rawResult.token_id,
                   rawResult.community
                 );

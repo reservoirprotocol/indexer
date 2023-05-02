@@ -2,9 +2,8 @@
 
 import { HashZero } from "@ethersproject/constants";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-import _ from "lodash";
 
-import { idb, ridb } from "@/common/db";
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
@@ -13,11 +12,12 @@ import { TriggerKind } from "@/jobs/order-updates/types";
 import { Sources } from "@/models/sources";
 
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
+import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
+
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
-import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
+
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
@@ -94,110 +94,14 @@ if (config.doBackgroundWork) {
 
         if (side && tokenSetId) {
           if (side === "buy" && !tokenSetId.startsWith("token")) {
-            let buyOrderResult = await idb.manyOrNone(
-              `
-                WITH x AS (
-                  SELECT
-                    token_sets.id AS token_set_id,
-                    y.*
-                  FROM token_sets
-                  LEFT JOIN LATERAL (
-                    SELECT
-                      orders.id AS order_id,
-                      orders.value,
-                      orders.maker
-                    FROM orders
-                    WHERE orders.token_set_id = token_sets.id
-                      AND orders.side = 'buy'
-                      AND orders.fillability_status = 'fillable'
-                      AND orders.approval_status = 'approved'
-                      AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                    ORDER BY orders.value DESC
-                    LIMIT 1
-                  ) y ON TRUE
-                  WHERE token_sets.id = $/tokenSetId/
-                )
-                UPDATE token_sets SET
-                  top_buy_id = x.order_id,
-                  top_buy_value = x.value,
-                  top_buy_maker = x.maker,
-                  attribute_id = token_sets.attribute_id,
-                  collection_id = token_sets.collection_id
-                FROM x
-                WHERE token_sets.id = x.token_set_id
-                  AND (
-                    token_sets.top_buy_id IS DISTINCT FROM x.order_id
-                    OR token_sets.top_buy_value IS DISTINCT FROM x.value
-                  )
-                RETURNING
-                  collection_id AS "collectionId",
-                  attribute_id AS "attributeId",
-                  top_buy_value AS "topBuyValue",
-                  top_buy_id AS "topBuyId"
-              `,
-              { tokenSetId }
-            );
-
-            if (!buyOrderResult.length && trigger.kind === "revalidation") {
-              // When revalidating, force revalidation of the attribute / collection
-              const tokenSetsResult = await ridb.manyOrNone(
-                `
-                  SELECT
-                    token_sets.collection_id,
-                    token_sets.attribute_id
-                  FROM token_sets
-                  WHERE token_sets.id = $/tokenSetId/
-                `,
-                {
-                  tokenSetId,
-                }
-              );
-
-              if (tokenSetsResult.length) {
-                buyOrderResult = tokenSetsResult.map(
-                  (result: { collection_id: any; attribute_id: any }) => ({
-                    kind: trigger.kind,
-                    collectionId: result.collection_id,
-                    attributeId: result.attribute_id,
-                    txHash: trigger.txHash || null,
-                    txTimestamp: trigger.txTimestamp || null,
-                  })
-                );
-              }
-            }
-
-            if (buyOrderResult.length) {
-              if (
-                trigger.kind === "new-order" &&
-                buyOrderResult[0].topBuyId &&
-                buyOrderResult[0].attributeId
-              ) {
-                //  Only trigger websocket event for non collection offers.
-                await WebsocketEventRouter({
-                  eventKind: WebsocketEventKind.NewTopBid,
-                  eventInfo: {
-                    orderId: buyOrderResult[0].topBuyId,
-                  },
-                });
-              }
-
-              for (const result of buyOrderResult) {
-                if (!_.isNull(result.attributeId)) {
-                  await handleNewBuyOrder.addToQueue(result);
-                }
-
-                if (!_.isNull(result.collectionId)) {
-                  await collectionUpdatesTopBid.addToQueue([
-                    {
-                      collectionId: result.collectionId,
-                      kind: trigger.kind,
-                      txHash: trigger.txHash || null,
-                      txTimestamp: trigger.txTimestamp || null,
-                    } as collectionUpdatesTopBid.TopBidInfo,
-                  ]);
-                }
-              }
-            }
+            await tokenSetUpdatesTopBid.addToQueue([
+              {
+                tokenSetId,
+                kind: trigger.kind,
+                txHash: trigger.txHash || null,
+                txTimestamp: trigger.txTimestamp || null,
+              } as tokenSetUpdatesTopBid.TopBidInfo,
+            ]);
           }
 
           if (side === "sell") {
