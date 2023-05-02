@@ -127,6 +127,7 @@ import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
+import * as tokenRecalcSupply from "@/jobs/token-updates/token-reclac-supply";
 
 import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-order";
 import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
@@ -260,6 +261,7 @@ export const allJobQueues = [
   fetchCollectionMetadata.queue,
   tokenUpdatesFloorAsk.queue,
   tokenUpdatesNormalizedFloorAsk.queue,
+  tokenRecalcSupply.queue,
 
   handleNewSellOrder.queue,
   handleNewBuyOrder.queue,

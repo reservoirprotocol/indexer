@@ -209,6 +209,8 @@ export const getTokensV6Options: RouteOptions = {
             isFlagged: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
+            supply: Joi.number().unsafe().allow(null),
+            remainingSupply: Joi.number().unsafe().allow(null),
             rarity: Joi.number().unsafe().allow(null),
             rarityRank: Joi.number().unsafe().allow(null),
             collection: Joi.object({
@@ -543,6 +545,8 @@ export const getTokensV6Options: RouteOptions = {
           t.is_flagged,
           t.last_flag_update,
           t.last_flag_change,
+          t.supply,
+          t.remaining_supply,
           c.slug,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (
@@ -1056,6 +1060,8 @@ export const getTokensV6Options: RouteOptions = {
             isFlagged: Boolean(Number(r.is_flagged)),
             lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
             lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
+            supply: !_.isNull(r.supply) ? r.supply : undefined,
+            remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : undefined,
             rarity: r.rarity_score,
             rarityRank: r.rarity_rank,
             collection: {
