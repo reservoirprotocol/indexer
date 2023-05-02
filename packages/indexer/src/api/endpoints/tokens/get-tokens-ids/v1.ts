@@ -44,7 +44,7 @@ export const getTokensIdsV4Options: RouteOptions = {
         .min(1)
         .max(10000)
         .default(100)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 10,000."),
       continuation: Joi.string()
         .pattern(regex.number)
         .description("Use continuation token to request next offset of items."),

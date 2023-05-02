@@ -9,7 +9,7 @@ import { ArchiveInterface } from "@/jobs/data-archive/archive-classes/archive-in
 
 export class ArchiveBidEvents implements ArchiveInterface {
   static tableName = "bid_events";
-  static maxAgeDay = 30;
+  static maxAgeDay = 7;
 
   async getNextBatchStartTime() {
     // Get the first event from which the archive will start

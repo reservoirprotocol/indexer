@@ -57,7 +57,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
         .description("Filter to a particular community. Example: `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
       contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
       collection: Joi.string()
         .lowercase()
@@ -67,7 +69,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       attribute: Joi.object()
         .unknown()
         .description(
-          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/owners/v1?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/owners/v1?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`(Collection must be passed as well when filtering by attribute)"
+          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/orders/bids/v5?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/orders/bids/v5?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`(Collection must be passed as well when filtering by attribute)"
         ),
       contracts: Joi.alternatives().try(
         Joi.array()
@@ -99,7 +101,9 @@ export const getOrdersBidsV5Options: RouteOptions = {
         ),
       source: Joi.string()
         .pattern(regex.domain)
-        .description("Filter to a source by domain. Example: `opensea.io`"),
+        .description(
+          "Filter to a source by domain. Only active listed will be returned. Example: `opensea.io`"
+        ),
       native: Joi.boolean().description("If true, results will filter only Reservoir orders."),
       includeCriteriaMetadata: Joi.boolean()
         .default(false)

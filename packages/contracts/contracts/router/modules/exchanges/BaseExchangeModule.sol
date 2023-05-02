@@ -180,7 +180,7 @@ abstract contract BaseExchangeModule is BaseModule {
   function _approveERC20IfNeeded(IERC20 token, address spender, uint256 amount) internal {
     uint256 allowance = token.allowance(address(this), spender);
     if (allowance < amount) {
-      token.approve(spender, type(uint256).max);
+      token.approve(spender, amount);
     }
   }
 

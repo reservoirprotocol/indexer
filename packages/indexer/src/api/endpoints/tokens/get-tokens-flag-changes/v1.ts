@@ -34,7 +34,7 @@ export const getFlaggedTokensChangesV1Options: RouteOptions = {
         .min(1)
         .max(200)
         .default(200)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max is 200."),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
