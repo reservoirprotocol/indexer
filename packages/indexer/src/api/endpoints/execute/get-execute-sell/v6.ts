@@ -17,7 +17,8 @@ import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/util
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
-import { generateBidDetailsV6, routerOnErrorCallback } from "@/orderbook/orders";
+import { generateBidDetailsV6 } from "@/orderbook/orders";
+import { fillErrorCallback } from "@/orderbook/orders/errors";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
@@ -48,9 +49,8 @@ export const getExecuteSellV6Options: RouteOptions = {
             "looks-rare",
             "zeroex-v4",
             "seaport",
-            "seaport-partial",
             "seaport-v1.4",
-            "seaport-v1.4-partial",
+            "seaport-v1.5",
             "x2y2",
             "universe",
             "flow"
@@ -344,7 +344,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       // Partial Seaport orders require knowing the owner
       let owner: string | undefined;
-      if (["seaport-partial", "seaport-v1.4-partial"].includes(orderResult.kind)) {
+      if (["seaport-v1.4-partial", "seaport-v1.5-partial"].includes(orderResult.kind)) {
         const ownerResult = await idb.oneOrNone(
           `
             SELECT
@@ -389,9 +389,13 @@ export const getExecuteSellV6Options: RouteOptions = {
       );
 
       if (
-        ["x2y2", "seaport", "seaport-v1.4", "seaport-partial", "seaport-v1.4-partial"].includes(
-          bidDetails!.kind
-        )
+        [
+          "x2y2",
+          "seaport-v1.4",
+          "seaport-v1.5",
+          "seaport-v1.4-partial",
+          "seaport-v1.5-partial",
+        ].includes(bidDetails!.kind)
       ) {
         const tokenToSuspicious = await tryGetTokensSuspiciousStatus(
           tokenResult.last_flag_update < now() - 3600 ? [payload.token] : []
@@ -605,7 +609,7 @@ export const getExecuteSellV6Options: RouteOptions = {
               orderId: data.orderId,
               message: error.response?.data ?? error.message,
             });
-            await routerOnErrorCallback(kind, error, data);
+            await fillErrorCallback(kind, error, data);
           },
           blurAuth,
         });
@@ -783,7 +787,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           `get-execute-sell-${version}-handler`,
           `Handler failure: ${error} (path = ${JSON.stringify(path)}, request = ${JSON.stringify(
             payload
-          )})`
+          )}, trace=${(error as any).stack})`
         );
       }
       throw error;

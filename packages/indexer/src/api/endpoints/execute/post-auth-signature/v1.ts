@@ -56,6 +56,15 @@ export const postAuthSignatureV1Options: RouteOptions = {
             query.signature
           ).toLowerCase();
           if (recoveredSigner !== authChallenge.walletAddress.toLowerCase()) {
+            logger.error(
+              "blur-auth-challenge-signature",
+              JSON.stringify({
+                recoveredSigner,
+                walletAddress: authChallenge.walletAddress.toLowerCase(),
+                authChallenge,
+                signature: query.signature,
+              })
+            );
             throw Boom.badRequest("Invalid auth challenge signature");
           }
 

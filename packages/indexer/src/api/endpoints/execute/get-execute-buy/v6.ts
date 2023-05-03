@@ -16,7 +16,8 @@ import { bn, formatPrice, fromBuffer, now, regex, toBuffer } from "@/common/util
 import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
-import { OrderKind, generateListingDetailsV6, routerOnErrorCallback } from "@/orderbook/orders";
+import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
+import { fillErrorCallback } from "@/orderbook/orders/errors";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
 import * as nftx from "@/orderbook/orders/nftx";
@@ -50,6 +51,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               "zeroex-v4",
               "seaport",
               "seaport-v1.4",
+              "seaport-v1.5",
               "x2y2",
               "universe",
               "rarible",
@@ -815,7 +817,7 @@ export const getExecuteBuyV6Options: RouteOptions = {
               orderId: data.orderId,
               message: error.response?.data ?? error.message,
             });
-            await routerOnErrorCallback(kind, error, data);
+            await fillErrorCallback(kind, error, data);
           },
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
