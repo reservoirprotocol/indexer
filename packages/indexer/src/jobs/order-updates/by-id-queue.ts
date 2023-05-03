@@ -77,6 +77,7 @@ if (config.doBackgroundWork) {
                 orders.currency_normalized_value,
                 orders.raw_data,
                 orders.originated_at AS "originatedAt",
+                orders.created_at AS "createdAt",
                 token_sets_tokens.contract,
                 token_sets_tokens.token_id AS "tokenId"
               FROM orders
@@ -378,7 +379,7 @@ if (config.doBackgroundWork) {
             const orderStart = Math.floor(
               new Date(order.originatedAt ?? JSON.parse(order.validBetween)[0]).getTime() / 1000
             );
-            const currentTime = Math.floor(Date.now() / 1000);
+            const orderCreated = Math.floor(new Date(order.createdAt).getTime() / 1000);
             const source = (await Sources.getInstance()).get(order.sourceIdInt);
             const orderType =
               side === "sell"
@@ -389,11 +390,11 @@ if (config.doBackgroundWork) {
                 ? "attribute_offer"
                 : "collection_offer";
 
-            if (orderStart <= currentTime) {
+            if (orderStart <= orderCreated) {
               logger.info(
                 "order-latency",
                 JSON.stringify({
-                  latency: currentTime - orderStart,
+                  latency: orderCreated - orderStart,
                   source: source?.getTitle(),
                   orderType,
                   ingestMethod: ingestMethod ?? "rest",
