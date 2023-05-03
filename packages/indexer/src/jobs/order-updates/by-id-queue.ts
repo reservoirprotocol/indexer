@@ -13,6 +13,7 @@ import { Sources } from "@/models/sources";
 
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
+import * as tokenSetUpdatesTopBidSingleToken from "@/jobs/token-set-updates/top-bid-single-token-queue";
 
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
@@ -94,15 +95,19 @@ if (config.doBackgroundWork) {
         }
 
         if (side && tokenSetId) {
-          if (side === "buy" && !tokenSetId.startsWith("token")) {
-            await tokenSetUpdatesTopBid.addToQueue([
-              {
-                tokenSetId,
-                kind: trigger.kind,
-                txHash: trigger.txHash || null,
-                txTimestamp: trigger.txTimestamp || null,
-              } as tokenSetUpdatesTopBid.TopBidInfo,
-            ]);
+          if (side === "buy") {
+            const topBidInfo = {
+              tokenSetId,
+              kind: trigger.kind,
+              txHash: trigger.txHash || null,
+              txTimestamp: trigger.txTimestamp || null,
+            };
+
+            if (tokenSetId.startsWith("token")) {
+              await tokenSetUpdatesTopBidSingleToken.addToQueue([topBidInfo]);
+            } else {
+              await tokenSetUpdatesTopBid.addToQueue([topBidInfo]);
+            }
           }
 
           if (side === "sell") {
@@ -397,6 +402,11 @@ if (config.doBackgroundWork) {
                   latency: orderCreated - orderStart,
                   source: source?.getTitle(),
                   orderType,
+                  orderCreatedAt: new Date(order.createdAt).toISOString(),
+                  orderValidFrom: new Date(JSON.parse(order.validBetween)[0]).toISOString(),
+                  orderOriginatedAt: order.originatedAt
+                    ? new Date(order.createdAt).toISOString()
+                    : null,
                   ingestMethod: ingestMethod ?? "rest",
                 })
               );

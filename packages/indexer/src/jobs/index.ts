@@ -68,6 +68,7 @@ import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 
 import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
+import * as tokenSetUpdatesTopBidSingleToken from "@/jobs/token-set-updates/top-bid-single-token-queue";
 
 import * as currencies from "@/jobs/currencies/index";
 
@@ -198,6 +199,7 @@ export const allJobQueues = [
   collectionRecalcTokenCount.queue,
 
   tokenSetUpdatesTopBid.queue,
+  tokenSetUpdatesTopBidSingleToken.queue,
 
   collectionUpdatesMetadata.queue,
   rarity.queue,

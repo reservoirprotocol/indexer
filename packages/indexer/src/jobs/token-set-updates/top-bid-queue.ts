@@ -33,16 +33,37 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork) {
-  const worker = new Worker(
-    QUEUE_NAME,
-    async (job: Job) => {
-      const { kind, tokenSetId, txHash, txTimestamp } = job.data as TopBidInfo;
+  const worker = new Worker(QUEUE_NAME, async (job: Job) => jobProcessor(job), {
+    connection: redis.duplicate(),
+    concurrency: 50,
+  });
+  worker.on("error", (error) => {
+    logger.error(QUEUE_NAME, `Worker errored: ${error}`);
+  });
+}
 
-      return;
+export type TopBidInfo = {
+  kind: string;
+  tokenSetId: string;
+  txHash: string | null;
+  txTimestamp: number | null;
+};
 
-      try {
-        let tokenSetTopBid = await idb.manyOrNone(
-          `
+export const addToQueue = async (topBidInfos: TopBidInfo[]) => {
+  await queue.addBulk(
+    topBidInfos.map((topBidInfos) => ({
+      name: `${topBidInfos.tokenSetId}`,
+      data: topBidInfos,
+    }))
+  );
+};
+
+export const jobProcessor = async (job: Job) => {
+  const { kind, tokenSetId, txHash, txTimestamp } = job.data as TopBidInfo;
+
+  try {
+    let tokenSetTopBid = await idb.manyOrNone(
+      `
                 WITH x AS (
                   SELECT
                     token_sets.id AS token_set_id,
@@ -82,96 +103,74 @@ if (config.doBackgroundWork) {
                   top_buy_value AS "topBuyValue",
                   top_buy_id AS "topBuyId"
               `,
-          { tokenSetId }
-        );
+      { tokenSetId }
+    );
 
-        if (!tokenSetTopBid.length && kind === "revalidation") {
-          // When revalidating, force revalidation of the attribute / collection
-          const tokenSetsResult = await ridb.manyOrNone(
-            `
+    if (!tokenSetTopBid.length && kind === "revalidation") {
+      // When revalidating, force revalidation of the attribute / collection
+      const tokenSetsResult = await ridb.manyOrNone(
+        `
                   SELECT
                     token_sets.collection_id,
                     token_sets.attribute_id
                   FROM token_sets
                   WHERE token_sets.id = $/tokenSetId/
                 `,
-            {
-              tokenSetId,
-            }
-          );
-
-          if (tokenSetsResult.length) {
-            tokenSetTopBid = tokenSetsResult.map(
-              (result: { collection_id: any; attribute_id: any }) => ({
-                kind,
-                collectionId: result.collection_id,
-                attributeId: result.attribute_id,
-                txHash: txHash || null,
-                txTimestamp: txTimestamp || null,
-              })
-            );
-          }
+        {
+          tokenSetId,
         }
+      );
 
-        if (tokenSetTopBid.length) {
-          if (
-            kind === "new-order" &&
-            tokenSetTopBid[0].topBuyId &&
-            _.isNull(tokenSetTopBid[0].collectionId)
-          ) {
-            //  Only trigger websocket event for non collection offers.
-            await WebsocketEventRouter({
-              eventKind: WebsocketEventKind.NewTopBid,
-              eventInfo: {
-                orderId: tokenSetTopBid[0].topBuyId,
-              },
-            });
-          }
-
-          for (const result of tokenSetTopBid) {
-            if (!_.isNull(result.attributeId)) {
-              await handleNewBuyOrder.addToQueue(result);
-            }
-
-            if (!_.isNull(result.collectionId)) {
-              await collectionUpdatesTopBid.addToQueue([
-                {
-                  collectionId: result.collectionId,
-                  kind: kind,
-                  txHash: txHash || null,
-                  txTimestamp: txTimestamp || null,
-                } as collectionUpdatesTopBid.TopBidInfo,
-              ]);
-            }
-          }
-        }
-      } catch (error) {
-        logger.error(
-          QUEUE_NAME,
-          `Failed to process token set top-bid info ${JSON.stringify(job.data)}: ${error}`
+      if (tokenSetsResult.length) {
+        tokenSetTopBid = tokenSetsResult.map(
+          (result: { collection_id: any; attribute_id: any }) => ({
+            kind,
+            collectionId: result.collection_id,
+            attributeId: result.attribute_id,
+            txHash: txHash || null,
+            txTimestamp: txTimestamp || null,
+          })
         );
-        throw error;
       }
-    },
-    { connection: redis.duplicate(), concurrency: 10 }
-  );
-  worker.on("error", (error) => {
-    logger.error(QUEUE_NAME, `Worker errored: ${error}`);
-  });
-}
+    }
 
-export type TopBidInfo = {
-  kind: string;
-  tokenSetId: string;
-  txHash: string | null;
-  txTimestamp: number | null;
-};
+    if (tokenSetTopBid.length) {
+      if (
+        kind === "new-order" &&
+        tokenSetTopBid[0].topBuyId &&
+        _.isNull(tokenSetTopBid[0].collectionId)
+      ) {
+        //  Only trigger websocket event for non collection offers.
+        await WebsocketEventRouter({
+          eventKind: WebsocketEventKind.NewTopBid,
+          eventInfo: {
+            orderId: tokenSetTopBid[0].topBuyId,
+          },
+        });
+      }
 
-export const addToQueue = async (topBidInfos: TopBidInfo[]) => {
-  await queue.addBulk(
-    topBidInfos.map((topBidInfos) => ({
-      name: `${topBidInfos.tokenSetId}`,
-      data: topBidInfos,
-    }))
-  );
+      for (const result of tokenSetTopBid) {
+        if (!_.isNull(result.attributeId)) {
+          await handleNewBuyOrder.addToQueue(result);
+        }
+
+        if (!_.isNull(result.collectionId)) {
+          await collectionUpdatesTopBid.addToQueue([
+            {
+              collectionId: result.collectionId,
+              kind: kind,
+              txHash: txHash || null,
+              txTimestamp: txTimestamp || null,
+            } as collectionUpdatesTopBid.TopBidInfo,
+          ]);
+        }
+      }
+    }
+  } catch (error) {
+    logger.error(
+      QUEUE_NAME,
+      `Failed to process token set top-bid info ${JSON.stringify(job.data)}: ${error}`
+    );
+    throw error;
+  }
 };
