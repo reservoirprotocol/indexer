@@ -324,13 +324,13 @@ if (config.doBackgroundWork) {
                   orders.source_id_int,
                   orders.fillability_status AS old_status,
                   orders.quantity_remaining,
-                  MIN(nft_balances.amount, orders.quantity_remaining) AS quantity_fillable,
+                  LEAST(nft_balances.amount, orders.quantity_remaining) AS quantity_fillable,
                   (CASE
-                    WHEN MIN(nft_balances.amount, orders.quantity_remaining) > 0 THEN 'fillable'
+                    WHEN LEAST(nft_balances.amount, orders.quantity_remaining) > 0 THEN 'fillable'
                     ELSE 'no-balance'
                   END)::order_fillability_status_t AS new_status,
                   (CASE
-                    WHEN MIN(nft_balances.amount, orders.quantity_remaining) > 0 THEN nullif(upper(orders.valid_between), 'infinity')
+                    WHEN LEAST(nft_balances.amount, orders.quantity_remaining) > 0 THEN nullif(upper(orders.valid_between), 'infinity')
                     ELSE to_timestamp($/timestamp/)
                   END)::TIMESTAMPTZ AS expiration
                 FROM orders
