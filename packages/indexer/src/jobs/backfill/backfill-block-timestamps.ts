@@ -50,52 +50,36 @@ if (config.doBackgroundWork) {
         table: "blocks",
       });
 
-      const blocks: {
-        number: number;
-        timestamp: number;
-      }[] = [];
-      for (const { number, timestamp } of results) {
-        if (!timestamp) {
-          const block = await baseProvider.getBlock(number);
+      await Promise.all(
+        results.map(async (r) => {
+          const block = await baseProvider.getBlock(r.number);
           values.push({ number, timestamp: block.timestamp });
-          blocks.push({
-            number,
-            timestamp: block.timestamp,
-          });
-        } else {
-          blocks.push({
-            number,
-            timestamp,
-          });
-        }
-      }
+        })
+      );
 
       // Update related wrong timestamp data
-      await Promise.all([
-        idb.none(`
-          UPDATE nft_transfer_events SET
-            timestamp = x.timestamp::INT
-          FROM (
-            VALUES ${pgp.helpers.values(values, columns)}
-          ) AS x(number, timestamp)
-          WHERE nft_transfer_events.block = x.number::INT
-            AND nft_transfer_events.timestamp != x.timestamp::INT
-        `),
-        idb.none(`
-          UPDATE fill_events_2 SET
-            timestamp = x.timestamp::INT,
-            updated_at = now()
-          FROM (
-            VALUES ${pgp.helpers.values(values, columns)}
-          ) AS x(number, timestamp)
-          WHERE fill_events_2.block = x.number::INT
-            AND fill_events_2.timestamp != x.timestamp::INT
-        `),
-      ]);
-
       if (values.length) {
-        await idb.none(
-          `
+        await Promise.all([
+          idb.none(`
+            UPDATE nft_transfer_events SET
+              timestamp = x.timestamp::INT
+            FROM (
+              VALUES ${pgp.helpers.values(values, columns)}
+            ) AS x(number, timestamp)
+            WHERE nft_transfer_events.block = x.number::INT
+              AND nft_transfer_events.timestamp != x.timestamp::INT
+          `),
+          idb.none(`
+            UPDATE fill_events_2 SET
+              timestamp = x.timestamp::INT,
+              updated_at = now()
+            FROM (
+              VALUES ${pgp.helpers.values(values, columns)}
+            ) AS x(number, timestamp)
+            WHERE fill_events_2.block = x.number::INT
+              AND fill_events_2.timestamp != x.timestamp::INT
+          `),
+          idb.none(`
             UPDATE blocks SET
               timestamp = x.timestamp::INT
             FROM (
@@ -103,8 +87,8 @@ if (config.doBackgroundWork) {
             ) AS x(number, timestamp)
             WHERE blocks.number = x.number::INT
               AND blocks.timestamp != x.timestamp::INT
-          `
-        );
+          `),
+        ]);
       }
 
       if (results.length >= limit) {
@@ -121,9 +105,9 @@ if (config.doBackgroundWork) {
 
   if (config.chainId === 1) {
     redlock
-      .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
+      .acquire([`${QUEUE_NAME}-lock-3`], 60 * 60 * 24 * 30 * 1000)
       .then(async () => {
-        await addToQueue(13150000);
+        await addToQueue(13200000);
       })
       .catch(() => {
         // Skip on any errors

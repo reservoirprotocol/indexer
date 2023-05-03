@@ -453,9 +453,15 @@ export const getOrdersAsksV4Options: RouteOptions = {
             conditions.push(`(orders.price, orders.id) > ($/priceOrCreatedAtOrUpdatedAt/, $/id/)`);
           }
         } else if (query.sortBy === "updatedAt") {
-          conditions.push(
-            `(orders.updated_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
-          );
+          if (query.sortDirection === "asc") {
+            conditions.push(
+              `(orders.updated_at, orders.id) > (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
+            );
+          } else {
+            conditions.push(
+              `(orders.updated_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
+            );
+          }
         } else {
           conditions.push(
             `(orders.created_at, orders.id) < (to_timestamp($/priceOrCreatedAtOrUpdatedAt/), $/id/)`
