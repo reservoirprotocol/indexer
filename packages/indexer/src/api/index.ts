@@ -195,7 +195,7 @@ export const start = async (): Promise<void> => {
     // If matching rule was found
     if (rateLimitRule) {
       // If the requested path has no limit
-      if (rateLimitRule.points == 0) {
+      if (rateLimitRule.rule.points == 0) {
         return reply.continue;
       }
 
@@ -216,11 +216,11 @@ export const start = async (): Promise<void> => {
           };
         }
 
-        const rateLimiterRes = await rateLimitRule.consume(rateLimitKey, 1);
+        const rateLimiterRes = await rateLimitRule.rule.consume(rateLimitKey, 1);
 
         if (rateLimiterRes) {
           // Generate the rate limiting header and add them to the request object to be added to the response in the onPreResponse event
-          request.headers["X-RateLimit-Limit"] = `${rateLimitRule.points}`;
+          request.headers["X-RateLimit-Limit"] = `${rateLimitRule.rule.points}`;
           request.headers["X-RateLimit-Remaining"] = `${rateLimiterRes.remainingPoints}`;
           request.headers["X-RateLimit-Reset"] = `${new Date(
             Date.now() + rateLimiterRes.msBeforeNext
@@ -230,13 +230,13 @@ export const start = async (): Promise<void> => {
         if (error instanceof RateLimiterRes) {
           if (
             error.consumedPoints &&
-            (error.consumedPoints == Number(rateLimitRule.points) + 1 ||
+            (error.consumedPoints == Number(rateLimitRule.rule.points) + 1 ||
               error.consumedPoints % 50 == 0)
           ) {
             const log = {
               message: `${rateLimitKey} ${apiKey?.appName || ""} reached allowed rate limit ${
-                rateLimitRule.points
-              } requests in ${rateLimitRule.duration}s by calling ${
+                rateLimitRule.rule.points
+              } requests in ${rateLimitRule.rule.duration}s by calling ${
                 error.consumedPoints
               } times on route ${request.route.path}${
                 request.info.referrer ? ` from referrer ${request.info.referrer} ` : ""
@@ -250,10 +250,18 @@ export const start = async (): Promise<void> => {
             logger.warn("rate-limiter", JSON.stringify(log));
           }
 
+          const message = `Max ${rateLimitRule.rule.points} requests in ${
+            rateLimitRule.rule.duration
+          }s reached, Detected tier ${tier}, Blocked by rule ID ${rateLimitRule.ruleParams.id}${
+            !_.isEmpty(rateLimitRule.ruleParams.payload)
+              ? ` Payload ${JSON.stringify(rateLimitRule.ruleParams.payload)}`
+              : ``
+          }. Please register for an API key by creating a free account at https://dashboard.reservoir.tools to increase your rate limit.`;
+
           const tooManyRequestsResponse = {
             statusCode: 429,
             error: "Too Many Requests",
-            message: `Max ${rateLimitRule.points} requests in ${rateLimitRule.duration}s reached. Please register for an API key by creating a free account at https://dashboard.reservoir.tools to increase your rate limit.`,
+            message,
           };
 
           return reply

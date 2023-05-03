@@ -42,7 +42,7 @@ if (config.doBackgroundWork) {
       });
 
       const totalRemainingSupplyQuery = `
-        SELECT SUM(amount) AS "remainingSupply"
+        SELECT COALESCE(SUM(amount), 0) AS "remainingSupply"
         FROM nft_balances
         WHERE contract = $/contract/
         AND token_id = $/tokenId/

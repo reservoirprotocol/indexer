@@ -38,6 +38,8 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { kind, tokenSetId, txHash, txTimestamp } = job.data as TopBidInfo;
 
+      return;
+
       try {
         let tokenSetTopBid = await idb.manyOrNone(
           `

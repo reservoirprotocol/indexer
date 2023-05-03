@@ -44,7 +44,8 @@ export const getApiKeyRateLimits: RouteOptions = {
 
     try {
       let rules = await RateLimitRules.getApiKeyRateLimits(params.key);
-      rules = _.filter(rules, (rule) => rule.route !== "/livez");
+      rules = _.filter(rules, (rule) => rule.route !== "/livez"); // Filter /livez rule
+      rules = _.filter(rules, (rule) => _.isEmpty(rule.payload)); // Filter any specific payload rules
 
       return {
         rateLimits: _.map(rules, (rule) => ({

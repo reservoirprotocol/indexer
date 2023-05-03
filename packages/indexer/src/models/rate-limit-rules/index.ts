@@ -286,7 +286,7 @@ export class RateLimitRules {
     tier: number,
     apiKey = "",
     payload: Map<string, string> = new Map()
-  ) {
+  ): { ruleParams: RateLimitRuleEntity; rule: RateLimiterRedis } | null {
     const rule = this.findMostMatchingRule(route, method, tier, apiKey, payload);
 
     if (rule) {
@@ -299,7 +299,11 @@ export class RateLimitRules {
 
       if (rateLimitObject) {
         rateLimitObject.keyPrefix = `${config.chainId}:${route}`;
-        return rateLimitObject;
+
+        return {
+          ruleParams: rule,
+          rule: rateLimitObject,
+        };
       }
     }
 

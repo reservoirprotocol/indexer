@@ -99,12 +99,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
 
       if (!payload.refreshTokens) {
         // Refresh the collection metadata
-        let tokenId;
-        if (collection.tokenIdRange?.length) {
-          tokenId = `${collection.tokenIdRange[0]}`;
-        } else {
-          tokenId = await Tokens.getSingleToken(payload.collection);
-        }
+        const tokenId = await Tokens.getSingleToken(payload.collection);
 
         await collectionUpdatesMetadata.addToQueue(
           collection.contract,
@@ -177,12 +172,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         );
 
         // Refresh the collection metadata
-        let tokenId;
-        if (collection.tokenIdRange?.length) {
-          tokenId = `${collection.tokenIdRange[0]}`;
-        } else {
-          tokenId = await Tokens.getSingleToken(payload.collection);
-        }
+        const tokenId = await Tokens.getSingleToken(payload.collection);
 
         await collectionUpdatesMetadata.addToQueue(
           collection.contract,
