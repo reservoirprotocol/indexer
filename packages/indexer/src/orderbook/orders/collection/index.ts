@@ -81,7 +81,6 @@ const getFeeBpsAndBreakdown = async (
   tradeBps: number;
   carryBps: number;
 }> => {
-
   const [tradeBps, protocolBps, royaltyBps, carryBps] = (await poolContract.feeMultipliers()).map(
     (fee: number) => fee / 10
   );
@@ -356,7 +355,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             await poolContract.getSellNFTQuote(1);
 
           const id = getOrderId(orderParams.pool, "buy");
-          if (currencyPrice.lt(tokenBalance)) {
+          if (currencyPrice.lte(tokenBalance)) {
             // Determine how many NFTs can be bought (though the price will
             // increase with each unit)
             let numBuyableNFTs = 0;
@@ -436,8 +435,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             // change the values existing in DB.
             if (orderParams.encodedTokenIds !== undefined) {
               const isFiltered =
-                (await poolContract.tokenIDFilterRoot()) === ethers.constants.HashZero;
-
+                (await poolContract.tokenIDFilterRoot()) !== ethers.constants.HashZero;
               if (!isFiltered) {
                 // Non-filtered pool, save tokenSetId and schema hash of a
                 // contract TokenSet
@@ -507,7 +505,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               const validFrom = `date_trunc('seconds', to_timestamp(${orderParams.txTimestamp}))`;
               const validTo = `'Infinity'`;
 
-              await poolContract.orderValues.push({
+              orderValues.push({
                 id,
                 kind: "collection",
                 side: "buy",

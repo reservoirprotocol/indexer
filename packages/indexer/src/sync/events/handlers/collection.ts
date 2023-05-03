@@ -349,7 +349,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           }
         })[0];
 
-        const encodedTokenIds = acceptsTokenIdsLog?.args["_data"];
+        // encodedTokenIds is [] to represent unfiltered pool. undefined value
+        // is reserved for events which don't modify encodedTokenIds
+        const encodedTokenIds = acceptsTokenIdsLog?.args["_data"] ?? [];
 
         onChainData.orders.push({
           kind: "collection",
