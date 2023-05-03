@@ -35,6 +35,7 @@ import * as processActivityEvent from "@/jobs/activities/process-activity-event"
 import * as processActivityBackfillEvent from "@/jobs/activities/process-activity-event-backfill";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
+import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
 import * as backfillCancelSeaport11Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
 import * as backfillInvalidatedOrders from "@/jobs/backfill/backfill-invalidated-orders";
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
@@ -169,6 +170,7 @@ export const allJobQueues = [
   processActivityBackfillEvent.queue,
   removeUnsyncedEventsActivities.queue,
 
+  backfillBlockTimestamps.queue,
   backfillCancelSeaport11Orders.queue,
   backfillInvalidatedOrders.queue,
   backfillExpiredOrders.queue,

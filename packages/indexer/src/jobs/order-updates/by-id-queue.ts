@@ -93,7 +93,7 @@ if (config.doBackgroundWork) {
         }
 
         if (side && tokenSetId) {
-          if (side === "buy") {
+          if (side === "buy" && !tokenSetId.startsWith("token")) {
             await tokenSetUpdatesTopBid.addToQueue([
               {
                 tokenSetId,

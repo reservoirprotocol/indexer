@@ -747,8 +747,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           rawAmount,
         });
 
-        item.quote -= amount;
-        item.rawQuote = bn(item.rawQuote).sub(rawAmount).toString();
+        // item.quote -= amount;
+        // item.rawQuote = bn(item.rawQuote).sub(rawAmount).toString();
       };
 
       for (const item of path) {
