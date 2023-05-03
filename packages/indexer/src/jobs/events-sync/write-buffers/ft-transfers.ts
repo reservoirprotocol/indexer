@@ -24,7 +24,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork) {
+if (config.doBackgroundWork && (config.chainId === 56 ? config.doFtTransfersWrite : true)) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
@@ -39,7 +39,7 @@ if (config.doBackgroundWork) {
     },
     {
       connection: redis.duplicate(),
-      concurrency: config.chainId === 56 ? 1 : 3,
+      concurrency: 5,
     }
   );
   worker.on("error", (error) => {

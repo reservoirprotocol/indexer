@@ -12,7 +12,7 @@ import * as Common from "../common";
 import { Exchange } from "./exchange";
 import { Builders } from "../seaport-base/builders";
 import { BaseBuilder, BaseOrderInfo } from "../seaport-base/builders/base";
-import { IOrder, ORDER_EIP712_TYPES, SeaportOrderKind } from "../seaport-base/order";
+import { IOrder, ORDER_EIP712_TYPES } from "../seaport-base/order";
 import * as Types from "../seaport-base/types";
 import { bn, getCurrentTimestamp, lc, n, s } from "../utils";
 
@@ -189,10 +189,6 @@ export class Order implements IOrder {
 
   public getInfo(): BaseOrderInfo | undefined {
     return this.getBuilder().getInfo(this);
-  }
-
-  public getKind(): SeaportOrderKind {
-    return SeaportOrderKind.SEAPORT_V14;
   }
 
   public getMatchingPrice(timestampOverride?: number): BigNumberish {

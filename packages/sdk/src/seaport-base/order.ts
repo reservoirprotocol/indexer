@@ -4,13 +4,6 @@ import { BaseOrderInfo } from "./builders/base";
 import * as Types from "./types";
 import { SeaportBaseExchange } from "../seaport-base/exchange";
 
-export enum SeaportOrderKind {
-  SEAPORT_V11 = "seaport",
-  SEAPORT_V14 = "seaport-v1.4",
-  SEAPORT_V15 = "seaport-v1.5",
-  ALIENSWAP = "alienswap",
-}
-
 export interface IOrder {
   chainId: number;
   params: Types.OrderComponents;
@@ -18,8 +11,6 @@ export interface IOrder {
   exchange(): SeaportBaseExchange;
 
   getInfo(): BaseOrderInfo | undefined;
-
-  getKind(): SeaportOrderKind;
 
   getMatchingPrice(timestampOverride?: number): BigNumberish;
 

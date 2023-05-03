@@ -1060,8 +1060,8 @@ export const getTokensV6Options: RouteOptions = {
             isFlagged: Boolean(Number(r.is_flagged)),
             lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
             lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
-            supply: !_.isNull(r.supply) ? r.supply : undefined,
-            remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : undefined,
+            supply: !_.isNull(r.supply) ? r.supply : null,
+            remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
             rarity: r.rarity_score,
             rarityRank: r.rarity_rank,
             collection: {

@@ -57,7 +57,7 @@ if (config.doBackgroundWork && (config.chainId === 137 ? config.doProcessBackfil
         }
       }
     },
-    { connection: redis.duplicate(), concurrency: 5 }
+    { connection: redis.duplicate(), concurrency: 10 }
   );
 
   worker.on("error", (error) => {

@@ -643,7 +643,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 // Check the order's fillability
                 const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
                 try {
-                  await seaportBaseCheck.offChainCheck(order, exchange, {
+                  await seaportBaseCheck.offChainCheck(order, "seaport", exchange, {
                     onChainApprovalRecheck: true,
                   });
                 } catch (error: any) {
@@ -742,7 +742,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 // Check the order's fillability
                 const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
                 try {
-                  await seaportBaseCheck.offChainCheck(order, exchange, {
+                  await seaportBaseCheck.offChainCheck(order, "seaport-v1.4", exchange, {
                     onChainApprovalRecheck: true,
                   });
                 } catch (error: any) {
@@ -820,7 +820,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 // Check the order's fillability
                 const exchange = new Sdk.Alienswap.Exchange(config.chainId);
                 try {
-                  await seaportBaseCheck.offChainCheck(order, exchange, {
+                  await seaportBaseCheck.offChainCheck(order, "alienswap", exchange, {
                     onChainApprovalRecheck: true,
                   });
                 } catch (error: any) {

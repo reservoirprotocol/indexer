@@ -221,7 +221,7 @@ export const save = async (
       let approvalStatus = "approved";
       const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
       try {
-        await offChainCheck(order, exchange, {
+        await offChainCheck(order, "seaport", exchange, {
           onChainApprovalRecheck: true,
           singleTokenERC721ApprovalCheck: metadata.fromOnChain,
         });

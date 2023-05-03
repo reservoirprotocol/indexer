@@ -5,8 +5,11 @@ import { bn } from "@/common/utils";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as onChainData from "@/utils/on-chain-data";
 
+export type SeaportOrderKind = "alienswap" | "seaport" | "seaport-v1.4" | "seaport-v1.5";
+
 export const offChainCheck = async (
   order: Sdk.SeaportBase.IOrder,
+  orderKind: SeaportOrderKind,
   exchange: Sdk.SeaportBase.SeaportBaseExchange,
   options?: {
     // Some NFTs pre-approve common exchanges so that users don't
@@ -40,7 +43,7 @@ export const offChainCheck = async (
 
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
-    const cancelled = await commonHelpers.isOrderCancelled(id, order.getKind());
+    const cancelled = await commonHelpers.isOrderCancelled(id, orderKind);
 
     if (cancelled) {
       throw new Error("cancelled");
@@ -55,7 +58,7 @@ export const offChainCheck = async (
   }
 
   // Check: order has a valid nonce
-  const minNonce = await commonHelpers.getMinNonce(order.getKind(), order.params.offerer);
+  const minNonce = await commonHelpers.getMinNonce(orderKind, order.params.offerer);
 
   if (!minNonce.eq(order.params.counter)) {
     throw new Error("cancelled");

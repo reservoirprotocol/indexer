@@ -178,7 +178,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       let approvalStatus = "approved";
       const exchange = new Sdk.Alienswap.Exchange(config.chainId);
       try {
-        await offChainCheck(order, exchange, {
+        await offChainCheck(order, "alienswap", exchange, {
           onChainApprovalRecheck: true,
           singleTokenERC721ApprovalCheck: metadata.fromOnChain,
         });
@@ -481,7 +481,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         : "'infinity'";
       orderValues.push({
         id,
-        kind: order.getKind(),
+        kind: "alienswap",
         side: info.side,
         fillability_status: fillabilityStatus,
         approval_status: approvalStatus,

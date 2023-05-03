@@ -288,36 +288,42 @@ const getRateLimiter = (orderbook: string) => {
         storeClient: rateLimitRedis,
         points: BlurApi.RATE_LIMIT_REQUEST_COUNT,
         duration: BlurApi.RATE_LIMIT_INTERVAL,
+        keyPrefix: `${config.chainId}`,
       });
     case "looks-rare":
       return new RateLimiterRedis({
         storeClient: rateLimitRedis,
         points: LooksrareApi.RATE_LIMIT_REQUEST_COUNT,
         duration: LooksrareApi.RATE_LIMIT_INTERVAL,
+        keyPrefix: `${config.chainId}`,
       });
     case "opensea":
       return new RateLimiterRedis({
         storeClient: rateLimitRedis,
         points: OpenSeaApi.RATE_LIMIT_REQUEST_COUNT,
         duration: OpenSeaApi.RATE_LIMIT_INTERVAL,
+        keyPrefix: `${config.chainId}`,
       });
     case "x2y2":
       return new RateLimiterRedis({
         storeClient: rateLimitRedis,
         points: X2Y2Api.RATE_LIMIT_REQUEST_COUNT,
         duration: X2Y2Api.RATE_LIMIT_INTERVAL,
+        keyPrefix: `${config.chainId}`,
       });
     case "universe":
       return new RateLimiterRedis({
         storeClient: rateLimitRedis,
         points: UniverseApi.RATE_LIMIT_REQUEST_COUNT,
         duration: UniverseApi.RATE_LIMIT_INTERVAL,
+        keyPrefix: `${config.chainId}`,
       });
     case "flow":
       return new RateLimiterRedis({
         storeClient: rateLimitRedis,
         points: FlowApi.RATE_LIMIT_REQUEST_COUNT,
         duration: FlowApi.RATE_LIMIT_INTERVAL,
+        keyPrefix: `${config.chainId}`,
       });
   }
 

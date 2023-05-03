@@ -28,7 +28,7 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate(), maxStalledCount:
 // BACKGROUND WORKER ONLY
 if (
   config.doBackgroundWork &&
-  (_.includes([137, 42161, 10], config.chainId) ? config.doProcessRealtime : true)
+  (_.includes([137, 42161, 10, 56], config.chainId) ? config.doProcessRealtime : true)
 ) {
   const worker = new Worker(
     QUEUE_NAME,

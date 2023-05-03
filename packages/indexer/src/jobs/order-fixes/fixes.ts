@@ -161,7 +161,7 @@ if (config.doBackgroundWork) {
                   const order = new Sdk.SeaportV11.Order(config.chainId, result.raw_data);
                   const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
                   try {
-                    await seaportCheck.offChainCheck(order, exchange, {
+                    await seaportCheck.offChainCheck(order, "seaport", exchange, {
                       onChainApprovalRecheck: true,
                       checkFilledOrCancelled: true,
                     });
@@ -189,7 +189,7 @@ if (config.doBackgroundWork) {
                   const order = new Sdk.SeaportV14.Order(config.chainId, result.raw_data);
                   const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
                   try {
-                    await seaportCheck.offChainCheck(order, exchange, {
+                    await seaportCheck.offChainCheck(order, "seaport-v1.4", exchange, {
                       onChainApprovalRecheck: true,
                       checkFilledOrCancelled: true,
                     });
