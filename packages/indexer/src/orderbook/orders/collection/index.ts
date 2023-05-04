@@ -25,6 +25,7 @@ import { TokenIDs } from "fummpel";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import { TokenSet } from "@/orderbook/token-sets/token-list";
 import MerkleTree from "merkletreejs";
+import { keccak256 as keccakWithoutTypes } from "@ethersproject/keccak256";
 
 const hashFn = (tokenId: BigNumberish) => keccak256(["uint256"], [tokenId]);
 
@@ -34,7 +35,7 @@ const generateMerkleTree = (tokenIds: BigNumberish[]) => {
   }
 
   const leaves = tokenIds.map(hashFn);
-  return new MerkleTree(leaves, keccak256, { sort: true });
+  return new MerkleTree(leaves, keccakWithoutTypes, { sort: true });
 };
 
 const factoryAddress = Sdk.Collection.Addresses.CollectionPoolFactory[config.chainId];
@@ -45,6 +46,9 @@ export type OrderInfo = {
     // Should be undefined if the trigger was an event which should not change
     // the existing merkle root
     encodedTokenIds?: Uint8Array;
+    // If it's a modifier event, delay until a row with maker == poolAddress
+    // exists in orders table
+    isModifierEvent: boolean;
     // Validation parameters (for ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
@@ -426,6 +430,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               { id }
             );
 
+            if (!orderResult && orderParams.isModifierEvent) {
+              results.push({
+                id,
+                txHash: orderParams.txHash,
+                txTimestamp: orderParams.txTimestamp,
+                status: "delayed",
+              });
+              return;
+            }
+
             // If there's an existing order, first hold onto existing values.
             // If the orderParams passes encodedTokenIds, then it should mutate
             // these columns.
@@ -451,23 +465,15 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               } else {
                 // Filtered pool, save tokenSetId and schema hash of a
                 // token-list TokenSet
-                logger.info(
-                  "filtered branch",
-                  `${JSON.stringify(
-                    orderParams.encodedTokenIds
-                  )}, ${typeof orderParams.encodedTokenIds}, isArray: ${
-                    orderParams.encodedTokenIds.slice
-                  }`
-                );
-                const acceptedSet = TokenIDs.decode(orderParams.encodedTokenIds)
-                  .tokens()
-                  .map((bi) => BigNumber.from(bi));
-                logger.info("acceptedSet", acceptedSet.toString());
+                const acceptedSet =
+                  orderParams.encodedTokenIds.length === 0
+                    ? []
+                    : TokenIDs.decode(orderParams.encodedTokenIds)
+                        .tokens()
+                        .map((bi) => BigNumber.from(bi));
 
                 const merkleTree = generateMerkleTree(acceptedSet);
-                logger.info("generatedMerkleTree", "");
                 tokenSetId = `list:${pool.nft}:${merkleTree.getHexRoot()}`;
-                logger.info("tokenSetId", tokenSetId);
                 const schema = {
                   kind: "token-set", // The type of TokenList that just takes an array of token ids
                   data: {
@@ -475,9 +481,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     tokenSetId, // Used for lookup in token set table
                   },
                 };
-                logger.info("schema", JSON.stringify(schema));
                 schemaHash = generateSchemaHash(schema);
-                logger.info("schemaHash", schemaHash);
                 await tokenSet.tokenList.save([
                   {
                     // This must === `list:${pool.nft}:${generateMerkleTree(acceptedSet).getHexRoot()}`
@@ -492,7 +496,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     },
                   } as TokenSet,
                 ]);
-                logger.info("done saving", "");
               }
             }
 

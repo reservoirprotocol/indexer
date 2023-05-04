@@ -307,6 +307,15 @@ export const jobProcessor = async (job: Job) => {
       }
 
       case "collection": {
+        // BullMQ serialization + deserialization causes Uint8Array to default
+        // to an object representation of an iterable. Cast it back from the
+        // object values
+        const {
+          orderParams: { encodedTokenIds },
+        } = info;
+        if (encodedTokenIds && typeof encodedTokenIds === "object") {
+          info.orderParams.encodedTokenIds = new Uint8Array(Object.values(encodedTokenIds));
+        }
         result = await orders.collection.save([info]);
         break;
       }

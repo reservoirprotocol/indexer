@@ -57,6 +57,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               txTimestamp: baseEventParams.timestamp,
               txBlock: baseEventParams.block,
               logIndex: baseEventParams.logIndex,
+              isModifierEvent: true,
             },
             metadata: {},
           },
@@ -220,6 +221,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               txTimestamp: baseEventParams.timestamp,
               txBlock: baseEventParams.block,
               logIndex: baseEventParams.logIndex,
+              isModifierEvent: true,
             },
             metadata: {},
           },
@@ -360,19 +362,19 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // New pools will need encoded tokenIds from the AcceptsTokenIDs event
         const receipt = await baseProvider.getTransactionReceipt(baseEventParams.txHash);
-        const acceptsTokenIdsLog = receipt.logs.map((log) => {
-          try {
-            return acceptsTokenIds.abi.parseLog(log);
-          } catch (err) {
-            return undefined;
-          }
-        })[0];
+        const acceptsTokenIdsLog = receipt.logs
+          .map((log) => {
+            try {
+              return acceptsTokenIds.abi.parseLog(log);
+            } catch (err) {
+              return undefined;
+            }
+          })
+          .filter((log) => log !== undefined)[0];
 
         // encodedTokenIds is [] to represent unfiltered pool. undefined value
         // is reserved for events which don't modify encodedTokenIds
-        logger.info("LOOK HERE 1", acceptsTokenIdsLog?.args["_data"] ?? "0x");
         const encodedTokenIds = hexToBytes(acceptsTokenIdsLog?.args["_data"] ?? "0x");
-        logger.info("LOOK HERE 2", typeof encodedTokenIds);
 
         onChainData.orders.push({
           kind: "collection",
@@ -384,6 +386,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               txBlock: baseEventParams.block,
               logIndex: baseEventParams.logIndex,
               encodedTokenIds,
+              isModifierEvent: false,
             },
             metadata: {},
           },
@@ -405,6 +408,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               txBlock: baseEventParams.block,
               logIndex: baseEventParams.logIndex,
               encodedTokenIds,
+              isModifierEvent: true,
             },
             metadata: {},
           },
@@ -437,6 +441,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               txTimestamp: baseEventParams.timestamp,
               txBlock: baseEventParams.block,
               logIndex: baseEventParams.logIndex,
+              isModifierEvent: true,
             },
             metadata: {},
           },
