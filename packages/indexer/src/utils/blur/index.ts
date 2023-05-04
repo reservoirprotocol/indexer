@@ -6,35 +6,38 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
 export const updateBlurRoyalties = async (collection: string) => {
-  try {
-    const { minimumRoyaltyBps, maximumRoyaltyBps } = await axios
-      .get(`${config.orderFetcherBaseUrl}/api/blur-collection-fees?collection=${collection}`)
-      .then(
-        (response) => response.data as { minimumRoyaltyBps: number; maximumRoyaltyBps: number }
+  // Blur is only available on mainnet
+  if (config.chainId === 1) {
+    try {
+      const { minimumRoyaltyBps, maximumRoyaltyBps } = await axios
+        .get(`${config.orderFetcherBaseUrl}/api/blur-collection-fees?collection=${collection}`)
+        .then(
+          (response) => response.data as { minimumRoyaltyBps: number; maximumRoyaltyBps: number }
+        );
+
+      const result = await redb.oneOrNone(
+        `
+          SELECT
+            collections.new_royalties
+          FROM collections
+          WHERE collections.id = $/collection/
+        `,
+        { collection }
       );
 
-    const result = await redb.oneOrNone(
-      `
-        SELECT
-          collections.new_royalties
-        FROM collections
-        WHERE collections.id = $/collection/
-      `,
-      { collection }
-    );
+      await redis.set(
+        `blur-royalties:${collection}`,
+        JSON.stringify({
+          recipient: result.new_royalties?.opensea?.[0]?.recipient ?? AddressZero,
+          bps: minimumRoyaltyBps,
+          maxBps: maximumRoyaltyBps,
+        })
+      );
 
-    await redis.set(
-      `blur-royalties:${collection}`,
-      JSON.stringify({
-        recipient: result.new_royalties?.opensea?.[0]?.recipient ?? AddressZero,
-        bps: minimumRoyaltyBps,
-        maxBps: maximumRoyaltyBps,
-      })
-    );
-
-    return getBlurRoyalties(collection);
-  } catch {
-    // Skip errors
+      return getBlurRoyalties(collection);
+    } catch {
+      // Skip errors
+    }
   }
 };
 

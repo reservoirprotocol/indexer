@@ -56,7 +56,6 @@ export const postCancelSignatureV1Options: RouteOptions = {
       const orderIds = payload.orderIds;
       const orderKind = payload.orderKind;
 
-      let auth = query.auth;
       switch (orderKind) {
         case "blur-bid": {
           let globalMaker: string | undefined;
@@ -76,9 +75,13 @@ export const postCancelSignatureV1Options: RouteOptions = {
             bidsByContract[contract].push(price);
           }
 
+          let auth = payload.auth;
           if (!auth) {
-            const signer = verifyMessage(keccak256(["string[]"], [orderIds.sort()]), signature);
-            if (globalMaker?.toLowerCase() !== signer.toLowerCase()) {
+            const signer = verifyMessage(
+              keccak256(["string[]"], [orderIds.sort()]),
+              signature
+            ).toLowerCase();
+            if (globalMaker?.toLowerCase() !== signer) {
               throw Boom.unauthorized("Invalid signature");
             }
 

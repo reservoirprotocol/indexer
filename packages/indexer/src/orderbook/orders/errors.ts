@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import * as Boom from "@hapi/boom";
+
 import { logger } from "@/common/logger";
 import * as orderRevalidations from "@/jobs/order-fixes/revalidations";
 
@@ -30,42 +32,79 @@ export const fillErrorCallback = async (
   );
 };
 
+// Mapper of errors coming from the router logic
+export const getExecuteError = (
+  mainErrorMsg: string,
+  subErrors: { orderId: string; message: string }[]
+) => {
+  const prettyMainError = prettifyError(mainErrorMsg);
+  const boomError = Boom.boomify(new Error(prettyMainError.message), {
+    statusCode: prettyMainError.status,
+  });
+  if (subErrors.length) {
+    boomError.output.payload.errors = subErrors;
+  }
+
+  return boomError;
+};
+
 enum StatusCode {
+  BAD_REQUEST = 400,
   NOT_FOUND = 404,
   GONE = 410,
   FAILED_DEPENDENCY = 424,
-  UNEXPECTED_ERROR = 500,
-  UNAVAILABLE = 503,
-  TIMEOUT = 504,
 }
 
 type PrettyErrorDetails = { message: string; status: number };
 
-// Mapper of errors coming from the router logic
-export const prettifyError = (msg: string): PrettyErrorDetails => {
+const prettifyError = (msg: string): PrettyErrorDetails => {
+  const lc = (x: string) => x.toLowerCase();
+
+  const m = lc(msg);
+  const matches = (value: string) => m.includes(lc(value));
+
   switch (true) {
-    case msg.includes("Accepting offers is disabled for this NFT"):
+    case matches("accepting offers is disabled for this nft"):
       return {
         message:
           "This NFT cannot accept offers on OpenSea right now because it is flagged or recently transferred",
         status: StatusCode.NOT_FOUND,
       };
 
-    case msg.includes("Request was throttled"):
+    case matches("request was throttled"):
       return {
         message: "Unable to fetch the order due to rate limiting. Please try again soon.",
-        status: StatusCode.UNAVAILABLE,
+        status: StatusCode.FAILED_DEPENDENCY,
       };
 
-    case msg.includes("No available orders"):
-    case msg.includes("Requested order is inactive and can only be seen by the order creator"):
-    case msg.includes("The order_hash you provided does not exist"):
+    case matches("no available orders"):
+    case matches("requested order is inactive and can only be seen by the order creator"):
+    case matches("the order_hash you provided does not exist"):
+    case matches("cannot read properties of undefined (reading 'node')"):
       return {
         message: "The order is not available anymore",
         status: StatusCode.GONE,
       };
 
+    case matches("error when generating fulfillment data"):
+    case matches("you are not eligible to fulfill this order"):
+    case matches("cannot be fulfilled for identifier"):
+    case matches("socket hang up"):
+    case matches("cannot read properties of null (reading 'eventactivity')"):
+    case matches("cannot read properties of null (reading 'item')"):
+    case matches("cannot read properties of undefined (reading 'slice')"):
+    case matches("request failed with status code 408"):
+    case matches("<!doctype html>"):
+    case matches("matched with those values"):
+    case matches("invalid graphql request"):
+    case matches("econnreset"):
+    case matches("econnrefused"):
+      return {
+        message: "Unable to generate fulfillment for the order",
+        status: StatusCode.FAILED_DEPENDENCY,
+      };
+
     default:
-      return { message: msg, status: StatusCode.UNEXPECTED_ERROR };
+      return { message: msg, status: StatusCode.BAD_REQUEST };
   }
 };

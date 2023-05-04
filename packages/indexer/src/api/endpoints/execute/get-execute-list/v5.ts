@@ -1057,7 +1057,7 @@ export const getExecuteListV5Options: RouteOptions = {
               }
 
               case "universe": {
-                if (!["universe"].includes(params.orderbook)) {
+                if (!["reservoir"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
 
