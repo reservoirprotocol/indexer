@@ -120,7 +120,9 @@ import * as blurBidsBufferMisc from "@/jobs/order-updates/misc/blur-bids-buffer"
 import * as blurBidsRefreshMisc from "@/jobs/order-updates/misc/blur-bids-refresh";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
-import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
+import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-queue";
+import * as orderbookPostOrderExternalOpensea from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
+
 import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
 import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
 import * as orderbookSaveOpenseaWebsocketEvents from "@/jobs/orderbook/save-opensea-websocket-events-queue";
@@ -259,6 +261,7 @@ export const allJobQueues = [
 
   orderbookOrders.queue,
   orderbookPostOrderExternal.queue,
+  orderbookPostOrderExternalOpensea.queue,
   orderbookTokenSets.queue,
   orderbookOpenseaListings.queue,
   orderbookSaveOpenseaWebsocketEvents.queue,
