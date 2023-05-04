@@ -451,12 +451,23 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               } else {
                 // Filtered pool, save tokenSetId and schema hash of a
                 // token-list TokenSet
+                logger.info(
+                  "filtered branch",
+                  `${JSON.stringify(
+                    orderParams.encodedTokenIds
+                  )}, ${typeof orderParams.encodedTokenIds}, isArray: ${
+                    orderParams.encodedTokenIds.slice
+                  }`
+                );
                 const acceptedSet = TokenIDs.decode(orderParams.encodedTokenIds)
                   .tokens()
                   .map((bi) => BigNumber.from(bi));
+                logger.info("acceptedSet", acceptedSet.toString());
 
                 const merkleTree = generateMerkleTree(acceptedSet);
+                logger.info("generatedMerkleTree", "");
                 tokenSetId = `list:${pool.nft}:${merkleTree.getHexRoot()}`;
+                logger.info("tokenSetId", tokenSetId);
                 const schema = {
                   kind: "token-set", // The type of TokenList that just takes an array of token ids
                   data: {
@@ -464,7 +475,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     tokenSetId, // Used for lookup in token set table
                   },
                 };
+                logger.info("schema", JSON.stringify(schema));
                 schemaHash = generateSchemaHash(schema);
+                logger.info("schemaHash", schemaHash);
                 await tokenSet.tokenList.save([
                   {
                     // This must === `list:${pool.nft}:${generateMerkleTree(acceptedSet).getHexRoot()}`
@@ -479,6 +492,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     },
                   } as TokenSet,
                 ]);
+                logger.info("done saving", "");
               }
             }
 
