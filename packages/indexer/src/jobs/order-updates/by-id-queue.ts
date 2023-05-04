@@ -401,6 +401,8 @@ if (config.doBackgroundWork) {
                 JSON.stringify({
                   latency: orderCreated - orderStart,
                   source: source?.getTitle(),
+                  orderId: order.id,
+                  orderKind: order.kind,
                   orderType,
                   orderCreatedAt: new Date(order.createdAt).toISOString(),
                   orderValidFrom: new Date(JSON.parse(order.validBetween)[0]).toISOString(),
