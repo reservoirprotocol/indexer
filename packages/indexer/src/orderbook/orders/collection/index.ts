@@ -23,7 +23,6 @@ import {
 import { BigNumber, BigNumberish, ethers } from "ethers";
 import { TokenIDs } from "fummpel";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import { TokenSet } from "@/orderbook/token-sets/token-list";
 import MerkleTree from "merkletreejs";
 import { keccak256 as keccakWithoutTypes } from "@ethersproject/keccak256";
 
@@ -482,19 +481,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   },
                 };
                 schemaHash = generateSchemaHash(schema);
-                await tokenSet.tokenList.save([
+                await tokenSet.mixedTokenList.save([
                   {
                     // This must === `list:${pool.nft}:${generateMerkleTree(acceptedSet).getHexRoot()}`
                     // in the TokenSet.isValid() function
                     id: tokenSetId,
-                    schema,
                     schemaHash,
                     items: {
-                      contract: pool.nft,
                       // This stores all tokenIds which are known to belong to this merkle tree
-                      tokenIds: acceptedSet.map((bn) => bn.toString()),
+                      tokens: acceptedSet.map((bn) => `${pool.nft}:${bn.toString()}`),
                     },
-                  } as TokenSet,
+                  },
                 ]);
               }
             }
