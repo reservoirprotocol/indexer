@@ -13,7 +13,8 @@ import { config } from "@/config/index";
 import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import * as orders from "@/orderbook/orders";
 
-import * as postOrderExternal from "@/jobs/orderbook/post-order-external";
+import * as postOrderExternal from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-queue";
+import * as postOrderExternalOpensea from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
 
 const version = "v4";
 
@@ -342,7 +343,7 @@ export const postOrderV4Options: RouteOptions = {
                   rawData: order.data,
                 } as crossPostingOrdersModel.CrossPostingOrder);
 
-                await postOrderExternal.addToQueue({
+                await postOrderExternalOpensea.addToQueue({
                   crossPostingOrderId: crossPostingOrder.id,
                   orderId,
                   orderData: order.data,
@@ -406,7 +407,7 @@ export const postOrderV4Options: RouteOptions = {
                   );
 
                   if (orderResult?.token_set_id?.startsWith("token")) {
-                    await postOrderExternal.addToQueue({
+                    await postOrderExternalOpensea.addToQueue({
                       orderId,
                       orderData: order.data,
                       orderSchema: schema,
