@@ -35,6 +35,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 534353:
         url = "https://alpha-rpc.scroll.io/l2";
         break;
+      case 59140:
+        url = "https://rpc.goerli.linea.build/";
+        break;
       default:
         throw new Error("Unsupported chain id");
     }
@@ -88,6 +91,7 @@ const config: HardhatUserConfig = {
     polygon: getNetworkConfig(137),
     arbitrum: getNetworkConfig(42161),
     "scroll-alpha": getNetworkConfig(534353),
+    "linea-testnet": getNetworkConfig(59140),
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
@@ -98,6 +102,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://blockscout.scroll.io/api",
           browserURL: "https://blockscout.scroll.io/",
+        },
+      },
+      {
+        network: "linea-testnet",
+        chainId: 59140,
+        urls: {
+          apiURL: "https://explorer.goerli.linea.build/api",
+          browserURL: "https://explorer.goerli.linea.build",
         },
       },
     ],
