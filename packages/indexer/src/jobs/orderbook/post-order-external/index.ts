@@ -497,7 +497,13 @@ const logMetric = (crossPostingOrder: any) => {
         crossPostingOrderUpdatedAt: new Date(crossPostingOrder.updated_at).toISOString(),
       })
     );
-  } catch {
-    // Ignore errors
+  } catch (error) {
+    logger.error(
+      "cross-posting-latency-metric",
+      JSON.stringify({
+        crossPostingOrder: JSON.stringify(crossPostingOrder),
+        error: JSON.stringify(error),
+      })
+    );
   }
 };
