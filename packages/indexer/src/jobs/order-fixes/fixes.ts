@@ -55,6 +55,7 @@ if (config.doBackgroundWork) {
                   orders.side,
                   orders.token_set_id,
                   orders.kind,
+                  orders.quantity_remaining,
                   orders.raw_data,
                   orders.block_number,
                   orders.log_index,
@@ -67,7 +68,6 @@ if (config.doBackgroundWork) {
               { id: data.id }
             );
 
-            // TODO: Support validating orders for which `raw_data` is null
             if (result && result.raw_data) {
               let fillabilityStatus = "fillable";
               let approvalStatus = "approved";
@@ -164,6 +164,7 @@ if (config.doBackgroundWork) {
                     await seaportCheck.offChainCheck(order, "seaport", exchange, {
                       onChainApprovalRecheck: true,
                       checkFilledOrCancelled: true,
+                      quantityRemaining: result.quantity_remaining,
                     });
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   } catch (error: any) {
@@ -192,6 +193,36 @@ if (config.doBackgroundWork) {
                     await seaportCheck.offChainCheck(order, "seaport-v1.4", exchange, {
                       onChainApprovalRecheck: true,
                       checkFilledOrCancelled: true,
+                      quantityRemaining: result.quantity_remaining,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
+                    }
+                  }
+                  break;
+                }
+
+                case "seaport-v1.5": {
+                  const order = new Sdk.SeaportV15.Order(config.chainId, result.raw_data);
+                  const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
+                  try {
+                    await seaportCheck.offChainCheck(order, "seaport-v1.5", exchange, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                      quantityRemaining: result.quantity_remaining,
                     });
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   } catch (error: any) {

@@ -165,7 +165,7 @@ export const postOrderV3Options: RouteOptions = {
       switch (order.kind) {
         case "zeroex-v4": {
           if (orderbook !== "reservoir") {
-            throw new Error("Unsupported orderbook");
+            throw Boom.badRequest("Unsupported orderbook");
           }
 
           const orderInfo: orders.zeroExV4.OrderInfo = {
@@ -178,7 +178,7 @@ export const postOrderV3Options: RouteOptions = {
 
           // Only the relayer can post Coinbase NFT orders
           if (orderInfo.orderParams.cbOrderId) {
-            throw new Error("Unauthorized");
+            throw Boom.unauthorized("Unauthorized");
           }
 
           const [result] = await orders.zeroExV4.save([orderInfo]);
@@ -198,7 +198,7 @@ export const postOrderV3Options: RouteOptions = {
 
         case "blur": {
           if (orderbook !== "reservoir") {
-            throw new Error("Unsupported orderbook");
+            throw Boom.badRequest("Unsupported orderbook");
           }
 
           const orderInfo: orders.blur.ListingOrderInfo = {
@@ -227,7 +227,7 @@ export const postOrderV3Options: RouteOptions = {
         case "seaport":
         case "seaport-v1.4": {
           if (!["opensea", "reservoir"].includes(orderbook)) {
-            throw new Error("Unknown orderbook");
+            throw Boom.badRequest("Unknown orderbook");
           }
 
           let crossPostingOrder;
@@ -247,7 +247,7 @@ export const postOrderV3Options: RouteOptions = {
               break;
 
             default:
-              throw new Error("Unreachable");
+              throw Boom.internal("Unreachable");
           }
 
           if (orderbook === "opensea") {
@@ -351,7 +351,7 @@ export const postOrderV3Options: RouteOptions = {
 
         case "looks-rare-v2": {
           if (!["looks-rare", "reservoir"].includes(orderbook)) {
-            throw new Error("Unknown orderbook");
+            throw Boom.badRequest("Unknown orderbook");
           }
 
           let crossPostingOrder;
@@ -407,7 +407,7 @@ export const postOrderV3Options: RouteOptions = {
 
         case "x2y2": {
           if (!["x2y2", "reservoir"].includes(orderbook)) {
-            throw new Error("Unsupported orderbook");
+            throw Boom.badRequest("Unsupported orderbook");
           }
 
           let crossPostingOrder;
@@ -463,41 +463,36 @@ export const postOrderV3Options: RouteOptions = {
         }
 
         case "universe": {
-          if (!["universe"].includes(orderbook)) {
-            throw new Error("Unknown orderbook");
+          if (!["reservoir"].includes(orderbook)) {
+            throw Boom.badRequest("Unknown orderbook");
           }
 
           const orderId = new Sdk.Universe.Order(config.chainId, order.data).hashOrderKey();
 
-          const crossPostingOrder = await crossPostingOrdersModel.saveOrder({
-            orderId,
-            kind: order.kind,
-            orderbook,
-            source,
-            schema,
-            rawData: order.data,
-          } as crossPostingOrdersModel.CrossPostingOrder);
-
-          await postOrderExternal.addToQueue({
-            crossPostingOrderId: crossPostingOrder.id,
-            orderId,
-            orderData: order.data,
-            orderSchema: schema,
-            orderbook,
-            orderbookApiKey,
-          });
+          const [result] = await orders.universe.save([
+            {
+              orderParams: order.data,
+              metadata: {
+                schema,
+                source,
+              },
+            },
+          ]);
+          if (!["success", "already-exists"].includes(result.status)) {
+            const error = Boom.badRequest(result.status);
+            error.output.payload.orderId = orderId;
+            throw error;
+          }
 
           return {
             message: "Success",
             orderId,
-            crossPostingOrderId: crossPostingOrder.id,
-            crossPostingOrderStatus: crossPostingOrder?.status,
           };
         }
 
         case "flow": {
           if (!["flow"].includes(orderbook)) {
-            throw new Error("Unknown orderbook");
+            throw Boom.badRequest("Unknown orderbook");
           }
 
           const orderId = new Sdk.Flow.Order(config.chainId, order.data).hash();

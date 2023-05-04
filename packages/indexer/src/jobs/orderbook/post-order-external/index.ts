@@ -93,12 +93,12 @@ if (config.doBackgroundWork) {
         try {
           await postOrder(orderbook, orderId, orderData, orderbookApiKey, orderSchema);
 
-          if (crossPostingOrderId) {
-            await crossPostingOrdersModel.updateOrderStatus(
-              crossPostingOrderId,
-              CrossPostingOrderStatus.posted
-            );
-          }
+          logger.info(
+            QUEUE_NAME,
+            `Post Order Rate Success. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+              orderData
+            )}, rateLimitExpiration=${rateLimitExpiration}, retry=${retry}`
+          );
 
           if (crossPostingOrderId) {
             await crossPostingOrdersModel.updateOrderStatus(

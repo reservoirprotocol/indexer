@@ -22,8 +22,9 @@ export const offChainCheck = async (
     // of buy orders as well.
     onChainApprovalRecheck?: boolean;
     checkFilledOrCancelled?: boolean;
-    // TODO: We should listen to single-token approval changes as well
     singleTokenERC721ApprovalCheck?: boolean;
+    // Will do the balance/approval checks against this quantity
+    quantityRemaining?: number;
   }
 ) => {
   const id = order.hash();
@@ -44,14 +45,12 @@ export const offChainCheck = async (
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
     const cancelled = await commonHelpers.isOrderCancelled(id, orderKind);
-
     if (cancelled) {
       throw new Error("cancelled");
     }
 
     // Check: order is not filled
     const quantityFilled = await commonHelpers.getQuantityFilled(id);
-
     if (quantityFilled.gte(info.amount)) {
       throw new Error("filled");
     }
@@ -59,12 +58,13 @@ export const offChainCheck = async (
 
   // Check: order has a valid nonce
   const minNonce = await commonHelpers.getMinNonce(orderKind, order.params.offerer);
-
   if (!minNonce.eq(order.params.counter)) {
     throw new Error("cancelled");
   }
 
   const conduit = exchange.deriveConduit(order.params.conduitKey);
+
+  const checkQuantity = options?.quantityRemaining ?? info.amount;
 
   let hasBalance = true;
   let hasApproval = true;
@@ -72,7 +72,8 @@ export const offChainCheck = async (
     // Check: maker has enough balance
     const ftBalance = await commonHelpers.getFtBalance(info.paymentToken, order.params.offerer);
 
-    if (ftBalance.lt(info.price)) {
+    const neededBalance = bn(info.price).div(info.amount).mul(checkQuantity);
+    if (ftBalance.lt(neededBalance)) {
       hasBalance = false;
     }
 
@@ -82,7 +83,7 @@ export const offChainCheck = async (
           await onChainData
             .fetchAndUpdateFtApproval(info.paymentToken, order.params.offerer, conduit, true)
             .then((a) => a.value)
-        ).lt(info.price)
+        ).lt(neededBalance)
       ) {
         hasApproval = false;
       }
@@ -95,7 +96,7 @@ export const offChainCheck = async (
       order.params.offerer
     );
 
-    if (nftBalance.lt(info.amount)) {
+    if (nftBalance.lt(checkQuantity)) {
       hasBalance = false;
     }
 

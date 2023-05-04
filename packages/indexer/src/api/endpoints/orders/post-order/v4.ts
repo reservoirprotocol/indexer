@@ -535,7 +535,7 @@ export const postOrderV4Options: RouteOptions = {
             }
 
             case "universe": {
-              if (!["universe"].includes(orderbook)) {
+              if (!["reservoir"].includes(orderbook)) {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
