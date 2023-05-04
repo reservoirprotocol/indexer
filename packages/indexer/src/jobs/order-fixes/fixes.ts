@@ -20,6 +20,9 @@ import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 import * as blurCheck from "@/orderbook/orders/blur/check";
 import * as nftxCheck from "@/orderbook/orders/nftx/check";
 import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
+import { baseProvider } from "@/common/provider";
+import { BigNumber, Contract } from "ethers";
+import { Interface } from "ethers/lib/utils";
 
 const QUEUE_NAME = "order-fixes";
 
@@ -343,6 +346,33 @@ if (config.doBackgroundWork) {
                         order.params.pair
                       );
                       if (balance.lte(0)) {
+                        fillabilityStatus = "no-balance";
+                      }
+                    }
+                  } catch {
+                    return;
+                  }
+
+                  break;
+                }
+
+                case "collection": {
+                  try {
+                    if (result.side === "sell") {
+                      const [, , tokenId] = result.token_set_id.split(":");
+                      // It is not sufficient to check NFT ownership; the pool
+                      // must recognize ownership of this tokenId.
+                      const poolContract = new Contract(
+                        result.raw_data.pool,
+                        new Interface([`function getAllHeldIds() view returns (uint256[])`]),
+                        baseProvider
+                      );
+                      const legitIds: BigNumber[] = await poolContract.getAllHeldIds();
+                      let isLegit = false;
+                      legitIds.forEach((legitId) => {
+                        if (legitId.toString() === tokenId) isLegit = true;
+                      });
+                      if (!isLegit) {
                         fillabilityStatus = "no-balance";
                       }
                     }
