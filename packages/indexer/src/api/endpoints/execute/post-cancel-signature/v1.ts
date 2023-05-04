@@ -1,3 +1,4 @@
+import { arrayify } from "@ethersproject/bytes";
 import { keccak256 } from "@ethersproject/solidity";
 import { verifyMessage } from "@ethersproject/wallet";
 import * as Boom from "@hapi/boom";
@@ -78,7 +79,7 @@ export const postCancelSignatureV1Options: RouteOptions = {
           let auth = payload.auth;
           if (!auth) {
             const signer = verifyMessage(
-              keccak256(["string[]"], [orderIds.sort()]),
+              arrayify(keccak256(["string[]"], [orderIds.sort()])),
               signature
             ).toLowerCase();
             if (globalMaker?.toLowerCase() !== signer) {
