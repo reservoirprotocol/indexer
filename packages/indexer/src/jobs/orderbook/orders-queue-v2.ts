@@ -29,7 +29,7 @@ new QueueScheduler(QUEUE_NAME, { connection: orderbookRedis.duplicate() });
 if (config.doBackgroundWork) {
   const worker = new Worker(QUEUE_NAME, async (job: Job) => jobProcessor(job), {
     connection: orderbookRedis.duplicate(),
-    concurrency: 30,
+    concurrency: 70,
   });
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

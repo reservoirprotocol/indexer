@@ -16,10 +16,10 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
-import { Sources } from "@/models/sources";
-import { Orders } from "@/utils/orders";
-import { TokenSets } from "@/models/token-sets";
 import { ContractSets } from "@/models/contract-sets";
+import { Sources } from "@/models/sources";
+import { TokenSets } from "@/models/token-sets";
+import { Orders } from "@/utils/orders";
 
 const version = "v4";
 
@@ -564,6 +564,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           missingRoyalties: r.missing_royalties,
           includeDynamicPricing: query.includeDynamicPricing,
           dynamic: r.dynamic,
+          displayCurrency: query.displayCurrency,
         });
       });
 

@@ -242,8 +242,8 @@ export const postCollectionOffer = async (
           totalOriginalConsiderationItems: order.params.consideration.length,
         },
         signature: order.params.signature!,
-        protocol_address: Sdk.SeaportV15.Addresses.Exchange[config.chainId],
       },
+      protocol_address: Sdk.SeaportV15.Addresses.Exchange[config.chainId],
     },
   };
 
@@ -307,8 +307,8 @@ export const postTraitOffer = async (
           totalOriginalConsiderationItems: order.params.consideration.length,
         },
         signature: order.params.signature!,
-        protocol_address: Sdk.SeaportV15.Addresses.Exchange[config.chainId],
       },
+      protocol_address: Sdk.SeaportV15.Addresses.Exchange[config.chainId],
     },
   };
 

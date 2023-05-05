@@ -9,10 +9,10 @@ import { redlock } from "@/common/redis";
 if (config.doBackgroundWork) {
   // Schedule cron to archive bid events table
   cron.schedule(
-    "*/5 * * * *",
+    "*/10 * * * *",
     async () =>
       await redlock
-        .acquire([`data-archive-cron-lock`], (5 * 60 - 5) * 1000)
+        .acquire([`data-archive-cron-lock`], (10 * 60 - 5) * 1000)
         .then(async () => {
           await processArchiveData.addToQueue("bid_events");
           await processArchiveData.addToQueue("orders", "bids");

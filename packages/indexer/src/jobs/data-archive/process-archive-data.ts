@@ -33,7 +33,7 @@ if (config.doBackgroundWork) {
       switch (tableName) {
         case "bid_events":
           // Archive bid events
-          if (await acquireLock(getLockName(tableName), 60 * 5 - 5)) {
+          if (await acquireLock(getLockName(tableName), 60 * 10 - 5)) {
             job.data.lock = true;
 
             try {
@@ -47,7 +47,7 @@ if (config.doBackgroundWork) {
 
         case "orders":
           // Archive bid events
-          if (type === "bids" && (await acquireLock(getLockName(tableName), 60 * 5 - 5))) {
+          if (type === "bids" && (await acquireLock(getLockName(tableName), 60 * 10 - 5))) {
             job.data.lock = true;
 
             try {
