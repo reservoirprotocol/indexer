@@ -3418,24 +3418,27 @@ export class Router {
           const order = detail.order as Sdk.Collection.Order;
           const module = this.contracts.collectionModule;
 
-          executions.push({
-            module: module.address,
-            data: module.interface.encodeFunctionData("sell", [
-              order.params.pool,
-              detail.tokenId,
-              bn(order.params.extra.prices[0]),
-              Math.floor(Date.now() / 1000) + 10 * 60,
-              {
-                fillTo: taker,
-                refundTo: taker,
-                revertIfIncomplete: Boolean(!options?.partial),
-              },
-              detail.fees ?? [],
-            ]),
-            value: 0,
+          executionsWithDetails.push({
+            detail,
+            execution: {
+              module: module.address,
+              data: module.interface.encodeFunctionData("sell", [
+                order.params.pool,
+                detail.tokenId,
+                bn(order.params.extra.prices[0]),
+                Math.floor(Date.now() / 1000) + 10 * 60,
+                {
+                  fillTo: taker,
+                  refundTo: taker,
+                  revertIfIncomplete: Boolean(!options?.partial),
+                },
+                fees,
+              ]),
+              value: 0,
+            },
           });
 
-          success[i] = true;
+          success[detail.orderId] = true;
 
           break;
         }
