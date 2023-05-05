@@ -204,6 +204,7 @@ export type GenericOrderInfo =
       info: orders.collection.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     };
 
 export const jobProcessor = async (job: Job) => {
@@ -304,6 +305,7 @@ export const jobProcessor = async (job: Job) => {
 
       case "looks-rare-v2": {
         result = await orders.looksRareV2.save([info]);
+        break;
       }
 
       case "collection": {
