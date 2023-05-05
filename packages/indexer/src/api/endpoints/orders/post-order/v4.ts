@@ -44,6 +44,7 @@ export const postOrderV4Options: RouteOptions = {
                   "zeroex-v4",
                   "seaport",
                   "seaport-v1.4",
+                  "seaport-v1.5",
                   "x2y2",
                   "universe",
                   "flow",
@@ -116,7 +117,7 @@ export const postOrderV4Options: RouteOptions = {
         isNonFlagged?: boolean;
         source?: string;
         bulkData?: {
-          kind: "seaport-v1.4" | "alienswap";
+          kind: "seaport-v1.4" | "seaport-v1.5" | "alienswap";
           data: {
             orderIndex: number;
             merkleProof: string[];
@@ -124,14 +125,17 @@ export const postOrderV4Options: RouteOptions = {
         };
       }[];
 
-      // Only Seaport v1.4 and forks support bulk orders
+      // Only Seaport and forks support bulk orders
       if (items.length > 1) {
         if (
           !items.every(
-            (item) => item.order.kind === "seaport-v1.4" || item.order.kind === "alienswap"
+            (item) =>
+              item.order.kind === "seaport-v1.4" ||
+              item.order.kind === "seaport-v1.5" ||
+              item.order.kind === "alienswap"
           )
         ) {
-          throw Boom.badRequest("Bulk orders are only supported on Seaport v1.4 and forks");
+          throw Boom.badRequest("Bulk orders are only supported on Seaport and forks");
         }
       }
 
@@ -166,9 +170,17 @@ export const postOrderV4Options: RouteOptions = {
             try {
               const { v, r, s } = splitSignature(signature);
 
+              // Encode the merkle proof of inclusion together with the signature
               if (bulkData?.kind === "seaport-v1.4") {
-                // Encode the merkle proof of inclusion together with the signature
                 order.data.signature = new Sdk.SeaportV14.Exchange(
+                  config.chainId
+                ).encodeBulkOrderProofAndSignature(
+                  bulkData.data.orderIndex,
+                  bulkData.data.merkleProof,
+                  signature
+                );
+              } else if (bulkData?.kind === "seaport-v1.5") {
+                order.data.signature = new Sdk.SeaportV15.Exchange(
                   config.chainId
                 ).encodeBulkOrderProofAndSignature(
                   bulkData.data.orderIndex,
@@ -321,17 +333,25 @@ export const postOrderV4Options: RouteOptions = {
 
             case "alienswap":
             case "seaport":
-            case "seaport-v1.4": {
+            case "seaport-v1.4":
+            case "seaport-v1.5": {
               if (!["opensea", "reservoir"].includes(orderbook)) {
                 return results.push({ message: "unsupported-orderbook", orderIndex: i });
               }
 
               let crossPostingOrder;
 
-              const orderId =
-                order.kind === "seaport"
-                  ? new Sdk.SeaportV11.Order(config.chainId, order.data).hash()
-                  : new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
+              let orderId: string;
+              if (order.kind === "seaport") {
+                orderId = new Sdk.SeaportV11.Order(config.chainId, order.data).hash();
+              } else if (order.kind === "seaport-v1.4") {
+                orderId = new Sdk.SeaportV14.Order(config.chainId, order.data).hash();
+              }
+              if (order.kind === "seaport-v1.5") {
+                orderId = new Sdk.SeaportV15.Order(config.chainId, order.data).hash();
+              } else {
+                orderId = new Sdk.Alienswap.Order(config.chainId, order.data).hash();
+              }
 
               if (orderbook === "opensea") {
                 crossPostingOrder = await crossPostingOrdersModel.saveOrder({
@@ -368,6 +388,20 @@ export const postOrderV4Options: RouteOptions = {
                   }
                 } else if (order.kind == "seaport-v1.4") {
                   const [result] = await orders.seaportV14.save([
+                    {
+                      orderParams: order.data,
+                      isReservoir: true,
+                      metadata: {
+                        schema,
+                        source,
+                      },
+                    },
+                  ]);
+                  if (!["success", "already-exists"].includes(result.status)) {
+                    return results.push({ message: result.status, orderIndex: i, orderId });
+                  }
+                } else if (order.kind == "seaport-v1.5") {
+                  const [result] = await orders.seaportV15.save([
                     {
                       orderParams: order.data,
                       isReservoir: true,

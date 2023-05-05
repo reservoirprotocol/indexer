@@ -33,9 +33,9 @@ export const postCancelSignatureV1Options: RouteOptions = {
         .required()
         .description("Ids of the orders to cancel"),
       orderKind: Joi.string()
-        .valid("seaport-v1.4", "alienswap", "blur-bid")
-        .default("seaport-v1.4")
-        .description("Exchange protocol used to bulk cancel order. Example: `seaport-v1.4`"),
+        .valid("seaport-v1.4", "seaport-v1.5", "alienswap", "blur-bid")
+        .required()
+        .description("Exchange protocol used to bulk cancel order. Example: `seaport-v1.5`"),
     }),
   },
   response: {
@@ -104,7 +104,8 @@ export const postCancelSignatureV1Options: RouteOptions = {
         }
 
         case "alienswap":
-        case "seaport-v1.4": {
+        case "seaport-v1.4":
+        case "seaport-v1.5": {
           const ordersResult = await idb.manyOrNone(
             `
               SELECT

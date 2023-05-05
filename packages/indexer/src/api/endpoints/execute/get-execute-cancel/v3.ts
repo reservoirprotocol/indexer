@@ -32,6 +32,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
       orderKind: Joi.string().valid(
         "seaport",
         "seaport-v1.4",
+        "seaport-v1.5",
         "looks-rare",
         "zeroex-v4-erc721",
         "zeroex-v4-erc1155",
@@ -99,6 +100,12 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
         case "seaport-v1.4": {
           const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+          cancelTx = exchange.cancelAllOrdersTx(payload.maker);
+          break;
+        }
+
+        case "seaport-v1.5": {
+          const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
           cancelTx = exchange.cancelAllOrdersTx(payload.maker);
           break;
         }
@@ -300,7 +307,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
       const orderResult = orderResults[0];
 
       // When bulk-cancelling, make sure all orders have the same kind
-      const supportedKinds = ["seaport", "seaport-v1.4", "alienswap"];
+      const supportedKinds = ["seaport", "seaport-v1.4", "seaport-v1.5", "alienswap"];
       if (isBulkCancel) {
         const supportsBulkCancel =
           supportedKinds.includes(orderResult.kind) &&
@@ -316,6 +323,9 @@ export const getExecuteCancelV3Options: RouteOptions = {
       const areAllSeaportV14OracleCancellable = orderResults.every(
         (o) => o.kind === "seaport-v1.4" && o.raw_data.zone === cancellationZone
       );
+      const areAllSeaportV15OracleCancellable = orderResults.every(
+        (o) => o.kind === "seaport-v1.5" && o.raw_data.zone === cancellationZone
+      );
       const areAllAlienswapOracleCancellable = orderResults.every(
         (o) => o.kind === "alienswap" && o.raw_data.zone === cancellationZone
       );
@@ -323,6 +333,8 @@ export const getExecuteCancelV3Options: RouteOptions = {
       let oracleCancellableKind: string | undefined;
       if (areAllSeaportV14OracleCancellable) {
         oracleCancellableKind = "seaport-v1.4";
+      } else if (areAllSeaportV15OracleCancellable) {
+        oracleCancellableKind = "seaport-v1.5";
       } else if (areAllAlienswapOracleCancellable) {
         oracleCancellableKind = "alienswap";
       }
@@ -390,6 +402,16 @@ export const getExecuteCancelV3Options: RouteOptions = {
             return new Sdk.SeaportV14.Order(config.chainId, dbOrder.raw_data);
           });
           const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+
+          cancelTx = exchange.cancelOrdersTx(maker, orders);
+          break;
+        }
+
+        case "seaport-v1.5": {
+          const orders = orderResults.map((dbOrder) => {
+            return new Sdk.SeaportV15.Order(config.chainId, dbOrder.raw_data);
+          });
+          const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
 
           cancelTx = exchange.cancelOrdersTx(maker, orders);
           break;
