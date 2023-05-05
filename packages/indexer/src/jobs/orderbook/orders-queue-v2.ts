@@ -7,7 +7,7 @@ import { orderbookRedis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { GenericOrderInfo, jobProcessor } from "@/jobs/orderbook/orders-queue";
 
-const QUEUE_NAME = "orderbook-queue-v2";
+const QUEUE_NAME = "orderbook-orders-queue-v2";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: orderbookRedis.duplicate(),
