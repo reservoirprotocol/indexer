@@ -36,11 +36,6 @@ export const metricsRedis = new Redis(config.metricsRedisUrl, {
   enableReadyCheck: false,
 });
 
-export const orderbookRedis = new Redis(config.orderbookRedisUrl, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-});
-
 // https://redis.io/topics/distlock
 export const redlock = new Redlock([redis.duplicate()], { retryCount: 0 });
 

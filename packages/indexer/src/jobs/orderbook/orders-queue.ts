@@ -1,4 +1,5 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import { randomUUID } from "crypto";
 import cron from "node-cron";
 
 import { idb } from "@/common/db";
@@ -6,7 +7,6 @@ import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import * as orders from "@/orderbook/orders";
-import { addToQueue as addToQueueV2 } from "@/jobs/orderbook/orders-queue-v2";
 
 const QUEUE_NAME = "orderbook-orders-queue";
 
@@ -314,4 +314,16 @@ export const addToQueue = async (
   prioritized = false,
   delay = 0,
   jobId?: string
-) => addToQueueV2(orderInfos, prioritized, delay, jobId);
+) => {
+  await queue.addBulk(
+    orderInfos.map((orderInfo) => ({
+      name: randomUUID(),
+      data: orderInfo,
+      opts: {
+        priority: prioritized ? 1 : undefined,
+        delay: delay ? delay * 1000 : undefined,
+        jobId,
+      },
+    }))
+  );
+};
