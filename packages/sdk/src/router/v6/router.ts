@@ -34,7 +34,7 @@ import RouterAbi from "./abis/ReservoirV6_0_1.json";
 // Misc
 import ApprovalProxyAbi from "./abis/ApprovalProxy.json";
 // Modules
-import CollectionModuleAbi from "./abis/CollectionXyzModule.json";
+import CollectionXyzModuleAbi from "./abis/CollectionXyzModule.json";
 import ElementModuleAbi from "./abis/ElementModule.json";
 import FoundationModuleAbi from "./abis/FoundationModule.json";
 import LooksRareV2ModuleAbi from "./abis/LooksRareV2Module.json";
@@ -82,9 +82,9 @@ export class Router {
         provider
       ),
       // Initialize modules
-      collectionModule: new Contract(
-        Addresses.CollectionModule[chainId] ?? AddressZero,
-        CollectionModuleAbi,
+      collectionXyzModule: new Contract(
+        Addresses.CollectionXyzModule[chainId] ?? AddressZero,
+        CollectionXyzModuleAbi,
         provider
       ),
       elementModule: new Contract(
@@ -797,7 +797,7 @@ export class Router {
     const seaportV15Details: PerCurrencyListingDetails = {};
     const alienswapDetails: PerCurrencyListingDetails = {};
     const sudoswapDetails: ListingDetails[] = [];
-    const collectionDetails: ListingDetails[] = [];
+    const collectionXyzDetails: ListingDetails[] = [];
     const x2y2Details: ListingDetails[] = [];
     const zeroexV4Erc721Details: ListingDetails[] = [];
     const zeroexV4Erc1155Details: ListingDetails[] = [];
@@ -827,7 +827,7 @@ export class Router {
         }
 
         case "collectionxyz":
-          detailsRef = collectionDetails;
+          detailsRef = collectionXyzDetails;
           break;
 
         case "foundation":
@@ -1667,11 +1667,11 @@ export class Router {
     }
 
     // Handle Collection listings
-    if (collectionDetails.length) {
-      const orders = collectionDetails.map((d) => d.order as Sdk.CollectionXyz.Order);
-      const module = this.contracts.collectionModule;
+    if (collectionXyzDetails.length) {
+      const orders = collectionXyzDetails.map((d) => d.order as Sdk.CollectionXyz.Order);
+      const module = this.contracts.collectionXyzModule;
 
-      const fees = getFees(collectionDetails);
+      const fees = getFees(collectionXyzDetails);
       const price = orders
         .map((order) =>
           bn(
@@ -1690,8 +1690,8 @@ export class Router {
       executions.push({
         module: module.address,
         data: module.interface.encodeFunctionData("buyWithETH", [
-          collectionDetails.map((d) => (d.order as Sdk.CollectionXyz.Order).params.pool),
-          collectionDetails.map((d) => d.tokenId),
+          collectionXyzDetails.map((d) => (d.order as Sdk.CollectionXyz.Order).params.pool),
+          collectionXyzDetails.map((d) => d.tokenId),
           Math.floor(Date.now() / 1000) + 10 * 60,
           {
             fillTo: taker,
@@ -1711,12 +1711,12 @@ export class Router {
         tokenOutAmount: totalPrice,
         recipient: module.address,
         refundTo: relayer,
-        details: collectionDetails,
+        details: collectionXyzDetails,
         executionIndex: executions.length - 1,
       });
 
       // Mark the listings as successfully handled
-      for (const { orderId } of collectionDetails) {
+      for (const { orderId } of collectionXyzDetails) {
         success[orderId] = true;
         orderIds.push(orderId);
       }
@@ -2874,7 +2874,7 @@ export class Router {
         }
 
         case "collectionxyz": {
-          module = this.contracts.collectionModule;
+          module = this.contracts.collectionXyzModule;
           break;
         }
 
@@ -3416,7 +3416,7 @@ export class Router {
 
         case "collectionxyz": {
           const order = detail.order as Sdk.CollectionXyz.Order;
-          const module = this.contracts.collectionModule;
+          const module = this.contracts.collectionXyzModule;
 
           executionsWithDetails.push({
             detail,
