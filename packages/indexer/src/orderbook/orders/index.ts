@@ -417,6 +417,14 @@ export const generateListingDetailsV6 = (
       };
     }
 
+    case "collectionxyz": {
+      return {
+        kind: "collectionxyz",
+        ...common,
+        order: new Sdk.CollectionXyz.Order(config.chainId, order.rawData),
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }
@@ -709,6 +717,15 @@ export const generateBidDetailsV6 = async (
       const sdkOrder = new Sdk.LooksRareV2.Order(config.chainId, order.rawData);
       return {
         kind: "looks-rare-v2",
+        ...common,
+        order: sdkOrder,
+      };
+    }
+
+    case "collectionxyz": {
+      const sdkOrder = new Sdk.CollectionXyz.Order(config.chainId, order.rawData);
+      return {
+        kind: "collectionxyz",
         ...common,
         order: sdkOrder,
       };
