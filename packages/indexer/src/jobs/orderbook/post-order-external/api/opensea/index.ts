@@ -17,7 +17,7 @@ import * as orderbook from "@/jobs/orderbook/orders-queue";
 export const RATE_LIMIT_REQUEST_COUNT = 2;
 export const RATE_LIMIT_INTERVAL = 1;
 
-export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => {
+export const postOrder = async (order: Sdk.SeaportV15.Order, apiKey: string) => {
   // Skip posting orders that already expired
   if (order.params.endTime <= now()) {
     throw new InvalidRequestError("Order is expired");
@@ -54,7 +54,7 @@ export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => 
         totalOriginalConsiderationItems: order.params.consideration.length,
       },
       signature: order.params.signature!,
-      protocol_address: Sdk.SeaportV14.Addresses.Exchange[config.chainId],
+      protocol_address: Sdk.SeaportV15.Addresses.Exchange[config.chainId],
     },
   };
 
@@ -78,7 +78,7 @@ export const postOrder = async (order: Sdk.SeaportV14.Order, apiKey: string) => 
   // If the cross-posting was successful, save the order directly
   await orderbook.addToQueue([
     {
-      kind: "seaport-v1.4",
+      kind: "seaport-v1.5",
       info: {
         orderParams: order.params,
         metadata: {},
@@ -206,7 +206,7 @@ export const buildTraitOffer = async (
 };
 
 export const postCollectionOffer = async (
-  order: Sdk.SeaportV14.Order,
+  order: Sdk.SeaportV15.Order,
   collectionSlug: string,
   apiKey: string
 ) => {
@@ -242,7 +242,7 @@ export const postCollectionOffer = async (
           totalOriginalConsiderationItems: order.params.consideration.length,
         },
         signature: order.params.signature!,
-        protocol_address: Sdk.SeaportV14.Addresses.Exchange[config.chainId],
+        protocol_address: Sdk.SeaportV15.Addresses.Exchange[config.chainId],
       },
     },
   };
@@ -266,7 +266,7 @@ export const postCollectionOffer = async (
 };
 
 export const postTraitOffer = async (
-  order: Sdk.SeaportV14.Order,
+  order: Sdk.SeaportV15.Order,
   collectionSlug: string,
   attribute: { key: string; value: string },
   apiKey: string
@@ -307,7 +307,7 @@ export const postTraitOffer = async (
           totalOriginalConsiderationItems: order.params.consideration.length,
         },
         signature: order.params.signature!,
-        protocol_address: Sdk.SeaportV14.Addresses.Exchange[config.chainId],
+        protocol_address: Sdk.SeaportV15.Addresses.Exchange[config.chainId],
       },
     },
   };
