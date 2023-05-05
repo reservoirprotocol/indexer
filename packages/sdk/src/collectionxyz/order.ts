@@ -26,6 +26,7 @@ const normalize = (order: Types.OrderParams): Types.OrderParams => {
     pool: lc(order.pool),
     tokenId: order.tokenId ? s(order.tokenId) : undefined,
     externalFilter: lc(order.externalFilter),
+    acceptedSet: order.acceptedSet.map(s),
     extra: {
       prices: order.extra.prices.map(s),
     },

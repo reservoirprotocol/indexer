@@ -422,8 +422,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             const sdkOrder: Sdk.CollectionXyz.Order = new Sdk.CollectionXyz.Order(config.chainId, {
               pool: orderParams.pool,
               externalFilter: externalFilterAddress,
+              acceptedSet: [],
               extra: {
-                prices: [],
+                // Not much point keeping more than 1 unit price. Keep the expected input
+                // amount which is currencyPrice
+                prices: [currencyPrice.toString()],
               },
             });
 
@@ -480,6 +483,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     : TokenIDs.decode(orderParams.encodedTokenIds)
                         .tokens()
                         .map((bi) => BigNumber.from(bi));
+
+                sdkOrder.params.acceptedSet = acceptedSet.map((bn) => bn.toString());
 
                 const merkleTree = generateMerkleTree(acceptedSet);
                 tokenSetId = `list:${pool.nft}:${merkleTree.getHexRoot()}`;
@@ -728,8 +733,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     {
                       pool: orderParams.pool,
                       externalFilter: externalFilterAddress,
+                      acceptedSet: [],
                       extra: {
-                        prices: [],
+                        // Selling to pool -> Router needs expected output == currencyValue
+                        prices: [currencyValue.toString()],
                       },
                     }
                   );

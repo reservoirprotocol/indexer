@@ -51,6 +51,7 @@ import SwapModuleAbi from "./abis/SwapModule.json";
 import X2Y2ModuleAbi from "./abis/X2Y2Module.json";
 import ZeroExV4ModuleAbi from "./abis/ZeroExV4Module.json";
 import ZoraModuleAbi from "./abis/ZoraModule.json";
+import { TokenIDs } from "fummpel";
 
 type SetupOptions = {
   x2y2ApiKey?: string;
@@ -1687,21 +1688,39 @@ export class Router {
       const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
       const totalPrice = price.add(feeAmount);
 
-      executions.push({
-        module: module.address,
-        data: module.interface.encodeFunctionData("buyWithETH", [
-          collectionXyzDetails.map((d) => (d.order as Sdk.CollectionXyz.Order).params.pool),
-          collectionXyzDetails.map((d) => d.tokenId),
-          Math.floor(Date.now() / 1000) + 10 * 60,
-          {
+      const isERC20 = buyInCurrency !== Sdk.Common.Addresses.Eth[this.chainId];
+      const functionName = `buyWith${isERC20 ? "ERC20" : "ETH"}`;
+      const listingParams = isERC20
+        ? {
+            fillTo: taker,
+            refundTo: relayer,
+            revertIfIncomplete: Boolean(!options?.partial),
+            token: buyInCurrency,
+            amount: price,
+          }
+        : {
             fillTo: taker,
             refundTo: relayer,
             revertIfIncomplete: Boolean(!options?.partial),
             amount: price,
-          },
+          };
+
+      executions.push({
+        module: module.address,
+        data: module.interface.encodeFunctionData(functionName, [
+          collectionXyzDetails.map((d) => (d.order as Sdk.CollectionXyz.Order).params.pool),
+          collectionXyzDetails.map((d) => ({
+            nftId: d.tokenId,
+            // Unused for buying from pools
+            proof: [],
+            proofFlags: [],
+            externalFilterContext: [],
+          })),
+          Math.floor(Date.now() / 1000) + 10 * 60,
+          listingParams,
           fees,
         ]),
-        value: totalPrice,
+        value: isERC20 ? 0 : totalPrice,
       });
 
       // Track any possibly required swap
@@ -3417,6 +3436,12 @@ export class Router {
         case "collectionxyz": {
           const order = detail.order as Sdk.CollectionXyz.Order;
           const module = this.contracts.collectionXyzModule;
+          const acceptedSet = detail.order.params.acceptedSet.map(BigInt);
+          const { proof, proofFlags } =
+            // acceptedSet === [] for unfiltered pools
+            acceptedSet.length === 0
+              ? { proof: [], proofFlags: [] }
+              : new TokenIDs(acceptedSet).proof([BigInt(detail.tokenId)]);
 
           executionsWithDetails.push({
             detail,
@@ -3424,7 +3449,8 @@ export class Router {
               module: module.address,
               data: module.interface.encodeFunctionData("sell", [
                 order.params.pool,
-                detail.tokenId,
+                // Single id, no need to sort
+                { nftId: detail.tokenId, proof, proofFlags, externalFilterContext: [] },
                 bn(order.params.extra.prices[0]),
                 Math.floor(Date.now() / 1000) + 10 * 60,
                 {
