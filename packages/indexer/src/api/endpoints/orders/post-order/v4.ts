@@ -67,7 +67,9 @@ export const postOrderV4Options: RouteOptions = {
             tokenSetId: Joi.string(),
             isNonFlagged: Joi.boolean(),
             bulkData: Joi.object({
-              kind: Joi.string().valid("seaport-v1.4", "alienswap").default("seaport-v1.4"),
+              kind: Joi.string()
+                .valid("seaport-v1.4", "seaport-v1.5", "alienswap")
+                .default("seaport-v1.5"),
               data: Joi.object({
                 orderIndex: Joi.number().required(),
                 merkleProof: Joi.array().items(Joi.string()).required(),
