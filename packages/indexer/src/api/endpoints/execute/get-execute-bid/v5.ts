@@ -55,7 +55,7 @@ const version = "v5";
 export const getExecuteBidV5Options: RouteOptions = {
   description: "Create bids (offers)",
   notes:
-    "Generate bids and submit them to multiple marketplaces. Please use the `/cross-posting-orders/v1` to check the status on cross posted bids.\n We recommend using Reservoir SDK as it abstracts the process of iterating through steps, and returning callbacks that can be used to update your UI.",
+    "Generate bids and submit them to multiple marketplaces.\n\n Notes:\n\n- Please use the `/cross-posting-orders/v1` to check the status on cross posted bids.\n\n- Using `tokenSetId` cannot be used when cross-posting to OpenSea, please use `collection` or `token`\n\n- We recommend using Reservoir SDK as it abstracts the process of iterating through steps, and returning callbacks that can be used to update your UI.",
   timeout: { server: 60000 },
   tags: ["api", "Create Orders (list & bid)"],
   plugins: {
