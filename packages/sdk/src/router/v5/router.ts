@@ -393,11 +393,11 @@ export class Router {
       };
     }
 
-    // The V5 router does not support filling Collection bids, so we fill directly
-    if (exchangeKind === ExchangeKind.COLLECTION) {
+    // The V5 router does not support filling CollectionXyz bids, so we fill directly
+    if (exchangeKind === ExchangeKind.COLLECTION_XYZ) {
       return {
         from: taker,
-        to: Sdk.Collection.Addresses.CollectionRouter[this.chainId],
+        to: Sdk.CollectionXyz.Addresses.CollectionRouter[this.chainId],
         data: tx.data + generateSourceBytes(options?.source),
       };
     }
@@ -665,13 +665,13 @@ export class Router {
         tx: router.fillBuyOrderTx(taker, order, tokenId),
         exchangeKind: ExchangeKind.SUDOSWAP,
       };
-    } else if (kind === "collection") {
-      order = order as Sdk.Collection.Order;
+    } else if (kind === "collectionxyz") {
+      order = order as Sdk.CollectionXyz.Order;
 
-      const router = new Sdk.Collection.Router(this.chainId);
+      const router = new Sdk.CollectionXyz.Router(this.chainId);
       return {
         tx: router.fillBuyOrderTx(taker, order, tokenId),
-        exchangeKind: ExchangeKind.COLLECTION,
+        exchangeKind: ExchangeKind.COLLECTION_XYZ,
       };
     } else if (kind === "element") {
       order = order as Sdk.Element.Order;

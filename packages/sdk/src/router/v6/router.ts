@@ -34,7 +34,7 @@ import RouterAbi from "./abis/ReservoirV6_0_1.json";
 // Misc
 import ApprovalProxyAbi from "./abis/ApprovalProxy.json";
 // Modules
-import CollectionModuleAbi from "./abis/CollectionModule.json";
+import CollectionModuleAbi from "./abis/CollectionXyzModule.json";
 import ElementModuleAbi from "./abis/ElementModule.json";
 import FoundationModuleAbi from "./abis/FoundationModule.json";
 import LooksRareV2ModuleAbi from "./abis/LooksRareV2Module.json";
@@ -1668,7 +1668,7 @@ export class Router {
 
     // Handle Collection listings
     if (collectionDetails.length) {
-      const orders = collectionDetails.map((d) => d.order as Sdk.Collection.Order);
+      const orders = collectionDetails.map((d) => d.order as Sdk.CollectionXyz.Order);
       const module = this.contracts.collectionModule;
 
       const fees = getFees(collectionDetails);
@@ -1690,7 +1690,7 @@ export class Router {
       executions.push({
         module: module.address,
         data: module.interface.encodeFunctionData("buyWithETH", [
-          collectionDetails.map((d) => (d.order as Sdk.Collection.Order).params.pool),
+          collectionDetails.map((d) => (d.order as Sdk.CollectionXyz.Order).params.pool),
           collectionDetails.map((d) => d.tokenId),
           Math.floor(Date.now() / 1000) + 10 * 60,
           {
@@ -3415,7 +3415,7 @@ export class Router {
         }
 
         case "collection": {
-          const order = detail.order as Sdk.Collection.Order;
+          const order = detail.order as Sdk.CollectionXyz.Order;
           const module = this.contracts.collectionModule;
 
           executionsWithDetails.push({

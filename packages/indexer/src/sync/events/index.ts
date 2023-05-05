@@ -230,8 +230,8 @@ export const extractEventsBatches = async (
             data: kindToEvents.get("looks-rare-v2") ?? [],
           },
           {
-            kind: "collection",
-            data: kindToEvents.get("collection") ?? [],
+            kind: "collectionxyz",
+            data: kindToEvents.get("collectionxyz") ?? [],
           },
         ];
 

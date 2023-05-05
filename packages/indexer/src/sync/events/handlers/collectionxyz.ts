@@ -8,8 +8,8 @@ import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import { baseProvider } from "@/common/provider";
-import { acceptsTokenIds } from "@/events-sync/data/collection";
-import { getOrderId, getPoolDetails } from "@/orderbook/orders/collection";
+import { acceptsTokenIds } from "@/events-sync/data/collectionxyz";
+import { getOrderId, getPoolDetails } from "@/orderbook/orders/collectionxyz";
 
 /**
  * Convert 0x hex string to 32 byte Uint8Array
@@ -41,7 +41,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   for (const { subKind, baseEventParams, log } of events) {
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
-      case "collection-swap-nft-out-pool": {
+      case "collectionxyz-swap-nft-out-pool": {
         const swapTokenForAnyNFTs = "0x28b8aee1";
         const swapTokenForSpecificNFTs = "0x6d8b99f7";
 
@@ -49,7 +49,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const address = baseEventParams.address;
 
         onChainData.orders.push({
-          kind: "collection",
+          kind: "collectionxyz",
           info: {
             orderParams: {
               pool: baseEventParams.address,
@@ -72,7 +72,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        // Search for the corresponding internal call to the Collection pool
+        // Search for the corresponding internal call to the collectionxyz pool
         const tradeRank = trades.buy.get(`${txHash}-${address}`) ?? 0;
         const poolCallTrace = searchForCall(
           txTrace.calls,
@@ -87,7 +87,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         if (poolCallTrace?.output === "0x") {
           // Sometimes there can be upstream bugs and the call's output gets truncated
           logger.error(
-            "collection-events-handler",
+            "collectionxyz-events-handler",
             `Trace missing output: ${baseEventParams.block} - ${baseEventParams.txHash}`
           );
         }
@@ -126,7 +126,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             .toString();
 
           // Handle: attribution
-          const orderKind = "collection";
+          const orderKind = "collectionxyz";
           const attributionData = await utils.extractAttributionData(
             baseEventParams.txHash,
             orderKind
@@ -174,7 +174,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             });
 
             onChainData.fillInfos.push({
-              context: `collection-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
+              context: `collectionxyz-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
               orderSide: "sell", // Pool is selling to taker
               contract: pool.nft,
               tokenId: tokenId,
@@ -206,14 +206,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      case "collection-swap-nft-in-pool": {
+      case "collectionxyz-swap-nft-in-pool": {
         const swapNFTsForToken = "0xa6ad64b2";
 
         const txHash = baseEventParams.txHash;
         const address = baseEventParams.address;
 
         onChainData.orders.push({
-          kind: "collection",
+          kind: "collectionxyz",
           info: {
             orderParams: {
               pool: baseEventParams.address,
@@ -233,7 +233,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           break;
         }
 
-        // Search for the corresponding internal call to the Collection pool
+        // Search for the corresponding internal call to the collectionxyz pool
         const tradeRank = trades.sell.get(`${txHash}-${address}`) ?? 0;
         const poolCallTrace = searchForCall(
           txTrace.calls,
@@ -244,7 +244,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         if (poolCallTrace?.output === "0x") {
           // Sometimes there can be upstream bugs and the call's output gets truncated
           logger.error(
-            "collection-events-handler",
+            "collectionxyz-events-handler",
             `Trace missing output: ${baseEventParams.block} - ${baseEventParams.txHash}`
           );
         }
@@ -275,7 +275,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               .toString();
 
             // Handle: attribution
-            const orderKind = "collection";
+            const orderKind = "collectionxyz";
             const attributionData = await utils.extractAttributionData(
               baseEventParams.txHash,
               orderKind
@@ -323,7 +323,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               });
 
               onChainData.fillInfos.push({
-                context: `collection-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
+                context: `collectionxyz-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
                 orderSide: "buy", // Pool is buying from taker
                 contract: pool.nft,
                 tokenId: tokenId,
@@ -356,7 +356,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      case "collection-new-pool": {
+      case "collectionxyz-new-pool": {
         const parsedLog = eventData.abi.parseLog(log);
         const pool = parsedLog.args["poolAddress"].toLowerCase();
 
@@ -377,7 +377,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const encodedTokenIds = hexToBytes(acceptsTokenIdsLog?.args["_data"] ?? "0x");
 
         onChainData.orders.push({
-          kind: "collection",
+          kind: "collectionxyz",
           info: {
             orderParams: {
               pool,
@@ -394,12 +394,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
-      case "collection-accepts-token-ids": {
+      case "collectionxyz-accepts-token-ids": {
         const parsedLog = eventData.abi.parseLog(log);
         const encodedTokenIds = hexToBytes(parsedLog.args["_data"] ?? "0x");
 
         onChainData.orders.push({
-          kind: "collection",
+          kind: "collectionxyz",
           info: {
             orderParams: {
               pool: baseEventParams.address,
@@ -416,24 +416,24 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
-      case "collection-accrued-trade-fee-withdrawal":
-      case "collection-spot-price-update":
-      case "collection-delta-update":
-      case "collection-props-update":
-      case "collection-state-update":
-      case "collection-royalty-numerator-update":
-      case "collection-royalty-recipient-fallback-update":
-      case "collection-external-filter-set":
-      case "collection-fee-update":
-      case "collection-protocol-fee-multiplier-update":
-      case "collection-carry-fee-multiplier-update":
-      case "collection-asset-recipient-change":
-      case "collection-token-deposit":
-      case "collection-token-withdrawal":
-      case "collection-nft-deposit":
-      case "collection-nft-withdrawal": {
+      case "collectionxyz-accrued-trade-fee-withdrawal":
+      case "collectionxyz-spot-price-update":
+      case "collectionxyz-delta-update":
+      case "collectionxyz-props-update":
+      case "collectionxyz-state-update":
+      case "collectionxyz-royalty-numerator-update":
+      case "collectionxyz-royalty-recipient-fallback-update":
+      case "collectionxyz-external-filter-set":
+      case "collectionxyz-fee-update":
+      case "collectionxyz-protocol-fee-multiplier-update":
+      case "collectionxyz-carry-fee-multiplier-update":
+      case "collectionxyz-asset-recipient-change":
+      case "collectionxyz-token-deposit":
+      case "collectionxyz-token-withdrawal":
+      case "collectionxyz-nft-deposit":
+      case "collectionxyz-nft-withdrawal": {
         onChainData.orders.push({
-          kind: "collection",
+          kind: "collectionxyz",
           info: {
             orderParams: {
               pool: baseEventParams.address,

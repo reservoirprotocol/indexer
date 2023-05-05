@@ -6,7 +6,7 @@ import * as erc1155 from "@/events-sync/data/erc1155";
 
 import * as bendDao from "@/events-sync/data/bend-dao";
 import * as blur from "@/events-sync/data/blur";
-import * as collection from "@/events-sync/data/collection";
+import * as collectionxyz from "@/events-sync/data/collectionxyz";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
 import * as decentraland from "@/events-sync/data/decentraland";
 import * as element from "@/events-sync/data/element";
@@ -50,7 +50,7 @@ export type EventKind =
   | "erc1155"
   | "bend-dao"
   | "blur"
-  | "collection"
+  | "collectionxyz"
   | "cryptopunks"
   | "decentraland"
   | "element"
@@ -205,26 +205,26 @@ export type EventSubKind =
   | "looks-rare-v2-subset-nonces-cancelled"
   | "looks-rare-v2-taker-ask"
   | "looks-rare-v2-taker-bid"
-  | "collection-new-pool"
-  | "collection-token-deposit"
-  | "collection-token-withdrawal"
-  | "collection-nft-deposit"
-  | "collection-nft-withdrawal"
-  | "collection-accrued-trade-fee-withdrawal"
-  | "collection-accepts-token-ids"
-  | "collection-swap-nft-in-pool"
-  | "collection-swap-nft-out-pool"
-  | "collection-spot-price-update"
-  | "collection-delta-update"
-  | "collection-props-update"
-  | "collection-state-update"
-  | "collection-royalty-numerator-update"
-  | "collection-royalty-recipient-fallback-update"
-  | "collection-external-filter-set"
-  | "collection-fee-update"
-  | "collection-protocol-fee-multiplier-update"
-  | "collection-carry-fee-multiplier-update"
-  | "collection-asset-recipient-change";
+  | "collectionxyz-new-pool"
+  | "collectionxyz-token-deposit"
+  | "collectionxyz-token-withdrawal"
+  | "collectionxyz-nft-deposit"
+  | "collectionxyz-nft-withdrawal"
+  | "collectionxyz-accrued-trade-fee-withdrawal"
+  | "collectionxyz-accepts-token-ids"
+  | "collectionxyz-swap-nft-in-pool"
+  | "collectionxyz-swap-nft-out-pool"
+  | "collectionxyz-spot-price-update"
+  | "collectionxyz-delta-update"
+  | "collectionxyz-props-update"
+  | "collectionxyz-state-update"
+  | "collectionxyz-royalty-numerator-update"
+  | "collectionxyz-royalty-recipient-fallback-update"
+  | "collectionxyz-external-filter-set"
+  | "collectionxyz-fee-update"
+  | "collectionxyz-protocol-fee-multiplier-update"
+  | "collectionxyz-carry-fee-multiplier-update"
+  | "collectionxyz-asset-recipient-change";
 
 export type EventData = {
   kind: EventKind;
@@ -360,26 +360,26 @@ const allEventData = [
   zeroExV2.fill,
   zeroExV3.fill,
   treasure.itemSold,
-  collection.acceptsTokenIds,
-  collection.accruedTradeFeeWithdrawal,
-  collection.assetRecipientChange,
-  collection.carryFeeMultiplierUpdate,
-  collection.deltaUpdate,
-  collection.externalFilterSet,
-  collection.feeUpdate,
-  collection.newPool,
-  collection.nftDeposit,
-  collection.nftWithdrawal,
-  collection.propsUpdate,
-  collection.protocolFeeMultiplierUpdate,
-  collection.royaltyNumeratorUpdate,
-  collection.royaltyRecipientFallbackUpdate,
-  collection.spotPriceUpdate,
-  collection.stateUpdate,
-  collection.swapNftInPool,
-  collection.swapNftOutPool,
-  collection.tokenDeposit,
-  collection.tokenWithdrawal,
+  collectionxyz.acceptsTokenIds,
+  collectionxyz.accruedTradeFeeWithdrawal,
+  collectionxyz.assetRecipientChange,
+  collectionxyz.carryFeeMultiplierUpdate,
+  collectionxyz.deltaUpdate,
+  collectionxyz.externalFilterSet,
+  collectionxyz.feeUpdate,
+  collectionxyz.newPool,
+  collectionxyz.nftDeposit,
+  collectionxyz.nftWithdrawal,
+  collectionxyz.propsUpdate,
+  collectionxyz.protocolFeeMultiplierUpdate,
+  collectionxyz.royaltyNumeratorUpdate,
+  collectionxyz.royaltyRecipientFallbackUpdate,
+  collectionxyz.spotPriceUpdate,
+  collectionxyz.stateUpdate,
+  collectionxyz.swapNftInPool,
+  collectionxyz.swapNftOutPool,
+  collectionxyz.tokenDeposit,
+  collectionxyz.tokenWithdrawal,
 ];
 
 export const getEventData = (events?: string[]) => {

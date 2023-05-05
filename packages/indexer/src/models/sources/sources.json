@@ -63,6 +63,17 @@
       "tokenUrlGoerli": "https://knny.vercel.app/${contract}/${tokenId}"
     }
   },
+  "7": {
+    "domain": "collection.xyz",
+    "domainHash": "0x5209c05f",
+    "name": "CollectionXyz",
+    "address": "0x439756b5a2c21ae29c3ed1713bf6d6c91063ae3e",
+    "data": {
+      "icon": "https://collection.xyz/logo.svg",
+      "tokenUrlMainnet": "https://api.collection.xyz/networks/1/collections/0x03b51826a4868780db375ee27e5b0adaac5274ee/lp-tokens/{tokenId}",
+      "tokenUrlGoerli": "https://api.collection.xyz/networks/5/collections/0x6e3e4e843e1ed2269b30f13e9057269253a279f8/lp-tokens/{tokenId}"
+    }
+  },
   "12": {
     "domain": "foundation.app",
     "domainHash": "0x3ce1433b",

@@ -200,8 +200,8 @@ export type GenericOrderInfo =
       ingestMethod?: "websocket" | "rest";
     }
   | {
-      kind: "collection";
-      info: orders.collection.OrderInfo;
+      kind: "collectionxyz";
+      info: orders.collectionxyz.OrderInfo;
       relayToArweave?: boolean;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
@@ -308,7 +308,7 @@ export const jobProcessor = async (job: Job) => {
         break;
       }
 
-      case "collection": {
+      case "collectionxyz": {
         // BullMQ serialization + deserialization causes Uint8Array to default
         // to an object representation of an iterable. Cast it back from the
         // object values
@@ -318,7 +318,7 @@ export const jobProcessor = async (job: Job) => {
         if (encodedTokenIds && typeof encodedTokenIds === "object") {
           info.orderParams.encodedTokenIds = new Uint8Array(Object.values(encodedTokenIds));
         }
-        result = await orders.collection.save([info]);
+        result = await orders.collectionxyz.save([info]);
         break;
       }
     }

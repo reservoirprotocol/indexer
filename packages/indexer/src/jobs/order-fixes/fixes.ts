@@ -356,7 +356,7 @@ if (config.doBackgroundWork) {
                   break;
                 }
 
-                case "collection": {
+                case "collectionxyz": {
                   try {
                     if (result.side === "sell") {
                       const [, , tokenId] = result.token_set_id.split(":");

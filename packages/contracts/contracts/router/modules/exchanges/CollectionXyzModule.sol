@@ -6,16 +6,16 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import {BaseExchangeModule} from "./BaseExchangeModule.sol";
 import {BaseModule} from "../BaseModule.sol";
-import {ICollectionPool, ICollectionRouter} from "../../../interfaces/ICollection.sol";
+import {ICollectionPool, ICollectionRouter} from "../../../interfaces/ICollectionXyz.sol";
 
-struct CollectionOrderParams {
+struct CollectionXyzOrderParams {
   uint256 nftId;
   bytes32[] proofs;
   bool[] proofFlags;
   bytes externalFilterContext;
 }
 
-contract CollectionModule is BaseExchangeModule {
+contract CollectionXyzModule is BaseExchangeModule {
   // --- Fields ---
 
   ICollectionRouter public immutable COLLECTION_ROUTER;
@@ -38,7 +38,7 @@ contract CollectionModule is BaseExchangeModule {
 
   function buyWithETH(
     ICollectionPool[] calldata pools,
-    CollectionOrderParams[] calldata orderParams,
+    CollectionXyzOrderParams[] calldata orderParams,
     uint256 deadline,
     ETHListingParams calldata params,
     Fee[] calldata fees
@@ -52,10 +52,15 @@ contract CollectionModule is BaseExchangeModule {
     uint256 poolsLength = pools.length;
     for (uint256 i; i < poolsLength; ) {
       // Build router data
-      ICollectionRouter.PoolSwapSpecific[] memory swapList = new ICollectionRouter.PoolSwapSpecific[](
-        1
-      );
-      swapList[0] = ICollectionRouter.PoolSwapSpecific({pool: pools[i], nftIds: new uint256[](1), proofs: orderParams[i].proofs, proofFlags: orderParams[i].proofFlags, externalFilterContext: orderParams[i].externalFilterContext });
+      ICollectionRouter.PoolSwapSpecific[]
+        memory swapList = new ICollectionRouter.PoolSwapSpecific[](1);
+      swapList[0] = ICollectionRouter.PoolSwapSpecific({
+        pool: pools[i],
+        nftIds: new uint256[](1),
+        proofs: orderParams[i].proofs,
+        proofFlags: orderParams[i].proofFlags,
+        externalFilterContext: orderParams[i].externalFilterContext
+      });
       swapList[0].nftIds[0] = orderParams[i].nftId;
 
       // Fetch the current price quote
@@ -85,7 +90,7 @@ contract CollectionModule is BaseExchangeModule {
 
   function buyWithERC20(
     ICollectionPool[] calldata pools,
-    CollectionOrderParams[] calldata orderParams,
+    CollectionXyzOrderParams[] calldata orderParams,
     uint256 deadline,
     ERC20ListingParams calldata params,
     Fee[] calldata fees
@@ -102,10 +107,15 @@ contract CollectionModule is BaseExchangeModule {
     uint256 poolsLength = pools.length;
     for (uint256 i; i < poolsLength; ) {
       // Build router data
-      ICollectionRouter.PoolSwapSpecific[] memory swapList = new ICollectionRouter.PoolSwapSpecific[](
-        1
-      );
-      swapList[0] = ICollectionRouter.PoolSwapSpecific({pool: pools[i], nftIds: new uint256[](1), proofs: orderParams[i].proofs, proofFlags: orderParams[i].proofFlags, externalFilterContext: orderParams[i].externalFilterContext });
+      ICollectionRouter.PoolSwapSpecific[]
+        memory swapList = new ICollectionRouter.PoolSwapSpecific[](1);
+      swapList[0] = ICollectionRouter.PoolSwapSpecific({
+        pool: pools[i],
+        nftIds: new uint256[](1),
+        proofs: orderParams[i].proofs,
+        proofFlags: orderParams[i].proofFlags,
+        externalFilterContext: orderParams[i].externalFilterContext
+      });
       swapList[0].nftIds[0] = orderParams[i].nftId;
 
       // Fetch the current price quote
@@ -130,7 +140,7 @@ contract CollectionModule is BaseExchangeModule {
 
   function sell(
     ICollectionPool pool,
-    CollectionOrderParams calldata orderParams,
+    CollectionXyzOrderParams calldata orderParams,
     uint256 minOutput,
     uint256 deadline,
     OfferParams calldata params,
@@ -142,8 +152,16 @@ contract CollectionModule is BaseExchangeModule {
     _approveERC721IfNeeded(collection, address(COLLECTION_ROUTER));
 
     // Build router data
-    ICollectionRouter.PoolSwapSpecific[] memory swapList = new ICollectionRouter.PoolSwapSpecific[](1);
-      swapList[0] = ICollectionRouter.PoolSwapSpecific({pool: pool, nftIds: new uint256[](1), proofs: orderParams.proofs, proofFlags: orderParams.proofFlags, externalFilterContext: orderParams.externalFilterContext });
+    ICollectionRouter.PoolSwapSpecific[] memory swapList = new ICollectionRouter.PoolSwapSpecific[](
+      1
+    );
+    swapList[0] = ICollectionRouter.PoolSwapSpecific({
+      pool: pool,
+      nftIds: new uint256[](1),
+      proofs: orderParams.proofs,
+      proofFlags: orderParams.proofFlags,
+      externalFilterContext: orderParams.externalFilterContext
+    });
     swapList[0].nftIds[0] = orderParams.nftId;
 
     // Execute fill

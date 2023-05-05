@@ -98,7 +98,7 @@ export type GenericOrder =
     }
   | {
       kind: "collection";
-      order: Sdk.Collection.Order;
+      order: Sdk.CollectionXyz.Order;
     }
   | {
       kind: "zora";

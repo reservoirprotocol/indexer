@@ -37,7 +37,7 @@ const generateMerkleTree = (tokenIds: BigNumberish[]) => {
   return new MerkleTree(leaves, keccakWithoutTypes, { sort: true });
 };
 
-const factoryAddress = Sdk.Collection.Addresses.CollectionPoolFactory[config.chainId];
+const factoryAddress = Sdk.CollectionXyz.Addresses.CollectionPoolFactory[config.chainId];
 
 export type OrderInfo = {
   orderParams: {
@@ -234,7 +234,7 @@ const computeRoyaltyInfo = async (
  */
 export const getPoolDetails = async (address: string) =>
   getCollectionPool(address).catch(async () => {
-    if (Sdk.Collection.Addresses.CollectionPoolFactory[config.chainId]) {
+    if (Sdk.CollectionXyz.Addresses.CollectionPoolFactory[config.chainId]) {
       const poolIface = new Interface([
         "function nft() public pure returns (address)",
         "function token() public pure returns (address)",
@@ -253,7 +253,7 @@ export const getPoolDetails = async (address: string) =>
         const token = poolVariant > 1 ? (await pool.token()).toLowerCase() : AddressZero;
 
         const factory = new Contract(
-          Sdk.Collection.Addresses.CollectionPoolFactory[config.chainId],
+          Sdk.CollectionXyz.Addresses.CollectionPoolFactory[config.chainId],
           new Interface([
             "function isPoolVariant(address potentialPool, uint8 variant) public view returns (bool)",
           ]),
@@ -281,9 +281,9 @@ export const getPoolDetails = async (address: string) =>
 export const getOrderId = (pool: string, side: "sell" | "buy", tokenId?: string) =>
   side === "buy"
     ? // Buy orders have a single order id per pool
-      keccak256(["string", "address", "string"], ["collection", pool, side])
+      keccak256(["string", "address", "string"], ["collectionxyz", pool, side])
     : // Sell orders have multiple order ids per pool (one for each potential token id)
-      keccak256(["string", "address", "string", "uint256"], ["collection", pool, side, tokenId]);
+      keccak256(["string", "address", "string", "uint256"], ["collectionxyz", pool, side, tokenId]);
 
 export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
@@ -361,13 +361,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           if (currencyPrice.lte(tokenBalance)) {
             // Determine how many NFTs can be bought (though the price will
             // increase with each unit)
-            let numBuyableNFTs = 0;
+            let numBuyableNFTs = 1;
             // Hardcoded limit in case there's way too much liquidity
             while (numBuyableNFTs < 10) {
               const { totalAmount }: { totalAmount: BigNumber } =
-                await poolContract.getSellNFTQuote(1);
+                await poolContract.getSellNFTQuote(numBuyableNFTs);
 
-              if (tokenBalance.lt(totalAmount)) {
+              if (tokenBalance.lte(totalAmount)) {
                 break;
               }
 
@@ -412,7 +412,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             }
 
             // Prepare raw order data
-            const sdkOrder: Sdk.Collection.Order = new Sdk.Collection.Order(config.chainId, {
+            const sdkOrder: Sdk.CollectionXyz.Order = new Sdk.CollectionXyz.Order(config.chainId, {
               pool: orderParams.pool,
               externalFilter: externalFilterAddress,
               extra: {
@@ -524,7 +524,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
               orderValues.push({
                 id,
-                kind: "collection",
+                kind: "collectionxyz",
                 side: "buy",
                 fillability_status: "fillable",
                 approval_status: "approved",
@@ -646,7 +646,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         }
       } catch (error) {
         logger.error(
-          "orders-collection-save",
+          "orders-collectionxyz-save",
           `Failed to handle buy order with params ${JSON.stringify(orderParams)}: ${error}`
         );
       }
@@ -716,13 +716,16 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   }
 
                   // Handle: core sdk order
-                  const sdkOrder: Sdk.Collection.Order = new Sdk.Collection.Order(config.chainId, {
-                    pool: orderParams.pool,
-                    externalFilter: externalFilterAddress,
-                    extra: {
-                      prices: [],
-                    },
-                  });
+                  const sdkOrder: Sdk.CollectionXyz.Order = new Sdk.CollectionXyz.Order(
+                    config.chainId,
+                    {
+                      pool: orderParams.pool,
+                      externalFilter: externalFilterAddress,
+                      extra: {
+                        prices: [],
+                      },
+                    }
+                  );
 
                   const orderResult = await redb.oneOrNone(
                     `
@@ -756,7 +759,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
                     orderValues.push({
                       id,
-                      kind: "collection",
+                      kind: "collectionxyz",
                       side: "sell",
                       fillability_status: "fillable",
                       approval_status: "approved",
@@ -856,13 +859,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         }
       } catch (error) {
         logger.error(
-          "orders-collection-save",
+          "orders-collectionxyz-save",
           `Failed to handle sell order with params ${JSON.stringify(orderParams)}: ${error}`
         );
       }
     } catch (error) {
       logger.error(
-        "orders-collection-save",
+        "orders-collectionxyz-save",
         `Failed to handle order with params ${JSON.stringify(orderParams)}: ${error}`
       );
     }

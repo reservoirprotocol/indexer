@@ -13,7 +13,7 @@ ALTER TABLE "collection_pools"
   ADD CONSTRAINT "collection_pools_pk"
   PRIMARY KEY ("address");
 
-ALTER TYPE "order_kind_t" ADD VALUE 'collection';
+ALTER TYPE "order_kind_t" ADD VALUE 'collectionxyz';
 
 -- Down Migration
 

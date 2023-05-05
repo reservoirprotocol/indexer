@@ -137,7 +137,7 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct CollectionOrderParams[]",
+        "internalType": "struct CollectionXyzOrderParams[]",
         "name": "orderParams",
         "type": "tuple[]"
       },
@@ -231,7 +231,7 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct CollectionOrderParams[]",
+        "internalType": "struct CollectionXyzOrderParams[]",
         "name": "orderParams",
         "type": "tuple[]"
       },
@@ -423,7 +423,7 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct CollectionOrderParams",
+        "internalType": "struct CollectionXyzOrderParams",
         "name": "orderParams",
         "type": "tuple"
       },
