@@ -341,7 +341,7 @@ const postOrder = async (
 ) => {
   switch (orderbook) {
     case "opensea": {
-      const order = new Sdk.SeaportV14.Order(
+      const order = new Sdk.SeaportV15.Order(
         config.chainId,
         orderData as Sdk.SeaportBase.Types.OrderComponents
       );
