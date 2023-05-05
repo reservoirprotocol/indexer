@@ -133,7 +133,7 @@ export class Collections {
     await royalties.refreshDefaultRoyalties(collection.id);
 
     // Refresh Blur royalties (which get stored separately)
-    await updateBlurRoyalties(collection.id);
+    await updateBlurRoyalties(collection.id, true);
 
     // Refresh OpenSea marketplace fees
     const openseaFees = collection.openseaFees as royalties.Royalty[] | undefined;

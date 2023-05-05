@@ -6,7 +6,6 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
 import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
-import { now } from "@/common/utils";
 
 const QUEUE_NAME = "blur-bids-buffer";
 
@@ -35,10 +34,6 @@ if (config.doBackgroundWork) {
       const { collection } = job.data as { collection: string };
 
       try {
-        if (now() < 1683225215) {
-          return;
-        }
-
         // This is not 100% atomic or consistent but it covers most scenarios
         const result = await redis.hvals(getCacheKey(collection));
         if (result.length) {
@@ -81,8 +76,9 @@ export const addToQueue = async (
   collection: string,
   pricePoints: Sdk.Blur.Types.BlurBidPricePoint[]
 ) => {
-  await Promise.all(
-    pricePoints.map((pp) => redis.hset(getCacheKey(collection), pp.price, JSON.stringify(pp)))
+  await redis.hset(
+    getCacheKey(collection),
+    ...pricePoints.map((pp) => [pp.price, JSON.stringify(pp)]).flat()
   );
 
   await queue.add(
@@ -90,9 +86,7 @@ export const addToQueue = async (
     { collection },
     {
       jobId: collection,
-      repeat: {
-        every: 15 * 1000,
-      },
+      delay: 30 * 1000,
     }
   );
 };

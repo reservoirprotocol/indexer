@@ -103,7 +103,7 @@ export const jobProcessor = async (job: Job) => {
 
       logger.info(
         QUEUE_NAME,
-        `Post Order Rate Success. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+        `Post Order Success. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
           orderData
         )}, rateLimitExpiration=${rateLimitExpiration}, retry=${retry}`
       );
@@ -119,7 +119,7 @@ export const jobProcessor = async (job: Job) => {
     } catch (error) {
       if (error instanceof RequestWasThrottledError) {
         // If we got throttled by the api, reschedule job based on the provided delay.
-        const delay = Math.max(error.delay, 5);
+        const delay = Math.max(error.delay, 1000);
 
         try {
           await rateLimiter.block(rateLimiterKey, Math.floor(delay / 1000));
@@ -129,23 +129,6 @@ export const jobProcessor = async (job: Job) => {
             `Unable to set expiration. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
               orderData
             )}, retry=${retry}, delay=${delay}, error=${error}`
-          );
-        }
-
-        if (
-          orderbook === "opensea" &&
-          orderbookApiKey === config.openSeaApiKey &&
-          config.openSeaCrossPostingApiKey
-        ) {
-          job.data.orderbookApiKey = config.openSeaCrossPostingApiKey;
-
-          logger.info(
-            QUEUE_NAME,
-            `Post Order Throttled - Switching Api Key. orderbook=${orderbook}, orderbookApiKey=${orderbookApiKey}, newOrderbookApiKey=${
-              job.data.orderbookApiKey
-            }, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
-              orderData
-            )}, delay=${delay}, retry=${retry}`
           );
         }
 

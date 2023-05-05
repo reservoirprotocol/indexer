@@ -2528,14 +2528,15 @@ export class Router {
           ...(ftTransferItems.length
             ? {
                 to: this.contracts.approvalProxy.address,
-                data: this.contracts.approvalProxy.interface.encodeFunctionData(
-                  "bulkTransferWithExecute",
-                  [
-                    ftTransferItems,
-                    executions,
-                    Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
-                  ]
-                ),
+                data:
+                  this.contracts.approvalProxy.interface.encodeFunctionData(
+                    "bulkTransferWithExecute",
+                    [
+                      ftTransferItems,
+                      executions,
+                      Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
+                    ]
+                  ) + generateSourceBytes(options?.source),
               }
             : {
                 to: this.contracts.router.address,
@@ -3656,14 +3657,12 @@ export class Router {
         txData: {
           from: taker,
           to: this.contracts.approvalProxy.address,
-          data: this.contracts.approvalProxy.interface.encodeFunctionData(
-            "bulkTransferWithExecute",
-            [
+          data:
+            this.contracts.approvalProxy.interface.encodeFunctionData("bulkTransferWithExecute", [
               nftTransferItems,
               executionsWithDetails.map(({ execution }) => execution),
               Sdk.SeaportBase.Addresses.ReservoirConduitKey[this.chainId],
-            ]
-          ),
+            ]) + generateSourceBytes(options?.source),
         },
         // Ensure approvals are unique
         approvals: uniqBy(
