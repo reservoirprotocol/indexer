@@ -1,5 +1,3 @@
-import { BigNumberish } from "@ethersproject/bignumber";
-
 export type OrderKind = "contract-wide" | "single-token" | "token-list";
 
 export enum ItemType {
@@ -16,7 +14,6 @@ export enum OrderType {
   PARTIAL_OPEN,
   FULL_RESTRICTED,
   PARTIAL_RESTRICTED,
-  CONTRACT,
 }
 
 export enum BasicOrderType {
@@ -86,7 +83,7 @@ export type OrderComponents = {
 };
 
 export type MatchParams = {
-  amount?: BigNumberish;
+  amount?: string;
   criteriaResolvers?: CriteriaResolver[];
 };
 

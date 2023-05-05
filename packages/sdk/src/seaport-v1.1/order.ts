@@ -13,6 +13,11 @@ import { BaseBuilder, BaseOrderInfo } from "../seaport-base/builders/base";
 import { IOrder, ORDER_EIP712_TYPES } from "../seaport-base/order";
 import * as Types from "../seaport-base/types";
 import { bn, getCurrentTimestamp, lc, n, s } from "../utils";
+import {
+  isPrivateOrder,
+  constructPrivateListingCounterOrder,
+  getPrivateListingFulfillments,
+} from "../seaport-base/helpers";
 
 export class Order implements IOrder {
   public chainId: number;
@@ -236,6 +241,18 @@ export class Order implements IOrder {
         }
       }
     }
+  }
+
+  public getPrivateListingFulfillments(): Types.MatchOrdersFulfillment[] {
+    return getPrivateListingFulfillments(this.params);
+  }
+
+  public isPrivateOrder() {
+    return isPrivateOrder(this.params);
+  }
+
+  public constructPrivateListingCounterOrder(privateSaleRecipient: string): Types.OrderWithCounter {
+    return constructPrivateListingCounterOrder(privateSaleRecipient, this.params);
   }
 
   // Private methods

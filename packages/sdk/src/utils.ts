@@ -12,6 +12,10 @@ export const MaxUint256 = BigNumber.from("0x" + "f".repeat(64));
 
 export const getRandomBytes = (numBytes = 32) => bn(randomBytes(numBytes));
 
+export const generateRandomSalt = () => {
+  return `0x${Buffer.from(randomBytes(8)).toString("hex").padStart(24, "0")}`;
+};
+
 // BigNumber
 
 export const bn = (value: BigNumberish) => BigNumber.from(value);

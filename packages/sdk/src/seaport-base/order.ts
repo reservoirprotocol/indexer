@@ -18,6 +18,10 @@ export interface IOrder {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getSignatureData(): any;
+
+  isPrivateOrder(): boolean;
+  constructPrivateListingCounterOrder(privateSaleRecipient: string): Types.OrderWithCounter;
+  getPrivateListingFulfillments(): Types.MatchOrdersFulfillment[];
 }
 
 export const ORDER_EIP712_TYPES = {
