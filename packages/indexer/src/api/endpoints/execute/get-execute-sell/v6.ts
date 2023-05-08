@@ -383,7 +383,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           isProtected:
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (orderResult.raw_data as any).zone ===
-            Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId],
+            Sdk.SeaportBase.Addresses.OpenSeaProtectedOffersZone[config.chainId],
         },
         {
           kind: orderResult.token_kind,
@@ -569,7 +569,7 @@ export const getExecuteSellV6Options: RouteOptions = {
 
       if (
         orderResult?.raw_data?.zone ===
-        Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId]
+        Sdk.SeaportBase.Addresses.OpenSeaProtectedOffersZone[config.chainId]
       ) {
         // Ensure the taker owns the NFTs to get sold
         const takerIsOwner = await idb.oneOrNone(

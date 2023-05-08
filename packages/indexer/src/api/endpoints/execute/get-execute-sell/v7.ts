@@ -363,7 +363,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               isProtected:
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (order.rawData as any).zone ===
-                Sdk.SeaportV14.Addresses.OpenSeaProtectedOffersZone[config.chainId],
+                Sdk.SeaportBase.Addresses.OpenSeaProtectedOffersZone[config.chainId],
             },
             {
               kind: token.kind,
