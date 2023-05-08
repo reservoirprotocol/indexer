@@ -313,12 +313,7 @@ export class RateLimitRules {
     const defaultCost = 10;
 
     for (const [routeKey, pointsData] of this.apiRoutesPoints) {
-      logger.info("points-debug", `routeKey ${routeKey} pointsData ${JSON.stringify(pointsData)}`);
       if (route.match(routeKey)) {
-        logger.info(
-          "points-debug",
-          `MATCHED routeKey ${routeKey} pointsData ${JSON.stringify(pointsData)}`
-        );
         return pointsData.points;
       }
     }
@@ -332,22 +327,13 @@ export class RateLimitRules {
     tier: number,
     apiKey = "",
     payload: Map<string, string> = new Map()
-  ): { ruleParams: RateLimitRuleEntity; rule: RateLimiterRedis } | null {
+  ): { ruleParams: RateLimitRuleEntity; rule: RateLimiterRedis; pointsToConsume: number } | null {
     const rule = this.findMostMatchingRule(route, method, tier, apiKey, payload);
 
     if (rule) {
       // If the route is blocked
       if (rule.options.points === -1) {
         throw new BlockedRouteError(`Request to ${route} is currently suspended`);
-      }
-
-      // If no specific points to consume
-      if (!rule.options.pointsToConsume) {
-        rule.options.pointsToConsume = this.getPointsToConsume(route);
-        logger.info(
-          "points-debug",
-          `MATCHED route ${route} pointsToConsume ${rule.options.pointsToConsume}`
-        );
       }
 
       const rateLimitObject = this.rules.get(rule.id);
@@ -358,6 +344,7 @@ export class RateLimitRules {
         return {
           ruleParams: rule,
           rule: rateLimitObject,
+          pointsToConsume: rule.options.pointsToConsume || this.getPointsToConsume(route),
         };
       }
     }
