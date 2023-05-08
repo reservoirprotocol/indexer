@@ -766,8 +766,10 @@ export const getExecuteSellV7Options: RouteOptions = {
         });
 
         item.totalQuote =
-          item.quote + amount + item.builtInFees.map((f) => f.amount).reduce((a, b) => a + b, 0);
-        item.totalRawQuote = bn(item.rawQuote)
+          (item.totalQuote ?? item.quote) +
+          amount +
+          item.builtInFees.map((f) => f.amount).reduce((a, b) => a + b, 0);
+        item.totalRawQuote = bn(item.totalRawQuote ?? item.rawQuote)
           .add(rawAmount)
           .add(item.builtInFees.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)))
           .toString();
@@ -777,7 +779,7 @@ export const getExecuteSellV7Options: RouteOptions = {
       };
 
       for (const item of path) {
-        if (ordersEligibleForGlobalFees.includes(item.orderId)) {
+        if (globalFees.length && ordersEligibleForGlobalFees.includes(item.orderId)) {
           for (const f of globalFees) {
             await addGlobalFee(item, f);
           }

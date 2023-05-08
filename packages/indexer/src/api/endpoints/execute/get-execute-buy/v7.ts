@@ -722,15 +722,17 @@ export const getExecuteBuyV7Options: RouteOptions = {
           rawAmount,
         });
 
-        item.totalQuote = item.quote + amount;
-        item.totalRawQuote = bn(item.rawQuote).add(rawAmount).toString();
+        item.totalQuote = (item.totalQuote ?? item.quote) + amount;
+        item.totalRawQuote = bn(item.totalRawQuote ?? item.rawQuote)
+          .add(rawAmount)
+          .toString();
 
         // item.quote += amount;
         // item.rawQuote = bn(item.rawQuote).add(rawAmount).toString();
       };
 
       for (const item of path) {
-        if (ordersEligibleForGlobalFees.includes(item.orderId)) {
+        if (globalFees.length && ordersEligibleForGlobalFees.includes(item.orderId)) {
           for (const f of globalFees) {
             await addGlobalFee(item, f);
           }
