@@ -480,7 +480,7 @@ export const getOrdersBidsV3Options: RouteOptions = {
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
           createdAt: new Date(r.created_at * 1000).toISOString(),
-          updatedAt: new Date(r.updated_at).toISOString(),
+          updatedAt: new Date(r.updated_at * 1000).toISOString(),
           rawData: query.includeRawData ? r.raw_data : undefined,
         };
       });

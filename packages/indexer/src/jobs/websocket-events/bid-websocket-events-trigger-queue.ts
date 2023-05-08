@@ -13,7 +13,7 @@ import { getJoiPriceObject } from "@/common/joi";
 import { fromBuffer, getNetAmount } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { redisWebsocketPublisher } from "@/common/redis";
+import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { Orders } from "@/utils/orders";
 import { TriggerKind } from "../order-updates/types";
 
@@ -162,16 +162,13 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
         const eventType = data.kind === "new-order" ? "bid.created" : "bid.updated";
 
-        await redisWebsocketPublisher.publish(
-          "events",
-          JSON.stringify({
-            event: eventType,
-            tags: {
-              contract: fromBuffer(rawResult.contract),
-            },
-            data: result,
-          })
-        );
+        await publishWebsocketEvent({
+          event: eventType,
+          tags: {
+            contract: fromBuffer(rawResult.contract),
+          },
+          data: result,
+        });
       } catch (error) {
         logger.error(
           QUEUE_NAME,

@@ -29,6 +29,10 @@ export const OriginConduitKey: ChainIdToAddress = {
   [Network.Polygon]: "0x52b868f7b0d20b689d059ab141677c673d5d2b7e000000000000000000000000",
 };
 
+export const SpaceIdConduitKey: ChainIdToAddress = {
+  [Network.Ethereum]: "0x0e76a6dc9af8080b48c51e564e964cd15b9d6664000100000000000000000000",
+};
+
 export const ConduitController: ChainIdToAddress = {
   [Network.Ethereum]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.EthereumGoerli]: "0x00000000f9490004c11cef243f5400493c00ad63",
@@ -63,4 +67,23 @@ export const OperatorFilterRegistry: ChainIdToAddress = {
   [Network.Polygon]: "0x000000000000aaeb6d7670e522a718067333cd4e",
   [Network.Arbitrum]: "0x000000000000aaeb6d7670e522a718067333cd4e",
   [Network.Avalanche]: "0x000000000000aaeb6d7670e522a718067333cd4e",
+};
+
+// Zones
+
+export const OpenSeaProtectedOffersZone: ChainIdToAddress = {
+  [Network.Ethereum]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.EthereumGoerli]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Bsc]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Optimism]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Gnosis]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Polygon]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Arbitrum]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+  [Network.Avalanche]: "0x000000e7ec00e7b300774b00001314b8610022b8",
+};
+
+// TODO: Deploy to all other supported networks
+export const ReservoirCancellationZone: ChainIdToAddress = {
+  [Network.Ethereum]: "0xaa0e012d35cf7d6ecb6c2bf861e71248501d3226",
+  [Network.EthereumGoerli]: "0x49b91d1d7b9896d28d370b75b92c2c78c1ac984a",
 };

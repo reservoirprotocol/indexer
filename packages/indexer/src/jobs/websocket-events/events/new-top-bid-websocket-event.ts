@@ -2,10 +2,11 @@ import { idb, redb } from "@/common/db";
 import { formatEth, fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import _ from "lodash";
-import { redis, redisWebsocketPublisher } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Sources } from "@/models/sources";
 import { getJoiPriceObject } from "@/common/joi";
+import { publishWebsocketEvent } from "@/common/websocketPublisher";
 
 export class NewTopBidWebsocketEvent {
   public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
@@ -139,16 +140,13 @@ export class NewTopBidWebsocketEvent {
     try {
       await Promise.all(
         payloads.map((payload) =>
-          redisWebsocketPublisher.publish(
-            "events",
-            JSON.stringify({
-              event: "top-bid.changed",
-              tags: {
-                contract: fromBuffer(order.contract),
-              },
-              data: payload,
-            })
-          )
+          publishWebsocketEvent({
+            event: "top-bid.changed",
+            tags: {
+              contract: fromBuffer(order.contract),
+            },
+            data: payload,
+          })
         )
       );
     } catch (e) {

@@ -48,6 +48,7 @@ import * as backfillNftBalancesLastTokenAppraisalValue from "@/jobs/backfill/bac
 import * as backfillCancelEventsCreatedAt from "@/jobs/backfill/backfill-cancel-events-created-at";
 import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
 import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
+import * as backfillZeroAddressBalance from "@/jobs/backfill/backfill-zero-address-balance";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -187,6 +188,7 @@ export const allJobQueues = [
   backfillCancelEventsCreatedAt.queue,
   backfillNftTransferEventsCreatedAt.queue,
   backfillCollectionsRoyalties.queue,
+  backfillZeroAddressBalance.queue,
 
   currencies.queue,
 
