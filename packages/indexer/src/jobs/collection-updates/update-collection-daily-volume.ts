@@ -3,7 +3,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
-import { idb } from "@/common/db";
+import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { fromUnixTime, getUnixTime, add } from "date-fns";
 import { DailyVolume } from "@/models/daily-volumes/daily-volume";
@@ -45,7 +45,7 @@ if (config.doBackgroundWork) {
         LIMIT 1
       `;
 
-      const result = await idb.oneOrNone(query, {
+      const result = await redb.oneOrNone(query, {
         newCollectionId,
         contract: toBuffer(contract),
       });

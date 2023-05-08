@@ -165,6 +165,8 @@ if (config.doBackgroundWork) {
         }))
       );
 
+      job.data.addToQueue = false;
+
       // If there are potentially more tokens to process trigger another job
       if (rateLimitExpiredIn || _.size(refreshTokensBySlug) == countTotal || retry) {
         if (await extendLock(getLockName(method), 60 * 5 + rateLimitExpiredIn)) {
@@ -177,7 +179,8 @@ if (config.doBackgroundWork) {
             }, rateLimitExpiredIn=${rateLimitExpiredIn}, retry=${retry}, countTotal=${countTotal}`
           );
 
-          await addToQueue(rateLimitExpiredIn * 1000);
+          job.data.addToQueue = true;
+          job.data.addToQueueDelay = rateLimitExpiredIn * 1000;
         }
       } else {
         await releaseLock(getLockName(method));
@@ -188,6 +191,12 @@ if (config.doBackgroundWork) {
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
+  });
+
+  worker.on("completed", async (job) => {
+    if (job.data.addToQueue) {
+      await addToQueue(job.data.addToQueueDelay);
+    }
   });
 }
 
