@@ -1,6 +1,5 @@
-## [5.295.1](https://github.com/reservoirprotocol/indexer/compare/v5.295.0...v5.295.1) (2023-03-24)
-
+# [6.0.0-dev.23](https://github.com/reservoirprotocol/indexer/compare/v6.0.0-dev.22...v6.0.0-dev.23) (2023-03-24)
 
 ### Bug Fixes
 
-* semantic parallel runs ([784463d](https://github.com/reservoirprotocol/indexer/commit/784463db75dad57ff4776f9567856cd40295885a))
+- semantic parallel runs ([fbc4dae](https://github.com/reservoirprotocol/indexer/commit/fbc4dae96558d87640d5bc193aba7f4b91a67774))
