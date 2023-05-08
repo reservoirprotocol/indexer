@@ -313,8 +313,8 @@ export class RateLimitRules {
     const defaultCost = 10;
 
     for (const [routeKey, pointsData] of this.apiRoutesPoints) {
-      if (route.match(pointsData.route)) {
-        return Number(this.apiRoutesPoints.get(routeKey)?.points) || defaultCost;
+      if (route.match(routeKey)) {
+        return pointsData.points;
       }
     }
 
