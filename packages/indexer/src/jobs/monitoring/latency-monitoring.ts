@@ -15,7 +15,12 @@ if (config.doBackgroundWork) {
     );
 
     for (const result of results) {
-      logger.info("sales-latency", JSON.stringify(result));
+      logger.info(
+        "sales-latency",
+        JSON.stringify({
+          latency: Number(result.latency),
+        })
+      );
     }
   });
 }
