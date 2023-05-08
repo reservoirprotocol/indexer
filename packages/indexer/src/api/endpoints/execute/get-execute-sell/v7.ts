@@ -214,8 +214,8 @@ export const getExecuteSellV7Options: RouteOptions = {
         currencyDecimals?: number;
         quote: number;
         rawQuote: string;
-        totalPrice?: number;
-        totalRawPrice?: string;
+        totalPrice: number;
+        totalRawPrice: string;
         builtInFees: ExecuteFee[];
         feesOnTop: ExecuteFee[];
       }[] = [];
@@ -335,6 +335,8 @@ export const getExecuteSellV7Options: RouteOptions = {
           currencyDecimals: currency.decimals,
           quote: formatPrice(netPrice, currency.decimals, true),
           rawQuote: netPrice.toString(),
+          totalPrice: formatPrice(unitPrice, currency.decimals, true),
+          totalRawPrice: unitPrice.toString(),
           builtInFees: builtInFees.map((f) => {
             const rawAmount = unitPrice.mul(f.bps).div(10000).toString();
             const amount = formatPrice(rawAmount, currency.decimals);
@@ -765,15 +767,6 @@ export const getExecuteSellV7Options: RouteOptions = {
           rawAmount,
         });
 
-        item.totalPrice =
-          (item.totalPrice ?? item.quote) +
-          amount +
-          item.builtInFees.map((f) => f.amount).reduce((a, b) => a + b, 0);
-        item.totalRawPrice = bn(item.totalRawPrice ?? item.rawQuote)
-          .add(rawAmount)
-          .add(item.builtInFees.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)))
-          .toString();
-
         // item.quote -= amount;
         // item.rawQuote = bn(item.rawQuote).sub(rawAmount).toString();
       };
@@ -783,12 +776,6 @@ export const getExecuteSellV7Options: RouteOptions = {
           for (const f of globalFees) {
             await addGlobalFee(item, f);
           }
-        } else {
-          item.totalPrice =
-            item.quote + item.builtInFees.map((f) => f.amount).reduce((a, b) => a + b, 0);
-          item.totalRawPrice = bn(item.rawQuote)
-            .add(item.builtInFees.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)))
-            .toString();
         }
       }
 
