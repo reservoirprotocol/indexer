@@ -141,6 +141,12 @@ export const addEvents = async (events: Event[]) => {
         "updated_at" = now()
     `);
   }
+
+  if (queries.length) {
+    // No need to buffer through the write queue since there
+    // are no chances of database deadlocks in this scenario
+    await idb.none(pgp.helpers.concat(queries));
+  }
 };
 
 export const removeEvents = async (block: number, blockHash: string) => {
