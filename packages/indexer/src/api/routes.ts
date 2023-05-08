@@ -166,6 +166,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/set-api-route-points",
+    options: adminEndpoints.postSetApiRoutePoints,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/api-keys/metrics",
     options: adminEndpoints.postApiKeyMetrics,
   });

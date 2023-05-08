@@ -208,7 +208,7 @@ export const start = async (): Promise<void> => {
       const rateLimitKey =
         _.isUndefined(key) || _.isEmpty(key) || _.isNull(apiKey) ? remoteAddress : key; // If no api key or the api key is invalid use IP
 
-      const pointsToConsume = rateLimitRule.ruleParams.getPointsToConsume();
+      const pointsToConsume = rateLimitRule.ruleParams.options.pointsToConsume;
 
       try {
         if (key && tier) {
