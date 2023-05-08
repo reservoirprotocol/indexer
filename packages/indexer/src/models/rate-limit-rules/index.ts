@@ -313,7 +313,12 @@ export class RateLimitRules {
     const defaultCost = 10;
 
     for (const [routeKey, pointsData] of this.apiRoutesPoints) {
-      if (route.match(new RegExp(routeKey))) {
+      logger.info("points-debug", `routeKey ${routeKey} pointsData ${JSON.stringify(pointsData)}`);
+      if (route.match(routeKey)) {
+        logger.info(
+          "points-debug",
+          `MATCHED routeKey ${routeKey} pointsData ${JSON.stringify(pointsData)}`
+        );
         return pointsData.points;
       }
     }
@@ -339,6 +344,10 @@ export class RateLimitRules {
       // If no specific points to consume
       if (!rule.options.pointsToConsume) {
         rule.options.pointsToConsume = this.getPointsToConsume(route);
+        logger.info(
+          "points-debug",
+          `MATCHED route ${route} pointsToConsume ${rule.options.pointsToConsume}`
+        );
       }
 
       const rateLimitObject = this.rules.get(rule.id);
