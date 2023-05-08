@@ -305,6 +305,12 @@ export const getExecuteSellV6Options: RouteOptions = {
       }
 
       const sources = await Sources.getInstance();
+
+      // Save the fill source if it doesn't exist yet
+      if (payload.source) {
+        await sources.getOrInsert(payload.source);
+      }
+
       const sourceId = orderResult.source_id_int;
       const source = sourceId ? sources.get(sourceId)?.domain ?? null : null;
 

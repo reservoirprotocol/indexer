@@ -123,6 +123,7 @@ export const save = async (
           HashZero,
           Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
           Sdk.SeaportBase.Addresses.OriginConduitKey[config.chainId],
+          Sdk.SeaportBase.Addresses.SpaceIdConduitKey[config.chainId],
         ].includes(order.params.conduitKey)
       ) {
         return results.push({

@@ -29,6 +29,10 @@ export const OriginConduitKey: ChainIdToAddress = {
   [Network.Polygon]: "0x52b868f7b0d20b689d059ab141677c673d5d2b7e000000000000000000000000",
 };
 
+export const SpaceIdConduitKey: ChainIdToAddress = {
+  [Network.Ethereum]: "0x0e76a6dc9af8080b48c51e564e964cd15b9d6664000100000000000000000000",
+};
+
 export const ConduitController: ChainIdToAddress = {
   [Network.Ethereum]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.EthereumGoerli]: "0x00000000f9490004c11cef243f5400493c00ad63",
