@@ -187,8 +187,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           rawQuote: Joi.string().pattern(regex.number),
           buyInQuote: Joi.number().unsafe(),
           buyInRawQuote: Joi.string().pattern(regex.number),
-          totalQuote: Joi.number().unsafe(),
-          totalRawQuote: Joi.string().pattern(regex.number),
+          totalPrice: Joi.number().unsafe(),
+          totalRawPrice: Joi.string().pattern(regex.number),
           builtInFees: Joi.array().items(JoiExecuteFee),
           feesOnTop: Joi.array().items(JoiExecuteFee),
         })
@@ -231,8 +231,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         buyInQuote?: number;
         buyInRawQuote?: string;
         // Total price (with fees on top) = price + feesOnTop
-        totalQuote?: number;
-        totalRawQuote?: string;
+        totalPrice?: number;
+        totalRawPrice?: string;
         builtInFees: ExecuteFee[];
         feesOnTop: ExecuteFee[];
       }[] = [];
@@ -722,8 +722,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           rawAmount,
         });
 
-        item.totalQuote = (item.totalQuote ?? item.quote) + amount;
-        item.totalRawQuote = bn(item.totalRawQuote ?? item.rawQuote)
+        item.totalPrice = (item.totalPrice ?? item.quote) + amount;
+        item.totalRawPrice = bn(item.totalRawPrice ?? item.rawQuote)
           .add(rawAmount)
           .toString();
 
@@ -737,8 +737,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
             await addGlobalFee(item, f);
           }
         } else {
-          item.totalQuote = item.quote;
-          item.totalRawQuote = item.rawQuote;
+          item.totalPrice = item.quote;
+          item.totalRawPrice = item.rawQuote;
         }
       }
 
