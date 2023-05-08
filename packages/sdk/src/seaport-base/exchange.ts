@@ -473,7 +473,10 @@ export abstract class SeaportBaseExchange {
 
           return {
             // To cover the generic `matchOrders` case
-            recipientOverride,
+            recipientOverride:
+              recipientOverride && recipientOverride !== AddressZero
+                ? recipientOverride
+                : undefined,
             contract: nSpentItems[0].token,
             tokenId: nSpentItems[0].identifier,
             amount: nSpentItems[0].amount,
