@@ -170,8 +170,12 @@ export const getExecuteSellV7Options: RouteOptions = {
           currency: Joi.string().lowercase().pattern(regex.address),
           currencySymbol: Joi.string().optional(),
           currencyDecimals: Joi.number().optional(),
+          // Net price (without fees on top) = price - builtInFees
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
+          // Total price (with fees on top) = price + feesOnTop
+          totalQuote: Joi.number().unsafe(),
+          totalRawQuote: Joi.string().pattern(regex.number),
           builtInFees: Joi.array().items(JoiExecuteFee),
           feesOnTop: Joi.array().items(JoiExecuteFee),
         })
@@ -210,6 +214,8 @@ export const getExecuteSellV7Options: RouteOptions = {
         currencyDecimals?: number;
         quote: number;
         rawQuote: string;
+        totalQuote?: number;
+        totalRawQuote?: string;
         builtInFees: ExecuteFee[];
         feesOnTop: ExecuteFee[];
       }[] = [];
@@ -759,6 +765,13 @@ export const getExecuteSellV7Options: RouteOptions = {
           rawAmount,
         });
 
+        item.totalQuote =
+          item.quote + amount + item.builtInFees.map((f) => f.amount).reduce((a, b) => a + b, 0);
+        item.totalRawQuote = bn(item.rawQuote)
+          .add(rawAmount)
+          .add(item.builtInFees.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)))
+          .toString();
+
         // item.quote -= amount;
         // item.rawQuote = bn(item.rawQuote).sub(rawAmount).toString();
       };
@@ -768,6 +781,12 @@ export const getExecuteSellV7Options: RouteOptions = {
           for (const f of globalFees) {
             await addGlobalFee(item, f);
           }
+        } else {
+          item.totalQuote =
+            item.quote + item.builtInFees.map((f) => f.amount).reduce((a, b) => a + b, 0);
+          item.totalRawQuote = bn(item.rawQuote)
+            .add(item.builtInFees.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0)))
+            .toString();
         }
       }
 

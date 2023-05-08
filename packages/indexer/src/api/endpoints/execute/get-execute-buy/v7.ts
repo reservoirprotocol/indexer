@@ -187,6 +187,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           rawQuote: Joi.string().pattern(regex.number),
           buyInQuote: Joi.number().unsafe(),
           buyInRawQuote: Joi.string().pattern(regex.number),
+          totalQuote: Joi.number().unsafe(),
+          totalRawQuote: Joi.string().pattern(regex.number),
           builtInFees: Joi.array().items(JoiExecuteFee),
           feesOnTop: Joi.array().items(JoiExecuteFee),
         })
@@ -223,10 +225,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
         currency: string;
         currencySymbol?: string;
         currencyDecimals?: number;
+        // Gross price (without fees on top) = price
         quote: number;
         rawQuote: string;
         buyInQuote?: number;
         buyInRawQuote?: string;
+        // Total price (with fees on top) = price + feesOnTop
+        totalQuote?: number;
+        totalRawQuote?: string;
         builtInFees: ExecuteFee[];
         feesOnTop: ExecuteFee[];
       }[] = [];
@@ -716,6 +722,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
           rawAmount,
         });
 
+        item.totalQuote = item.quote + amount;
+        item.totalRawQuote = bn(item.rawQuote).add(rawAmount).toString();
+
         // item.quote += amount;
         // item.rawQuote = bn(item.rawQuote).add(rawAmount).toString();
       };
@@ -725,6 +734,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
           for (const f of globalFees) {
             await addGlobalFee(item, f);
           }
+        } else {
+          item.totalQuote = item.quote;
+          item.totalRawQuote = item.rawQuote;
         }
       }
 

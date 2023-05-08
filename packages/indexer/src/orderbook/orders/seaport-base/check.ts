@@ -37,8 +37,13 @@ export const offChainCheck = async (
 
   // Check: order is on a known and valid contract
   const kind = await commonHelpers.getContractKind(info.contract);
-
-  if (!kind || kind !== info.tokenKind) {
+  if (!kind) {
+    throw new Error("invalid-target");
+  }
+  if (["erc1155"].includes(kind) && info.tokenKind !== "erc1155") {
+    throw new Error("invalid-target");
+  }
+  if (["erc721", "erc721-like"].includes(kind) && info.tokenKind !== "erc721") {
     throw new Error("invalid-target");
   }
 
