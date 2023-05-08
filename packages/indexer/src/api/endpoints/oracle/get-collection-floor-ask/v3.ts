@@ -214,13 +214,7 @@ export const getCollectionFloorAskOracleV3Options: RouteOptions = {
         // ETH: do nothing
       } else if (Object.values(Sdk.Common.Addresses.Weth).includes(query.currency)) {
         // WETH: do nothing
-      } else if (
-        [
-          ...Object.values(Sdk.Common.Addresses.Usdc),
-          // Custom Backed USDC
-          "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
-        ].includes(query.currency)
-      ) {
+      } else if ([...Object.values(Sdk.Common.Addresses.Usdc)].includes(query.currency)) {
         // USDC: convert price to USDC
         const usdPrice = await axios
           .get("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd")
