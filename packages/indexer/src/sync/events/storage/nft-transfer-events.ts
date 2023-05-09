@@ -176,7 +176,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "y"."address",
             "y"."token_id",
             "y"."owner",
-            GREATEST(SUM("y"."amount_delta"), 0),
+            SUM("y"."amount_delta"),
             MIN("y"."timestamp")
           FROM (
             SELECT
@@ -192,7 +192,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         )
         ON CONFLICT ("contract", "token_id", "owner") DO
         UPDATE SET 
-          "amount" = GREATEST("nft_balances"."amount" + "excluded"."amount", 0),  
+          "amount" = "nft_balances"."amount" + "excluded"."amount", 
           "acquired_at" = COALESCE(GREATEST("excluded"."acquired_at", "nft_balances"."acquired_at"), "nft_balances"."acquired_at")
       `);
 
