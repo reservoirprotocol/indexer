@@ -63,7 +63,7 @@ export const getActivityV5Options: RouteOptions = {
           tokenId: Joi.string().allow(null),
           fromAddress: Joi.string(),
           toAddress: Joi.string().allow(null),
-          price: JoiPrice.allow(null),
+          price: JoiPrice.allow(null).description("Return native currency unless displayCurrency contract was passed."),
           amount: Joi.number().unsafe(),
           timestamp: Joi.number(),
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
