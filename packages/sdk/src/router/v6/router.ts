@@ -20,7 +20,7 @@ import {
   PerPoolSwapDetails,
   SwapDetail,
 } from "./types";
-import { generateSwapExecutions } from "./uniswap";
+import { generateSwapExecutions } from "./universal";
 import { generateFTApprovalTxData, generateNFTApprovalTxData, isETH, isWETH } from "./utils";
 import * as Sdk from "../../index";
 import { encodeForMatchOrders } from "../../rarible/utils";
@@ -49,6 +49,7 @@ import SwapModuleAbi from "./abis/SwapModule.json";
 import X2Y2ModuleAbi from "./abis/X2Y2Module.json";
 import ZeroExV4ModuleAbi from "./abis/ZeroExV4Module.json";
 import ZoraModuleAbi from "./abis/ZoraModule.json";
+import UniversalSwapModuleAbi from "./abis/UniversalSwapModule.json";
 
 type SetupOptions = {
   x2y2ApiKey?: string;
@@ -148,6 +149,11 @@ export class Router {
       swapModule: new Contract(
         Addresses.SwapModule[chainId] ?? AddressZero,
         SwapModuleAbi,
+        provider
+      ),
+      universalSwapModule: new Contract(
+        Addresses.UniversalSwapModule[chainId] ?? AddressZero,
+        UniversalSwapModuleAbi,
         provider
       ),
       alienswapModule: new Contract(
@@ -2425,7 +2431,7 @@ export class Router {
               tokenOut,
               totalAmountOut,
               {
-                swapModule: this.contracts.swapModule,
+                swapModule: this.contracts.universalSwapModule,
                 transfers,
                 refundTo: relayer,
               }
@@ -2462,7 +2468,7 @@ export class Router {
                     amount: inAmount,
                   },
                 ],
-                recipient: this.contracts.swapModule.address,
+                recipient: this.contracts.universalSwapModule.address,
               });
             } else {
               // We need to split the permit items based on the individual transfers

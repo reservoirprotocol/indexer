@@ -4241,10 +4241,10 @@
     tiny-invariant "^1.1.0"
     toformat "^2.0.0"
 
-"@uniswap/smart-order-router@^3.0.4":
-  version "3.5.0"
-  resolved "https://registry.npmjs.org/@uniswap/smart-order-router/-/smart-order-router-3.5.0.tgz"
-  integrity sha512-mMZmk7jZARpbOX82bc5t3l10rhkYUqnwCv1HSfefNRnA2AXJwKvf0NdgYwXsW6uSXJUxIcnd4eYVr4AKon82Wg==
+"@uniswap/smart-order-router@^3.10.1":
+  version "3.11.2"
+  resolved "https://registry.yarnpkg.com/@uniswap/smart-order-router/-/smart-order-router-3.11.2.tgz#65a83908a5f858355ef6173b578bd46475c07d03"
+  integrity sha512-YdOxy4IctGWe2yrWTedAFJdiLeGEckraLc+FJiXSIt/L8W3jAobx9OhFFDC7mT2wDdNmXDctUmh7AT8l6HEIYQ==
   dependencies:
     "@uniswap/default-token-list" "^2.0.0"
     "@uniswap/permit2-sdk" "^1.2.0"
@@ -4252,7 +4252,7 @@
     "@uniswap/swap-router-contracts" "^1.3.0"
     "@uniswap/token-lists" "^1.0.0-beta.25"
     "@uniswap/universal-router" "^1.0.1"
-    "@uniswap/universal-router-sdk" "^1.3.0"
+    "@uniswap/universal-router-sdk" "^1.3.9"
     "@uniswap/v2-sdk" "^3.0.1"
     "@uniswap/v3-sdk" "^3.7.0"
     async-retry "^1.3.1"
@@ -4296,24 +4296,24 @@
   resolved "https://registry.npmjs.org/@uniswap/token-lists/-/token-lists-1.0.0-beta.31.tgz"
   integrity sha512-BQVoelKCRf64IToPEs1wxiXOnhr/ukwPOF78XG11PrTAOL4F8umjYKFb8ZPv1/dIJsPaC7GhLSriEqyp94SasQ==
 
-"@uniswap/universal-router-sdk@^1.3.0":
-  version "1.3.7"
-  resolved "https://registry.npmjs.org/@uniswap/universal-router-sdk/-/universal-router-sdk-1.3.7.tgz"
-  integrity sha512-MbnhZ69nLn5iUTac3rxGL3jo39DfdbDvro5IQoCkI4Xtya4BfUyR/D5aTPcYS3RQZVIq1kGNuDa1vz1dYnACOg==
+"@uniswap/universal-router-sdk@^1.3.9":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@uniswap/universal-router-sdk/-/universal-router-sdk-1.5.0.tgz#7963c4d959a054a5d5612de4e99b57a208d69892"
+  integrity sha512-LClC8w/QQ0KZ86SitAnR2FnItiFKfwW8n9bvK4p817SArRBM/XBbABb6zUAyTzNHuk9znNIKv7R/QJwWjcywXg==
   dependencies:
     "@uniswap/permit2-sdk" "^1.2.0"
     "@uniswap/router-sdk" "^1.4.0"
     "@uniswap/sdk-core" "^3.1.0"
-    "@uniswap/universal-router" "1.2.1"
+    "@uniswap/universal-router" "1.4.1"
     "@uniswap/v2-sdk" "^3.0.1"
     "@uniswap/v3-sdk" "^3.9.0"
     bignumber.js "^9.0.2"
     ethers "^5.3.1"
 
-"@uniswap/universal-router@1.2.1":
-  version "1.2.1"
-  resolved "https://registry.npmjs.org/@uniswap/universal-router/-/universal-router-1.2.1.tgz"
-  integrity sha512-F3S1wKylncuvIG2qwC1ciXXc1z1QmKsalo4p6H2A90LSRylEEhNp7ITxs7qCcnfRh+ZNkGJ0yQ0zmuVJSBezOQ==
+"@uniswap/universal-router@1.4.1":
+  version "1.4.1"
+  resolved "https://registry.yarnpkg.com/@uniswap/universal-router/-/universal-router-1.4.1.tgz#87a8fa70445091807f060f33cdb22228cfbaa16f"
+  integrity sha512-mUNBPk+fLl1PXwOwqaaYykEd7UN5fDRLVj4tjSmOxI9vYlc6yPHHvuXOOYbnAhGpoRv4Xp/QYxjzeuYCgCJ/+w==
   dependencies:
     "@openzeppelin/contracts" "4.7.0"
     "@uniswap/v2-core" "1.0.1"

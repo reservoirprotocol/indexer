@@ -32,6 +32,7 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
   let balanceAssertModule: Contract;
   let seaportModule: Contract;
   let swapModule: Contract;
+  let universalSwapModule: Contract;
 
   beforeEach(async () => {
     [deployer, alice, bob, carol, david, emilio] = await ethers.getSigners();
@@ -57,6 +58,17 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
           router.address,
           Sdk.Common.Addresses.Weth[chainId],
           Sdk.Common.Addresses.SwapRouter[chainId]
+        )
+      );
+    
+    universalSwapModule = await ethers
+      .getContractFactory("UniversalSwapModule", deployer)
+      .then((factory) =>
+        factory.deploy(
+          deployer.address,
+          router.address,
+          Sdk.Common.Addresses.Weth[chainId],
+          Sdk.Common.Addresses.UniversalRouter[chainId]
         )
       );
   });

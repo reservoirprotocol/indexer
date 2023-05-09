@@ -51,3 +51,7 @@ export const SwapRouter: ChainIdToAddress = {
   [Network.Polygon]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.Arbitrum]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
 };
+
+export const UniversalRouter: ChainIdToAddress = {
+  [Network.Ethereum]: "0xef1c6e67703c7bd7107eed8303fbe6ec2554bf6b",
+};

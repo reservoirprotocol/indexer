@@ -157,6 +157,19 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
     )) as any;
   Sdk.RouterV6.Addresses.SwapModule[chainId] = swapModule.address.toLowerCase();
 
+
+  const universalSwapModule = (await ethers
+    .getContractFactory("UniversalSwapModule", deployer)
+    .then((factory) =>
+      factory.deploy(
+        deployer.address,
+        deployer.address,
+        Sdk.Common.Addresses.Weth[chainId],
+        Sdk.Common.Addresses.UniversalRouter[chainId]
+      )
+    )) as any;
+  Sdk.RouterV6.Addresses.UniversalSwapModule[chainId] = universalSwapModule.address.toLowerCase();
+
   const approvalProxy = await ethers
     .getContractFactory("ReservoirApprovalProxy", deployer)
     .then((factory) =>
