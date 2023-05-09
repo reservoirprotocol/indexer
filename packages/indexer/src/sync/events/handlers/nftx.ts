@@ -20,7 +20,18 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // Determine the total quantity of NFTs sold
         let nftCount = 0;
         for (let i = 0; i < tokenIds.length; i++) {
-          nftCount += amounts.length ? Number(amounts[i]) : 1;
+          // TODO: Get the amount from the corresponding transfer event
+          // NFTX allows any random value to be passed in the `amounts` array
+          // We cover the most common cases:
+          // - correct value
+          // - no value
+          // - value = token id
+          let amount = amounts.length ? Number(amounts[i]) : 1;
+          if (String(amount) === tokenIds[i]) {
+            amount = 1;
+          }
+
+          nftCount += amount;
         }
 
         const nftPool = await nftxUtils.getNftPoolDetails(baseEventParams.address);
