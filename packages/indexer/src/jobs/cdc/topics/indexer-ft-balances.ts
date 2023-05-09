@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { redisWebsocketPublisher } from "@/common/redis";
-import { KafkaEventHandler } from ".";
+import { KafkaEventHandler } from "@/jobs/cdc/topics/kafka-event-handler-abstract";
 
 export class IndexerBalanceEventsHandler extends KafkaEventHandler {
   topicName = "indexer.public.ft_balances";

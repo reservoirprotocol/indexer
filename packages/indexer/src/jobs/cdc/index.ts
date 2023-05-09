@@ -1,38 +1,28 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Kafka, logLevel } from "kafkajs";
-import { getServiceName } from "../../config/network";
+import { getServiceName } from "@/config/network";
 import { logger } from "@/common/logger";
-import { TopicHandlers } from "./topics";
+import { TopicHandlers } from "@/jobs/cdc/topics";
 import { config } from "@/config/index";
-// Create a Kafka client
-const kafka = new Kafka({
-  clientId: config.kafkaClientId,
-  brokers: config.kafkaBrokers,
-  logLevel: logLevel.ERROR,
-});
+import { kafkaConsumer, kafkaProducer } from "@/common/kafka";
 
-export const producer = kafka.producer();
-export const consumer = kafka.consumer({
-  groupId: config.kafkaConsumerGroupId,
-});
 // Function to start the Kafka producer
 export async function startKafkaProducer(): Promise<void> {
-  await producer.connect();
+  await kafkaProducer.connect();
 }
 
 // Function to start the Kafka consumer
 export async function startKafkaConsumer(): Promise<void> {
-  await consumer.connect();
+  await kafkaConsumer.connect();
 
   // Subscribe to the topics
   await Promise.all(
     TopicHandlers.map((topicHandler) => {
-      return consumer.subscribe({ topics: topicHandler.getTopics() });
+      return kafkaConsumer.subscribe({ topics: topicHandler.getTopics() });
     })
   );
 
-  await consumer.run({
+  await kafkaConsumer.run({
     partitionsConsumedConcurrently: config.kafkaPartitionsConsumedConcurrently || 1,
     eachMessage: async ({ message, topic }) => {
       const event = JSON.parse(message.value!.toString());

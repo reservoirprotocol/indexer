@@ -6,13 +6,14 @@ import "@/config/polyfills";
 import "@/jobs/index";
 import "@/pubsub/index";
 import "@/websockets/index";
+import "@/common/kafka";
 
 import { start } from "@/api/index";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { getNetworkSettings } from "@/config/network";
 import { Sources } from "@/models/sources";
-import { startKafkaConsumer, startKafkaProducer } from "./jobs/cdc";
+import { startKafkaProducer, startKafkaConsumer } from "@/jobs/cdc";
 
 process.on("unhandledRejection", (error) => {
   logger.error("process", `Unhandled rejection: ${error}`);
@@ -32,11 +33,11 @@ const setup = async () => {
   }
 
   if (config.doKafkaWork) {
-    await startKafkaConsumer();
     await startKafkaProducer();
+    await startKafkaConsumer();
   }
 
-  if (config) await Sources.getInstance();
+  await Sources.getInstance();
   await Sources.forceDataReload();
 };
 
