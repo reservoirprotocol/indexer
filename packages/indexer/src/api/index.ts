@@ -242,7 +242,7 @@ export const start = async (): Promise<void> => {
             const log = {
               message: `${rateLimitKey} ${apiKey?.appName || ""} reached allowed rate limit ${
                 rateLimitRule.rule.points
-              } requests in ${rateLimitRule.rule.duration}s by calling ${
+              } credits in ${rateLimitRule.rule.duration}s by calling ${
                 error.consumedPoints
               } times on route ${request.route.path}${
                 request.info.referrer ? ` from referrer ${request.info.referrer} ` : ""
@@ -256,7 +256,7 @@ export const start = async (): Promise<void> => {
             logger.warn("rate-limiter", JSON.stringify(log));
           }
 
-          const message = `Max ${rateLimitRule.rule.points} requests in ${
+          const message = `Max ${rateLimitRule.rule.points} credits in ${
             rateLimitRule.rule.duration
           }s reached, Detected tier ${tier}, Blocked by rule ID ${rateLimitRule.ruleParams.id}${
             !_.isEmpty(rateLimitRule.ruleParams.payload)
@@ -325,6 +325,7 @@ export const start = async (): Promise<void> => {
     }
 
     if (!(response instanceof Boom)) {
+      typedResponse.header("tier", request.headers["tier"]);
       typedResponse.header("X-RateLimit-Limit", request.headers["X-RateLimit-Limit"]);
       typedResponse.header("X-RateLimit-Remaining", request.headers["X-RateLimit-Remaining"]);
       typedResponse.header("X-RateLimit-Reset", request.headers["X-RateLimit-Reset"]);
