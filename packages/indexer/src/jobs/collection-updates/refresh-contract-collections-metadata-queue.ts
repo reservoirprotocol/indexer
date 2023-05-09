@@ -1,6 +1,5 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
-import _ from "lodash";
 
 import { logger } from "@/common/logger";
 import { acquireLock, redis, releaseLock } from "@/common/redis";
@@ -50,16 +49,7 @@ if (config.doBackgroundWork) {
           const infos: CollectionMetadataInfo[] = [];
 
           for (const contractCollection of contractCollections) {
-            let tokenId;
-
-            if (
-              _.isNull(contractCollection.token_id_range) ||
-              contractCollection.token_id_range === "(,)"
-            ) {
-              tokenId = await Tokens.getSingleToken(contractCollection.id);
-            } else {
-              tokenId = `${JSON.parse(contractCollection.token_id_range)[0]}`;
-            }
+            const tokenId = await Tokens.getSingleToken(contractCollection.id);
 
             infos.push({
               contract,

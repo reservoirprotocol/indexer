@@ -36,11 +36,9 @@ export const getOrdersBidsV1Options: RouteOptions = {
         .lowercase()
         .pattern(regex.token)
         .description("Filter to a token, e.g. `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"),
-      tokenSetId: Joi.string()
-        .lowercase()
-        .description(
-          "Filter to a particular set, e.g. `contract:0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        ),
+      tokenSetId: Joi.string().description(
+        "Filter to a particular set, e.g. `contract:0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+      ),
       maker: Joi.string()
         .lowercase()
         .pattern(regex.address)

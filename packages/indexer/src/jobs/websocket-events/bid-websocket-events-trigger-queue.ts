@@ -13,7 +13,7 @@ import { getJoiPriceObject } from "@/common/joi";
 import { fromBuffer, getNetAmount } from "@/common/utils";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { redisWebsocketPublisher } from "@/common/redis";
+import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { Orders } from "@/utils/orders";
 import { TriggerKind } from "../order-updates/types";
 
@@ -74,6 +74,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             COALESCE(NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'), 0) AS expiration,
             orders.is_reservoir,
             orders.created_at,
+            orders.updated_at,
             (
             CASE
               WHEN orders.fillability_status = 'filled' THEN 'filled'
@@ -155,21 +156,19 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           isReservoir: rawResult.is_reservoir,
           isDynamic: Boolean(rawResult.dynamic || rawResult.kind === "sudoswap"),
           createdAt: new Date(rawResult.created_at).toISOString(),
+          updatedAt: new Date(rawResult.updated_at).toISOString(),
           rawData: rawResult.raw_data,
         };
 
         const eventType = data.kind === "new-order" ? "bid.created" : "bid.updated";
 
-        await redisWebsocketPublisher.publish(
-          "events",
-          JSON.stringify({
-            event: eventType,
-            tags: {
-              contract: fromBuffer(rawResult.contract),
-            },
-            data: result,
-          })
-        );
+        await publishWebsocketEvent({
+          event: eventType,
+          tags: {
+            contract: fromBuffer(rawResult.contract),
+          },
+          data: result,
+        });
       } catch (error) {
         logger.error(
           QUEUE_NAME,
@@ -180,7 +179,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 20 }
+    { connection: redis.duplicate(), concurrency: 80 }
   );
 
   worker.on("error", (error) => {

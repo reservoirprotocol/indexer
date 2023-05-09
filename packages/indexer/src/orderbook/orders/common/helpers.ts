@@ -10,7 +10,7 @@ import { OrderKind } from "@/orderbook/orders";
 
 export const getContractKind = async (
   contract: string
-): Promise<"erc721" | "erc1155" | undefined> => {
+): Promise<"erc721" | "erc721-like" | "erc1155" | undefined> => {
   const contractResult = await idb.oneOrNone(
     `
       SELECT contracts.kind FROM contracts

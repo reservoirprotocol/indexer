@@ -41,12 +41,11 @@ export const getBuildInfo = async (
   const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
 
   // Use OpenSea's conduit for sharing approvals (where available)
-  const conduitKey = Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId];
+  const conduitKey =
+    options.conduitKey ?? Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId];
 
   // Generate the salt
-  let salt = options.source
-    ? padSourceToSalt(options.source, options.salt ?? getRandomBytes(16).toString())
-    : undefined;
+  let salt = padSourceToSalt(options.salt ?? getRandomBytes(16).toString(), options.source);
 
   // No zone by default
   let zone = AddressZero;
@@ -55,7 +54,7 @@ export const getBuildInfo = async (
       throw new Error("Off-chain cancellation not supported when cross-posting to OpenSea");
     }
 
-    zone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
+    zone = Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId];
     if (options.replaceOrderId) {
       salt = options.replaceOrderId;
     }

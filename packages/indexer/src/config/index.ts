@@ -43,6 +43,7 @@ export const config = {
   rateLimitRedisUrl: String(process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL),
   redisWebsocketUrl: String(process.env.REDIS_WEBSOCKET_URL || process.env.REDIS_URL),
   metricsRedisUrl: String(process.env.METRICS_REDIS_URL || process.env.REDIS_URL),
+  orderbookRedisUrl: String(process.env.ORDERSBOOK_REDIS_URL || process.env.REDIS_URL),
   redshiftUrl: String(process.env.REDSHIFT_URL),
 
   master: Boolean(Number(process.env.MASTER)),
@@ -90,13 +91,9 @@ export const config = {
 
   looksRareApiKey: String(process.env.LOOKSRARE_API_KEY),
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
-  openSeaCrossPostingApiKey: String(
-    process.env.OPENSEA_CROSS_POSTING_API_KEY || process.env.OPENSEA_API_KEY
-  ),
-  openSeaCrossPostingApiUrl: String(process.env.OPENSEA_CROSS_POSTING_API_URL || ""),
-  openSeaCrossPostingApiKeyHeader: String(
-    process.env.OPENSEA_CROSS_POSTING_API_HEADER || "X-Api-Key"
-  ),
+  openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
+
+  openSeaCrossPostingApiKey: String(process.env.OPENSEA_CROSS_POSTING_API_KEY),
 
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
@@ -121,6 +118,7 @@ export const config = {
   ),
 
   // Backfilling
+  doFtTransfersWrite: Boolean(Number(process.env.DO_FT_TRANSFERS_WRITE)),
   doNftTransfersWrite: Boolean(Number(process.env.DO_NFT_TRANSFERS_WRITE)),
   doProcessBackfilling: Boolean(Number(process.env.DO_PROCESS_BACKFILLING)),
   doProcessRealtime: Boolean(Number(process.env.DO_PROCESS_REALTIME)),

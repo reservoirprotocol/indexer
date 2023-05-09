@@ -6,6 +6,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
+import { updateBlurRoyalties } from "@/utils/blur";
 
 const QUEUE_NAME = "blur-bids-refresh";
 
@@ -29,6 +30,8 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
+      return;
+
       const { collection } = job.data as { collection: string };
 
       try {
@@ -49,6 +52,15 @@ if (config.doBackgroundWork) {
             },
           },
         ]);
+
+        // Also refresh the royalties
+        const lockKey = `blur-royalties-refresh-lock:${collection}`;
+        const lock = await redis.get(lockKey);
+        if (!lock) {
+          await redis.set(lockKey, "locked", "EX", 3600 - 5);
+          await updateBlurRoyalties(collection);
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         logger.error(
@@ -67,23 +79,27 @@ if (config.doBackgroundWork) {
   });
 }
 
-export const addToQueue = async (collection: string) => {
-  const delayInSeconds = 10 * 60;
-  const halfDelayInSeconds = delayInSeconds / 2;
+export const addToQueue = async (collection: string, force = false) => {
+  if (force) {
+    await queue.add(collection, { collection });
+  } else {
+    const delayInSeconds = 10 * 60;
+    const halfDelayInSeconds = delayInSeconds / 2;
 
-  // At most one job per collection per `delayInSeconds` seconds
-  const lockKey = `blur-bids-refresh-lock:${collection}`;
-  const lock = await redis.get(lockKey);
-  if (!lock) {
-    await redis.set(lockKey, "locked", "EX", delayInSeconds - 1);
-    await queue.add(
-      collection,
-      { collection },
-      {
-        jobId: collection,
-        // Each job is randomly delayed so as to avoid too many concurrent requests
-        delay: Math.floor(halfDelayInSeconds + Math.random() * halfDelayInSeconds) * 1000,
-      }
-    );
+    // At most one job per collection per `delayInSeconds` seconds
+    const lockKey = `blur-bids-refresh-lock:${collection}`;
+    const lock = await redis.get(lockKey);
+    if (!lock) {
+      await redis.set(lockKey, "locked", "EX", delayInSeconds - 1);
+      await queue.add(
+        collection,
+        { collection },
+        {
+          jobId: collection,
+          // Each job is randomly delayed so as to avoid too many concurrent requests
+          delay: Math.floor(halfDelayInSeconds + Math.random() * halfDelayInSeconds) * 1000,
+        }
+      );
+    }
   }
 };

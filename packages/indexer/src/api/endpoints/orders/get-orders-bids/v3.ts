@@ -36,11 +36,9 @@ export const getOrdersBidsV3Options: RouteOptions = {
         .description(
           "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
-      tokenSetId: Joi.string()
-        .lowercase()
-        .description(
-          "Filter to a particular set. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        ),
+      tokenSetId: Joi.string().description(
+        "Filter to a particular set. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+      ),
       maker: Joi.string()
         .lowercase()
         .pattern(regex.address)
@@ -302,7 +300,7 @@ export const getOrdersBidsV3Options: RouteOptions = {
           ) AS expiration,
           orders.is_reservoir,
           extract(epoch from orders.created_at) AS created_at,
-          orders.updated_at
+          extract(epoch from orders.updated_at) AS updated_at
           ${query.includeRawData ? ", orders.raw_data" : ""}
           ${query.includeMetadata ? `, ${metadataBuildQuery}` : ""}
         FROM orders
@@ -482,7 +480,7 @@ export const getOrdersBidsV3Options: RouteOptions = {
           expiration: Number(r.expiration),
           isReservoir: r.is_reservoir,
           createdAt: new Date(r.created_at * 1000).toISOString(),
-          updatedAt: new Date(r.updated_at).toISOString(),
+          updatedAt: new Date(r.updated_at * 1000).toISOString(),
           rawData: query.includeRawData ? r.raw_data : undefined,
         };
       });

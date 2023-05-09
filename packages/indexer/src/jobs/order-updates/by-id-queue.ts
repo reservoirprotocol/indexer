@@ -2,25 +2,27 @@
 
 import { HashZero } from "@ethersproject/constants";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
-import _ from "lodash";
 
-import { idb, ridb } from "@/common/db";
+import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
+import { Sources } from "@/models/sources";
 
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
+import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
+// import * as tokenSetUpdatesTopBidSingleToken from "@/jobs/token-set-updates/top-bid-single-token-queue";
+
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
-import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
+
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
-} from "../websocket-events/websocket-event-router";
+} from "@/jobs/websocket-events/websocket-event-router";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -46,7 +48,7 @@ if (config.doBackgroundWork) {
   worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { id, trigger } = job.data as OrderInfo;
+      const { id, trigger, ingestMethod } = job.data as OrderInfo;
       let { side, tokenSetId } = job.data as OrderInfo;
 
       try {
@@ -75,6 +77,8 @@ if (config.doBackgroundWork) {
                 orders.normalized_value,
                 orders.currency_normalized_value,
                 orders.raw_data,
+                orders.originated_at AS "originatedAt",
+                orders.created_at AS "createdAt",
                 token_sets_tokens.contract,
                 token_sets_tokens.token_id AS "tokenId"
               FROM orders
@@ -91,110 +95,18 @@ if (config.doBackgroundWork) {
         }
 
         if (side && tokenSetId) {
-          if (side === "buy" && !tokenSetId.startsWith("token")) {
-            let buyOrderResult = await idb.manyOrNone(
-              `
-                WITH x AS (
-                  SELECT
-                    token_sets.id AS token_set_id,
-                    y.*
-                  FROM token_sets
-                  LEFT JOIN LATERAL (
-                    SELECT
-                      orders.id AS order_id,
-                      orders.value,
-                      orders.maker
-                    FROM orders
-                    WHERE orders.token_set_id = token_sets.id
-                      AND orders.side = 'buy'
-                      AND orders.fillability_status = 'fillable'
-                      AND orders.approval_status = 'approved'
-                      AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                    ORDER BY orders.value DESC
-                    LIMIT 1
-                  ) y ON TRUE
-                  WHERE token_sets.id = $/tokenSetId/
-                )
-                UPDATE token_sets SET
-                  top_buy_id = x.order_id,
-                  top_buy_value = x.value,
-                  top_buy_maker = x.maker,
-                  attribute_id = token_sets.attribute_id,
-                  collection_id = token_sets.collection_id
-                FROM x
-                WHERE token_sets.id = x.token_set_id
-                  AND (
-                    token_sets.top_buy_id IS DISTINCT FROM x.order_id
-                    OR token_sets.top_buy_value IS DISTINCT FROM x.value
-                  )
-                RETURNING
-                  collection_id AS "collectionId",
-                  attribute_id AS "attributeId",
-                  top_buy_value AS "topBuyValue",
-                  top_buy_id AS "topBuyId"
-              `,
-              { tokenSetId }
-            );
+          if (side === "buy") {
+            const topBidInfo = {
+              tokenSetId,
+              kind: trigger.kind,
+              txHash: trigger.txHash || null,
+              txTimestamp: trigger.txTimestamp || null,
+            };
 
-            if (!buyOrderResult.length && trigger.kind === "revalidation") {
-              // When revalidating, force revalidation of the attribute / collection
-              const tokenSetsResult = await ridb.manyOrNone(
-                `
-                  SELECT
-                    token_sets.collection_id,
-                    token_sets.attribute_id
-                  FROM token_sets
-                  WHERE token_sets.id = $/tokenSetId/
-                `,
-                {
-                  tokenSetId,
-                }
-              );
-
-              if (tokenSetsResult.length) {
-                buyOrderResult = tokenSetsResult.map(
-                  (result: { collection_id: any; attribute_id: any }) => ({
-                    kind: trigger.kind,
-                    collectionId: result.collection_id,
-                    attributeId: result.attribute_id,
-                    txHash: trigger.txHash || null,
-                    txTimestamp: trigger.txTimestamp || null,
-                  })
-                );
-              }
-            }
-
-            if (buyOrderResult.length) {
-              if (
-                trigger.kind === "new-order" &&
-                buyOrderResult[0].topBuyId &&
-                buyOrderResult[0].attributeId
-              ) {
-                //  Only trigger websocket event for non collection offers.
-                await WebsocketEventRouter({
-                  eventKind: WebsocketEventKind.NewTopBid,
-                  eventInfo: {
-                    orderId: buyOrderResult[0].topBuyId,
-                  },
-                });
-              }
-
-              for (const result of buyOrderResult) {
-                if (!_.isNull(result.attributeId)) {
-                  await handleNewBuyOrder.addToQueue(result);
-                }
-
-                if (!_.isNull(result.collectionId)) {
-                  await collectionUpdatesTopBid.addToQueue([
-                    {
-                      collectionId: result.collectionId,
-                      kind: trigger.kind,
-                      txHash: trigger.txHash || null,
-                      txTimestamp: trigger.txTimestamp || null,
-                    } as collectionUpdatesTopBid.TopBidInfo,
-                  ]);
-                }
-              }
+            if (tokenSetId.startsWith("token")) {
+              // await tokenSetUpdatesTopBidSingleToken.addToQueue([topBidInfo]);
+            } else {
+              await tokenSetUpdatesTopBid.addToQueue([topBidInfo]);
             }
           }
 
@@ -466,7 +378,45 @@ if (config.doBackgroundWork) {
           }
         }
 
-        // handle triggering websocket events
+        // Log order latency for new orders
+        if (order && order.validBetween && trigger.kind === "new-order") {
+          try {
+            const orderStart = Math.floor(
+              new Date(order.originatedAt ?? JSON.parse(order.validBetween)[0]).getTime() / 1000
+            );
+            const orderCreated = Math.floor(new Date(order.createdAt).getTime() / 1000);
+            const source = (await Sources.getInstance()).get(order.sourceIdInt);
+            const orderType =
+              side === "sell"
+                ? "listing"
+                : tokenSetId?.startsWith("token")
+                ? "token_offer"
+                : tokenSetId?.startsWith("list")
+                ? "attribute_offer"
+                : "collection_offer";
+
+            if (orderStart <= orderCreated) {
+              logger.info(
+                "order-latency",
+                JSON.stringify({
+                  latency: orderCreated - orderStart,
+                  source: source?.getTitle(),
+                  orderId: order.id,
+                  orderKind: order.kind,
+                  orderType,
+                  orderCreatedAt: new Date(order.createdAt).toISOString(),
+                  orderValidFrom: new Date(JSON.parse(order.validBetween)[0]).toISOString(),
+                  orderOriginatedAt: order.originatedAt
+                    ? new Date(order.originatedAt).toISOString()
+                    : null,
+                  ingestMethod: ingestMethod ?? "rest",
+                })
+              );
+            }
+          } catch {
+            // Ignore errors
+          }
+        }
       } catch (error) {
         logger.error(
           QUEUE_NAME,
@@ -475,7 +425,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 50 }
+    { connection: redis.duplicate(), concurrency: 100 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
@@ -511,6 +461,7 @@ export type OrderInfo = {
   // we don't have an order to check against.
   tokenSetId?: string;
   side?: "sell" | "buy";
+  ingestMethod?: "websocket" | "rest";
 };
 
 export const addToQueue = async (orderInfos: OrderInfo[]) => {

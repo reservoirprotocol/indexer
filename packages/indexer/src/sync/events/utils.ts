@@ -7,10 +7,16 @@ import _ from "lodash";
 
 import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
+import { extractNestedTx } from "@/events-sync/handlers/attribution";
 import { getBlocks, saveBlock } from "@/models/blocks";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
-import { getTransaction, saveTransaction, saveTransactions } from "@/models/transactions";
+import {
+  Transaction,
+  getTransaction,
+  saveTransaction,
+  saveTransactions,
+} from "@/models/transactions";
 import { getTransactionLogs, saveTransactionLogs } from "@/models/transaction-logs";
 import { getTransactionTraces, saveTransactionTraces } from "@/models/transaction-traces";
 import { OrderKind, getOrderSourceByOrderId, getOrderSourceByOrderKind } from "@/orderbook/orders";
@@ -177,10 +183,20 @@ export const extractAttributionData = async (
     orderSource = await getOrderSourceByOrderKind(orderKind, options?.address);
   }
 
-  const routers = await getRouters();
+  // Handle internal transactions
+  let tx: Pick<Transaction, "hash" | "from" | "to" | "data"> = await fetchTransaction(txHash);
+  try {
+    const nestedTx = await extractNestedTx(tx, true);
+    if (nestedTx) {
+      tx = nestedTx;
+    }
+  } catch {
+    // Skip errors
+  }
 
   // Properly set the taker when filling through router contracts
-  const tx = await fetchTransaction(txHash);
+  const routers = await getRouters();
+
   let router = routers.get(tx.to);
   if (!router) {
     // Handle cases where we transfer directly to the router when filling bids
@@ -218,7 +234,6 @@ export const extractAttributionData = async (
       source !== "alphasharks.io" &&
       source !== "magically.gg"
     ) {
-      // Do not associate OpenSea / Gem direct fills to Reservoir
       aggregatorSource = await sources.getOrInsert("reservoir.tools");
     } else if (source === "gem.xyz") {
       // Associate Gem direct fills to Gem
@@ -241,6 +256,12 @@ export const extractAttributionData = async (
     fillSource = router;
   } else {
     fillSource = orderSource;
+  }
+
+  const secondSource = sources.getByDomainHash("0x" + tx.data.slice(-16, -8));
+  const viaReservoir = secondSource?.domain === "reservoir.tools";
+  if (viaReservoir) {
+    aggregatorSource = secondSource;
   }
 
   return {

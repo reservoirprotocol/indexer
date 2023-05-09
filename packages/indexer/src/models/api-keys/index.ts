@@ -13,6 +13,8 @@ import axios from "axios";
 import { getNetworkName } from "@/config/network";
 import { config } from "@/config/index";
 import { Boom } from "@hapi/boom";
+import tracer from "@/common/tracer";
+import flat from "flat";
 
 export type ApiKeyRecord = {
   app_name: string;
@@ -85,6 +87,20 @@ export class ApiKeyManager {
    * @param key
    */
   public static async getApiKey(key: string): Promise<ApiKeyEntity | null> {
+    // Static admin API key
+    if (key === config.adminApiKey) {
+      return new ApiKeyEntity({
+        key: "00000000-0000-0000-0000-000000000000",
+        app_name: "Indexer Admin",
+        website: "reservoir.tools",
+        email: "backend@unevenlabs.com",
+        created_at: "1970-01-01T00:00:00.000Z",
+        active: true,
+        tier: 5,
+        permissions: {},
+      });
+    }
+
     const cachedApiKey = ApiKeyManager.apiKeys.get(key);
     if (cachedApiKey) {
       return cachedApiKey;
@@ -210,6 +226,20 @@ export class ApiKeyManager {
   public static async logRequest(request: Request) {
     const log: any = await ApiKeyManager.getBaseLog(request);
     logger.info("metrics", JSON.stringify(log));
+
+    // Add request params to Datadog trace
+    try {
+      const requestParams: any = flat.flatten({ ...log.payload, ...log.query, ...log.params });
+      Object.keys(requestParams).forEach(
+        (key) => (requestParams[key] = String(requestParams[key]))
+      );
+
+      if (requestParams) {
+        tracer.scope().active()?.setTag("requestParams", requestParams);
+      }
+    } catch (error) {
+      logger.warn("metrics", "Could not add payload to Datadog trace: " + error);
+    }
   }
 
   public static async logUnexpectedErrorResponse(request: Request, error: Boom) {

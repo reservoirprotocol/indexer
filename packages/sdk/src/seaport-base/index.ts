@@ -1,10 +1,10 @@
 import * as Addresses from "./addresses";
-import { ConduitController } from "./conduit-controller";
 import { Builders } from "./builders";
 import { BaseBuildParams, BaseBuilder } from "./builders/base";
-import * as Types from "./types";
-import { IOrder, SeaportOrderKind } from "./order";
+import { ConduitController } from "./conduit-controller";
 import { SeaportBaseExchange } from "./exchange";
+import { IOrder } from "./order";
+import * as Types from "./types";
 
 export {
   Addresses,
@@ -12,8 +12,7 @@ export {
   BaseBuildParams,
   BaseBuilder,
   ConduitController,
-  Types,
   IOrder,
-  SeaportOrderKind,
   SeaportBaseExchange,
+  Types,
 };

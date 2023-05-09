@@ -12,7 +12,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { now } from "@/common/utils";
+import { now } from "lodash";
 import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { generateHash, getSupportedChainName } from "@/websockets/opensea/utils";
@@ -24,9 +24,12 @@ import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
 import MetadataApi from "@/utils/metadata-api";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
+import { GenericOrderInfo } from "@/jobs/orderbook/orders-queue";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
+  const maxEventsSize = config.chainId === 1 ? 200 : 1;
+  const bidsEvents: GenericOrderInfo[] = [];
 
   const client = new OpenSeaStreamClient({
     token: config.openSeaApiKey,
@@ -83,13 +86,29 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
                 openSeaOrderParams,
               },
               validateBidValue: true,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any;
+              ingestMethod: "websocket",
+            } as GenericOrderInfo;
 
             if (eventType === EventType.ITEM_LISTED) {
               await orderbookOpenseaListings.addToQueue([orderInfo]);
             } else {
-              await orderbookOrders.addToQueue([orderInfo]);
+              bidsEvents.push(orderInfo);
+
+              const startTime = now();
+              if (bidsEvents.length >= maxEventsSize) {
+                const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
+                await orderbookOrders.addToQueue(orderInfoBatch);
+
+                logger.info(
+                  "opensea-websocket",
+                  JSON.stringify({
+                    message: `Flushed ${orderInfoBatch.length} left in the array ${
+                      bidsEvents.length
+                    } add to queue ${now() - startTime}ms`,
+                    addToQueueTime: now() - startTime,
+                  })
+                );
+              }
             }
           }
         }
@@ -242,6 +261,10 @@ type ProtocolData =
   | {
       kind: "seaport-v1.4";
       order: Sdk.SeaportV14.Order;
+    }
+  | {
+      kind: "seaport-v1.5";
+      order: Sdk.SeaportV15.Order;
     };
 
 export const parseProtocolData = (payload: unknown): ProtocolData | undefined => {
@@ -256,45 +279,35 @@ export const parseProtocolData = (payload: unknown): ProtocolData | undefined =>
     }
 
     const protocol = (payload as any).protocol_address;
-    if (protocol === Sdk.SeaportV11.Addresses.Exchange[config.chainId]) {
-      const order = new Sdk.SeaportV11.Order(config.chainId, {
-        endTime: protocolData.parameters.endTime,
-        startTime: protocolData.parameters.startTime,
-        consideration: protocolData.parameters.consideration,
-        offer: protocolData.parameters.offer,
-        conduitKey: protocolData.parameters.conduitKey,
-        salt: protocolData.parameters.salt,
-        zone: protocolData.parameters.zone,
-        zoneHash: protocolData.parameters.zoneHash,
-        offerer: protocolData.parameters.offerer,
-        counter: `${protocolData.parameters.counter}`,
-        orderType: protocolData.parameters.orderType,
-        signature: protocolData.signature || undefined,
-      });
+    const orderComponents = {
+      endTime: protocolData.parameters.endTime,
+      startTime: protocolData.parameters.startTime,
+      consideration: protocolData.parameters.consideration,
+      offer: protocolData.parameters.offer,
+      conduitKey: protocolData.parameters.conduitKey,
+      salt: protocolData.parameters.salt,
+      zone: protocolData.parameters.zone,
+      zoneHash: protocolData.parameters.zoneHash,
+      offerer: protocolData.parameters.offerer,
+      counter: `${protocolData.parameters.counter}`,
+      orderType: protocolData.parameters.orderType,
+      signature: protocolData.signature || undefined,
+    };
 
+    if (protocol === Sdk.SeaportV11.Addresses.Exchange[config.chainId]) {
       return {
         kind: "seaport",
-        order,
+        order: new Sdk.SeaportV11.Order(config.chainId, orderComponents),
       };
     } else if (protocol === Sdk.SeaportV14.Addresses.Exchange[config.chainId]) {
-      const order = new Sdk.SeaportV14.Order(config.chainId, {
-        endTime: protocolData.parameters.endTime,
-        startTime: protocolData.parameters.startTime,
-        consideration: protocolData.parameters.consideration,
-        offer: protocolData.parameters.offer,
-        conduitKey: protocolData.parameters.conduitKey,
-        salt: protocolData.parameters.salt,
-        zone: protocolData.parameters.zone,
-        zoneHash: protocolData.parameters.zoneHash,
-        offerer: protocolData.parameters.offerer,
-        counter: `${protocolData.parameters.counter}`,
-        orderType: protocolData.parameters.orderType,
-        signature: protocolData.signature,
-      });
-
       return {
         kind: "seaport-v1.4",
-        order,
+        order: new Sdk.SeaportV14.Order(config.chainId, orderComponents),
+      };
+    } else if (protocol === Sdk.SeaportV15.Addresses.Exchange[config.chainId]) {
+      return {
+        kind: "seaport-v1.5",
+        order: new Sdk.SeaportV15.Order(config.chainId, orderComponents),
       };
     }
   } catch (error) {

@@ -1,17 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { BigNumberish } from "@ethersproject/bignumber";
+import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
+import crypto from "crypto";
 import Joi from "joi";
 
 import { bn, formatEth, formatPrice, formatUsd, fromBuffer, now, regex } from "@/common/utils";
+import { config } from "@/config/index";
+import { Sources } from "@/models/sources";
+import { SourcesEntity } from "@/models/sources/sources-entity";
+import { OrderKind } from "@/orderbook/orders";
+import { Assets } from "@/utils/assets";
 import { Currency, getCurrency } from "@/utils/currencies";
 import { getUSDAndCurrencyPrices, getUSDAndNativePrices } from "@/utils/prices";
-import { Sources } from "@/models/sources";
-import crypto from "crypto";
-import { Assets } from "@/utils/assets";
-import { config } from "@/config/index";
-import { SourcesEntity } from "@/models/sources/sources-entity";
 
 // --- Prices ---
 
@@ -112,8 +114,7 @@ export const getJoiPriceObject = async (
   displayCurrency?: string,
   totalFeeBps?: number
 ) => {
-  let currency;
-
+  let currency: Currency;
   if (displayCurrency) {
     const currentTime = now();
     currency = await getCurrency(displayCurrency);
@@ -252,6 +253,13 @@ export const JoiOrderCriteria = Joi.alternatives(
   })
 );
 
+export const JoiOrderDepth = Joi.array().items(
+  Joi.object({
+    price: Joi.number().unsafe(),
+    quantity: Joi.number(),
+  })
+);
+
 export const JoiOrder = Joi.object({
   id: Joi.string().required(),
   kind: Joi.string().required(),
@@ -286,6 +294,8 @@ export const JoiOrder = Joi.object({
   createdAt: Joi.string().required(),
   updatedAt: Joi.string().required(),
   rawData: Joi.object().optional().allow(null),
+  isNativeOffChainCancellable: Joi.boolean().optional(),
+  depth: JoiOrderDepth,
 });
 
 export const JoiActivityOrder = Joi.object({
@@ -297,7 +307,7 @@ export const JoiActivityOrder = Joi.object({
 
 export const getJoiDynamicPricingObject = async (
   dynamic: boolean,
-  kind: string,
+  kind: OrderKind,
   normalizeRoyalties: boolean,
   raw_data:
     | Sdk.SeaportBase.Types.OrderComponents
@@ -396,10 +406,109 @@ export const getJoiDynamicPricingObject = async (
   }
 };
 
+export const getJoiOrderDepthObject = async (
+  kind: OrderKind,
+  currencyPrice: string,
+  currency: string,
+  quantityRemaining: number,
+  rawData: any,
+  totalFeeBps?: number,
+  displayCurrency?: string
+) => {
+  // By default, show all prices in the native currency of the chain
+  if (!displayCurrency) {
+    displayCurrency = Sdk.Common.Addresses.Eth[config.chainId];
+  }
+
+  const precisionDecimals = 4;
+  const scale = (value: number) => Number(value.toFixed(precisionDecimals));
+
+  switch (kind) {
+    case "sudoswap": {
+      const order = rawData as Sdk.Sudoswap.OrderParams;
+      return Promise.all(
+        order.extra.prices.map(async (price) => ({
+          price: await getJoiPriceObject(
+            {
+              gross: {
+                amount: price,
+              },
+            },
+            currency,
+            displayCurrency,
+            totalFeeBps
+          ).then((p) => scale((p.netAmount ?? p.amount).decimal)),
+          quantity: 1,
+        }))
+      );
+    }
+
+    case "nftx": {
+      const order = rawData as Sdk.Nftx.Types.OrderParams;
+      return Promise.all(
+        order.extra.prices.map(async (price) => ({
+          price: await getJoiPriceObject(
+            {
+              gross: {
+                amount: price,
+              },
+            },
+            currency,
+            displayCurrency,
+            totalFeeBps
+          ).then((p) => scale((p.netAmount ?? p.amount).decimal)),
+          quantity: 1,
+        }))
+      );
+    }
+
+    case "blur": {
+      if (rawData.pricePoints) {
+        // Bids are a special case
+        const order = rawData as Sdk.Blur.Types.BlurBidPool;
+        return Promise.all(
+          order.pricePoints.map(async ({ price, executableSize }) => ({
+            price: await getJoiPriceObject(
+              {
+                gross: {
+                  amount: parseEther(price).toString(),
+                },
+              },
+              currency,
+              displayCurrency,
+              totalFeeBps
+            ).then((p) => scale((p.netAmount ?? p.amount).decimal)),
+            quantity: Number(executableSize),
+          }))
+        );
+      }
+    }
+
+    // eslint-disable-next-line no-fallthrough
+    default: {
+      return [
+        {
+          price: await getJoiPriceObject(
+            {
+              gross: {
+                amount: currencyPrice,
+              },
+            },
+            currency,
+            displayCurrency,
+            totalFeeBps
+          ).then((p) => scale((p.netAmount ?? p.amount).decimal)),
+          quantity: Number(quantityRemaining),
+        },
+      ];
+    }
+  }
+};
+
 export const getJoiOrderObject = async (order: {
   id: string;
-  kind: string;
-  side: string;
+  kind: OrderKind;
+  side: "sell" | "buy";
   status: string;
   tokenSetId: string;
   tokenSetSchemaHash: Buffer;
@@ -412,7 +521,7 @@ export const getJoiOrderObject = async (order: {
       nativeAmount?: string;
       usdAmount?: string;
     };
-    net: {
+    net?: {
       amount: string;
       nativeAmount?: string;
       usdAmount?: string;
@@ -423,9 +532,9 @@ export const getJoiOrderObject = async (order: {
   validUntil: string;
   quantityFilled: string;
   quantityRemaining: string;
-  criteria: string;
+  criteria: string | null;
   sourceIdInt: number;
-  feeBps: any;
+  feeBps: number;
   feeBreakdown: any;
   expiration: string;
   isReservoir: boolean;
@@ -439,6 +548,8 @@ export const getJoiOrderObject = async (order: {
   normalizeRoyalties: boolean;
   missingRoyalties: any;
   includeDynamicPricing?: boolean;
+  includeDepth?: boolean;
+  displayCurrency?: string;
   dynamic?: boolean;
   token?: string;
 }) => {
@@ -455,7 +566,7 @@ export const getJoiOrderObject = async (order: {
   }
 
   const feeBreakdown = order.feeBreakdown;
-  let feeBps = order.feeBps;
+  let feeBps = Number(order.feeBps);
 
   if (order.normalizeRoyalties && order.missingRoyalties) {
     for (let i = 0; i < order.missingRoyalties.length; i++) {
@@ -478,6 +589,11 @@ export const getJoiOrderObject = async (order: {
     }
   }
 
+  const currency = order.prices.currency
+    ? fromBuffer(order.prices.currency)
+    : order.side === "sell"
+    ? Sdk.Common.Addresses.Eth[config.chainId]
+    : Sdk.Common.Addresses.Weth[config.chainId];
   return {
     id: order.id,
     kind: order.kind,
@@ -494,16 +610,15 @@ export const getJoiOrderObject = async (order: {
           amount: order.prices.gross.amount,
           nativeAmount: order.prices.gross.nativeAmount,
         },
-        net: {
-          amount: order.prices.net.amount,
-          nativeAmount: order.prices.net.nativeAmount,
-        },
+        net: order.prices.net
+          ? {
+              amount: order.prices.net.amount,
+              nativeAmount: order.prices.net.nativeAmount,
+            }
+          : undefined,
       },
-      order.prices.currency
-        ? fromBuffer(order.prices.currency)
-        : order.side === "sell"
-        ? Sdk.Common.Addresses.Eth[config.chainId]
-        : Sdk.Common.Addresses.Weth[config.chainId]
+      currency,
+      order.displayCurrency
     ),
     validFrom: Number(order.validFrom),
     validUntil: Number(order.validUntil),
@@ -516,7 +631,7 @@ export const getJoiOrderObject = async (order: {
             order.kind,
             order.normalizeRoyalties,
             order.rawData,
-            order.prices.currency ? fromBuffer(order.prices.currency) : undefined,
+            currency,
             order.missingRoyalties ? order.missingRoyalties : undefined
           )
         : order.dynamic !== undefined
@@ -537,8 +652,23 @@ export const getJoiOrderObject = async (order: {
     isDynamic:
       order.dynamic !== undefined ? Boolean(order.dynamic || order.kind === "sudoswap") : undefined,
     createdAt: new Date(order.createdAt * 1000).toISOString(),
-    updatedAt: new Date(order.updatedAt).toISOString(),
+    updatedAt: new Date(order.updatedAt * 1000).toISOString(),
     rawData: order.includeRawData ? order.rawData : undefined,
+    isNativeOffChainCancellable: order.includeRawData
+      ? (order.rawData as any).zone ===
+        Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+      : undefined,
+    depth: order.includeDepth
+      ? await getJoiOrderDepthObject(
+          order.kind,
+          order.prices.gross.amount,
+          currency,
+          Number(order.quantityRemaining),
+          order.rawData,
+          order.side === "buy" ? feeBps : undefined,
+          order.displayCurrency
+        )
+      : undefined,
   };
 };
 
@@ -676,7 +806,7 @@ export const getJoiSaleObject = async (sale: {
   orderId?: string;
   orderSourceId?: number;
   orderSide?: string;
-  orderKind?: string;
+  orderKind?: OrderKind;
   maker?: Buffer;
   taker?: Buffer;
   amount?: number;
@@ -794,3 +924,13 @@ export const getJoiSaleObject = async (sale: {
     updatedAt: sale.updatedAt,
   };
 };
+
+// --- Fees ---
+
+export const JoiExecuteFee = Joi.object({
+  kind: Joi.string(),
+  recipient: Joi.string().pattern(regex.address),
+  bps: Joi.number().unsafe(),
+  amount: Joi.number().unsafe(),
+  rawAmount: Joi.string().pattern(regex.number),
+});

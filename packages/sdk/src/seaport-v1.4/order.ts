@@ -8,35 +8,34 @@ import { keccak256 as solidityKeccak256 } from "@ethersproject/solidity";
 import { recoverAddress } from "@ethersproject/transactions";
 import { verifyTypedData } from "@ethersproject/wallet";
 
-import * as Addresses from "./addresses";
+import * as Common from "../common";
+import { Exchange } from "./exchange";
 import { Builders } from "../seaport-base/builders";
 import { BaseBuilder, BaseOrderInfo } from "../seaport-base/builders/base";
+import { IOrder, ORDER_EIP712_TYPES } from "../seaport-base/order";
 import * as Types from "../seaport-base/types";
-import { IOrder, ORDER_EIP712_TYPES, SeaportOrderKind } from "../seaport-base/order";
-import * as Common from "../common";
 import { bn, getCurrentTimestamp, lc, n, s } from "../utils";
-
-import { Exchange } from "./exchange";
-import { SeaportBaseExchange } from "../seaport-base";
+import {
+  isPrivateOrder,
+  constructPrivateListingCounterOrder,
+  getPrivateListingFulfillments,
+} from "../seaport-base/helpers";
 
 export class Order implements IOrder {
   public chainId: number;
   public params: Types.OrderComponents;
-  protected exchangeAddress: string;
-  protected exchange: SeaportBaseExchange;
 
   constructor(chainId: number, params: Types.OrderComponents) {
     this.chainId = chainId;
-    this.exchangeAddress = Addresses.Exchange[chainId];
-    this.exchange = new Exchange(chainId);
 
+    // Normalize
     try {
       this.params = normalize(params);
     } catch {
       throw new Error("Invalid params");
     }
 
-    // Detect kind
+    // Detect kind (if missing)
     if (!params.kind) {
       this.params.kind = this.detectKind();
     }
@@ -45,13 +44,19 @@ export class Order implements IOrder {
     this.fixSignature();
   }
 
+  // Public methods
+
+  public exchange() {
+    return new Exchange(this.chainId);
+  }
+
   public hash() {
     return _TypedDataEncoder.hashStruct("OrderComponents", ORDER_EIP712_TYPES, this.params);
   }
 
   public async sign(signer: TypedDataSigner) {
     const signature = await signer._signTypedData(
-      this.exchange.eip712Domain(),
+      this.exchange().eip712Domain(),
       ORDER_EIP712_TYPES,
       this.params
     );
@@ -65,7 +70,7 @@ export class Order implements IOrder {
   public getSignatureData() {
     return {
       signatureKind: "eip712",
-      domain: this.exchange.eip712Domain(),
+      domain: this.exchange().eip712Domain(),
       types: ORDER_EIP712_TYPES,
       value: this.params,
       primaryType: _TypedDataEncoder.getPrimaryType(ORDER_EIP712_TYPES),
@@ -126,7 +131,7 @@ export class Order implements IOrder {
           ["bytes"],
           [
             "0x1901" +
-              _TypedDataEncoder.hashDomain(this.exchange.eip712Domain()).slice(2) +
+              _TypedDataEncoder.hashDomain(this.exchange().eip712Domain()).slice(2) +
               bulkOrderHash.slice(2),
           ]
         );
@@ -137,7 +142,7 @@ export class Order implements IOrder {
         }
       } else {
         const signer = verifyTypedData(
-          this.exchange.eip712Domain(),
+          this.exchange().eip712Domain(),
           ORDER_EIP712_TYPES,
           this.params,
           signature
@@ -153,7 +158,7 @@ export class Order implements IOrder {
       }
 
       const eip712Hash = _TypedDataEncoder.hash(
-        this.exchange.eip712Domain(),
+        this.exchange().eip712Domain(),
         ORDER_EIP712_TYPES,
         this.params
       );
@@ -189,10 +194,6 @@ export class Order implements IOrder {
 
   public getInfo(): BaseOrderInfo | undefined {
     return this.getBuilder().getInfo(this);
-  }
-
-  public getKind(): SeaportOrderKind {
-    return SeaportOrderKind.SEAPORT_V14;
   }
 
   public getMatchingPrice(timestampOverride?: number): BigNumberish {
@@ -234,6 +235,18 @@ export class Order implements IOrder {
     }
   }
 
+  public getPrivateListingFulfillments(): Types.MatchOrdersFulfillment[] {
+    return getPrivateListingFulfillments(this.params);
+  }
+
+  public isPrivateOrder() {
+    return isPrivateOrder(this.params);
+  }
+
+  public constructPrivateListingCounterOrder(privateSaleRecipient: string): Types.OrderWithCounter {
+    return constructPrivateListingCounterOrder(privateSaleRecipient, this.params);
+  }
+
   public getFeeAmount(): BigNumber {
     const { fees } = this.getBuilder()!.getInfo(this)!;
 
@@ -249,7 +262,7 @@ export class Order implements IOrder {
   }
 
   public async checkFillability(provider: Provider) {
-    const status = await this.exchange.contract.connect(provider).getOrderStatus(this.hash());
+    const status = await this.exchange().contract.connect(provider).getOrderStatus(this.hash());
     if (status.isCancelled) {
       throw new Error("not-fillable");
     }
@@ -257,7 +270,7 @@ export class Order implements IOrder {
       throw new Error("not-fillable");
     }
 
-    const makerConduit = this.exchange.deriveConduit(this.params.conduitKey);
+    const makerConduit = this.exchange().deriveConduit(this.params.conduitKey);
 
     const info = this.getInfo()! as BaseOrderInfo;
     if (info.side === "buy") {
@@ -306,6 +319,8 @@ export class Order implements IOrder {
       }
     }
   }
+
+  // Private methods
 
   private getBuilder(): BaseBuilder {
     switch (this.params.kind) {
@@ -382,8 +397,8 @@ export class Order implements IOrder {
   private fixSignature() {
     let signature = this.extractSignature();
 
+    // For non-compact signatures, ensure `v` is always 27 or 28 (Seaport will revert otherwise)
     if (signature?.length === 132) {
-      // For non-compact signatures, ensure `v` is always 27 or 28 (Seaport will revert otherwise)
       let lastByte = parseInt(signature.slice(-2), 16);
       if (lastByte < 27) {
         if (lastByte === 0 || lastByte === 1) {

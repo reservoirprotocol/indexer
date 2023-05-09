@@ -22,7 +22,8 @@ const version = "v6";
 
 export const getUserActivityV6Options: RouteOptions = {
   description: "Users activity",
-  notes: "This API can be used to build a feed for a user",
+  notes:
+    "This API can be used to build a feed for a user including sales, asks, transfers, mints, bids, cancelled bids, and cancelled asks types.",
   tags: ["api", "Activity"],
   plugins: {
     "hapi-swagger": {
@@ -38,13 +39,13 @@ export const getUserActivityV6Options: RouteOptions = {
             .min(1)
             .max(50)
             .description(
-              "Array of users addresses. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+              "Array of users addresses. Max is 50. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
             ),
           Joi.string()
             .lowercase()
             .pattern(regex.address)
             .description(
-              "Array of users addresses. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+              "Array of users addresses. Max is 50. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
             )
         )
         .required(),
@@ -77,7 +78,7 @@ export const getUserActivityV6Options: RouteOptions = {
         .valid("eventTimestamp", "createdAt")
         .default("eventTimestamp")
         .description(
-          "Order the items are returned in the response, eventTimestamp = The blockchain event time, createdAt - The time in which event was recorded"
+          "Order the items are returned in the response. The blockchain event time is `eventTimestamp`. The event time recorded is `createdAt`."
         ),
       includeMetadata: Joi.boolean()
         .default(true)
@@ -100,7 +101,7 @@ export const getUserActivityV6Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency."),
     }).oxor("collection", "collectionsSetId", "contractsSetId", "community"),
   },
   response: {

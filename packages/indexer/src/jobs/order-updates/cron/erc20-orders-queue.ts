@@ -19,7 +19,7 @@ export const queue = new Queue(QUEUE_NAME, {
       type: "exponential",
       delay: 10000,
     },
-    removeOnComplete: 10000,
+    removeOnComplete: 1000,
     removeOnFail: 10000,
     timeout: 5000,
   },
@@ -134,7 +134,7 @@ if (config.doBackgroundWork) {
         );
 
         if (erc20Orders.length >= limit) {
-          await addToQueue(erc20Orders[erc20Orders.length - 1].id);
+          job.data.nextBatch = erc20Orders[erc20Orders.length - 1].id;
         }
       } catch (error) {
         logger.error(`dynamic-orders-update`, `Failed to handle dynamic orders: ${error}`);
@@ -142,6 +142,13 @@ if (config.doBackgroundWork) {
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
+
+  worker.on("completed", async (job) => {
+    if (job.data.nextBatch) {
+      await addToQueue(job.data.nextBatch);
+    }
+  });
+
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });

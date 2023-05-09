@@ -2,10 +2,11 @@ import { idb, redb } from "@/common/db";
 import { formatEth, fromBuffer, now } from "@/common/utils";
 import { Orders } from "@/utils/orders";
 import _ from "lodash";
-import { redis, redisWebsocketPublisher } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { logger } from "@/common/logger";
 import { Sources } from "@/models/sources";
 import { getJoiPriceObject } from "@/common/joi";
+import { publishWebsocketEvent } from "@/common/websocketPublisher";
 
 export class NewTopBidWebsocketEvent {
   public static async triggerEvent(data: NewTopBidWebsocketEventInfo) {
@@ -37,23 +38,28 @@ export class NewTopBidWebsocketEvent {
                 c.id as collection_id,
                 c.slug as collection_slug,
                 c.name as collection_name,
-                c.normalized_floor_sell_id AS normalized_floor_sell_id,
                 c.normalized_floor_sell_value AS normalized_floor_sell_value,
-                c.normalized_floor_sell_source_id_int AS normalized_floor_sell_source_id_int,
-                normalized_floor_order.currency as normalized_floor_order_currency,
-                normalized_floor_order.currency_value as normalized_floor_order_currency_value,
-                c.floor_sell_id AS floor_sell_id,
                 c.floor_sell_value AS floor_sell_value,
-                c.floor_sell_source_id_int AS floor_sell_source_id_int,
-                floor_order.currency as floor_order_currency,
-                floor_order.currency_value as floor_order_currency_value,
+                c.non_flagged_floor_sell_value AS non_flagged_floor_sell_value,
+                  
                 COALESCE(((orders.value / (c.floor_sell_value * (1-((COALESCE(c.royalties_bps, 0)::float + 250) / 10000)))::numeric(78, 0) ) - 1) * 100, 0) AS floor_difference_percentage
-
               FROM orders
-                JOIN collections c on orders.contract = c.contract
-                JOIN orders normalized_floor_order ON c.normalized_floor_sell_id = normalized_floor_order.id
-                JOIN orders non_flagged_floor_order ON c.non_flagged_floor_sell_id = non_flagged_floor_order.id
-                JOIN orders floor_order ON c.floor_sell_id = floor_order.id
+              JOIN LATERAL (
+                SELECT c.id,
+                c.slug,
+                c.name,
+                c.normalized_floor_sell_value,
+                c.floor_sell_value,
+                c.non_flagged_floor_sell_value,
+                c.royalties_bps
+                FROM token_sets_tokens
+              	JOIN tokens
+                  ON token_sets_tokens.contract = tokens.contract
+                  AND token_sets_tokens.token_id = tokens.token_id
+              	JOIN collections c on c.id = tokens.collection_id
+              	WHERE orders.token_set_id = token_sets_tokens.token_set_id
+              	LIMIT 1
+              ) c ON TRUE
               WHERE orders.id = $/orderId/
               LIMIT 1
             `,
@@ -61,11 +67,6 @@ export class NewTopBidWebsocketEvent {
     );
 
     if (await NewTopBidWebsocketEvent.isRateLimited(order.token_set_id)) {
-      logger.info(
-        "new-top-bid-websocket-event",
-        `Rate limited. orderId=${data.orderId}, tokenSetId=${order.token_set_id}`
-      );
-
       return;
     }
 
@@ -133,30 +134,28 @@ export class NewTopBidWebsocketEvent {
           id: order.collection_id,
           slug: order.collection_slug,
           name: order.collection_name,
-          floorAskPrice: formatEth(order.floor_sell_value),
-          floorAskPriceNormalized: formatEth(order.normalized_floor_sell_value),
+          floorAskPrice: order.floor_sell_value ? formatEth(order.floor_sell_value) : null,
+          floorAskPriceNormalized: order.normalized_floor_sell_value
+            ? formatEth(order.normalized_floor_sell_value)
+            : null,
+          floorAskPriceNonFlagged: order.non_flagged_floor_sell_value
+            ? formatEth(order.non_flagged_floor_sell_value)
+            : null,
           floorDifferencePercentage: _.round(order.floor_difference_percentage || 0, 2),
         },
       });
     }
 
     try {
-      logger.info(
-        "top-bids-websocket-event",
-        `Triggering event. orderId=${data.orderId}, tokenSetId=${order.token_set_id}`
-      );
       await Promise.all(
         payloads.map((payload) =>
-          redisWebsocketPublisher.publish(
-            "events",
-            JSON.stringify({
-              event: "top-bid.changed",
-              tags: {
-                contract: fromBuffer(order.contract),
-              },
-              data: payload,
-            })
-          )
+          publishWebsocketEvent({
+            event: "top-bid.changed",
+            tags: {
+              contract: fromBuffer(order.contract),
+            },
+            data: payload,
+          })
         )
       );
     } catch (e) {

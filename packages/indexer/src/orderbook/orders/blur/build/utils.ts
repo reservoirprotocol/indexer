@@ -1,4 +1,5 @@
 import { redb } from "@/common/db";
+import { getOrUpdateBlurRoyalties } from "@/utils/blur";
 
 export interface BaseOrderBuildOptions {
   maker: string;
@@ -19,8 +20,7 @@ export const getBuildInfo = async (options: BaseOrderBuildOptions): Promise<Orde
   const collectionResult = await redb.oneOrNone(
     `
       SELECT
-        collections.royalties,
-        collections.new_royalties
+        1
       FROM collections
       WHERE collections.id = $/collection/
       LIMIT 1
@@ -31,12 +31,15 @@ export const getBuildInfo = async (options: BaseOrderBuildOptions): Promise<Orde
     throw new Error("Could not fetch collection");
   }
 
-  // Include royalties
-  let feeRate = 50;
-  if (options.automatedRoyalties) {
-    const royalties: { bps: number; recipient: string }[] = collectionResult.royalties ?? [];
+  if (!options.automatedRoyalties) {
+    throw new Error("Automated royalties must be on");
+  }
 
-    feeRate = royalties.map(({ bps }) => bps).reduce((a, b) => a + b, 0);
+  // Include royalties
+  let feeRate = 0;
+  const royalties = await getOrUpdateBlurRoyalties(options.contract);
+  if (royalties) {
+    feeRate = royalties.maximumRoyaltyBps;
     if (options.royaltyBps !== undefined) {
       // The royalty bps to pay will be min(collectionRoyaltyBps, requestedRoyaltyBps)
       feeRate = Math.min(options.royaltyBps, feeRate);

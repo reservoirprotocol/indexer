@@ -82,6 +82,7 @@ export type OrderComponents = {
   conduitKey: string;
   counter: string;
   signature?: string;
+  totalOriginalConsiderationItems?: number;
 };
 
 export type MatchParams = {
@@ -117,4 +118,19 @@ export type PartialOrder = {
   contract: string;
   tokenId: string;
   unitPrice?: string;
+};
+
+type MatchOrdersFulfillmentComponent = {
+  orderIndex: number;
+  itemIndex: number;
+};
+
+export type MatchOrdersFulfillment = {
+  offerComponents: MatchOrdersFulfillmentComponent[];
+  considerationComponents: MatchOrdersFulfillmentComponent[];
+};
+
+export type OrderWithCounter = {
+  parameters: OrderComponents;
+  signature: string;
 };

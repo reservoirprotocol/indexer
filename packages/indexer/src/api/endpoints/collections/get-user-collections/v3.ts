@@ -10,6 +10,8 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Assets } from "@/utils/assets";
 import { Sources } from "@/models/sources";
 import { getJoiPriceObject, JoiPrice } from "@/common/joi";
+import * as Sdk from "@reservoir0x/sdk";
+import { config } from "@/config/index";
 
 const version = "v3";
 
@@ -39,7 +41,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
         .description("Filter to a particular community. Example: `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -56,17 +60,17 @@ export const getUserCollectionsV3Options: RouteOptions = {
         .min(0)
         .max(10000)
         .default(0)
-        .description("Use offset to request the next batch of items."),
+        .description("Use offset to request the next batch of items. Max is 10,000."),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(100)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. max limit is 100."),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency."),
     }),
   },
   response: {
@@ -371,7 +375,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
                     nativeAmount: String(r.top_buy_value),
                   },
                 },
-                fromBuffer(r.top_buy_currency),
+                r.top_buy_currency
+                  ? fromBuffer(r.top_buy_currency)
+                  : Sdk.Common.Addresses.Eth[config.chainId],
                 query.displayCurrency
               )
             : undefined;

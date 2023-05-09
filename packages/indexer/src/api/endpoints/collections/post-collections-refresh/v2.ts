@@ -8,22 +8,25 @@ import _ from "lodash";
 
 import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { regex } from "@/common/utils";
+import { ApiKeyManager } from "@/models/api-keys";
+import { Collections } from "@/models/collections";
+import { Tokens } from "@/models/tokens";
+import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
+
 import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
-import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
-
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
+import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
-import { Collections } from "@/models/collections";
-import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
-import { ApiKeyManager } from "@/models/api-keys";
-import { Tokens } from "@/models/tokens";
-import { MetadataIndexInfo } from "@/jobs/metadata-index/fetch-queue";
+import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
 
 const version = "v2";
 
 export const postCollectionsRefreshV2Options: RouteOptions = {
   description: "Refresh Collection",
+  notes:
+    "Use this API to refresh a collection metadata. Only use this endpoint when you notice multiple tokens with incorrect metadata. Otherwise, refresh single token metadata. Collections with over 30,000 tokens require admin key override, so please contact technical support for assistance.\n\n Collection metadata is automatically updated at 23:30 UTC daily for:\n\n- Top 500 Collection by 24hr Volume\n\n- Collections Minted 1 Day Ago\n\n- Collections Minted 7 Days Ago\n\n Caution: This API should be used in moderation, like only when missing data is discovered. Calling it in bulk or programmatically will result in your API key getting rate limited.",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
@@ -65,10 +68,12 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
   },
   handler: async (request: Request) => {
     const payload = request.payload as any;
-    const refreshCoolDownMin = 60 * 4; // How many minutes between each refresh
-    let overrideCoolDown = false;
+
+    // How many minutes between each refresh
+    const refreshCoolDownMin = 60 * 4;
 
     try {
+      let overrideCoolDown = false;
       if (payload.overrideCoolDown) {
         const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
 
@@ -94,12 +99,7 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
 
       if (!payload.refreshTokens) {
         // Refresh the collection metadata
-        let tokenId;
-        if (collection.tokenIdRange?.length) {
-          tokenId = `${collection.tokenIdRange[0]}`;
-        } else {
-          tokenId = await Tokens.getSingleToken(payload.collection);
-        }
+        const tokenId = await Tokens.getSingleToken(payload.collection);
 
         await collectionUpdatesMetadata.addToQueue(
           collection.contract,
@@ -122,6 +122,12 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
             },
           ]);
         }
+
+        // Refresh Blur bids
+        await blurBidsRefresh.addToQueue(collection.id, true);
+
+        // Refresh listings
+        await OpenseaIndexerApi.fastContractSync(collection.contract);
       } else {
         const isLargeCollection = collection.tokenCount > 30000;
 
@@ -147,31 +153,26 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Update the collection id of any missing tokens
         await edb.none(
           `
-          WITH x AS (
-            SELECT
-              collections.contract,
-              collections.token_id_range
-            FROM collections
-            WHERE collections.id = $/collection/
-          )
-          UPDATE tokens SET
-            collection_id = $/collection/,
-            updated_at = now()
-          FROM x
-          WHERE tokens.contract = x.contract
-            AND tokens.token_id <@ x.token_id_range
-            AND tokens.collection_id IS NULL
-        `,
+            WITH x AS (
+              SELECT
+                collections.contract,
+                collections.token_id_range
+              FROM collections
+              WHERE collections.id = $/collection/
+            )
+            UPDATE tokens SET
+              collection_id = $/collection/,
+              updated_at = now()
+            FROM x
+            WHERE tokens.contract = x.contract
+              AND tokens.token_id <@ x.token_id_range
+              AND tokens.collection_id IS NULL
+          `,
           { collection: payload.collection }
         );
 
         // Refresh the collection metadata
-        let tokenId;
-        if (collection.tokenIdRange?.length) {
-          tokenId = `${collection.tokenIdRange[0]}`;
-        } else {
-          tokenId = await Tokens.getSingleToken(payload.collection);
-        }
+        const tokenId = await Tokens.getSingleToken(payload.collection);
 
         await collectionUpdatesMetadata.addToQueue(
           collection.contract,
@@ -195,6 +196,14 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
           ]);
         }
 
+        // Refresh Blur bids
+        if (collection.id.match(regex.address)) {
+          await blurBidsRefresh.addToQueue(collection.id, true);
+        }
+
+        // Refresh listings
+        await OpenseaIndexerApi.fastContractSync(collection.contract);
+
         // Refresh the contract floor sell and top bid
         await collectionsRefreshCache.addToQueue(collection.id);
 
@@ -204,27 +213,23 @@ export const postCollectionsRefreshV2Options: RouteOptions = {
         // Do these refresh operation only for small collections
         if (!isLargeCollection) {
           const method = metadataIndexFetch.getIndexingMethod(collection.community);
-          let metadataIndexInfo: MetadataIndexInfo = {
+          let metadataIndexInfo: metadataIndexFetch.MetadataIndexInfo = {
             kind: "full-collection",
             data: {
               method,
               collection: collection.id,
             },
           };
-          if (method === "opensea") {
-            // Refresh contract orders from OpenSea
-            await OpenseaIndexerApi.fastContractSync(collection.contract);
-            if (collection.slug) {
-              metadataIndexInfo = {
-                kind: "full-collection-by-slug",
-                data: {
-                  method,
-                  contract: collection.contract,
-                  slug: collection.slug,
-                  collection: collection.id,
-                },
-              };
-            }
+          if (method === "opensea" && collection.slug) {
+            metadataIndexInfo = {
+              kind: "full-collection-by-slug",
+              data: {
+                method,
+                contract: collection.contract,
+                slug: collection.slug,
+                collection: collection.id,
+              },
+            };
           }
 
           // Refresh the collection tokens metadata

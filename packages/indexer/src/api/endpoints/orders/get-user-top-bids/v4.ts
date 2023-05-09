@@ -58,7 +58,9 @@ export const getUserTopBidsV4Options: RouteOptions = {
         .description("Filter to a particular community. Example: `artblocks`"),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set."),
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        ),
       optimizeCheckoutURL: Joi.boolean()
         .default(false)
         .description(
@@ -84,24 +86,26 @@ export const getUserTopBidsV4Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("topBidValue", "dateCreated", "orderExpiry", "floorDifferencePercentage")
         .default("topBidValue")
-        .description("Order of the items are returned in the response."),
+        .description(
+          "Order of the items are returned in the response. Options are `topBidValue`, `dateCreated`, `orderExpiry`, and `floorDifferencePercentage`."
+        ),
       sortDirection: Joi.string().lowercase().valid("asc", "desc").default("desc"),
       limit: Joi.number()
         .integer()
         .min(1)
         .max(100)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 100"),
       sampleSize: Joi.number()
         .integer()
         .min(1000)
         .max(100000)
         .default(10000)
-        .description("Amount of tokens considered."),
+        .description("Amount of tokens considered. Min is 1000, max is default."),
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency"),
     }).oxor("collection", "collectionsSetId"),
   },
   response: {

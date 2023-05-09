@@ -13,6 +13,8 @@
 import "@/jobs/order-updates/by-id-queue";
 import "@/jobs/order-updates/by-maker-queue";
 import "@/jobs/order-updates/by-maker-bundle-queue";
+import "@/jobs/order-updates/order-updates-sell-order-queue";
+import "@/jobs/order-updates/order-updates-buy-order-queue";
 
 // Various cron jobs that must run once in a while
 
@@ -23,4 +25,5 @@ import "@/jobs/order-updates/cron/oracle-orders-queue";
 
 // Misc
 
+import "@/jobs/order-updates/misc/blur-bids-buffer";
 import "@/jobs/order-updates/misc/blur-bids-refresh";

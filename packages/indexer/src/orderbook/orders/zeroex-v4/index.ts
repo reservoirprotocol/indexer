@@ -353,7 +353,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const validTo = `date_trunc('seconds', to_timestamp(${order.params.expiry}))`;
       orderValues.push({
         id,
-        kind: `zeroex-v4-${kind}`,
+        kind: kind === "erc1155" ? "zeroex-v4-erc1155" : "zeroex-v4-erc721",
         side,
         fillability_status: fillabilityStatus,
         approval_status: approvalStatus,

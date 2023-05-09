@@ -10,7 +10,6 @@ import * as cryptoPunks from "@/events-sync/data/cryptopunks";
 import * as decentraland from "@/events-sync/data/decentraland";
 import * as element from "@/events-sync/data/element";
 import * as flow from "@/events-sync/data/flow";
-import * as forward from "@/events-sync/data/forward";
 import * as foundation from "@/events-sync/data/foundation";
 import * as looksRare from "@/events-sync/data/looks-rare";
 import * as manifold from "@/events-sync/data/manifold";
@@ -22,6 +21,7 @@ import * as quixotic from "@/events-sync/data/quixotic";
 import * as rarible from "@/events-sync/data/rarible";
 import * as seaport from "@/events-sync/data/seaport";
 import * as seaportV14 from "@/events-sync/data/seaport-v1.4";
+import * as seaportV15 from "@/events-sync/data/seaport-v1.5";
 import * as alienswap from "@/events-sync/data/alienswap";
 import * as sudoswap from "@/events-sync/data/sudoswap";
 import * as superrare from "@/events-sync/data/superrare";
@@ -53,7 +53,6 @@ export type EventKind =
   | "decentraland"
   | "element"
   | "flow"
-  | "forward"
   | "foundation"
   | "looks-rare"
   | "manifold"
@@ -115,6 +114,11 @@ export type EventSubKind =
   | "seaport-v1.4-orders-matched"
   | "seaport-v1.4-counter-incremented"
   | "seaport-v1.4-order-validated"
+  | "seaport-v1.5-order-cancelled"
+  | "seaport-v1.5-order-filled"
+  | "seaport-v1.5-orders-matched"
+  | "seaport-v1.5-counter-incremented"
+  | "seaport-v1.5-order-validated"
   | "alienswap-order-cancelled"
   | "alienswap-order-filled"
   | "alienswap-orders-matched"
@@ -174,9 +178,6 @@ export type EventSubKind =
   | "flow-cancel-multiple-orders"
   | "blur-order-cancelled"
   | "blur-nonce-incremented"
-  | "forward-order-filled"
-  | "forward-order-cancelled"
-  | "forward-counter-incremented"
   | "manifold-purchase"
   | "manifold-modify"
   | "manifold-cancel"
@@ -245,6 +246,11 @@ const allEventData = [
   seaportV14.orderFulfilled,
   seaportV14.ordersMatched,
   seaportV14.orderValidated,
+  seaportV15.counterIncremented,
+  seaportV15.orderCancelled,
+  seaportV15.orderFulfilled,
+  seaportV15.ordersMatched,
+  seaportV15.orderValidated,
   alienswap.counterIncremented,
   alienswap.orderCancelled,
   alienswap.orderFulfilled,
@@ -311,9 +317,6 @@ const allEventData = [
   flow.cancelMultipleOrders,
   blur.orderCancelled,
   blur.nonceIncremented,
-  forward.orderFilled,
-  forward.orderCancelled,
-  forward.counterIncremented,
   manifold.modify,
   manifold.finalize,
   manifold.purchase,

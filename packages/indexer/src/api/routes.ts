@@ -165,9 +165,9 @@ export const setupRoutes = (server: Server) => {
   // Admin
 
   server.route({
-    method: "GET",
+    method: "POST",
     path: "/admin/api-keys/metrics",
-    options: adminEndpoints.getApiKeyMetrics,
+    options: adminEndpoints.postApiKeyMetrics,
   });
 
   server.route({
@@ -943,6 +943,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "GET",
+    path: "/orders/depth/v1",
+    options: ordersEndpoints.getOrdersDepthV1Options,
+  });
+
+  server.route({
+    method: "GET",
     path: "/orders/executed/v1",
     options: ordersEndpoints.getOrderExecutedV1Options,
   });
@@ -1323,6 +1329,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/sales/v4",
     options: transfersEndpoints.getSalesV4Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/sales/v5",
+    options: transfersEndpoints.getSalesV5Options,
   });
 
   server.route({

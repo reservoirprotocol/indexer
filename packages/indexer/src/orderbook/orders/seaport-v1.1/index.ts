@@ -64,7 +64,8 @@ type SaveResult = {
 
 export const save = async (
   orderInfos: OrderInfo[],
-  validateBidValue?: boolean
+  validateBidValue?: boolean,
+  ingestMethod?: "websocket" | "rest"
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
@@ -139,15 +140,6 @@ export const save = async (
         return results.push({
           id,
           status: "invalid-start-time",
-        });
-      }
-
-      // Delay the validation of the order if it's start time is very soon in the future
-      if (startTime > currentTime) {
-        return results.push({
-          id,
-          status: "delayed",
-          delay: startTime - currentTime + 5,
         });
       }
 
@@ -230,7 +222,7 @@ export const save = async (
       let approvalStatus = "approved";
       const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
       try {
-        await offChainCheck(order, exchange, {
+        await offChainCheck(order, "seaport", exchange, {
           onChainApprovalRecheck: true,
           singleTokenERC721ApprovalCheck: metadata.fromOnChain,
         });
@@ -770,6 +762,7 @@ export const save = async (
               trigger: {
                 kind: "new-order",
               },
+              ingestMethod,
             } as ordersUpdateById.OrderInfo)
         )
     );
@@ -835,8 +828,12 @@ const getCollection = async (
       );
 
       logger.info(
-        "orders-seaport-save-partial",
-        `Unknown Collection. orderId=${orderParams.hash}, contract=${orderParams.contract}, collectionSlug=${orderParams.collectionSlug}, lockAcquired=${lockAcquired}`
+        "unknown-collection-slug",
+        JSON.stringify({
+          orderId: orderParams.hash,
+          contract: orderParams.contract,
+          collectionSlug: orderParams.collectionSlug,
+        })
       );
 
       if (lockAcquired) {
@@ -862,7 +859,19 @@ const getCollectionFloorAskValue = async (
     if (collectionFloorAskValue) {
       return Number(collectionFloorAskValue);
     } else {
-      const collection = await Collections.getByContractAndTokenId(contract, tokenId);
+      const query = `
+        SELECT floorSellValue
+        FROM collections
+        WHERE collections.contract = $/contract/
+          AND collections.token_id_range @> $/tokenId/::NUMERIC(78, 0)
+        LIMIT 1
+      `;
+
+      const collection = await redb.oneOrNone(query, {
+        contract: toBuffer(contract),
+        tokenId,
+      });
+
       const collectionFloorAskValue = collection?.floorSellValue || 0;
 
       await redis.set(`collection-floor-ask:${contract}`, collectionFloorAskValue, "EX", 3600);

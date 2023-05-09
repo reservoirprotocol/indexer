@@ -323,12 +323,14 @@ if (config.doBackgroundWork) {
                   orders.id,
                   orders.source_id_int,
                   orders.fillability_status AS old_status,
+                  orders.quantity_remaining,
+                  LEAST(nft_balances.amount, orders.quantity_remaining) AS quantity_fillable,
                   (CASE
-                    WHEN nft_balances.amount >= orders.quantity_remaining THEN 'fillable'
+                    WHEN LEAST(nft_balances.amount, orders.quantity_remaining) > 0 THEN 'fillable'
                     ELSE 'no-balance'
                   END)::order_fillability_status_t AS new_status,
                   (CASE
-                    WHEN nft_balances.amount >= orders.quantity_remaining THEN nullif(upper(orders.valid_between), 'infinity')
+                    WHEN LEAST(nft_balances.amount, orders.quantity_remaining) > 0 THEN nullif(upper(orders.valid_between), 'infinity')
                     ELSE to_timestamp($/timestamp/)
                   END)::TIMESTAMPTZ AS expiration
                 FROM orders
@@ -354,7 +356,10 @@ if (config.doBackgroundWork) {
 
             // Filter any orders that didn't change status
             const values = fillabilityStatuses
-              .filter(({ old_status, new_status }) => old_status !== new_status)
+              .filter(
+                ({ old_status, new_status, quantity_remaining, quantity_fillable }) =>
+                  old_status !== new_status || quantity_remaining !== quantity_fillable
+              )
               // TODO: Is the below filtering needed anymore?
               // Exclude escrowed orders
               .filter(({ kind }) => kind !== "foundation" && kind !== "cryptopunks")
@@ -367,16 +372,17 @@ if (config.doBackgroundWork) {
                   ? { ...data, new_status: "cancelled" }
                   : data
               )
-              .map(({ id, new_status, expiration }) => ({
+              .map(({ id, new_status, quantity_fillable, expiration }) => ({
                 id,
                 fillability_status: new_status,
+                quantity_remaining: quantity_fillable,
                 expiration: expiration || "infinity",
               }));
 
             // Update any orders that did change status
             if (values.length) {
               const columns = new pgp.helpers.ColumnSet(
-                ["id", "fillability_status", "expiration"],
+                ["id", "fillability_status", "quantity_remaining", "expiration"],
                 { table: "orders" }
               );
 
@@ -384,12 +390,13 @@ if (config.doBackgroundWork) {
                 `
                   UPDATE orders SET
                     fillability_status = x.fillability_status::order_fillability_status_t,
+                    quantity_remaining = x.quantity_remaining::NUMERIC(78, 0),
                     expiration = x.expiration::TIMESTAMPTZ,
                     updated_at = now()
                   FROM (VALUES ${pgp.helpers.values(
                     values,
                     columns
-                  )}) AS x(id, fillability_status, expiration)
+                  )}) AS x(id, fillability_status, quantity_remaining, expiration)
                   WHERE orders.id = x.id::TEXT
                 `
               );

@@ -9,6 +9,8 @@ import {
   InvalidRequestError,
 } from "@/jobs/orderbook/post-order-external/api/errors";
 
+import * as orderbook from "@/jobs/orderbook/orders-queue";
+
 // Looks Rare default rate limit - 120 requests per minute
 export const RATE_LIMIT_REQUEST_COUNT = 120;
 export const RATE_LIMIT_INTERVAL = 60;
@@ -65,7 +67,7 @@ export const postOrder = async (order: Sdk.LooksRareV2.Order, apiKey: string) =>
           case 401:
             throw new InvalidRequestError(
               `Request was rejected by LooksRare. error=${JSON.stringify(
-                error.response.data.message
+                error.response.data.errors ?? error.response.data.message
               )}`
             );
         }
@@ -73,4 +75,15 @@ export const postOrder = async (order: Sdk.LooksRareV2.Order, apiKey: string) =>
 
       throw new Error(`Failed to post order to LooksRare`);
     });
+
+  // If the cross-posting was successful, save the order directly
+  await orderbook.addToQueue([
+    {
+      kind: "looks-rare-v2",
+      info: {
+        orderParams: order.params,
+        metadata: {},
+      },
+    },
+  ]);
 };

@@ -6,35 +6,34 @@ import { Contract } from "@ethersproject/contracts";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import { verifyTypedData } from "@ethersproject/wallet";
 
-import * as Addresses from "./addresses";
+import * as Common from "../common";
+import { Exchange } from "./exchange";
 import { Builders } from "../seaport-base/builders";
 import { BaseBuilder, BaseOrderInfo } from "../seaport-base/builders/base";
+import { IOrder, ORDER_EIP712_TYPES } from "../seaport-base/order";
 import * as Types from "../seaport-base/types";
-import * as Common from "../common";
 import { bn, getCurrentTimestamp, lc, n, s } from "../utils";
+import {
+  isPrivateOrder,
+  constructPrivateListingCounterOrder,
+  getPrivateListingFulfillments,
+} from "../seaport-base/helpers";
 
-import { Exchange } from "./exchange";
-import { ORDER_EIP712_TYPES, SeaportOrderKind } from "../seaport-base/order";
-import { SeaportBaseExchange } from "../seaport-base";
-
-export class Order {
+export class Order implements IOrder {
   public chainId: number;
   public params: Types.OrderComponents;
-  protected exchangeAddress: string;
-  protected exchange: SeaportBaseExchange;
 
   constructor(chainId: number, params: Types.OrderComponents) {
     this.chainId = chainId;
-    this.exchangeAddress = Addresses.Exchange[chainId];
-    this.exchange = new Exchange(chainId);
 
+    // Normalize
     try {
       this.params = normalize(params);
     } catch {
       throw new Error("Invalid params");
     }
 
-    // Detect kind
+    // Detect kind (if missing)
     if (!params.kind) {
       this.params.kind = this.detectKind();
     }
@@ -43,13 +42,19 @@ export class Order {
     this.fixSignature();
   }
 
+  // Public methods
+
+  public exchange() {
+    return new Exchange(this.chainId);
+  }
+
   public hash() {
     return _TypedDataEncoder.hashStruct("OrderComponents", ORDER_EIP712_TYPES, this.params);
   }
 
   public async sign(signer: TypedDataSigner) {
     const signature = await signer._signTypedData(
-      this.exchange.eip712Domain(),
+      this.exchange().eip712Domain(),
       ORDER_EIP712_TYPES,
       this.params
     );
@@ -63,7 +68,7 @@ export class Order {
   public getSignatureData() {
     return {
       signatureKind: "eip712",
-      domain: this.exchange.eip712Domain(),
+      domain: this.exchange().eip712Domain(),
       types: ORDER_EIP712_TYPES,
       value: this.params,
       primaryType: _TypedDataEncoder.getPrimaryType(ORDER_EIP712_TYPES),
@@ -73,7 +78,7 @@ export class Order {
   public async checkSignature(provider?: Provider) {
     try {
       const signer = verifyTypedData(
-        this.exchange.eip712Domain(),
+        this.exchange().eip712Domain(),
         ORDER_EIP712_TYPES,
         this.params,
         this.params.signature!
@@ -88,7 +93,7 @@ export class Order {
       }
 
       const eip712Hash = _TypedDataEncoder.hash(
-        this.exchange.eip712Domain(),
+        this.exchange().eip712Domain(),
         ORDER_EIP712_TYPES,
         this.params
       );
@@ -124,10 +129,6 @@ export class Order {
 
   public getInfo(): BaseOrderInfo | undefined {
     return this.getBuilder().getInfo(this);
-  }
-
-  public getKind(): SeaportOrderKind {
-    return SeaportOrderKind.SEAPORT_V11;
   }
 
   public getMatchingPrice(timestampOverride?: number): BigNumberish {
@@ -184,7 +185,7 @@ export class Order {
   }
 
   public async checkFillability(provider: Provider) {
-    const status = await this.exchange.contract.connect(provider).getOrderStatus(this.hash());
+    const status = await this.exchange().contract.connect(provider).getOrderStatus(this.hash());
     if (status.isCancelled) {
       throw new Error("not-fillable");
     }
@@ -192,7 +193,7 @@ export class Order {
       throw new Error("not-fillable");
     }
 
-    const makerConduit = this.exchange.deriveConduit(this.params.conduitKey);
+    const makerConduit = this.exchange().deriveConduit(this.params.conduitKey);
 
     const info = this.getInfo()! as BaseOrderInfo;
     if (info.side === "buy") {
@@ -241,6 +242,20 @@ export class Order {
       }
     }
   }
+
+  public getPrivateListingFulfillments(): Types.MatchOrdersFulfillment[] {
+    return getPrivateListingFulfillments(this.params);
+  }
+
+  public isPrivateOrder() {
+    return isPrivateOrder(this.params);
+  }
+
+  public constructPrivateListingCounterOrder(privateSaleRecipient: string): Types.OrderWithCounter {
+    return constructPrivateListingCounterOrder(privateSaleRecipient, this.params);
+  }
+
+  // Private methods
 
   private getBuilder(): BaseBuilder {
     switch (this.params.kind) {

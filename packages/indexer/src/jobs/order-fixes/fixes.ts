@@ -1,3 +1,4 @@
+import { HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
@@ -5,10 +6,11 @@ import { randomUUID } from "crypto";
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { toBuffer } from "@/common/utils";
+import { now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
+import * as orderbook from "@/jobs/orderbook/orders-queue";
 
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as raribleCheck from "@/orderbook/orders/rarible/check";
@@ -53,6 +55,7 @@ if (config.doBackgroundWork) {
                   orders.side,
                   orders.token_set_id,
                   orders.kind,
+                  orders.quantity_remaining,
                   orders.raw_data,
                   orders.block_number,
                   orders.log_index,
@@ -65,7 +68,6 @@ if (config.doBackgroundWork) {
               { id: data.id }
             );
 
-            // TODO: Support validating orders for which `raw_data` is null
             if (result && result.raw_data) {
               let fillabilityStatus = "fillable";
               let approvalStatus = "approved";
@@ -159,9 +161,10 @@ if (config.doBackgroundWork) {
                   const order = new Sdk.SeaportV11.Order(config.chainId, result.raw_data);
                   const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
                   try {
-                    await seaportCheck.offChainCheck(order, exchange, {
+                    await seaportCheck.offChainCheck(order, "seaport", exchange, {
                       onChainApprovalRecheck: true,
                       checkFilledOrCancelled: true,
+                      quantityRemaining: result.quantity_remaining,
                     });
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   } catch (error: any) {
@@ -187,9 +190,39 @@ if (config.doBackgroundWork) {
                   const order = new Sdk.SeaportV14.Order(config.chainId, result.raw_data);
                   const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
                   try {
-                    await seaportCheck.offChainCheck(order, exchange, {
+                    await seaportCheck.offChainCheck(order, "seaport-v1.4", exchange, {
                       onChainApprovalRecheck: true,
                       checkFilledOrCancelled: true,
+                      quantityRemaining: result.quantity_remaining,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
+                    }
+                  }
+                  break;
+                }
+
+                case "seaport-v1.5": {
+                  const order = new Sdk.SeaportV15.Order(config.chainId, result.raw_data);
+                  const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
+                  try {
+                    await seaportCheck.offChainCheck(order, "seaport-v1.5", exchange, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                      quantityRemaining: result.quantity_remaining,
                     });
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   } catch (error: any) {
@@ -214,6 +247,30 @@ if (config.doBackgroundWork) {
                 case "nftx": {
                   try {
                     await nftxCheck.offChainCheck(result.id);
+
+                    // Fully refresh the order at most once per hour
+                    const order = new Sdk.Nftx.Order(config.chainId, result.raw_data);
+                    const cacheKey = `order-fixes:nftx:${order.params.pool}`;
+                    if (!redis.get(cacheKey)) {
+                      await redis.set(cacheKey, "locked", "EX", 3600);
+                      await orderbook.addToQueue([
+                        {
+                          kind: "nftx",
+                          info: {
+                            orderParams: {
+                              pool: order.params.pool,
+                              txHash: HashZero,
+                              txTimestamp: now(),
+                              txBlock: result.block_number,
+                              logIndex: result.log_index,
+                              forceRecheck: true,
+                            },
+                            metadata: {},
+                          },
+                        },
+                      ]);
+                    }
+
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   } catch (error: any) {
                     if (error.message === "no-balance") {
@@ -275,11 +332,6 @@ if (config.doBackgroundWork) {
                   break;
                 }
               }
-
-              logger.info(
-                QUEUE_NAME,
-                `Detected order status: id=${data.id} fillability=${fillabilityStatus}, approval=${approvalStatus}`
-              );
 
               const fixResult = await idb.oneOrNone(
                 `

@@ -48,7 +48,9 @@ export const getTokensV6Options: RouteOptions = {
         ),
       collectionsSetId: Joi.string()
         .lowercase()
-        .description("Filter to a particular collection set.")
+        .description(
+          "Filter to a particular collection set. Example: `8daa732ebe5db23f267e58d52f1c9b1879279bcdf4f78b8fb563390e6946ea65`"
+        )
         .when("flagStatus", {
           is: Joi.exist(),
           then: Joi.forbidden(),
@@ -74,24 +76,23 @@ export const getTokensV6Options: RouteOptions = {
           otherwise: Joi.allow(),
         }),
       tokenName: Joi.string().description(
-        "Filter to a particular token by name. Example: `token #1`"
+        "Filter to a particular token by name. This is case sensitive. Example: `token #1`"
       ),
       tokens: Joi.alternatives().try(
         Joi.array()
           .max(50)
           .items(Joi.string().lowercase().pattern(regex.token))
           .description(
-            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+            "Array of tokens. Max limit is 50. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           ),
         Joi.string()
           .lowercase()
           .pattern(regex.token)
           .description(
-            "Array of tokens. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+            "Array of tokens. Max limit is 50. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
           )
       ),
       tokenSetId: Joi.string()
-        .lowercase()
         .description(
           "Filter to a particular token set. `Example: token:0xa7d8d9ef8d8ce8992df33d8b8cf4aebabd5bd270:129000685`"
         )
@@ -103,7 +104,7 @@ export const getTokensV6Options: RouteOptions = {
       attributes: Joi.object()
         .unknown()
         .description(
-          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/owners/v1?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/owners/v1?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`"
+          "Filter to a particular attribute. Attributes are case sensitive. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/tokens/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/tokens/v6?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`"
         ),
       source: Joi.string().description(
         "Domain of the order source. Example `opensea.io` (Only listed tokens are returned when filtering by source)"
@@ -133,14 +134,16 @@ export const getTokensV6Options: RouteOptions = {
       sortBy: Joi.string()
         .valid("floorAskPrice", "tokenId", "rarity")
         .default("floorAskPrice")
-        .description("Order the items are returned in the response."),
+        .description(
+          "Order the items are returned in the response. Options are `floorAskPrice`, `tokenId`, and `rarity`."
+        ),
       sortDirection: Joi.string().lowercase().valid("asc", "desc"),
       currencies: Joi.alternatives().try(
         Joi.array()
           .max(50)
           .items(Joi.string().lowercase().pattern(regex.address))
           .description(
-            "Filter to tokens with a listing in a particular currency. `Example: currencies[0]: 0x0000000000000000000000000000000000000000`"
+            "Filter to tokens with a listing in a particular currency. Max limit is 50. `Example: currencies[0]: 0x0000000000000000000000000000000000000000`"
           ),
         Joi.string()
           .lowercase()
@@ -154,7 +157,7 @@ export const getTokensV6Options: RouteOptions = {
         .min(1)
         .max(100)
         .default(20)
-        .description("Amount of items returned in response."),
+        .description("Amount of items returned in response. Max limit is 100."),
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
@@ -183,7 +186,7 @@ export const getTokensV6Options: RouteOptions = {
       displayCurrency: Joi.string()
         .lowercase()
         .pattern(regex.address)
-        .description("Return result in given currency"),
+        .description("Input any ERC20 address to return result in given currency"),
     })
       .or("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
       .oxor("collection", "contract", "tokens", "tokenSetId", "community", "collectionsSetId")
@@ -206,6 +209,8 @@ export const getTokensV6Options: RouteOptions = {
             isFlagged: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
+            supply: Joi.number().unsafe().allow(null),
+            remainingSupply: Joi.number().unsafe().allow(null),
             rarity: Joi.number().unsafe().allow(null),
             rarityRank: Joi.number().unsafe().allow(null),
             collection: Joi.object({
@@ -540,6 +545,8 @@ export const getTokensV6Options: RouteOptions = {
           t.is_flagged,
           t.last_flag_update,
           t.last_flag_change,
+          t.supply,
+          t.remaining_supply,
           c.slug,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
           (
@@ -680,7 +687,8 @@ export const getTokensV6Options: RouteOptions = {
       }
 
       if (query.tokenName) {
-        conditions.push(`t.name = $/tokenName/`);
+        query.tokenName = "%" + query.tokenName + "%";
+        conditions.push(`t.name ILIKE $/tokenName/`);
       }
 
       if (query.tokenSetId) {
@@ -1052,6 +1060,8 @@ export const getTokensV6Options: RouteOptions = {
             isFlagged: Boolean(Number(r.is_flagged)),
             lastFlagUpdate: r.last_flag_update ? new Date(r.last_flag_update).toISOString() : null,
             lastFlagChange: r.last_flag_change ? new Date(r.last_flag_change).toISOString() : null,
+            supply: !_.isNull(r.supply) ? r.supply : null,
+            remainingSupply: !_.isNull(r.remaining_supply) ? r.remaining_supply : null,
             rarity: r.rarity_score,
             rarityRank: r.rarity_rank,
             collection: {

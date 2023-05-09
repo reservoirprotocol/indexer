@@ -12,6 +12,10 @@ export const MaxUint256 = BigNumber.from("0x" + "f".repeat(64));
 
 export const getRandomBytes = (numBytes = 32) => bn(randomBytes(numBytes));
 
+export const generateRandomSalt = () => {
+  return `0x${Buffer.from(randomBytes(8)).toString("hex").padStart(24, "0")}`;
+};
+
 // BigNumber
 
 export const bn = (value: BigNumberish) => BigNumber.from(value);
@@ -49,9 +53,13 @@ export const getErrorMessage = (error: any) => {
 
 // Misc
 
-export const generateSourceBytes = (source?: string) => {
-  return source ? keccak256(toUtf8Bytes(source)).slice(2, 10) : "";
-};
+export const getSourceHash = (source?: string) =>
+  source ? keccak256(toUtf8Bytes(source)).slice(2, 10) : "";
+
+export const generateSourceBytes = (source?: string) =>
+  source === "reservoir.tools"
+    ? getSourceHash(source)
+    : getSourceHash("reservoir.tools") + getSourceHash(source);
 
 export const getSourceV1 = (calldata: string) => {
   // Use the ASCII US (unit separator) character (code = 31) as a delimiter
@@ -91,21 +99,16 @@ export type TxData = {
 };
 
 export enum Network {
-  // Ethereum
   Ethereum = 1,
   EthereumGoerli = 5,
-  // Optimism
   Optimism = 10,
-  // Gnosis
+  Bsc = 56,
   Gnosis = 100,
-  // Polygon
   Polygon = 137,
-  PolygonMumbai = 80001,
-  // Arbitrum
   Arbitrum = 42161,
-  // Avalanche
   Avalanche = 43114,
-  AvalancheFuji = 43113,
+  // Scroll
+  ScrollAlpha = 534353,
 }
 
 export type ChainIdToAddress = { [chainId: number]: string };

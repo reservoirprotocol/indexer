@@ -63,6 +63,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
           contract: Joi.string(),
           image: Joi.string().allow("", null),
           name: Joi.string().allow("", null),
+          slug: Joi.string().allow("", null),
           allTimeVolume: Joi.number().unsafe().allow(null),
           floorAskPrice: JoiPrice.allow(null),
           openseaVerificationStatus: Joi.string().allow("", null),
@@ -103,7 +104,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
 
     const baseQuery = `
             SELECT c.id, c.name, c.contract, (c.metadata ->> 'imageUrl')::TEXT AS image, c.all_time_volume, c.floor_sell_value,
-                   (c.metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status,
+                   c.slug, (c.metadata ->> 'safelistRequestStatus')::TEXT AS opensea_verification_status,
                    o.currency AS floor_sell_currency,
                    o.currency_price AS floor_sell_currency_price
             FROM collections c
@@ -137,6 +138,7 @@ export const getSearchCollectionsV2Options: RouteOptions = {
           return {
             collectionId: collection.id,
             name: collection.name,
+            slug: collection.slug,
             contract: fromBuffer(collection.contract),
             image: Assets.getLocalAssetsLink(collection.image),
             allTimeVolume: allTimeVolume ? formatEth(allTimeVolume) : null,

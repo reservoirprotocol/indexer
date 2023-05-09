@@ -126,7 +126,7 @@ const getCachedUSDPrice = async (
       `
         SELECT
           extract('epoch' from usd_prices.timestamp) AS "timestamp",
-          ${config.chainId === 10 ? `trunc(usd_prices.value) AS "value"` : `usd_prices.value`}
+          usd_prices.value
         FROM usd_prices
         WHERE usd_prices.currency = $/currency/
           AND usd_prices.timestamp <= date_trunc('day', to_timestamp($/timestamp/))
@@ -201,11 +201,32 @@ const isTestnetCurrency = (currencyAddress: string) =>
     "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
   ].includes(currencyAddress);
 
+const areEquivalentCurrencies = (currencyAddress1: string, currencyAddress2: string) => {
+  const equivalentCurrencySets = [
+    [
+      Sdk.Common.Addresses.Eth[config.chainId],
+      Sdk.Common.Addresses.Weth[config.chainId],
+      Sdk.Blur.Addresses.Beth[config.chainId],
+    ],
+  ];
+  for (const equivalentCurrencies of equivalentCurrencySets) {
+    if (
+      equivalentCurrencies.includes(currencyAddress1) &&
+      equivalentCurrencies.includes(currencyAddress2)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 export type USDAndNativePrices = {
   usdPrice?: string;
   nativePrice?: string;
 };
 
+// TODO: Build on top of `getUSDAndCurrencyPrices`
 export const getUSDAndNativePrices = async (
   currencyAddress: string,
   price: string,
@@ -249,14 +270,8 @@ export const getUSDAndNativePrices = async (
     }
   }
 
-  // Make sure to handle the case where the currency is the native one (or the wrapped equivalent)
-  if (
-    [
-      Sdk.Common.Addresses.Eth[config.chainId],
-      Sdk.Common.Addresses.Weth[config.chainId],
-      Sdk.Blur.Addresses.Beth[config.chainId],
-    ].includes(currencyAddress)
-  ) {
+  // Make sure to handle equivalent currencies
+  if (areEquivalentCurrencies(currencyAddress, Sdk.Common.Addresses.Eth[config.chainId])) {
     nativePrice = price;
   }
 
@@ -319,6 +334,11 @@ export const getUSDAndCurrencyPrices = async (
           .toString();
       }
     }
+  }
+
+  // Make sure to handle equivalent currencies
+  if (areEquivalentCurrencies(fromCurrencyAddress, toCurrencyAddress)) {
+    currencyPrice = price;
   }
 
   return { usdPrice, currencyPrice };

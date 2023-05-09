@@ -15,6 +15,7 @@ import { logger } from "@/common/logger";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimiterRedis } from "rate-limiter-flexible";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
+import { config } from "@/config/index";
 
 export class RateLimitRules {
   private static instance: RateLimitRules;
@@ -285,7 +286,7 @@ export class RateLimitRules {
     tier: number,
     apiKey = "",
     payload: Map<string, string> = new Map()
-  ) {
+  ): { ruleParams: RateLimitRuleEntity; rule: RateLimiterRedis } | null {
     const rule = this.findMostMatchingRule(route, method, tier, apiKey, payload);
 
     if (rule) {
@@ -297,8 +298,12 @@ export class RateLimitRules {
       const rateLimitObject = this.rules.get(rule.id);
 
       if (rateLimitObject) {
-        rateLimitObject.keyPrefix = route;
-        return rateLimitObject;
+        rateLimitObject.keyPrefix = `${config.chainId}:${route}`;
+
+        return {
+          ruleParams: rule,
+          rule: rateLimitObject,
+        };
       }
     }
 

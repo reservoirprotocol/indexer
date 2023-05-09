@@ -4,14 +4,18 @@ export const Exchange: ChainIdToAddress = {
   [Network.Ethereum]: "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
   [Network.EthereumGoerli]: "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
   [Network.Optimism]: "0xdef1abe32c034e558cdd535791643c58a13acc10",
+  [Network.Bsc]: "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
   [Network.Polygon]: "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
+  [Network.Arbitrum]: "0xdef1c0ded9bec7f1a1670819833240f027b25eff",
 };
 
 export const Eth: ChainIdToAddress = {
   [Network.Ethereum]: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
   [Network.EthereumGoerli]: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
   [Network.Optimism]: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  [Network.Bsc]: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
   [Network.Polygon]: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  [Network.Arbitrum]: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
 };
 
 export const TokenRangeValidator: ChainIdToAddress = {

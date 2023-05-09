@@ -15,7 +15,7 @@ ALTER TABLE "currencies"
 CREATE TABLE "usd_prices" (
   "currency" BYTEA NOT NULL,
   "timestamp" TIMESTAMPTZ NOT NULL,
-  "value" NUMERIC NOT NULL
+  "value" NUMERIC(78, 0) NOT NULL
 );
 
 ALTER TABLE "usd_prices"
@@ -23,9 +23,8 @@ ALTER TABLE "usd_prices"
   PRIMARY KEY ("currency", "timestamp");
 
 ALTER TABLE "fill_events_2" ADD COLUMN "currency" BYTEA NOT NULL DEFAULT ('\x0000000000000000000000000000000000000000');
--- TODO: Should use `NUMERIC(78, 0)` to remove any chance of trailing decimals
-ALTER TABLE "fill_events_2" ADD COLUMN "currency_price" NUMERIC;
-ALTER TABLE "fill_events_2" ADD COLUMN "usd_price" NUMERIC;
+ALTER TABLE "fill_events_2" ADD COLUMN "currency_price" NUMERIC(78, 0);
+ALTER TABLE "fill_events_2" ADD COLUMN "usd_price" NUMERIC(78, 0);
 
 -- Down Migration
 

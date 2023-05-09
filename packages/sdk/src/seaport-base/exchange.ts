@@ -75,6 +75,35 @@ export abstract class SeaportBaseExchange {
     }
 
     if (info.side === "sell") {
+      if (order.isPrivateOrder()) {
+        info = info as BaseOrderInfo;
+        const counterOrder = order.constructPrivateListingCounterOrder(taker);
+        const fulfillments = order.getPrivateListingFulfillments();
+        const orderWith = {
+          parameters: {
+            ...order.params,
+            totalOriginalConsiderationItems: order.params.consideration.length,
+          },
+          signature: order.params.signature,
+        };
+        return {
+          from: taker,
+          to: this.contract.address,
+          data:
+            this.contract.interface.encodeFunctionData("matchOrders", [
+              [orderWith, counterOrder],
+              fulfillments,
+            ]) + generateSourceBytes(options?.source),
+          value:
+            info.paymentToken === CommonAddresses.Eth[this.chainId]
+              ? bn(order.getMatchingPrice())
+                  .mul(matchParams.amount || "1")
+                  .div(info.amount)
+                  .toHexString()
+              : undefined,
+        };
+      }
+
       if (
         // Order is not private
         recipient === AddressZero &&
@@ -444,7 +473,10 @@ export abstract class SeaportBaseExchange {
 
           return {
             // To cover the generic `matchOrders` case
-            recipientOverride,
+            recipientOverride:
+              recipientOverride && recipientOverride !== AddressZero
+                ? recipientOverride
+                : undefined,
             contract: nSpentItems[0].token,
             tokenId: nSpentItems[0].identifier,
             amount: nSpentItems[0].amount,

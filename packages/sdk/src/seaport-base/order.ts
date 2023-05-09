@@ -1,20 +1,16 @@
-import * as Types from "./types";
-import { BaseOrderInfo } from "./builders/base";
 import { BigNumberish } from "@ethersproject/bignumber";
 
-export enum SeaportOrderKind {
-  SEAPORT_V11 = "seaport",
-  SEAPORT_V14 = "seaport-v1.4",
-  ALIENSWAP = "alienswap",
-}
+import { BaseOrderInfo } from "./builders/base";
+import * as Types from "./types";
+import { SeaportBaseExchange } from "../seaport-base/exchange";
 
 export interface IOrder {
   chainId: number;
   params: Types.OrderComponents;
 
-  getInfo(): BaseOrderInfo | undefined;
+  exchange(): SeaportBaseExchange;
 
-  getKind(): SeaportOrderKind;
+  getInfo(): BaseOrderInfo | undefined;
 
   getMatchingPrice(timestampOverride?: number): BigNumberish;
 
@@ -22,6 +18,10 @@ export interface IOrder {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getSignatureData(): any;
+
+  isPrivateOrder(): boolean;
+  constructPrivateListingCounterOrder(privateSaleRecipient: string): Types.OrderWithCounter;
+  getPrivateListingFulfillments(): Types.MatchOrdersFulfillment[];
 }
 
 export const ORDER_EIP712_TYPES = {

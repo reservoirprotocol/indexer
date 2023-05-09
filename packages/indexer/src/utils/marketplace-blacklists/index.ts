@@ -4,68 +4,80 @@ import * as Sdk from "@reservoir0x/sdk";
 
 import { idb, redb } from "@/common/db";
 import { baseProvider } from "@/common/provider";
+import { redis } from "@/common/redis";
+import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { OrderKind } from "@/orderbook/orders";
-import { toBuffer } from "@/common/utils";
 
 export type Operator = {
   address: string;
   marketplace: OrderKind;
 };
 
-const conduitController = new Sdk.SeaportBase.ConduitController(config.chainId);
-
-const allOperatorList: Operator[] = [
-  {
-    address: Sdk.Blur.Addresses.ExecutionDelegate[config.chainId],
-    marketplace: "blur",
-  },
-  {
-    address: Sdk.LooksRare.Addresses.TransferManagerErc721[config.chainId],
-    marketplace: "looks-rare",
-  },
-  {
-    address: Sdk.LooksRare.Addresses.TransferManagerErc1155[config.chainId],
-    marketplace: "looks-rare",
-  },
-  {
-    address: Sdk.Nftx.Addresses.MarketplaceZap[config.chainId],
-    marketplace: "nftx",
-  },
-  {
-    address: conduitController.deriveConduit(
-      Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
-    ),
-    marketplace: "seaport",
-  },
-  {
-    address: conduitController.deriveConduit(
-      Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
-    ),
-    marketplace: "seaport-v1.4",
-  },
-  {
-    address: Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId],
-    marketplace: "x2y2",
-  },
-  {
-    address: Sdk.Element.Addresses.Exchange[config.chainId],
-    marketplace: "element-erc721",
-  },
-  {
-    address: Sdk.Element.Addresses.Exchange[config.chainId],
-    marketplace: "element-erc1155",
-  },
-  {
-    address: Sdk.Sudoswap.Addresses.LSSVMRouter[config.chainId],
-    marketplace: "sudoswap",
-  },
-];
-
 export const checkMarketplaceIsFiltered = async (contract: string, marketplace: OrderKind) => {
-  const operatorList = allOperatorList.filter((c) => c.marketplace === marketplace);
-  const result = await getMarketplaceBlacklistFromDB(contract);
-  return operatorList.some((c) => result.includes(c.address));
+  const conduitController = new Sdk.SeaportBase.ConduitController(config.chainId);
+  const allOperatorsList: Operator[] = [
+    {
+      address: Sdk.Blur.Addresses.ExecutionDelegate[config.chainId],
+      marketplace: "blur",
+    },
+    {
+      address: Sdk.LooksRare.Addresses.TransferManagerErc721[config.chainId],
+      marketplace: "looks-rare",
+    },
+    {
+      address: Sdk.LooksRare.Addresses.TransferManagerErc1155[config.chainId],
+      marketplace: "looks-rare",
+    },
+    {
+      address: Sdk.Nftx.Addresses.MarketplaceZap[config.chainId],
+      marketplace: "nftx",
+    },
+    {
+      address: conduitController.deriveConduit(
+        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+      ),
+      marketplace: "seaport",
+    },
+    {
+      address: conduitController.deriveConduit(
+        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+      ),
+      marketplace: "seaport-v1.4",
+    },
+    {
+      address: conduitController.deriveConduit(
+        Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+      ),
+      marketplace: "seaport-v1.5",
+    },
+    {
+      address: Sdk.X2Y2.Addresses.Erc721Delegate[config.chainId],
+      marketplace: "x2y2",
+    },
+    {
+      address: Sdk.Element.Addresses.Exchange[config.chainId],
+      marketplace: "element-erc721",
+    },
+    {
+      address: Sdk.Element.Addresses.Exchange[config.chainId],
+      marketplace: "element-erc1155",
+    },
+    {
+      address: Sdk.Sudoswap.Addresses.LSSVMRouter[config.chainId],
+      marketplace: "sudoswap",
+    },
+  ];
+
+  const cacheKey = `marketplace-blacklist:${contract}`;
+  let result = await redis.get(cacheKey).then((r) => (r ? (JSON.parse(r) as string[]) : null));
+  if (!result) {
+    result = await getMarketplaceBlacklistFromDB(contract);
+    await redis.set(cacheKey, JSON.stringify(result), "EX", 24 * 3600);
+  }
+
+  const operatorsList = allOperatorsList.filter((c) => c.marketplace === marketplace);
+  return operatorsList.some((c) => result!.includes(c.address));
 };
 
 export const getMarketplaceBlacklist = async (contract: string): Promise<string[]> => {
