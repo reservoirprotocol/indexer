@@ -69,6 +69,7 @@ if (config.doBackgroundWork) {
       const method = "opensea";
       const count = 1; // Default number of tokens to fetch
       let retry = false;
+      job.data.addToQueue = false;
 
       const countTotal = config.maxParallelTokenCollectionSlugRefreshJobs * count;
 
@@ -165,8 +166,6 @@ if (config.doBackgroundWork) {
         }))
       );
 
-      job.data.addToQueue = false;
-
       // If there are potentially more tokens to process trigger another job
       if (rateLimitExpiredIn || _.size(refreshTokensBySlug) == countTotal || retry) {
         if (await extendLock(getLockName(method), 60 * 5 + rateLimitExpiredIn)) {
@@ -194,6 +193,8 @@ if (config.doBackgroundWork) {
   });
 
   worker.on("completed", async (job) => {
+    logger.error(QUEUE_NAME, `Worker completed. JobData=${JSON.stringify(job.data)}`);
+
     if (job.data.addToQueue) {
       await addToQueue(job.data.addToQueueDelay);
     }

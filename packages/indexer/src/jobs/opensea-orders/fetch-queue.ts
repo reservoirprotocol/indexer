@@ -42,6 +42,8 @@ if (config.doBackgroundWork) {
       let collectionOffers = [];
       let rateLimitExpiredIn = 0;
 
+      job.data.addToQueue = false;
+
       const pendingRefreshOpenseaCollectionOffersCollections =
         new PendingRefreshOpenseaCollectionOffersCollections();
       const refreshOpenseaCollectionOffersCollections =
@@ -158,8 +160,6 @@ if (config.doBackgroundWork) {
         }
       }
 
-      job.data.addToQueue = false;
-
       // If there are potentially more collections to process trigger another job
       if (rateLimitExpiredIn || _.size(refreshOpenseaCollectionOffersCollections) == 1) {
         if (await extendLock(getLockName(), 60 * 5 + rateLimitExpiredIn)) {
@@ -178,6 +178,8 @@ if (config.doBackgroundWork) {
   });
 
   worker.on("completed", async (job) => {
+    logger.error(QUEUE_NAME, `Worker completed. JobData=${JSON.stringify(job.data)}`);
+
     if (job.data.addToQueue) {
       await addToQueue(job.data.addToQueueDelay);
     }
