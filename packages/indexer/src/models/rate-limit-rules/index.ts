@@ -20,15 +20,17 @@ import { config } from "@/config/index";
 export class RateLimitRules {
   private static instance: RateLimitRules;
 
-  public rulesEntities: Map<string, RateLimitRuleEntity[]>;
-  public rules: Map<number, RateLimiterRedis>;
-  public apiRoutesPoints: Map<string, { route: string; points: number }>;
+  public rulesEntities: Map<string, RateLimitRuleEntity[]>; // Map of route to local DB rules entities
+  public rules: Map<number, RateLimiterRedis>; // Map of rule ID to rate limit redis object
+  public apiRoutesPoints: Map<string, { route: string; points: number }>; // Map of route to points
+  public apiRoutesPointsCache: Map<string, number>; // Local cache of points per route to avoid redundant iterations and regex matching
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   private constructor() {
     this.rulesEntities = new Map();
     this.rules = new Map();
     this.apiRoutesPoints = new Map();
+    this.apiRoutesPointsCache = new Map();
   }
 
   private async loadData(forceDbLoad = false) {
@@ -55,6 +57,7 @@ export class RateLimitRules {
         const apiRoutesPointsQuery = `
           SELECT *
           FROM api_routes_points
+          ORDER BY route ASC
         `;
 
         routesPointsRawData = await redb.manyOrNone(apiRoutesPointsQuery);
@@ -108,6 +111,7 @@ export class RateLimitRules {
     this.rulesEntities = rulesEntities;
     this.rules = rules;
     this.apiRoutesPoints = apiRoutesPoints;
+    this.apiRoutesPointsCache = new Map();
   }
 
   public static getCacheKey() {
@@ -338,13 +342,21 @@ export class RateLimitRules {
 
       const rateLimitObject = this.rules.get(rule.id);
 
+      // Get points to consume from cache to avoid iterations and regex which are expensive
+      const pointsToConsumeCacheKey = `${rule.id}-${route}`;
+      let pointsToConsume = this.apiRoutesPointsCache.get(pointsToConsumeCacheKey);
+      if (!pointsToConsume) {
+        pointsToConsume = rule.options.pointsToConsume || this.getPointsToConsume(route);
+        this.apiRoutesPointsCache.set(pointsToConsumeCacheKey, pointsToConsume);
+      }
+
       if (rateLimitObject) {
         rateLimitObject.keyPrefix = `${config.chainId}:${route}`;
 
         return {
           ruleParams: rule,
           rule: rateLimitObject,
-          pointsToConsume: rule.options.pointsToConsume || this.getPointsToConsume(route),
+          pointsToConsume,
         };
       }
     }
