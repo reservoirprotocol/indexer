@@ -178,7 +178,7 @@ if (config.doBackgroundWork) {
   });
 
   worker.on("completed", async (job) => {
-    logger.error(QUEUE_NAME, `Worker completed. JobData=${JSON.stringify(job.data)}`);
+    logger.info(QUEUE_NAME, `Worker completed. JobData=${JSON.stringify(job.data)}`);
 
     if (job.data.addToQueue) {
       await addToQueue(job.data.addToQueueDelay);
