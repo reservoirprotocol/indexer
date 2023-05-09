@@ -101,7 +101,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
           type: Joi.string(),
           fromAddress: Joi.string(),
           toAddress: Joi.string().allow(null),
-          price: JoiPrice.allow(null),
+          price: JoiPrice.allow(null).description("Return native currency unless displayCurrency contract was passed."),
           amount: Joi.number().unsafe(),
           timestamp: Joi.number(),
           createdAt: Joi.string(),
