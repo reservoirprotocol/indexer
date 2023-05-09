@@ -204,6 +204,10 @@ export const getNetworkSettings = (): NetworkSettings => {
           // Nifty Gateway Omnibus
           "0xe052113bd7d7700d623414a0a4585bcae754e9d5",
         ],
+        supportedBidCurrencies: {
+          ...defaultNetworkSettings.supportedBidCurrencies,
+          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
+        },
         whitelistedCurrencies: new Map([
           [
             "0xceb726e6383468dd8ac0b513c8330cc9fb4024a8",
@@ -310,8 +314,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         ],
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
-          // Backed USDC
-          "0x68b7e050e6e2c7efe11439045c9d49813c1724b8": true,
+          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
         },
         onStartup: async () => {
           // Insert the native currency
@@ -451,6 +454,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
         supportedBidCurrencies: {
           ...defaultNetworkSettings.supportedBidCurrencies,
+          [Sdk.Common.Addresses.Usdc[config.chainId]]: true,
           // WETH
           "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": true,
         },

@@ -30,9 +30,11 @@ export const offChainCheck = async (
     throw new Error("invalid-target");
   }
 
+  const orderKind = kind === "erc1155" ? "zeroex-v4-erc1155" : "zeroex-v4-erc721";
+
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
-    const cancelled = await commonHelpers.isOrderCancelled(id, `zeroex-v4-${kind}`);
+    const cancelled = await commonHelpers.isOrderCancelled(id, orderKind);
     if (cancelled) {
       throw new Error("cancelled");
     }
@@ -46,7 +48,7 @@ export const offChainCheck = async (
 
   // Check: order's nonce was not individually cancelled
   const nonceCancelled = await commonHelpers.isNonceCancelled(
-    `zeroex-v4-${kind}`,
+    orderKind,
     order.params.maker,
     order.params.nonce
   );

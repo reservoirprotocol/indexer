@@ -206,17 +206,19 @@ export const start = async (): Promise<void> => {
       const rateLimitKey =
         _.isUndefined(key) || _.isEmpty(key) || _.isNull(apiKey) ? remoteAddress : key; // If no api key or the api key is invalid use IP
 
+      const pointsToConsume = rateLimitRule.ruleParams.getPointsToConsume();
+
       try {
         if (key && tier) {
           request.pre.metrics = {
             apiKey: key,
             route: request.route.path,
-            points: 1,
+            points: pointsToConsume,
             timestamp: _.now(),
           };
         }
 
-        const rateLimiterRes = await rateLimitRule.rule.consume(rateLimitKey, 1);
+        const rateLimiterRes = await rateLimitRule.rule.consume(rateLimitKey, pointsToConsume);
 
         if (rateLimiterRes) {
           // Generate the rate limiting header and add them to the request object to be added to the response in the onPreResponse event

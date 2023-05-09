@@ -195,6 +195,11 @@ export const getExecuteBuyV6Options: RouteOptions = {
       // We need each filled order's source for the path
       const sources = await Sources.getInstance();
 
+      // Save the fill source if it doesn't exist yet
+      if (payload.source) {
+        await sources.getOrInsert(payload.source);
+      }
+
       // Keep track of the listings and path to fill
       const listingDetails: ListingDetails[] = [];
       const path: {

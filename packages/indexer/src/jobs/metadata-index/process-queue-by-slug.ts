@@ -69,6 +69,7 @@ if (config.doBackgroundWork) {
       const method = "opensea";
       const count = 1; // Default number of tokens to fetch
       let retry = false;
+      job.data.addToQueue = false;
 
       const countTotal = config.maxParallelTokenCollectionSlugRefreshJobs * count;
 
@@ -177,7 +178,8 @@ if (config.doBackgroundWork) {
             }, rateLimitExpiredIn=${rateLimitExpiredIn}, retry=${retry}, countTotal=${countTotal}`
           );
 
-          await addToQueue(rateLimitExpiredIn * 1000);
+          job.data.addToQueue = true;
+          job.data.addToQueueDelay = rateLimitExpiredIn * 1000;
         }
       } else {
         await releaseLock(getLockName(method));
@@ -188,6 +190,14 @@ if (config.doBackgroundWork) {
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
+  });
+
+  worker.on("completed", async (job) => {
+    logger.info(QUEUE_NAME, `Worker completed. JobData=${JSON.stringify(job.data)}`);
+
+    if (job.data.addToQueue) {
+      await addToQueue(job.data.addToQueueDelay);
+    }
   });
 }
 

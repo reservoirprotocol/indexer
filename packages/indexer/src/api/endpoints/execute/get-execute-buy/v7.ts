@@ -187,6 +187,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           rawQuote: Joi.string().pattern(regex.number),
           buyInQuote: Joi.number().unsafe(),
           buyInRawQuote: Joi.string().pattern(regex.number),
+          totalPrice: Joi.number().unsafe(),
+          totalRawPrice: Joi.string().pattern(regex.number),
           builtInFees: Joi.array().items(JoiExecuteFee),
           feesOnTop: Joi.array().items(JoiExecuteFee),
         })
@@ -223,10 +225,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
         currency: string;
         currencySymbol?: string;
         currencyDecimals?: number;
+        // Gross price (without fees on top) = price
         quote: number;
         rawQuote: string;
         buyInQuote?: number;
         buyInRawQuote?: string;
+        // Total price (with fees on top) = price + feesOnTop
+        totalPrice?: number;
+        totalRawPrice?: string;
         builtInFees: ExecuteFee[];
         feesOnTop: ExecuteFee[];
       }[] = [];
@@ -242,6 +248,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
       // TODO: Also keep track of the maker's allowance per exchange
 
       const sources = await Sources.getInstance();
+
+      // Save the fill source if it doesn't exist yet
+      if (payload.source) {
+        await sources.getOrInsert(payload.source);
+      }
+
       const addToPath = async (
         order: {
           id: string;
@@ -710,15 +722,23 @@ export const getExecuteBuyV7Options: RouteOptions = {
           rawAmount,
         });
 
+        item.totalPrice = (item.totalPrice ?? item.quote) + amount;
+        item.totalRawPrice = bn(item.totalRawPrice ?? item.rawQuote)
+          .add(rawAmount)
+          .toString();
+
         // item.quote += amount;
         // item.rawQuote = bn(item.rawQuote).add(rawAmount).toString();
       };
 
       for (const item of path) {
-        if (ordersEligibleForGlobalFees.includes(item.orderId)) {
+        if (globalFees.length && ordersEligibleForGlobalFees.includes(item.orderId)) {
           for (const f of globalFees) {
             await addGlobalFee(item, f);
           }
+        } else {
+          item.totalPrice = item.quote;
+          item.totalRawPrice = item.rawQuote;
         }
       }
 

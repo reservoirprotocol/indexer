@@ -143,7 +143,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             // No zone
             AddressZero,
             // Cancellation zone
-            Sdk.SeaportV14.Addresses.CancellationZone[config.chainId],
+            Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId],
           ].includes(order.params.zone)
         ) {
           return results.push({
@@ -444,7 +444,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       const normalizedValue = bn(prices.nativePrice).toString();
 
       // Handle: off-chain cancellation via replacement
-      if (order.params.zone === Sdk.SeaportV14.Addresses.CancellationZone[config.chainId]) {
+      if (
+        order.params.zone === Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+      ) {
         const replacedOrderResult = await idb.oneOrNone(
           `
             SELECT
@@ -460,7 +462,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           replacedOrderResult &&
           // Replacement is only possible if the replaced order is an off-chain cancellable one
           replacedOrderResult.raw_data.zone ===
-            Sdk.SeaportV14.Addresses.CancellationZone[config.chainId]
+            Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
         ) {
           await axios.post(
             `https://seaport-oracle-${

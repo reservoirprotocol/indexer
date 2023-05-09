@@ -294,6 +294,7 @@ export const JoiOrder = Joi.object({
   createdAt: Joi.string().required(),
   updatedAt: Joi.string().required(),
   rawData: Joi.object().optional().allow(null),
+  isNativeOffChainCancellable: Joi.boolean().optional(),
   depth: JoiOrderDepth,
 });
 
@@ -653,6 +654,10 @@ export const getJoiOrderObject = async (order: {
     createdAt: new Date(order.createdAt * 1000).toISOString(),
     updatedAt: new Date(order.updatedAt * 1000).toISOString(),
     rawData: order.includeRawData ? order.rawData : undefined,
+    isNativeOffChainCancellable: order.includeRawData
+      ? (order.rawData as any).zone ===
+        Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+      : undefined,
     depth: order.includeDepth
       ? await getJoiOrderDepthObject(
           order.kind,

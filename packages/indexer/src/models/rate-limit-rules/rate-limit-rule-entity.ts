@@ -10,6 +10,7 @@ export type RateLimitRuleUpdateParams = {
 export type RateLimitRuleOptions = {
   keyPrefix?: string | undefined;
   points?: number | undefined;
+  pointsToConsume?: number | undefined;
   duration?: number | undefined;
 };
 
@@ -48,5 +49,9 @@ export class RateLimitRuleEntity {
     this.options = params.options;
     this.payload = params.payload;
     this.createdAt = params.created_at;
+  }
+
+  getPointsToConsume() {
+    return this.options.pointsToConsume || 10;
   }
 }

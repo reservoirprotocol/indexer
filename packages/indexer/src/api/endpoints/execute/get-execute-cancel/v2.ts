@@ -84,7 +84,7 @@ export const getExecuteCancelV2Options: RouteOptions = {
 
       // Handle off-chain cancellations
 
-      const cancellationZone = Sdk.SeaportV14.Addresses.CancellationZone[config.chainId];
+      const cancellationZone = Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId];
       const isOracleCancellable =
         orderResult.kind === "seaport-v1.4" && orderResult.raw_data.zone === cancellationZone;
       if (isOracleCancellable) {
