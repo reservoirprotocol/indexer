@@ -17,7 +17,7 @@ export class ArchiveBidEvents implements ArchiveInterface {
         SELECT created_at
         FROM ${ArchiveBidEvents.tableName}
         WHERE created_at < current_date - INTERVAL '${ArchiveBidEvents.maxAgeDay} days'
-        ORDER BY created_at DESC
+        --ORDER BY created_at ASC
         LIMIT 1
       `;
 

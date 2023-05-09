@@ -201,5 +201,5 @@ if (config.doBackgroundWork) {
 
 export const addToQueue = async (fromBlock: number, toBlock: number) => {
   const id = `${toBlock}-${RUN_NUMBER}`;
-  await queue.add(id, { fromBlock, toBlock }, { jobId: id, delay: 1000 });
+  await queue.add(id, { fromBlock, toBlock }, { jobId: id });
 };
