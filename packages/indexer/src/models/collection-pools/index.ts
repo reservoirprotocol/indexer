@@ -26,7 +26,7 @@ export type CollectionPool = {
 export const saveCollectionPool = async (collectionPool: CollectionPool) => {
   await idb.none(
     `
-      INSERT INTO collection_pools (
+      INSERT INTO collectionxyz_pools (
         address,
         nft,
         token,
@@ -60,14 +60,14 @@ export const getCollectionPool = async (address: string): Promise<CollectionPool
   const result = await idb.oneOrNone(
     `
       SELECT
-        collection_pools.address,
-        collection_pools.nft,
-        collection_pools.token,
-        collection_pools.bonding_curve,
-        collection_pools.pool_variant,
-        collection_pools.pool_type
-      FROM collection_pools
-      WHERE collection_pools.address = $/address/
+        collectionxyz_pools.address,
+        collectionxyz_pools.nft,
+        collectionxyz_pools.token,
+        collectionxyz_pools.bonding_curve,
+        collectionxyz_pools.pool_variant,
+        collectionxyz_pools.pool_type
+      FROM collectionxyz_pools
+      WHERE collectionxyz_pools.address = $/address/
     `,
     { address: toBuffer(address) }
   );

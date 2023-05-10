@@ -1,6 +1,6 @@
 -- Up Migration
 
-CREATE TABLE "collection_pools" (
+CREATE TABLE "collectionxyz_pools" (
   "address" BYTEA NOT NULL,
   "nft" BYTEA NOT NULL,
   "token" BYTEA NOT NULL,
@@ -9,12 +9,12 @@ CREATE TABLE "collection_pools" (
   "pool_type" SMALLINT NOT NULL
 );
 
-ALTER TABLE "collection_pools"
-  ADD CONSTRAINT "collection_pools_pk"
+ALTER TABLE "collectionxyz_pools"
+  ADD CONSTRAINT "collectionxyz_pools_pk"
   PRIMARY KEY ("address");
 
 ALTER TYPE "order_kind_t" ADD VALUE 'collectionxyz';
 
 -- Down Migration
 
-DROP TABLE "collection_pools";
+DROP TABLE "collectionxyz_pools";
