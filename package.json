@@ -36,7 +36,8 @@
     "@/orderbook": "./packages/indexer/dist/orderbook",
     "@/events-sync": "./packages/indexer/dist/sync/events",
     "@/pubsub": "./packages/indexer/dist/pubsub",
-    "@/websockets": "./packages/indexer/dist/websockets"
+    "@/websockets": "./packages/indexer/dist/websockets",
+    "@/elasticsearch": "./packages/indexer/dist/elasticsearch"
   },
   "resolutions": {
     "**/flat": "^5.0.1",

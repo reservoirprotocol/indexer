@@ -6,6 +6,9 @@ import { getActivityHash } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { AddressZero } from "@ethersproject/constants";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { SaleActivityBuilder } from "@/elasticsearch/indexes/activities/sale";
+import { config } from "@/config/index";
 
 export class SaleActivity {
   public static async handleEvent(data: FillEventData) {
@@ -55,6 +58,18 @@ export class SaleActivity {
       Activities.addActivities([activity]),
       UserActivities.addActivities([fromUserActivity, toUserActivity]),
     ]);
+
+    if (config.doElasticsearchWork) {
+      const builder = new SaleActivityBuilder();
+
+      const activity = await builder.build({
+        txHash: data.transactionHash,
+        logIndex: data.logIndex,
+        batchIndex: data.batchIndex,
+      });
+
+      await ActivitiesIndex.save([activity]);
+    }
   }
 }
 

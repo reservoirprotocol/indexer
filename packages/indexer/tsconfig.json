@@ -20,6 +20,7 @@
       "@/config/*": ["config/*"],
       "@/jobs/*": ["jobs/*"],
       "@/orderbook/*": ["orderbook/*"],
+      "@/elasticsearch/*": ["elasticsearch/*"],
       "@/utils/*": ["utils/*"],
       "@/models/*": ["models/*"],
       "@/pubsub/*": ["pubsub/*"],
