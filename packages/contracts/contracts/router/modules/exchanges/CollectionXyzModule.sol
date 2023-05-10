@@ -50,10 +50,10 @@ contract CollectionXyzModule is BaseExchangeModule {
     chargeETHFees(fees, params.amount)
   {
     uint256 poolsLength = pools.length;
+    ICollectionRouter.PoolSwapSpecific[] memory swapList;
     for (uint256 i; i < poolsLength; ) {
       // Build router data
-      ICollectionRouter.PoolSwapSpecific[]
-        memory swapList = new ICollectionRouter.PoolSwapSpecific[](1);
+      swapList = new ICollectionRouter.PoolSwapSpecific[](1);
       swapList[0] = ICollectionRouter.PoolSwapSpecific({
         pool: pools[i],
         nftIds: new uint256[](1),
@@ -105,10 +105,10 @@ contract CollectionXyzModule is BaseExchangeModule {
     _approveERC20IfNeeded(params.token, address(COLLECTION_ROUTER), params.amount);
 
     uint256 poolsLength = pools.length;
+    ICollectionRouter.PoolSwapSpecific[] memory swapList;
     for (uint256 i; i < poolsLength; ) {
       // Build router data
-      ICollectionRouter.PoolSwapSpecific[]
-        memory swapList = new ICollectionRouter.PoolSwapSpecific[](1);
+      swapList = new ICollectionRouter.PoolSwapSpecific[](1);
       swapList[0] = ICollectionRouter.PoolSwapSpecific({
         pool: pools[i],
         nftIds: new uint256[](1),
