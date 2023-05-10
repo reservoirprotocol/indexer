@@ -65,7 +65,7 @@ export const getActivityV5Options: RouteOptions = {
           toAddress: Joi.string().allow(null),
           price: JoiPrice.allow(null).description("Return native currency unless displayCurrency contract was passed."),
           amount: Joi.number().unsafe(),
-          timestamp: Joi.number().description("Time recorded on the blockchain."),
+          timestamp: Joi.number().description("Time when added on the blockchain."),
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null).description("Txn hash from the blockchain."),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
