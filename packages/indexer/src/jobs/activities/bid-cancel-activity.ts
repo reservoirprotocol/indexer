@@ -4,6 +4,9 @@ import { Activities } from "@/models/activities";
 import { getActivityHash, getBidInfoByOrderId } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
+import { BidCancelActivityBuilder } from "@/elasticsearch/indexes/activities/bid-cancel";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { config } from "@/config/index";
 
 export class BidCancelActivity {
   public static async handleEvent(data: BuyOrderCancelledEventData) {
@@ -51,6 +54,18 @@ export class BidCancelActivity {
       Activities.addActivities([activity]),
       UserActivities.addActivities([fromUserActivity]),
     ]);
+
+    if (config.doElasticsearchWork) {
+      const builder = new BidCancelActivityBuilder();
+
+      const activity = await builder.build({
+        txHash: data.transactionHash,
+        logIndex: data.logIndex,
+        batchIndex: data.batchIndex,
+      });
+
+      await ActivitiesIndex.save([activity]);
+    }
   }
 }
 

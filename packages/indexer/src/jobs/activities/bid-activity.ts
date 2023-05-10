@@ -4,6 +4,9 @@ import { Activities } from "@/models/activities";
 import { getActivityHash, getBidInfoByOrderId } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
+import { BidActivityBuilder } from "@/elasticsearch/indexes/activities/bid";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { config } from "@/config/index";
 
 export class BidActivity {
   public static async handleEvent(data: NewBuyOrderEventData) {
@@ -49,6 +52,18 @@ export class BidActivity {
       Activities.addActivities([activity]),
       UserActivities.addActivities([fromUserActivity]),
     ]);
+
+    if (config.doElasticsearchWork) {
+      const builder = new BidActivityBuilder();
+
+      const activity = await builder.build({
+        txHash: data.transactionHash,
+        logIndex: data.logIndex,
+        batchIndex: data.batchIndex,
+      });
+
+      await ActivitiesIndex.save([activity]);
+    }
   }
 }
 
