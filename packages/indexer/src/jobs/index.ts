@@ -154,6 +154,10 @@ import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as openseaOrdersFetchQueue from "@/jobs/opensea-orders/fetch-queue";
 
+import * as backfillTransferActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-transfer-activities-elasticsearch";
+import * as backfillSaleActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-sale-activities-elasticsearch";
+import * as backfillAskActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-ask-activities-elasticsearch";
+
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
   orderUpdatesBuyOrder.worker,
@@ -296,4 +300,8 @@ export const allJobQueues = [
 
   openseaOrdersProcessQueue.queue,
   openseaOrdersFetchQueue.queue,
+
+  backfillTransferActivitiesElasticsearch.queue,
+  backfillSaleActivitiesElasticsearch.queue,
+  backfillAskActivitiesElasticsearch.queue,
 ];

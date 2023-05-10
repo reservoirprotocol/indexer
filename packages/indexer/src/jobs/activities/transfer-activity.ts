@@ -8,6 +8,11 @@ import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-
 import { UserActivities } from "@/models/user-activities";
 import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
 
+import { TransferActivityBuilder } from "@/elasticsearch/indexes/activities/transfer";
+
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { config } from "@/config/index";
+
 export class TransferActivity {
   public static async handleEvent(data: NftTransferEventData) {
     const collectionId = await Tokens.getCollectionId(data.contract, data.tokenId);
@@ -55,6 +60,18 @@ export class TransferActivity {
       Activities.addActivities([activity]),
       UserActivities.addActivities(userActivities),
     ]);
+
+    if (config.doElasticsearchWork) {
+      const builder = new TransferActivityBuilder();
+
+      const activity = await builder.build({
+        txHash: data.transactionHash,
+        logIndex: data.logIndex,
+        batchIndex: data.batchIndex,
+      });
+
+      await ActivitiesIndex.save([activity]);
+    }
 
     // If collection information is not available yet when a mint event
     if (!collectionId && data.fromAddress == AddressZero) {
