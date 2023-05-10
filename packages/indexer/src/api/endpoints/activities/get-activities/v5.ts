@@ -57,7 +57,7 @@ export const getActivityV5Options: RouteOptions = {
       activities: Joi.array().items(
         Joi.object({
           id: Joi.number(),
-          type: Joi.string(),
+          type: Joi.string().description("Possible types returned: `ask`, `ask_cancel`, `bid`, `bid_cancel`, `sale`, `mint, and `transfer`."),
           contract: Joi.string(),
           collectionId: Joi.string().allow(null),
           tokenId: Joi.string().allow(null),
@@ -65,8 +65,8 @@ export const getActivityV5Options: RouteOptions = {
           toAddress: Joi.string().allow(null),
           price: JoiPrice.allow(null).description("Return native currency unless displayCurrency contract was passed."),
           amount: Joi.number().unsafe(),
-          timestamp: Joi.number(),
-          txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
+          timestamp: Joi.number().description("Time recorded on the blockchain."),
+          txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null).description("Txn hash from the blockchain."),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
           order: JoiActivityOrder,
