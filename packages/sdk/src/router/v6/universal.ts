@@ -158,7 +158,7 @@ export const generateSwapExecutions = async (
       inputs: executeCall!.inputs,
       deadline: executeCall!.deadline,
       tokenIn: (fromToken as Token).address ?? AddressZero,
-      tokenOut: (toToken as Token).address,
+      tokenOut: (toToken as Token).address ?? AddressZero,
       amountInMaximum: amountInMaximum,
       fromTokenAddress,
       toTokenAddress,
