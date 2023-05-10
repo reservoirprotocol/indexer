@@ -1,5 +1,4 @@
 import { redb } from "@/common/db";
-
 import { Orders } from "@/utils/orders";
 
 import { ActivityType } from "@/elasticsearch/indexes/activities";
@@ -10,13 +9,13 @@ import {
   BuildParams,
 } from "@/elasticsearch/indexes/activities/base";
 
-export class AskActivityBuilder extends BaseActivityBuilder {
+export class BidActivityBuilder extends BaseActivityBuilder {
   getActivityType(): ActivityType {
-    return ActivityType.ask;
+    return ActivityType.bid;
   }
 
   getId(buildInfo: BuildInfo): string {
-    return getActivityHash(ActivityType.ask, buildInfo.order_id!);
+    return getActivityHash(ActivityType.bid, buildInfo.order_id!);
   }
 
   buildBaseQuery() {
@@ -41,21 +40,21 @@ export class AskActivityBuilder extends BaseActivityBuilder {
           (${orderCriteriaBuildQuery}) AS "order_criteria",
           extract(epoch from orders.created_at) AS created_ts,
           extract(epoch from orders.updated_at) AS updated_ts,
+          orders.token_set_id,
           t.*
         FROM orders
         LEFT JOIN LATERAL (
                     SELECT
                         tokens.token_id,
                         tokens.name AS "token_name",
-                        tokens.image AS "token_image",
+                        tokens.image AS "token_image",   
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
                         (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image"
-                    FROM tokens
-                    JOIN collections on collections.id = tokens.collection_id
-                    WHERE decode(substring(split_part(orders.token_set_id, ':', 2) from 3), 'hex') = tokens.contract
-                    AND (split_part(orders.token_set_id, ':', 3)::NUMERIC(78, 0)) = tokens.token_id
-                    LIMIT 1
+                    FROM token_sets_tokens
+                    JOIN tokens ON tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id 
+                    JOIN collections ON collections.id = tokens.collection_id
+                    WHERE token_sets_tokens.token_set_id = orders.token_set_id AND token_sets_tokens.contract = orders.contract
                  ) t ON TRUE`;
   }
 
@@ -70,6 +69,10 @@ export class AskActivityBuilder extends BaseActivityBuilder {
         orderId: params.orderId!,
       }
     );
+
+    if (!result.token_set_id.startsWith("token:")) {
+      result.token_id = undefined;
+    }
 
     result.timestamp = Math.floor(result.created_ts);
 
