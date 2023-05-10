@@ -103,7 +103,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
           toAddress: Joi.string().allow(null),
           price: JoiPrice.allow(null).description("Return native currency unless displayCurrency contract was passed."),
           amount: Joi.number().unsafe(),
-          timestamp: Joi.number().description("Time recorded on the blockchain."),
+          timestamp: Joi.number().description("Time when added on the blockchain."),
           createdAt: Joi.string().description("Time when added in the indexer."),
           contract: Joi.string()
             .lowercase()
