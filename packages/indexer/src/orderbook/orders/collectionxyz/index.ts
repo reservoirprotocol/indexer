@@ -169,7 +169,14 @@ const getRoyaltyRecipient = async (
 ): Promise<string> => {
   let erc2981Recipient = AddressZero;
   try {
-    erc2981Recipient = (await nftContract.royaltyInfo(tokenId, bn(0))).receiver;
+    const onChainRoyalties = await royalties.getRoyalties(
+      nftContract.address,
+      tokenId.toString(),
+      "onchain"
+    );
+    // Assume ERC2981 if and only if 1 recipient
+    if (onChainRoyalties.length !== 1) throw new Error();
+    erc2981Recipient = onChainRoyalties[0].recipient;
   } catch {
     // Leave as address(0)
   }
