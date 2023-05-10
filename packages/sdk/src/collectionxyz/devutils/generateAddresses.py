@@ -12,7 +12,7 @@ with open("deploys.json", "r", encoding="utf-8") as fd:
     for networkName in js:
         network = js[networkName]
         for contractName in network:
-            contractAddress = network[contractName]
+            contractAddress = network[contractName].lower()
             obj = data.get(contractName, {})
             obj[networkName] = contractAddress
             data[contractName] = obj
