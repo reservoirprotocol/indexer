@@ -170,7 +170,7 @@ export class ApiKeyManager {
   static isOriginAndIpValid(apiKey: ApiKeyEntity, remoteAddress: string, origin: string) {
     if (apiKey.origins && !_.isEmpty(apiKey.origins)) {
       const hostname = origin.match(regex.origin);
-      if (hostname && _.indexOf(apiKey.origins, hostname[0]) === -1) {
+      if (!hostname || (hostname && _.indexOf(apiKey.origins, hostname[0]) === -1)) {
         return false;
       }
     }
