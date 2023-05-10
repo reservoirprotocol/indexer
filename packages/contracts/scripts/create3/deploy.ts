@@ -7,7 +7,7 @@ import { promises as fs } from "fs";
 
 import { DeploymentHelper } from "./deployment-helper";
 
-const DEPLOYER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
+const OWNER = "0xf3d63166F0Ca56C3c1A3508FcE03Ff0Cf3Fb691e";
 const DEPLOYMENTS_FILE = "deployments.json";
 
 const readDeployment = async (
@@ -43,7 +43,7 @@ const writeDeployment = async (
 };
 
 const deploy = async (contractName: string, version: string, args: any[]) => {
-  const dh = await DeploymentHelper.getInstance();
+  const dh = await DeploymentHelper.getInstance(process.env.CREATE3_FACTORY_ADDRESS_OVERRIDE);
 
   if (args.some((arg) => !arg || arg === AddressZero || arg === HashZero)) {
     throw new Error("Invalid args");
@@ -71,9 +71,13 @@ const verify = async (contractName: string, version: string, args: any[]) => {
 };
 
 const dv = async (contractName: string, version: string, args: any[]) => {
-  await deploy(contractName, version, args);
-  await new Promise((resolve) => setTimeout(resolve, 30000));
-  await verify(contractName, version, args);
+  try {
+    await deploy(contractName, version, args);
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+    await verify(contractName, version, args);
+  } catch (error) {
+    console.log(`Failed to deploy ${contractName}: ${error}`);
+  }
 };
 
 export const triggerByModule = {
@@ -85,87 +89,87 @@ export const triggerByModule = {
     ]),
   ElementModule: async (chainId: number) =>
     dv("ElementModule", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.Element.Addresses.Exchange[chainId],
     ]),
   FoundationModule: async (chainId: number) =>
     dv("FoundationModule", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.Foundation.Addresses.Exchange[chainId],
     ]),
   LooksRareModule: async (chainId: number) =>
     dv("LooksRareModule", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.LooksRare.Addresses.Exchange[chainId],
     ]),
   LooksRareV2Module: async (chainId: number) =>
     dv("LooksRareV2Module", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.LooksRareV2.Addresses.Exchange[chainId],
     ]),
   NFTXModule: async (chainId: number) =>
     dv("NFTXModule", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.Nftx.Addresses.MarketplaceZap[chainId],
     ]),
   RaribleModule: async (chainId: number) =>
     dv("RaribleModule", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.Rarible.Addresses.Exchange[chainId],
       Sdk.Rarible.Addresses.NFTTransferProxy[chainId],
     ]),
   SeaportModule: async (chainId: number) =>
     dv("SeaportModule", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.SeaportV11.Addresses.Exchange[chainId],
     ]),
   SeaportV14Module: async (chainId: number) =>
     dv("SeaportV14Module", "v2", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.SeaportV14.Addresses.Exchange[chainId],
     ]),
   SeaportV15Module: async (chainId: number) =>
     dv("SeaportV15Module", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.SeaportV15.Addresses.Exchange[chainId],
     ]),
   AlienswapModule: async (chainId: number) =>
     dv("AlienswapModule", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.Alienswap.Addresses.Exchange[chainId],
     ]),
   SudoswapModule: async (chainId: number) =>
     dv("SudoswapModule", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.Sudoswap.Addresses.Router[chainId],
     ]),
   SuperRareModule: async (chainId: number) =>
     dv("SuperRareModule", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.SuperRare.Addresses.Bazaar[chainId],
     ]),
   SwapModule: async (chainId: number) =>
     dv("SwapModule", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.Common.Addresses.Weth[chainId],
       Sdk.Common.Addresses.SwapRouter[chainId],
     ]),
   X2Y2Module: async (chainId: number) =>
     dv("X2Y2Module", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.X2Y2.Addresses.Exchange[chainId],
       Sdk.X2Y2.Addresses.Erc721Delegate[chainId],
@@ -173,14 +177,19 @@ export const triggerByModule = {
     ]),
   ZeroExV4Module: async (chainId: number) =>
     dv("ZeroExV4Module", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.ZeroExV4.Addresses.Exchange[chainId],
     ]),
   ZoraModule: async (chainId: number) =>
     dv("ZoraModule", "v1", [
-      DEPLOYER,
+      OWNER,
       Sdk.RouterV6.Addresses.Router[chainId],
       Sdk.Zora.Addresses.Exchange[chainId],
     ]),
+  ReservoirErc721: async () =>
+    dv("ReservoirErc721", "v1", [OWNER, "https://reservoir.tools/", "https://reservoir.tools/"]),
+  ReservoirErc1155: async () =>
+    dv("ReservoirErc721", "v1", [OWNER, "https://reservoir.tools/", "https://reservoir.tools/"]),
+  LiteRoyaltyEngine: async () => dv("LiteRoyaltyEngine", "v1", []),
 };

@@ -94,17 +94,16 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           orderKind
         );
 
-        // Check the previous event if is fillEvent based on logIndex
-        const lastFillEventIndex = onChainData.fillEvents.findIndex((c) => {
+        // Check the previous fill event for a match (to cover OpenSea's usage of 0x v3)
+        const matchingFillEventIndex = onChainData.fillEvents.findIndex((c) => {
           return (
             c.contract === contract &&
-            tokenId === c.tokenId &&
+            c.tokenId === tokenId &&
             c.baseEventParams.logIndex === baseEventParams.logIndex - 1
           );
         });
 
-        if (lastFillEventIndex === -1) {
-          // Temporary insert the fill event
+        if (matchingFillEventIndex === -1) {
           onChainData.fillEvents.push({
             orderKind,
             currency,
@@ -123,9 +122,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             baseEventParams,
           });
         } else {
-          // Merge with the last fill event
-          const lastFillEvent = onChainData.fillEvents[lastFillEventIndex];
-          lastFillEvent.taker = maker;
+          // Merge with the previous fill event
+          const matchingFillEvent = onChainData.fillEvents[matchingFillEventIndex];
+          matchingFillEvent.taker = maker;
 
           onChainData.fillInfos.push({
             context: `zeroex-v3-${contract}-${tokenId}-${baseEventParams.txHash}`,
