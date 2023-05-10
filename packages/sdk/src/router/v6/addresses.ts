@@ -10,6 +10,7 @@ export const Router: ChainIdToAddress = {
   [Network.Optimism]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
   [Network.Arbitrum]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
   [Network.ScrollAlpha]: "0xd17f3e7ab95ca115a7e89610cde1f0b01248fe9a",
+  [Network.MantleTestnet]: "0xd08d4d2046c234d32f4abf889e9cb93bcb756dc5",
 };
 
 // Approval proxy
@@ -21,6 +22,7 @@ export const ApprovalProxy: ChainIdToAddress = {
   [Network.Optimism]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.Arbitrum]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.ScrollAlpha]: "0xae4acac642fc0330e37c4ef20434934ee9636bc9",
+  [Network.MantleTestnet]: "0xe33d3d26d5c75bffb0170d1f06a2c442e643f65e",
 };
 
 // Utility modules

@@ -21,6 +21,7 @@ export const ReservoirConduitKey: ChainIdToAddress = {
   [Network.Arbitrum]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.Avalanche]: "0xf3d63166f0ca56c3c1a3508fce03ff0cf3fb691e000000000000000000000000",
   [Network.ScrollAlpha]: "0x7e727520b29773e7f23a8665649197aaf064cef1000000000000000000000000",
+  [Network.MantleTestnet]: "0x7e727520b29773e7f23a8665649197aaf064cef1000000000000000000000000",
 };
 
 export const OriginConduitKey: ChainIdToAddress = {
@@ -36,6 +37,7 @@ export const SpaceIdConduitKey: ChainIdToAddress = {
 export const ConduitController: ChainIdToAddress = {
   [Network.Ethereum]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.EthereumGoerli]: "0x00000000f9490004c11cef243f5400493c00ad63",
+  [Network.EthereumSepolia]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Bsc]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Optimism]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Gnosis]: "0x00000000f9490004c11cef243f5400493c00ad63",
@@ -43,12 +45,14 @@ export const ConduitController: ChainIdToAddress = {
   [Network.Arbitrum]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.Avalanche]: "0x00000000f9490004c11cef243f5400493c00ad63",
   [Network.ScrollAlpha]: "0x3070a7ea1bc31049068f055f9b31f5d2d7bdfb5d",
+  [Network.MantleTestnet]: "0x9c390efb05e09982e23993ebfa3b32c190e25f4b",
 };
 
 // https://github.com/ProjectOpenSea/seaport/blob/0a8e82ce7262b5ce0e67fa98a2131fd4c47c84e9/contracts/conduit/ConduitController.sol#L493
 export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Ethereum]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.EthereumGoerli]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
+  [Network.EthereumSepolia]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Bsc]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Optimism]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Gnosis]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
@@ -56,6 +60,7 @@ export const ConduitControllerCodeHash: ChainIdToAddress = {
   [Network.Arbitrum]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.Avalanche]: "0x023d904f2503c37127200ca07b976c3a53cc562623f67023115bf311f5805059",
   [Network.ScrollAlpha]: "0xfde822a5f8cca372c4a13e06a9a2baea0f8a45e42347603e34607fab3aacea4c",
+  [Network.MantleTestnet]: "0xfde822a5f8cca372c4a13e06a9a2baea0f8a45e42347603e34607fab3aacea4c",
 };
 
 export const OperatorFilterRegistry: ChainIdToAddress = {

@@ -159,8 +159,14 @@ export const start = async (): Promise<void> => {
       return reply.continue;
     }
 
+    const remoteAddress = request.headers["x-forwarded-for"]
+      ? _.split(request.headers["x-forwarded-for"], ",")[0]
+      : request.info.remoteAddress;
+
+    const origin = request.headers["origin"];
+
     const key = request.headers["x-api-key"];
-    const apiKey = await ApiKeyManager.getApiKey(key);
+    const apiKey = await ApiKeyManager.getApiKey(key, remoteAddress, origin);
     const tier = apiKey?.tier || 0;
     let rateLimitRule;
 
@@ -198,10 +204,6 @@ export const start = async (): Promise<void> => {
       if (rateLimitRule.rule.points == 0) {
         return reply.continue;
       }
-
-      const remoteAddress = request.headers["x-forwarded-for"]
-        ? _.split(request.headers["x-forwarded-for"], ",")[0]
-        : request.info.remoteAddress;
 
       const rateLimitKey =
         _.isUndefined(key) || _.isEmpty(key) || _.isNull(apiKey) ? remoteAddress : key; // If no api key or the api key is invalid use IP

@@ -159,10 +159,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "address",
             "token_id",
             ARRAY["from", "to"] AS "owners",
-            CASE
-              WHEN "from" = '\\x0000000000000000000000000000000000000000' THEN ARRAY[0, "amount"]
-              ELSE ARRAY[-"amount", "amount"]
-            END AS "amount_deltas", 
+            ARRAY[-"amount", "amount"] AS "amount_deltas",
             ARRAY[NULL, to_timestamp("timestamp")] AS "timestamps"
         )
         INSERT INTO "nft_balances" (
@@ -176,7 +173,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
             "y"."address",
             "y"."token_id",
             "y"."owner",
-            GREATEST(SUM("y"."amount_delta"), 0),
+            SUM("y"."amount_delta"),
             MIN("y"."timestamp")
           FROM (
             SELECT
@@ -192,7 +189,7 @@ export const addEvents = async (events: Event[], backfill: boolean) => {
         )
         ON CONFLICT ("contract", "token_id", "owner") DO
         UPDATE SET 
-          "amount" = GREATEST("nft_balances"."amount" + "excluded"."amount", 0),  
+          "amount" = "nft_balances"."amount" + "excluded"."amount", 
           "acquired_at" = COALESCE(GREATEST("excluded"."acquired_at", "nft_balances"."acquired_at"), "nft_balances"."acquired_at")
       `);
 

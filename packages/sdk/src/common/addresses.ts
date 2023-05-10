@@ -5,6 +5,7 @@ import { ChainIdToAddress, Network } from "../utils";
 export const Eth: ChainIdToAddress = {
   [Network.Ethereum]: AddressZero,
   [Network.EthereumGoerli]: AddressZero,
+  [Network.EthereumSepolia]: AddressZero,
   [Network.Bsc]: AddressZero,
   [Network.Optimism]: AddressZero,
   [Network.Gnosis]: AddressZero,
@@ -12,11 +13,13 @@ export const Eth: ChainIdToAddress = {
   [Network.Arbitrum]: AddressZero,
   [Network.Avalanche]: AddressZero,
   [Network.ScrollAlpha]: AddressZero,
+  [Network.MantleTestnet]: AddressZero,
 };
 
 export const Weth: ChainIdToAddress = {
   [Network.Ethereum]: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
   [Network.EthereumGoerli]: "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6",
+  [Network.EthereumSepolia]: "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
   // Bsc: Wrapped BNB
   [Network.Bsc]: "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
   [Network.Optimism]: "0x4200000000000000000000000000000000000006",
@@ -27,6 +30,7 @@ export const Weth: ChainIdToAddress = {
   // Avalanche: Wrapped AVAX
   [Network.Avalanche]: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
   [Network.ScrollAlpha]: "0x7160570bb153edd0ea1775ec2b2ac9b65f1ab61b",
+  [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
 };
 
 // TODO: Include addresses across all supported chains
