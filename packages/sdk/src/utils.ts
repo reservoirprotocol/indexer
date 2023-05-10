@@ -109,6 +109,7 @@ export enum Network {
   Avalanche = 43114,
   // Scroll
   ScrollAlpha = 534353,
+  MantleTestnet = 5001,
 }
 
 export type ChainIdToAddress = { [chainId: number]: string };
