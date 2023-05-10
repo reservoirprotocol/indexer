@@ -31,7 +31,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
     async (job: Job) => {
       const cursor = job.data.cursor as CursorInfo;
 
-      const limit = Number((await redis.get(`${QUEUE_NAME}-limit`)) || 1000);
+      const limit = Number((await redis.get(`${QUEUE_NAME}-limit`)) || 1);
 
       try {
         let continuationFilter = "";
@@ -66,6 +66,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           }
 
           await ActivitiesIndex.save(activities);
+
+          logger.info(QUEUE_NAME, `Processed ${results.length} activities.`);
 
           const lastResult = results[results.length - 1];
 
