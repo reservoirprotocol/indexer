@@ -3,6 +3,7 @@ import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { ApiUsageCounter } from "@/models/api-usage-counter";
 import { ApiUsage } from "@/models/api-usage";
+import { logger } from "@/common/logger";
 
 if (config.doBackgroundWork) {
   // Every minute store metrics to long term DB
@@ -22,7 +23,8 @@ if (config.doBackgroundWork) {
             }
           } while (counts.length === count);
         })
-        .catch(() => {
+        .catch((error) => {
+          logger.error("record-metrics", `failed to record metrics error ${error}`);
           // Skip on any errors
         })
   );
