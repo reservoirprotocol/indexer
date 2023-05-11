@@ -68,6 +68,11 @@ export class TransferActivityBuilder extends BaseActivityBuilder {
       }
     );
 
+    return this.formatData(result);
+  }
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  formatData(result: any): BuildInfo {
     result.timestamp = result.event_timestamp;
 
     return result;

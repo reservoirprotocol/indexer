@@ -70,6 +70,11 @@ export class BidActivityBuilder extends BaseActivityBuilder {
       }
     );
 
+    return this.formatData(result);
+  }
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  formatData(result: any): BuildInfo {
     if (!result.token_set_id.startsWith("token:")) {
       result.token_id = undefined;
     }

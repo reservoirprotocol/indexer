@@ -1,4 +1,4 @@
-import { elasticsearch } from "@/common/elasticsearch";
+import { elasticsearch, elasticsearchCloud } from "@/common/elasticsearch";
 import { QueryDslQueryContainer, Sort } from "@elastic/elasticsearch/lib/api/types";
 import { SortResults } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 import { BaseDocument } from "@/elasticsearch/indexes/base";
@@ -67,6 +67,15 @@ export const save = async (activities: ActivityDocument[]): Promise<void> => {
       activity,
     ]),
   });
+
+  if (elasticsearchCloud) {
+    await elasticsearchCloud.bulk({
+      body: activities.flatMap((activity) => [
+        { index: { _index: INDEX_NAME, _id: activity.id } },
+        activity,
+      ]),
+    });
+  }
 };
 
 export const search = async (params: {
@@ -188,4 +197,94 @@ export const createIndex = async (): Promise<void> => {
       },
     },
   });
+
+  if (elasticsearchCloud) {
+    await elasticsearchCloud.indices.create({
+      aliases: {
+        [INDEX_NAME]: {},
+      },
+      index: `${INDEX_NAME}-${Date.now()}`,
+      mappings: {
+        dynamic: "false",
+        properties: {
+          id: { type: "keyword" },
+          type: { type: "keyword" },
+          timestamp: { type: "float" },
+          name: { type: "keyword" },
+          contract: { type: "keyword" },
+          fromAddress: { type: "keyword" },
+          toAddress: { type: "keyword" },
+          amount: { type: "keyword" },
+          token: {
+            properties: {
+              id: { type: "keyword" },
+              name: { type: "keyword" },
+              image: { type: "keyword" },
+            },
+          },
+          collection: {
+            properties: {
+              id: { type: "keyword" },
+              name: { type: "keyword" },
+              image: { type: "keyword" },
+            },
+          },
+          order: {
+            properties: {
+              id: { type: "keyword" },
+              side: { type: "keyword" },
+              sourceId: { type: "integer" },
+              criteria: {
+                properties: {
+                  kind: { type: "keyword" },
+                  data: {
+                    properties: {
+                      token: {
+                        properties: {
+                          tokenId: { type: "keyword" },
+                        },
+                      },
+                      collection: {
+                        properties: {
+                          id: { type: "keyword" },
+                        },
+                      },
+                      attribute: {
+                        properties: {
+                          key: { type: "keyword" },
+                          value: { type: "keyword" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          event: {
+            properties: {
+              timestamp: { type: "float" },
+              txHash: { type: "keyword" },
+              logIndex: { type: "integer" },
+              batchIndex: { type: "integer" },
+              blockHash: { type: "keyword" },
+            },
+          },
+          pricing: {
+            properties: {
+              price: { type: "keyword" },
+              currencyPrice: { type: "keyword" },
+              usdPrice: { type: "keyword" },
+              feeBps: { type: "integer" },
+              currency: { type: "keyword" },
+              value: { type: "keyword" },
+              currencyValue: { type: "keyword" },
+              normalizedValue: { type: "keyword" },
+              currencyNormalizedValue: { type: "keyword" },
+            },
+          },
+        },
+      },
+    });
+  }
 };
