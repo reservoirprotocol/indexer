@@ -46,6 +46,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
         const query = `
             ${bidActivityBuilder.buildBaseQuery()}
             WHERE side = 'buy'
+            AND fillability_status = 'fillable' AND approval_status = 'approved'
             ${continuationFilter}
             ORDER BY updated_at, id
             LIMIT $/limit/;
@@ -94,7 +95,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v3`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v4`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue();
     })

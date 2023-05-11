@@ -157,6 +157,7 @@ import * as openseaOrdersFetchQueue from "@/jobs/opensea-orders/fetch-queue";
 import * as backfillTransferActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-transfer-activities-elasticsearch";
 import * as backfillSaleActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-sale-activities-elasticsearch";
 import * as backfillAskActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-ask-activities-elasticsearch";
+import * as backfillBidActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-activities-elasticsearch";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -304,4 +305,5 @@ export const allJobQueues = [
   backfillTransferActivitiesElasticsearch.queue,
   backfillSaleActivitiesElasticsearch.queue,
   backfillAskActivitiesElasticsearch.queue,
+  backfillBidActivitiesElasticsearch.queue,
 ];
