@@ -47,7 +47,10 @@ if (config.doBackgroundWork) {
 
         case "orders":
           // Archive bid events
-          if (type === "bids" && (await acquireLock(getLockName(tableName), 60 * 10 - 5))) {
+          if (
+            type === "bids" &&
+            (await acquireLock(getLockName(`${tableName}${nextBatchTime}`), 60 * 10 - 5))
+          ) {
             job.data.lock = true;
 
             try {
