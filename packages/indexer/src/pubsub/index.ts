@@ -30,6 +30,10 @@ redisSubscriber.on("message", async (channel, message) => {
       await RateLimitUpdatedEvent.handleEvent(message);
       break;
 
+    case Channel.RouteApiPointsUpdated:
+      await RateLimitUpdatedEvent.handleEvent(message);
+      break;
+
     case Channel.RoutersUpdated:
       await RoutersUpdatedEvent.handleEvent(message);
       break;

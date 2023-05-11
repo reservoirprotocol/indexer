@@ -34,6 +34,11 @@ const getNetworkConfig = (chainId?: number) => {
         break;
       case 534353:
         url = "https://alpha-rpc.scroll.io/l2";
+      case 5001:
+        url = "https://rpc.testnet.mantle.xyz";
+        break;
+      case 11155111:
+        url = `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
       default:
         throw new Error("Unsupported chain id");
@@ -88,6 +93,8 @@ const config: HardhatUserConfig = {
     polygon: getNetworkConfig(137),
     arbitrum: getNetworkConfig(42161),
     "scroll-alpha": getNetworkConfig(534353),
+    sepolia: getNetworkConfig(11155111),
+    "mantle-testnet": getNetworkConfig(5001),
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
@@ -98,6 +105,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://blockscout.scroll.io/api",
           browserURL: "https://blockscout.scroll.io/",
+        },
+      },
+      {
+        network: "mantle-testnet",
+        chainId: 5001,
+        urls: {
+          apiURL: "https://explorer.testnet.mantle.xyz/api",
+          browserURL: "https://explorer.testnet.mantle.xyz",
         },
       },
     ],

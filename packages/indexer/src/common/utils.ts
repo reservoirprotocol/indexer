@@ -115,6 +115,8 @@ export const buildContinuation = (c: string) => Buffer.from(c).toString("base64"
 export const regex = {
   base64: /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/,
   domain: /^[a-zA-Z0-9.-]+\.[a-zA-Z0-9]{2,}$|localhost/,
+  origin: /^https?:\/\/(?:[^@\n]+@)?(?:www\.)?([^:\n?]+)/,
+  ipv4: /^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$/,
   address: /^0x[a-fA-F0-9]{40}$/,
   bytes32: /^0x[a-fA-F0-9]{64}$/,
   bytes: /^0x[a-fA-F0-9]+$/,

@@ -1,15 +1,16 @@
 /* eslint-disable no-console */
 
-import { ethers } from "hardhat";
+import { JsonRpcProvider } from "@ethersproject/providers";
 
 import { triggerByModule } from "./deploy";
 
 const main = async () => {
-  const chainId = await ethers.provider.getNetwork().then((n) => n.chainId);
+  const provider = new JsonRpcProvider(process.env.RPC_URL!);
+  const chainId = await provider.getNetwork().then((n) => n.chainId);
 
-  // Avoid unused variables warnings
-  chainId;
-  triggerByModule;
+  for (const deploy of Object.values(triggerByModule)) {
+    await deploy(chainId);
+  }
 };
 
 main()
