@@ -163,6 +163,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           event: eventType,
           tags: {
             contract: fromBuffer(rawResult.contract),
+            source: result.source.domain || "unknown",
           },
           data: result,
         });

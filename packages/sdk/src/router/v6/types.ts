@@ -15,6 +15,7 @@ export type NFTToken = {
 };
 
 export type NFTApproval = {
+  orderIds: string[];
   contract: string;
   owner: string;
   operator: string;

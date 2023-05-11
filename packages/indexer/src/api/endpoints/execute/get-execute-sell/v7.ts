@@ -6,7 +6,6 @@ import * as Sdk from "@reservoir0x/sdk";
 import { BidDetails, FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/types";
 import { TxData } from "@reservoir0x/sdk/src/utils";
 import axios from "axios";
-import _ from "lodash";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -832,22 +831,32 @@ export const getExecuteSellV7Options: RouteOptions = {
       // Handle Blur authentication
       let blurAuth: b.Auth | undefined;
       if (path.some((p) => p.source === "blur.io")) {
-        const missingApprovals: TxData[] = [];
+        const missingApprovals: { txData: TxData; orderIds: string[] }[] = [];
 
-        const contracts = _.uniqBy(path, (p) => p.contract).map((p) => p.contract);
-        for (const contract of contracts) {
+        const contractsAndOrderIds: { [contract: string]: string[] } = {};
+        for (const p of path.filter((p) => p.source === "blur.io")) {
+          if (!contractsAndOrderIds[p.contract]) {
+            contractsAndOrderIds[p.contract] = [];
+          }
+          contractsAndOrderIds[p.contract].push(p.orderId);
+        }
+
+        for (const [contract, orderIds] of Object.entries(contractsAndOrderIds)) {
           const operator = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];
           const isApproved = await commonHelpers.getNftApproval(contract, payload.taker, operator);
           if (!isApproved) {
             missingApprovals.push({
-              maxFeePerGas,
-              maxPriorityFeePerGas,
-              ...new Sdk.Common.Helpers.Erc721(baseProvider, contract).approveTransaction(
-                payload.taker,
-                operator
-              ),
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any);
+              txData: {
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+                ...new Sdk.Common.Helpers.Erc721(baseProvider, contract).approveTransaction(
+                  payload.taker,
+                  operator
+                ),
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+              orderIds,
+            });
           }
         }
 
@@ -911,11 +920,12 @@ export const getExecuteSellV7Options: RouteOptions = {
         });
 
         if (missingApprovals.length) {
-          for (const approval of missingApprovals) {
+          for (const { txData, orderIds } of missingApprovals) {
             steps[1].items.push({
               status: "incomplete",
+              orderIds,
               data: {
-                ...approval,
+                ...txData,
                 maxFeePerGas,
                 maxPriorityFeePerGas,
               },
@@ -1025,6 +1035,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         if (!isApproved) {
           steps[1].items.push({
             status: "incomplete",
+            orderIds: approval.orderIds,
             data: {
               ...approval.txData,
               maxFeePerGas,
