@@ -95,12 +95,34 @@ export const search = async (params: {
       topic: "search",
       index: INDEX_NAME,
       params,
+      paramsJson: JSON.stringify(params),
       esResult: {
         took: esResult.took,
         timed_out: esResult.timed_out,
       },
     })
   );
+
+  if (elasticsearchCloud) {
+    const esResult2 = await elasticsearchCloud.search<ActivityDocument>({
+      index: INDEX_NAME,
+      ...params,
+    });
+
+    logger.info(
+      "elasticsearch",
+      JSON.stringify({
+        topic: "search-cloud",
+        index: INDEX_NAME,
+        params,
+        paramsJson: JSON.stringify(params),
+        esResult: {
+          took: esResult2.took,
+          timed_out: esResult2.timed_out,
+        },
+      })
+    );
+  }
 
   return esResult.hits.hits.map((hit) => hit._source!);
 };
