@@ -208,22 +208,24 @@ export const start = async (): Promise<void> => {
       const rateLimitKey =
         _.isUndefined(key) || _.isEmpty(key) || _.isNull(apiKey) ? remoteAddress : key; // If no api key or the api key is invalid use IP
 
-      const pointsToConsume = rateLimitRule.ruleParams.getPointsToConsume();
-
       try {
         if (key && tier) {
           request.pre.metrics = {
             apiKey: key,
             route: request.route.path,
-            points: pointsToConsume,
+            points: rateLimitRule.pointsToConsume,
             timestamp: _.now(),
           };
         }
 
-        const rateLimiterRes = await rateLimitRule.rule.consume(rateLimitKey, pointsToConsume);
+        const rateLimiterRes = await rateLimitRule.rule.consume(
+          rateLimitKey,
+          rateLimitRule.pointsToConsume
+        );
 
         if (rateLimiterRes) {
           // Generate the rate limiting header and add them to the request object to be added to the response in the onPreResponse event
+          request.headers["tier"] = tier;
           request.headers["X-RateLimit-Limit"] = `${rateLimitRule.rule.points}`;
           request.headers["X-RateLimit-Remaining"] = `${rateLimiterRes.remainingPoints}`;
           request.headers["X-RateLimit-Reset"] = `${new Date(
@@ -240,7 +242,7 @@ export const start = async (): Promise<void> => {
             const log = {
               message: `${rateLimitKey} ${apiKey?.appName || ""} reached allowed rate limit ${
                 rateLimitRule.rule.points
-              } requests in ${rateLimitRule.rule.duration}s by calling ${
+              } credits in ${rateLimitRule.rule.duration}s by calling ${
                 error.consumedPoints
               } times on route ${request.route.path}${
                 request.info.referrer ? ` from referrer ${request.info.referrer} ` : ""
@@ -254,7 +256,7 @@ export const start = async (): Promise<void> => {
             logger.warn("rate-limiter", JSON.stringify(log));
           }
 
-          const message = `Max ${rateLimitRule.rule.points} requests in ${
+          const message = `Max ${rateLimitRule.rule.points} credits in ${
             rateLimitRule.rule.duration
           }s reached, Detected tier ${tier}, Blocked by rule ID ${rateLimitRule.ruleParams.id}${
             !_.isEmpty(rateLimitRule.ruleParams.payload)
@@ -323,6 +325,7 @@ export const start = async (): Promise<void> => {
     }
 
     if (!(response instanceof Boom)) {
+      typedResponse.header("tier", request.headers["tier"]);
       typedResponse.header("X-RateLimit-Limit", request.headers["X-RateLimit-Limit"]);
       typedResponse.header("X-RateLimit-Remaining", request.headers["X-RateLimit-Remaining"]);
       typedResponse.header("X-RateLimit-Reset", request.headers["X-RateLimit-Reset"]);
