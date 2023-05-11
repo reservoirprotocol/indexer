@@ -2,6 +2,7 @@ import { elasticsearch } from "@/common/elasticsearch";
 import { QueryDslQueryContainer, Sort } from "@elastic/elasticsearch/lib/api/types";
 import { SortResults } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 import { BaseDocument } from "@/elasticsearch/indexes/base";
+import { logger } from "@/common/logger";
 
 const INDEX_NAME = "activities";
 
@@ -78,6 +79,19 @@ export const search = async (params: {
     index: INDEX_NAME,
     ...params,
   });
+
+  logger.info(
+    "elasticsearch",
+    JSON.stringify({
+      topic: "search",
+      index: INDEX_NAME,
+      params,
+      esResult: {
+        took: esResult.took,
+        timed_out: esResult.timed_out,
+      },
+    })
+  );
 
   return esResult.hits.hits.map((hit) => hit._source!);
 };
