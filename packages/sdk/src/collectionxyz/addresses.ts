@@ -40,6 +40,16 @@ export const SigmoidCurve: ChainIdToAddress = {
   [Network.EthereumGoerli]: "0x213e6bc3bfd3f9da3f61a26441692a963f19fdc7",
 };
 
+export const LinearCurveWithSpreadInflator: ChainIdToAddress = {
+  [Network.Ethereum]: "0x44e5c01baff15059254bf4b797fcfaed70d84942",
+  [Network.EthereumGoerli]: "0x624397a79337b22bd161e09f08afb60f8bee780a",
+};
+
+export const ExponentialCurveWithSpreadInflator: ChainIdToAddress = {
+  [Network.Ethereum]: "0x82f518ef627a992a7b38678b1358cd94cec35bb0",
+  [Network.EthereumGoerli]: "0x76ee7d278dfb1ef5f813699c37837d46b0f7cf90",
+};
+
 export const CollectionPoolFactory: ChainIdToAddress = {
   [Network.Ethereum]: "0x03b51826a4868780db375ee27e5b0adaac5274ee",
   [Network.EthereumGoerli]: "0x6e3e4e843e1ed2269b30f13e9057269253a279f8",
