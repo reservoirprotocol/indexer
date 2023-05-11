@@ -71,6 +71,11 @@ export class AskActivityBuilder extends BaseActivityBuilder {
       }
     );
 
+    return this.formatData(result);
+  }
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  formatData(result: any): BuildInfo {
     result.timestamp = Math.floor(result.created_ts);
 
     return result;

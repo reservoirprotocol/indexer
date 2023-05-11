@@ -89,6 +89,11 @@ export class SaleActivityBuilder extends BaseActivityBuilder {
       }
     );
 
+    return this.formatData(result);
+  }
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  formatData(result: any): BuildInfo {
     if (result.order_side === "buy") {
       result.from = result.to;
       result.to = result.from;

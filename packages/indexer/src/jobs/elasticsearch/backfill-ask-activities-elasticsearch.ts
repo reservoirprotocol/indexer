@@ -60,7 +60,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const activities = [];
 
           for (const result of results) {
-            const activity = askActivityBuilder.buildDocument(result);
+            const buildInfo = askActivityBuilder.formatData(result);
+            const activity = askActivityBuilder.buildDocument(buildInfo);
 
             activities.push(activity);
           }
@@ -93,7 +94,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v4`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v5`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue();
     })
