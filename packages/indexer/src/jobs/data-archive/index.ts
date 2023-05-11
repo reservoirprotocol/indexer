@@ -15,7 +15,7 @@ if (config.doBackgroundWork) {
         .acquire([`data-archive-cron-lock`], (10 * 60 - 5) * 1000)
         .then(async () => {
           await processArchiveData.addToQueue("bid_events");
-          await processArchiveData.addToQueue("orders", "bids");
+          // await processArchiveData.addToQueue("orders", "bids");
         })
         .catch(() => {
           // Skip on any errors

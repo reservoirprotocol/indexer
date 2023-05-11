@@ -74,10 +74,7 @@ if (config.doBackgroundWork) {
           collectionOffers = fetchCollectionOffersResponse.data.offers;
         } catch (error) {
           if ((error as any).response?.status === 429) {
-            logger.info(
-              QUEUE_NAME,
-              `fetchCollectionOffers throttled. error=${JSON.stringify(error)}`
-            );
+            logger.info(QUEUE_NAME, `Throttled. error=${JSON.stringify(error)}`);
 
             rateLimitExpiredIn = 5;
 
@@ -86,9 +83,9 @@ if (config.doBackgroundWork) {
               true
             );
           } else if ((error as any).response?.status === 404) {
-            logger.info(
+            logger.warn(
               QUEUE_NAME,
-              `fetchCollectionOffers throttled. refreshOpenseaCollectionOffersCollections=${refreshOpenseaCollectionOffersCollections}, error=${JSON.stringify(
+              `Collection Not Found. refreshOpenseaCollectionOffersCollections=${refreshOpenseaCollectionOffersCollections}, error=${JSON.stringify(
                 error
               )}`
             );
@@ -120,7 +117,7 @@ if (config.doBackgroundWork) {
 
       logger.info(
         QUEUE_NAME,
-        `Debug. refreshOpenseaCollectionOffersCollections=${JSON.stringify(
+        `Success. refreshOpenseaCollectionOffersCollections=${JSON.stringify(
           refreshOpenseaCollectionOffersCollections
         )}, collectionOffersCount=${
           collectionOffers.length
@@ -178,8 +175,6 @@ if (config.doBackgroundWork) {
   });
 
   worker.on("completed", async (job) => {
-    logger.info(QUEUE_NAME, `Worker completed. JobData=${JSON.stringify(job.data)}`);
-
     if (job.data.addToQueue) {
       await addToQueue(job.data.addToQueueDelay);
     }
