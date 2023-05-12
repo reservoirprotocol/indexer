@@ -108,9 +108,10 @@ contract UniversalSwapModule is BaseExchangeModule {
     Swap calldata swap,
     address refundTo
   ) external nonReentrant refundERC20Leftover(refundTo, swap.params.tokenIn) {
+    
     // Approve the router if needed
     _approveERC20IfNeeded(swap.params.tokenIn, address(PERMIT2), swap.params.amountInMaximum);
-    PERMIT2.approve(address(swap.params.tokenIn), address(UNIVERSAL_ROUTER), uint160(swap.params.amountInMaximum), uint48(block.timestamp + 100));
+    PERMIT2.approve(address(swap.params.tokenIn), address(UNIVERSAL_ROUTER), uint160(swap.params.amountInMaximum), uint48(block.timestamp));
     
     // Execute the swap
     UNIVERSAL_ROUTER.execute(swap.params.commands, swap.params.inputs, swap.params.deadline);

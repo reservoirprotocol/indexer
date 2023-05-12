@@ -20,7 +20,7 @@ import {
   PerPoolSwapDetails,
   SwapDetail,
 } from "./types";
-import { generateSwapExecutions } from "./universal";
+import { generateSwapExecutions } from "./universal-router";
 import { generateFTApprovalTxData, generateNFTApprovalTxData, isETH, isWETH } from "./utils";
 import * as Sdk from "../../index";
 import { encodeForMatchOrders } from "../../rarible/utils";

@@ -33,7 +33,7 @@ export const SwapModule: ChainIdToAddress = {
 };
 
 export const UniversalSwapModule: ChainIdToAddress = {
-  [Network.Ethereum]: "0x5cf0a457d2b6c003232184178e87c91248f73477",
+  [Network.Ethereum]: "",
 };
 
 // Exchange modules
