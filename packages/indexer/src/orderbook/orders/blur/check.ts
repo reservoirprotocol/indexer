@@ -93,14 +93,26 @@ export const offChainCheck = async (
     }
   } else {
     // Check: maker has enough balance
-    const nftBalance = await commonHelpers.getNftBalance(
-      order.params.collection,
-      order.params.tokenId,
-      order.params.trader
-    );
+    const [nftBalance, blendBalance] = await Promise.all([
+      commonHelpers.getNftBalance(
+        order.params.collection,
+        order.params.tokenId,
+        order.params.trader
+      ),
+      commonHelpers.getNftBalance(
+        order.params.collection,
+        order.params.tokenId,
+        Sdk.Blur.Addresses.Blend[config.chainId]
+      ),
+    ]);
 
     if (nftBalance.lt(order.params.amount ?? 1)) {
       hasBalance = false;
+    }
+
+    // If held by Blend then override the state
+    if (!blendBalance.lt(order.params.amount ?? 1)) {
+      hasBalance = true;
     }
 
     const operator = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];

@@ -19,3 +19,7 @@ export const ExecutionDelegate: ChainIdToAddress = {
 export const Beth: ChainIdToAddress = {
   [Network.Ethereum]: "0x0000000000a39bb272e79075ade125fd351887ac",
 };
+
+export const Blend: ChainIdToAddress = {
+  [Network.Ethereum]: "0x29469395eaf6f95920e59f858042f0e28d98a20b",
+};
