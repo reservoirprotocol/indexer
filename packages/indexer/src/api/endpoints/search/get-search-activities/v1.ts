@@ -270,7 +270,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
     let esSort;
 
     if (query.sortBy == "eventTimestamp") {
-      esSort = [{ "event.timestamp": { order: "desc", missing: "_last" } }];
+      esSort = [{ timestamp: { order: "desc", missing: "_last" } }];
     } else {
       esSort = [{ createdAt: { order: "desc" } }];
     }

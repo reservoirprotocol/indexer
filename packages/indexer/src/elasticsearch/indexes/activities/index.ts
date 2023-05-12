@@ -141,6 +141,7 @@ export const createIndex = async (): Promise<void> => {
       dynamic: "false",
       properties: {
         id: { type: "keyword" },
+        createdAt: { type: "date" },
         type: { type: "keyword" },
         timestamp: { type: "float" },
         name: { type: "keyword" },
@@ -230,6 +231,7 @@ export const createIndex = async (): Promise<void> => {
         dynamic: "false",
         properties: {
           id: { type: "keyword" },
+          createdAt: { type: "date" },
           type: { type: "keyword" },
           timestamp: { type: "float" },
           name: { type: "keyword" },
