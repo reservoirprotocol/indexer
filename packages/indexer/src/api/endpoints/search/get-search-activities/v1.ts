@@ -81,15 +81,11 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
+        .max(1000)
         .default(50)
         .description(
           "Amount of items returned. Max limit is 50 when `includedMetadata=true` otherwise max limit is 1000."
-        )
-        .when("includeMetadata", {
-          is: true,
-          then: Joi.number().integer().max(50),
-          otherwise: Joi.number().integer().max(1000),
-        }),
+        ),
       sortBy: Joi.string()
         .valid("eventTimestamp", "createdAt")
         .default("eventTimestamp")
@@ -99,9 +95,6 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
       ),
-      includeMetadata: Joi.boolean()
-        .default(true)
-        .description("If true, metadata is included in the response. If true, max limit is 50."),
       types: Joi.alternatives()
         .try(
           Joi.array().items(
