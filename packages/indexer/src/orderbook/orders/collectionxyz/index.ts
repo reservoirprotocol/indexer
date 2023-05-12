@@ -37,14 +37,33 @@ const generateMerkleTree = (tokenIds: BigNumberish[]) => {
   return new MerkleTree(leaves, keccakWithoutTypes, { sort: true });
 };
 
+/**
+ * Convert 0x hex string to 32 byte Uint8Array
+ */
+export function hexToBytes(input: string): Uint8Array {
+  if (input[0] != "0" && input[1] != "x") {
+    throw "not hex";
+  }
+
+  const hex = input.substr(2);
+  if (hex.length === 0) return new Uint8Array([]);
+  const digits = hex.match(/[0-9a-fA-F]{2}/g);
+
+  if (digits!.length * 2 != hex.length) {
+    throw "not hex";
+  }
+
+  return new Uint8Array(digits!.map((h) => parseInt(h, 16)));
+}
+
 const factoryAddress = Sdk.CollectionXyz.Addresses.CollectionPoolFactory[config.chainId];
 
 export type OrderInfo = {
   orderParams: {
     pool: string;
     // Should be undefined if the trigger was an event which should not change
-    // the existing merkle root
-    encodedTokenIds?: Uint8Array;
+    // the existing merkle root. 0x hex string. "0x" for unfiltered pools.
+    encodedTokenIds?: string;
     // If it's a modifier event, delay until a row with maker == poolAddress
     // exists in orders table
     isModifierEvent: boolean;
@@ -480,7 +499,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 const acceptedSet =
                   orderParams.encodedTokenIds.length === 0
                     ? []
-                    : TokenIDs.decode(orderParams.encodedTokenIds)
+                    : TokenIDs.decode(hexToBytes(orderParams.encodedTokenIds))
                         .tokens()
                         .map((bi) => BigNumber.from(bi));
 

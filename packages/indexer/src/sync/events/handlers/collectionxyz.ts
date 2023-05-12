@@ -11,25 +11,6 @@ import { baseProvider } from "@/common/provider";
 import { acceptsTokenIds } from "@/events-sync/data/collectionxyz";
 import { getOrderId, getPoolDetails } from "@/orderbook/orders/collectionxyz";
 
-/**
- * Convert 0x hex string to 32 byte Uint8Array
- */
-export function hexToBytes(input: string): Uint8Array {
-  if (input[0] != "0" && input[1] != "x") {
-    throw "not hex";
-  }
-
-  const hex = input.substr(2);
-  if (hex.length === 0) return new Uint8Array([]);
-  const digits = hex.match(/[0-9a-fA-F]{2}/g);
-
-  if (digits!.length * 2 != hex.length) {
-    throw "not hex";
-  }
-
-  return new Uint8Array(digits!.map((h) => parseInt(h, 16)));
-}
-
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For keeping track of all individual trades per transaction
   const trades = {
@@ -374,7 +355,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         // encodedTokenIds is [] to represent unfiltered pool. undefined value
         // is reserved for events which don't modify encodedTokenIds
-        const encodedTokenIds = hexToBytes(acceptsTokenIdsLog?.args["_data"] ?? "0x");
+        const encodedTokenIds = acceptsTokenIdsLog?.args["_data"] ?? "0x";
 
         onChainData.orders.push({
           kind: "collectionxyz",
@@ -396,7 +377,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       }
       case "collectionxyz-accepts-token-ids": {
         const parsedLog = eventData.abi.parseLog(log);
-        const encodedTokenIds = hexToBytes(parsedLog.args["_data"] ?? "0x");
+        const encodedTokenIds = parsedLog.args["_data"] ?? "0x";
 
         onChainData.orders.push({
           kind: "collectionxyz",
