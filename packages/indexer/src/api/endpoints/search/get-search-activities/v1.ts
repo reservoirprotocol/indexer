@@ -350,7 +350,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
           const continuationValue =
             query.sortBy == "eventTimestamp"
               ? lastActivity.timestamp
-              : lastActivity.createdAt.toISOString();
+              : new Date(lastActivity.createdAt).toISOString();
           continuation = buildContinuation(`${continuationValue}`);
         }
       }
