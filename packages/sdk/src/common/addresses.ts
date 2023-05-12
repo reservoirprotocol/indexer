@@ -14,6 +14,7 @@ export const Eth: ChainIdToAddress = {
   [Network.Avalanche]: AddressZero,
   [Network.ScrollAlpha]: AddressZero,
   [Network.MantleTestnet]: AddressZero,
+  [Network.LineaTestnet]: AddressZero,
 };
 
 export const Weth: ChainIdToAddress = {
@@ -31,6 +32,7 @@ export const Weth: ChainIdToAddress = {
   [Network.Avalanche]: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
   [Network.ScrollAlpha]: "0x7160570bb153edd0ea1775ec2b2ac9b65f1ab61b",
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
+  [Network.LineaTestnet]: "0x2c1b868d6596a18e32e61b901e4060c872647b6c",
 };
 
 // TODO: Include addresses across all supported chains
