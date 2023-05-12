@@ -27,6 +27,8 @@ const normalize = (order: Types.OrderParams): Types.OrderParams => {
     tokenId: order.tokenId ? s(order.tokenId) : undefined,
     externalFilter: lc(order.externalFilter),
     tokenSetId: order.tokenSetId === undefined ? undefined : lc(order.tokenSetId),
+    royaltyRecipientFallback: lc(order.royaltyRecipientFallback),
+    assetRecipient: lc(order.assetRecipient),
     extra: {
       prices: order.extra.prices.map(s),
     },

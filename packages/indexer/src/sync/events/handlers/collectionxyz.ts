@@ -10,6 +10,7 @@ import { getUSDAndNativePrices } from "@/utils/prices";
 import { baseProvider } from "@/common/provider";
 import { acceptsTokenIds } from "@/events-sync/data/collectionxyz";
 import { getOrderId, getPoolDetails } from "@/orderbook/orders/collectionxyz";
+import { Contract } from "ethers";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For keeping track of all individual trades per transaction
@@ -40,6 +41,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               logIndex: baseEventParams.logIndex,
               isModifierEvent: true,
               feesModified: false,
+              royaltyRecipientFallback: undefined,
+              assetRecipient: undefined,
             },
             metadata: {},
           },
@@ -205,6 +208,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               logIndex: baseEventParams.logIndex,
               isModifierEvent: true,
               feesModified: false,
+              royaltyRecipientFallback: undefined,
+              assetRecipient: undefined,
             },
             metadata: {},
           },
@@ -359,6 +364,15 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         // is reserved for events which don't modify encodedTokenIds
         const encodedTokenIds = acceptsTokenIdsLog?.args["_data"] ?? "0x";
 
+        const poolIface = new Interface([
+          "function royaltyRecipientFallback() public view returns (address)",
+          "function assetRecipient() public view returns (address)",
+          "function poolType() public view returns (uint8)",
+        ]);
+        const poolContract = new Contract(pool, poolIface, baseProvider);
+        const poolType = await poolContract.poolType();
+        const isTradePool = poolType === 2;
+
         onChainData.orders.push({
           kind: "collectionxyz",
           info: {
@@ -372,6 +386,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               isModifierEvent: false,
               // Need to make on chain call to get the fees because 1st time seeing
               feesModified: true,
+              royaltyRecipientFallback: await poolContract.royaltyRecipientFallback(),
+              assetRecipient: isTradePool ? pool : await poolContract.assetRecipient(),
             },
             metadata: {},
           },
@@ -396,6 +412,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               encodedTokenIds,
               isModifierEvent: true,
               feesModified: false,
+              royaltyRecipientFallback: undefined,
+              assetRecipient: undefined,
             },
             metadata: {},
           },
@@ -420,6 +438,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               logIndex: baseEventParams.logIndex,
               isModifierEvent: true,
               feesModified: true,
+              royaltyRecipientFallback: undefined,
+              assetRecipient: undefined,
             },
             metadata: {},
           },
@@ -429,14 +449,60 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       }
 
       // Modification events which DO NOT modify fees
+      case "collectionxyz-royalty-recipient-fallback-update": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const newFallback = parsedLog.args["newFallback"].toLowerCase();
+        onChainData.orders.push({
+          kind: "collectionxyz",
+          info: {
+            orderParams: {
+              pool: baseEventParams.address,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+              txBlock: baseEventParams.block,
+              logIndex: baseEventParams.logIndex,
+              isModifierEvent: true,
+              feesModified: false,
+              royaltyRecipientFallback: newFallback,
+              assetRecipient: undefined,
+            },
+            metadata: {},
+          },
+        });
+
+        break;
+      }
+
+      case "collectionxyz-asset-recipient-change": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const newAssetRecipient = parsedLog.args["a"].toLowerCase();
+        onChainData.orders.push({
+          kind: "collectionxyz",
+          info: {
+            orderParams: {
+              pool: baseEventParams.address,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+              txBlock: baseEventParams.block,
+              logIndex: baseEventParams.logIndex,
+              isModifierEvent: true,
+              feesModified: false,
+              royaltyRecipientFallback: undefined,
+              assetRecipient: newAssetRecipient,
+            },
+            metadata: {},
+          },
+        });
+
+        break;
+      }
+
       case "collectionxyz-accrued-trade-fee-withdrawal":
       case "collectionxyz-spot-price-update":
       case "collectionxyz-delta-update":
       case "collectionxyz-props-update":
       case "collectionxyz-state-update":
-      case "collectionxyz-royalty-recipient-fallback-update":
       case "collectionxyz-external-filter-set":
-      case "collectionxyz-asset-recipient-change":
       case "collectionxyz-token-deposit":
       case "collectionxyz-token-withdrawal":
       case "collectionxyz-nft-deposit":
@@ -452,6 +518,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               logIndex: baseEventParams.logIndex,
               isModifierEvent: true,
               feesModified: false,
+              royaltyRecipientFallback: undefined,
+              assetRecipient: undefined,
             },
             metadata: {},
           },

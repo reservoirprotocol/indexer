@@ -68,6 +68,11 @@ export type OrderInfo = {
     // exists in orders table
     isModifierEvent: boolean;
     feesModified: boolean;
+    // Only defined if event sets/modifies fallback
+    royaltyRecipientFallback: string | undefined;
+    // Only defined if assetRecipient is being set/modified. assetRecipient === pool for
+    // TRADE pools
+    assetRecipient: string | undefined;
     // Validation parameters (for ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
@@ -201,14 +206,15 @@ const convertCurrencies = async (
  * Get the address which the pool would pay royalties to for `tokenId`
  */
 const getRoyaltyRecipient = async (
-  poolContract: Contract,
-  nftContract: Contract,
-  tokenId: BigNumber
+  nftAddress: string,
+  tokenId: BigNumber,
+  fallback: string,
+  assetRecipient: string
 ): Promise<string> => {
   let erc2981Recipient = AddressZero;
   try {
     const onChainRoyalties = await royalties.getRoyalties(
-      nftContract.address,
+      nftAddress,
       tokenId.toString(),
       "onchain"
     );
@@ -219,7 +225,12 @@ const getRoyaltyRecipient = async (
     // Leave as address(0)
   }
 
-  return poolContract.getRoyaltyRecipient(erc2981Recipient);
+  // Replicate contract logic
+  if (erc2981Recipient !== AddressZero) {
+    return erc2981Recipient;
+  } else if (fallback !== AddressZero) {
+    return fallback!;
+  } else return assetRecipient!;
 };
 
 /**
@@ -227,7 +238,7 @@ const getRoyaltyRecipient = async (
  * a swap took place at a pre-fee price of `currencyPrice`.
  */
 const computeRoyaltyInfo = async (
-  nftContract: Contract,
+  nftAddress: string,
   currencyPrice: BigNumber,
   poolRoyaltyBps: number,
   royaltyRecipient: string
@@ -239,10 +250,7 @@ const computeRoyaltyInfo = async (
   const missingRoyalties: { bps: number; amount: string; recipient: string }[] = [];
 
   const defaultRoyalties = (
-    await royalties.getRoyaltiesByTokenSet(
-      `contract:${nftContract.address}`.toLowerCase(),
-      "default"
-    )
+    await royalties.getRoyaltiesByTokenSet(`contract:${nftAddress}`.toLowerCase(), "default")
   ).filter(({ recipient }) => recipient !== AddressZero);
 
   defaultRoyalties.forEach(({ recipient, bps }) => {
@@ -341,17 +349,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         throw new Error("Could not fetch pool details");
       }
 
-      const nftContract = new Contract(
-        pool.nft,
-        new Interface([
-          `function royaltyInfo(uint256 tokenId, uint256 salePrice) external view returns (
-            address receiver,
-            uint256 royaltyAmount
-          )`,
-          `function supportsInterface(bytes4 interfaceId) external view returns (bool)`,
-        ])
-      );
-
       const poolContract = new Contract(
         pool.address,
         new Interface([
@@ -419,17 +416,41 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               numBuyableNFTs++;
             }
 
+            // Check if this is new order or update
+            const orderResult = await idb.oneOrNone(
+              `
+                SELECT
+                  orders.token_set_id,
+                  orders.token_set_schema_hash,
+                  orders.raw_data
+                FROM orders
+                WHERE orders.id = $/id/
+              `,
+              { id }
+            );
+
             // Handle royalties and fees
             // For bids, we can't predict which tokenID is going to be sold
             // into the pool so we just use tokenID 0.
-            const royaltyRecipient = await getRoyaltyRecipient(poolContract, nftContract, bn(0));
+            const royaltyRecipient = await getRoyaltyRecipient(
+              pool.nft,
+              bn(0),
+              // We have yet to validate the condition that:
+              // orderParams.<fallback|assetRecipient> ?? existing <fallback|assetRecipient>
+              // is defined. We will do so later before saving. Use AddressZero
+              // as a placeholder
+              orderParams.royaltyRecipientFallback ??
+                orderResult?.raw_data?.royaltyRecipientFallback ??
+                AddressZero,
+              orderParams.assetRecipient ?? orderResult?.raw_data?.assetRecipient ?? AddressZero
+            );
             const { feeBreakdown, totalFeeBps } = await getFeeBpsAndBreakdown(
               poolContract,
               royaltyRecipient,
               id
             );
             const { missingRoyaltyAmount, missingRoyalties } = await computeRoyaltyInfo(
-              nftContract,
+              pool.nft,
               currencyPrice,
               feeBreakdown.filter((fee) => fee.kind === "royalty")[0]!.bps,
               royaltyRecipient
@@ -456,30 +477,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               });
               return;
             }
-
-            // Prepare raw order data
-            const sdkOrder: Sdk.CollectionXyz.Order = new Sdk.CollectionXyz.Order(config.chainId, {
-              pool: orderParams.pool,
-              externalFilter: externalFilterAddress,
-              tokenSetId: undefined,
-              extra: {
-                // Not much point keeping more than 1 unit price. Keep the expected input
-                // amount which is currencyPrice
-                prices: [currencyPrice.toString()],
-              },
-            });
-
-            // Check if this is new order or update
-            const orderResult = await idb.oneOrNone(
-              `
-                SELECT
-                  orders.token_set_id,
-                  orders.token_set_schema_hash
-                FROM orders
-                WHERE orders.id = $/id/
-              `,
-              { id }
-            );
 
             if (!orderResult && orderParams.isModifierEvent) {
               results.push({
@@ -535,7 +532,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
                 const merkleTree = generateMerkleTree(acceptedSet);
                 tokenSetId = `list:${pool.nft}:${merkleTree.getHexRoot()}`;
-                sdkOrder.params.tokenSetId = tokenSetId;
                 const schema = {
                   kind: "token-set", // The type of TokenList that just takes an array of token ids
                   data: {
@@ -575,6 +571,35 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             // for all buy orders should be in this if-branch. Everything else
             // might need to be updated
             if (!orderResult) {
+              if (
+                orderParams.assetRecipient === undefined ||
+                orderParams.royaltyRecipientFallback === undefined
+              ) {
+                results.push({
+                  id,
+                  txHash: orderParams.txHash,
+                  txTimestamp: orderParams.txTimestamp,
+                  status: "missing-necessary-new-pool-info",
+                });
+                return;
+              }
+
+              const sdkOrder: Sdk.CollectionXyz.Order = new Sdk.CollectionXyz.Order(
+                config.chainId,
+                {
+                  pool: orderParams.pool,
+                  externalFilter: externalFilterAddress,
+                  tokenSetId,
+                  assetRecipient: orderParams.assetRecipient,
+                  royaltyRecipientFallback: orderParams.royaltyRecipientFallback,
+                  extra: {
+                    // Not much point keeping more than 1 unit price. Keep the expected input
+                    // amount which is currencyPrice
+                    prices: [currencyPrice.toString()],
+                  },
+                }
+              );
+
               // Handle: source
               const sources = await Sources.getInstance();
               const source = await sources.getOrInsert("collection.xyz");
@@ -626,6 +651,27 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               });
             } else {
               // There's already an order with this id. Update it.
+              const sdkOrder: Sdk.CollectionXyz.Order = new Sdk.CollectionXyz.Order(
+                config.chainId,
+                orderResult.raw_data
+              );
+
+              sdkOrder.params.extra = {
+                // Not much point keeping more than 1 unit price. Keep the expected input
+                // amount which is currencyPrice
+                prices: [currencyPrice.toString()],
+              };
+              sdkOrder.params.externalFilter = externalFilterAddress;
+              sdkOrder.params.tokenSetId = tokenSetId;
+
+              if (orderParams.assetRecipient !== undefined) {
+                sdkOrder.params.assetRecipient = orderParams.assetRecipient;
+              }
+
+              if (orderParams.assetRecipient !== undefined) {
+                sdkOrder.params.assetRecipient = orderParams.assetRecipient;
+              }
+
               await idb.none(
                 `
                   UPDATE orders SET
@@ -734,13 +780,27 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 try {
                   const id = getOrderId(orderParams.pool, "sell", tokenId);
 
+                  const orderResult = await redb.oneOrNone(
+                    `
+                      SELECT orders.raw_data
+                      FROM orders
+                      WHERE orders.id = $/id/
+                    `,
+                    { id }
+                  );
+
                   // Handle fees and royalties
                   // For asks, we pass the exact tokenID as we're doing single
                   // ID listings
                   const royaltyRecipient = await getRoyaltyRecipient(
-                    poolContract,
-                    nftContract,
-                    bn(tokenId)
+                    pool.nft,
+                    bn(tokenId),
+                    orderParams.royaltyRecipientFallback ??
+                      orderResult?.raw_data?.royaltyRecipientFallback ??
+                      AddressZero,
+                    orderParams.assetRecipient ??
+                      orderResult?.raw_data?.assetRecipient ??
+                      AddressZero
                   );
                   const { feeBreakdown, totalFeeBps } = await getFeeBpsAndBreakdown(
                     poolContract,
@@ -748,7 +808,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     id
                   );
                   const { missingRoyaltyAmount, missingRoyalties } = await computeRoyaltyInfo(
-                    nftContract,
+                    pool.nft,
                     currencyPrice,
                     feeBreakdown.filter((fee) => fee.kind === "royalty")[0]!.bps,
                     royaltyRecipient
@@ -776,28 +836,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     return;
                   }
 
-                  // Handle: core sdk order
-                  const sdkOrder: Sdk.CollectionXyz.Order = new Sdk.CollectionXyz.Order(
-                    config.chainId,
-                    {
-                      pool: orderParams.pool,
-                      externalFilter: externalFilterAddress,
-                      tokenSetId: undefined,
-                      extra: {
-                        // Selling to pool -> Router needs expected output == currencyValue
-                        prices: [currencyValue.toString()],
-                      },
-                    }
-                  );
-
-                  const orderResult = await redb.oneOrNone(
-                    `
-                      SELECT 1 FROM orders
-                      WHERE orders.id = $/id/
-                    `,
-                    { id }
-                  );
-
                   // Order for this tokenId doesn't exist. Create new row.
                   if (!orderResult) {
                     const schemaHash = generateSchemaHash();
@@ -812,6 +850,35 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     if (!tokenSetId) {
                       throw new Error("No token set available");
                     }
+
+                    if (
+                      orderParams.assetRecipient === undefined ||
+                      orderParams.royaltyRecipientFallback === undefined
+                    ) {
+                      results.push({
+                        id,
+                        txHash: orderParams.txHash,
+                        txTimestamp: orderParams.txTimestamp,
+                        status: "missing-necessary-new-pool-info",
+                      });
+                      return;
+                    }
+
+                    // Handle: core sdk order
+                    const sdkOrder: Sdk.CollectionXyz.Order = new Sdk.CollectionXyz.Order(
+                      config.chainId,
+                      {
+                        pool: orderParams.pool,
+                        externalFilter: externalFilterAddress,
+                        tokenSetId: undefined,
+                        assetRecipient: orderParams.assetRecipient,
+                        royaltyRecipientFallback: orderParams.royaltyRecipientFallback,
+                        extra: {
+                          // Selling to pool -> Router needs expected output == currencyValue
+                          prices: [currencyValue.toString()],
+                        },
+                      }
+                    );
 
                     // Handle: source
                     const sources = await Sources.getInstance();
@@ -864,6 +931,27 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     });
                   } else {
                     // This is an order update, update the relevant row.
+                    const sdkOrder: Sdk.CollectionXyz.Order = new Sdk.CollectionXyz.Order(
+                      config.chainId,
+                      orderResult.raw_data
+                    );
+
+                    sdkOrder.params.extra = {
+                      // Not much point keeping more than 1 unit price. Keep the expected input
+                      // amount which is currencyPrice
+                      prices: [currencyPrice.toString()],
+                    };
+                    sdkOrder.params.externalFilter = externalFilterAddress;
+                    // tokenSetId is 1:1 with order id for asks
+                    // sdkOrder.params.tokenSetId = tokenSetId;
+
+                    if (orderParams.assetRecipient !== undefined) {
+                      sdkOrder.params.assetRecipient = orderParams.assetRecipient;
+                    }
+
+                    if (orderParams.assetRecipient !== undefined) {
+                      sdkOrder.params.assetRecipient = orderParams.assetRecipient;
+                    }
                     await idb.none(
                       `
                         UPDATE orders SET
