@@ -84,47 +84,47 @@ export const search = async (params: {
   size?: number | undefined;
   search_after?: SortResults | undefined;
 }): Promise<ActivityDocument[]> => {
-  const esResult = await elasticsearch.search<ActivityDocument>({
-    index: INDEX_NAME,
-    ...params,
-  });
-
-  logger.info(
-    "elasticsearch",
-    JSON.stringify({
-      topic: "search",
-      index: INDEX_NAME,
-      params,
-      paramsJson: JSON.stringify(params),
-      esResult: {
-        took: esResult.took,
-        timed_out: esResult.timed_out,
-      },
-    })
-  );
-
-  if (elasticsearchCloud) {
-    const esResult2 = await elasticsearchCloud.search<ActivityDocument>({
+  try {
+    const esResult = await elasticsearch.search<ActivityDocument>({
       index: INDEX_NAME,
       ...params,
     });
 
-    logger.info(
-      "elasticsearch",
-      JSON.stringify({
-        topic: "search-cloud",
+    const latency = esResult.took;
+
+    let latencyCloud;
+
+    if (elasticsearchCloud) {
+      const esResult2 = await elasticsearchCloud.search<ActivityDocument>({
         index: INDEX_NAME,
+        ...params,
+      });
+
+      latencyCloud = esResult2.took;
+    }
+
+    logger.info(
+      "elasticsearch-search-activities",
+      JSON.stringify({
         params,
+        latency,
+        latencyCloud,
         paramsJson: JSON.stringify(params),
-        esResult: {
-          took: esResult2.took,
-          timed_out: esResult2.timed_out,
-        },
       })
     );
-  }
 
-  return esResult.hits.hits.map((hit) => hit._source!);
+    return esResult.hits.hits.map((hit) => hit._source!);
+  } catch (error) {
+    logger.error(
+      "elasticsearch-search-activities",
+      JSON.stringify({
+        paramsJson: JSON.stringify(params),
+        error,
+      })
+    );
+
+    throw error;
+  }
 };
 
 export const createIndex = async (): Promise<void> => {
