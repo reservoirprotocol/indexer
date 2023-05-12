@@ -183,7 +183,7 @@ export class Tokens {
     let flagFilter = "";
     let contractFilter = "";
 
-    if (nonFlaggedOnly) {
+    if (config.chainId === 1 && nonFlaggedOnly) {
       flagFilter = "AND (is_flagged = 0 OR is_flagged IS NULL)";
     }
 

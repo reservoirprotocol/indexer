@@ -250,7 +250,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         bool: {
           must: [
             {
-              terms: { fromAddress: query.users },
+              term: { fromAddress: query.users },
             },
           ],
         },
@@ -260,7 +260,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         bool: {
           must: [
             {
-              terms: { toAddress: query.users },
+              term: { toAddress: query.users },
             },
           ],
         },
