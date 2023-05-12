@@ -110,8 +110,8 @@ export const getUserTopBidsV4Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      totalTokensWithBids: Joi.number(),
-      totalAmount: Joi.number(),
+      totalTokensWithBids: Joi.number().description("Amount of token with bids."),
+      totalAmount: Joi.number().description("Amount of currency from all token bids; native currency unless `displayCurrency` passed"),
       topBids: Joi.array().items(
         Joi.object({
           id: Joi.string(),
