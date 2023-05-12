@@ -142,7 +142,7 @@ export const addToQueue = async () => {
   await queue.add(randomUUID(), {});
 };
 
-if (config.doWebsocketWork) {
+if (config.doBackgroundWork) {
   cron.schedule(
     "*/10 * * * * *",
     async () =>
