@@ -67,6 +67,7 @@ export type OrderInfo = {
     // If it's a modifier event, delay until a row with maker == poolAddress
     // exists in orders table
     isModifierEvent: boolean;
+    feesModified: boolean;
     // Validation parameters (for ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
@@ -87,10 +88,14 @@ type SaveResult = {
 /**
  * Get all fee information for a pool and format the fee breakdown. Basis points
  * returned are not integers.
+ *
+ * @param orderId If a row in the db has this order id simply return fee info
+ * from the existing row
  */
 const getFeeBpsAndBreakdown = async (
   poolContract: Contract,
-  royaltyRecipient: string
+  royaltyRecipient: string,
+  orderId: string
 ): Promise<{
   feeBreakdown: {
     kind: string;
@@ -98,43 +103,57 @@ const getFeeBpsAndBreakdown = async (
     bps: number;
   }[];
   totalFeeBps: number;
-  royaltyBps: number;
-  protocolBps: number;
-  tradeBps: number;
-  carryBps: number;
 }> => {
-  const [tradeBps, protocolBps, royaltyBps, carryBps] = (await poolContract.feeMultipliers()).map(
-    (fee: number) => fee / 10
+  const orderResult = await idb.oneOrNone(
+    `
+      SELECT
+        orders.fee_breakdown,
+        orders.fee_bps
+      FROM orders
+      WHERE orders.id = $/orderId/
+    `,
+    { orderId }
   );
+  if (orderResult) {
+    // Row exists, return relevant rows
+    return {
+      feeBreakdown: orderResult.fee_breakdown,
+      totalFeeBps: orderResult.fee_bps,
+    };
+  } else {
+    const [tradeBps, protocolBps, royaltyBps, carryBps] = (await poolContract.feeMultipliers()).map(
+      (fee: number) => fee / 10
+    );
 
-  // Carry fee doesn't add to input amount
-  const totalFeeBps = royaltyBps + protocolBps + tradeBps;
-  const feeBreakdown: {
-    kind: string;
-    recipient: string;
-    bps: number;
-  }[] = [
-    {
-      // Protocol fee
-      kind: "marketplace",
-      recipient: factoryAddress,
-      bps: Math.round(protocolBps + (tradeBps * carryBps) / 1e5),
-    },
-    {
-      // Trade fee
-      kind: "marketplace",
-      recipient: poolContract.address,
-      bps: Math.round(tradeBps),
-    },
-    {
-      // Royalty fee
-      kind: "royalty",
-      recipient: royaltyRecipient,
-      bps: Math.round(royaltyBps),
-    },
-  ];
+    // Carry fee doesn't add to input amount
+    const totalFeeBps = royaltyBps + protocolBps + tradeBps;
+    const feeBreakdown: {
+      kind: string;
+      recipient: string;
+      bps: number;
+    }[] = [
+      {
+        // Protocol fee
+        kind: "marketplace",
+        recipient: factoryAddress,
+        bps: Math.round(protocolBps + (tradeBps * carryBps) / 1e5),
+      },
+      {
+        // Trade fee
+        kind: "marketplace",
+        recipient: poolContract.address,
+        bps: Math.round(tradeBps),
+      },
+      {
+        // Royalty fee
+        kind: "royalty",
+        recipient: royaltyRecipient,
+        bps: Math.round(royaltyBps),
+      },
+    ];
 
-  return { totalFeeBps, feeBreakdown, tradeBps, protocolBps, royaltyBps, carryBps };
+    return { totalFeeBps, feeBreakdown };
+  }
 };
 
 /**
@@ -404,14 +423,15 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             // For bids, we can't predict which tokenID is going to be sold
             // into the pool so we just use tokenID 0.
             const royaltyRecipient = await getRoyaltyRecipient(poolContract, nftContract, bn(0));
-            const { feeBreakdown, totalFeeBps, royaltyBps } = await getFeeBpsAndBreakdown(
+            const { feeBreakdown, totalFeeBps } = await getFeeBpsAndBreakdown(
               poolContract,
-              royaltyRecipient
+              royaltyRecipient,
+              id
             );
             const { missingRoyaltyAmount, missingRoyalties } = await computeRoyaltyInfo(
               nftContract,
               currencyPrice,
-              royaltyBps,
+              feeBreakdown.filter((fee) => fee.kind === "royalty")[0]!.bps,
               royaltyRecipient
             );
             const currencyNormalizedValue = bn(currencyValue).sub(missingRoyaltyAmount);
@@ -722,14 +742,15 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     nftContract,
                     bn(tokenId)
                   );
-                  const { feeBreakdown, totalFeeBps, royaltyBps } = await getFeeBpsAndBreakdown(
+                  const { feeBreakdown, totalFeeBps } = await getFeeBpsAndBreakdown(
                     poolContract,
-                    royaltyRecipient
+                    royaltyRecipient,
+                    id
                   );
                   const { missingRoyaltyAmount, missingRoyalties } = await computeRoyaltyInfo(
                     nftContract,
                     currencyPrice,
-                    royaltyBps,
+                    feeBreakdown.filter((fee) => fee.kind === "royalty")[0]!.bps,
                     royaltyRecipient
                   );
                   const currencyNormalizedValue = bn(currencyValue).add(missingRoyaltyAmount);

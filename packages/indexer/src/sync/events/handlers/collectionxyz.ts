@@ -39,6 +39,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               txBlock: baseEventParams.block,
               logIndex: baseEventParams.logIndex,
               isModifierEvent: true,
+              feesModified: false,
             },
             metadata: {},
           },
@@ -203,6 +204,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               txBlock: baseEventParams.block,
               logIndex: baseEventParams.logIndex,
               isModifierEvent: true,
+              feesModified: false,
             },
             metadata: {},
           },
@@ -368,6 +370,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               logIndex: baseEventParams.logIndex,
               encodedTokenIds,
               isModifierEvent: false,
+              // Need to make on chain call to get the fees because 1st time seeing
+              feesModified: true,
             },
             metadata: {},
           },
@@ -375,6 +379,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
+
       case "collectionxyz-accepts-token-ids": {
         const parsedLog = eventData.abi.parseLog(log);
         const encodedTokenIds = parsedLog.args["_data"] ?? "0x";
@@ -390,6 +395,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               logIndex: baseEventParams.logIndex,
               encodedTokenIds,
               isModifierEvent: true,
+              feesModified: false,
             },
             metadata: {},
           },
@@ -397,17 +403,39 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
         break;
       }
+
+      // Modification events which DO modify fees
+      case "collectionxyz-royalty-numerator-update":
+      case "collectionxyz-protocol-fee-multiplier-update":
+      case "collectionxyz-carry-fee-multiplier-update":
+      case "collectionxyz-fee-update": {
+        onChainData.orders.push({
+          kind: "collectionxyz",
+          info: {
+            orderParams: {
+              pool: baseEventParams.address,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+              txBlock: baseEventParams.block,
+              logIndex: baseEventParams.logIndex,
+              isModifierEvent: true,
+              feesModified: true,
+            },
+            metadata: {},
+          },
+        });
+
+        break;
+      }
+
+      // Modification events which DO NOT modify fees
       case "collectionxyz-accrued-trade-fee-withdrawal":
       case "collectionxyz-spot-price-update":
       case "collectionxyz-delta-update":
       case "collectionxyz-props-update":
       case "collectionxyz-state-update":
-      case "collectionxyz-royalty-numerator-update":
       case "collectionxyz-royalty-recipient-fallback-update":
       case "collectionxyz-external-filter-set":
-      case "collectionxyz-fee-update":
-      case "collectionxyz-protocol-fee-multiplier-update":
-      case "collectionxyz-carry-fee-multiplier-update":
       case "collectionxyz-asset-recipient-change":
       case "collectionxyz-token-deposit":
       case "collectionxyz-token-withdrawal":
@@ -423,6 +451,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               txBlock: baseEventParams.block,
               logIndex: baseEventParams.logIndex,
               isModifierEvent: true,
+              feesModified: false,
             },
             metadata: {},
           },
