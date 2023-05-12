@@ -1,4 +1,6 @@
 import { BigNumber } from "@ethersproject/bignumber";
+import { AddressZero } from "@ethersproject/constants";
+import { keccak256 } from "@ethersproject/solidity";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -57,6 +59,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 .valid(
                   "opensea",
                   "blur",
+                  "blur-partial",
                   "looks-rare",
                   "zeroex-v4",
                   "seaport",
@@ -425,6 +428,27 @@ export const getExecuteBuyV7Options: RouteOptions = {
             item.orderId = sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId);
           } else if (order.kind === "nftx") {
             item.orderId = nftx.getOrderId(order.data.pool, "sell", order.data.specificIds[0]);
+          } else if (order.kind === "blur-partial") {
+            await addToPath(
+              {
+                id: keccak256(
+                  ["string", "address", "uint256"],
+                  ["blur", order.data.contract, order.data.tokenId]
+                ),
+                kind: "blur",
+                maker: AddressZero,
+                price: order.data.price,
+                sourceId: sources.getByDomain("blur.io")?.id ?? null,
+                currency: Sdk.Common.Addresses.Eth[config.chainId],
+                rawData: order.data,
+                builtInFees: [],
+              },
+              {
+                kind: "erc721",
+                contract: order.data.contract,
+                tokenId: order.data.tokenId,
+              }
+            );
           } else {
             const response = await inject({
               method: "POST",

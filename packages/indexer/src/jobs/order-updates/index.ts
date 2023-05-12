@@ -15,6 +15,7 @@ import "@/jobs/order-updates/by-maker-queue";
 import "@/jobs/order-updates/by-maker-bundle-queue";
 import "@/jobs/order-updates/order-updates-sell-order-queue";
 import "@/jobs/order-updates/order-updates-buy-order-queue";
+import "@/jobs/order-updates/save-bid-events";
 
 // Various cron jobs that must run once in a while
 
