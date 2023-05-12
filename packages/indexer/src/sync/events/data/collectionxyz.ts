@@ -9,7 +9,7 @@ export const newPool: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event NewPool(
-      address indexed collectionxyz,
+      address indexed collection,
       address indexed poolAddress
     )`,
   ]),
@@ -22,7 +22,7 @@ export const tokenDeposit: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event TokenDeposit(
-      address indexed collectionxyz,
+      address indexed collection,
       address indexed token,
       uint256 amount
     )`,
@@ -36,7 +36,7 @@ export const tokenWithdrawal: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event TokenWithdrawal(
-      address indexed collectionxyz,
+      address indexed collection,
       address indexed token,
       uint256 amount
     )`,
@@ -50,7 +50,7 @@ export const nftDeposit: EventData = {
   numTopics: 2,
   abi: new Interface([
     `event NFTDeposit(
-      address indexed collectionxyz,
+      address indexed collection,
       uint256 numNFTs,
       uint256 rawBuyPrice,
       uint256 rawSellPrice
@@ -65,7 +65,7 @@ export const nftWithdrawal: EventData = {
   numTopics: 2,
   abi: new Interface([
     `event NFTWithdrawal(
-      address indexed collectionxyz,
+      address indexed collection,
       uint256 numNFTs,
       uint256 rawBuyPrice,
       uint256 rawSellPrice
@@ -80,7 +80,7 @@ export const accruedTradeFeeWithdrawal: EventData = {
   numTopics: 2,
   abi: new Interface([
     `event AccruedTradeFeeWithdrawal(
-      address indexed collectionxyz,
+      address indexed collection,
       address token,
       uint256 amount
     )`,
@@ -200,7 +200,7 @@ export const royaltyRecipientFallbackUpdate: EventData = {
   numTopics: 2,
   abi: new Interface([
     `event RoyaltyRecipientFallbackUpdate(
-      address payable indexed newFallback
+      address indexed newFallback
     )`,
   ]),
 };
@@ -212,7 +212,7 @@ export const externalFilterSet: EventData = {
   numTopics: 3,
   abi: new Interface([
     `event ExternalFilterSet(
-      address indexed collectionxyz,
+      address indexed collection,
       address indexed filterAddress
     )`,
   ]),

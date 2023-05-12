@@ -1,36 +1,36 @@
-import { EventFragment, Interface, keccak256, toUtf8Bytes } from "ethers/lib/utils";
+import { EventFragment, Interface, ParamType, keccak256, toUtf8Bytes } from "ethers/lib/utils";
 import { readFileSync, writeFileSync } from "fs";
 import path from "path";
 
 // This script gets event formats etc for event subkinds from pool and factory
-// and generates packages/indexer/src/sync/events/data/collection.ts
+// and generates packages/indexer/src/sync/events/data/collectionxyz.ts
 
 // Steps to use:
 //    1. Make sure you run generateABIs.py
-//    2. Copy all collection event subkinds from the EventSubKind type definition
+//    2. Copy all collectionxyz event subkinds from the EventSubKind type definition
 //    3. Run this script from root directory of the repo using yarn ts-node <path-to-script>/generateEventData.ts
 
 const ALL_EVENT_SUBKINDS = [
-  "collection-new-pool",
-  "collection-token-deposit",
-  "collection-token-withdrawal",
-  "collection-nft-deposit",
-  "collection-nft-withdrawal",
-  "collection-accrued-trade-fee-withdrawal",
-  "collection-accepts-token-ids",
-  "collection-swap-nft-in-pool",
-  "collection-swap-nft-out-pool",
-  "collection-spot-price-update",
-  "collection-delta-update",
-  "collection-props-update",
-  "collection-state-update",
-  "collection-royalty-numerator-update",
-  "collection-royalty-recipient-fallback-update",
-  "collection-external-filter-set",
-  "collection-fee-update",
-  "collection-protocol-fee-multiplier-update",
-  "collection-carry-fee-multiplier-update",
-  "collection-asset-recipient-change",
+  "collectionxyz-new-pool",
+  "collectionxyz-token-deposit",
+  "collectionxyz-token-withdrawal",
+  "collectionxyz-nft-deposit",
+  "collectionxyz-nft-withdrawal",
+  "collectionxyz-accrued-trade-fee-withdrawal",
+  "collectionxyz-accepts-token-ids",
+  "collectionxyz-swap-nft-in-pool",
+  "collectionxyz-swap-nft-out-pool",
+  "collectionxyz-spot-price-update",
+  "collectionxyz-delta-update",
+  "collectionxyz-props-update",
+  "collectionxyz-state-update",
+  "collectionxyz-royalty-numerator-update",
+  "collectionxyz-royalty-recipient-fallback-update",
+  "collectionxyz-external-filter-set",
+  "collectionxyz-fee-update",
+  "collectionxyz-protocol-fee-multiplier-update",
+  "collectionxyz-carry-fee-multiplier-update",
+  "collectionxyz-asset-recipient-change",
 ];
 
 function subKindToEventName(subKindName: string): string {
@@ -42,6 +42,18 @@ function subKindToEventName(subKindName: string): string {
       .map((token) => token.charAt(0).toUpperCase().concat(token.slice(1, undefined)))
       .join("")
   );
+}
+
+function formatParamType(param: ParamType): string {
+  let type;
+  if (param.baseType === "array") {
+    type = `${formatParamType(param.arrayChildren)}[]`;
+  } else if (param.baseType === "tuple") {
+    type = `tuple(${param.components.map(formatParamType).join(", ")})`;
+  } else {
+    type = param.type;
+  }
+  return `${type}${param.indexed ? " indexed" : ""}${param.name ? " " + param.name : ""}`;
 }
 
 const factoryAbi = JSON.parse(
@@ -77,7 +89,7 @@ const eventDataToExport = ALL_EVENT_SUBKINDS.map((subKindName) => {
     )
     .join("");
   return `export const ${eventType}: EventData = {
-  kind: "collection",
+  kind: "collectionxyz",
   subKind: "${subKindName}",
   topic: "${keccak256(toUtf8Bytes(eventFragment.format()))}",
   numTopics: ${
@@ -88,7 +100,7 @@ const eventDataToExport = ALL_EVENT_SUBKINDS.map((subKindName) => {
   },
   abi: new Interface([
     \`event ${eventFragment.name}(
-${eventFragment.inputs.map((input) => `      ${input.type} ${input.name}`).join(",\n")}
+${eventFragment.inputs.map((input) => `      ${formatParamType(input)}`).join(",\n")}
     )\`,
   ]),
 };`;
@@ -96,7 +108,7 @@ ${eventFragment.inputs.map((input) => `      ${input.type} ${input.name}`).join(
 
 // Write to output file
 const eventDataFileName = path.resolve(
-  __dirname + "/../../../../indexer/src/sync/events/data/collection.ts"
+  __dirname + "/../../../../indexer/src/sync/events/data/collectionxyz.ts"
 );
 writeFileSync(
   eventDataFileName,
