@@ -8,6 +8,10 @@ export class ActivitiesList {
   public key = "activities-list";
 
   public async add(events: EventInfo[]) {
+    if (_.isEmpty(events)) {
+      return;
+    }
+
     return redis.rpush(
       this.key,
       _.map(events, (event) => JSON.stringify(event))
