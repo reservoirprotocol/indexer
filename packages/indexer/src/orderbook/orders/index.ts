@@ -723,10 +723,27 @@ export const generateBidDetailsV6 = async (
     }
 
     case "collectionxyz": {
+      const extraArgs: any = {};
       const sdkOrder = new Sdk.CollectionXyz.Order(config.chainId, order.rawData);
+      if (order.rawData.tokenSetId !== undefined) {
+        // When selling to a filtered pool, we also need to pass in the full
+        // list of tokens accepted by the pool (in order to be able to generate
+        // a valid merkle proof)
+        const tokens = await idb.manyOrNone(
+          `
+            SELECT
+              token_sets_tokens.token_id
+            FROM token_sets_tokens
+            WHERE token_sets_tokens.token_set_id = $/id/
+          `,
+          { id: sdkOrder.params.tokenSetId }
+        );
+        extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
+      }
       return {
         kind: "collectionxyz",
         ...common,
+        extraArgs,
         order: sdkOrder,
       };
     }

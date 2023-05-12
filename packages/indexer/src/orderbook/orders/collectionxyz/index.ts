@@ -422,7 +422,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             const sdkOrder: Sdk.CollectionXyz.Order = new Sdk.CollectionXyz.Order(config.chainId, {
               pool: orderParams.pool,
               externalFilter: externalFilterAddress,
-              acceptedSet: [],
+              tokenSetId: undefined,
               extra: {
                 // Not much point keeping more than 1 unit price. Keep the expected input
                 // amount which is currencyPrice
@@ -484,10 +484,19 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                         .tokens()
                         .map((bi) => BigNumber.from(bi));
 
-                sdkOrder.params.acceptedSet = acceptedSet.map((bn) => bn.toString());
+                if (acceptedSet.length > config.maxTokenSetSize) {
+                  results.push({
+                    id,
+                    txHash: orderParams.txHash,
+                    txTimestamp: orderParams.txTimestamp,
+                    status: "token-list-too-large",
+                  });
+                  return;
+                }
 
                 const merkleTree = generateMerkleTree(acceptedSet);
                 tokenSetId = `list:${pool.nft}:${merkleTree.getHexRoot()}`;
+                sdkOrder.params.tokenSetId = tokenSetId;
                 const schema = {
                   kind: "token-set", // The type of TokenList that just takes an array of token ids
                   data: {
@@ -733,7 +742,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     {
                       pool: orderParams.pool,
                       externalFilter: externalFilterAddress,
-                      acceptedSet: [],
+                      tokenSetId: undefined,
                       extra: {
                         // Selling to pool -> Router needs expected output == currencyValue
                         prices: [currencyValue.toString()],

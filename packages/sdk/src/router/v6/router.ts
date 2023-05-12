@@ -3436,12 +3436,12 @@ export class Router {
         case "collectionxyz": {
           const order = detail.order as Sdk.CollectionXyz.Order;
           const module = this.contracts.collectionXyzModule;
-          const acceptedSet = detail.order.params.acceptedSet.map(BigInt);
+          const acceptedSet = detail.extraArgs.tokenIds as string[];
           const { proof, proofFlags } =
             // acceptedSet === [] for unfiltered pools
             acceptedSet.length === 0
               ? { proof: [], proofFlags: [] }
-              : new TokenIDs(acceptedSet).proof([BigInt(detail.tokenId)]);
+              : new TokenIDs(acceptedSet.map(BigInt)).proof([BigInt(detail.tokenId)]);
 
           executionsWithDetails.push({
             detail,
