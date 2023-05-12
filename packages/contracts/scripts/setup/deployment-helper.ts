@@ -5,9 +5,7 @@
 import { Interface } from "@ethersproject/abi";
 import { Signer } from "@ethersproject/abstract-signer";
 import { Contract } from "@ethersproject/contracts";
-import { JsonRpcProvider } from "@ethersproject/providers";
 import { keccak256 } from "@ethersproject/solidity";
-import { Wallet } from "@ethersproject/wallet";
 import hre, { ethers } from "hardhat";
 
 export class DeploymentHelper {
@@ -32,8 +30,7 @@ export class DeploymentHelper {
   }
 
   public static async getInstance(create3FactoryAddress?: string): Promise<DeploymentHelper> {
-    const provider = new JsonRpcProvider(process.env.RPC_URL!);
-    const deployer = new Wallet(process.env.DEPLOYER_PK!).connect(provider);
+    const [deployer] = await ethers.getSigners();
 
     const chainId = await deployer.getChainId();
     return new DeploymentHelper(deployer, chainId, { create3FactoryAddress });

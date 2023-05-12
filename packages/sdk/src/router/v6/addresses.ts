@@ -6,12 +6,14 @@ import { ChainIdToAddress, Network } from "../../utils";
 export const Router: ChainIdToAddress = {
   [Network.Ethereum]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
   [Network.EthereumGoerli]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
+  [Network.EthereumSepolia]: "0x1aed60a97192157fda7fb26267a439d523d09c5e",
   [Network.Polygon]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
   [Network.Optimism]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
   [Network.Arbitrum]: "0xc2c862322e9c97d6244a3506655da95f05246fd8",
   [Network.ScrollAlpha]: "0xd17f3e7ab95ca115a7e89610cde1f0b01248fe9a",
   [Network.MantleTestnet]: "0xd08d4d2046c234d32f4abf889e9cb93bcb756dc5",
   [Network.LineaTestnet]: "0x1f330b0d2bf5ca4b380aa9b60ee089eda9963eff",
+  [Network.MiscTestnet]: "0x1aed60a97192157fda7fb26267a439d523d09c5e",
 };
 
 // Approval proxy
@@ -19,12 +21,14 @@ export const Router: ChainIdToAddress = {
 export const ApprovalProxy: ChainIdToAddress = {
   [Network.Ethereum]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.EthereumGoerli]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
+  [Network.EthereumSepolia]: "0x224ecb4eae96d31372d1090c3b0233c8310dbbab",
   [Network.Polygon]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.Optimism]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.Arbitrum]: "0x79ce8f93063f8be4573a58f250b003859ebb7a24",
   [Network.ScrollAlpha]: "0xae4acac642fc0330e37c4ef20434934ee9636bc9",
   [Network.MantleTestnet]: "0xe33d3d26d5c75bffb0170d1f06a2c442e643f65e",
   [Network.LineaTestnet]: "0xbcfac90e4686ca855684e28b3752866acda79e27",
+  [Network.MiscTestnet]: "0x224ecb4eae96d31372d1090c3b0233c8310dbbab",
 };
 
 // Utility modules
@@ -71,9 +75,11 @@ export const SeaportV14Module: ChainIdToAddress = {
 export const SeaportV15Module: ChainIdToAddress = {
   [Network.Ethereum]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
   [Network.EthereumGoerli]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
+  [Network.EthereumSepolia]: "0x0df8a66ba3010af4f86ca4db6a6da9e367385a03",
   [Network.Polygon]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
   [Network.Optimism]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
   [Network.Arbitrum]: "0xf645877ab54e5856f39dc90425ae21748f52b5d4",
+  [Network.MiscTestnet]: "0x0df8a66ba3010af4f86ca4db6a6da9e367385a03",
 };
 
 export const AlienswapModule: ChainIdToAddress = {
