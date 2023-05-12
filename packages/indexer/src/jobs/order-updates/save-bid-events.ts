@@ -31,9 +31,9 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
-    async () => {
+    async (job) => {
       const bidEventsList = new BidEventsList();
-      const events = await bidEventsList.get();
+      const events = await bidEventsList.get(750);
       const values = [];
       let replacements = {};
 
@@ -128,6 +128,8 @@ if (config.doBackgroundWork) {
         `,
           replacements
         );
+
+        job.data.checkForMore = true;
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
@@ -135,6 +137,12 @@ if (config.doBackgroundWork) {
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
+  });
+
+  worker.on("completed", async (job) => {
+    if (job.data.checkForMore) {
+      await addToQueue();
+    }
   });
 }
 
