@@ -222,7 +222,17 @@ if (config.doBackgroundWork) {
               await updateNftBalanceFloorAskPriceQueue.addToQueue([updateFloorAskPriceInfo]);
             } else if (order.side === "buy") {
               const bidEventsList = new BidEventsList();
-              await bidEventsList.add([{ order, trigger }]);
+              await bidEventsList.add([
+                {
+                  order: {
+                    ...order,
+                    maker: fromBuffer(order.maker),
+                    currency: fromBuffer(order.currency),
+                    contract: fromBuffer(order.contract),
+                  },
+                  trigger,
+                },
+              ]);
             }
 
             let eventInfo;
