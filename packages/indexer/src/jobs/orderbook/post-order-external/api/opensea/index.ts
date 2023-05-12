@@ -116,6 +116,7 @@ export const buildCollectionOffer = async (
           slug: collectionSlug,
         },
       },
+      protocol_address: Sdk.SeaportV15.Addresses.Exchange[config.chainId],
     },
   };
 
@@ -178,6 +179,7 @@ export const buildTraitOffer = async (
           value: traitValue,
         },
       },
+      protocol_address: Sdk.SeaportV15.Addresses.Exchange[config.chainId],
     },
   };
 
