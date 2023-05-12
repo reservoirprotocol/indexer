@@ -75,7 +75,6 @@ export async function getBidInfoByOrderIds(orderIds: string[]) {
                 JOIN token_sets ts
                   ON orders.token_set_id = ts.id
                 WHERE orders.id IN ($/orderIds:list/)
-                LIMIT 1
             `,
     {
       orderIds,
