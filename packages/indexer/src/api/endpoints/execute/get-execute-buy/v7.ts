@@ -161,7 +161,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: Joi.array()
             .items(
               Joi.object({
-                status: Joi.string().valid("complete", "incomplete").required(),
+                status: Joi.string().valid("complete", "incomplete").required().description("Response is `complete` or `incomplete`."),
                 tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
@@ -181,7 +181,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           orderId: Joi.string(),
           contract: Joi.string().lowercase().pattern(regex.address),
           tokenId: Joi.string().lowercase().pattern(regex.number),
-          quantity: Joi.number().unsafe(),
+          quantity: Joi.number().unsafe().description("Can be higher than 1 if erc1155"),
           source: Joi.string().allow("", null),
           currency: Joi.string().lowercase().pattern(regex.address),
           currencySymbol: Joi.string().optional(),
@@ -192,8 +192,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           buyInRawQuote: Joi.string().pattern(regex.number),
           totalPrice: Joi.number().unsafe(),
           totalRawPrice: Joi.string().pattern(regex.number),
-          builtInFees: Joi.array().items(JoiExecuteFee),
-          feesOnTop: Joi.array().items(JoiExecuteFee),
+          builtInFees: Joi.array().items(JoiExecuteFee).description("Can be marketplace fees or royalties"),
+          feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
         })
       ),
     }).label(`getExecuteBuy${version.toUpperCase()}Response`),
