@@ -1,10 +1,98 @@
 import { elasticsearch, elasticsearchCloud } from "@/common/elasticsearch";
-import { QueryDslQueryContainer, Sort } from "@elastic/elasticsearch/lib/api/types";
+import {
+  MappingTypeMapping,
+  QueryDslQueryContainer,
+  Sort,
+} from "@elastic/elasticsearch/lib/api/types";
 import { SortResults } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 import { BaseDocument } from "@/elasticsearch/indexes/base";
 import { logger } from "@/common/logger";
+import { CollectionsEntity } from "@/models/collections/collections-entity";
 
 const INDEX_NAME = "activities";
+
+const MAPPINGS: MappingTypeMapping = {
+  dynamic: "false",
+  properties: {
+    id: { type: "keyword" },
+    createdAt: { type: "date" },
+    type: { type: "keyword" },
+    timestamp: { type: "float" },
+    name: { type: "keyword" },
+    contract: { type: "keyword" },
+    fromAddress: { type: "keyword" },
+    toAddress: { type: "keyword" },
+    amount: { type: "keyword" },
+    token: {
+      properties: {
+        id: { type: "keyword" },
+        name: { type: "keyword" },
+        image: { type: "keyword" },
+      },
+    },
+    collection: {
+      properties: {
+        id: { type: "keyword" },
+        name: { type: "keyword" },
+        image: { type: "keyword" },
+      },
+    },
+    order: {
+      properties: {
+        id: { type: "keyword" },
+        side: { type: "keyword" },
+        sourceId: { type: "integer" },
+        criteria: {
+          properties: {
+            kind: { type: "keyword" },
+            data: {
+              properties: {
+                token: {
+                  properties: {
+                    tokenId: { type: "keyword" },
+                  },
+                },
+                collection: {
+                  properties: {
+                    id: { type: "keyword" },
+                  },
+                },
+                attribute: {
+                  properties: {
+                    key: { type: "keyword" },
+                    value: { type: "keyword" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    event: {
+      properties: {
+        timestamp: { type: "float" },
+        txHash: { type: "keyword" },
+        logIndex: { type: "integer" },
+        batchIndex: { type: "integer" },
+        blockHash: { type: "keyword" },
+      },
+    },
+    pricing: {
+      properties: {
+        price: { type: "keyword" },
+        currencyPrice: { type: "keyword" },
+        usdPrice: { type: "keyword" },
+        feeBps: { type: "integer" },
+        currency: { type: "keyword" },
+        value: { type: "keyword" },
+        currencyValue: { type: "keyword" },
+        normalizedValue: { type: "keyword" },
+        currencyNormalizedValue: { type: "keyword" },
+      },
+    },
+  },
+};
 
 export enum ActivityType {
   sale = "sale",
@@ -95,23 +183,25 @@ export const search = async (params: {
     let latencyCloud;
 
     if (elasticsearchCloud) {
-      const esResult2 = await elasticsearchCloud.search<ActivityDocument>({
-        index: INDEX_NAME,
-        ...params,
-      });
+      elasticsearchCloud
+        .search<ActivityDocument>({
+          index: INDEX_NAME,
+          ...params,
+        })
+        .then((esResult2) => {
+          latencyCloud = esResult2.took;
 
-      latencyCloud = esResult2.took;
+          logger.info(
+            "elasticsearch-search-activities",
+            JSON.stringify({
+              params,
+              latency,
+              latencyCloud,
+              paramsJson: JSON.stringify(params),
+            })
+          );
+        });
     }
-
-    logger.info(
-      "elasticsearch-search-activities",
-      JSON.stringify({
-        params,
-        latency,
-        latencyCloud,
-        paramsJson: JSON.stringify(params),
-      })
-    );
 
     return esResult.hits.hits.map((hit) => hit._source!);
   } catch (error) {
@@ -129,186 +219,93 @@ export const search = async (params: {
 
 export const createIndex = async (): Promise<void> => {
   if (await elasticsearch.indices.exists({ index: INDEX_NAME })) {
-    return;
-  }
+    const response = await elasticsearch.indices.get({ index: INDEX_NAME });
 
-  await elasticsearch.indices.create({
-    aliases: {
-      [INDEX_NAME]: {},
-    },
-    index: `${INDEX_NAME}-${Date.now()}`,
-    mappings: {
-      dynamic: "false",
-      properties: {
-        id: { type: "keyword" },
-        createdAt: { type: "date" },
-        type: { type: "keyword" },
-        timestamp: { type: "float" },
-        name: { type: "keyword" },
-        contract: { type: "keyword" },
-        fromAddress: { type: "keyword" },
-        toAddress: { type: "keyword" },
-        amount: { type: "keyword" },
-        token: {
-          properties: {
-            id: { type: "keyword" },
-            name: { type: "keyword" },
-            image: { type: "keyword" },
-          },
-        },
-        collection: {
-          properties: {
-            id: { type: "keyword" },
-            name: { type: "keyword" },
-            image: { type: "keyword" },
-          },
-        },
-        order: {
-          properties: {
-            id: { type: "keyword" },
-            side: { type: "keyword" },
-            sourceId: { type: "integer" },
-            criteria: {
-              properties: {
-                kind: { type: "keyword" },
-                data: {
-                  properties: {
-                    token: {
-                      properties: {
-                        tokenId: { type: "keyword" },
-                      },
-                    },
-                    collection: {
-                      properties: {
-                        id: { type: "keyword" },
-                      },
-                    },
-                    attribute: {
-                      properties: {
-                        key: { type: "keyword" },
-                        value: { type: "keyword" },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        event: {
-          properties: {
-            timestamp: { type: "float" },
-            txHash: { type: "keyword" },
-            logIndex: { type: "integer" },
-            batchIndex: { type: "integer" },
-            blockHash: { type: "keyword" },
-          },
-        },
-        pricing: {
-          properties: {
-            price: { type: "keyword" },
-            currencyPrice: { type: "keyword" },
-            usdPrice: { type: "keyword" },
-            feeBps: { type: "integer" },
-            currency: { type: "keyword" },
-            value: { type: "keyword" },
-            currencyValue: { type: "keyword" },
-            normalizedValue: { type: "keyword" },
-            currencyNormalizedValue: { type: "keyword" },
-          },
-        },
-      },
-    },
-  });
+    const indexName = Object.keys(response)[0];
 
-  if (elasticsearchCloud) {
-    await elasticsearchCloud.indices.create({
+    logger.info("elasticsearch-activities", "Index exists! Updating Mappings.");
+
+    await elasticsearch.indices.putMapping({
+      index: indexName,
+      properties: MAPPINGS.properties,
+    });
+
+    if (elasticsearchCloud) {
+      const response = await elasticsearchCloud.indices.get({ index: INDEX_NAME });
+
+      const indexName = Object.keys(response)[0];
+
+      await elasticsearchCloud.indices.putMapping({
+        index: indexName,
+        properties: MAPPINGS.properties,
+      });
+    }
+  } else {
+    logger.info("elasticsearch-activities", "Creating index!");
+
+    await elasticsearch.indices.create({
       aliases: {
         [INDEX_NAME]: {},
       },
       index: `${INDEX_NAME}-${Date.now()}`,
-      mappings: {
-        dynamic: "false",
-        properties: {
-          id: { type: "keyword" },
-          createdAt: { type: "date" },
-          type: { type: "keyword" },
-          timestamp: { type: "float" },
-          name: { type: "keyword" },
-          contract: { type: "keyword" },
-          fromAddress: { type: "keyword" },
-          toAddress: { type: "keyword" },
-          amount: { type: "keyword" },
-          token: {
-            properties: {
-              id: { type: "keyword" },
-              name: { type: "keyword" },
-              image: { type: "keyword" },
-            },
-          },
-          collection: {
-            properties: {
-              id: { type: "keyword" },
-              name: { type: "keyword" },
-              image: { type: "keyword" },
-            },
-          },
-          order: {
-            properties: {
-              id: { type: "keyword" },
-              side: { type: "keyword" },
-              sourceId: { type: "integer" },
-              criteria: {
-                properties: {
-                  kind: { type: "keyword" },
-                  data: {
-                    properties: {
-                      token: {
-                        properties: {
-                          tokenId: { type: "keyword" },
-                        },
-                      },
-                      collection: {
-                        properties: {
-                          id: { type: "keyword" },
-                        },
-                      },
-                      attribute: {
-                        properties: {
-                          key: { type: "keyword" },
-                          value: { type: "keyword" },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          event: {
-            properties: {
-              timestamp: { type: "float" },
-              txHash: { type: "keyword" },
-              logIndex: { type: "integer" },
-              batchIndex: { type: "integer" },
-              blockHash: { type: "keyword" },
-            },
-          },
-          pricing: {
-            properties: {
-              price: { type: "keyword" },
-              currencyPrice: { type: "keyword" },
-              usdPrice: { type: "keyword" },
-              feeBps: { type: "integer" },
-              currency: { type: "keyword" },
-              value: { type: "keyword" },
-              currencyValue: { type: "keyword" },
-              normalizedValue: { type: "keyword" },
-              currencyNormalizedValue: { type: "keyword" },
-            },
+      mappings: MAPPINGS,
+    });
+
+    if (elasticsearchCloud) {
+      await elasticsearchCloud.indices.create({
+        aliases: {
+          [INDEX_NAME]: {},
+        },
+        index: `${INDEX_NAME}-${Date.now()}`,
+        mappings: MAPPINGS,
+      });
+    }
+  }
+};
+
+export const updateActivitiesMissingCollection = async (
+  contract: string,
+  tokenId: number,
+  collection: CollectionsEntity
+): Promise<void> => {
+  const query = {
+    bool: {
+      must_not: [
+        {
+          exists: {
+            field: "collection.id",
           },
         },
+      ],
+      must: [
+        {
+          term: {
+            contract,
+          },
+        },
+        {
+          term: {
+            "token.id": tokenId,
+          },
+        },
+      ],
+    },
+  };
+
+  await elasticsearch.updateByQuery({
+    index: INDEX_NAME,
+    // This is needed due to issue with elasticsearch DSL.
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    query: query,
+    script: {
+      source:
+        "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
+      params: {
+        collection_id: collection.id,
+        collection_name: collection.name,
+        collection_image: collection.metadata.imageUrl,
       },
-    });
-  }
+    },
+  });
 };
