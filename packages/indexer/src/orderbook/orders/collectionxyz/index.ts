@@ -73,6 +73,9 @@ export type OrderInfo = {
     // Only defined if assetRecipient is being set/modified. assetRecipient === pool for
     // TRADE pools
     assetRecipient: string | undefined;
+    // Only defined if externalFilter is being set/modified. assetRecipient === pool for
+    // TRADE pools
+    externalFilter: string | undefined;
     // Validation parameters (for ensuring only the latest event is relevant)
     txHash: string;
     txTimestamp: number;
@@ -381,14 +384,41 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       );
 
       const isERC20 = pool.token !== Sdk.Common.Addresses.Eth[config.chainId];
-      const externalFilterAddress = await poolContract.externalFilter();
 
       // Handle bids
       try {
         if ([CollectionPoolType.TOKEN, CollectionPoolType.TRADE].includes(pool.poolType)) {
+          const id = getOrderId(orderParams.pool, "buy");
+          // Check if this is new order or update
+          const orderResult = await idb.oneOrNone(
+            `
+              SELECT
+                orders.token_set_id,
+                orders.token_set_schema_hash,
+                orders.raw_data
+              FROM orders
+              WHERE orders.id = $/id/
+            `,
+            { id }
+          );
+
           // For now, we don't handle bids from pools with dynamic external filters.
-          if (externalFilterAddress !== AddressZero) {
-            return;
+          // Exit if this pool is already saved with a nonzero filter or external
+          // filter is being set to non zero address
+          if (
+            (orderParams.externalFilter ?? orderResult?.raw_data?.externalFilter ?? AddressZero) !==
+            AddressZero
+          ) {
+            results.push({
+              id,
+              txHash: orderParams.txHash,
+              txTimestamp: orderParams.txTimestamp,
+              status: "external-filtered-bids-not-supported",
+            });
+
+            // Throw an error instead of returning because we want to process
+            // the ask even if it has an external filter
+            throw new Error("external-filtered-bids-not-supported");
           }
 
           const tokenBalance: BigNumber = await poolContract.liquidity();
@@ -399,7 +429,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           }: { totalAmount: BigNumber; outputAmount: BigNumber } =
             await poolContract.getSellNFTQuote(1);
 
-          const id = getOrderId(orderParams.pool, "buy");
           if (currencyPrice.lte(tokenBalance)) {
             // Determine how many NFTs can be bought (though the price will
             // increase with each unit)
@@ -415,19 +444,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
               numBuyableNFTs++;
             }
-
-            // Check if this is new order or update
-            const orderResult = await idb.oneOrNone(
-              `
-                SELECT
-                  orders.token_set_id,
-                  orders.token_set_schema_hash,
-                  orders.raw_data
-                FROM orders
-                WHERE orders.id = $/id/
-              `,
-              { id }
-            );
 
             // Handle royalties and fees
             // For bids, we can't predict which tokenID is going to be sold
@@ -573,7 +589,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             if (!orderResult) {
               if (
                 orderParams.assetRecipient === undefined ||
-                orderParams.royaltyRecipientFallback === undefined
+                orderParams.royaltyRecipientFallback === undefined ||
+                orderParams.externalFilter === undefined
               ) {
                 results.push({
                   id,
@@ -588,7 +605,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 config.chainId,
                 {
                   pool: orderParams.pool,
-                  externalFilter: externalFilterAddress,
+                  externalFilter: orderParams.externalFilter,
                   tokenSetId,
                   assetRecipient: orderParams.assetRecipient,
                   royaltyRecipientFallback: orderParams.royaltyRecipientFallback,
@@ -661,8 +678,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 // amount which is currencyPrice
                 prices: [currencyPrice.toString()],
               };
-              sdkOrder.params.externalFilter = externalFilterAddress;
               sdkOrder.params.tokenSetId = tokenSetId;
+
+              if (orderParams.externalFilter !== undefined) {
+                sdkOrder.params.externalFilter = orderParams.externalFilter;
+              }
 
               if (orderParams.assetRecipient !== undefined) {
                 sdkOrder.params.assetRecipient = orderParams.assetRecipient;
@@ -751,10 +771,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           }
         }
       } catch (error) {
-        logger.error(
-          "orders-collectionxyz-save",
-          `Failed to handle buy order with params ${JSON.stringify(orderParams)}: ${error}`
-        );
+        // The only time we want to continue to process asks is if we threw an
+        // error due to an externally filtered bid
+        if (!(error instanceof Error && error.message === "external-filtered-bids-not-supported"))
+          logger.error(
+            "orders-collectionxyz-save",
+            `Failed to handle buy order with params ${JSON.stringify(orderParams)}: ${error}`
+          );
       }
 
       // Handle sell orders
@@ -853,7 +876,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
                     if (
                       orderParams.assetRecipient === undefined ||
-                      orderParams.royaltyRecipientFallback === undefined
+                      orderParams.royaltyRecipientFallback === undefined ||
+                      orderParams.externalFilter === undefined
                     ) {
                       results.push({
                         id,
@@ -869,7 +893,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                       config.chainId,
                       {
                         pool: orderParams.pool,
-                        externalFilter: externalFilterAddress,
+                        externalFilter: orderParams.externalFilter,
                         tokenSetId: undefined,
                         assetRecipient: orderParams.assetRecipient,
                         royaltyRecipientFallback: orderParams.royaltyRecipientFallback,
@@ -941,9 +965,12 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                       // amount which is currencyPrice
                       prices: [currencyPrice.toString()],
                     };
-                    sdkOrder.params.externalFilter = externalFilterAddress;
                     // tokenSetId is 1:1 with order id for asks
                     // sdkOrder.params.tokenSetId = tokenSetId;
+
+                    if (orderParams.externalFilter !== undefined) {
+                      sdkOrder.params.externalFilter = orderParams.externalFilter;
+                    }
 
                     if (orderParams.assetRecipient !== undefined) {
                       sdkOrder.params.assetRecipient = orderParams.assetRecipient;

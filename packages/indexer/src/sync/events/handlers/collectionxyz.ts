@@ -43,6 +43,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               feesModified: false,
               royaltyRecipientFallback: undefined,
               assetRecipient: undefined,
+              externalFilter: undefined,
             },
             metadata: {},
           },
@@ -210,6 +211,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               feesModified: false,
               royaltyRecipientFallback: undefined,
               assetRecipient: undefined,
+              externalFilter: undefined,
             },
             metadata: {},
           },
@@ -367,6 +369,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const poolIface = new Interface([
           "function royaltyRecipientFallback() public view returns (address)",
           "function assetRecipient() public view returns (address)",
+          "function externalFilter() public view returns (address)",
           "function poolType() public view returns (uint8)",
         ]);
         const poolContract = new Contract(pool, poolIface, baseProvider);
@@ -388,6 +391,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               feesModified: true,
               royaltyRecipientFallback: await poolContract.royaltyRecipientFallback(),
               assetRecipient: isTradePool ? pool : await poolContract.assetRecipient(),
+              externalFilter: await poolContract.externalFilter(),
             },
             metadata: {},
           },
@@ -414,6 +418,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               feesModified: false,
               royaltyRecipientFallback: undefined,
               assetRecipient: undefined,
+              externalFilter: undefined,
             },
             metadata: {},
           },
@@ -440,6 +445,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               feesModified: true,
               royaltyRecipientFallback: undefined,
               assetRecipient: undefined,
+              externalFilter: undefined,
             },
             metadata: {},
           },
@@ -465,6 +471,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               feesModified: false,
               royaltyRecipientFallback: newFallback,
               assetRecipient: undefined,
+              externalFilter: undefined,
             },
             metadata: {},
           },
@@ -489,6 +496,32 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               feesModified: false,
               royaltyRecipientFallback: undefined,
               assetRecipient: newAssetRecipient,
+              externalFilter: undefined,
+            },
+            metadata: {},
+          },
+        });
+
+        break;
+      }
+
+      case "collectionxyz-external-filter-set": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const newAssetRecipient = parsedLog.args["filterAddress"].toLowerCase();
+        onChainData.orders.push({
+          kind: "collectionxyz",
+          info: {
+            orderParams: {
+              pool: baseEventParams.address,
+              txHash: baseEventParams.txHash,
+              txTimestamp: baseEventParams.timestamp,
+              txBlock: baseEventParams.block,
+              logIndex: baseEventParams.logIndex,
+              isModifierEvent: true,
+              feesModified: false,
+              royaltyRecipientFallback: undefined,
+              assetRecipient: undefined,
+              externalFilter: newAssetRecipient,
             },
             metadata: {},
           },
@@ -502,7 +535,6 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
       case "collectionxyz-delta-update":
       case "collectionxyz-props-update":
       case "collectionxyz-state-update":
-      case "collectionxyz-external-filter-set":
       case "collectionxyz-token-deposit":
       case "collectionxyz-token-withdrawal":
       case "collectionxyz-nft-deposit":
@@ -520,6 +552,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               feesModified: false,
               royaltyRecipientFallback: undefined,
               assetRecipient: undefined,
+              externalFilter: undefined,
             },
             metadata: {},
           },
