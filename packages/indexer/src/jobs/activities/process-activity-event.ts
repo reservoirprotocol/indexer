@@ -73,8 +73,10 @@ if (config.doBackgroundWork) {
         }
       } else {
         // Get the next batch of activities
+        const limit = 75;
         const activitiesList = new ActivitiesList();
-        const activitiesToProcess = await activitiesList.get();
+        const activitiesToProcess = await activitiesList.get(limit);
+        job.data.checkForMore = !_.isEmpty(activitiesToProcess);
 
         const aggregatedActivities = {
           [EventKind.fillEvent]: [] as FillEventData[],
@@ -163,6 +165,12 @@ if (config.doBackgroundWork) {
     { connection: redis.duplicate(), concurrency: 45 }
   );
 
+  worker.on("completed", async (job) => {
+    if (job.data.checkForMore) {
+      await addToQueue();
+    }
+  });
+
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
@@ -220,10 +228,10 @@ export const addToQueue = async () => {
 
 if (config.doBackgroundWork) {
   cron.schedule(
-    "*/10 * * * * *",
+    "*/5 * * * * *",
     async () =>
       await redlock
-        .acquire(["save-activities"], (10 - 5) * 1000)
+        .acquire(["save-activities"], (5 - 1) * 1000)
         .then(async () => addToQueue())
         .catch(() => {
           // Skip on any errors

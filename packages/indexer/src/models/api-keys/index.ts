@@ -88,11 +88,13 @@ export class ApiKeyManager {
    * @param key
    * @param remoteAddress
    * @param origin
+   * @param validateOriginAndIp
    */
   public static async getApiKey(
     key: string,
     remoteAddress = "",
-    origin = ""
+    origin = "",
+    validateOriginAndIp = true
   ): Promise<ApiKeyEntity | null> {
     // Static admin API key
     if (key === config.adminApiKey) {
@@ -112,7 +114,9 @@ export class ApiKeyManager {
 
     const cachedApiKey = ApiKeyManager.apiKeys.get(key);
     if (cachedApiKey) {
-      if (ApiKeyManager.isOriginAndIpValid(cachedApiKey, remoteAddress, origin)) {
+      if (!validateOriginAndIp) {
+        return cachedApiKey;
+      } else if (ApiKeyManager.isOriginAndIpValid(cachedApiKey, remoteAddress, origin)) {
         return cachedApiKey;
       }
 
@@ -135,7 +139,9 @@ export class ApiKeyManager {
         } else {
           const apiKeyEntity = new ApiKeyEntity(JSON.parse(apiKey));
           ApiKeyManager.apiKeys.set(key, apiKeyEntity); // Set in local memory storage
-          if (ApiKeyManager.isOriginAndIpValid(apiKeyEntity, remoteAddress, origin)) {
+          if (!validateOriginAndIp) {
+            return apiKeyEntity;
+          } else if (ApiKeyManager.isOriginAndIpValid(apiKeyEntity, remoteAddress, origin)) {
             return apiKeyEntity;
           }
         }
@@ -150,7 +156,9 @@ export class ApiKeyManager {
           Promise.race([redis.set(redisKey, JSON.stringify(fromDb)), timeout]).catch(); // Set in redis (no need to wait)
           const apiKeyEntity = new ApiKeyEntity(fromDb);
           ApiKeyManager.apiKeys.set(key, apiKeyEntity); // Set in local memory storage
-          if (ApiKeyManager.isOriginAndIpValid(apiKeyEntity, remoteAddress, origin)) {
+          if (!validateOriginAndIp) {
+            return apiKeyEntity;
+          } else if (ApiKeyManager.isOriginAndIpValid(apiKeyEntity, remoteAddress, origin)) {
             return apiKeyEntity;
           }
         } else {

@@ -26,6 +26,8 @@ export const getApiKeyDetails: RouteOptions = {
       email: Joi.string().email(),
       active: Joi.bool(),
       tier: Joi.number().unsafe(),
+      ips: Joi.array(),
+      origins: Joi.array(),
       permissions: Joi.object().allow(null),
       createdAt: Joi.string(),
     }).label("getApiKeyRateLimitsResponse"),
@@ -42,7 +44,7 @@ export const getApiKeyDetails: RouteOptions = {
     const params = request.params as any;
 
     try {
-      const apiKey = await ApiKeyManager.getApiKey(params.key);
+      const apiKey = await ApiKeyManager.getApiKey(params.key, "", "", false);
 
       if (!apiKey) {
         throw new Error("Could not find API key");
@@ -56,6 +58,8 @@ export const getApiKeyDetails: RouteOptions = {
         active: apiKey.active,
         tier: apiKey.tier,
         permissions: apiKey.permissions,
+        ips: apiKey.ips ?? [],
+        origins: apiKey.origins ?? [],
         createdAt: new Date(apiKey.createdAt).toISOString(),
       };
     } catch (error) {
