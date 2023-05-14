@@ -74,6 +74,7 @@ export class BidActivity {
     const bidInfo = await getBidInfoByOrderIds(_.map(events, (e) => e.orderId));
     const activities = [];
     const userActivities = [];
+    const esActivities = [];
 
     for (const data of events) {
       let activityHash;
@@ -114,6 +115,18 @@ export class BidActivity {
 
       activities.push(activity);
       userActivities.push(fromUserActivity);
+
+      if (config.doElasticsearchWork) {
+        const builder = new BidActivityBuilder();
+
+        const esActivity = await builder.build({
+          txHash: data.transactionHash,
+          logIndex: data.logIndex,
+          batchIndex: data.batchIndex,
+        });
+
+        esActivities.push(esActivity);
+      }
     }
 
     // Insert activities in batch
@@ -121,6 +134,10 @@ export class BidActivity {
       Activities.addActivities(activities),
       UserActivities.addActivities(userActivities),
     ]);
+
+    if (esActivities.length) {
+      await ActivitiesIndex.save(esActivities);
+    }
   }
 }
 
