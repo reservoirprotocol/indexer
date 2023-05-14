@@ -11,6 +11,7 @@ import { UserActivities } from "@/models/user-activities";
 import { BidActivityBuilder } from "@/elasticsearch/indexes/activities/bid";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { config } from "@/config/index";
+import { logger } from "@/common/logger";
 
 export class BidActivity {
   public static async handleEvent(data: NewBuyOrderEventData) {
@@ -72,6 +73,12 @@ export class BidActivity {
 
   public static async handleEvents(events: NewBuyOrderEventData[]) {
     const bidInfo = await getBidInfoByOrderIds(_.map(events, (e) => e.orderId));
+
+    logger.info(
+      "BidActivity",
+      `Start. events=${JSON.stringify(events)}, bidInfo=${JSON.stringify(bidInfo)}`
+    );
+
     const activities = [];
     const userActivities = [];
     const esActivities = [];
@@ -138,6 +145,15 @@ export class BidActivity {
     if (esActivities.length) {
       await ActivitiesIndex.save(esActivities);
     }
+
+    logger.info(
+      "BidActivity",
+      `Debug2. events=${JSON.stringify(events)}, bidInfo=${JSON.stringify(
+        bidInfo
+      )}, activities=${JSON.stringify(activities)}, userActivities=${JSON.stringify(
+        userActivities
+      )}, esActivities=${JSON.stringify(esActivities)}`
+    );
   }
 }
 
