@@ -100,34 +100,39 @@ if (config.doBackgroundWork) {
       }
 
       if (!_.isEmpty(values)) {
-        await idb.none(
-          `
-          INSERT INTO bid_events (
-            kind,
-            status,
-            contract,
-            token_set_id,
-            order_id,
-            order_source_id_int,
-            order_valid_between,
-            order_quantity_remaining,
-            order_nonce,
-            maker,
-            price,
-            value,
-            tx_hash,
-            tx_timestamp,
-            order_kind,
-            order_currency,
-            order_currency_price,
-            order_normalized_value,
-            order_currency_normalized_value,
-            order_raw_data
-          )
-          VALUES ${_.join(values, ",")}
-        `,
-          replacements
-        );
+        try {
+          await idb.none(
+            `
+            INSERT INTO bid_events (
+              kind,
+              status,
+              contract,
+              token_set_id,
+              order_id,
+              order_source_id_int,
+              order_valid_between,
+              order_quantity_remaining,
+              order_nonce,
+              maker,
+              price,
+              value,
+              tx_hash,
+              tx_timestamp,
+              order_kind,
+              order_currency,
+              order_currency_price,
+              order_normalized_value,
+              order_currency_normalized_value,
+              order_raw_data
+            )
+            VALUES ${_.join(values, ",")}
+          `,
+            replacements
+          );
+        } catch (error) {
+          logger.error(QUEUE_NAME, `failed to insert into bid_events ${error}`);
+          await bidEventsList.add(events);
+        }
 
         job.data.checkForMore = true;
       }

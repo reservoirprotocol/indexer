@@ -296,7 +296,9 @@ if (config.doBackgroundWork) {
             }
 
             if (eventInfo) {
-              await processActivityEvent.addToQueue([eventInfo as processActivityEvent.EventInfo]);
+              await processActivityEvent.addActivitiesToList([
+                eventInfo as processActivityEvent.EventInfo,
+              ]);
             }
 
             await WebsocketEventRouter({
