@@ -77,6 +77,7 @@ export class AskCancelActivity {
 
     const activities = [];
     const userActivities = [];
+    const esActivities = [];
 
     for (const data of events) {
       let activityHash;
@@ -119,6 +120,19 @@ export class AskCancelActivity {
 
       activities.push(activity);
       userActivities.push(fromUserActivity);
+
+      if (config.doElasticsearchWork) {
+        const builder = new AskCancelActivityBuilder();
+
+        const esActivity = await builder.build({
+          orderId: data.orderId,
+          txHash: data.transactionHash,
+          logIndex: data.logIndex,
+          batchIndex: data.batchIndex,
+        });
+
+        esActivities.push(esActivity);
+      }
     }
 
     // Insert activities in batch
@@ -126,6 +140,10 @@ export class AskCancelActivity {
       Activities.addActivities(activities),
       UserActivities.addActivities(userActivities),
     ]);
+
+    if (esActivities.length) {
+      await ActivitiesIndex.save(esActivities);
+    }
   }
 }
 

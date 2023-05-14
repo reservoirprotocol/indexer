@@ -84,6 +84,7 @@ export class SaleActivity {
     );
     const activities = [];
     const userActivities = [];
+    const esActivities = [];
 
     for (const data of filteredEvents) {
       const activityHash = getActivityHash(
@@ -123,6 +124,18 @@ export class SaleActivity {
 
       activities.push(activity);
       userActivities.push(fromUserActivity, toUserActivity);
+
+      if (config.doElasticsearchWork) {
+        const builder = new SaleActivityBuilder();
+
+        const esActivity = await builder.build({
+          txHash: data.transactionHash,
+          logIndex: data.logIndex,
+          batchIndex: data.batchIndex,
+        });
+
+        esActivities.push(esActivity);
+      }
     }
 
     // Insert activities in batch
@@ -130,6 +143,10 @@ export class SaleActivity {
       Activities.addActivities(activities),
       UserActivities.addActivities(userActivities),
     ]);
+
+    if (esActivities.length) {
+      await ActivitiesIndex.save(esActivities);
+    }
   }
 }
 

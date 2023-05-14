@@ -75,6 +75,7 @@ export class AskActivity {
 
     const activities = [];
     const userActivities = [];
+    const esActivities = [];
 
     for (const data of events) {
       let activityHash;
@@ -115,12 +116,29 @@ export class AskActivity {
 
       activities.push(activity);
       userActivities.push(fromUserActivity);
+
+      if (config.doElasticsearchWork) {
+        const builder = new AskActivityBuilder();
+
+        const esActivity = await builder.build({
+          orderId: data.orderId,
+          txHash: data.transactionHash,
+          logIndex: data.logIndex,
+          batchIndex: data.batchIndex,
+        });
+
+        esActivities.push(esActivity);
+      }
     }
 
     await Promise.all([
       Activities.addActivities(activities),
       UserActivities.addActivities(userActivities),
     ]);
+
+    if (esActivities.length) {
+      await ActivitiesIndex.save(esActivities);
+    }
   }
 }
 

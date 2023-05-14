@@ -86,6 +86,7 @@ export class TransferActivity {
 
     const activities = [];
     const userActivities = [];
+    const esActivities = [];
 
     for (const data of events) {
       const activityHash = getActivityHash(
@@ -129,6 +130,18 @@ export class TransferActivity {
 
       activities.push(activity);
 
+      if (config.doElasticsearchWork) {
+        const builder = new TransferActivityBuilder();
+
+        const esActivity = await builder.build({
+          txHash: data.transactionHash,
+          logIndex: data.logIndex,
+          batchIndex: data.batchIndex,
+        });
+
+        esActivities.push(esActivity);
+      }
+
       // If collection information is not available yet when a mint event
       if (!collectionId && data.fromAddress == AddressZero) {
         await fixActivitiesMissingCollection.addToQueue(data.contract, data.tokenId);
@@ -140,6 +153,10 @@ export class TransferActivity {
       Activities.addActivities(activities),
       UserActivities.addActivities(userActivities),
     ]);
+
+    if (esActivities.length) {
+      await ActivitiesIndex.save(esActivities);
+    }
   }
 }
 
