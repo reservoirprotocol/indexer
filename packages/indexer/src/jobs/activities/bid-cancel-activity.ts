@@ -124,6 +124,7 @@ export class BidCancelActivity {
         const builder = new BidCancelActivityBuilder();
 
         const esActivity = await builder.build({
+          orderId: data.orderId,
           txHash: data.transactionHash,
           logIndex: data.logIndex,
           batchIndex: data.batchIndex,
