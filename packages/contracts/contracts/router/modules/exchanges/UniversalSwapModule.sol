@@ -36,11 +36,12 @@ contract UniversalSwapModule is BaseExchangeModule {
     address owner,
     address router,
     address weth,
-    address swapRouter
+    address swapRouter,
+    address permit2
   ) BaseModule(owner) BaseExchangeModule(router) {
     WETH = IWETH(weth);
     UNIVERSAL_ROUTER = IUniversalRouter(swapRouter);
-    PERMIT2 = IAllowanceTransfer(0x000000000022D473030F116dDEE9F6B43aC78BA3);
+    PERMIT2 = IAllowanceTransfer(permit2);
   }
 
   // --- Fallback ---
