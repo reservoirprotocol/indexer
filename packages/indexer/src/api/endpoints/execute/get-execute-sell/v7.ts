@@ -36,7 +36,7 @@ export const getExecuteSellV7Options: RouteOptions = {
   description: "Sell tokens (accept bids)",
   tags: ["api", "Fill Orders (buy & sell)"],
   timeout: {
-    server: 20 * 1000,
+    server: 40 * 1000,
   },
   plugins: {
     "hapi-swagger": {
@@ -493,7 +493,11 @@ export const getExecuteSellV7Options: RouteOptions = {
                 orders.missing_royalties,
                 orders.maker,
                 orders.token_set_id,
-                orders.fee_breakdown
+                orders.fee_breakdown,
+                orders.maker,
+                orders.fillability_status,
+                orders.approval_status,
+                orders.quantity_remaining
               FROM orders
               JOIN contracts
                 ON orders.contract = contracts.address
@@ -503,30 +507,65 @@ export const getExecuteSellV7Options: RouteOptions = {
                 AND token_sets_tokens.contract = $/contract/
                 AND token_sets_tokens.token_id = $/tokenId/
                 AND orders.side = 'buy'
-                AND orders.quantity_remaining >= $/quantity/
-                AND orders.maker != $/taker/
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                ${
-                  payload.allowInactiveOrderIds
-                    ? ""
-                    : " AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'"
-                }
             `,
             {
               id: item.orderId,
               contract: toBuffer(contract),
               tokenId,
-              quantity: item.quantity,
-              taker: toBuffer(payload.taker),
             }
           );
+
+          let error: string | undefined;
           if (!result) {
+            error = "No fillable orders";
+          } else {
+            // Check fillability
+            if (!error && !payload.allowInactiveOrderIds) {
+              if (
+                result.fillability_status === "no-balance" ||
+                result.approval_status === "no-approval"
+              ) {
+                error = "Order is inactive (insufficient balance or approval) and can't be filled";
+              } else if (result.fillability_status === "filled") {
+                error = "Order has been filled";
+              } else if (result.fillability_status === "cancelled") {
+                error = "Order has been cancelled";
+              } else if (result.fillability_status === "expired") {
+                error = "Order has expired";
+              } else if (
+                result.fillability_status !== "fillable" ||
+                result.approval_status !== "approved"
+              ) {
+                error = "No fillable orders";
+              }
+            }
+
+            // Check taker
+            if (!error) {
+              if (fromBuffer(result.maker) === payload.taker) {
+                error = "No fillable orders (taker cannot fill own orders)";
+              }
+            }
+
+            // Check quantity
+            if (!error) {
+              if (bn(result.quantity_remaining).lt(item.quantity)) {
+                if (!payload.partial) {
+                  error = "Unable to fill requested quantity";
+                } else {
+                  // Fill as much as we can from the order
+                  item.quantity = result.quantity_remaining;
+                }
+              }
+            }
+          }
+
+          if (error) {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData(
-                `Order ${item.orderId} not found or not fillable with token ${item.token}`
-              );
+              throw Boom.badData(error);
             }
           }
 

@@ -31,7 +31,7 @@ export const getExecuteSellV6Options: RouteOptions = {
   description: "Sell tokens (accept bids)",
   tags: ["api", "x-deprecated"],
   timeout: {
-    server: 20 * 1000,
+    server: 40 * 1000,
   },
   plugins: {
     "hapi-swagger": {
