@@ -105,7 +105,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v9`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v10`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue();
     })
