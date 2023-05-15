@@ -54,6 +54,13 @@ export const config = {
   doEventsSyncBackfill: Boolean(Number(process.env.DO_EVENTS_SYNC_BACKFILL)),
   disableOrders: Boolean(Number(process.env.DISABLE_ORDERS)),
 
+  // for kafka
+  doKafkaWork: Boolean(Number(process.env.DO_KAFKA_WORK)),
+  kafkaPartitionsConsumedConcurrently: Number(process.env.KAFKA_PARTITIONS_CONSUMED_CONCURRENTLY),
+  kafkaConsumerGroupId: String(process.env.KAFKA_CONSUMER_GROUP_ID),
+  kafkaBrokers: String(process.env.KAFKA_BROKERS).split(","),
+  kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
+
   maxTokenSetSize: 100000,
 
   awsAccessKeyId: String(process.env.AWS_ACCESS_KEY_ID || process.env.FC_AWS_ACCESS_KEY_ID),

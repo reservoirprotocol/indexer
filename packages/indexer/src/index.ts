@@ -1,6 +1,7 @@
 import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
+import "@/jobs/cdc/index";
 import "@/common/tracer";
 import "@/config/polyfills";
 import "@/jobs/index";
@@ -13,6 +14,7 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { getNetworkSettings } from "@/config/network";
 import { Sources } from "@/models/sources";
+import { startKafkaConsumer, startKafkaProducer } from "@/jobs/cdc/index";
 
 process.on("unhandledRejection", (error) => {
   logger.error("process", `Unhandled rejection: ${error}`);
@@ -31,7 +33,14 @@ const setup = async () => {
     }
   }
 
-  await Sources.getInstance();
+  if (config.doKafkaWork) {
+    // eslint-disable-next-line no-console
+    console.log("doKafkaWork");
+    startKafkaConsumer();
+    startKafkaProducer();
+  }
+
+  if (config) await Sources.getInstance();
   await Sources.forceDataReload();
 
   if (config.doElasticsearchWork) {
