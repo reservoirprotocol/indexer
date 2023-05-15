@@ -225,7 +225,7 @@ export const getTokensFloorAskV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = await Promise.all(
         rawResult.map(async (r) => {
-          const source = sources.get(r.source_id_int);
+          const source = sources.get(r.source_id_int, fromBuffer(r.contract), r.token_id);
 
           const floorAskCurrency = r.currency
             ? fromBuffer(r.currency)

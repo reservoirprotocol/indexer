@@ -264,27 +264,31 @@ export const JoiOrderDepth = Joi.array().items(
 
 export const JoiOrder = Joi.object({
   id: Joi.string().required(),
-  kind: Joi.string().required(),
-  side: Joi.string().valid("buy", "sell").required(),
-  status: Joi.string(),
+  kind: Joi.string().required().description("This is the `orderKind`."),
+  side: Joi.string().valid("buy", "sell").required().description("Either `buy` or `sell`"),
+  status: Joi.string().description(
+    "Can be `active`, `inactive`, `expired`, `canceled`, or `filled`"
+  ),
   tokenSetId: Joi.string().required(),
   tokenSetSchemaHash: Joi.string().lowercase().pattern(regex.bytes32).required(),
   contract: Joi.string().lowercase().pattern(regex.address),
   maker: Joi.string().lowercase().pattern(regex.address).required(),
   taker: Joi.string().lowercase().pattern(regex.address).required(),
-  price: JoiPrice,
+  price: JoiPrice.description("Return native currency unless displayCurrency contract was passed."),
   validFrom: Joi.number().required(),
   validUntil: Joi.number().required(),
-  quantityFilled: Joi.number().unsafe(),
-  quantityRemaining: Joi.number().unsafe(),
+  quantityFilled: Joi.number().unsafe().description("With ERC1155s, quantity can be higher than 1"),
+  quantityRemaining: Joi.number()
+    .unsafe()
+    .description("With ERC1155s, quantity can be higher than 1"),
   dynamicPricing: JoiDynamicPrice.allow(null),
-  criteria: JoiOrderCriteria.allow(null),
+  criteria: JoiOrderCriteria.allow(null).description("Kind can be token, collection, or attribute"),
   source: Joi.object().allow(null),
   feeBps: Joi.number().allow(null),
   feeBreakdown: Joi.array()
     .items(
       Joi.object({
-        kind: Joi.string(),
+        kind: Joi.string().description("Can be marketplace or royalty"),
         recipient: Joi.string().allow("", null),
         bps: Joi.number(),
       })
@@ -293,8 +297,8 @@ export const JoiOrder = Joi.object({
   expiration: Joi.number().required(),
   isReservoir: Joi.boolean().allow(null),
   isDynamic: Joi.boolean(),
-  createdAt: Joi.string().required(),
-  updatedAt: Joi.string().required(),
+  createdAt: Joi.string().required().description("Time when added to indexer"),
+  updatedAt: Joi.string().required().description("Time when updated in indexer"),
   rawData: Joi.object().optional().allow(null),
   isNativeOffChainCancellable: Joi.boolean().optional(),
   depth: JoiOrderDepth,
