@@ -70,7 +70,7 @@ if (config.doBackgroundWork) {
   );
 
   worker.on("completed", async (job) => {
-    const { tableName, lock, type } = job.data;
+    const { tableName, lock, type, nextBatchTime } = job.data;
 
     if (lock) {
       switch (tableName) {
@@ -92,10 +92,10 @@ if (config.doBackgroundWork) {
             await releaseLock(getLockName(tableName)); // Release the lock
 
             // Check if archiving should continue
-            // const archiveBidOrders = new ArchiveBidOrders();
-            // if (await archiveBidOrders.continueArchive()) {
-            //   await addToQueue(tableName, type);
-            // }
+            const archiveBidOrders = new ArchiveBidOrders();
+            if (!nextBatchTime && (await archiveBidOrders.continueArchive())) {
+              await addToQueue(tableName, type);
+            }
           }
           break;
         }
