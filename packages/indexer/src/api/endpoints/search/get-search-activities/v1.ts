@@ -218,11 +218,11 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       }));
     }
 
-    (esQuery as any).bool.should = [];
-
     if (tokens.length) {
+      const tokensFilter = { bool: { should: [] } };
+
       for (const token of tokens) {
-        (esQuery as any).bool.should.push({
+        (tokensFilter as any).bool.should.push({
           bool: {
             must: [
               {
@@ -235,10 +235,14 @@ export const getSearchActivitiesV1Options: RouteOptions = {
           },
         });
       }
+
+      (esQuery as any).bool.filter.push(tokensFilter);
     }
 
     if (query.users) {
-      (esQuery as any).bool.should.push({
+      const usersFilter = { bool: { should: [] } };
+
+      (usersFilter as any).bool.should.push({
         bool: {
           must: [
             {
@@ -248,7 +252,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         },
       });
 
-      (esQuery as any).bool.should.push({
+      (usersFilter as any).bool.should.push({
         bool: {
           must: [
             {
@@ -257,6 +261,8 @@ export const getSearchActivitiesV1Options: RouteOptions = {
           ],
         },
       });
+
+      (esQuery as any).bool.filter.push(usersFilter);
     }
 
     let esSort;
