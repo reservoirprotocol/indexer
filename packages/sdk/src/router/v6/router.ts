@@ -3097,60 +3097,55 @@ export class Router {
               );
 
               // Fill directly
-              return {
-                txs: [
+              txs.push({
+                txData: {
+                  from: taker,
+                  to: Sdk.SeaportV14.Addresses.Exchange[this.chainId],
+                  data: result.data.calldata + generateSourceBytes(options?.source),
+                },
+                approvals: [
                   {
-                    txData: {
-                      from: taker,
-                      to: Sdk.SeaportV14.Addresses.Exchange[this.chainId],
-                      data: result.data.calldata + generateSourceBytes(options?.source),
-                    },
-                    approvals: [
-                      {
-                        orderIds: [detail.orderId],
-                        contract,
-                        owner,
-                        operator,
-                        txData: generateNFTApprovalTxData(contract, owner, operator),
-                      },
-                    ],
                     orderIds: [detail.orderId],
+                    contract,
+                    owner,
+                    operator,
+                    txData: generateNFTApprovalTxData(contract, owner, operator),
                   },
                 ],
-                success: { [detail.orderId]: true },
-              };
-            }
-
-            const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
-            executionsWithDetails.push({
-              detail,
-              execution: {
-                module: module.address,
-                data: module.interface.encodeFunctionData(
-                  detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-                  [
-                    {
-                      parameters: {
-                        ...fullOrder.params,
-                        totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                orderIds: [detail.orderId],
+              });
+            } else {
+              const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
+              executionsWithDetails.push({
+                detail,
+                execution: {
+                  module: module.address,
+                  data: module.interface.encodeFunctionData(
+                    detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                    [
+                      {
+                        parameters: {
+                          ...fullOrder.params,
+                          totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                        },
+                        numerator: detail.amount ?? 1,
+                        denominator: fullOrder.getInfo()!.amount,
+                        signature: fullOrder.params.signature,
+                        extraData: result.data.extraData,
                       },
-                      numerator: detail.amount ?? 1,
-                      denominator: fullOrder.getInfo()!.amount,
-                      signature: fullOrder.params.signature,
-                      extraData: result.data.extraData,
-                    },
-                    result.data.criteriaResolvers ?? [],
-                    {
-                      fillTo: taker,
-                      refundTo: taker,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                    },
-                    fees,
-                  ]
-                ),
-                value: 0,
-              },
-            });
+                      result.data.criteriaResolvers ?? [],
+                      {
+                        fillTo: taker,
+                        refundTo: taker,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                      },
+                      fees,
+                    ]
+                  ),
+                  value: 0,
+                },
+              });
+            }
 
             success[detail.orderId] = true;
           } catch (error) {
@@ -3250,60 +3245,55 @@ export class Router {
               );
 
               // Fill directly
-              return {
-                txs: [
+              txs.push({
+                txData: {
+                  from: taker,
+                  to: Sdk.SeaportV15.Addresses.Exchange[this.chainId],
+                  data: result.data.calldata + generateSourceBytes(options?.source),
+                },
+                approvals: [
                   {
-                    txData: {
-                      from: taker,
-                      to: Sdk.SeaportV15.Addresses.Exchange[this.chainId],
-                      data: result.data.calldata + generateSourceBytes(options?.source),
-                    },
-                    approvals: [
-                      {
-                        orderIds: [detail.orderId],
-                        contract,
-                        owner,
-                        operator,
-                        txData: generateNFTApprovalTxData(contract, owner, operator),
-                      },
-                    ],
                     orderIds: [detail.orderId],
+                    contract,
+                    owner,
+                    operator,
+                    txData: generateNFTApprovalTxData(contract, owner, operator),
                   },
                 ],
-                success: { [detail.orderId]: true },
-              };
-            }
-
-            const fullOrder = new Sdk.SeaportV15.Order(this.chainId, result.data.order);
-            executionsWithDetails.push({
-              detail,
-              execution: {
-                module: module.address,
-                data: module.interface.encodeFunctionData(
-                  detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-                  [
-                    {
-                      parameters: {
-                        ...fullOrder.params,
-                        totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                orderIds: [detail.orderId],
+              });
+            } else {
+              const fullOrder = new Sdk.SeaportV15.Order(this.chainId, result.data.order);
+              executionsWithDetails.push({
+                detail,
+                execution: {
+                  module: module.address,
+                  data: module.interface.encodeFunctionData(
+                    detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                    [
+                      {
+                        parameters: {
+                          ...fullOrder.params,
+                          totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                        },
+                        numerator: detail.amount ?? 1,
+                        denominator: fullOrder.getInfo()!.amount,
+                        signature: fullOrder.params.signature,
+                        extraData: result.data.extraData,
                       },
-                      numerator: detail.amount ?? 1,
-                      denominator: fullOrder.getInfo()!.amount,
-                      signature: fullOrder.params.signature,
-                      extraData: result.data.extraData,
-                    },
-                    result.data.criteriaResolvers ?? [],
-                    {
-                      fillTo: taker,
-                      refundTo: taker,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                    },
-                    fees,
-                  ]
-                ),
-                value: 0,
-              },
-            });
+                      result.data.criteriaResolvers ?? [],
+                      {
+                        fillTo: taker,
+                        refundTo: taker,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                      },
+                      fees,
+                    ]
+                  ),
+                  value: 0,
+                },
+              });
+            }
 
             success[detail.orderId] = true;
           } catch (error) {
