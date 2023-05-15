@@ -138,22 +138,10 @@ if (config.doBackgroundWork) {
           }
         );
 
-        let expiryInSeconds;
-
         try {
           if (collectionTopBid?.order_id) {
             // Cache the new top bid and set redis expiry as seconds until the top bid expires
-            expiryInSeconds = collectionTopBid?.valid_until - now();
-
-            logger.info(
-              QUEUE_NAME,
-              JSON.stringify({
-                topic: "cacheCollectionTopBidValue",
-                collectionTopBid,
-                collectionId,
-                expiryInSeconds,
-              })
-            );
+            const expiryInSeconds = collectionTopBid?.valid_until - now();
 
             if (expiryInSeconds > 0) {
               await topBidsCache.cacheCollectionTopBidValue(
@@ -169,13 +157,7 @@ if (config.doBackgroundWork) {
         } catch (error) {
           logger.error(
             QUEUE_NAME,
-            JSON.stringify({
-              topic: "cacheCollectionTopBidValue",
-              collectionTopBid,
-              collectionId,
-              expiryInSeconds,
-              error,
-            })
+            `Failed to cache collection top-bid value ${JSON.stringify(job.data)}: ${error}`
           );
         }
 
