@@ -133,7 +133,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         if (data.trigger === "insert") eventType = "sale.created";
         else if (data.trigger === "update") {
           // if isDeleted is true, then it's a delete event
-          if (result.isDeleted) eventType = "sale.deleted";
+          if (r.is_deleted) eventType = "sale.deleted";
           else eventType = "sale.updated";
         }
 

@@ -125,3 +125,9 @@ export const regex = {
   number: /^[0-9]+$/,
   unixTimestamp: /^[0-9]{10}$/,
 };
+
+// --- base64 ---
+
+export const base64ToHex = (base64: string) => "0x" + Buffer.from(base64, "base64").toString("hex");
+
+export const isBase64 = (base64: string) => base64.match(regex.base64);
