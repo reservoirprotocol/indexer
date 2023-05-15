@@ -41,6 +41,28 @@ import * as ZeroExV4 from "./zeroex-v4";
 import * as Zora from "./zora";
 import * as LooksRareV2 from "./looks-rare-v2";
 
+// Overrides (shouldn't belong here)
+if (process.env.SEAPORT_V15_OVERRIDE) {
+  const [chainId, address] = process.env.SEAPORT_V15_OVERRIDE.split(":");
+  SeaportV15.Addresses.Exchange[Number(chainId)] = address;
+}
+if (process.env.CONDUIT_CONTROLLER_OVERRIDE) {
+  const [chainId, address] = process.env.CONDUIT_CONTROLLER_OVERRIDE.split(":");
+  SeaportBase.Addresses.ConduitController[Number(chainId)] = address;
+}
+if (process.env.CONDUIT_CONTROLLER_CODE_HASH_OVERRIDE) {
+  const [chainId, address] = process.env.CONDUIT_CONTROLLER_CODE_HASH_OVERRIDE.split(":");
+  SeaportBase.Addresses.ConduitControllerCodeHash[Number(chainId)] = address;
+}
+if (process.env.ROUTER_OVERRIDE) {
+  const [chainId, address] = process.env.ROUTER_OVERRIDE.split(":");
+  RouterV6.Addresses.Router[Number(chainId)] = address;
+}
+if (process.env.APPROVAL_PROXY_OVERRIDE) {
+  const [chainId, address] = process.env.APPROVAL_PROXY_OVERRIDE.split(":");
+  RouterV6.Addresses.ApprovalProxy[Number(chainId)] = address;
+}
+
 export {
   // Common
   Common,

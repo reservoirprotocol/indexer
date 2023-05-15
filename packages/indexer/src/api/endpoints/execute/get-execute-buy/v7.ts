@@ -531,6 +531,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
               }
             }
 
+            // Check taker
+            if (!error) {
+              if (fromBuffer(result.maker) === payload.taker) {
+                error = "No fillable orders (taker cannot fill own orders)";
+              }
+            }
+
             // Check quantity
             if (!error) {
               if (bn(result.quantity_remaining).lt(item.quantity)) {
@@ -639,7 +646,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           );
 
           let quantityToFill = item.quantity;
+          let makerEqualsTakerQuantity = 0;
           for (const result of orderResults) {
+            if (fromBuffer(result.maker) === payload.taker) {
+              makerEqualsTakerQuantity += Number(result.quantity_remaining);
+              continue;
+            }
+
             // Stop if we filled the total quantity
             if (quantityToFill <= 0) {
               break;
@@ -694,7 +707,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData("Unable to fill requested quantity");
+              if (makerEqualsTakerQuantity >= quantityToFill) {
+                throw Boom.badData("No fillable orders (taker cannot fill own orders)");
+              } else {
+                throw Boom.badData("Unable to fill requested quantity");
+              }
             }
           }
         }

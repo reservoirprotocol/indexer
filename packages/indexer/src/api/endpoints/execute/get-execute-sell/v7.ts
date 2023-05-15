@@ -663,7 +663,6 @@ export const getExecuteSellV7Options: RouteOptions = {
                 AND token_sets_tokens.token_id = $/tokenId/
                 AND orders.side = 'buy'
                 AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'
-                AND orders.maker != $/taker/
                 AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
                 ${payload.normalizeRoyalties ? " AND orders.normalized_value IS NOT NULL" : ""}
                 ${payload.excludeEOA ? " AND orders.kind != 'blur'" : ""}
@@ -677,7 +676,6 @@ export const getExecuteSellV7Options: RouteOptions = {
               contract: toBuffer(contract),
               tokenId,
               quantity: item.quantity,
-              taker: toBuffer(payload.taker),
               sourceId: item.exactOrderSource
                 ? sources.getByDomain(item.exactOrderSource)?.id ?? -1
                 : undefined,
@@ -685,7 +683,13 @@ export const getExecuteSellV7Options: RouteOptions = {
           );
 
           let quantityToFill = item.quantity;
+          let makerEqualsTakerQuantity = 0;
           for (const result of orderResults) {
+            if (fromBuffer(result.maker) === payload.taker) {
+              makerEqualsTakerQuantity += Number(result.quantity_remaining);
+              continue;
+            }
+
             // Partial Seaport orders require knowing the owner
             let owner: string | undefined;
             if (["seaport-v1.4-partial", "seaport-v1.5-partial"].includes(result.kind)) {
@@ -786,7 +790,11 @@ export const getExecuteSellV7Options: RouteOptions = {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData("Unable to fill requested quantity");
+              if (makerEqualsTakerQuantity >= quantityToFill) {
+                throw Boom.badData("No fillable orders (taker cannot fill own orders)");
+              } else {
+                throw Boom.badData("Unable to fill requested quantity");
+              }
             }
           }
         }

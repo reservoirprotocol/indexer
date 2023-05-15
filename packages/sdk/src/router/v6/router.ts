@@ -2645,6 +2645,45 @@ export class Router {
       }
     }
 
+    // TODO: Add Flow router module
+    if (details.some(({ kind }) => kind === "flow")) {
+      if (details.length > 1) {
+        throw new Error("Flow multi-selling is not supported");
+      } else {
+        const detail = details[0];
+        if (detail.fees?.length || options?.globalFees?.length) {
+          throw new Error("Fees not supported for Universe orders");
+        }
+
+        // Approve Universe's Exchange contract
+        const approval: NFTApproval = {
+          orderIds: [detail.orderId],
+          contract: detail.contract,
+          owner: taker,
+          operator: Sdk.Flow.Addresses.Exchange[this.chainId],
+          txData: generateNFTApprovalTxData(
+            detail.contract,
+            taker,
+            Sdk.Universe.Addresses.Exchange[this.chainId]
+          ),
+        };
+
+        const order = detail.order as Sdk.Flow.Order;
+        const exchange = new Sdk.Flow.Exchange(this.chainId);
+
+        return {
+          txs: [
+            {
+              approvals: approval ? [approval] : [],
+              txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
+              orderIds: [detail.orderId],
+            },
+          ],
+          success: { [detail.orderId]: true },
+        };
+      }
+    }
+
     const txs: {
       approvals: NFTApproval[];
       txData: TxData;
