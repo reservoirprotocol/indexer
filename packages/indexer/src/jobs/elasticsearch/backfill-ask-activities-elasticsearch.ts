@@ -8,8 +8,8 @@ import { redis, redlock } from "@/common/redis";
 import { ridb } from "@/common/db";
 import { config } from "@/config/index";
 
-import { AskActivityBuilder } from "@/elasticsearch/indexes/activities/ask";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
 
 const QUEUE_NAME = "backfill-ask-activities-elasticsearch";
 
@@ -40,10 +40,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           continuationFilter = `AND (updated_at, id) > (to_timestamp($/updatedAt/), $/id/)`;
         }
 
-        const askActivityBuilder = new AskActivityBuilder();
-
         const query = `
-            ${askActivityBuilder.buildBaseQuery()}
+            ${AskCreatedEventHandler.buildBaseQuery()}
             WHERE side = 'sell'
             ${continuationFilter}
             ORDER BY updated_at, id
@@ -60,8 +58,12 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const activities = [];
 
           for (const result of results) {
-            const buildInfo = askActivityBuilder.formatData(result);
-            const activity = askActivityBuilder.buildDocument(buildInfo);
+            const eventHandler = new AskCreatedEventHandler(
+              result.event_tx_hash,
+              result.event_log_index,
+              result.event_batch_index
+            );
+            const activity = eventHandler.buildDocument(result);
 
             activities.push(activity);
           }
@@ -94,7 +96,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v8`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v9`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue();
     })

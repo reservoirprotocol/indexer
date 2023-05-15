@@ -17,8 +17,7 @@ import { CollectionSets } from "@/models/collection-sets";
 import { Collections } from "@/models/collections";
 import { redb } from "@/common/db";
 import { Sort } from "@elastic/elasticsearch/lib/api/types";
-
-// import * as ActivitiesIndex from "../../../../elasticsearch/indexes/activities";
+import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
@@ -100,11 +99,11 @@ export const getSearchActivitiesV1Options: RouteOptions = {
           Joi.array().items(
             Joi.string()
               .lowercase()
-              .valid(..._.values(ActivitiesIndex.ActivityType))
+              .valid(..._.values(ActivityType))
           ),
           Joi.string()
             .lowercase()
-            .valid(..._.values(ActivitiesIndex.ActivityType))
+            .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
       displayCurrency: Joi.string()

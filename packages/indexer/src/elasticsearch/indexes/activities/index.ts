@@ -5,9 +5,9 @@ import {
   Sort,
 } from "@elastic/elasticsearch/lib/api/types";
 import { SortResults } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
-import { BaseDocument } from "@/elasticsearch/indexes/base";
 import { logger } from "@/common/logger";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
+import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
 
 const INDEX_NAME = "activities";
 
@@ -93,60 +93,6 @@ const MAPPINGS: MappingTypeMapping = {
     },
   },
 };
-
-export enum ActivityType {
-  sale = "sale",
-  ask = "ask",
-  transfer = "transfer",
-  mint = "mint",
-  bid = "bid",
-  bid_cancel = "bid_cancel",
-  ask_cancel = "ask_cancel",
-}
-
-export interface ActivityDocument extends BaseDocument {
-  timestamp: number;
-  type: ActivityType;
-  contract: string;
-  fromAddress: string;
-  toAddress: string | null;
-  amount: number;
-  pricing?: {
-    price?: string;
-    currencyPrice?: string;
-    usdPrice?: number;
-    feeBps?: number;
-    currency?: string;
-    value?: string;
-    currencyValue?: string;
-    normalizedValue?: string;
-    currencyNormalizedValue?: string;
-  };
-  event?: {
-    timestamp: number;
-    txHash: string;
-    logIndex: number;
-    batchIndex: number;
-    blockHash: string;
-  };
-  token?: {
-    id: string;
-    name: string;
-    image: string;
-  };
-  collection?: {
-    id: string;
-    name: string;
-    image: string;
-  };
-  order?: {
-    id: string;
-    side: string;
-    sourceId: number;
-    kind: string;
-    criteria: Record<string, unknown>;
-  };
-}
 
 export const save = async (activities: ActivityDocument[]): Promise<void> => {
   try {

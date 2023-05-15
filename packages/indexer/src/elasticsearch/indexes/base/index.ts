@@ -10,18 +10,18 @@ export interface BaseDocument {
   createdAt: Date;
 }
 
-export interface BaseBuildInfo {}
+export interface BuildDocumentData {
+  id: string;
+}
 
-export abstract class BaseBuilder {
-  abstract getId(buildInfo: BaseBuildInfo): string;
-
-  public buildDocument(buildInfo: BaseBuildInfo): BaseDocument {
+export abstract class DocumentBuilder {
+  public buildDocument(data: BuildDocumentData): BaseDocument {
     return {
       chain: {
         id: config.chainId,
         name: getNetworkName(),
       },
-      id: this.getId(buildInfo),
+      id: data.id,
       createdAt: new Date(),
     };
   }

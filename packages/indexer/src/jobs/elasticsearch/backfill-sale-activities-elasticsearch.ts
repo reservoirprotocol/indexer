@@ -11,8 +11,8 @@ import { ridb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AddressZero } from "@ethersproject/constants";
 
-import { SaleActivityBuilder } from "@/elasticsearch/indexes/activities/sale";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
 
 const QUEUE_NAME = "backfill-sale-activities-elasticsearch";
 
@@ -43,10 +43,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           continuationFilter = `AND (timestamp, tx_hash, log_index, batch_index) > ($/timestamp/, $/txHash/, $/logIndex/, $/batchIndex/)`;
         }
 
-        const saleActivityBuilder = new SaleActivityBuilder();
-
         const query = `
-            ${saleActivityBuilder.buildBaseQuery()}
+            ${FillEventCreatedEventHandler.buildBaseQuery()}
             WHERE maker != $/maker/
             AND is_deleted = 0
             ${continuationFilter}
@@ -67,8 +65,12 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const activities = [];
 
           for (const result of results) {
-            const buildInfo = saleActivityBuilder.formatData(result);
-            const activity = saleActivityBuilder.buildDocument(buildInfo);
+            const eventHandler = new FillEventCreatedEventHandler(
+              result.event_tx_hash,
+              result.event_log_index,
+              result.event_batch_index
+            );
+            const activity = eventHandler.buildDocument(result);
 
             activities.push(activity);
           }
@@ -103,7 +105,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v8`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v9`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue();
     })

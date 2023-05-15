@@ -5,9 +5,10 @@ import { getActivityHash } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { Tokens } from "@/models/tokens";
-import { AskActivityBuilder } from "@/elasticsearch/indexes/activities/ask";
-import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { config } from "@/config/index";
+
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
 
 export class AskActivity {
   public static async handleEvent(data: NewSellOrderEventData) {
@@ -55,14 +56,13 @@ export class AskActivity {
     ]);
 
     if (config.doElasticsearchWork) {
-      const builder = new AskActivityBuilder();
-
-      const activity = await builder.build({
-        orderId: data.orderId,
-        txHash: data.transactionHash,
-        logIndex: data.logIndex,
-        batchIndex: data.batchIndex,
-      });
+      const eventHandler = new AskCreatedEventHandler(
+        data.orderId,
+        data.transactionHash,
+        data.logIndex,
+        data.batchIndex
+      );
+      const activity = await eventHandler.generateActivity();
 
       await ActivitiesIndex.save([activity]);
     }
@@ -118,14 +118,13 @@ export class AskActivity {
       userActivities.push(fromUserActivity);
 
       if (config.doElasticsearchWork) {
-        const builder = new AskActivityBuilder();
-
-        const esActivity = await builder.build({
-          orderId: data.orderId,
-          txHash: data.transactionHash,
-          logIndex: data.logIndex,
-          batchIndex: data.batchIndex,
-        });
+        const eventHandler = new AskCreatedEventHandler(
+          data.orderId,
+          data.transactionHash,
+          data.logIndex,
+          data.batchIndex
+        );
+        const esActivity = await eventHandler.generateActivity();
 
         esActivities.push(esActivity);
       }

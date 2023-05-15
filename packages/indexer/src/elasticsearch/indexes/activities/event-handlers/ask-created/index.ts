@@ -1,25 +1,54 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { redb } from "@/common/db";
 
-import { Orders } from "@/utils/orders";
-
-import { ActivityType } from "@/elasticsearch/indexes/activities";
+import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
-import {
-  BaseActivityBuilder,
-  BuildInfo,
-  BuildParams,
-} from "@/elasticsearch/indexes/activities/base";
+import { Orders } from "@/utils/orders";
+import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
 
-export class AskActivityBuilder extends BaseActivityBuilder {
+export class AskCreatedEventHandler extends BaseActivityEventHandler {
+  public orderId: string;
+  public txHash?: string;
+  public logIndex?: number;
+  public batchIndex?: number;
+
+  constructor(orderId: string, txHash?: string, logIndex?: number, batchIndex?: number) {
+    super();
+
+    this.orderId = orderId;
+    this.txHash = txHash;
+    this.logIndex = logIndex;
+    this.batchIndex = batchIndex;
+  }
+
+  async generateActivity(): Promise<ActivityDocument> {
+    const data = await redb.oneOrNone(
+      `
+          ${AskCreatedEventHandler.buildBaseQuery()}
+          WHERE id = $/orderId/
+          LIMIT 1;
+        `,
+      {
+        orderId: this.orderId,
+      }
+    );
+
+    return this.buildDocument(data);
+  }
   getActivityType(): ActivityType {
     return ActivityType.ask;
   }
 
-  getId(buildInfo: BuildInfo): string {
-    return getActivityHash(ActivityType.ask, buildInfo.order_id!);
+  getActivityId(): string {
+    if (this.txHash && this.logIndex && this.batchIndex) {
+      return getActivityHash(this.txHash, this.logIndex.toString(), this.batchIndex.toString());
+    }
+
+    return getActivityHash(ActivityType.ask, this.orderId);
   }
 
-  buildBaseQuery() {
+  public static buildBaseQuery() {
     const orderCriteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
     return `
@@ -59,25 +88,8 @@ export class AskActivityBuilder extends BaseActivityBuilder {
                  ) t ON TRUE`;
   }
 
-  async getBuildInfo(params: BuildParams): Promise<BuildInfo> {
-    const result = await redb.oneOrNone(
-      `
-          ${this.buildBaseQuery()}
-          WHERE id = $/orderId/
-          LIMIT 1;
-        `,
-      {
-        orderId: params.orderId!,
-      }
-    );
-
-    return this.formatData(result);
-  }
-
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  formatData(result: any): BuildInfo {
-    result.timestamp = Math.floor(result.created_ts);
-
-    return result;
+  parseEvent(data: any) {
+    data.timestamp = Math.floor(data.created_ts);
   }
 }

@@ -4,17 +4,65 @@ import { fromBuffer } from "@/common/utils";
 import * as Sdk from "@reservoir0x/sdk";
 import { config } from "@/config/index";
 
-import { BaseBuilder, BaseBuildInfo } from "@/elasticsearch/indexes/base";
-import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities";
+import { BuildDocumentData, BaseDocument, DocumentBuilder } from "@/elasticsearch/indexes/base";
 
-export interface BuildParams {
-  txHash?: string;
-  logIndex?: number;
-  batchIndex?: number;
-  orderId?: string;
+export enum ActivityType {
+  sale = "sale",
+  ask = "ask",
+  transfer = "transfer",
+  mint = "mint",
+  bid = "bid",
+  bid_cancel = "bid_cancel",
+  ask_cancel = "ask_cancel",
 }
 
-export interface BuildInfo extends BaseBuildInfo {
+export interface ActivityDocument extends BaseDocument {
+  timestamp: number;
+  type: ActivityType;
+  contract: string;
+  fromAddress: string;
+  toAddress: string | null;
+  amount: number;
+  pricing?: {
+    price?: string;
+    currencyPrice?: string;
+    usdPrice?: number;
+    feeBps?: number;
+    currency?: string;
+    value?: string;
+    currencyValue?: string;
+    normalizedValue?: string;
+    currencyNormalizedValue?: string;
+  };
+  event?: {
+    timestamp: number;
+    txHash: string;
+    logIndex: number;
+    batchIndex: number;
+    blockHash: string;
+  };
+  token?: {
+    id: string;
+    name: string;
+    image: string;
+  };
+  collection?: {
+    id: string;
+    name: string;
+    image: string;
+  };
+  order?: {
+    id: string;
+    side: string;
+    sourceId: number;
+    kind: string;
+    criteria: Record<string, unknown>;
+  };
+}
+
+export interface BuildActivityData extends BuildDocumentData {
+  id: string;
+  type: ActivityType;
   timestamp: number;
   contract: Buffer;
   collection_id: string;
@@ -54,83 +102,70 @@ export interface BuildInfo extends BaseBuildInfo {
   order_criteria?: Record<string, unknown>;
 }
 
-export abstract class BaseActivityBuilder extends BaseBuilder {
-  abstract getActivityType(buildInfo: BuildInfo): ActivityType;
-
-  abstract getBuildInfo(params: BuildParams): Promise<BuildInfo>;
-  public async build(params: BuildParams): Promise<ActivityDocument> {
-    const buildInfo = await this.getBuildInfo(params);
-
-    if (!buildInfo) {
-      throw new Error("Invalid params.");
-    }
-
-    return this.buildDocument(buildInfo);
-  }
-
-  public buildDocument(buildInfo: BuildInfo): ActivityDocument {
-    const baseDocument = super.buildDocument(buildInfo);
+export class ActivityBuilder extends DocumentBuilder {
+  public buildDocument(data: BuildActivityData): ActivityDocument {
+    const baseActivity = super.buildDocument(data);
 
     return {
-      ...baseDocument,
-      timestamp: buildInfo.timestamp,
-      type: this.getActivityType(buildInfo),
-      fromAddress: fromBuffer(buildInfo.from),
-      toAddress: buildInfo.to ? fromBuffer(buildInfo.to) : undefined,
-      amount: buildInfo.amount,
-      contract: fromBuffer(buildInfo.contract),
-      pricing: buildInfo.pricing_price
+      ...baseActivity,
+      timestamp: data.timestamp,
+      type: data.type,
+      fromAddress: fromBuffer(data.from),
+      toAddress: data.to ? fromBuffer(data.to) : undefined,
+      amount: data.amount,
+      contract: fromBuffer(data.contract),
+      pricing: data.pricing_price
         ? {
-            price: String(buildInfo.pricing_price),
-            currencyPrice: buildInfo.pricing_currency_price
-              ? String(buildInfo.pricing_currency_price)
+            price: String(data.pricing_price),
+            currencyPrice: data.pricing_currency_price
+              ? String(data.pricing_currency_price)
               : undefined,
-            usdPrice: buildInfo.pricing_usd_price ?? undefined,
-            feeBps: buildInfo.pricing_fee_bps ?? undefined,
-            currency: buildInfo.pricing_currency
-              ? fromBuffer(buildInfo.pricing_currency)
+            usdPrice: data.pricing_usd_price ?? undefined,
+            feeBps: data.pricing_fee_bps ?? undefined,
+            currency: data.pricing_currency
+              ? fromBuffer(data.pricing_currency)
               : Sdk.Common.Addresses.Eth[config.chainId],
-            value: buildInfo.pricing_value ? String(buildInfo.pricing_value) : undefined,
-            currencyValue: buildInfo.pricing_currency_value
-              ? String(buildInfo.pricing_currency_value)
+            value: data.pricing_value ? String(data.pricing_value) : undefined,
+            currencyValue: data.pricing_currency_value
+              ? String(data.pricing_currency_value)
               : undefined,
-            normalizedValue: buildInfo.pricing_normalized_value
-              ? String(buildInfo.pricing_normalized_value)
+            normalizedValue: data.pricing_normalized_value
+              ? String(data.pricing_normalized_value)
               : undefined,
-            currencyNormalizedValue: buildInfo.pricing_currency_normalized_value
-              ? String(buildInfo.pricing_currency_normalized_value)
+            currencyNormalizedValue: data.pricing_currency_normalized_value
+              ? String(data.pricing_currency_normalized_value)
               : undefined,
           }
         : undefined,
-      event: buildInfo.event_tx_hash
+      event: data.event_tx_hash
         ? {
-            timestamp: buildInfo.event_timestamp,
-            txHash: fromBuffer(buildInfo.event_tx_hash),
-            logIndex: buildInfo.event_log_index,
-            batchIndex: buildInfo.event_batch_index,
-            blockHash: fromBuffer(buildInfo.event_block_hash!),
+            timestamp: data.event_timestamp,
+            txHash: fromBuffer(data.event_tx_hash),
+            logIndex: data.event_log_index,
+            batchIndex: data.event_batch_index,
+            blockHash: fromBuffer(data.event_block_hash!),
           }
         : undefined,
-      token: buildInfo.token_id
+      token: data.token_id
         ? {
-            id: buildInfo.token_id,
-            name: buildInfo.token_name,
-            image: buildInfo.token_image,
+            id: data.token_id,
+            name: data.token_name,
+            image: data.token_image,
           }
         : undefined,
-      collection: buildInfo.collection_id
+      collection: data.collection_id
         ? {
-            id: buildInfo.collection_id,
-            name: buildInfo.collection_name,
-            image: buildInfo.collection_image,
+            id: data.collection_id,
+            name: data.collection_name,
+            image: data.collection_image,
           }
         : undefined,
-      order: buildInfo.order_id
+      order: data.order_id
         ? {
-            id: buildInfo.order_id,
-            side: buildInfo.order_side,
-            sourceId: buildInfo.order_source_id_int,
-            criteria: buildInfo.order_criteria,
+            id: data.order_id,
+            side: data.order_side,
+            sourceId: data.order_source_id_int,
+            criteria: data.order_criteria,
           }
         : undefined,
     } as ActivityDocument;

@@ -9,8 +9,8 @@ import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { ridb } from "@/common/db";
 
-import { BidActivityBuilder } from "@/elasticsearch/indexes/activities/bid";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
 
 const QUEUE_NAME = "backfill-bid-activities-elasticsearch";
 
@@ -41,10 +41,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           continuationFilter = `AND (updated_at, id) > (to_timestamp($/updatedAt/), $/id/)`;
         }
 
-        const bidActivityBuilder = new BidActivityBuilder();
-
         const query = `
-            ${bidActivityBuilder.buildBaseQuery()}
+            ${BidCreatedEventHandler.buildBaseQuery()}
             WHERE side = 'buy'
             AND fillability_status = 'fillable' AND approval_status = 'approved'
             ${continuationFilter}
@@ -62,8 +60,12 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const activities = [];
 
           for (const result of results) {
-            const buildInfo = bidActivityBuilder.formatData(result);
-            const activity = bidActivityBuilder.buildDocument(buildInfo);
+            const eventHandler = new BidCreatedEventHandler(
+              result.event_tx_hash,
+              result.event_log_index,
+              result.event_batch_index
+            );
+            const activity = eventHandler.buildDocument(result);
 
             activities.push(activity);
           }
@@ -96,7 +98,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v8`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v9`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue();
     })
