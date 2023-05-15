@@ -5,6 +5,10 @@ import { getActivityHash } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { Tokens } from "@/models/tokens";
+import { config } from "@/config/index";
+
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
 
 export class AskCancelActivity {
   public static async handleEvent(data: SellOrderCancelledEventData) {
@@ -52,6 +56,18 @@ export class AskCancelActivity {
       Activities.addActivities([activity]),
       UserActivities.addActivities([fromUserActivity]),
     ]);
+
+    if (config.doElasticsearchWork) {
+      const eventHandler = new AskCancelledEventHandler(
+        data.orderId,
+        data.transactionHash,
+        data.logIndex,
+        data.batchIndex
+      );
+      const activity = await eventHandler.generateActivity();
+
+      await ActivitiesIndex.save([activity]);
+    }
   }
 
   public static async handleEvents(events: SellOrderCancelledEventData[]) {
@@ -61,6 +77,7 @@ export class AskCancelActivity {
 
     const activities = [];
     const userActivities = [];
+    const esActivities = [];
 
     for (const data of events) {
       let activityHash;
@@ -103,6 +120,18 @@ export class AskCancelActivity {
 
       activities.push(activity);
       userActivities.push(fromUserActivity);
+
+      if (config.doElasticsearchWork) {
+        const eventHandler = new AskCancelledEventHandler(
+          data.orderId,
+          data.transactionHash,
+          data.logIndex,
+          data.batchIndex
+        );
+        const esActivity = await eventHandler.generateActivity();
+
+        esActivities.push(esActivity);
+      }
     }
 
     // Insert activities in batch
@@ -110,6 +139,10 @@ export class AskCancelActivity {
       Activities.addActivities(activities),
       UserActivities.addActivities(userActivities),
     ]);
+
+    if (esActivities.length) {
+      await ActivitiesIndex.save(esActivities);
+    }
   }
 }
 

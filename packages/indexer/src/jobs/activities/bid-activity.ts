@@ -8,6 +8,10 @@ import {
 } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
+import { config } from "@/config/index";
+
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
 
 export class BidActivity {
   public static async handleEvent(data: NewBuyOrderEventData) {
@@ -53,12 +57,26 @@ export class BidActivity {
       Activities.addActivities([activity]),
       UserActivities.addActivities([fromUserActivity]),
     ]);
+
+    if (config.doElasticsearchWork) {
+      const eventHandler = new BidCreatedEventHandler(
+        data.orderId,
+        data.transactionHash,
+        data.logIndex,
+        data.batchIndex
+      );
+      const activity = await eventHandler.generateActivity();
+
+      await ActivitiesIndex.save([activity]);
+    }
   }
 
   public static async handleEvents(events: NewBuyOrderEventData[]) {
     const bidInfo = await getBidInfoByOrderIds(_.map(events, (e) => e.orderId));
+
     const activities = [];
     const userActivities = [];
+    const esActivities = [];
 
     for (const data of events) {
       let activityHash;
@@ -99,6 +117,18 @@ export class BidActivity {
 
       activities.push(activity);
       userActivities.push(fromUserActivity);
+
+      if (config.doElasticsearchWork) {
+        const eventHandler = new BidCreatedEventHandler(
+          data.orderId,
+          data.transactionHash,
+          data.logIndex,
+          data.batchIndex
+        );
+        const esActivity = await eventHandler.generateActivity();
+
+        esActivities.push(esActivity);
+      }
     }
 
     // Insert activities in batch
@@ -106,6 +136,10 @@ export class BidActivity {
       Activities.addActivities(activities),
       UserActivities.addActivities(userActivities),
     ]);
+
+    if (esActivities.length) {
+      await ActivitiesIndex.save(esActivities);
+    }
   }
 }
 
