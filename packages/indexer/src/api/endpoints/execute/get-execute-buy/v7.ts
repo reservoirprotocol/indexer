@@ -694,16 +694,14 @@ export const getExecuteBuyV7Options: RouteOptions = {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData(
-                `No available orders for token ${item.token} with quantity ${item.quantity}`
-              );
+              throw Boom.badData("Unable to fill requested quantity");
             }
           }
         }
       }
 
       if (!path.length) {
-        throw Boom.badRequest("No available orders");
+        throw Boom.badRequest("No fillable orders");
       }
 
       let buyInCurrency = payload.currency;
@@ -944,7 +942,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       path = path.filter((p) => success[p.orderId]);
 
       if (!path.length) {
-        throw Boom.badRequest("No available orders");
+        throw Boom.badRequest("No fillable orders");
       }
 
       // Custom gas settings
