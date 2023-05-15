@@ -16,7 +16,6 @@ import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
 import { AddressZero } from "@ethersproject/constants";
 import { NftTransferEventData } from "@/jobs/activities/transfer-activity";
 import { FillEventData } from "@/jobs/activities/sale-activity";
-import { logger } from "@/common/logger";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -211,19 +210,6 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       );
     });
   });
-
-  logger.info(
-    "elasticsearch-activities",
-    JSON.stringify({
-      topic: "filter-paid-mints",
-      data: {
-        transferActivityInfos,
-        filteredTransferActivityInfos,
-        transferActivityInfosCount: transferActivityInfos.length,
-        filteredTransferActivityInfosCount: filteredTransferActivityInfos.length,
-      },
-    })
-  );
 
   await processActivityEvent.addActivitiesToList(filteredTransferActivityInfos);
 };
