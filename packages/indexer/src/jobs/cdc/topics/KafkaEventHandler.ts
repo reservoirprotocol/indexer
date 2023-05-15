@@ -9,7 +9,7 @@ export abstract class KafkaEventHandler {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async handle(payload: any): Promise<void> {
     try {
-      payload = JSON.parse(payload.value.toString());
+      payload = JSON.parse(JSON.stringify(payload));
 
       // convert any hex strings to strings
       this.convertPayloadHexToString(payload);
