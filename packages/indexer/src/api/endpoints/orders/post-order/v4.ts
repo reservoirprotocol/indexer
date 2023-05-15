@@ -91,7 +91,7 @@ export const postOrderV4Options: RouteOptions = {
           crossPostingOrderId: Joi.string().description(
             "Only available when posting to external orderbook. Can be used to retrieve the status of a cross-post order."
           ),
-          crossPostingOrderStatus: Joi.string(),
+          crossPostingOrderStatus: Joi.string().description("Current cross-post order status. Responses are `pending`, `posted`, or `failed`."),
         })
       ),
     }).label(`postOrder${version.toUpperCase()}Response`),

@@ -89,7 +89,7 @@ if (config.doBackgroundWork) {
 
         case "orders": {
           if (type === "bids") {
-            await releaseLock(getLockName(tableName)); // Release the lock
+            await releaseLock(getLockName(`${tableName}${nextBatchTime}`)); // Release the lock
 
             // Check if archiving should continue
             const archiveBidOrders = new ArchiveBidOrders();
