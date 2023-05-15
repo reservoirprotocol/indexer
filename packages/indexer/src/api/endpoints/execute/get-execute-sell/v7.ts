@@ -1020,16 +1020,8 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
-      const protectedOffers = bidDetails.filter((d) => d.isProtected);
-      if (protectedOffers.length > 1) {
-        throw Boom.badRequest("Only a single protected offer can be accepted at once");
-      }
-      if (protectedOffers.length === 1 && bidDetails.length > 1) {
-        throw Boom.badRequest("Protected offers cannot be accepted with other offers");
-      }
-
-      if (protectedOffers.length === 1) {
-        // Ensure the taker owns the NFTs to get sold
+      // For some orders (OS protected and Blur), we need to ensure the taker owns the NFTs to get sold
+      for (const d of bidDetails.filter((d) => d.isProtected || d.source === "blur.io")) {
         const takerIsOwner = await idb.oneOrNone(
           `
             SELECT
@@ -1042,9 +1034,9 @@ export const getExecuteSellV7Options: RouteOptions = {
             LIMIT 1
           `,
           {
-            contract: toBuffer(bidDetails[0].contract),
-            tokenId: bidDetails[0].tokenId,
-            quantity: bidDetails[0].amount ?? 1,
+            contract: toBuffer(d.contract),
+            tokenId: d.tokenId,
+            quantity: d.amount ?? 1,
             owner: toBuffer(payload.taker),
           }
         );
