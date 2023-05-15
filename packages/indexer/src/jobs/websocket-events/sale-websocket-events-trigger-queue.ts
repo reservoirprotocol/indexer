@@ -75,9 +75,9 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           LEFT JOIN currencies
             ON fill_events_2.currency = currencies.contract
           WHERE
-            fill_events_2.order_id = $/orderId/  
+            fill_events_2.tx_hash = $/tx_hash/ AND fill_events_2.log_index = $/log_index/
         `,
-          { orderId: data.orderId }
+          { tx_hash: data.tx_hash, log_index: data.log_index }
         );
 
         const result = await getJoiSaleObject({
@@ -183,6 +183,7 @@ export const addToQueue = async (events: EventInfo[]) => {
 };
 
 export type SaleWebsocketEventInfo = {
-  orderId: string;
+  tx_hash: string;
+  log_index: number;
   trigger: "insert" | "update" | "delete";
 };

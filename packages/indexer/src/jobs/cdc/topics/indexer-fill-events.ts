@@ -15,8 +15,9 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
 
     await WebsocketEventRouter({
       eventInfo: {
-        kind: payload.after.kind,
-        orderId: payload.after.order_id,
+        tx_hash: payload.after.tx_hash,
+        log_index: payload.after.log_index,
+        trigger: "insert",
       },
       eventKind: WebsocketEventKind.SaleEvent,
     });
@@ -29,8 +30,9 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
 
     await WebsocketEventRouter({
       eventInfo: {
-        kind: payload.after.kind,
-        orderId: payload.after.order_id,
+        tx_hash: payload.after.tx_hash,
+        log_index: payload.after.log_index,
+        trigger: "update",
       },
       eventKind: WebsocketEventKind.SaleEvent,
     });

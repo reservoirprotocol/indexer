@@ -5,7 +5,7 @@ import { TopicHandlers } from "@/jobs/cdc/topics";
 import { logger } from "@/common/logger";
 import { getServiceName } from "@/config/network";
 
-// // Create a Kafka client
+// Create a Kafka client
 const kafka = new Kafka({
   clientId: config.kafkaClientId,
   brokers: config.kafkaBrokers,
