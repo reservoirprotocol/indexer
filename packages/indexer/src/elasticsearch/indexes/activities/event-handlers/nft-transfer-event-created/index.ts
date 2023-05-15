@@ -2,11 +2,11 @@
 
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { redb } from "@/common/db";
-import { AddressZero } from "@ethersproject/constants";
 
 import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
 import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
+import { getNetworkSettings } from "@/config/network";
 
 export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandler {
   public txHash: string;
@@ -41,7 +41,9 @@ export class NftTransferEventCreatedEventHandler extends BaseActivityEventHandle
   }
 
   getActivityType(data: any): ActivityType {
-    return fromBuffer(data.from) === AddressZero ? ActivityType.mint : ActivityType.transfer;
+    return getNetworkSettings().mintAddresses.includes(fromBuffer(data.from))
+      ? ActivityType.mint
+      : ActivityType.transfer;
   }
 
   getActivityId(): string {

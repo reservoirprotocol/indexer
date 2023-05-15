@@ -192,14 +192,22 @@ export const getExecuteBidV5Options: RouteOptions = {
     schema: Joi.object({
       steps: Joi.array().items(
         Joi.object({
-          id: Joi.string().required().description("Returns `currency-wrapping`, `currency-approval`, or `order-signature`."),
-          kind: Joi.string().valid("request", "signature", "transaction").required().description("Returns `request`, `signature`, or `transaction`."),
+          id: Joi.string()
+            .required()
+            .description("Returns `currency-wrapping`, `currency-approval`, or `order-signature`."),
+          kind: Joi.string()
+            .valid("request", "signature", "transaction")
+            .required()
+            .description("Returns `request`, `signature`, or `transaction`."),
           action: Joi.string().required(),
           description: Joi.string().required(),
           items: Joi.array()
             .items(
               Joi.object({
-                status: Joi.string().valid("complete", "incomplete").required().description("Returns `complete` or `incomplete`"),
+                status: Joi.string()
+                  .valid("complete", "incomplete")
+                  .required()
+                  .description("Returns `complete` or `incomplete`"),
                 tip: Joi.string(),
                 data: Joi.object(),
                 orderIndexes: Joi.array().items(Joi.number()),

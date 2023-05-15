@@ -80,10 +80,14 @@ export const getTokenActivityV5Options: RouteOptions = {
       continuation: Joi.string().allow(null),
       activities: Joi.array().items(
         Joi.object({
-          type: Joi.string().description("Possible types returned: `ask`, `ask_cancel`, `bid`, `bid_cancel`, `sale`, `mint, and `transfer`."),
+          type: Joi.string().description(
+            "Possible types returned: `ask`, `ask_cancel`, `bid`, `bid_cancel`, `sale`, `mint, and `transfer`."
+          ),
           fromAddress: Joi.string(),
           toAddress: Joi.string().allow(null),
-          price: JoiPrice.allow(null).description("Return native currency unless displayCurrency contract was passed."),
+          price: JoiPrice.allow(null).description(
+            "Return native currency unless displayCurrency contract was passed."
+          ),
           amount: Joi.number().unsafe(),
           timestamp: Joi.number().description("Time when added on the blockchain."),
           createdAt: Joi.string().description("Time when added in the indexer."),
@@ -101,7 +105,11 @@ export const getTokenActivityV5Options: RouteOptions = {
             collectionName: Joi.string().allow("", null),
             collectionImage: Joi.string().allow("", null),
           }),
-          txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null).description("Txn hash from the blockchain."),
+          txHash: Joi.string()
+            .lowercase()
+            .pattern(regex.bytes32)
+            .allow(null)
+            .description("Txn hash from the blockchain."),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
           order: JoiActivityOrder,

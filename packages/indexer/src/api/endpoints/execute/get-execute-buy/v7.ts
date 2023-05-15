@@ -161,7 +161,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: Joi.array()
             .items(
               Joi.object({
-                status: Joi.string().valid("complete", "incomplete").required().description("Response is `complete` or `incomplete`."),
+                status: Joi.string()
+                  .valid("complete", "incomplete")
+                  .required()
+                  .description("Response is `complete` or `incomplete`."),
                 tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
@@ -192,7 +195,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
           buyInRawQuote: Joi.string().pattern(regex.number),
           totalPrice: Joi.number().unsafe(),
           totalRawPrice: Joi.string().pattern(regex.number),
-          builtInFees: Joi.array().items(JoiExecuteFee).description("Can be marketplace fees or royalties"),
+          builtInFees: Joi.array()
+            .items(JoiExecuteFee)
+            .description("Can be marketplace fees or royalties"),
           feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
         })
       ),

@@ -144,11 +144,17 @@ export const getExecuteSellV7Options: RouteOptions = {
           id: Joi.string().required().description("Returns `auth` or `nft-approval`"),
           action: Joi.string().required(),
           description: Joi.string().required(),
-          kind: Joi.string().valid("signature", "transaction").required().description("Returns `signature` or `transaction`."),
+          kind: Joi.string()
+            .valid("signature", "transaction")
+            .required()
+            .description("Returns `signature` or `transaction`."),
           items: Joi.array()
             .items(
               Joi.object({
-                status: Joi.string().valid("complete", "incomplete").required().description("Returns `complete` or `incomplete`."),
+                status: Joi.string()
+                  .valid("complete", "incomplete")
+                  .required()
+                  .description("Returns `complete` or `incomplete`."),
                 tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
@@ -179,7 +185,9 @@ export const getExecuteSellV7Options: RouteOptions = {
           // Total price (with fees on top) = price + feesOnTop
           totalPrice: Joi.number().unsafe(),
           totalRawPrice: Joi.string().pattern(regex.number),
-          builtInFees: Joi.array().items(JoiExecuteFee).description("Can be marketplace fees or royalties"),
+          builtInFees: Joi.array()
+            .items(JoiExecuteFee)
+            .description("Can be marketplace fees or royalties"),
           feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
         })
       ),

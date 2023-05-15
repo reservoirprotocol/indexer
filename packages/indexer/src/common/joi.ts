@@ -266,7 +266,9 @@ export const JoiOrder = Joi.object({
   id: Joi.string().required(),
   kind: Joi.string().required().description("This is the `orderKind`."),
   side: Joi.string().valid("buy", "sell").required().description("Either `buy` or `sell`"),
-  status: Joi.string().description("Can be `active`, `inactive`, `expired`, `canceled`, or `filled`"),
+  status: Joi.string().description(
+    "Can be `active`, `inactive`, `expired`, `canceled`, or `filled`"
+  ),
   tokenSetId: Joi.string().required(),
   tokenSetSchemaHash: Joi.string().lowercase().pattern(regex.bytes32).required(),
   contract: Joi.string().lowercase().pattern(regex.address),
@@ -276,7 +278,9 @@ export const JoiOrder = Joi.object({
   validFrom: Joi.number().required(),
   validUntil: Joi.number().required(),
   quantityFilled: Joi.number().unsafe().description("With ERC1155s, quantity can be higher than 1"),
-  quantityRemaining: Joi.number().unsafe().description("With ERC1155s, quantity can be higher than 1"),
+  quantityRemaining: Joi.number()
+    .unsafe()
+    .description("With ERC1155s, quantity can be higher than 1"),
   dynamicPricing: JoiDynamicPrice.allow(null),
   criteria: JoiOrderCriteria.allow(null).description("Kind can be token, collection, or attribute"),
   source: Joi.object().allow(null),
