@@ -138,22 +138,30 @@ if (config.doBackgroundWork) {
           }
         );
 
-        let seconds;
-        const expiry = new Date();
-        const nowSeconds = now();
+        let expiryInSeconds;
 
         try {
           if (collectionTopBid?.order_id) {
-            // cache the new top bid
-            // set redis expiry as seconds until the top bid expires
-            expiry.setSeconds(collectionTopBid?.valid_until - nowSeconds);
-            seconds = expiry.getSeconds();
+            // Cache the new top bid and set redis expiry as seconds until the top bid expires
+            expiryInSeconds = collectionTopBid?.valid_until - now();
 
-            await topBidsCache.cacheCollectionTopBidValue(
-              collectionId,
-              Number(collectionTopBid?.top_buy_value.toString()),
-              seconds
+            logger.info(
+              QUEUE_NAME,
+              JSON.stringify({
+                topic: "cacheCollectionTopBidValue",
+                collectionTopBid,
+                collectionId,
+                expiryInSeconds,
+              })
             );
+
+            if (expiryInSeconds > 0) {
+              await topBidsCache.cacheCollectionTopBidValue(
+                collectionId,
+                Number(collectionTopBid?.top_buy_value.toString()),
+                expiryInSeconds
+              );
+            }
           } else {
             // clear the cache
             await topBidsCache.clearCacheCollectionTopBidValue(collectionId);
@@ -165,9 +173,7 @@ if (config.doBackgroundWork) {
               topic: "cacheCollectionTopBidValue",
               collectionTopBid,
               collectionId,
-              seconds,
-              nowSeconds,
-              expiry,
+              expiryInSeconds,
               error,
             })
           );
