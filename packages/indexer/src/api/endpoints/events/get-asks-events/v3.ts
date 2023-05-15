@@ -100,7 +100,7 @@ export const getAsksEventsV3Options: RouteOptions = {
             ),
             txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
             txTimestamp: Joi.number().allow(null).description("Time when added on the blockchain."),
-            createdAt: Joi.string().description("Time when added to indexer")
+            createdAt: Joi.string().description("Time when added to indexer"),
           }),
         })
       ),
