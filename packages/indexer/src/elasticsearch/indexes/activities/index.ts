@@ -164,6 +164,15 @@ export const search = async (params: {
         });
     }
 
+    logger.info(
+      "elasticsearch-search-activities-v2",
+      JSON.stringify({
+        params,
+        latency,
+        paramsJson: JSON.stringify(params),
+      })
+    );
+
     return esResult.hits.hits.map((hit) => hit._source!);
   } catch (error) {
     logger.error(
