@@ -179,13 +179,19 @@ export const getExecuteListV5Options: RouteOptions = {
       steps: Joi.array().items(
         Joi.object({
           id: Joi.string().required().description("Returns `nft-approval` or `order-signature`"),
-          kind: Joi.string().valid("request", "signature", "transaction").required().description("Returns `request`, `signature`, or `transaction`."),
+          kind: Joi.string()
+            .valid("request", "signature", "transaction")
+            .required()
+            .description("Returns `request`, `signature`, or `transaction`."),
           action: Joi.string().required(),
           description: Joi.string().required(),
           items: Joi.array()
             .items(
               Joi.object({
-                status: Joi.string().valid("complete", "incomplete").required().description("Returns `complete` or `incomplete`."),
+                status: Joi.string()
+                  .valid("complete", "incomplete")
+                  .required()
+                  .description("Returns `complete` or `incomplete`."),
                 tip: Joi.string(),
                 data: Joi.object(),
                 orderIndexes: Joi.array().items(Joi.number()),
