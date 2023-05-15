@@ -71,7 +71,6 @@
     "node-cron": "^3.0.0",
     "node-html-parser": "^5.3.3",
     "node-pg-migrate": "^6.0.0",
-    "node-rdkafka": "^2.16.0",
     "nodemon": "^2.0.15",
     "p-limit": "^3.0.0",
     "pg": "^8.7.1",

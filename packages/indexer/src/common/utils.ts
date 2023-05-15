@@ -128,6 +128,23 @@ export const regex = {
 
 // --- base64 ---
 
-export const base64ToHex = (base64: string) => "0x" + Buffer.from(base64, "base64").toString("hex");
+export const isBase64 = (base64: string) => {
+  // This is strictly for hex from postgres
+  // if it includes an equal sign, it's probably base64
+  if (base64.includes("=")) {
+    return true;
+  }
+  return regex.base64.test(base64);
+};
 
-export const isBase64 = (base64: string) => base64.match(regex.base64);
+export const base64ToHex = (base64: string) => {
+  try {
+    if (!isBase64(base64)) {
+      return base64;
+    }
+
+    return "0x" + Buffer.from(base64, "base64").toString("hex");
+  } catch (error) {
+    return base64;
+  }
+};
