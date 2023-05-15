@@ -88,8 +88,8 @@ export const getCollectionsTopBidV2Options: RouteOptions = {
             ),
             previousPrice: Joi.number().unsafe().allow(null),
             txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
-            txTimestamp: Joi.number().allow(null),
-            createdAt: Joi.string(),
+            txTimestamp: Joi.number().allow(null).description("Time when added on the blockchain."),
+            createdAt: Joi.string().description("Time when added to indexer"),
           }),
         })
       ),
