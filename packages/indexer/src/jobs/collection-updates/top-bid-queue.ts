@@ -139,14 +139,14 @@ if (config.doBackgroundWork) {
         );
 
         let seconds;
+        const expiry = new Date();
+        const nowSeconds = now();
 
         try {
           if (collectionTopBid?.order_id) {
             // cache the new top bid
-
-            const expiry = new Date();
             // set redis expiry as seconds until the top bid expires
-            expiry.setSeconds(collectionTopBid?.valid_until - now());
+            expiry.setSeconds(collectionTopBid?.valid_until - nowSeconds);
             seconds = expiry.getSeconds();
 
             await topBidsCache.cacheCollectionTopBidValue(
@@ -166,6 +166,8 @@ if (config.doBackgroundWork) {
               collectionTopBid,
               collectionId,
               seconds,
+              nowSeconds,
+              expiry,
               error,
             })
           );
