@@ -219,6 +219,8 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       data: {
         transferActivityInfos,
         filteredTransferActivityInfos,
+        transferActivityInfosCount: transferActivityInfos.length,
+        filteredTransferActivityInfosCount: filteredTransferActivityInfos.length,
       },
     })
   );
