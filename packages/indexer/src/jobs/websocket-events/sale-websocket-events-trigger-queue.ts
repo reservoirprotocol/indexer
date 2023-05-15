@@ -31,7 +31,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.doWebsocketServerWork) {
+if (config.doBackgroundWork && config.doWebsocketServerWork && config.doKafkaWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
@@ -75,9 +75,11 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           LEFT JOIN currencies
             ON fill_events_2.currency = currencies.contract
           WHERE
-            fill_events_2.tx_hash = $/tx_hash/ AND fill_events_2.log_index = $/log_index/
+            fill_events_2.tx_hash = E'${
+              "\\" + data.tx_hash.replace("0x", "x")
+            } AND fill_events_2.log_index = $/log_index/
         `,
-          { tx_hash: data.tx_hash, log_index: data.log_index }
+          { log_index: data.log_index }
         );
 
         const result = await getJoiSaleObject({

@@ -129,12 +129,19 @@ export const regex = {
 // --- base64 ---
 
 export const isBase64 = (base64: string) => {
-  // This is strictly for hex from postgres
-  // if it includes an equal sign, it's probably base64
-  if (base64.includes("=")) {
-    return true;
+  try {
+    if (!base64 || base64.length % 4 !== 0 || typeof base64 !== "string") {
+      return false;
+    }
+    // This is strictly for hex from postgres
+    // if it includes an equal sign, it's probably base64
+    if (base64.includes("=")) {
+      return true;
+    }
+    return regex.base64.test(base64);
+  } catch (error) {
+    return false;
   }
-  return regex.base64.test(base64);
 };
 
 export const base64ToHex = (base64: string) => {

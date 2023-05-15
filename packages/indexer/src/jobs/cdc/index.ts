@@ -9,7 +9,7 @@ import { getServiceName } from "@/config/network";
 const kafka = new Kafka({
   clientId: config.kafkaClientId,
   brokers: config.kafkaBrokers,
-  logLevel: logLevel.DEBUG,
+  logLevel: logLevel.ERROR,
 });
 
 export const producer = kafka.producer();
@@ -41,37 +41,41 @@ export async function startKafkaConsumer(): Promise<void> {
     partitionsConsumedConcurrently: 1,
 
     eachMessage: async ({ message, topic }) => {
-      const event = JSON.parse(message.value!.toString());
+      try {
+        const event = JSON.parse(message.value!.toString());
 
-      // Find the corresponding topic handler and call the handle method on it, if the topic is not a dead letter topic
-      if (topic.endsWith("-dead-letter")) {
-        // if topic is dead letter, no need to process it
-        return;
-      }
+        // eslint-disable-next-line no-console
+        console.log(`${getServiceName()}-kafka-consumer`, `Received event: ${topic}`);
 
-      for (const handler of TopicHandlers) {
-        if (handler.getTopics().includes(topic)) {
-          try {
+        // Find the corresponding topic handler and call the handle method on it, if the topic is not a dead letter topic
+        if (topic.endsWith("-dead-letter")) {
+          // if topic is dead letter, no need to process it
+          return;
+        }
+
+        for (const handler of TopicHandlers) {
+          if (handler.getTopics().includes(topic)) {
             // If the event has not been retried before, set the retryCount to 0
             if (!event.payload.retryCount) {
               event.payload.retryCount = 0;
             }
 
             await handler.handle(event.payload);
-          } catch (error) {
-            // eslint-disable-next-line no-console
-            console.log(
-              `${getServiceName()}-kafka-consumer`,
-              `Error handling eventName=${event.name}, ${error}`
-            );
 
-            logger.error(
-              `${getServiceName()}-kafka-consumer`,
-              `Error handling eventName=${event.name}, ${error}`
-            );
+            break;
           }
-          break;
         }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `${getServiceName()}-kafka-consumer`,
+          `Error handling topic=${topic}, ${error}`
+        );
+
+        logger.error(
+          `${getServiceName()}-kafka-consumer`,
+          `Error handling topic=${topic}, ${error}`
+        );
       }
     },
   });
