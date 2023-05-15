@@ -334,7 +334,11 @@ export const getTokensFloorAskV4Options: RouteOptions = {
                 ? await getJoiPriceObject(
                     {
                       gross: {
-                        amount: r.currency_price ?? r.price,
+                        // We need to return the event price vs order price for orders
+                        // that can get modified in-place (for now NFTX and Sudoswap).
+                        amount: ["nftx", "sudoswap"].includes(r.order_kind)
+                          ? r.price
+                          : r.currency_price ?? r.price,
                         nativeAmount: r.price,
                       },
                     },

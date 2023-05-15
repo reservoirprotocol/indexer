@@ -86,7 +86,9 @@ export const getJoiAmountObject = async (
     if (usdPrice) {
       usdPrice = subFeeWithBps(usdPrice, totalFeeBps);
     }
-    if (nativeAmount) nativeAmount = subFeeWithBps(nativeAmount, totalFeeBps);
+    if (nativeAmount) {
+      nativeAmount = subFeeWithBps(nativeAmount, totalFeeBps);
+    }
   }
 
   return {
@@ -566,8 +568,8 @@ export const getJoiOrderObject = async (order: {
   }
 
   const feeBreakdown = order.feeBreakdown;
-  let feeBps = Number(order.feeBps);
 
+  let feeBps = Number(order.feeBps);
   if (order.normalizeRoyalties && order.missingRoyalties) {
     for (let i = 0; i < order.missingRoyalties.length; i++) {
       const index: number = order.feeBreakdown.findIndex(
@@ -594,6 +596,7 @@ export const getJoiOrderObject = async (order: {
     : order.side === "sell"
     ? Sdk.Common.Addresses.Eth[config.chainId]
     : Sdk.Common.Addresses.Weth[config.chainId];
+
   return {
     id: order.id,
     kind: order.kind,

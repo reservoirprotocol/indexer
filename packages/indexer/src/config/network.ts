@@ -33,6 +33,12 @@ export const getNetworkName = () => {
     case 534353:
       return "scroll-alpha";
 
+    case 5001:
+      return "mantle-testnet";
+
+    case 59140:
+      return "linea-testnet";
+
     default:
       return "unknown";
   }
@@ -531,6 +537,71 @@ export const getNetworkSettings = (): NetworkSettings => {
         subDomain: "api-scroll-alpha",
         onStartup: async () => {
           // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'Ether',
+                  'ETH',
+                  18,
+                  '{"coingeckoCurrencyId": "ethereum", "image": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    case 5001: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        subDomain: "api-mantle-testnet",
+        onStartup: async () => {
+          // Insert the native currency
+          await Promise.all([
+            idb.none(
+              `
+                INSERT INTO currencies (
+                  contract,
+                  name,
+                  symbol,
+                  decimals,
+                  metadata
+                ) VALUES (
+                  '\\x0000000000000000000000000000000000000000',
+                  'BitDAO',
+                  'BIT',
+                  18,
+                  '{"coingeckoCurrencyId": "bitdao", "image": "https://assets.coingecko.com/coins/images/17627/large/rI_YptK8.png"}'
+                ) ON CONFLICT DO NOTHING
+              `
+            ),
+          ]);
+        },
+      };
+    }
+    case 59140: {
+      return {
+        ...defaultNetworkSettings,
+        enableWebSocket: false,
+        realtimeSyncMaxBlockLag: 32,
+        realtimeSyncFrequencySeconds: 5,
+        lastBlockLatency: 5,
+        headBlockDelay: 10,
+        subDomain: "api-linea-testnet",
+        onStartup: async () => {
           await Promise.all([
             idb.none(
               `

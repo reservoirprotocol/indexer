@@ -163,7 +163,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       },
     };
   });
-  await processActivityEvent.addToQueue(fillActivityInfos);
+  await processActivityEvent.addActivitiesToList(fillActivityInfos);
 
   // Process transfer activities
   const transferActivityInfos: processActivityEvent.EventInfo[] = data.nftTransferEvents.map(
@@ -189,5 +189,5 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       },
     })
   );
-  await processActivityEvent.addToQueue(transferActivityInfos);
+  await processActivityEvent.addActivitiesToList(transferActivityInfos);
 };

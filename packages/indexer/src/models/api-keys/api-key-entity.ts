@@ -8,6 +8,8 @@ export type ApiKeyUpdateParams = {
   website?: string;
   tier?: number;
   active?: boolean;
+  ips?: string[];
+  origins?: string[];
 };
 
 export type ApiKeyEntityParams = {
@@ -19,6 +21,8 @@ export type ApiKeyEntityParams = {
   active: boolean;
   tier: number;
   permissions: Record<string, unknown>;
+  ips: string[];
+  origins: string[];
 };
 
 export class ApiKeyEntity {
@@ -30,6 +34,8 @@ export class ApiKeyEntity {
   active: boolean;
   tier: number;
   permissions: Record<ApiKeyPermission, unknown>;
+  ips: string[];
+  origins: string[];
 
   constructor(params: ApiKeyEntityParams) {
     this.key = params.key;
@@ -40,5 +46,7 @@ export class ApiKeyEntity {
     this.active = Boolean(params.active);
     this.tier = Number(params.tier);
     this.permissions = params.permissions;
+    this.ips = params.ips;
+    this.origins = params.origins;
   }
 }

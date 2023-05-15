@@ -61,6 +61,69 @@ export class TransferActivity {
       await fixActivitiesMissingCollection.addToQueue(data.contract, data.tokenId);
     }
   }
+
+  public static async handleEvents(events: NftTransferEventData[]) {
+    const collectionIds = await Tokens.getCollectionIds(
+      _.map(events, (d) => ({ contract: d.contract, tokenId: d.tokenId }))
+    );
+
+    const activities = [];
+    const userActivities = [];
+
+    for (const data of events) {
+      const activityHash = getActivityHash(
+        data.transactionHash,
+        data.logIndex.toString(),
+        data.batchIndex.toString()
+      );
+
+      const collectionId = collectionIds?.get(`${data.contract}:${data.tokenId}`);
+
+      const activity = {
+        type: data.fromAddress == AddressZero ? ActivityType.mint : ActivityType.transfer,
+        hash: activityHash,
+        contract: data.contract,
+        collectionId,
+        tokenId: data.tokenId,
+        fromAddress: data.fromAddress,
+        toAddress: data.toAddress,
+        price: 0,
+        amount: data.amount,
+        blockHash: data.blockHash,
+        eventTimestamp: data.timestamp,
+        metadata: {
+          transactionHash: data.transactionHash,
+          logIndex: data.logIndex,
+          batchIndex: data.batchIndex,
+        },
+      } as ActivitiesEntityInsertParams;
+
+      // One record for the user to address
+      const toUserActivity = _.clone(activity) as UserActivitiesEntityInsertParams;
+      toUserActivity.address = data.toAddress;
+      userActivities.push(toUserActivity);
+
+      if (data.fromAddress != AddressZero) {
+        // One record for the user from address if not a mint event
+        const fromUserActivity = _.clone(activity) as UserActivitiesEntityInsertParams;
+        fromUserActivity.address = data.fromAddress;
+        userActivities.push(fromUserActivity);
+      }
+
+      activities.push(activity);
+
+      // If collection information is not available yet when a mint event
+      if (!collectionId && data.fromAddress == AddressZero) {
+        await fixActivitiesMissingCollection.addToQueue(data.contract, data.tokenId);
+      }
+    }
+
+    // Insert activities in batch
+    await Promise.all([
+      Activities.addActivities(activities),
+      UserActivities.addActivities(userActivities),
+    ]);
+  }
 }
 
 export type NftTransferEventData = {

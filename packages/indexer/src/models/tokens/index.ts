@@ -2,7 +2,7 @@
 
 import _ from "lodash";
 
-import { idb, redb } from "@/common/db";
+import { idb, pgp, redb } from "@/common/db";
 import { fromBuffer, now, toBuffer } from "@/common/utils";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import {
@@ -66,6 +66,38 @@ export class Tokens {
 
     if (collectionId) {
       return collectionId["collection_id"];
+    }
+
+    return null;
+  }
+
+  public static async getCollectionIds(tokens: { contract: string; tokenId: string }[]) {
+    const map = new Map<string, string>();
+
+    // For polygon no shared contracts at the moment
+    if (config.chainId === 137) {
+      _.map(tokens, (c) => map.set(`${c.contract}:${c.tokenId}`, c.contract));
+      return map;
+    }
+
+    const columns = new pgp.helpers.ColumnSet(["contract", "token_id"], { table: "tokens" });
+
+    const data = tokens.map((activity) => ({
+      contract: toBuffer(activity.contract),
+      token_id: activity.tokenId,
+    }));
+
+    const collectionIds = await redb.manyOrNone(
+      `SELECT contract, token_id, collection_id
+        FROM tokens
+        WHERE (contract, token_id) IN (${pgp.helpers.values(data, columns)})`
+    );
+
+    if (collectionIds) {
+      _.map(collectionIds, (c) =>
+        map.set(`${fromBuffer(c.contract)}:${c.token_id}`, c.collection_id)
+      );
+      return map;
     }
 
     return null;
@@ -183,7 +215,7 @@ export class Tokens {
     let flagFilter = "";
     let contractFilter = "";
 
-    if (nonFlaggedOnly) {
+    if (config.chainId === 1 && nonFlaggedOnly) {
       flagFilter = "AND (is_flagged = 0 OR is_flagged IS NULL)";
     }
 

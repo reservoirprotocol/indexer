@@ -1,4 +1,6 @@
 import { BigNumber } from "@ethersproject/bignumber";
+import { AddressZero } from "@ethersproject/constants";
+import { keccak256 } from "@ethersproject/solidity";
 import { parseEther } from "@ethersproject/units";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
@@ -6,7 +8,6 @@ import * as Sdk from "@reservoir0x/sdk";
 import { BidDetails, FillBidsResult } from "@reservoir0x/sdk/dist/router/v6/types";
 import { TxData } from "@reservoir0x/sdk/src/utils";
 import axios from "axios";
-import _ from "lodash";
 import Joi from "joi";
 
 import { inject } from "@/api/index";
@@ -35,7 +36,7 @@ export const getExecuteSellV7Options: RouteOptions = {
   description: "Sell tokens (accept bids)",
   tags: ["api", "Fill Orders (buy & sell)"],
   timeout: {
-    server: 20 * 1000,
+    server: 40 * 1000,
   },
   plugins: {
     "hapi-swagger": {
@@ -62,6 +63,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               kind: Joi.string()
                 .lowercase()
                 .valid(
+                  "blur-partial",
                   "opensea",
                   "looks-rare",
                   "zeroex-v4",
@@ -148,6 +150,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               Joi.object({
                 status: Joi.string().valid("complete", "incomplete").required(),
                 tip: Joi.string(),
+                orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
               })
             )
@@ -435,6 +438,24 @@ export const getExecuteSellV7Options: RouteOptions = {
             item.orderId = sudoswap.getOrderId(order.data.pair, "buy");
           } else if (order.kind === "nftx") {
             item.orderId = nftx.getOrderId(order.data.pool, "buy");
+          } else if (order.kind === "blur-partial") {
+            await addToPath(
+              {
+                id: keccak256(["string", "address"], ["blur", order.data.contract]),
+                kind: "blur",
+                maker: AddressZero,
+                price: order.data.price,
+                sourceId: sources.getByDomain("blur.io")?.id ?? null,
+                currency: Sdk.Blur.Addresses.Beth[config.chainId],
+                rawData: order.data,
+                builtInFees: [],
+              },
+              {
+                kind: "erc721",
+                contract: order.data.contract,
+                tokenId,
+              }
+            );
           } else {
             const response = await inject({
               method: "POST",
@@ -791,6 +812,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         kind: string;
         items: {
           status: string;
+          orderIds?: string[];
           tip?: string;
           data?: object;
         }[];
@@ -830,22 +852,32 @@ export const getExecuteSellV7Options: RouteOptions = {
       // Handle Blur authentication
       let blurAuth: b.Auth | undefined;
       if (path.some((p) => p.source === "blur.io")) {
-        const missingApprovals: TxData[] = [];
+        const missingApprovals: { txData: TxData; orderIds: string[] }[] = [];
 
-        const contracts = _.uniqBy(path, (p) => p.contract).map((p) => p.contract);
-        for (const contract of contracts) {
+        const contractsAndOrderIds: { [contract: string]: string[] } = {};
+        for (const p of path.filter((p) => p.source === "blur.io")) {
+          if (!contractsAndOrderIds[p.contract]) {
+            contractsAndOrderIds[p.contract] = [];
+          }
+          contractsAndOrderIds[p.contract].push(p.orderId);
+        }
+
+        for (const [contract, orderIds] of Object.entries(contractsAndOrderIds)) {
           const operator = Sdk.Blur.Addresses.ExecutionDelegate[config.chainId];
           const isApproved = await commonHelpers.getNftApproval(contract, payload.taker, operator);
           if (!isApproved) {
             missingApprovals.push({
-              maxFeePerGas,
-              maxPriorityFeePerGas,
-              ...new Sdk.Common.Helpers.Erc721(baseProvider, contract).approveTransaction(
-                payload.taker,
-                operator
-              ),
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any);
+              txData: {
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+                ...new Sdk.Common.Helpers.Erc721(baseProvider, contract).approveTransaction(
+                  payload.taker,
+                  operator
+                ),
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+              orderIds,
+            });
           }
         }
 
@@ -909,11 +941,12 @@ export const getExecuteSellV7Options: RouteOptions = {
         });
 
         if (missingApprovals.length) {
-          for (const approval of missingApprovals) {
+          for (const { txData, orderIds } of missingApprovals) {
             steps[1].items.push({
               status: "incomplete",
+              orderIds,
               data: {
-                ...approval,
+                ...txData,
                 maxFeePerGas,
                 maxPriorityFeePerGas,
               },
@@ -1023,6 +1056,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         if (!isApproved) {
           steps[1].items.push({
             status: "incomplete",
+            orderIds: approval.orderIds,
             data: {
               ...approval.txData,
               maxFeePerGas,
@@ -1032,9 +1066,10 @@ export const getExecuteSellV7Options: RouteOptions = {
         }
       }
 
-      for (const { txData } of txs) {
+      for (const { txData, orderIds } of txs) {
         steps[2].items.push({
           status: "incomplete",
+          orderIds,
           data: {
             ...txData,
             maxFeePerGas,

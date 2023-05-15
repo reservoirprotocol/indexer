@@ -23,6 +23,7 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
+import { BidEventsList } from "@/models/bid-events-list";
 
 const QUEUE_NAME = "order-updates-by-id";
 
@@ -220,87 +221,18 @@ if (config.doBackgroundWork) {
 
               await updateNftBalanceFloorAskPriceQueue.addToQueue([updateFloorAskPriceInfo]);
             } else if (order.side === "buy") {
-              // Insert a corresponding bid event
-              await idb.none(
-                `
-                  INSERT INTO bid_events (
-                    kind,
-                    status,
-                    contract,
-                    token_set_id,
-                    order_id,
-                    order_source_id_int,
-                    order_valid_between,
-                    order_quantity_remaining,
-                    order_nonce,
-                    maker,
-                    price,
-                    value,
-                    tx_hash,
-                    tx_timestamp,
-                    order_kind,
-                    order_currency,
-                    order_currency_price,
-                    order_normalized_value,
-                    order_currency_normalized_value,
-                    order_raw_data
-                  )
-                  VALUES (
-                    $/kind/,
-                    (
-                      CASE
-                        WHEN $/fillabilityStatus/ = 'filled' THEN 'filled'
-                        WHEN $/fillabilityStatus/ = 'cancelled' THEN 'cancelled'
-                        WHEN $/fillabilityStatus/ = 'expired' THEN 'expired'
-                        WHEN $/fillabilityStatus/ = 'no-balance' THEN 'inactive'
-                        WHEN $/approvalStatus/ = 'no-approval' THEN 'inactive'
-                        ELSE 'active'
-                      END
-                    )::order_event_status_t,
-                    $/contract/,
-                    $/tokenSetId/,
-                    $/orderId/,
-                    $/orderSourceIdInt/,
-                    $/validBetween/,
-                    $/quantityRemaining/,
-                    $/nonce/,
-                    $/maker/,
-                    $/price/,
-                    $/value/,
-                    $/txHash/,
-                    $/txTimestamp/,
-                    $/orderKind/,
-                    $/orderCurrency/,
-                    $/orderCurrencyPrice/,
-                    $/orderNormalizedValue/,
-                    $/orderCurrencyNormalizedValue/,
-                    $/orderRawData/
-                  )
-                `,
+              const bidEventsList = new BidEventsList();
+              await bidEventsList.add([
                 {
-                  fillabilityStatus: order.fillabilityStatus,
-                  approvalStatus: order.approvalStatus,
-                  contract: order.contract,
-                  tokenSetId: order.tokenSetId,
-                  orderId: order.id,
-                  orderSourceIdInt: order.sourceIdInt,
-                  validBetween: order.validBetween,
-                  quantityRemaining: order.quantityRemaining,
-                  nonce: order.nonce,
-                  maker: order.maker,
-                  price: order.price,
-                  value: order.value,
-                  kind: trigger.kind,
-                  txHash: trigger.txHash ? toBuffer(trigger.txHash) : null,
-                  txTimestamp: trigger.txTimestamp || null,
-                  orderKind: order.kind,
-                  orderCurrency: order.currency,
-                  orderCurrencyPrice: order.currency_price,
-                  orderNormalizedValue: order.normalized_value,
-                  orderCurrencyNormalizedValue: order.currency_normalized_value,
-                  orderRawData: order.raw_data,
-                }
-              );
+                  order: {
+                    ...order,
+                    maker: fromBuffer(order.maker),
+                    currency: fromBuffer(order.currency),
+                    contract: fromBuffer(order.contract),
+                  },
+                  trigger,
+                },
+              ]);
             }
 
             let eventInfo;
@@ -364,7 +296,9 @@ if (config.doBackgroundWork) {
             }
 
             if (eventInfo) {
-              await processActivityEvent.addToQueue([eventInfo as processActivityEvent.EventInfo]);
+              await processActivityEvent.addActivitiesToList([
+                eventInfo as processActivityEvent.EventInfo,
+              ]);
             }
 
             await WebsocketEventRouter({
@@ -425,7 +359,7 @@ if (config.doBackgroundWork) {
         throw error;
       }
     },
-    { connection: redis.duplicate(), concurrency: 70 }
+    { connection: redis.duplicate(), concurrency: 80 }
   );
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);

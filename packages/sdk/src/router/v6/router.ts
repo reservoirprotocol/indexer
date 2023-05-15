@@ -2621,7 +2621,8 @@ export class Router {
         }
 
         // Approve Universe's Exchange contract
-        const approval = {
+        const approval: NFTApproval = {
+          orderIds: [detail.orderId],
           contract: detail.contract,
           owner: taker,
           operator: Sdk.Universe.Addresses.Exchange[this.chainId],
@@ -2781,6 +2782,7 @@ export class Router {
 
       // Generate approval
       approvals.push({
+        orderIds: [detail.orderId],
         contract,
         owner,
         operator,
@@ -3072,6 +3074,7 @@ export class Router {
                     },
                     approvals: [
                       {
+                        orderIds: [detail.orderId],
                         contract,
                         owner,
                         operator,
@@ -3224,6 +3227,7 @@ export class Router {
                     },
                     approvals: [
                       {
+                        orderIds: [detail.orderId],
                         contract,
                         owner,
                         operator,

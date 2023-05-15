@@ -32,7 +32,6 @@ import "@/jobs/token-set-updates";
 
 import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as processActivityBackfillEvent from "@/jobs/activities/process-activity-event-backfill";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
 import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
@@ -48,8 +47,7 @@ import * as backfillNftBalancesLastTokenAppraisalValue from "@/jobs/backfill/bac
 import * as backfillCancelEventsCreatedAt from "@/jobs/backfill/backfill-cancel-events-created-at";
 import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
 import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
-import * as backfillZeroAddressBalance from "@/jobs/backfill/backfill-zero-address-balance";
-
+import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
 import * as collectionsRefresh from "@/jobs/collections-refresh/collections-refresh";
@@ -119,6 +117,7 @@ import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-que
 import * as oracleOrdersCron from "@/jobs/order-updates/cron/oracle-orders-queue";
 import * as blurBidsBufferMisc from "@/jobs/order-updates/misc/blur-bids-buffer";
 import * as blurBidsRefreshMisc from "@/jobs/order-updates/misc/blur-bids-refresh";
+import * as saveBidEvents from "@/jobs/order-updates/save-bid-events";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookOrdersV2 from "@/jobs/orderbook/orders-queue-v2";
@@ -172,7 +171,6 @@ export const gracefulShutdownJobWorkers = [
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,
   processActivityEvent.queue,
-  processActivityBackfillEvent.queue,
   removeUnsyncedEventsActivities.queue,
 
   backfillBlockTimestamps.queue,
@@ -188,7 +186,7 @@ export const allJobQueues = [
   backfillCancelEventsCreatedAt.queue,
   backfillNftTransferEventsCreatedAt.queue,
   backfillCollectionsRoyalties.queue,
-  backfillZeroAddressBalance.queue,
+  backfillWrongNftBalances.queue,
 
   currencies.queue,
 
@@ -261,6 +259,7 @@ export const allJobQueues = [
   oracleOrdersCron.queue,
   blurBidsBufferMisc.queue,
   blurBidsRefreshMisc.queue,
+  saveBidEvents.queue,
 
   orderbookOrders.queue,
   orderbookOrdersV2.queue,
