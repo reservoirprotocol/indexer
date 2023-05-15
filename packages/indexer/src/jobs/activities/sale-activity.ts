@@ -6,9 +6,10 @@ import { getActivityHash } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { AddressZero } from "@ethersproject/constants";
-import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
-import { SaleActivityBuilder } from "@/elasticsearch/indexes/activities/sale";
 import { config } from "@/config/index";
+
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
 
 export class SaleActivity {
   public static async handleEvent(data: FillEventData) {
@@ -60,13 +61,12 @@ export class SaleActivity {
     ]);
 
     if (config.doElasticsearchWork) {
-      const builder = new SaleActivityBuilder();
-
-      const activity = await builder.build({
-        txHash: data.transactionHash,
-        logIndex: data.logIndex,
-        batchIndex: data.batchIndex,
-      });
+      const eventHandler = new FillEventCreatedEventHandler(
+        data.transactionHash,
+        data.logIndex,
+        data.batchIndex
+      );
+      const activity = await eventHandler.generateActivity();
 
       await ActivitiesIndex.save([activity]);
     }
@@ -126,13 +126,12 @@ export class SaleActivity {
       userActivities.push(fromUserActivity, toUserActivity);
 
       if (config.doElasticsearchWork) {
-        const builder = new SaleActivityBuilder();
-
-        const esActivity = await builder.build({
-          txHash: data.transactionHash,
-          logIndex: data.logIndex,
-          batchIndex: data.batchIndex,
-        });
+        const eventHandler = new FillEventCreatedEventHandler(
+          data.transactionHash,
+          data.logIndex,
+          data.batchIndex
+        );
+        const esActivity = await eventHandler.generateActivity();
 
         esActivities.push(esActivity);
       }

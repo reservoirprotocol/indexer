@@ -1,24 +1,55 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { redb } from "@/common/db";
-import { Orders } from "@/utils/orders";
 
-import { ActivityType } from "@/elasticsearch/indexes/activities";
+import { ActivityDocument, ActivityType } from "@/elasticsearch/indexes/activities/base";
 import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
-import {
-  BaseActivityBuilder,
-  BuildInfo,
-  BuildParams,
-} from "@/elasticsearch/indexes/activities/base";
+import { Orders } from "@/utils/orders";
+import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
 
-export class BidActivityBuilder extends BaseActivityBuilder {
+export class BidCreatedEventHandler extends BaseActivityEventHandler {
+  public orderId: string;
+  public txHash?: string;
+  public logIndex?: number;
+  public batchIndex?: number;
+
+  constructor(orderId: string, txHash?: string, logIndex?: number, batchIndex?: number) {
+    super();
+
+    this.orderId = orderId;
+    this.txHash = txHash;
+    this.logIndex = logIndex;
+    this.batchIndex = batchIndex;
+  }
+
+  async generateActivity(): Promise<ActivityDocument> {
+    const data = await redb.oneOrNone(
+      `
+          ${BidCreatedEventHandler.buildBaseQuery()}
+          WHERE id = $/orderId/
+          LIMIT 1;
+        `,
+      {
+        orderId: this.orderId,
+      }
+    );
+
+    return this.buildDocument(data);
+  }
+
   getActivityType(): ActivityType {
     return ActivityType.bid;
   }
 
-  getId(buildInfo: BuildInfo): string {
-    return getActivityHash(ActivityType.bid, buildInfo.order_id!);
+  getActivityId(): string {
+    if (this.txHash && this.logIndex && this.batchIndex) {
+      return getActivityHash(this.txHash, this.logIndex.toString(), this.batchIndex.toString());
+    }
+
+    return getActivityHash(ActivityType.bid, this.orderId);
   }
 
-  buildBaseQuery() {
+  public static buildBaseQuery() {
     const orderCriteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
     return `
@@ -58,29 +89,11 @@ export class BidActivityBuilder extends BaseActivityBuilder {
                  ) t ON TRUE`;
   }
 
-  async getBuildInfo(params: BuildParams): Promise<BuildInfo> {
-    const result = await redb.oneOrNone(
-      `
-          ${this.buildBaseQuery()}
-          WHERE id = $/orderId/
-          LIMIT 1;
-        `,
-      {
-        orderId: params.orderId!,
-      }
-    );
-
-    return this.formatData(result);
-  }
-
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  formatData(result: any): BuildInfo {
-    if (!result.token_set_id.startsWith("token:")) {
-      result.token_id = undefined;
+  parseEvent(data: any) {
+    if (!data.token_set_id.startsWith("token:")) {
+      delete data.token_id;
     }
 
-    result.timestamp = Math.floor(result.created_ts);
-
-    return result;
+    data.timestamp = Math.floor(data.created_ts);
   }
 }

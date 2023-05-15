@@ -10,8 +10,8 @@ import { config } from "@/config/index";
 import { ridb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 
-import { TransferActivityBuilder } from "@/elasticsearch/indexes/activities/transfer";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
 
 const QUEUE_NAME = "backfill-transfer-activities-elasticsearch";
 
@@ -42,10 +42,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           continuationFilter = `AND (timestamp, tx_hash, log_index, batch_index) > ($/timestamp/, $/txHash/, $/logIndex/, $/batchIndex/)`;
         }
 
-        const transferActivityBuilder = new TransferActivityBuilder();
-
         const query = `
-            ${transferActivityBuilder.buildBaseQuery()}
+            ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
             WHERE  NOT EXISTS (
              SELECT 1
              FROM   fill_events_2 fe
@@ -70,8 +68,12 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const activities = [];
 
           for (const result of results) {
-            const buildInfo = transferActivityBuilder.formatData(result);
-            const activity = transferActivityBuilder.buildDocument(buildInfo);
+            const eventHandler = new NftTransferEventCreatedEventHandler(
+              result.event_tx_hash,
+              result.event_log_index,
+              result.event_batch_index
+            );
+            const activity = eventHandler.buildDocument(result);
 
             activities.push(activity);
           }
@@ -106,7 +108,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v8`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v9`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue();
     })

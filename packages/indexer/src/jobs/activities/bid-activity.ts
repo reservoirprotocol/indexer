@@ -8,9 +8,10 @@ import {
 } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
-import { BidActivityBuilder } from "@/elasticsearch/indexes/activities/bid";
-import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { config } from "@/config/index";
+
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { BidCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-created";
 
 export class BidActivity {
   public static async handleEvent(data: NewBuyOrderEventData) {
@@ -58,13 +59,13 @@ export class BidActivity {
     ]);
 
     if (config.doElasticsearchWork) {
-      const builder = new BidActivityBuilder();
-
-      const activity = await builder.build({
-        txHash: data.transactionHash,
-        logIndex: data.logIndex,
-        batchIndex: data.batchIndex,
-      });
+      const eventHandler = new BidCreatedEventHandler(
+        data.orderId,
+        data.transactionHash,
+        data.logIndex,
+        data.batchIndex
+      );
+      const activity = await eventHandler.generateActivity();
 
       await ActivitiesIndex.save([activity]);
     }
@@ -118,14 +119,13 @@ export class BidActivity {
       userActivities.push(fromUserActivity);
 
       if (config.doElasticsearchWork) {
-        const builder = new BidActivityBuilder();
-
-        const esActivity = await builder.build({
-          orderId: data.orderId,
-          txHash: data.transactionHash,
-          logIndex: data.logIndex,
-          batchIndex: data.batchIndex,
-        });
+        const eventHandler = new BidCreatedEventHandler(
+          data.orderId,
+          data.transactionHash,
+          data.logIndex,
+          data.batchIndex
+        );
+        const esActivity = await eventHandler.generateActivity();
 
         esActivities.push(esActivity);
       }

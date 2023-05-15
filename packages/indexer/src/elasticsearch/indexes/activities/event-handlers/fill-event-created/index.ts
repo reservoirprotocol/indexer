@@ -1,34 +1,62 @@
-import { fromBuffer, toBuffer } from "@/common/utils";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { toBuffer } from "@/common/utils";
 import { redb } from "@/common/db";
-import { Orders } from "@/utils/orders";
 
-import { ActivityType } from "@/elasticsearch/indexes/activities";
-import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
 import {
-  BaseActivityBuilder,
-  BuildParams,
-  BuildInfo,
+  ActivityDocument,
+  ActivityType,
+  BuildActivityData,
 } from "@/elasticsearch/indexes/activities/base";
+import { getActivityHash } from "@/elasticsearch/indexes/activities/utils";
+import { Orders } from "@/utils/orders";
+import { BaseActivityEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/base";
 
-export class SaleActivityBuilder extends BaseActivityBuilder {
-  getActivityType(buildInfo: BuildInfo): ActivityType {
-    if (buildInfo.order_kind === "mint") {
+export class FillEventCreatedEventHandler extends BaseActivityEventHandler {
+  public txHash: string;
+  public logIndex: number;
+  public batchIndex: number;
+
+  constructor(txHash: string, logIndex: number, batchIndex: number) {
+    super();
+
+    this.txHash = txHash;
+    this.logIndex = logIndex;
+    this.batchIndex = batchIndex;
+  }
+
+  async generateActivity(): Promise<ActivityDocument> {
+    const data = await redb.oneOrNone(
+      `
+                ${FillEventCreatedEventHandler.buildBaseQuery()}
+                WHERE tx_hash = $/txHash/
+                AND log_index = $/logIndex/
+                AND batch_index = $/batchIndex/
+                LIMIT 1;  
+                `,
+      {
+        txHash: toBuffer(this.txHash),
+        logIndex: this.logIndex.toString(),
+        batchIndex: this.batchIndex.toString(),
+      }
+    );
+
+    return this.buildDocument(data);
+  }
+
+  getActivityType(data: BuildActivityData): ActivityType {
+    if (data.order_kind === "mint") {
       return ActivityType.mint;
     }
 
     return ActivityType.sale;
   }
 
-  getId(buildInfo: BuildInfo): string {
-    // TODO: Handle OnChain Orders
-    return getActivityHash(
-      fromBuffer(buildInfo.event_tx_hash!),
-      buildInfo.event_log_index!.toString(),
-      buildInfo.event_batch_index!.toString()
-    );
+  getActivityId(): string {
+    return getActivityHash(this.txHash, this.logIndex.toString(), this.batchIndex.toString());
   }
 
-  buildBaseQuery(): string {
+  public static buildBaseQuery(): string {
     const orderCriteriaBuildQuery = Orders.buildCriteriaQuery("orders", "token_set_id", false);
 
     return `SELECT
@@ -73,34 +101,12 @@ export class SaleActivityBuilder extends BaseActivityBuilder {
                 ) o ON TRUE`;
   }
 
-  async getBuildInfo(params: BuildParams): Promise<BuildInfo> {
-    const result = await redb.oneOrNone(
-      `
-                ${this.buildBaseQuery()}
-                WHERE tx_hash = $/txHash/
-                AND log_index = $/logIndex/
-                AND batch_index = $/batchIndex/
-                LIMIT 1;  
-                `,
-      {
-        txHash: toBuffer(params.txHash!),
-        logIndex: params.logIndex!.toString(),
-        batchIndex: params.batchIndex!.toString(),
-      }
-    );
-
-    return this.formatData(result);
-  }
-
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  formatData(result: any): BuildInfo {
-    if (result.order_side === "buy") {
-      result.from = result.to;
-      result.to = result.from;
+  parseEvent(data: any) {
+    if (data.order_side === "buy") {
+      data.from = data.to;
+      data.to = data.from;
     }
 
-    result.timestamp = result.event_timestamp;
-
-    return result;
+    data.timestamp = data.event_timestamp;
   }
 }

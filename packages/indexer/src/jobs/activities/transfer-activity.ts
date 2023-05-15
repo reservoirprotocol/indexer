@@ -6,12 +6,11 @@ import { AddressZero } from "@ethersproject/constants";
 import { getActivityHash } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
-import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
-
-import { TransferActivityBuilder } from "@/elasticsearch/indexes/activities/transfer";
+import { config } from "@/config/index";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
-import { config } from "@/config/index";
+import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
+import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
 
 export class TransferActivity {
   public static async handleEvent(data: NftTransferEventData) {
@@ -62,13 +61,12 @@ export class TransferActivity {
     ]);
 
     if (config.doElasticsearchWork) {
-      const builder = new TransferActivityBuilder();
-
-      const activity = await builder.build({
-        txHash: data.transactionHash,
-        logIndex: data.logIndex,
-        batchIndex: data.batchIndex,
-      });
+      const eventHandler = new NftTransferEventCreatedEventHandler(
+        data.transactionHash,
+        data.logIndex,
+        data.batchIndex
+      );
+      const activity = await eventHandler.generateActivity();
 
       await ActivitiesIndex.save([activity]);
     }
@@ -131,13 +129,12 @@ export class TransferActivity {
       activities.push(activity);
 
       if (config.doElasticsearchWork) {
-        const builder = new TransferActivityBuilder();
-
-        const esActivity = await builder.build({
-          txHash: data.transactionHash,
-          logIndex: data.logIndex,
-          batchIndex: data.batchIndex,
-        });
+        const eventHandler = new NftTransferEventCreatedEventHandler(
+          data.transactionHash,
+          data.logIndex,
+          data.batchIndex
+        );
+        const esActivity = await eventHandler.generateActivity();
 
         esActivities.push(esActivity);
       }

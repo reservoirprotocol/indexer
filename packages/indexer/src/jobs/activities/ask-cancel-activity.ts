@@ -5,9 +5,10 @@ import { getActivityHash } from "@/jobs/activities/utils";
 import { UserActivitiesEntityInsertParams } from "@/models/user-activities/user-activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { Tokens } from "@/models/tokens";
-import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
-import { AskCancelActivityBuilder } from "@/elasticsearch/indexes/activities/ask-cancel";
 import { config } from "@/config/index";
+
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
 
 export class AskCancelActivity {
   public static async handleEvent(data: SellOrderCancelledEventData) {
@@ -57,14 +58,13 @@ export class AskCancelActivity {
     ]);
 
     if (config.doElasticsearchWork) {
-      const builder = new AskCancelActivityBuilder();
-
-      const activity = await builder.build({
-        orderId: data.orderId,
-        txHash: data.transactionHash,
-        logIndex: data.logIndex,
-        batchIndex: data.batchIndex,
-      });
+      const eventHandler = new AskCancelledEventHandler(
+        data.orderId,
+        data.transactionHash,
+        data.logIndex,
+        data.batchIndex
+      );
+      const activity = await eventHandler.generateActivity();
 
       await ActivitiesIndex.save([activity]);
     }
@@ -122,14 +122,13 @@ export class AskCancelActivity {
       userActivities.push(fromUserActivity);
 
       if (config.doElasticsearchWork) {
-        const builder = new AskCancelActivityBuilder();
-
-        const esActivity = await builder.build({
-          orderId: data.orderId,
-          txHash: data.transactionHash,
-          logIndex: data.logIndex,
-          batchIndex: data.batchIndex,
-        });
+        const eventHandler = new AskCancelledEventHandler(
+          data.orderId,
+          data.transactionHash,
+          data.logIndex,
+          data.batchIndex
+        );
+        const esActivity = await eventHandler.generateActivity();
 
         esActivities.push(esActivity);
       }
