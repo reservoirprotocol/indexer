@@ -5,8 +5,8 @@ import {
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
 
-export class IndexerOrderEventsHandler extends KafkaEventHandler {
-  topicName = "indexer.public.order_events";
+export class IndexerOrdersHandler extends KafkaEventHandler {
+  topicName = "indexer.public.orders";
 
   protected async handleInsert(payload: any): Promise<void> {
     if (!payload.after) {
@@ -19,7 +19,8 @@ export class IndexerOrderEventsHandler extends KafkaEventHandler {
         orderId: payload.after.order_id,
         trigger: "insert",
       },
-      eventKind: WebsocketEventKind.SellOrder,
+      eventKind:
+        payload.after.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
     });
 
     // all other cases, trigger ask.updated event
@@ -32,7 +33,8 @@ export class IndexerOrderEventsHandler extends KafkaEventHandler {
         orderId: payload.after.order_id,
         trigger: "update",
       },
-      eventKind: WebsocketEventKind.SellOrder,
+      eventKind:
+        payload.after.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
     });
   }
 

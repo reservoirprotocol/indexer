@@ -159,7 +159,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           rawData: rawResult.raw_data,
         };
 
-        const eventType = data.kind === "new-order" ? "bid.created" : "bid.updated";
+        const eventType = data.trigger === "insert" ? "bid.created" : "bid.updated";
 
         await publishWebsocketEvent({
           event: eventType,
@@ -207,4 +207,5 @@ export const addToQueue = async (events: EventInfo[]) => {
 export type BidWebsocketEventInfo = {
   orderId: string;
   kind: TriggerKind;
+  trigger: "insert" | "update";
 };
