@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { redisWebsocketPublisher } from "@/common/redis";
 import { KafkaEventHandler } from "./KafkaEventHandler";
+import {
+  WebsocketEventKind,
+  WebsocketEventRouter,
+} from "@/jobs/websocket-events/websocket-event-router";
 
 export class IndexerBalanceEventsHandler extends KafkaEventHandler {
   topicName = "indexer.public.nft_balances";
@@ -11,14 +14,13 @@ export class IndexerBalanceEventsHandler extends KafkaEventHandler {
       return;
     }
 
-    await redisWebsocketPublisher.publish(
-      "events",
-      JSON.stringify({
-        event: "balance.created.v2",
-        tags: {},
-        data: payload.after,
-      })
-    );
+    await WebsocketEventRouter({
+      eventInfo: {
+        ...payload.after,
+        trigger: "insert",
+      },
+      eventKind: WebsocketEventKind.BalanceEvent,
+    });
   }
 
   protected async handleUpdate(payload: any): Promise<void> {
@@ -27,14 +29,13 @@ export class IndexerBalanceEventsHandler extends KafkaEventHandler {
       return;
     }
 
-    await redisWebsocketPublisher.publish(
-      "events",
-      JSON.stringify({
-        event: "balance.updated.v2",
-        tags: {},
-        data: payload.after,
-      })
-    );
+    await WebsocketEventRouter({
+      eventInfo: {
+        ...payload.after,
+        trigger: "update",
+      },
+      eventKind: WebsocketEventKind.BalanceEvent,
+    });
   }
 
   protected async handleDelete(): Promise<void> {

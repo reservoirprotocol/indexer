@@ -19,10 +19,7 @@ import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
 
-import {
-  WebsocketEventKind,
-  WebsocketEventRouter,
-} from "@/jobs/websocket-events/websocket-event-router";
+
 import { BidEventsList } from "@/models/bid-events-list";
 
 const QUEUE_NAME = "order-updates-by-id";
@@ -300,15 +297,6 @@ if (config.doBackgroundWork) {
                 eventInfo as processActivityEvent.EventInfo,
               ]);
             }
-
-            await WebsocketEventRouter({
-              eventInfo: {
-                kind: trigger.kind,
-                orderId: order.id,
-              },
-              eventKind:
-                order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
-            });
           }
         }
 

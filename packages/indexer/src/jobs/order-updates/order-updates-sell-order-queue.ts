@@ -13,10 +13,6 @@ import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
-import {
-  WebsocketEventKind,
-  WebsocketEventRouter,
-} from "../websocket-events/websocket-event-router";
 
 const QUEUE_NAME = "order-updates-sell-order";
 
@@ -213,15 +209,6 @@ if (config.doBackgroundWork) {
               };
             }
           }
-
-          await WebsocketEventRouter({
-            eventInfo: {
-              kind: trigger.kind,
-              orderId: order.id,
-            },
-            eventKind:
-              order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
-          });
 
           if (eventInfo) {
             await processActivityEvent.addActivitiesToList([

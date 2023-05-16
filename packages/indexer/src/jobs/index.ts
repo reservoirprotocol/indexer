@@ -148,8 +148,9 @@ import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute
 
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
+import * as balanceWebsocketEventsTriggerQueue from "@/jobs/websocket-events/nft-balance-event-websocket-events-trigger-queue";
+import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
 import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-websocket-events-trigger-queue";
-
 import * as newTopBidTriggerQueue from "@/jobs/websocket-events/new-top-bid-trigger-queue";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
@@ -297,6 +298,8 @@ export const allJobQueues = [
 
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
+  balanceWebsocketEventsTriggerQueue.queue,
+  transferWebsocketEventsTriggerQueue.queue,
   saleWebsocketEventsTriggerQueue.queue,
   newTopBidTriggerQueue.queue,
 

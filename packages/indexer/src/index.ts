@@ -35,7 +35,7 @@ const setup = async () => {
 
   if (config.doKafkaWork) {
     // eslint-disable-next-line no-console
-    console.log("doKafkaWork");
+    console.log("doing KafkaWork");
     startKafkaConsumer();
     startKafkaProducer();
   }
