@@ -111,7 +111,7 @@ if (config.doBackgroundWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-6`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-7`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue("sell", new Date().toISOString(), HashZero);
       await addToQueue("buy", new Date().toISOString(), HashZero);
@@ -122,5 +122,5 @@ if (config.doBackgroundWork) {
 }
 
 export const addToQueue = async (side: string, createdAt: string, id: string) => {
-  await queue.add(randomUUID(), { side, id, createdAt }, { jobId: `${side}-${createdAt}-${id}-6` });
+  await queue.add(randomUUID(), { side, id, createdAt }, { jobId: `${side}-${createdAt}-${id}-7` });
 };
