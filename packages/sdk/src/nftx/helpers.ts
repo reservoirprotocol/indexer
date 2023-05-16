@@ -5,11 +5,11 @@ import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
 import axios from "axios";
 
+import * as Addresses from "./addresses";
 import * as Common from "../common";
 import { bn } from "../utils";
-import * as Addresses from "./addresses";
 
-const zeroExEndpoint = `https://api.0x.org`;
+const ZEROEX_ENDPOINT = `https://api.0x.org`;
 
 export const getPoolFeatures = async (address: string, provider: Provider) => {
   const iface = new Interface([
@@ -123,7 +123,7 @@ export const getPoolPriceFrom0x = async (
       slippagePercentage: (slippage / 100000).toString(),
       buyAmount: localAmount.add(localAmount.mul(fees.redeemFee).div(unit)).toString(),
     };
-    const { data } = await axios.get(`${zeroExEndpoint}/swap/v1/quote`, {
+    const { data } = await axios.get(`${ZEROEX_ENDPOINT}/swap/v1/quote`, {
       params,
     });
 
@@ -144,7 +144,7 @@ export const getPoolPriceFrom0x = async (
       slippagePercentage: (slippage / 100000).toString(),
       sellAmount: localAmount.sub(localAmount.mul(fees.mintFee).div(unit)).toString(),
     };
-    const { data } = await axios.get(`${zeroExEndpoint}/swap/v1/quote`, {
+    const { data } = await axios.get(`${ZEROEX_ENDPOINT}/swap/v1/quote`, {
       params,
     });
 

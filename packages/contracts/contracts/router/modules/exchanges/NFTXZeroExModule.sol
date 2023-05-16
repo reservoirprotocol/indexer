@@ -12,242 +12,225 @@ import {BaseModule} from "../BaseModule.sol";
 import {INFTXMarketplace0xZap} from "../../../interfaces/INFTXMarketplace0xZap.sol";
 
 contract NFTXZeroExModule is BaseExchangeModule {
-    // --- Fields ---
+  // --- Fields ---
 
-    INFTXMarketplace0xZap public immutable NFTX_ZEROEX_MARKETPLACE;
+  INFTXMarketplace0xZap public immutable NFTX_ZEROEX_MARKETPLACE;
 
-    bytes4 public constant ERC721_INTERFACE = 0x80ac58cd;
-    bytes4 public constant ERC1155_INTERFACE = 0xd9b67a26;
+  bytes4 public constant ERC721_INTERFACE = 0x80ac58cd;
+  bytes4 public constant ERC1155_INTERFACE = 0xd9b67a26;
 
-    // --- Constructor ---
+  // --- Constructor ---
 
-    constructor(
-        address owner,
-        address router,
-        address nftxMarketplace
-    ) BaseModule(owner) BaseExchangeModule(router) {
-        NFTX_ZEROEX_MARKETPLACE = INFTXMarketplace0xZap(nftxMarketplace);
+  constructor(
+    address owner,
+    address router,
+    address nftxMarketplace
+  ) BaseModule(owner) BaseExchangeModule(router) {
+    NFTX_ZEROEX_MARKETPLACE = INFTXMarketplace0xZap(nftxMarketplace);
+  }
+
+  // --- Fallback ---
+
+  receive() external payable {}
+
+  // --- Multiple ETH listings ---
+
+  function buyWithETH(
+    INFTXMarketplace0xZap.BuyOrder[] calldata orders,
+    ETHListingParams calldata params,
+    Fee[] calldata fees
+  )
+    external
+    payable
+    nonReentrant
+    refundETHLeftover(params.refundTo)
+    chargeETHFees(fees, params.amount)
+  {
+    uint256 length = orders.length;
+    for (uint256 i = 0; i < length; ) {
+      INFTXMarketplace0xZap.BuyOrder memory order = orders[i];
+
+      // Execute fill
+      _buy(orders[i], params.fillTo, params.revertIfIncomplete, order.price);
+
+      unchecked {
+        ++i;
+      }
     }
+  }
 
-    // --- Fallback ---
+  // --- Internal ---
 
-    receive() external payable {}
-
-    // --- Multiple ETH listings ---
-
-    function buyWithETH(
-        INFTXMarketplace0xZap.BuyOrder[] calldata orders,
-        ETHListingParams calldata params,
-        Fee[] calldata fees
-    )
-        external
-        payable
-        nonReentrant
-        refundETHLeftover(params.refundTo)
-        chargeETHFees(fees, params.amount)
-    {
-        uint256 length = orders.length;
-        for (uint256 i = 0; i < length; ) {
-            INFTXMarketplace0xZap.BuyOrder memory order = orders[i];
-            // Execute fill
-            _buy(
-                orders[i],
-                params.fillTo,
-                params.revertIfIncomplete,
-                order.price
-            );
-
-            unchecked {
-                ++i;
-            }
-        }
+  function _buy(
+    INFTXMarketplace0xZap.BuyOrder calldata buyOrder,
+    address receiver,
+    bool revertIfIncomplete,
+    uint256 value
+  ) internal {
+    // Execute the fill
+    try
+      NFTX_ZEROEX_MARKETPLACE.buyAndRedeem{value: value}(
+        buyOrder.vaultId,
+        buyOrder.amount,
+        buyOrder.specificIds,
+        buyOrder.swapCallData,
+        payable(receiver)
+      )
+    {} catch {
+      // Revert if specified
+      if (revertIfIncomplete) {
+        revert UnsuccessfulFill();
+      }
     }
+  }
 
-    // --- Internal ---
+  // --- Single ERC721 offer ---
 
-    function _buy(
-        INFTXMarketplace0xZap.BuyOrder calldata buyOrder,
-        address receiver,
-        bool revertIfIncomplete,
-        uint256 value
-    ) internal {
-        // Execute the fill
-        try
-            NFTX_ZEROEX_MARKETPLACE.buyAndRedeem{value: value}(
-                buyOrder.vaultId,
-                buyOrder.amount,
-                buyOrder.specificIds,
-                buyOrder.swapCallData,
-                payable(receiver)
-            )
-        {} catch {
-            // Revert if specified
-            if (revertIfIncomplete) {
-                revert UnsuccessfulFill();
-            }
-        }
+  function sell(
+    INFTXMarketplace0xZap.SellOrder[] calldata orders,
+    OfferParams calldata params,
+    Fee[] calldata fees
+  ) external nonReentrant {
+    uint256 length = orders.length;
+    for (uint256 i = 0; i < length; ) {
+      // Execute fill
+      _sell(orders[i], params.fillTo, params.revertIfIncomplete, fees);
+
+      unchecked {
+        ++i;
+      }
     }
+  }
 
-    // --- Single ERC721 offer ---
+  function _sell(
+    INFTXMarketplace0xZap.SellOrder calldata sellOrder,
+    address receiver,
+    bool revertIfIncomplete,
+    Fee[] calldata fees
+  ) internal {
+    IERC165 collection = sellOrder.collection;
 
-    function sell(
-        INFTXMarketplace0xZap.SellOrder[] calldata orders,
-        OfferParams calldata params,
-        Fee[] calldata fees
-    ) external nonReentrant {
-        uint256 length = orders.length;
-        for (uint256 i = 0; i < length; ) {
-            // Execute fill
-            _sell(orders[i], params.fillTo, params.revertIfIncomplete, fees);
+    // Execute the sell
+    if (collection.supportsInterface(ERC721_INTERFACE)) {
+      _approveERC721IfNeeded(IERC721(address(collection)), address(NFTX_ZEROEX_MARKETPLACE));
 
-            unchecked {
-                ++i;
-            }
-        }
-    }
+      // Return ETH
+      try
+        NFTX_ZEROEX_MARKETPLACE.mintAndSell721(
+          sellOrder.vaultId,
+          sellOrder.specificIds,
+          sellOrder.swapCallData,
+          payable(address(this))
+        )
+      {
+        // Pay fees
+        uint256 feesLength = fees.length;
+        for (uint256 i; i < feesLength; ) {
+          Fee memory fee = fees[i];
+          _sendETH(fee.recipient, fee.amount);
 
-    function _sell(
-        INFTXMarketplace0xZap.SellOrder calldata sellOrder,
-        address receiver,
-        bool revertIfIncomplete,
-        Fee[] calldata fees
-    ) internal {
-        IERC165 collection = sellOrder.collection;
-
-        // Execute the sell
-        if (collection.supportsInterface(ERC721_INTERFACE)) {
-            _approveERC721IfNeeded(
-                IERC721(address(collection)),
-                address(NFTX_ZEROEX_MARKETPLACE)
-            );
-
-            // Return ETH
-            try
-                NFTX_ZEROEX_MARKETPLACE.mintAndSell721(
-                    sellOrder.vaultId,
-                    sellOrder.specificIds,
-                    sellOrder.swapCallData,
-                    payable(address(this))
-                )
-            {
-                // Pay fees
-                uint256 feesLength = fees.length;
-                for (uint256 i; i < feesLength; ) {
-                    Fee memory fee = fees[i];
-                    _sendETH(fee.recipient, fee.amount);
-                    unchecked {
-                        ++i;
-                    }
-                }
-
-                // Forward any left payment to the specified receiver
-                _sendAllETH(receiver);
-            } catch {
-                // Revert if specified
-                if (revertIfIncomplete) {
-                    revert UnsuccessfulFill();
-                }
-            }
-
-            // Refund any ERC721 leftover
-            uint256 length = sellOrder.specificIds.length;
-            for (uint256 i = 0; i < length; ) {
-                _sendAllERC721(
-                    receiver,
-                    IERC721(address(collection)),
-                    sellOrder.specificIds[i]
-                );
-
-                unchecked {
-                    ++i;
-                }
-            }
-        } else if (collection.supportsInterface(ERC1155_INTERFACE)) {
-            _approveERC1155IfNeeded(
-                IERC1155(address(collection)),
-                address(NFTX_ZEROEX_MARKETPLACE)
-            );
-
-            try
-                NFTX_ZEROEX_MARKETPLACE.mintAndSell1155(
-                    sellOrder.vaultId,
-                    sellOrder.specificIds,
-                    sellOrder.amounts,
-                    sellOrder.swapCallData,
-                    payable(address(this))
-                )
-            {
-                // Pay fees
-                uint256 feesLength = fees.length;
-                for (uint256 i; i < feesLength; ) {
-                    Fee memory fee = fees[i];
-                    _sendETH(fee.recipient, fee.amount);
-                    unchecked {
-                        ++i;
-                    }
-                }
-
-                // Forward any left payment to the specified receiver
-                _sendAllETH(receiver);
-            } catch {
-                // Revert if specified
-                if (revertIfIncomplete) {
-                    revert UnsuccessfulFill();
-                }
-            }
-
-            // Refund any ERC1155 leftover
-            uint256 length = sellOrder.specificIds.length;
-            for (uint256 i = 0; i < length; ) {
-                _sendAllERC1155(
-                    receiver,
-                    IERC1155(address(collection)),
-                    sellOrder.specificIds[i]
-                );
-
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-    }
-
-    // --- ERC721 / ERC1155 hooks ---
-
-    // Single token offer acceptance can be done approval-less by using the
-    // standard `safeTransferFrom` method together with specifying data for
-    // further contract calls. An example:
-    // `safeTransferFrom(
-    //      0xWALLET,
-    //      0xMODULE,
-    //      TOKEN_ID,
-    //      0xABI_ENCODED_ROUTER_EXECUTION_CALLDATA_FOR_OFFER_ACCEPTANCE
-    // )`
-
-    function onERC721Received(
-        address, // operator,
-        address, // from
-        uint256, // tokenId,
-        bytes calldata data
-    ) external returns (bytes4) {
-        if (data.length > 0) {
-            _makeCall(router, data, 0);
+          unchecked {
+            ++i;
+          }
         }
 
-        return this.onERC721Received.selector;
-    }
+        // Forward any left payment to the specified receiver
+        _sendAllETH(receiver);
+      } catch {
+        // Revert if specified
+        if (revertIfIncomplete) {
+          revert UnsuccessfulFill();
+        }
+      }
 
-    function onERC1155Received(
-        address, // operator
-        address, // from
-        uint256, // tokenId
-        uint256, // amount
-        bytes calldata data
-    ) external returns (bytes4) {
-        if (data.length > 0) {
-            _makeCall(router, data, 0);
+      // Refund any ERC721 leftover
+      uint256 length = sellOrder.specificIds.length;
+      for (uint256 i = 0; i < length; ) {
+        _sendAllERC721(receiver, IERC721(address(collection)), sellOrder.specificIds[i]);
+
+        unchecked {
+          ++i;
+        }
+      }
+    } else if (collection.supportsInterface(ERC1155_INTERFACE)) {
+      _approveERC1155IfNeeded(IERC1155(address(collection)), address(NFTX_ZEROEX_MARKETPLACE));
+
+      try
+        NFTX_ZEROEX_MARKETPLACE.mintAndSell1155(
+          sellOrder.vaultId,
+          sellOrder.specificIds,
+          sellOrder.amounts,
+          sellOrder.swapCallData,
+          payable(address(this))
+        )
+      {
+        // Pay fees
+        uint256 feesLength = fees.length;
+        for (uint256 i; i < feesLength; ) {
+          Fee memory fee = fees[i];
+          _sendETH(fee.recipient, fee.amount);
+          unchecked {
+            ++i;
+          }
         }
 
-        return this.onERC1155Received.selector;
+        // Forward any left payment to the specified receiver
+        _sendAllETH(receiver);
+      } catch {
+        // Revert if specified
+        if (revertIfIncomplete) {
+          revert UnsuccessfulFill();
+        }
+      }
+
+      // Refund any ERC1155 leftover
+      uint256 length = sellOrder.specificIds.length;
+      for (uint256 i = 0; i < length; ) {
+        _sendAllERC1155(receiver, IERC1155(address(collection)), sellOrder.specificIds[i]);
+
+        unchecked {
+          ++i;
+        }
+      }
     }
+  }
+
+  // --- ERC721 / ERC1155 hooks ---
+
+  // Single token offer acceptance can be done approval-less by using the
+  // standard `safeTransferFrom` method together with specifying data for
+  // further contract calls. An example:
+  // `safeTransferFrom(
+  //      0xWALLET,
+  //      0xMODULE,
+  //      TOKEN_ID,
+  //      0xABI_ENCODED_ROUTER_EXECUTION_CALLDATA_FOR_OFFER_ACCEPTANCE
+  // )`
+
+  function onERC721Received(
+    address, // operator,
+    address, // from
+    uint256, // tokenId,
+    bytes calldata data
+  ) external returns (bytes4) {
+    if (data.length > 0) {
+      _makeCall(router, data, 0);
+    }
+
+    return this.onERC721Received.selector;
+  }
+
+  function onERC1155Received(
+    address, // operator
+    address, // from
+    uint256, // tokenId
+    uint256, // amount
+    bytes calldata data
+  ) external returns (bytes4) {
+    if (data.length > 0) {
+      _makeCall(router, data, 0);
+    }
+
+    return this.onERC1155Received.selector;
+  }
 }
