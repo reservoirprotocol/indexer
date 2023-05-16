@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { HashZero } from "@ethersproject/constants";
-import * as Sdk from "@reservoir0x/sdk";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
@@ -63,7 +62,7 @@ if (config.doBackgroundWork) {
       for (const r of results) {
         if (
           r.kind === "seaport-v1.4" &&
-          fromBuffer(r.conduit) === Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId]
+          fromBuffer(r.conduit) === "0x1e0049783f008a0085193e00003d00cd54003c71"
         ) {
           values.push({
             id: r.id,
@@ -112,7 +111,7 @@ if (config.doBackgroundWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-5`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-6`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue("sell", new Date().toISOString(), HashZero);
       await addToQueue("buy", new Date().toISOString(), HashZero);
@@ -123,5 +122,5 @@ if (config.doBackgroundWork) {
 }
 
 export const addToQueue = async (side: string, createdAt: string, id: string) => {
-  await queue.add(randomUUID(), { side, id, createdAt }, { jobId: `${side}-${createdAt}-${id}-5` });
+  await queue.add(randomUUID(), { side, id, createdAt }, { jobId: `${side}-${createdAt}-${id}-6` });
 };
