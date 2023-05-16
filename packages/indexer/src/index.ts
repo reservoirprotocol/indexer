@@ -25,7 +25,6 @@ process.on("unhandledRejection", (error) => {
 
 const setup = async () => {
   // eslint-disable-next-line no-console
-  console.log(config);
   if (config.doBackgroundWork) {
     await Sources.syncSources();
 
@@ -36,8 +35,6 @@ const setup = async () => {
   }
 
   if (config.doKafkaWork) {
-    // eslint-disable-next-line no-console
-    console.log("doing KafkaWork");
     startKafkaConsumer();
     startKafkaProducer();
   }

@@ -44,9 +44,6 @@ export async function startKafkaConsumer(): Promise<void> {
       try {
         const event = JSON.parse(message.value!.toString());
 
-        // eslint-disable-next-line no-console
-        console.log(`${getServiceName()}-kafka-consumer`, `Received event: ${topic}`);
-
         // Find the corresponding topic handler and call the handle method on it, if the topic is not a dead letter topic
         if (topic.endsWith("-dead-letter")) {
           // if topic is dead letter, no need to process it
@@ -66,16 +63,21 @@ export async function startKafkaConsumer(): Promise<void> {
           }
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
-        console.log(
-          `${getServiceName()}-kafka-consumer`,
-          `Error handling topic=${topic}, ${error}`
-        );
-
         logger.error(
           `${getServiceName()}-kafka-consumer`,
           `Error handling topic=${topic}, ${error}`
         );
+
+        const newMessage = {
+          error: JSON.stringify(error),
+          ...message,
+        };
+
+        // If the event has an issue with finding its corresponding topic handler, send it to the dead letter queue
+        await producer.send({
+          topic: `${topic}-dead-letter`,
+          messages: [newMessage],
+        });
       }
     },
   });
