@@ -33,6 +33,9 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
     async (job: Job) => {
       const cursor = job.data.cursor as CursorInfo;
 
+      const fromTimestamp = job.data.fromTimestamp || 0;
+      const toTimestamp = job.data.toTimestamp || 9999999999;
+
       const limit = Number((await redis.get(`${QUEUE_NAME}-limit`)) || 1);
 
       try {
@@ -41,7 +44,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
         if (cursor) {
           continuationFilter = `AND (timestamp, tx_hash, log_index, batch_index) > ($/timestamp/, $/txHash/, $/logIndex/, $/batchIndex/)`;
         }
-
         const query = `
             ${NftTransferEventCreatedEventHandler.buildBaseQuery()}
             WHERE  NOT EXISTS (
@@ -51,6 +53,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
              AND    fe.log_index = nft_transfer_events.log_index
              AND    fe.batch_index = nft_transfer_events.batch_index
              )
+            AND (fill_events_2.timestamp >= $/fromTimestamp/ AND fill_events_2.timestamp < $/toTimestamp/) 
             ${continuationFilter}
             ORDER BY timestamp, tx_hash, log_index, batch_index
             LIMIT $/limit/;  
@@ -61,6 +64,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           txHash: cursor?.txHash ? toBuffer(cursor.txHash) : null,
           logIndex: cursor?.logIndex,
           batchIndex: cursor?.batchIndex,
+          fromTimestamp,
+          toTimestamp,
           limit,
         });
 
@@ -80,16 +85,23 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
           await ActivitiesIndex.save(activities);
 
-          logger.info(QUEUE_NAME, `Processed ${results.length} activities.`);
-
           const lastResult = results[results.length - 1];
 
-          await addToQueue({
-            timestamp: lastResult.event_timestamp,
-            txHash: fromBuffer(lastResult.event_tx_hash),
-            logIndex: lastResult.event_log_index,
-            batchIndex: lastResult.event_batch_index,
-          });
+          logger.info(
+            QUEUE_NAME,
+            `Processed ${results.length} activities. fromTimestamp=${fromTimestamp}, toTimestamp=${toTimestamp}, lastTimestamp=${lastResult.event_timestamp}`
+          );
+
+          await addToQueue(
+            {
+              timestamp: lastResult.event_timestamp,
+              txHash: fromBuffer(lastResult.event_tx_hash),
+              logIndex: lastResult.event_log_index,
+              batchIndex: lastResult.event_batch_index,
+            },
+            fromTimestamp,
+            toTimestamp
+          );
         }
       } catch (error) {
         logger.error(
@@ -108,17 +120,23 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v9`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v10`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
-      await addToQueue();
+      await addToQueue(undefined, 1609459200, 1640995199);
+      await addToQueue(undefined, 1640995200, 1672531199);
+      await addToQueue(undefined, 1672531200);
     })
     .catch(() => {
       // Skip on any errors
     });
 }
 
-export const addToQueue = async (cursor?: CursorInfo) => {
-  await queue.add(randomUUID(), { cursor }, { delay: 1000 });
+export const addToQueue = async (
+  cursor?: CursorInfo,
+  fromTimestamp?: number,
+  toTimestamp?: number
+) => {
+  await queue.add(randomUUID(), { cursor, fromTimestamp, toTimestamp });
 };
 
 export interface CursorInfo {
