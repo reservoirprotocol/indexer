@@ -7,7 +7,7 @@ import { config } from "@/config/index";
 import { randomUUID } from "crypto";
 import _ from "lodash";
 
-import { redisWebsocketPublisher } from "@/common/redis";
+import { publishWebsocketEvent } from "@/common/websocketPublisher";
 
 const QUEUE_NAME = "transfer-websocket-events-trigger-queue";
 
@@ -53,18 +53,15 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         if (data.trigger === "insert") eventType = "transfer.created";
         else if (data.trigger === "update") eventType = "transfer.updated";
 
-        await redisWebsocketPublisher.publish(
-          "events",
-          JSON.stringify({
-            event: eventType,
-            tags: {
-              address: result.token.contract,
-              from: result.from,
-              to: result.to,
-            },
-            data: result,
-          })
-        );
+        await publishWebsocketEvent({
+          event: eventType,
+          tags: {
+            address: result.token.contract,
+            from: result.from,
+            to: result.to,
+          },
+          data: result,
+        });
       } catch (error) {
         logger.error(
           QUEUE_NAME,

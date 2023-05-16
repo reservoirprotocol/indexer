@@ -3,6 +3,7 @@ import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-w
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
 
 import * as newTopBidTriggerQueue from "@/jobs/websocket-events/new-top-bid-trigger-queue";
+import * as approvalWebsocketEventsTriggerQueue from "@/jobs/websocket-events/approval-websocket-events-trigger-queue";
 import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
 
 import * as balanceEventWebsocketEventsTriggerQueue from "@/jobs/websocket-events/nft-balance-event-websocket-events-trigger-queue";
@@ -28,6 +29,13 @@ export const WebsocketEventRouter = async ({
       await bidWebsocketEventsTriggerQueue.addToQueue([
         {
           data: eventInfo as bidWebsocketEventsTriggerQueue.BidWebsocketEventInfo,
+        },
+      ]);
+      break;
+    case WebsocketEventKind.ApprovalEvent:
+      await approvalWebsocketEventsTriggerQueue.addToQueue([
+        {
+          data: eventInfo as approvalWebsocketEventsTriggerQueue.ApprovalWebsocketEventInfo,
         },
       ]);
       break;
@@ -66,6 +74,7 @@ export enum WebsocketEventKind {
   NewTopBid = "new-top-bid",
   SellOrder = "sell-order",
   BuyOrder = "buy-order",
+  ApprovalEvent = "approval-event",
   BalanceEvent = "balance-event",
   TransferEvent = "transfer-event",
   SaleEvent = "sale-event",
@@ -75,6 +84,7 @@ export type EventInfo =
   | NewTopBidWebsocketEventInfo
   | askWebsocketEventsTriggerQueue.AskWebsocketEventInfo
   | bidWebsocketEventsTriggerQueue.BidWebsocketEventInfo
+  | approvalWebsocketEventsTriggerQueue.ApprovalWebsocketEventInfo
   | balanceEventWebsocketEventsTriggerQueue.BalanceWebsocketEventInfo
   | transferWebsocketEventsTriggerQueue.TransferWebsocketEventInfo
   | saleWebsocketEventsTriggerQueue.SaleWebsocketEventInfo;

@@ -7,11 +7,9 @@ import { config } from "@/config/index";
 import { randomUUID } from "crypto";
 import _ from "lodash";
 
-import { formatEth } from "@/common/utils";
-
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 
-const QUEUE_NAME = "nft-balance-websocket-events-trigger-queue";
+const QUEUE_NAME = "approval-websocket-events-trigger-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -37,27 +35,24 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
       try {
         const result = {
-          token: {
-            contract: data.contract,
-            tokenId: data.token_id,
-          },
+          address: data.address,
+          block: data.block,
+          timestamp: new Date(data.timestamp).toISOString(),
           owner: data.owner,
-          amount: data.amount,
-          acquiredAt: data.acquired_at,
-          floorSell: {
-            id: data.floor_sell_id,
-            value: data.floor_sell_value ? formatEth(data.floor_sell_value) : null,
-          },
+          operator: data.operator,
+          approved: data.approved,
         };
 
         let eventType = "";
-        if (data.trigger === "insert") eventType = "nft-balance.created";
-        else if (data.trigger === "update") eventType = "nft-balance.updated";
+        if (data.trigger === "insert") eventType = "approval.created";
+        else if (data.trigger === "update") eventType = "approval.updated";
 
         await publishWebsocketEvent({
           event: eventType,
           tags: {
-            contract: data.contract,
+            address: result.address,
+            owner: result.owner,
+            approved: result.approved,
           },
           data: result,
         });
@@ -80,7 +75,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 }
 
 export type EventInfo = {
-  data: BalanceWebsocketEventInfo;
+  data: ApprovalWebsocketEventInfo;
 };
 
 export const addToQueue = async (events: EventInfo[]) => {
@@ -96,18 +91,12 @@ export const addToQueue = async (events: EventInfo[]) => {
   );
 };
 
-export type BalanceWebsocketEventInfo = {
-  contract: string;
-  token_id: string;
+export type ApprovalWebsocketEventInfo = {
+  address: string;
+  block: string;
+  timestamp: string;
   owner: string;
-  amount: string;
-  acquired_at: string;
-  floor_sell_id: string;
-  floor_sell_value: string;
-  top_buy_id: string;
-  top_buy_value: string;
-  top_buy_maker: string;
-  last_token_appraisal_value: string;
-
+  operator: string;
+  approved: string;
   trigger: "insert" | "update" | "delete";
 };

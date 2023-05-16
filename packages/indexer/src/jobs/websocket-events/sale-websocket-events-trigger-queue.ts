@@ -11,7 +11,7 @@ import { getJoiSaleObject } from "@/common/joi";
 
 import { idb } from "@/common/db";
 import { fromBuffer } from "@/common/utils";
-import { redisWebsocketPublisher } from "@/common/redis";
+import { publishWebsocketEvent } from "@/common/websocketPublisher";
 
 const QUEUE_NAME = "sale-websocket-events-trigger-queue";
 
@@ -139,16 +139,13 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           else eventType = "sale.updated";
         }
 
-        await redisWebsocketPublisher.publish(
-          "events",
-          JSON.stringify({
-            event: eventType,
-            tags: {
-              contract: fromBuffer(r.contract),
-            },
-            data: result,
-          })
-        );
+        await publishWebsocketEvent({
+          event: eventType,
+          tags: {
+            contract: fromBuffer(r.contract),
+          },
+          data: result,
+        });
       } catch (error) {
         logger.error(
           QUEUE_NAME,

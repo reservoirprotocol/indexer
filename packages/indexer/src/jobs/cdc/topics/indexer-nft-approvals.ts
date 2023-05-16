@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { redisWebsocketPublisher } from "@/common/redis";
 import { KafkaEventHandler } from "./KafkaEventHandler";
+import {
+  WebsocketEventKind,
+  WebsocketEventRouter,
+} from "@/jobs/websocket-events/websocket-event-router";
 
 export class IndexerApprovalEventsHandler extends KafkaEventHandler {
   topicName = "indexer.public.nft_approvals";
@@ -10,14 +13,13 @@ export class IndexerApprovalEventsHandler extends KafkaEventHandler {
       return;
     }
 
-    await redisWebsocketPublisher.publish(
-      "events",
-      JSON.stringify({
-        event: "approval.created.v2",
-        tags: {},
-        data: payload.after,
-      })
-    );
+    await WebsocketEventRouter({
+      eventInfo: {
+        ...payload.after,
+        trigger: "insert",
+      },
+      eventKind: WebsocketEventKind.ApprovalEvent,
+    });
   }
 
   protected async handleUpdate(payload: any): Promise<void> {
@@ -25,14 +27,13 @@ export class IndexerApprovalEventsHandler extends KafkaEventHandler {
       return;
     }
 
-    await redisWebsocketPublisher.publish(
-      "events",
-      JSON.stringify({
-        event: "approval.updated.v2",
-        tags: {},
-        data: payload.after,
-      })
-    );
+    await WebsocketEventRouter({
+      eventInfo: {
+        ...payload.after,
+        trigger: "update",
+      },
+      eventKind: WebsocketEventKind.ApprovalEvent,
+    });
   }
 
   protected async handleDelete(): Promise<void> {
