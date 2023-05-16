@@ -13,4 +13,5 @@ export const TopicHandlers: KafkaEventHandler[] = [
   // new IndexerApprovalEventsHandler(),
   new IndexerFillEventsHandler(),
   // new IndexerBidEventsHandler(),
+  //
 ];
