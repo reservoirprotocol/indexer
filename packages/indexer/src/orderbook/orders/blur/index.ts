@@ -601,23 +601,23 @@ export const saveBids = async (
       }
     );
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
-
-    await ordersUpdateById.addToQueue(
-      results
-        .filter((r) => r.status === "success")
-        .map(
-          ({ id }) =>
-            ({
-              context: `new-order-${id}`,
-              id,
-              trigger: {
-                kind: "new-order",
-              },
-              ingestMethod,
-            } as ordersUpdateById.OrderInfo)
-        )
-    );
   }
+
+  await ordersUpdateById.addToQueue(
+    results
+      .filter((r) => r.status === "success")
+      .map(
+        ({ id, triggerKind }) =>
+          ({
+            context: `${triggerKind}-${id}`,
+            id,
+            trigger: {
+              kind: triggerKind,
+            },
+            ingestMethod,
+          } as ordersUpdateById.OrderInfo)
+      )
+  );
 
   return results;
 };
