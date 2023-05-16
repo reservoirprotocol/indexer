@@ -9,7 +9,6 @@ import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { ridb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
-import { AddressZero } from "@ethersproject/constants";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { FillEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/fill-event-created";
@@ -45,15 +44,13 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
         const query = `
             ${FillEventCreatedEventHandler.buildBaseQuery()}
-            WHERE maker != $/maker/
-            AND is_deleted = 0
+            WHERE is_deleted = 0
             ${continuationFilter}
             ORDER BY timestamp, tx_hash, log_index, batch_index
             LIMIT $/limit/;  
           `;
 
         const results = await ridb.manyOrNone(query, {
-          maker: toBuffer(AddressZero),
           timestamp: cursor?.timestamp || null,
           txHash: cursor?.txHash ? toBuffer(cursor.txHash) : null,
           logIndex: cursor?.logIndex,
@@ -115,7 +112,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 }
 
 export const addToQueue = async (cursor?: CursorInfo) => {
-  await queue.add(randomUUID(), { cursor }, { delay: 1000 });
+  await queue.add(randomUUID(), { cursor });
 };
 
 export interface CursorInfo {

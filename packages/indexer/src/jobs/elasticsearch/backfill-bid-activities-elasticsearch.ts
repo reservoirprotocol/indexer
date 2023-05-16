@@ -108,7 +108,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 }
 
 export const addToQueue = async (cursor?: CursorInfo) => {
-  await queue.add(randomUUID(), { cursor }, { delay: 1000 });
+  await queue.add(randomUUID(), { cursor });
 };
 
 export interface CursorInfo {
