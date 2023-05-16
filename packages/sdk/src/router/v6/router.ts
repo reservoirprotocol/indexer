@@ -192,25 +192,26 @@ export class Router {
   ): Promise<FillListingsResult> {
     // Assume the listing details are consistent with the underlying order object
 
+    const txs: {
+      approvals: FTApproval[];
+      txData: TxData;
+      orderIds: string[];
+    }[] = [];
+    const success: { [orderId: string]: boolean } = {};
+
     // When filling a single order in partial mode, propagate any errors back directly
     if (options?.partial && details.length === 1) {
       options.partial = false;
     }
 
-    // TODO: Add Universe router module
     if (details.some(({ kind }) => kind === "universe")) {
       if (options?.relayer) {
         throw new Error("Relayer not supported for Universe orders");
       }
-
-      if (details.length > 1) {
-        throw new Error("Universe sweeping is not supported");
-      } else {
-        const detail = details[0];
+      for (const detail of details.filter(({ kind }) => kind === "universe")) {
         if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Universe orders");
         }
-
         let approval: FTApproval | undefined;
         if (!isETH(this.chainId, detail.currency)) {
           approval = {
@@ -225,68 +226,49 @@ export class Router {
             ),
           };
         }
-
         const order = detail.order as Sdk.Universe.Order;
         const exchange = new Sdk.Universe.Exchange(this.chainId);
-        return {
-          txs: [
-            {
-              approvals: approval ? [approval] : [],
-              txData: await exchange.fillOrderTx(taker, order, {
-                amount: Number(detail.amount),
-                source: options?.source,
-              }),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
+        txs.push({
+          approvals: approval ? [approval] : [],
+          txData: await exchange.fillOrderTx(taker, order, {
+            amount: Number(detail.amount),
+            source: options?.source,
+          }),
+          orderIds: [detail.orderId],
+        });
+        success[detail.orderId] = true;
       }
     }
 
-    // TODO: Add Cryptopunks router module
     if (details.some(({ kind }) => kind === "cryptopunks")) {
       if (options?.relayer) {
         throw new Error("Relayer not supported for Cryptopunks orders");
       }
 
-      if (details.length > 1) {
-        throw new Error("Cryptopunks sweeping is not supported");
-      } else {
-        const detail = details[0];
+      for (const detail of details.filter(({ kind }) => kind === "cryptopunks")) {
         if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Cryptopunks orders");
         }
-
         const order = detail.order as Sdk.CryptoPunks.Order;
         const exchange = new Sdk.CryptoPunks.Exchange(this.chainId);
-        return {
-          txs: [
-            {
-              approvals: [],
-              txData: exchange.fillListingTx(taker, order, options),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
+        txs.push({
+          approvals: [],
+          txData: exchange.fillListingTx(taker, order, options),
+          orderIds: [detail.orderId],
+        });
+        success[detail.orderId] = true;
       }
     }
 
-    // TODO: Add Flow router module
     if (details.some(({ kind }) => kind === "flow")) {
       if (options?.relayer) {
         throw new Error("Relayer not supported for Flow orders");
       }
 
-      if (details.length > 1) {
-        throw new Error("Flow sweeping is not supported");
-      } else {
-        const detail = details[0];
+      for (const detail of details.filter(({ kind }) => kind === "flow")) {
         if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Flow orders");
         }
-
         let approval: FTApproval | undefined;
         if (!isETH(this.chainId, detail.currency)) {
           approval = {
@@ -301,33 +283,23 @@ export class Router {
             ),
           };
         }
-
         const order = detail.order as Sdk.Flow.Order;
         const exchange = new Sdk.Flow.Exchange(this.chainId);
-
-        return {
-          txs: [
-            {
-              approvals: approval ? [approval] : [],
-              txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
+        txs.push({
+          approvals: approval ? [approval] : [],
+          txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
+          orderIds: [detail.orderId],
+        });
+        success[detail.orderId] = true;
       }
     }
 
-    // TODO: Add Manifold router module
     if (details.some(({ kind }) => kind === "manifold")) {
       if (options?.relayer) {
         throw new Error("Relayer not supported for Manifold orders");
       }
 
-      if (details.length > 1) {
-        throw new Error("Manifold sweeping is not supported");
-      } else {
-        const detail = details[0];
+      for (const detail of details.filter(({ kind }) => kind === "manifold")) {
         if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Manifold orders");
         }
@@ -338,31 +310,21 @@ export class Router {
         const amountFilled = Number(detail.amount) ?? 1;
         const orderPrice = bn(order.params.details.initialAmount).mul(amountFilled).toString();
 
-        return {
-          txs: [
-            {
-              approvals: [],
-              txData: exchange.fillOrderTx(
-                taker,
-                Number(order.params.id),
-                amountFilled,
-                orderPrice,
-                options
-              ),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
+        txs.push({
+          approvals: [],
+          txData: exchange.fillOrderTx(
+            taker,
+            Number(order.params.id),
+            amountFilled,
+            orderPrice,
+            options
+          ),
+          orderIds: [detail.orderId],
+        });
+
+        success[detail.orderId] = true;
       }
     }
-
-    const txs: {
-      approvals: FTApproval[];
-      txData: TxData;
-      orderIds: string[];
-    }[] = [];
-    const success: { [orderId: string]: boolean } = {};
 
     // Filling Blur listings is extremely tricky since they explicitly designed
     // their contracts so that it is not possible to fill indirectly (eg. via a
@@ -2601,21 +2563,25 @@ export class Router {
       options.partial = false;
     }
 
+    const txs: {
+      approvals: NFTApproval[];
+      txData: TxData;
+      orderIds: string[];
+    }[] = [];
+    const success: { [orderId: string]: boolean } = {};
+
     // CASE 1
     // Handle exchanges which don't have a router module implemented by filling directly
 
-    // TODO: Add Universe router module
     if (details.some(({ kind }) => kind === "universe")) {
-      if (details.length > 1) {
-        throw new Error("Universe multi-selling is not supported");
-      } else {
-        const detail = details[0];
+      for (const detail of details.filter(({ kind }) => kind === "universe")) {
         if (detail.fees?.length || options?.globalFees?.length) {
           throw new Error("Fees not supported for Universe orders");
         }
 
         // Approve Universe's Exchange contract
-        const approval = {
+        const approval: NFTApproval = {
+          orderIds: [detail.orderId],
           contract: detail.contract,
           owner: taker,
           operator: Sdk.Universe.Addresses.Exchange[this.chainId],
@@ -2628,28 +2594,52 @@ export class Router {
 
         const order = detail.order as Sdk.Universe.Order;
         const exchange = new Sdk.Universe.Exchange(this.chainId);
-        return {
-          txs: [
-            {
-              approvals: [approval],
-              txData: await exchange.fillOrderTx(taker, order, {
-                amount: Number(detail.amount ?? 1),
-                source: options?.source,
-              }),
-              orderIds: [detail.orderId],
-            },
-          ],
-          success: { [detail.orderId]: true },
-        };
+
+        txs.push({
+          approvals: [approval],
+          txData: await exchange.fillOrderTx(taker, order, {
+            amount: Number(detail.amount ?? 1),
+            source: options?.source,
+          }),
+          orderIds: [detail.orderId],
+        });
+
+        success[detail.orderId] = true;
       }
     }
 
-    const txs: {
-      approvals: NFTApproval[];
-      txData: TxData;
-      orderIds: string[];
-    }[] = [];
-    const success: { [orderId: string]: boolean } = {};
+    // TODO: Add Flow router module
+    if (details.some(({ kind }) => kind === "flow")) {
+      for (const detail of details.filter(({ kind }) => kind === "flow")) {
+        if (detail.fees?.length || options?.globalFees?.length) {
+          throw new Error("Fees not supported for Universe orders");
+        }
+
+        // Approve Universe's Exchange contract
+        const approval: NFTApproval = {
+          orderIds: [detail.orderId],
+          contract: detail.contract,
+          owner: taker,
+          operator: Sdk.Flow.Addresses.Exchange[this.chainId],
+          txData: generateNFTApprovalTxData(
+            detail.contract,
+            taker,
+            Sdk.Universe.Addresses.Exchange[this.chainId]
+          ),
+        };
+
+        const order = detail.order as Sdk.Flow.Order;
+        const exchange = new Sdk.Flow.Exchange(this.chainId);
+
+        txs.push({
+          approvals: approval ? [approval] : [],
+          txData: exchange.takeMultipleOneOrdersTx(taker, [order]),
+          orderIds: [detail.orderId],
+        });
+
+        success[detail.orderId] = true;
+      }
+    }
 
     // CASE 2
     // Handle orders which require special handling such as direct filling
@@ -2775,6 +2765,7 @@ export class Router {
 
       // Generate approval
       approvals.push({
+        orderIds: [detail.orderId],
         contract,
         owner,
         operator,
@@ -3056,59 +3047,55 @@ export class Router {
               );
 
               // Fill directly
-              return {
-                txs: [
+              txs.push({
+                txData: {
+                  from: taker,
+                  to: Sdk.SeaportV14.Addresses.Exchange[this.chainId],
+                  data: result.data.calldata + generateSourceBytes(options?.source),
+                },
+                approvals: [
                   {
-                    txData: {
-                      from: taker,
-                      to: Sdk.SeaportV14.Addresses.Exchange[this.chainId],
-                      data: result.data.calldata + generateSourceBytes(options?.source),
-                    },
-                    approvals: [
-                      {
-                        contract,
-                        owner,
-                        operator,
-                        txData: generateNFTApprovalTxData(contract, owner, operator),
-                      },
-                    ],
                     orderIds: [detail.orderId],
+                    contract,
+                    owner,
+                    operator,
+                    txData: generateNFTApprovalTxData(contract, owner, operator),
                   },
                 ],
-                success: { [detail.orderId]: true },
-              };
-            }
-
-            const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
-            executionsWithDetails.push({
-              detail,
-              execution: {
-                module: module.address,
-                data: module.interface.encodeFunctionData(
-                  detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-                  [
-                    {
-                      parameters: {
-                        ...fullOrder.params,
-                        totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                orderIds: [detail.orderId],
+              });
+            } else {
+              const fullOrder = new Sdk.SeaportV14.Order(this.chainId, result.data.order);
+              executionsWithDetails.push({
+                detail,
+                execution: {
+                  module: module.address,
+                  data: module.interface.encodeFunctionData(
+                    detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                    [
+                      {
+                        parameters: {
+                          ...fullOrder.params,
+                          totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                        },
+                        numerator: detail.amount ?? 1,
+                        denominator: fullOrder.getInfo()!.amount,
+                        signature: fullOrder.params.signature,
+                        extraData: result.data.extraData,
                       },
-                      numerator: detail.amount ?? 1,
-                      denominator: fullOrder.getInfo()!.amount,
-                      signature: fullOrder.params.signature,
-                      extraData: result.data.extraData,
-                    },
-                    result.data.criteriaResolvers ?? [],
-                    {
-                      fillTo: taker,
-                      refundTo: taker,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                    },
-                    fees,
-                  ]
-                ),
-                value: 0,
-              },
-            });
+                      result.data.criteriaResolvers ?? [],
+                      {
+                        fillTo: taker,
+                        refundTo: taker,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                      },
+                      fees,
+                    ]
+                  ),
+                  value: 0,
+                },
+              });
+            }
 
             success[detail.orderId] = true;
           } catch (error) {
@@ -3208,59 +3195,55 @@ export class Router {
               );
 
               // Fill directly
-              return {
-                txs: [
+              txs.push({
+                txData: {
+                  from: taker,
+                  to: Sdk.SeaportV15.Addresses.Exchange[this.chainId],
+                  data: result.data.calldata + generateSourceBytes(options?.source),
+                },
+                approvals: [
                   {
-                    txData: {
-                      from: taker,
-                      to: Sdk.SeaportV15.Addresses.Exchange[this.chainId],
-                      data: result.data.calldata + generateSourceBytes(options?.source),
-                    },
-                    approvals: [
-                      {
-                        contract,
-                        owner,
-                        operator,
-                        txData: generateNFTApprovalTxData(contract, owner, operator),
-                      },
-                    ],
                     orderIds: [detail.orderId],
+                    contract,
+                    owner,
+                    operator,
+                    txData: generateNFTApprovalTxData(contract, owner, operator),
                   },
                 ],
-                success: { [detail.orderId]: true },
-              };
-            }
-
-            const fullOrder = new Sdk.SeaportV15.Order(this.chainId, result.data.order);
-            executionsWithDetails.push({
-              detail,
-              execution: {
-                module: module.address,
-                data: module.interface.encodeFunctionData(
-                  detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
-                  [
-                    {
-                      parameters: {
-                        ...fullOrder.params,
-                        totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                orderIds: [detail.orderId],
+              });
+            } else {
+              const fullOrder = new Sdk.SeaportV15.Order(this.chainId, result.data.order);
+              executionsWithDetails.push({
+                detail,
+                execution: {
+                  module: module.address,
+                  data: module.interface.encodeFunctionData(
+                    detail.contractKind === "erc721" ? "acceptERC721Offer" : "acceptERC1155Offer",
+                    [
+                      {
+                        parameters: {
+                          ...fullOrder.params,
+                          totalOriginalConsiderationItems: fullOrder.params.consideration.length,
+                        },
+                        numerator: detail.amount ?? 1,
+                        denominator: fullOrder.getInfo()!.amount,
+                        signature: fullOrder.params.signature,
+                        extraData: result.data.extraData,
                       },
-                      numerator: detail.amount ?? 1,
-                      denominator: fullOrder.getInfo()!.amount,
-                      signature: fullOrder.params.signature,
-                      extraData: result.data.extraData,
-                    },
-                    result.data.criteriaResolvers ?? [],
-                    {
-                      fillTo: taker,
-                      refundTo: taker,
-                      revertIfIncomplete: Boolean(!options?.partial),
-                    },
-                    fees,
-                  ]
-                ),
-                value: 0,
-              },
-            });
+                      result.data.criteriaResolvers ?? [],
+                      {
+                        fillTo: taker,
+                        refundTo: taker,
+                        revertIfIncomplete: Boolean(!options?.partial),
+                      },
+                      fees,
+                    ]
+                  ),
+                  value: 0,
+                },
+              });
+            }
 
             success[detail.orderId] = true;
           } catch (error) {

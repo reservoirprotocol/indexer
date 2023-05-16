@@ -15,6 +15,7 @@ import { config } from "@/config/index";
 import { Boom } from "@hapi/boom";
 import tracer from "@/common/tracer";
 import flat from "flat";
+import { regex } from "@/common/utils";
 
 export type ApiKeyRecord = {
   app_name: string;
@@ -85,8 +86,16 @@ export class ApiKeyManager {
    * lookup constantly in the database, we set a temporary hash key in redis with one value { empty: true }
    *
    * @param key
+   * @param remoteAddress
+   * @param origin
+   * @param validateOriginAndIp
    */
-  public static async getApiKey(key: string): Promise<ApiKeyEntity | null> {
+  public static async getApiKey(
+    key: string,
+    remoteAddress = "",
+    origin = "",
+    validateOriginAndIp = true
+  ): Promise<ApiKeyEntity | null> {
     // Static admin API key
     if (key === config.adminApiKey) {
       return new ApiKeyEntity({
@@ -98,12 +107,20 @@ export class ApiKeyManager {
         active: true,
         tier: 5,
         permissions: {},
+        ips: [],
+        origins: [],
       });
     }
 
     const cachedApiKey = ApiKeyManager.apiKeys.get(key);
     if (cachedApiKey) {
-      return cachedApiKey;
+      if (!validateOriginAndIp) {
+        return cachedApiKey;
+      } else if (ApiKeyManager.isOriginAndIpValid(cachedApiKey, remoteAddress, origin)) {
+        return cachedApiKey;
+      }
+
+      return null;
     }
 
     // Timeout for redis
@@ -122,7 +139,11 @@ export class ApiKeyManager {
         } else {
           const apiKeyEntity = new ApiKeyEntity(JSON.parse(apiKey));
           ApiKeyManager.apiKeys.set(key, apiKeyEntity); // Set in local memory storage
-          return apiKeyEntity;
+          if (!validateOriginAndIp) {
+            return apiKeyEntity;
+          } else if (ApiKeyManager.isOriginAndIpValid(apiKeyEntity, remoteAddress, origin)) {
+            return apiKeyEntity;
+          }
         }
       } else {
         // check if it exists in the database
@@ -132,15 +153,19 @@ export class ApiKeyManager {
         );
 
         if (fromDb) {
-          Promise.race([redis.set(redisKey, JSON.stringify(fromDb)), timeout]); // Set in redis (no need to wait)
+          Promise.race([redis.set(redisKey, JSON.stringify(fromDb)), timeout]).catch(); // Set in redis (no need to wait)
           const apiKeyEntity = new ApiKeyEntity(fromDb);
           ApiKeyManager.apiKeys.set(key, apiKeyEntity); // Set in local memory storage
-          return apiKeyEntity;
+          if (!validateOriginAndIp) {
+            return apiKeyEntity;
+          } else if (ApiKeyManager.isOriginAndIpValid(apiKeyEntity, remoteAddress, origin)) {
+            return apiKeyEntity;
+          }
         } else {
           const pipeline = redis.pipeline();
           pipeline.set(redisKey, "empty");
           pipeline.expire(redisKey, 3600 * 24);
-          Promise.race([pipeline.exec(), timeout]); // Set in redis (no need to wait)
+          Promise.race([pipeline.exec(), timeout]).catch(); // Set in redis (no need to wait)
         }
       }
     } catch (error) {
@@ -148,6 +173,21 @@ export class ApiKeyManager {
     }
 
     return null;
+  }
+
+  static isOriginAndIpValid(apiKey: ApiKeyEntity, remoteAddress: string, origin: string) {
+    if (apiKey.origins && !_.isEmpty(apiKey.origins)) {
+      const hostname = origin.match(regex.origin);
+      if (!hostname || (hostname && _.indexOf(apiKey.origins, hostname[0]) === -1)) {
+        return false;
+      }
+    }
+
+    if (apiKey.ips && !_.isEmpty(apiKey.ips) && _.indexOf(apiKey.ips, remoteAddress) === -1) {
+      return false;
+    }
+
+    return true;
   }
 
   /**
@@ -256,8 +296,22 @@ export class ApiKeyManager {
 
     _.forEach(fields, (value, fieldName) => {
       if (!_.isUndefined(value)) {
-        updateString += `${_.snakeCase(fieldName)} = $/${fieldName}/,`;
-        (replacementValues as any)[fieldName] = value;
+        if (_.isArray(value)) {
+          value.forEach((v, k) => {
+            if (fieldName === "origins") {
+              const matched = v.match(regex.origin);
+              if (matched) {
+                value[k] = matched[0];
+              }
+            }
+          });
+
+          updateString += `${_.snakeCase(fieldName)} = '$/${fieldName}:raw/'::jsonb,`;
+          (replacementValues as any)[`${fieldName}`] = JSON.stringify(value);
+        } else {
+          updateString += `${_.snakeCase(fieldName)} = $/${fieldName}/,`;
+          (replacementValues as any)[fieldName] = value;
+        }
       }
     });
 

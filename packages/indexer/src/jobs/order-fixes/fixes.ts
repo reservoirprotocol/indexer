@@ -19,6 +19,7 @@ import * as x2y2Check from "@/orderbook/orders/x2y2/check";
 import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 import * as blurCheck from "@/orderbook/orders/blur/check";
 import * as nftxCheck from "@/orderbook/orders/nftx/check";
+import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
 
 const QUEUE_NAME = "order-fixes";
 
@@ -97,6 +98,33 @@ if (config.doBackgroundWork) {
                       } else {
                         return;
                       }
+                    }
+                  }
+                  break;
+                }
+
+                case "looks-rare-v2": {
+                  const order = new Sdk.LooksRareV2.Order(config.chainId, result.raw_data);
+                  try {
+                    await looksRareV2Check.offChainCheck(order, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
                     }
                   }
                   break;
@@ -284,10 +312,30 @@ if (config.doBackgroundWork) {
 
                 case "sudoswap": {
                   try {
+                    const order = new Sdk.Sudoswap.Order(config.chainId, result.raw_data);
+                    const cacheKey = `order-fixes:sudoswap:${order.params.pair}`;
+                    if (!redis.get(cacheKey)) {
+                      await redis.set(cacheKey, "locked", "EX", 3600);
+                      await orderbook.addToQueue([
+                        {
+                          kind: "sudoswap",
+                          info: {
+                            orderParams: {
+                              pool: order.params.pair,
+                              txHash: HashZero,
+                              txTimestamp: now(),
+                              txBlock: result.block_number,
+                              logIndex: result.log_index,
+                              forceRecheck: true,
+                            },
+                            metadata: {},
+                          },
+                        },
+                      ]);
+                    }
+
                     // TODO: Add support for bid validation
                     if (result.side === "sell") {
-                      const order = new Sdk.Sudoswap.Order(config.chainId, result.raw_data);
-
                       const [, contract, tokenId] = result.token_set_id.split(":");
                       const balance = await commonHelpers.getNftBalance(
                         contract,

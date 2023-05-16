@@ -59,6 +59,59 @@ export async function getBidInfoByOrderId(orderId: string) {
   return [collectionId, tokenId, tokenSetByOrderIdResult.attribute_id];
 }
 
+export async function getBidInfoByOrderIds(orderIds: string[]) {
+  const map = new Map<string, { collectionId: string; tokenId: string }>();
+  let tokenId;
+  let collectionId;
+
+  const tokenSetByOrderIdResults = await redb.manyOrNone(
+    `
+                SELECT
+                  orders.id AS "order_id",
+                  ts.id,
+                  ts.attribute_id,
+                  ts.collection_id
+                FROM orders
+                JOIN token_sets ts
+                  ON orders.token_set_id = ts.id
+                WHERE orders.id IN ($/orderIds:list/)
+            `,
+    {
+      orderIds,
+    }
+  );
+
+  if (tokenSetByOrderIdResults) {
+    for (const tokenSetByOrderIdResult of tokenSetByOrderIdResults) {
+      if (tokenSetByOrderIdResult.id.startsWith("token:")) {
+        let contract;
+
+        [, contract, tokenId] = tokenSetByOrderIdResult.id.split(":");
+
+        collectionId = await Tokens.getCollectionId(contract, tokenId);
+      } else if (tokenSetByOrderIdResult.id.startsWith("list:")) {
+        if (tokenSetByOrderIdResult.attribute_id) {
+          const attribute = await Attributes.getById(tokenSetByOrderIdResult.attribute_id);
+          collectionId = attribute?.collectionId;
+        } else {
+          collectionId = tokenSetByOrderIdResult.collection_id;
+        }
+      } else if (tokenSetByOrderIdResult.id.startsWith("range:")) {
+        const collection = await Collections.getByTokenSetId(tokenSetByOrderIdResult.id);
+        collectionId = collection?.id;
+      } else if (tokenSetByOrderIdResult.id.startsWith("dynamic:")) {
+        [, , collectionId] = tokenSetByOrderIdResult.id.split(":");
+      } else {
+        [, collectionId] = tokenSetByOrderIdResult.id.split(":");
+      }
+
+      map.set(tokenSetByOrderIdResult.order_id, { collectionId, tokenId });
+    }
+  }
+
+  return map;
+}
+
 /**
  * Return boolean result whether to update the contract activities once tokens are migrated
  * @param contract

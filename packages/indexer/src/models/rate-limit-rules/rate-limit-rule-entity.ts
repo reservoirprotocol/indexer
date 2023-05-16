@@ -50,8 +50,4 @@ export class RateLimitRuleEntity {
     this.payload = params.payload;
     this.createdAt = params.created_at;
   }
-
-  getPointsToConsume() {
-    return this.options.pointsToConsume || 10;
-  }
 }

@@ -7,6 +7,7 @@ import "@/config/polyfills";
 import "@/jobs/index";
 import "@/pubsub/index";
 import "@/websockets/index";
+import { initIndexes } from "@/elasticsearch/indexes";
 
 import { start } from "@/api/index";
 import { config } from "@/config/index";
@@ -41,6 +42,10 @@ const setup = async () => {
 
   if (config) await Sources.getInstance();
   await Sources.forceDataReload();
+
+  if (config.doElasticsearchWork) {
+    await initIndexes();
+  }
 };
 
 setup().then(() => start());

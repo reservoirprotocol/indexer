@@ -1,4 +1,6 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import { randomUUID } from "crypto";
+import _ from "lodash";
 
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
@@ -7,9 +9,6 @@ import {
   NewTopBidWebsocketEventInfo,
   NewTopBidWebsocketEvent,
 } from "@/jobs/websocket-events/events/new-top-bid-websocket-event";
-
-import { randomUUID } from "crypto";
-import _ from "lodash";
 
 const QUEUE_NAME = "new-top-bid-trigger-queue";
 

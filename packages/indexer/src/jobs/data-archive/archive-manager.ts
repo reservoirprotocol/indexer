@@ -34,20 +34,21 @@ export class ArchiveManager {
     }
   }
 
-  static async archive(archiveClass: ArchiveInterface) {
+  static async archive(archiveClass: ArchiveInterface, nextBatchTime: string | null = null) {
     const randomUuid = randomUUID();
     const filename = `${archiveClass.getTableName()}-${randomUuid}.json`;
     const filenameGzip = `${filename}.gz`;
-    let nextBatchTime;
 
-    try {
-      nextBatchTime = await archiveClass.getNextBatchStartTime();
-    } catch (error) {
-      logger.error(
-        "database-archive",
-        `Failed to get nextBatchTime for ${archiveClass.getTableName()}`
-      );
-      throw error;
+    if (!nextBatchTime) {
+      try {
+        nextBatchTime = await archiveClass.getNextBatchStartTime();
+      } catch (error) {
+        logger.error(
+          "database-archive",
+          `Failed to get nextBatchTime for ${archiveClass.getTableName()}`
+        );
+        throw error;
+      }
     }
 
     if (nextBatchTime) {

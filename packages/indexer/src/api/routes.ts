@@ -166,6 +166,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/set-api-route-points",
+    options: adminEndpoints.postSetApiRoutePoints,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/api-keys/metrics",
     options: adminEndpoints.postApiKeyMetrics,
   });
@@ -1113,6 +1119,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/search/collections/v2",
     options: searchEndpoints.getSearchCollectionsV2Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/search/activities/v1",
+    options: searchEndpoints.getSearchActivitiesV1Options,
   });
 
   // Stats
