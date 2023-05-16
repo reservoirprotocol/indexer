@@ -6,7 +6,7 @@ import {
 } from "@/jobs/websocket-events/websocket-event-router";
 
 export class IndexerApprovalEventsHandler extends KafkaEventHandler {
-  topicName = "indexer.public.nft_approvals";
+  topicName = "indexer.public.nft_approval_events";
 
   protected async handleInsert(payload: any): Promise<void> {
     if (!payload.after) {
