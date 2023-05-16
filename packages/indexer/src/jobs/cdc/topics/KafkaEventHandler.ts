@@ -1,6 +1,7 @@
 import { logger } from "@/common/logger";
 import { producer } from "..";
 import { base64ToHex, isBase64 } from "@/common/utils";
+import { getNetworkName } from "@/config/network";
 
 export abstract class KafkaEventHandler {
   abstract topicName: string;
@@ -60,7 +61,7 @@ export abstract class KafkaEventHandler {
 
   getTopics(): string[] {
     // return this topic name, as well as an error topic name and a dead letter topic name
-    return [this.topicName, `${this.topicName}-error`];
+    return [`${getNetworkName()}.${this.topicName}`, `${getNetworkName()}.${this.topicName}-error`];
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
