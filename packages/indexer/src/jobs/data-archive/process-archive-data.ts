@@ -28,12 +28,12 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const { tableName, type } = job.data;
+      const { tableName, type, nextBatchTime } = job.data;
 
       switch (tableName) {
         case "bid_events":
           // Archive bid events
-          if (await acquireLock(getLockName(tableName), 60 * 5 - 5)) {
+          if (await acquireLock(getLockName(tableName), 60 * 10 - 5)) {
             job.data.lock = true;
 
             try {
@@ -47,12 +47,15 @@ if (config.doBackgroundWork) {
 
         case "orders":
           // Archive bid events
-          if (type === "bids" && (await acquireLock(getLockName(tableName), 60 * 5 - 5))) {
+          if (
+            type === "bids" &&
+            (await acquireLock(getLockName(`${tableName}${nextBatchTime}`), 60 * 10 - 5))
+          ) {
             job.data.lock = true;
 
             try {
               const archiveBidOrders = new ArchiveBidOrders();
-              await ArchiveManager.archive(archiveBidOrders);
+              await ArchiveManager.archive(archiveBidOrders, nextBatchTime);
             } catch (error) {
               logger.error(QUEUE_NAME, `Bid orders archive errored: ${error}`);
             }
@@ -67,7 +70,7 @@ if (config.doBackgroundWork) {
   );
 
   worker.on("completed", async (job) => {
-    const { tableName, lock, type } = job.data;
+    const { tableName, lock, type, nextBatchTime } = job.data;
 
     if (lock) {
       switch (tableName) {
@@ -86,11 +89,11 @@ if (config.doBackgroundWork) {
 
         case "orders": {
           if (type === "bids") {
-            await releaseLock(getLockName(tableName)); // Release the lock
+            await releaseLock(getLockName(`${tableName}${nextBatchTime}`)); // Release the lock
 
             // Check if archiving should continue
             const archiveBidOrders = new ArchiveBidOrders();
-            if (await archiveBidOrders.continueArchive()) {
+            if (!nextBatchTime && (await archiveBidOrders.continueArchive())) {
               await addToQueue(tableName, type);
             }
           }
@@ -109,6 +112,10 @@ function getLockName(tableName: string) {
   return `${tableName}-archive-cron-lock`;
 }
 
-export const addToQueue = async (tableName: string, type = "") => {
-  await queue.add(randomUUID(), { tableName, type });
+export const addToQueue = async (
+  tableName: string,
+  type = "",
+  nextBatchTime: string | null = null
+) => {
+  await queue.add(randomUUID(), { tableName, type, nextBatchTime });
 };

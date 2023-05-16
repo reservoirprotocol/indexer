@@ -1,3 +1,4 @@
+import { arrayify } from "@ethersproject/bytes";
 import { keccak256 } from "@ethersproject/solidity";
 import { verifyMessage } from "@ethersproject/wallet";
 import * as Boom from "@hapi/boom";
@@ -32,9 +33,9 @@ export const postCancelSignatureV1Options: RouteOptions = {
         .required()
         .description("Ids of the orders to cancel"),
       orderKind: Joi.string()
-        .valid("seaport-v1.4", "alienswap", "blur-bid")
-        .default("seaport-v1.4")
-        .description("Exchange protocol used to bulk cancel order. Example: `seaport-v1.4`"),
+        .valid("seaport-v1.4", "seaport-v1.5", "alienswap", "blur-bid")
+        .required()
+        .description("Exchange protocol used to bulk cancel order. Example: `seaport-v1.5`"),
     }),
   },
   response: {
@@ -56,7 +57,6 @@ export const postCancelSignatureV1Options: RouteOptions = {
       const orderIds = payload.orderIds;
       const orderKind = payload.orderKind;
 
-      let auth = query.auth;
       switch (orderKind) {
         case "blur-bid": {
           let globalMaker: string | undefined;
@@ -76,9 +76,13 @@ export const postCancelSignatureV1Options: RouteOptions = {
             bidsByContract[contract].push(price);
           }
 
+          let auth = payload.auth;
           if (!auth) {
-            const signer = verifyMessage(keccak256(["string[]"], [orderIds.sort()]), signature);
-            if (globalMaker?.toLowerCase() !== signer.toLowerCase()) {
+            const signer = verifyMessage(
+              arrayify(keccak256(["string[]"], [orderIds.sort()])),
+              signature
+            ).toLowerCase();
+            if (globalMaker?.toLowerCase() !== signer) {
               throw Boom.unauthorized("Invalid signature");
             }
 
@@ -100,7 +104,8 @@ export const postCancelSignatureV1Options: RouteOptions = {
         }
 
         case "alienswap":
-        case "seaport-v1.4": {
+        case "seaport-v1.4":
+        case "seaport-v1.5": {
           const ordersResult = await idb.manyOrNone(
             `
               SELECT

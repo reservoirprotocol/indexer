@@ -12,6 +12,10 @@ export const MaxUint256 = BigNumber.from("0x" + "f".repeat(64));
 
 export const getRandomBytes = (numBytes = 32) => bn(randomBytes(numBytes));
 
+export const generateRandomSalt = () => {
+  return `0x${Buffer.from(randomBytes(8)).toString("hex").padStart(24, "0")}`;
+};
+
 // BigNumber
 
 export const bn = (value: BigNumberish) => BigNumber.from(value);
@@ -95,15 +99,20 @@ export type TxData = {
 };
 
 export enum Network {
+  // Mainnets
   Ethereum = 1,
-  EthereumGoerli = 5,
+  EthereumSepolia = 11155111,
   Optimism = 10,
   Bsc = 56,
   Gnosis = 100,
   Polygon = 137,
   Arbitrum = 42161,
   Avalanche = 43114,
-  // Scroll
+  // Testnets
+  EthereumGoerli = 5,
+  MiscTestnet = 999,
+  MantleTestnet = 5001,
+  LineaTestnet = 59140,
   ScrollAlpha = 534353,
 }
 

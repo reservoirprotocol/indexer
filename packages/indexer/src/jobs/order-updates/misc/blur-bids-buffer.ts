@@ -76,8 +76,9 @@ export const addToQueue = async (
   collection: string,
   pricePoints: Sdk.Blur.Types.BlurBidPricePoint[]
 ) => {
-  await Promise.all(
-    pricePoints.map((pp) => redis.hset(getCacheKey(collection), pp.price, JSON.stringify(pp)))
+  await redis.hset(
+    getCacheKey(collection),
+    ...pricePoints.map((pp) => [pp.price, JSON.stringify(pp)]).flat()
   );
 
   await queue.add(
@@ -85,9 +86,7 @@ export const addToQueue = async (
     { collection },
     {
       jobId: collection,
-      repeat: {
-        every: 5 * 1000,
-      },
+      delay: 30 * 1000,
     }
   );
 };

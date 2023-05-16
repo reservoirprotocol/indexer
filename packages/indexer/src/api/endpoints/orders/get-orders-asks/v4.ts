@@ -16,10 +16,10 @@ import {
   toBuffer,
 } from "@/common/utils";
 import { CollectionSets } from "@/models/collection-sets";
-import { Sources } from "@/models/sources";
-import { Orders } from "@/utils/orders";
-import { TokenSets } from "@/models/token-sets";
 import { ContractSets } from "@/models/contract-sets";
+import { Sources } from "@/models/sources";
+import { TokenSets } from "@/models/token-sets";
+import { Orders } from "@/utils/orders";
 
 const version = "v4";
 
@@ -94,7 +94,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           otherwise: Joi.valid("active"),
         })
         .description(
-          "active*^º = currently valid\ninactive*^ = temporarily invalid\nexpired*^, canceled*^, filled*^ = permanently invalid\nany*º = any status\n* when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
+          "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, canceledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
         ),
       source: Joi.string()
         .pattern(regex.domain)
@@ -564,6 +564,7 @@ export const getOrdersAsksV4Options: RouteOptions = {
           missingRoyalties: r.missing_royalties,
           includeDynamicPricing: query.includeDynamicPricing,
           dynamic: r.dynamic,
+          displayCurrency: query.displayCurrency,
         });
       });
 

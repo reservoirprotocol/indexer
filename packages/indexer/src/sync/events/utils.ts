@@ -234,7 +234,6 @@ export const extractAttributionData = async (
       source !== "alphasharks.io" &&
       source !== "magically.gg"
     ) {
-      // Do not associate OpenSea / Gem direct fills to Reservoir
       aggregatorSource = await sources.getOrInsert("reservoir.tools");
     } else if (source === "gem.xyz") {
       // Associate Gem direct fills to Gem
@@ -257,6 +256,12 @@ export const extractAttributionData = async (
     fillSource = router;
   } else {
     fillSource = orderSource;
+  }
+
+  const secondSource = sources.getByDomainHash("0x" + tx.data.slice(-16, -8));
+  const viaReservoir = secondSource?.domain === "reservoir.tools";
+  if (viaReservoir) {
+    aggregatorSource = secondSource;
   }
 
   return {

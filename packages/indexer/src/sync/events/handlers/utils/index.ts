@@ -13,6 +13,9 @@ import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
 import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
+import { AddressZero } from "@ethersproject/constants";
+import { NftTransferEventData } from "@/jobs/activities/transfer-activity";
+import { FillEventData } from "@/jobs/activities/sale-activity";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -163,7 +166,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       },
     };
   });
-  await processActivityEvent.addToQueue(fillActivityInfos);
+  await processActivityEvent.addActivitiesToList(fillActivityInfos);
 
   // Process transfer activities
   const transferActivityInfos: processActivityEvent.EventInfo[] = data.nftTransferEvents.map(
@@ -186,8 +189,27 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
         batchIndex: event.baseEventParams.batchIndex,
         blockHash: event.baseEventParams.blockHash,
         timestamp: event.baseEventParams.timestamp,
-      },
+      } as NftTransferEventData,
     })
   );
-  await processActivityEvent.addToQueue(transferActivityInfos);
+
+  const filteredTransferActivityInfos = transferActivityInfos.filter((transferActivityInfo) => {
+    const transferActivityInfoData = transferActivityInfo.data as NftTransferEventData;
+
+    if (transferActivityInfoData.fromAddress !== AddressZero) {
+      return true;
+    }
+
+    return !fillActivityInfos.some((fillActivityInfo) => {
+      const fillActivityInfoData = fillActivityInfo.data as FillEventData;
+
+      return (
+        fillActivityInfoData.transactionHash === transferActivityInfoData.transactionHash &&
+        fillActivityInfoData.logIndex === transferActivityInfoData.logIndex &&
+        fillActivityInfoData.batchIndex === transferActivityInfoData.batchIndex
+      );
+    });
+  });
+
+  await processActivityEvent.addActivitiesToList(filteredTransferActivityInfos);
 };

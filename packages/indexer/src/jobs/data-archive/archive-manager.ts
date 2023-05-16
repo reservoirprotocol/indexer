@@ -34,12 +34,22 @@ export class ArchiveManager {
     }
   }
 
-  static async archive(archiveClass: ArchiveInterface) {
+  static async archive(archiveClass: ArchiveInterface, nextBatchTime: string | null = null) {
     const randomUuid = randomUUID();
     const filename = `${archiveClass.getTableName()}-${randomUuid}.json`;
     const filenameGzip = `${filename}.gz`;
 
-    const nextBatchTime = await archiveClass.getNextBatchStartTime();
+    if (!nextBatchTime) {
+      try {
+        nextBatchTime = await archiveClass.getNextBatchStartTime();
+      } catch (error) {
+        logger.error(
+          "database-archive",
+          `Failed to get nextBatchTime for ${archiveClass.getTableName()}`
+        );
+        throw error;
+      }
+    }
 
     if (nextBatchTime) {
       const s3Bucket = `${
@@ -72,7 +82,16 @@ export class ArchiveManager {
         return;
       }
 
-      const count = await archiveClass.generateJsonFile(filename, startTime, endTime);
+      let count;
+      try {
+        count = await archiveClass.generateJsonFile(filename, startTime, endTime);
+      } catch (error) {
+        logger.error(
+          "database-archive",
+          `Failed to generate JSON file ${archiveClass.getTableName()} [${startTime} to ${endTime}]`
+        );
+        throw error;
+      }
 
       // If not records were found
       if (count === 0) {

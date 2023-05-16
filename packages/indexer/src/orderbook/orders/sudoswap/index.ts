@@ -28,6 +28,8 @@ export type OrderInfo = {
     txTimestamp: number;
     txBlock: number;
     logIndex: number;
+    // Misc options
+    forceRecheck?: boolean;
   };
   metadata: OrderMetadata;
 };
@@ -61,6 +63,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       if (pool.token !== Sdk.Common.Addresses.Eth[config.chainId]) {
         throw new Error("Unsupported currency");
       }
+
+      // Force recheck at most once per hour
+      const recheckCondition = orderParams.forceRecheck
+        ? `AND orders.updated_at < to_timestamp(${orderParams.txTimestamp - 3600})`
+        : `AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})`;
 
       const poolContract = new Contract(
         pool.address,
@@ -282,7 +289,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     block_number = $/blockNumber/,
                     log_index = $/logIndex/
                   WHERE orders.id = $/id/
-                    AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
+                  ${recheckCondition}
                 `,
                 {
                   id,
@@ -316,7 +323,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   expiration = to_timestamp(${orderParams.txTimestamp}),
                   updated_at = now()
                 WHERE orders.id = $/id/
-                  AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
+                ${recheckCondition}
               `,
               { id }
             );
@@ -511,7 +518,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                           block_number = $/blockNumber/,
                           log_index = $/logIndex/
                         WHERE orders.id = $/id/
-                          AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
+                        ${recheckCondition}
                       `,
                       {
                         id,

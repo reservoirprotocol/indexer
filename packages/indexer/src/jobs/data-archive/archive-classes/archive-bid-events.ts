@@ -17,7 +17,6 @@ export class ArchiveBidEvents implements ArchiveInterface {
         SELECT created_at
         FROM ${ArchiveBidEvents.tableName}
         WHERE created_at < current_date - INTERVAL '${ArchiveBidEvents.maxAgeDay} days'
-        ORDER BY created_at ASC
         LIMIT 1
       `;
 
@@ -56,8 +55,7 @@ export class ArchiveBidEvents implements ArchiveInterface {
       const query = `
             SELECT *
             FROM ${ArchiveBidEvents.tableName}
-            WHERE created_at < current_date - INTERVAL '${ArchiveBidEvents.maxAgeDay} days'
-            AND created_at >= '${startTime}'
+            WHERE created_at >= '${startTime}'
             AND created_at < '${endTime}'
             ${continuation}
             ORDER BY created_at ASC, id ASC
@@ -112,8 +110,7 @@ export class ArchiveBidEvents implements ArchiveInterface {
             WHERE id IN (
               SELECT id
               FROM ${ArchiveBidEvents.tableName}
-              WHERE created_at < current_date - INTERVAL '${ArchiveBidEvents.maxAgeDay} days'
-              AND created_at >= '${startTime}'
+              WHERE created_at >= '${startTime}'
               AND created_at < '${endTime}'
               LIMIT ${limit}
             )

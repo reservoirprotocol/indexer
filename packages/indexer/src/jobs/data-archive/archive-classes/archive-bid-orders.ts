@@ -19,7 +19,6 @@ export class ArchiveBidOrders implements ArchiveInterface {
         WHERE updated_at < current_date - INTERVAL '${ArchiveBidOrders.maxAgeDay} days'
         AND side = 'buy'
         AND fillability_status = 'expired'
-        ORDER BY updated_at ASC
         LIMIT 1
       `;
 
@@ -58,8 +57,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
       const query = `
             SELECT *
             FROM ${ArchiveBidOrders.tableName}
-            WHERE updated_at < current_date - INTERVAL '${ArchiveBidOrders.maxAgeDay} days'
-            AND updated_at >= '${startTime}'
+            WHERE updated_at >= '${startTime}'
             AND updated_at < '${endTime}'
             AND side = 'buy'
             AND fillability_status = 'expired'
@@ -93,9 +91,9 @@ export class ArchiveBidOrders implements ArchiveInterface {
 
       count += _.size(records);
 
-      continuation = `AND updated_at > '${_.last(records)?.updated_at}' AND id > '${
+      continuation = `AND (updated_at, id) > ('${_.last(records)?.updated_at}', '${
         _.last(records)?.id
-      }'`;
+      }')`;
     } while (limit === _.size(records));
 
     // Close Stream
@@ -121,8 +119,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
             WHERE id IN (
               SELECT id
               FROM ${ArchiveBidOrders.tableName}
-              WHERE updated_at < current_date - INTERVAL '${ArchiveBidOrders.maxAgeDay} days'
-              AND updated_at >= '${startTime}'
+              WHERE updated_at >= '${startTime}'
               AND updated_at < '${endTime}'
               AND side = 'buy'
               AND fillability_status = 'expired'

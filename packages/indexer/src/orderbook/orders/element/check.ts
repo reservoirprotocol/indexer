@@ -33,11 +33,13 @@ export const offChainCheck = async (
     throw new Error("invalid-target");
   }
 
+  const orderKind = kind === "erc1155" ? "element-erc1155" : "element-erc721";
+
   const nftAmount =
     kind === "erc721" ? "1" : (order.params as Sdk.Element.Types.BaseOrder).nftAmount!;
   if (options?.checkFilledOrCancelled) {
     // Check: order is not cancelled
-    const cancelled = await commonHelpers.isOrderCancelled(id, `element-${kind}`);
+    const cancelled = await commonHelpers.isOrderCancelled(id, orderKind);
     if (cancelled) {
       throw new Error("cancelled");
     }
@@ -51,7 +53,7 @@ export const offChainCheck = async (
 
   // Check: order's nonce was not individually cancelled
   const nonceCancelled = await commonHelpers.isNonceCancelled(
-    `element-${kind}`,
+    orderKind,
     order.params.maker,
     order.params.nonce!.toString()
   );

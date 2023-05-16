@@ -10,6 +10,7 @@ export type RateLimitRuleUpdateParams = {
 export type RateLimitRuleOptions = {
   keyPrefix?: string | undefined;
   points?: number | undefined;
+  pointsToConsume?: number | undefined;
   duration?: number | undefined;
 };
 

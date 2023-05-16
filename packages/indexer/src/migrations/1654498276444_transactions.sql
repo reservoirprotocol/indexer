@@ -16,6 +16,9 @@ ALTER TABLE "transactions"
 CREATE INDEX "transactions_to_index"
   ON "transactions" ("to");
 
+CREATE INDEX "transactions_data_4bytes_index"
+  ON "transactions" (substring("data" FROM length("data") - 3));
+
 -- Down Migration
 
 DROP TABLE "transactions";

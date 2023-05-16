@@ -32,7 +32,6 @@ import "@/jobs/token-set-updates";
 
 import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as processActivityBackfillEvent from "@/jobs/activities/process-activity-event-backfill";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
 import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
@@ -48,7 +47,7 @@ import * as backfillNftBalancesLastTokenAppraisalValue from "@/jobs/backfill/bac
 import * as backfillCancelEventsCreatedAt from "@/jobs/backfill/backfill-cancel-events-created-at";
 import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
 import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
-
+import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
 import * as collectionsRefresh from "@/jobs/collections-refresh/collections-refresh";
@@ -118,9 +117,13 @@ import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-que
 import * as oracleOrdersCron from "@/jobs/order-updates/cron/oracle-orders-queue";
 import * as blurBidsBufferMisc from "@/jobs/order-updates/misc/blur-bids-buffer";
 import * as blurBidsRefreshMisc from "@/jobs/order-updates/misc/blur-bids-refresh";
+import * as saveBidEvents from "@/jobs/order-updates/save-bid-events";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
-import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external";
+import * as orderbookOrdersV2 from "@/jobs/orderbook/orders-queue-v2";
+import * as orderbookPostOrderExternal from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-queue";
+import * as orderbookPostOrderExternalOpensea from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
+
 import * as orderbookTokenSets from "@/jobs/orderbook/token-sets-queue";
 import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
 import * as orderbookSaveOpenseaWebsocketEvents from "@/jobs/orderbook/save-opensea-websocket-events-queue";
@@ -151,6 +154,11 @@ import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as openseaOrdersFetchQueue from "@/jobs/opensea-orders/fetch-queue";
 
+import * as backfillTransferActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-transfer-activities-elasticsearch";
+import * as backfillSaleActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-sale-activities-elasticsearch";
+import * as backfillAskActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-ask-activities-elasticsearch";
+import * as backfillBidActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-activities-elasticsearch";
+
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
   orderUpdatesBuyOrder.worker,
@@ -168,7 +176,6 @@ export const gracefulShutdownJobWorkers = [
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,
   processActivityEvent.queue,
-  processActivityBackfillEvent.queue,
   removeUnsyncedEventsActivities.queue,
 
   backfillBlockTimestamps.queue,
@@ -184,6 +191,7 @@ export const allJobQueues = [
   backfillCancelEventsCreatedAt.queue,
   backfillNftTransferEventsCreatedAt.queue,
   backfillCollectionsRoyalties.queue,
+  backfillWrongNftBalances.queue,
 
   currencies.queue,
 
@@ -256,9 +264,13 @@ export const allJobQueues = [
   oracleOrdersCron.queue,
   blurBidsBufferMisc.queue,
   blurBidsRefreshMisc.queue,
+  saveBidEvents.queue,
 
   orderbookOrders.queue,
+  orderbookOrdersV2.queue,
+
   orderbookPostOrderExternal.queue,
+  orderbookPostOrderExternalOpensea.queue,
   orderbookTokenSets.queue,
   orderbookOpenseaListings.queue,
   orderbookSaveOpenseaWebsocketEvents.queue,
@@ -289,4 +301,9 @@ export const allJobQueues = [
 
   openseaOrdersProcessQueue.queue,
   openseaOrdersFetchQueue.queue,
+
+  backfillTransferActivitiesElasticsearch.queue,
+  backfillSaleActivitiesElasticsearch.queue,
+  backfillAskActivitiesElasticsearch.queue,
+  backfillBidActivitiesElasticsearch.queue,
 ];

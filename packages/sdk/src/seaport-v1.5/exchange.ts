@@ -9,6 +9,7 @@ import axios from "axios";
 import { MerkleTree } from "merkletreejs";
 
 import * as Addresses from "./addresses";
+import * as BaseAddresses from "../seaport-base/addresses";
 import { ORDER_EIP712_TYPES, IOrder } from "../seaport-base/order";
 import * as Types from "../seaport-base/types";
 import { bn } from "../utils";
@@ -24,7 +25,7 @@ export class Exchange extends SeaportBaseExchange {
   constructor(chainId: number) {
     super(chainId);
     this.exchangeAddress = Addresses.Exchange[chainId];
-    this.cancellationZoneAddress = Addresses.CancellationZone[chainId];
+    this.cancellationZoneAddress = BaseAddresses.ReservoirCancellationZone[chainId];
     this.contract = new Contract(this.exchangeAddress, ExchangeAbi);
   }
 

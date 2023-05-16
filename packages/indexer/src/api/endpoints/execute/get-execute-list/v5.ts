@@ -26,11 +26,8 @@ import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
 
 import * as seaportBaseCheck from "@/orderbook/orders/seaport-base/check";
 
-// Seaport
-import * as seaportSellToken from "@/orderbook/orders/seaport-v1.1/build/sell/token";
-
-// Seaport v1.4
-import * as seaportV14SellToken from "@/orderbook/orders/seaport-v1.4/build/sell/token";
+// Seaport v1.5
+import * as seaportV15SellToken from "@/orderbook/orders/seaport-v1.5/build/sell/token";
 
 // Alienswap
 import * as alienswapSellToken from "@/orderbook/orders/alienswap/build/sell/token";
@@ -56,7 +53,7 @@ const version = "v5";
 export const getExecuteListV5Options: RouteOptions = {
   description: "Create asks (listings)",
   notes:
-    "Generate listings and submit them to multiple marketplaces. Please use the `/cross-posting-orders/v1` to check the status on cross posted bids.\n We recommend using Reservoir SDK as it abstracts the process of iterating through steps, and returning callbacks that can be used to update your UI.",
+    "Generate listings and submit them to multiple marketplaces.\n\n Notes:\n\n- Please use the `/cross-posting-orders/v1` to check the status on cross posted bids.\n\n- We recommend using Reservoir SDK as it abstracts the process of iterating through steps, and returning callbacks that can be used to update your UI.",
   tags: ["api", "Create Orders (list & bid)"],
   plugins: {
     "hapi-swagger": {
@@ -104,15 +101,25 @@ export const getExecuteListV5Options: RouteOptions = {
               "zeroex-v4",
               "seaport",
               "seaport-v1.4",
+              "seaport-v1.5",
               "x2y2",
               "universe",
               "flow",
               "alienswap"
             )
-            .default("seaport-v1.4")
-            .description("Exchange protocol used to create order. Example: `seaport-v1.4`"),
+            .default("seaport-v1.5")
+            .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
           options: Joi.object({
             "seaport-v1.4": Joi.object({
+              conduitKey: Joi.string().pattern(regex.bytes32),
+              useOffChainCancellation: Joi.boolean().required(),
+              replaceOrderId: Joi.string().when("useOffChainCancellation", {
+                is: true,
+                then: Joi.optional(),
+                otherwise: Joi.forbidden(),
+              }),
+            }),
+            "seaport-v1.5": Joi.object({
               conduitKey: Joi.string().pattern(regex.bytes32),
               useOffChainCancellation: Joi.boolean().required(),
               replaceOrderId: Joi.string().when("useOffChainCancellation", {
@@ -171,14 +178,20 @@ export const getExecuteListV5Options: RouteOptions = {
     schema: Joi.object({
       steps: Joi.array().items(
         Joi.object({
-          id: Joi.string().required(),
-          kind: Joi.string().valid("request", "signature", "transaction").required(),
+          id: Joi.string().required().description("Returns `nft-approval` or `order-signature`"),
+          kind: Joi.string()
+            .valid("request", "signature", "transaction")
+            .required()
+            .description("Returns `request`, `signature`, or `transaction`."),
           action: Joi.string().required(),
           description: Joi.string().required(),
           items: Joi.array()
             .items(
               Joi.object({
-                status: Joi.string().valid("complete", "incomplete").required(),
+                status: Joi.string()
+                  .valid("complete", "incomplete")
+                  .required()
+                  .description("Returns `complete` or `incomplete`."),
                 tip: Joi.string(),
                 data: Joi.object(),
                 orderIndexes: Joi.array().items(Joi.number()),
@@ -273,9 +286,9 @@ export const getExecuteListV5Options: RouteOptions = {
       ];
 
       const bulkOrders = {
-        "seaport-v1.4": [] as {
+        "seaport-v1.5": [] as {
           order: {
-            kind: "seaport-v1.4";
+            kind: "seaport-v1.5";
             data: Sdk.SeaportBase.Types.OrderComponents;
           };
           orderbook: string;
@@ -283,7 +296,6 @@ export const getExecuteListV5Options: RouteOptions = {
           source?: string;
           orderIndex: number;
         }[],
-
         alienswap: [] as {
           order: {
             kind: "alienswap";
@@ -359,9 +371,12 @@ export const getExecuteListV5Options: RouteOptions = {
         params.map(async (params, i) => {
           const [contract, tokenId] = params.token.split(":");
 
-          // Force usage of seaport-v1.4
+          // Force usage of seaport-v1.5
           if (params.orderKind === "seaport") {
-            params.orderKind = "seaport-v1.4";
+            params.orderKind = "seaport-v1.5";
+          }
+          if (params.orderKind === "seaport-v1.4") {
+            params.orderKind = "seaport-v1.5";
           }
           // Force usage of looks-rare-v2
           if (params.orderKind === "looks-rare") {
@@ -370,8 +385,7 @@ export const getExecuteListV5Options: RouteOptions = {
 
           // For now, ERC20 listings are only supported on Seaport
           if (
-            params.orderKind !== "seaport" &&
-            params.orderKind !== "seaport-v1.4" &&
+            params.orderKind !== "seaport-v1.5" &&
             params.currency !== Sdk.Common.Addresses.Eth[config.chainId]
           ) {
             return errors.push({ message: "Unsupported currency", orderIndex: i });
@@ -623,86 +637,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 break;
               }
 
-              case "seaport": {
-                if (!["reservoir"].includes(params.orderbook)) {
-                  return errors.push({ message: "Unsupported orderbook", orderIndex: i });
-                }
-
-                const order = await seaportSellToken.build({
-                  ...params,
-                  orderbook: params.orderbook as "opensea" | "reservoir",
-                  maker,
-                  contract,
-                  tokenId,
-                  source,
-                });
-
-                // Will be set if an approval is needed before listing
-                let approvalTx: TxData | undefined;
-
-                // Check the order's fillability
-                const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
-                try {
-                  await seaportBaseCheck.offChainCheck(order, "seaport", exchange, {
-                    onChainApprovalRecheck: true,
-                  });
-                } catch (error: any) {
-                  switch (error.message) {
-                    case "no-balance-no-approval":
-                    case "no-balance": {
-                      return errors.push({ message: "Maker does not own token", orderIndex: i });
-                    }
-
-                    case "no-approval": {
-                      // Generate an approval transaction
-                      const info = order.getInfo()!;
-
-                      const kind = order.params.kind?.startsWith("erc721") ? "erc721" : "erc1155";
-                      approvalTx = (
-                        kind === "erc721"
-                          ? new Sdk.Common.Helpers.Erc721(baseProvider, info.contract)
-                          : new Sdk.Common.Helpers.Erc1155(baseProvider, info.contract)
-                      ).approveTransaction(maker, exchange.deriveConduit(order.params.conduitKey));
-
-                      break;
-                    }
-                  }
-                }
-
-                steps[1].items.push({
-                  status: approvalTx ? "incomplete" : "complete",
-                  data: approvalTx,
-                  orderIndexes: [i],
-                });
-                steps[2].items.push({
-                  status: "incomplete",
-                  data: {
-                    sign: order.getSignatureData(),
-                    post: {
-                      endpoint: "/order/v3",
-                      method: "POST",
-                      body: {
-                        order: {
-                          kind: params.orderKind,
-                          data: {
-                            ...order.params,
-                          },
-                        },
-                        orderbook: params.orderbook,
-                        orderbookApiKey: params.orderbookApiKey,
-                        source,
-                      },
-                    },
-                  },
-                  orderIndexes: [i],
-                });
-
-                addExecution(order.hash(), params.quantity);
-
-                break;
-              }
-
-              case "seaport-v1.4": {
+              case "seaport-v1.5": {
                 if (!["reservoir", "opensea"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
@@ -718,7 +653,8 @@ export const getExecuteListV5Options: RouteOptions = {
                   );
                 }
 
-                const options = params.options?.[params.orderKind] as
+                const options = (params.options?.["seaport-v1.4"] ??
+                  params.options?.["seaport-v1.5"]) as
                   | {
                       conduitKey?: string;
                       useOffChainCancellation?: boolean;
@@ -726,7 +662,7 @@ export const getExecuteListV5Options: RouteOptions = {
                     }
                   | undefined;
 
-                const order = await seaportV14SellToken.build({
+                const order = await seaportV15SellToken.build({
                   ...params,
                   ...options,
                   orderbook: params.orderbook as "reservoir" | "opensea",
@@ -742,7 +678,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 // Check the order's fillability
                 const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
                 try {
-                  await seaportBaseCheck.offChainCheck(order, "seaport-v1.4", exchange, {
+                  await seaportBaseCheck.offChainCheck(order, "seaport-v1.5", exchange, {
                     onChainApprovalRecheck: true,
                   });
                 } catch (error: any) {
@@ -774,7 +710,7 @@ export const getExecuteListV5Options: RouteOptions = {
                   orderIndexes: [i],
                 });
 
-                bulkOrders["seaport-v1.4"].push({
+                bulkOrders["seaport-v1.5"].push({
                   order: {
                     kind: params.orderKind,
                     data: {
@@ -1057,7 +993,7 @@ export const getExecuteListV5Options: RouteOptions = {
               }
 
               case "universe": {
-                if (!["universe"].includes(params.orderbook)) {
+                if (!["reservoir"].includes(params.orderbook)) {
                   return errors.push({ message: "Unsupported orderbook", orderIndex: i });
                 }
 
@@ -1143,11 +1079,11 @@ export const getExecuteListV5Options: RouteOptions = {
         })
       );
 
-      // Post any seaport-v1.4 bulk orders together
+      // Post any seaport-v1.5 bulk orders together
       {
-        const orders = bulkOrders["seaport-v1.4"];
+        const orders = bulkOrders["seaport-v1.5"];
         if (orders.length === 1) {
-          const order = new Sdk.SeaportV14.Order(config.chainId, orders[0].order.data);
+          const order = new Sdk.SeaportV15.Order(config.chainId, orders[0].order.data);
           steps[2].items.push({
             status: "incomplete",
             data: {
@@ -1157,7 +1093,7 @@ export const getExecuteListV5Options: RouteOptions = {
                 method: "POST",
                 body: {
                   order: {
-                    kind: "seaport-v1.4",
+                    kind: "seaport-v1.5",
                     data: {
                       ...order.params,
                     },
@@ -1171,9 +1107,9 @@ export const getExecuteListV5Options: RouteOptions = {
             orderIndexes: [orders[0].orderIndex],
           });
         } else if (orders.length > 1) {
-          const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+          const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
           const { signatureData, proofs } = exchange.getBulkSignatureDataWithProofs(
-            orders.map((o) => new Sdk.SeaportV14.Order(config.chainId, o.order.data))
+            orders.map((o) => new Sdk.SeaportV15.Order(config.chainId, o.order.data))
           );
 
           steps[2].items.push({
@@ -1189,7 +1125,7 @@ export const getExecuteListV5Options: RouteOptions = {
                     orderbook: o.orderbook,
                     orderbookApiKey: o.orderbookApiKey,
                     bulkData: {
-                      kind: "seaport-v1.4",
+                      kind: "seaport-v1.5",
                       data: {
                         orderIndex: i,
                         merkleProof: proofs[i],

@@ -1,19 +1,18 @@
-import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import * as Sdk from "@reservoir0x/sdk";
+import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import { randomUUID } from "crypto";
 import _ from "lodash";
 
 import { idb } from "@/common/db";
 import { getJoiPriceObject } from "@/common/joi";
-import { fromBuffer, getNetAmount } from "@/common/utils";
-import { Sources } from "@/models/sources";
-import { SourcesEntity } from "@/models/sources/sources-entity";
-import { redisWebsocketPublisher } from "@/common/redis";
-import { Orders } from "@/utils/orders";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
+import { fromBuffer, getNetAmount } from "@/common/utils";
+import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { config } from "@/config/index";
-
-import { randomUUID } from "crypto";
+import { Sources } from "@/models/sources";
+import { SourcesEntity } from "@/models/sources/sources-entity";
+import { Orders } from "@/utils/orders";
 
 const QUEUE_NAME = "ask-websocket-events-trigger-queue";
 
@@ -44,48 +43,51 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
         const rawResult = await idb.oneOrNone(
           `
-            SELECT orders.id,
-            orders.kind,
-            orders.side,
-            orders.token_set_id,
-            orders.token_set_schema_hash,
-            orders.contract,
-            orders.maker,
-            orders.taker,
-            orders.currency,
-            orders.price,
-            orders.value,
-            orders.currency_price,
-            orders.currency_value,
-            orders.normalized_value,
-            orders.currency_normalized_value,
-            orders.missing_royalties,
-            orders.nonce,
-            DYNAMIC,
-            DATE_PART('epoch', LOWER(orders.valid_between)) AS valid_from,
-            COALESCE(NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'), 0) AS valid_until,
-            orders.source_id_int,
-            orders.quantity_filled,
-            orders.quantity_remaining,
-            coalesce(orders.fee_bps, 0) AS fee_bps,
-            orders.fee_breakdown,
-            COALESCE(NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'), 0) AS expiration,
-            orders.is_reservoir,
-            orders.created_at,
-            orders.updated_at,
-            (
-            CASE
-              WHEN orders.fillability_status = 'filled' THEN 'filled'
-              WHEN orders.fillability_status = 'cancelled' THEN 'cancelled'
-              WHEN orders.fillability_status = 'expired' THEN 'expired'
-              WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
-              WHEN orders.approval_status = 'no-approval' THEN 'inactive'
-              ELSE 'active'
-            END
-          ) AS status,
-            (${criteriaBuildQuery}) AS criteria
-          FROM orders
-          WHERE orders.id = $/orderId/`,
+            SELECT
+              orders.id,
+              orders.kind,
+              orders.side,
+              orders.token_set_id,
+              orders.token_set_schema_hash,
+              orders.contract,
+              orders.maker,
+              orders.taker,
+              orders.currency,
+              orders.price,
+              orders.value,
+              orders.currency_price,
+              orders.currency_value,
+              orders.normalized_value,
+              orders.currency_normalized_value,
+              orders.missing_royalties,
+              orders.nonce,
+              orders.dynamic,
+              DATE_PART('epoch', LOWER(orders.valid_between)) AS valid_from,
+              COALESCE(NULLIF(DATE_PART('epoch', UPPER(orders.valid_between)), 'Infinity'), 0) AS valid_until,
+              orders.source_id_int,
+              orders.quantity_filled,
+              orders.quantity_remaining,
+              coalesce(orders.fee_bps, 0) AS fee_bps,
+              orders.fee_breakdown,
+              COALESCE(NULLIF(DATE_PART('epoch', orders.expiration), 'Infinity'), 0) AS expiration,
+              orders.is_reservoir,
+              orders.raw_data,
+              orders.created_at,
+              orders.updated_at,
+              (
+                CASE
+                  WHEN orders.fillability_status = 'filled' THEN 'filled'
+                  WHEN orders.fillability_status = 'cancelled' THEN 'cancelled'
+                  WHEN orders.fillability_status = 'expired' THEN 'expired'
+                  WHEN orders.fillability_status = 'no-balance' THEN 'inactive'
+                  WHEN orders.approval_status = 'no-approval' THEN 'inactive'
+                  ELSE 'active'
+                END
+              ) AS status,
+              (${criteriaBuildQuery}) AS criteria
+            FROM orders
+            WHERE orders.id = $/orderId/
+          `,
           { orderId: data.orderId }
         );
 
@@ -138,7 +140,6 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           validUntil: Number(rawResult.valid_until),
           quantityFilled: Number(rawResult.quantity_filled),
           quantityRemaining: Number(rawResult.quantity_remaining),
-
           criteria: rawResult.criteria,
           source: {
             id: source?.address,
@@ -159,16 +160,14 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
         const eventType = data.kind === "new-order" ? "ask.created" : "ask.updated";
 
-        await redisWebsocketPublisher.publish(
-          "events",
-          JSON.stringify({
-            event: eventType,
-            tags: {
-              contract: fromBuffer(rawResult.contract),
-            },
-            data: result,
-          })
-        );
+        await publishWebsocketEvent({
+          event: eventType,
+          tags: {
+            contract: fromBuffer(rawResult.contract),
+            source: result.source.domain || "unknown",
+          },
+          data: result,
+        });
       } catch (error) {
         logger.error(
           QUEUE_NAME,

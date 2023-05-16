@@ -1,4 +1,6 @@
 import { BigNumber } from "@ethersproject/bignumber";
+import { AddressZero } from "@ethersproject/constants";
+import { keccak256 } from "@ethersproject/solidity";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
@@ -16,7 +18,7 @@ import { config } from "@/config/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Sources } from "@/models/sources";
 import { OrderKind, generateListingDetailsV6 } from "@/orderbook/orders";
-import { fillErrorCallback } from "@/orderbook/orders/errors";
+import { fillErrorCallback, getExecuteError } from "@/orderbook/orders/errors";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 import * as nftx from "@/orderbook/orders/nftx";
 import * as sudoswap from "@/orderbook/orders/sudoswap";
@@ -32,7 +34,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
   description: "Buy tokens (fill listings)",
   tags: ["api", "Fill Orders (buy & sell)"],
   timeout: {
-    server: 20 * 1000,
+    server: 40 * 1000,
   },
   plugins: {
     "hapi-swagger": {
@@ -57,6 +59,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 .valid(
                   "opensea",
                   "blur",
+                  "blur-partial",
                   "looks-rare",
                   "zeroex-v4",
                   "seaport",
@@ -158,7 +161,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: Joi.array()
             .items(
               Joi.object({
-                status: Joi.string().valid("complete", "incomplete").required(),
+                status: Joi.string()
+                  .valid("complete", "incomplete")
+                  .required()
+                  .description("Response is `complete` or `incomplete`."),
                 tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
@@ -178,15 +184,21 @@ export const getExecuteBuyV7Options: RouteOptions = {
           orderId: Joi.string(),
           contract: Joi.string().lowercase().pattern(regex.address),
           tokenId: Joi.string().lowercase().pattern(regex.number),
-          quantity: Joi.number().unsafe(),
+          quantity: Joi.number().unsafe().description("Can be higher than 1 if erc1155"),
           source: Joi.string().allow("", null),
           currency: Joi.string().lowercase().pattern(regex.address),
+          currencySymbol: Joi.string().optional(),
+          currencyDecimals: Joi.number().optional(),
           quote: Joi.number().unsafe(),
           rawQuote: Joi.string().pattern(regex.number),
           buyInQuote: Joi.number().unsafe(),
           buyInRawQuote: Joi.string().pattern(regex.number),
-          builtInFees: Joi.array().items(JoiExecuteFee),
-          feesOnTop: Joi.array().items(JoiExecuteFee),
+          totalPrice: Joi.number().unsafe(),
+          totalRawPrice: Joi.string().pattern(regex.number),
+          builtInFees: Joi.array()
+            .items(JoiExecuteFee)
+            .description("Can be marketplace fees or royalties"),
+          feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
         })
       ),
     }).label(`getExecuteBuy${version.toUpperCase()}Response`),
@@ -219,10 +231,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
         quantity: number;
         source: string | null;
         currency: string;
+        currencySymbol?: string;
+        currencyDecimals?: number;
+        // Gross price (without fees on top) = price
         quote: number;
         rawQuote: string;
         buyInQuote?: number;
         buyInRawQuote?: string;
+        // Total price (with fees on top) = price + feesOnTop
+        totalPrice?: number;
+        totalRawPrice?: string;
         builtInFees: ExecuteFee[];
         feesOnTop: ExecuteFee[];
       }[] = [];
@@ -238,6 +256,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
       // TODO: Also keep track of the maker's allowance per exchange
 
       const sources = await Sources.getInstance();
+
+      // Save the fill source if it doesn't exist yet
+      if (payload.source) {
+        await sources.getOrInsert(payload.source);
+      }
+
       const addToPath = async (
         order: {
           id: string;
@@ -319,6 +343,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
           quantity,
           source: order.sourceId !== null ? sources.get(order.sourceId)?.domain ?? null : null,
           currency: order.currency,
+          currencySymbol: currency.symbol,
+          currencyDecimals: currency.decimals,
           quote: formatPrice(totalPrice, currency.decimals, true),
           rawQuote: totalPrice.toString(),
           builtInFees: builtInFees.map((f) => {
@@ -407,6 +433,27 @@ export const getExecuteBuyV7Options: RouteOptions = {
             item.orderId = sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId);
           } else if (order.kind === "nftx") {
             item.orderId = nftx.getOrderId(order.data.pool, "sell", order.data.specificIds[0]);
+          } else if (order.kind === "blur-partial") {
+            await addToPath(
+              {
+                id: keccak256(
+                  ["string", "address", "uint256"],
+                  ["blur", order.data.contract, order.data.tokenId]
+                ),
+                kind: "blur",
+                maker: AddressZero,
+                price: order.data.price,
+                sourceId: sources.getByDomain("blur.io")?.id ?? null,
+                currency: Sdk.Common.Addresses.Eth[config.chainId],
+                rawData: order.data,
+                builtInFees: [],
+              },
+              {
+                kind: "erc721",
+                contract: order.data.contract,
+                tokenId: order.data.tokenId,
+              }
+            );
           } else {
             const response = await inject({
               method: "POST",
@@ -444,6 +491,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 orders.missing_royalties,
                 orders.maker,
                 orders.fee_breakdown,
+                orders.fillability_status,
+                orders.approval_status,
+                orders.quantity_remaining,
                 token_sets_tokens.contract,
                 token_sets_tokens.token_id
               FROM orders
@@ -453,24 +503,64 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 ON orders.token_set_id = token_sets_tokens.token_set_id
               WHERE orders.id = $/id/
                 AND orders.side = 'sell'
-                AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
-                AND orders.quantity_remaining >= $/quantity/
-                ${
-                  payload.allowInactiveOrderIds
-                    ? ""
-                    : " AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'"
-                }
+                AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL OR orders.taker = $/taker/)
             `,
             {
+              taker: toBuffer(payload.taker),
               id: item.orderId,
-              quantity: item.quantity,
             }
           );
+
+          let error: string | undefined;
           if (!result) {
+            error = "No fillable orders";
+          } else {
+            // Check fillability
+            if (!error && !payload.allowInactiveOrderIds) {
+              if (
+                result.fillability_status === "no-balance" ||
+                result.approval_status === "no-approval"
+              ) {
+                error = "Order is inactive (insufficient balance or approval) and can't be filled";
+              } else if (result.fillability_status === "filled") {
+                error = "Order has been filled";
+              } else if (result.fillability_status === "cancelled") {
+                error = "Order has been cancelled";
+              } else if (result.fillability_status === "expired") {
+                error = "Order has expired";
+              } else if (
+                result.fillability_status !== "fillable" ||
+                result.approval_status !== "approved"
+              ) {
+                error = "No fillable orders";
+              }
+            }
+
+            // Check taker
+            if (!error) {
+              if (fromBuffer(result.maker) === payload.taker) {
+                error = "No fillable orders (taker cannot fill own orders)";
+              }
+            }
+
+            // Check quantity
+            if (!error) {
+              if (bn(result.quantity_remaining).lt(item.quantity)) {
+                if (!payload.partial) {
+                  error = "Unable to fill requested quantity";
+                } else {
+                  // Fill as much as we can from the order
+                  item.quantity = result.quantity_remaining;
+                }
+              }
+            }
+          }
+
+          if (error) {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData(`Order ${item.orderId} not found or not fillable`);
+              throw Boom.badData(error);
             }
           }
 
@@ -561,7 +651,13 @@ export const getExecuteBuyV7Options: RouteOptions = {
           );
 
           let quantityToFill = item.quantity;
+          let makerEqualsTakerQuantity = 0;
           for (const result of orderResults) {
+            if (fromBuffer(result.maker) === payload.taker) {
+              makerEqualsTakerQuantity += Number(result.quantity_remaining);
+              continue;
+            }
+
             // Stop if we filled the total quantity
             if (quantityToFill <= 0) {
               break;
@@ -616,16 +712,18 @@ export const getExecuteBuyV7Options: RouteOptions = {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData(
-                `No available orders for token ${item.token} with quantity ${item.quantity}`
-              );
+              if (makerEqualsTakerQuantity >= quantityToFill) {
+                throw Boom.badData("No fillable orders (taker cannot fill own orders)");
+              } else {
+                throw Boom.badData("Unable to fill requested quantity");
+              }
             }
           }
         }
       }
 
       if (!path.length) {
-        throw Boom.badRequest("No available orders");
+        throw Boom.badRequest("No fillable orders");
       }
 
       let buyInCurrency = payload.currency;
@@ -703,15 +801,23 @@ export const getExecuteBuyV7Options: RouteOptions = {
           rawAmount,
         });
 
+        item.totalPrice = (item.totalPrice ?? item.quote) + amount;
+        item.totalRawPrice = bn(item.totalRawPrice ?? item.rawQuote)
+          .add(rawAmount)
+          .toString();
+
         // item.quote += amount;
         // item.rawQuote = bn(item.rawQuote).add(rawAmount).toString();
       };
 
       for (const item of path) {
-        if (ordersEligibleForGlobalFees.includes(item.orderId)) {
+        if (globalFees.length && ordersEligibleForGlobalFees.includes(item.orderId)) {
           for (const f of globalFees) {
             await addGlobalFee(item, f);
           }
+        } else {
+          item.totalPrice = item.quote;
+          item.totalRawPrice = item.rawQuote;
         }
       }
 
@@ -849,9 +955,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
-        const boomError = Boom.badRequest(error.message);
-        boomError.output.payload.errors = errors;
-        throw boomError;
+        throw getExecuteError(error.message, errors);
       }
 
       const { txs, success } = result;
@@ -860,7 +964,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       path = path.filter((p) => success[p.orderId]);
 
       if (!path.length) {
-        throw Boom.badRequest("No available orders");
+        throw Boom.badRequest("No fillable orders");
       }
 
       // Custom gas settings

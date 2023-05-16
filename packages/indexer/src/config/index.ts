@@ -43,6 +43,7 @@ export const config = {
   rateLimitRedisUrl: String(process.env.RATE_LIMIT_REDIS_URL || process.env.REDIS_URL),
   redisWebsocketUrl: String(process.env.REDIS_WEBSOCKET_URL || process.env.REDIS_URL),
   metricsRedisUrl: String(process.env.METRICS_REDIS_URL || process.env.REDIS_URL),
+  orderbookRedisUrl: String(process.env.ORDERSBOOK_REDIS_URL || process.env.REDIS_URL),
   redshiftUrl: String(process.env.REDSHIFT_URL),
 
   master: Boolean(Number(process.env.MASTER)),
@@ -85,6 +86,8 @@ export const config = {
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
+  openSeaCrossPostingApiKey: String(process.env.OPENSEA_CROSS_POSTING_API_KEY),
+
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
   flowApiKey: String(process.env.FLOW_API_KEY),
@@ -114,4 +117,12 @@ export const config = {
   doProcessRealtime: Boolean(Number(process.env.DO_PROCESS_REALTIME)),
 
   enableDebug: Boolean(Number(process.env.ENABLE_DEBUG)),
+
+  // Elasticsearch
+  elasticsearchUrl: String(process.env.ELASTICSEARCH_URL || ""),
+  doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
+
+  elasticsearchCloudId: String(process.env.ELASTICSEARCH_CLOUD_ID || ""),
+  elasticsearchUsername: String(process.env.ELASTICSEARCH_USERNAME),
+  elasticsearchPassword: String(process.env.ELASTICSEARCH_PASSWORD),
 };

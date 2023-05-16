@@ -25,7 +25,7 @@ const version = "v5";
 export const getOrdersBidsV5Options: RouteOptions = {
   description: "Bids (offers)",
   notes:
-    "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing",
+    "Get a list of bids (offers), filtered by token, collection or maker. This API is designed for efficiently ingesting large volumes of orders, for external processing.\n\n There are a different kind of bids than can be returned:\n\n- Inputting a 'contract' will return token and attribute bids.\n\n- Inputting a 'collection-id' will return collection wide bids.",
   tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
@@ -69,7 +69,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
       attribute: Joi.object()
         .unknown()
         .description(
-          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/orders/bids/v5?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original` or `https://api.reservoir.tools/orders/bids/v5?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attributes[Type]=Original&attributes[Type]=Sibling`(Collection must be passed as well when filtering by attribute)"
+          "Filter to a particular attribute. Note: Our docs do not support this parameter correctly. To test, you can use the following URL in your browser. Example: `https://api.reservoir.tools/orders/bids/v5?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attribute[Type]=Original` or `https://api.reservoir.tools/orders/bids/v5?collection=0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63&attribute[Type]=Original&attribute[Type]=Sibling`(Collection must be passed as well when filtering by attribute)"
         ),
       contracts: Joi.alternatives().try(
         Joi.array()
@@ -97,7 +97,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           otherwise: Joi.valid("active"),
         })
         .description(
-          "active*^º = currently valid\ninactive*^ = temporarily invalid\nexpired*^, canceled*^, filled*^ = permanently invalid\nany*º = any status\n* when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
+          "activeª^º = currently valid\ninactiveª^ = temporarily invalid\nexpiredª^, canceledª^, filledª^ = permanently invalid\nanyªº = any status\nª when an `id` is passed\n^ when a `maker` is passed\nº when a `contract` is passed"
         ),
       source: Joi.string()
         .pattern(regex.domain)

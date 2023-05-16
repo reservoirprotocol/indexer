@@ -17,15 +17,10 @@ import { ExecutionsBuffer } from "@/utils/executions";
 import * as looksRareV2BuyToken from "@/orderbook/orders/looks-rare-v2/build/buy/token";
 import * as looksRareV2BuyCollection from "@/orderbook/orders/looks-rare-v2/build/buy/collection";
 
-// Seaport
-import * as seaportBuyAttribute from "@/orderbook/orders/seaport-v1.1/build/buy/attribute";
-import * as seaportBuyToken from "@/orderbook/orders/seaport-v1.1/build/buy/token";
-import * as seaportBuyCollection from "@/orderbook/orders/seaport-v1.1/build/buy/collection";
-
-// Seaport v1.4
-import * as seaportV14BuyAttribute from "@/orderbook/orders/seaport-v1.4/build/buy/attribute";
-import * as seaportV14BuyToken from "@/orderbook/orders/seaport-v1.4/build/buy/token";
-import * as seaportV14BuyCollection from "@/orderbook/orders/seaport-v1.4/build/buy/collection";
+// Seaport v1.5
+import * as seaportV15BuyAttribute from "@/orderbook/orders/seaport-v1.5/build/buy/attribute";
+import * as seaportV15BuyToken from "@/orderbook/orders/seaport-v1.5/build/buy/token";
+import * as seaportV15BuyCollection from "@/orderbook/orders/seaport-v1.5/build/buy/collection";
 
 // X2Y2
 import * as x2y2BuyCollection from "@/orderbook/orders/x2y2/build/buy/collection";
@@ -102,14 +97,15 @@ export const getExecuteBidV4Options: RouteOptions = {
               "zeroex-v4",
               "seaport",
               "seaport-v1.4",
+              "seaport-v1.5",
               "looks-rare",
               "looks-rare-v2",
               "x2y2",
               "universe",
               "flow"
             )
-            .default("seaport-v1.4")
-            .description("Exchange protocol used to create order. Example: `seaport-v1.4`"),
+            .default("seaport-v1.5")
+            .description("Exchange protocol used to create order. Example: `seaport-v1.5`"),
           orderbook: Joi.string()
             .valid("reservoir", "opensea", "looks-rare", "x2y2", "universe", "flow")
             .default("reservoir")
@@ -260,9 +256,12 @@ export const getExecuteBidV4Options: RouteOptions = {
         const attributeKey = params.attributeKey;
         const attributeValue = params.attributeValue;
 
-        // Force usage of seaport-v1.4
+        // Force usage of seaport-v1.5
         if (params.orderKind === "seaport") {
-          params.orderKind = "seaport-v1.4";
+          params.orderKind = "seaport-v1.5";
+        }
+        if (params.orderKind === "seaport-v1.4") {
+          params.orderKind = "seaport-v1.5";
         }
         // Force usage of looks-rare-v2
         if (params.orderKind === "looks-rare") {
@@ -310,107 +309,7 @@ export const getExecuteBidV4Options: RouteOptions = {
         }
 
         switch (params.orderKind) {
-          case "seaport": {
-            if (!["reservoir"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
-            }
-
-            let order: Sdk.SeaportV11.Order;
-            if (token) {
-              const [contract, tokenId] = token.split(":");
-              order = await seaportBuyToken.build({
-                ...params,
-                maker,
-                contract,
-                tokenId,
-                source,
-              });
-            } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
-              order = await seaportBuyAttribute.build({
-                ...params,
-                maker,
-                collection,
-                attributes: [
-                  {
-                    key: attributeKey,
-                    value: attributeValue,
-                  },
-                ],
-                source,
-              });
-            } else if (collection) {
-              order = await seaportBuyCollection.build({
-                ...params,
-                maker,
-                collection,
-                source,
-              });
-            } else {
-              throw Boom.internal("Wrong metadata");
-            }
-
-            const exchange = new Sdk.SeaportV11.Exchange(config.chainId);
-            const conduit = exchange.deriveConduit(order.params.conduitKey);
-
-            // Check the maker's approval
-            let approvalTx: TxData | undefined;
-            const currencyApproval = await currency.getAllowance(maker, conduit);
-            if (bn(currencyApproval).lt(order.getMatchingPrice())) {
-              approvalTx = currency.approveTransaction(maker, conduit);
-            }
-
-            steps[1].items.push({
-              status: !wrapEthTx ? "complete" : "incomplete",
-              data: wrapEthTx,
-              orderIndex: i,
-            });
-            steps[2].items.push({
-              status: !approvalTx ? "complete" : "incomplete",
-              data: approvalTx,
-              orderIndex: i,
-            });
-            steps[3].items.push({
-              status: "incomplete",
-              data: {
-                sign: order.getSignatureData(),
-                post: {
-                  endpoint: "/order/v3",
-                  method: "POST",
-                  body: {
-                    order: {
-                      kind: "seaport",
-                      data: {
-                        ...order.params,
-                      },
-                    },
-                    tokenSetId,
-                    attribute:
-                      collection && attributeKey && attributeValue
-                        ? {
-                            collection,
-                            key: attributeKey,
-                            value: attributeValue,
-                          }
-                        : undefined,
-                    collection:
-                      collection && !attributeKey && !attributeValue ? collection : undefined,
-                    isNonFlagged: params.excludeFlaggedTokens,
-                    orderbook: params.orderbook,
-                    orderbookApiKey: params.orderbookApiKey,
-                    source,
-                  },
-                },
-              },
-              orderIndex: i,
-            });
-
-            addExecution(order.hash(), params.quantity);
-
-            // Go on with the next bid
-            continue;
-          }
-
-          case "seaport-v1.4": {
+          case "seaport-v1.5": {
             if (!["reservoir", "opensea"].includes(params.orderbook)) {
               throw Boom.badRequest("Only `reservoir` and `opensea` are supported as orderbooks");
             }
@@ -424,10 +323,10 @@ export const getExecuteBidV4Options: RouteOptions = {
               throw Boom.badRequest("Royalties should be at least 0.5% when posting to OpenSea");
             }
 
-            let order: Sdk.SeaportV14.Order;
+            let order: Sdk.SeaportV15.Order;
             if (token) {
               const [contract, tokenId] = token.split(":");
-              order = await seaportV14BuyToken.build({
+              order = await seaportV15BuyToken.build({
                 ...params,
                 maker,
                 contract,
@@ -435,7 +334,7 @@ export const getExecuteBidV4Options: RouteOptions = {
                 source,
               });
             } else if (tokenSetId || (collection && attributeKey && attributeValue)) {
-              order = await seaportV14BuyAttribute.build({
+              order = await seaportV15BuyAttribute.build({
                 ...params,
                 maker,
                 collection,
@@ -448,7 +347,7 @@ export const getExecuteBidV4Options: RouteOptions = {
                 source,
               });
             } else if (collection) {
-              order = await seaportV14BuyCollection.build({
+              order = await seaportV15BuyCollection.build({
                 ...params,
                 maker,
                 collection,
@@ -458,7 +357,7 @@ export const getExecuteBidV4Options: RouteOptions = {
               throw Boom.internal("Wrong metadata");
             }
 
-            const exchange = new Sdk.SeaportV14.Exchange(config.chainId);
+            const exchange = new Sdk.SeaportV15.Exchange(config.chainId);
             const conduit = exchange.deriveConduit(order.params.conduitKey);
 
             // Check the maker's approval
@@ -487,7 +386,7 @@ export const getExecuteBidV4Options: RouteOptions = {
                   method: "POST",
                   body: {
                     order: {
-                      kind: "seaport-v1.4",
+                      kind: "seaport-v1.5",
                       data: {
                         ...order.params,
                       },
@@ -896,8 +795,8 @@ export const getExecuteBidV4Options: RouteOptions = {
           }
 
           case "universe": {
-            if (!["universe"].includes(params.orderbook)) {
-              throw Boom.badRequest("Only `universe` is supported as orderbook");
+            if (!["reservoir"].includes(params.orderbook)) {
+              throw Boom.badRequest("Only `reservoir` is supported as orderbook");
             }
 
             let order: Sdk.Universe.Order | undefined;

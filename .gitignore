@@ -16,6 +16,7 @@ yarn-error.log*
 postgres/
 test*.ts
 .DS_Store
+foo123.ts
 
 # Yarn
 .yarn/*
