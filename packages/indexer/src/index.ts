@@ -7,12 +7,12 @@ import "@/config/polyfills";
 import "@/jobs/index";
 import "@/pubsub/index";
 import "@/websockets/index";
-import { initIndexes } from "@/elasticsearch/indexes";
 
 import { start } from "@/api/index";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { getNetworkSettings } from "@/config/network";
+import { initIndexes } from "@/elasticsearch/indexes";
 import { Sources } from "@/models/sources";
 import { startKafkaConsumer, startKafkaProducer } from "@/jobs/cdc/index";
 
