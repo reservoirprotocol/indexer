@@ -45,7 +45,7 @@ export const SwapModule: ChainIdToAddress = {
 // TODO update address post-deployment
 export const CollectionXyzModule: ChainIdToAddress = {
   [Network.Ethereum]: "0xdeadbeef",
-  [Network.EthereumGoerli]: "0xcb826babd2b33ae0aed3f6fa3d81f1a56cc264ed",
+  [Network.EthereumGoerli]: "0xdeadbeef",
 };
 
 export const FoundationModule: ChainIdToAddress = {
