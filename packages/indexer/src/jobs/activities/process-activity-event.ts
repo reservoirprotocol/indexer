@@ -126,9 +126,9 @@ if (config.doBackgroundWork) {
           }
         }
 
-        try {
-          for (const [kind, activities] of Object.entries(aggregatedActivities)) {
-            if (!_.isEmpty(activities)) {
+        for (const [kind, activities] of Object.entries(aggregatedActivities)) {
+          if (!_.isEmpty(activities)) {
+            try {
               switch (kind) {
                 case EventKind.fillEvent:
                   await SaleActivity.handleEvents(activities as FillEventData[]);
@@ -154,11 +154,18 @@ if (config.doBackgroundWork) {
                   await AskCancelActivity.handleEvents(activities as SellOrderCancelledEventData[]);
                   break;
               }
+            } catch (error) {
+              logger.error(
+                QUEUE_NAME,
+                `failed to insert into activities error ${error} kind ${kind} activities=${JSON.stringify(
+                  activities
+                )}`
+              );
+
+              await activitiesList.add(activitiesToProcess);
+              return;
             }
           }
-        } catch (error) {
-          logger.error(QUEUE_NAME, `failed to insert into activities ${error}`);
-          await activitiesList.add(activitiesToProcess);
         }
       }
     },

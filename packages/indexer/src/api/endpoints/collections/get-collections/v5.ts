@@ -22,7 +22,6 @@ import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-import { parse } from "path";
 
 const version = "v5";
 
@@ -32,7 +31,7 @@ export const getCollectionsV5Options: RouteOptions = {
     expiresIn: 10000,
   },
   description: "Collections",
-  notes: "Use this API to explore a collection’s metadata and statistics (sales, volume, etc).",
+  notes: "Use this API to explore a collection's metadata and statistics (sales, volume, etc).",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {

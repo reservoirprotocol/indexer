@@ -11,6 +11,7 @@ import {
 import { Orders } from "@/utils/orders";
 import { CollectionSets } from "@/models/collection-sets";
 import { Collections } from "@/models/collections";
+import { logger } from "@/common/logger";
 
 export class Activities {
   public static async addActivities(activities: ActivitiesEntityInsertParams[]) {
@@ -55,7 +56,15 @@ export class Activities {
 
     const query = pgp.helpers.insert(data, columns) + " ON CONFLICT DO NOTHING";
 
-    await idb.none(query);
+    try {
+      await idb.none(query);
+    } catch (error) {
+      logger.error(
+        "add-activities",
+        `failed to insert into activities error ${error} query ${query}`
+      );
+      throw error;
+    }
   }
 
   public static async deleteByBlockHash(blockHash: string) {

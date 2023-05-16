@@ -11,6 +11,7 @@ import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
 import { NftTransferEventCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/nft-transfer-event-created";
 import { getNetworkSettings } from "@/config/network";
+import { logger } from "@/common/logger";
 
 export class TransferActivity {
   public static async handleEvent(data: NftTransferEventData) {
@@ -137,9 +138,17 @@ export class TransferActivity {
           data.logIndex,
           data.batchIndex
         );
-        const esActivity = await eventHandler.generateActivity();
-
-        esActivities.push(esActivity);
+        try {
+          const esActivity = await eventHandler.generateActivity();
+          esActivities.push(esActivity);
+        } catch (error) {
+          logger.error(
+            "generate-elastic-activity",
+            `failed to generate elastic activity error ${error} activity ${JSON.stringify(
+              activity
+            )}`
+          );
+        }
       }
 
       // If collection information is not available yet when a mint event
