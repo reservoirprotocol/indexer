@@ -70,7 +70,7 @@ export const getAsksEventsV3Options: RouteOptions = {
       events: Joi.array().items(
         Joi.object({
           order: Joi.object({
-            id: Joi.string(),
+            id: Joi.string().description("Order Id"),
             status: Joi.string(),
             contract: Joi.string().lowercase().pattern(regex.address),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
