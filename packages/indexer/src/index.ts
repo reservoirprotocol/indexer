@@ -13,7 +13,8 @@ import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { getNetworkSettings } from "@/config/network";
 import { Sources } from "@/models/sources";
-import { startKafkaProducer, startKafkaConsumer } from "@/jobs/cdc";
+import { KafkaCdc } from "@/jobs/cdc";
+import { KafkaMq } from "@/jobs/index";
 
 process.on("unhandledRejection", (error) => {
   logger.error("process", `Unhandled rejection: ${error}`);
@@ -32,9 +33,17 @@ const setup = async () => {
     }
   }
 
+  await KafkaMq.startKafkaJobsProducer();
+
+  // Kafka work to handle async jobs processing
   if (config.doKafkaWork) {
-    await startKafkaProducer();
-    await startKafkaConsumer();
+    await KafkaMq.startKafkaJobsConsumer();
+  }
+
+  // Kafka work to handle DB CDC changes
+  if (config.doKafkaCdcWork) {
+    await KafkaCdc.startKafkaCdcProducer();
+    await KafkaCdc.startKafkaCdcConsumer();
   }
 
   await Sources.getInstance();

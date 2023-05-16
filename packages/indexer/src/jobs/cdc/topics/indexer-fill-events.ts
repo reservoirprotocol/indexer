@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { redisWebsocketPublisher } from "@/common/redis";
-import { KafkaEventHandler } from "@/jobs/cdc/topics/kafka-event-handler-abstract";
+import { KafkaCdcEventHandler } from "@/jobs/cdc/topics/kafka-cdc-event-handler-abstract";
 
-export class IndexerFillEventsHandler extends KafkaEventHandler {
+export class IndexerFillEventsHandler extends KafkaCdcEventHandler {
   topicName = "indexer.public.fill_events_2";
 
   protected async handleInsert(payload: any): Promise<void> {

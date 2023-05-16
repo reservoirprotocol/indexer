@@ -4,9 +4,9 @@ import { IndexerBalanceEventsHandler } from "@/jobs/cdc/topics/indexer-ft-balanc
 import { IndexerApprovalEventsHandler } from "@/jobs/cdc/topics/indexer-ft-approvals";
 import { IndexerFillEventsHandler } from "@/jobs/cdc/topics/indexer-fill-events";
 import { IndexerBidEventsHandler } from "@/jobs/cdc/topics/indexer-bid-events";
-import { KafkaEventHandler } from "@/jobs/cdc/topics/kafka-event-handler-abstract";
+import { KafkaCdcEventHandler } from "@/jobs/cdc/topics/kafka-cdc-event-handler-abstract";
 
-export const TopicHandlers: KafkaEventHandler[] = [
+export const TopicHandlers: KafkaCdcEventHandler[] = [
   new IndexerOrderEventsHandler(),
   new IndexerTransferEventsHandler(),
   new IndexerBalanceEventsHandler(),

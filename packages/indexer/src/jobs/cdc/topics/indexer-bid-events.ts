@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { KafkaEventHandler } from "@/jobs/cdc/topics/kafka-event-handler-abstract";
+import { KafkaCdcEventHandler } from "@/jobs/cdc/topics/kafka-cdc-event-handler-abstract";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
 
-export class IndexerBidEventsHandler extends KafkaEventHandler {
+export class IndexerBidEventsHandler extends KafkaCdcEventHandler {
   topicName = "indexer.public.bid_events";
 
   protected async handleInsert(payload: any): Promise<void> {

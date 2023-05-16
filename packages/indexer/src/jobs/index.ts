@@ -28,6 +28,12 @@ import "@/jobs/opensea-orders";
 import "@/jobs/monitoring";
 import "@/jobs/token-set-updates";
 
+import { kafkaConsumer, KafkaEventHandler, KafkaProducer } from "@/common/kafka";
+import { config } from "@/config/index";
+import { logger } from "@/common/logger";
+import { getServiceName } from "@/config/network";
+import { TokenRecalcSupplyJob } from "@/jobs/token-updates/token-recalc-supply-job";
+
 // Export all job queues for monitoring through the BullMQ UI
 
 import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
@@ -153,6 +159,8 @@ import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as openseaOrdersFetchQueue from "@/jobs/opensea-orders/fetch-queue";
+
+import * as delayKafkaMessagesQueue from "@/jobs/kafka/delay-kafka-messages";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -296,4 +304,60 @@ export const allJobQueues = [
 
   openseaOrdersProcessQueue.queue,
   openseaOrdersFetchQueue.queue,
+
+  delayKafkaMessagesQueue.queue,
 ];
+
+export const TopicHandlers: KafkaEventHandler[] = [new TokenRecalcSupplyJob()];
+
+export class KafkaMq {
+  // Function to start the Kafka producer
+  static async startKafkaJobsProducer(): Promise<void> {
+    await KafkaProducer.connect();
+  }
+
+  static async startKafkaJobsConsumer(): Promise<void> {
+    const topicHandlersMap = new Map<string, KafkaEventHandler>();
+    await kafkaConsumer.connect();
+
+    // Subscribe to the topics
+    await Promise.all(
+      TopicHandlers.map((topicHandler) => {
+        topicHandlersMap.set(topicHandler.getTopic(), topicHandler);
+        kafkaConsumer.subscribe({ topic: topicHandler.getTopic() });
+        kafkaConsumer.subscribe({ topic: topicHandler.getErrorTopic() });
+      })
+    );
+
+    await kafkaConsumer.run({
+      partitionsConsumedConcurrently: config.kafkaPartitionsConsumedConcurrently || 1,
+      eachMessage: async ({ message, topic }) => {
+        const event = JSON.parse(message.value!.toString());
+
+        // Find the corresponding topic handler and call the handle method on it, if the topic is not a dead letter topic
+
+        if (topic.endsWith("-dead-letter")) {
+          // if topic is dead letter, no need to process it
+          return;
+        }
+
+        const topicHandler = topicHandlersMap.get(topic);
+        if (topicHandler) {
+          try {
+            // If the event has not been retried before, set the retryCount to 0
+            if (!event.payload.retryCount) {
+              event.payload.retryCount = 0;
+            }
+
+            await topicHandler.handle(event.payload);
+          } catch (error) {
+            logger.error(
+              `${getServiceName()}-kafka-consumer`,
+              `Error handling eventName=${event.name}, ${error}`
+            );
+          }
+        }
+      },
+    });
+  }
+}
