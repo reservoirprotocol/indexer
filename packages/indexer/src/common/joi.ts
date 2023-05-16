@@ -711,7 +711,7 @@ export const JoiFeeBreakdown = Joi.object({
 });
 
 export const JoiSale = Joi.object({
-  id: Joi.string(),
+  id: Joi.string().description("Deprecated. Use `saleId` instead."),
   saleId: Joi.string().description("Unique identifier made from txn hash, price, etc."),
   token: Joi.object({
     contract: Joi.string().lowercase().pattern(regex.address),
