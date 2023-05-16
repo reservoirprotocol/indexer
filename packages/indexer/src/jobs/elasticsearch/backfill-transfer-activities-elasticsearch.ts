@@ -53,7 +53,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
              AND    fe.log_index = nft_transfer_events.log_index
              AND    fe.batch_index = nft_transfer_events.batch_index
              )
-            AND (fill_events_2.timestamp >= $/fromTimestamp/ AND fill_events_2.timestamp < $/toTimestamp/) 
+            AND (timestamp >= $/fromTimestamp/ AND timestamp < $/toTimestamp/) 
             ${continuationFilter}
             ORDER BY timestamp, tx_hash, log_index, batch_index
             LIMIT $/limit/;  
@@ -120,8 +120,9 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v10`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v11`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
+      await addToQueue(undefined, undefined, 1609459199);
       await addToQueue(undefined, 1609459200, 1640995199);
       await addToQueue(undefined, 1640995200, 1672531199);
       await addToQueue(undefined, 1672531200);
