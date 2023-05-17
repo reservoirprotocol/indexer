@@ -382,7 +382,8 @@ export const getCollectionsV5Options: RouteOptions = {
                 END) AS month_sale_count,
             COUNT(*) AS total_sale_count
           FROM fill_events_2 fe
-          WHERE fe.contract = x.contract
+          JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
+          WHERE t.collection_id = x.id
           AND fe.is_deleted = 0
         ) s ON TRUE
       `;
