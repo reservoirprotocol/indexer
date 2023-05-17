@@ -38,6 +38,7 @@ import ElementModuleAbi from "./abis/ElementModule.json";
 import FoundationModuleAbi from "./abis/FoundationModule.json";
 import LooksRareV2ModuleAbi from "./abis/LooksRareV2Module.json";
 import NFTXModuleAbi from "./abis/NFTXModule.json";
+import NFTXZeroExModuleAbi from "./abis/NFTXZeroExModule.json";
 import RaribleModuleAbi from "./abis/RaribleModule.json";
 import SeaportModuleAbi from "./abis/SeaportModule.json";
 import SeaportV14ModuleAbi from "./abis/SeaportV14Module.json";
@@ -138,6 +139,11 @@ export class Router {
       nftxModule: new Contract(
         Addresses.NFTXModule[chainId] ?? AddressZero,
         NFTXModuleAbi,
+        provider
+      ),
+      nftxZeroExModule: new Contract(
+        Addresses.NFTXZeroExModule[chainId] ?? AddressZero,
+        NFTXZeroExModuleAbi,
         provider
       ),
       raribleModule: new Contract(
@@ -1708,7 +1714,7 @@ export class Router {
     // Handle NFTX listings
     if (nftxDetails.length) {
       const orders = nftxDetails.map((d) => d.order as Sdk.Nftx.Order);
-      const module = this.contracts.nftxModule;
+      const module = this.contracts.nftxZeroExModule;
 
       const fees = getFees(nftxDetails);
       const price = orders
@@ -1735,23 +1741,25 @@ export class Router {
         }
         perPoolOrders[order.params.pool].push(order);
 
-        // Update the order's price in-place
-        order.params.price = order.params.extra.prices[perPoolOrders[order.params.pool].length - 1];
+        // Attach the ZeroEx calldata
+        const index = perPoolOrders[order.params.pool].length - 1;
+        const { swapCallData, price } = await order.getQuote(index + 1, 0, this.provider);
+        order.params.swapCallData = swapCallData;
+        order.params.price = price.toString();
       }
 
       executions.push({
         module: module.address,
         data: module.interface.encodeFunctionData("buyWithETH", [
-          Object.keys(perPoolOrders).map((pool) => ({
+          Object.entries(perPoolOrders).map(([pool, orders]) => ({
             vaultId: perPoolOrders[pool][0].params.vaultId,
             collection: perPoolOrders[pool][0].params.collection,
             specificIds: perPoolOrders[pool].map((o) => o.params.specificIds![0]),
             amount: perPoolOrders[pool].length,
             path: perPoolOrders[pool][0].params.path,
-            price: perPoolOrders[pool]
-              .map((o) => bn(o.params.price))
-              .reduce((a, b) => a.add(b))
-              .toString(),
+            // Need to use the price and swap calldata of the last order
+            swapCallData: perPoolOrders[pool][orders.length - 1].params.swapCallData,
+            price: perPoolOrders[pool][orders.length - 1].params.price,
           })),
           {
             fillTo: taker,
@@ -3530,6 +3538,10 @@ export class Router {
 
         case "nftx": {
           const order = detail.order as Sdk.Nftx.Order;
+
+          // Can't use the ZeroEx module here since it only supports single-swaps
+          // and here we potentially need multiple swaps for the same token pair,
+          // considering the price impact the first swaps have on the next ones.
           const module = this.contracts.nftxModule;
 
           const tokenId = detail.tokenId;

@@ -3,10 +3,15 @@ import { Provider } from "@ethersproject/abstract-provider";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { parseEther } from "@ethersproject/units";
+import axios from "axios";
 
+import * as Addresses from "./addresses";
 import * as Common from "../common";
 import { bn } from "../utils";
-import * as Addresses from "./addresses";
+
+const ZEROEX_ENDPOINT = "https://api.0x.org";
+// TODO: Pass via an environment variable
+const ZEROEX_API_KEY = "e519f152-3749-49ea-a8f3-2964bb0f90ac";
 
 export const getPoolFeatures = async (address: string, provider: Provider) => {
   const iface = new Interface([
@@ -92,6 +97,64 @@ export const getPoolPrice = async (
     return {
       feeBps: bn(fees.mintFee).div("100000000000000").toString(),
       price: price.toString(),
+    };
+  }
+};
+
+export const getPoolPriceFrom0x = async (
+  vault: string,
+  amount: number,
+  side: "sell" | "buy",
+  slippage: number,
+  provider: Provider
+): Promise<{
+  feeBps: BigNumberish;
+  price: BigNumberish;
+  swapCallData: string;
+}> => {
+  const chainId = await provider.getNetwork().then((n) => n.chainId);
+  const weth = Common.Addresses.Weth[chainId];
+  const localAmount = parseEther(amount.toString());
+  const fees = await getPoolFees(vault, provider);
+  const unit = parseEther("1");
+
+  if (side === "buy") {
+    const params = {
+      buyToken: vault,
+      sellToken: weth,
+      slippagePercentage: (slippage / 100000).toString(),
+      buyAmount: localAmount.add(localAmount.mul(fees.redeemFee).div(unit)).toString(),
+    };
+    const { data } = await axios.get(`${ZEROEX_ENDPOINT}/swap/v1/quote`, {
+      params,
+      headers: {
+        "0x-api-key": ZEROEX_API_KEY,
+      },
+    });
+
+    return {
+      swapCallData: data.data,
+      feeBps: bn(fees.redeemFee).div("100000000000000").toString(),
+      price: data.sellAmount.toString(),
+    };
+  } else {
+    const params = {
+      buyToken: weth,
+      sellToken: vault,
+      slippagePercentage: (slippage / 100000).toString(),
+      sellAmount: localAmount.sub(localAmount.mul(fees.mintFee).div(unit)).toString(),
+    };
+    const { data } = await axios.get(`${ZEROEX_ENDPOINT}/swap/v1/quote`, {
+      params,
+      headers: {
+        "0x-api-key": ZEROEX_API_KEY,
+      },
+    });
+
+    return {
+      swapCallData: data.data,
+      feeBps: bn(fees.mintFee).div("100000000000000").toString(),
+      price: data.buyAmount.toString(),
     };
   }
 };

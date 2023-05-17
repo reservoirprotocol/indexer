@@ -120,3 +120,21 @@ export const enableTargetRedeemUpdated: EventData = {
   numTopics: 1,
   abi: new Interface([`event EnableTargetRedeemUpdated(bool enabled)`]),
 };
+
+export const swapV3: EventData = {
+  kind: "nftx",
+  subKind: "nftx-swap-v3",
+  topic: "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67",
+  numTopics: 3,
+  abi: new Interface([
+    `event Swap(
+      address indexed sender,
+      address indexed recipient,
+      int256 amount0,
+      int256 amount1,
+      uint160 sqrtPriceX96,
+      uint128 liquidity,
+      int24 tick
+    )`,
+  ]),
+};
