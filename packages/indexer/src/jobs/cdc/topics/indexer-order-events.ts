@@ -17,7 +17,7 @@ export class IndexerOrderEventsHandler extends KafkaEventHandler {
       eventInfo: {
         kind: payload.after.kind,
         orderId: payload.after.order_id,
-        trigger: "insert",
+        trigger: payload.after.kind === "new-order" ? "insert" : "update",
       },
       eventKind: WebsocketEventKind.SellOrder,
     });
@@ -30,7 +30,7 @@ export class IndexerOrderEventsHandler extends KafkaEventHandler {
       eventInfo: {
         kind: payload.after.kind,
         orderId: payload.after.order_id,
-        trigger: "update",
+        trigger: payload.after.kind === "new-order" ? "insert" : "update",
       },
       eventKind: WebsocketEventKind.SellOrder,
     });
