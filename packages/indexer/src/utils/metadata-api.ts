@@ -18,6 +18,10 @@ interface TokenMetadata {
   name?: string;
   description?: string;
   imageUrl?: string;
+  originalImageUrl?: string;
+  imageSmallUrl?: string;
+  imageMediumUrl?: string;
+  imageLargeUrl?: string;
   mediaUrl?: string;
   attributes: {
     key: string;
@@ -116,7 +120,18 @@ export class MetadataApi {
 
     const { data } = await axios.get(url);
 
-    const tokenMetadata: TokenMetadata[] = (data as any).metadata;
+    let tokenMetadata: TokenMetadata[] = (data as any).metadata;
+
+    // Parse imageUrl into different sizes
+    tokenMetadata = tokenMetadata.map((metadata) => {
+      const imageUrl = metadata.imageUrl;
+      return {
+        ...metadata,
+        imageUrlSmall: MetadataApi.getResizedImageUrl(imageUrl, 250),
+        imageUrlMedium: MetadataApi.getResizedImageUrl(imageUrl, 512),
+        imageUrlLarge: MetadataApi.getResizedImageUrl(imageUrl, 1000),
+      };
+    });
 
     return tokenMetadata;
   }
@@ -130,6 +145,10 @@ export class MetadataApi {
       name?: string;
       description?: string;
       image_url?: string;
+      image_original_url?: string;
+      image_small_url?: string;
+      image_medium_url?: string;
+      image_large_url?: string;
       animation_url?: string;
       traits: Array<{
         trait_type: string;
@@ -191,6 +210,21 @@ export class MetadataApi {
     }
 
     return config.metadataIndexingMethodCollection;
+  }
+
+  static getResizedImageUrl(originalUrl: string | undefined, size: number): string | null {
+    // Check if the url is for a simplehash image
+    if (originalUrl?.includes("lh3.googleusercontent.com")) {
+      return originalUrl.replace(/=s\d+$/, `=s${size}`);
+    }
+
+    // Check if the url is for an Opensea image
+    if (originalUrl?.includes("i.seadn.io")) {
+      return originalUrl.replace(/w=\d+/, `w=${size}`);
+    }
+
+    // If the image provider is not recognized, return null
+    return null;
   }
 }
 

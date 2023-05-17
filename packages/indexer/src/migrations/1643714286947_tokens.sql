@@ -6,6 +6,7 @@ CREATE TABLE "tokens" (
   "name" TEXT,
   "description" TEXT,
   "image" TEXT,
+  "metadata" JSONB,
   "media" TEXT,
   "collection_id" TEXT,
   "metadata_indexed" BOOLEAN,

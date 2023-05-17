@@ -52,6 +52,10 @@ if (config.doBackgroundWork) {
         name,
         description,
         imageUrl,
+        imageSmallUrl,
+        imageMediumUrl,
+        imageLargeUrl,
+        originalImageUrl,
         mediaUrl,
         flagged,
         attributes,
@@ -65,6 +69,7 @@ if (config.doBackgroundWork) {
               name = $/name/,
               description = $/description/,
               image = $/image/,
+              metadata = $/metadata:json/,
               media = $/media/,
               updated_at = now(),
               collection_id = collection_id,
@@ -79,6 +84,13 @@ if (config.doBackgroundWork) {
             name: name || null,
             description: description || null,
             image: imageUrl || null,
+            metadata:
+              {
+                image_original_url: originalImageUrl || null,
+                image_small_url: imageSmallUrl || null,
+                image_medium_url: imageMediumUrl || null,
+                image_large_url: imageLargeUrl || null,
+              } || {},
             media: mediaUrl || null,
           }
         );
@@ -445,6 +457,10 @@ export type TokenMetadataInfo = {
   name?: string;
   description?: string;
   imageUrl?: string;
+  originalImageUrl?: string;
+  imageSmallUrl?: string;
+  imageMediumUrl?: string;
+  imageLargeUrl?: string;
   mediaUrl?: string;
   flagged?: boolean;
   attributes: {
