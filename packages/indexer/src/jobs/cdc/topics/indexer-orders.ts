@@ -21,6 +21,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
           kind: payload.after.kind,
           orderId: payload.after.id,
           trigger: "insert",
+          side: payload.after.side,
         },
         eventKind:
           payload.after.side === "sell"
@@ -49,6 +50,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
           kind: payload.after.kind,
           orderId: payload.after.id,
           trigger: "insert",
+          side: payload.after.side,
         },
         eventKind:
           payload.after.side === "sell"
