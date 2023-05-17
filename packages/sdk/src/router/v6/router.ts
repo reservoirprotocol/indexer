@@ -1713,24 +1713,7 @@ export class Router {
 
     // Handle NFTX listings
     if (nftxDetails.length) {
-      const orders = nftxDetails.map((d) => d.order as Sdk.Nftx.Order);
       const module = this.contracts.nftxZeroExModule;
-
-      const fees = getFees(nftxDetails);
-      const price = orders
-        .map((order) =>
-          bn(
-            order.params.extra.prices[
-              // Handle multiple listings from the same pool
-              orders
-                .filter((o) => o.params.pool === order.params.pool)
-                .findIndex((o) => o.params.specificIds?.[0] === order.params.specificIds?.[0])
-            ]
-          )
-        )
-        .reduce((a, b) => a.add(b), bn(0));
-      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
-      const totalPrice = price.add(feeAmount);
 
       // Aggregate same-pool orders
       const perPoolOrders: { [pool: string]: Sdk.Nftx.Order[] } = {};
@@ -1743,24 +1726,32 @@ export class Router {
 
         // Attach the ZeroEx calldata
         const index = perPoolOrders[order.params.pool].length - 1;
-        const { swapCallData, price } = await order.getQuote(index + 1, 0, this.provider);
+        const { swapCallData, price } = await order.getQuote(index + 1, 500, this.provider);
         order.params.swapCallData = swapCallData;
         order.params.price = price.toString();
       }
 
+      const aggregatedOrders = Object.entries(perPoolOrders).map(([pool, orders]) => ({
+        vaultId: perPoolOrders[pool][0].params.vaultId,
+        collection: perPoolOrders[pool][0].params.collection,
+        specificIds: perPoolOrders[pool].map((o) => o.params.specificIds![0]),
+        amount: perPoolOrders[pool].length,
+        path: perPoolOrders[pool][0].params.path,
+        // Need to use the price and swap calldata of the last order
+        swapCallData: perPoolOrders[pool][orders.length - 1].params.swapCallData,
+        price: perPoolOrders[pool][orders.length - 1].params.price,
+      }));
+
+      // Consider the updated prices (fetched above from 0x)
+      const fees = getFees(nftxDetails);
+      const price = aggregatedOrders.map((order) => order.price).reduce((a, b) => a.add(b), bn(0));
+      const feeAmount = fees.map(({ amount }) => bn(amount)).reduce((a, b) => a.add(b), bn(0));
+      const totalPrice = price.add(feeAmount);
+
       executions.push({
         module: module.address,
         data: module.interface.encodeFunctionData("buyWithETH", [
-          Object.entries(perPoolOrders).map(([pool, orders]) => ({
-            vaultId: perPoolOrders[pool][0].params.vaultId,
-            collection: perPoolOrders[pool][0].params.collection,
-            specificIds: perPoolOrders[pool].map((o) => o.params.specificIds![0]),
-            amount: perPoolOrders[pool].length,
-            path: perPoolOrders[pool][0].params.path,
-            // Need to use the price and swap calldata of the last order
-            swapCallData: perPoolOrders[pool][orders.length - 1].params.swapCallData,
-            price: perPoolOrders[pool][orders.length - 1].params.price,
-          })),
+          aggregatedOrders,
           {
             fillTo: taker,
             refundTo: relayer,
