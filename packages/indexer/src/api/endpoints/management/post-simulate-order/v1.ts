@@ -115,6 +115,14 @@ export const postSimulateOrderV1Options: RouteOptions = {
       if (getNetworkSettings().nonSimulatableContracts.includes(fromBuffer(orderResult.contract))) {
         return { message: "Associated contract is not simulatable" };
       }
+      if (
+        orderResult.side === "buy" &&
+        fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"
+      ) {
+        return {
+          message: "ENS bids are not simulatable due to us not yet handling expiration of domains",
+        };
+      }
 
       const contractResult = await redb.one(
         `
