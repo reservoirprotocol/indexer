@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { logger } from "@/common/logger";
 import { KafkaEventHandler } from "./KafkaEventHandler";
 import {
   WebsocketEventKind,
@@ -14,21 +13,17 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       return;
     }
 
-    logger.info(
-      "indexer.public.orders.handler.insert",
-      `IndexerOrdersHandler.handleInsert: ${JSON.stringify({
-        eventInfo: {
-          kind: payload.after.kind,
-          orderId: payload.after.id,
-          trigger: "insert",
-          side: payload.after.side,
-        },
-        eventKind:
-          payload.after.side === "sell"
-            ? WebsocketEventKind.SellOrder
-            : WebsocketEventKind.BuyOrder,
-      })}`
-    );
+    // eslint-disable-next-line
+    console.log({
+      eventInfo: {
+        kind: payload.after.kind,
+        orderId: payload.after.id,
+        trigger: "insert",
+        side: payload.after.side,
+      },
+      eventKind:
+        payload.after.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
+    });
     await WebsocketEventRouter({
       eventInfo: {
         kind: payload.after.kind,
@@ -43,21 +38,17 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
   }
 
   protected async handleUpdate(payload: any): Promise<void> {
-    logger.info(
-      "indexer.public.orders.handler.update",
-      `IndexerOrdersHandler.handleUpdate: ${JSON.stringify({
-        eventInfo: {
-          kind: payload.after.kind,
-          orderId: payload.after.id,
-          trigger: "insert",
-          side: payload.after.side,
-        },
-        eventKind:
-          payload.after.side === "sell"
-            ? WebsocketEventKind.SellOrder
-            : WebsocketEventKind.BuyOrder,
-      })}`
-    );
+    // eslint-disable-next-line
+    console.log({
+      eventInfo: {
+        kind: payload.after.kind,
+        orderId: payload.after.id,
+        trigger: "update",
+        side: payload.after.side,
+      },
+      eventKind:
+        payload.after.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
+    });
     await WebsocketEventRouter({
       eventInfo: {
         kind: payload.after.kind,
