@@ -102,7 +102,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               }
 
               if (collectionBidsEvents.length >= maxEventsSize) {
-                const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
+                const orderInfoBatch = collectionBidsEvents.splice(0, collectionBidsEvents.length);
                 await orderbookOrders.addToQueue(orderInfoBatch);
               }
 
