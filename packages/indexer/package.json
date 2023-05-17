@@ -13,6 +13,7 @@
     "migrate": "node ../../node_modules/node-pg-migrate/bin/node-pg-migrate -m ./src/migrations --no-check-order",
     "debug": "yarn build && yarn migrate up; node --inspect -r module-alias/register ./dist/index.js",
     "format": "prettier --write \"src/**/*.+(js|ts|json)\"",
+    "cli": "node -r module-alias/register ./dist/cli/index.js",
     "test": "jest --no-watchman"
   },
   "dependencies": {
