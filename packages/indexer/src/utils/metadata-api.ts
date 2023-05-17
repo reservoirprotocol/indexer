@@ -127,9 +127,9 @@ export class MetadataApi {
       const imageUrl = metadata.imageUrl;
       return {
         ...metadata,
-        imageUrlSmall: MetadataApi.getResizedImageUrl(imageUrl, 250),
-        imageUrlMedium: MetadataApi.getResizedImageUrl(imageUrl, 512),
-        imageUrlLarge: MetadataApi.getResizedImageUrl(imageUrl, 1000),
+        imageSmallUrl: MetadataApi.getResizedImageUrl(imageUrl, 250),
+        imageMediumUrl: MetadataApi.getResizedImageUrl(imageUrl, 512),
+        imageLargeUrl: MetadataApi.getResizedImageUrl(imageUrl, 1000),
       };
     });
 
@@ -145,10 +145,6 @@ export class MetadataApi {
       name?: string;
       description?: string;
       image_url?: string;
-      image_original_url?: string;
-      image_small_url?: string;
-      image_medium_url?: string;
-      image_large_url?: string;
       animation_url?: string;
       traits: Array<{
         trait_type: string;
@@ -175,7 +171,13 @@ export class MetadataApi {
       );
       return null;
     }
-    const tokenMetadata: TokenMetadata = response.data;
+    const tokenMetadata: TokenMetadata = {
+      ...response.data,
+      imageSmallUrl: MetadataApi.getResizedImageUrl(response.data.imageUrl, 250),
+      imageMediumUrl: MetadataApi.getResizedImageUrl(response.data.imageUrl, 512),
+      imageLargeUrl: MetadataApi.getResizedImageUrl(response.data.imageUrl, 1000),
+    };
+
     return tokenMetadata;
   }
 
@@ -212,19 +214,19 @@ export class MetadataApi {
     return config.metadataIndexingMethodCollection;
   }
 
-  static getResizedImageUrl(originalUrl: string | undefined, size: number): string | null {
+  static getResizedImageUrl(imageUrl: string | undefined, size: number): string | undefined {
     // Check if the url is for a simplehash image
-    if (originalUrl?.includes("lh3.googleusercontent.com")) {
-      return originalUrl.replace(/=s\d+$/, `=s${size}`);
+    if (imageUrl?.includes("lh3.googleusercontent.com")) {
+      return imageUrl.replace(/=s\d+$/, `=s${size}`);
     }
 
     // Check if the url is for an Opensea image
-    if (originalUrl?.includes("i.seadn.io")) {
-      return originalUrl.replace(/w=\d+/, `w=${size}`);
+    if (imageUrl?.includes("i.seadn.io")) {
+      return imageUrl.replace(/w=\d+/, `w=${size}`);
     }
 
     // If the image provider is not recognized, return null
-    return null;
+    return undefined;
   }
 }
 
