@@ -13,12 +13,14 @@
     "migrate": "node ../../node_modules/node-pg-migrate/bin/node-pg-migrate -m ./src/migrations --no-check-order",
     "debug": "yarn build && yarn migrate up; node --inspect -r module-alias/register ./dist/index.js",
     "format": "prettier --write \"src/**/*.+(js|ts|json)\"",
+    "cli": "node -r module-alias/register ./dist/cli/index.js",
     "test": "jest --no-watchman"
   },
   "dependencies": {
     "@bull-board/hapi": "4.0.1",
     "@commitlint/cli": "^16.2.1",
     "@commitlint/config-conventional": "^16.2.1",
+    "@elastic/elasticsearch": "^8.6.0",
     "@georgeroman/evm-tx-simulator": "^0.0.18",
     "@hapi/basic": "^6.0.0",
     "@hapi/boom": "^9.1.4",

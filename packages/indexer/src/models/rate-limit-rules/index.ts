@@ -314,7 +314,7 @@ export class RateLimitRules {
   }
 
   public getPointsToConsume(route: string) {
-    const defaultCost = 10;
+    const defaultCost = 1;
 
     for (const [routeKey, pointsData] of this.apiRoutesPoints) {
       if (route.match(routeKey)) {

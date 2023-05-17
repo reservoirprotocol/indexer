@@ -66,9 +66,7 @@ describe("Royalties - Router normalize", () => {
       const [, txHash] = txIds[index];
 
       const { fillEvents } = await getFillEventsFromTx(txHash);
-      //   const timeStart = Date.now();
       await assignRoyaltiesToFillEvents(fillEvents, true);
-      //   console.log("spend", index, Date.now() - timeStart);
     }
   };
 

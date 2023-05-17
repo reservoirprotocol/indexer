@@ -312,10 +312,30 @@ if (config.doBackgroundWork) {
 
                 case "sudoswap": {
                   try {
+                    const order = new Sdk.Sudoswap.Order(config.chainId, result.raw_data);
+                    const cacheKey = `order-fixes:sudoswap:${order.params.pair}`;
+                    if (!redis.get(cacheKey)) {
+                      await redis.set(cacheKey, "locked", "EX", 3600);
+                      await orderbook.addToQueue([
+                        {
+                          kind: "sudoswap",
+                          info: {
+                            orderParams: {
+                              pool: order.params.pair,
+                              txHash: HashZero,
+                              txTimestamp: now(),
+                              txBlock: result.block_number,
+                              logIndex: result.log_index,
+                              forceRecheck: true,
+                            },
+                            metadata: {},
+                          },
+                        },
+                      ]);
+                    }
+
                     // TODO: Add support for bid validation
                     if (result.side === "sell") {
-                      const order = new Sdk.Sudoswap.Order(config.chainId, result.raw_data);
-
                       const [, contract, tokenId] = result.token_set_id.split(":");
                       const balance = await commonHelpers.getNftBalance(
                         contract,

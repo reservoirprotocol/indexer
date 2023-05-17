@@ -17,11 +17,9 @@ const getNetworkConfig = (chainId?: number) => {
   let url = process.env.RPC_URL;
   if (!url) {
     switch (chainId) {
+      // Mainnets
       case 1:
         url = `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
-        break;
-      case 5:
-        url = `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
       case 10:
         url = `https://opt-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
@@ -32,13 +30,21 @@ const getNetworkConfig = (chainId?: number) => {
       case 42161:
         url = `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
-      case 534353:
-        url = "https://alpha-rpc.scroll.io/l2";
+      // Testnets
+      case 5:
+        url = `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        break;
       case 5001:
         url = "https://rpc.testnet.mantle.xyz";
         break;
+      case 534353:
+        url = "https://alpha-rpc.scroll.io/l2";
+        break;
       case 11155111:
         url = `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        break;
+      case 59140:
+        url = "https://rpc.goerli.linea.build/";
         break;
       default:
         throw new Error("Unsupported chain id");
@@ -69,7 +75,7 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
-    // Development
+    // Devnets
     hardhat: {
       chainId: networkConfig.chainId,
       forking: {
@@ -85,34 +91,44 @@ const config: HardhatUserConfig = {
     localhost: {
       url: "http://127.0.0.1:8545",
     },
-    // Testnets
-    goerli: getNetworkConfig(5),
     // Mainnets
     mainnet: getNetworkConfig(1),
     optimism: getNetworkConfig(10),
     polygon: getNetworkConfig(137),
     arbitrum: getNetworkConfig(42161),
+    // Testnets
+    goerli: getNetworkConfig(5),
+    "misc-testnet": getNetworkConfig(999),
+    "mantle-testnet": getNetworkConfig(5001),
+    "linea-testnet": getNetworkConfig(59140),
     "scroll-alpha": getNetworkConfig(534353),
     sepolia: getNetworkConfig(11155111),
-    "mantle-testnet": getNetworkConfig(5001),
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
     customChains: [
-      {
-        network: "scroll-alpha",
-        chainId: 534353,
-        urls: {
-          apiURL: "https://blockscout.scroll.io/api",
-          browserURL: "https://blockscout.scroll.io/",
-        },
-      },
       {
         network: "mantle-testnet",
         chainId: 5001,
         urls: {
           apiURL: "https://explorer.testnet.mantle.xyz/api",
           browserURL: "https://explorer.testnet.mantle.xyz",
+        },
+      },
+      {
+        network: "linea-testnet",
+        chainId: 59140,
+        urls: {
+          apiURL: "https://explorer.goerli.linea.build/api",
+          browserURL: "https://explorer.goerli.linea.build",
+        },
+      },
+      {
+        network: "scroll-alpha",
+        chainId: 534353,
+        urls: {
+          apiURL: "https://blockscout.scroll.io/api",
+          browserURL: "https://blockscout.scroll.io/",
         },
       },
     ],

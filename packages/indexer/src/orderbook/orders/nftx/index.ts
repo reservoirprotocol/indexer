@@ -127,6 +127,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           const priceList = [];
           for (let index = 0; index < 10; index++) {
             try {
+              // Don't get the price from 0x to avoid being rate-limited
               const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(
                 orderParams.pool,
                 index + 1,
@@ -206,7 +207,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               pool: pool.address,
               specificIds: [],
               currency: Sdk.Common.Addresses.Weth[config.chainId],
-              path: [pool.address, Sdk.Common.Addresses.Weth[config.chainId]],
+              path: [],
               price: price.toString(),
               extra: {
                 prices,
@@ -377,6 +378,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
         const priceList: { feeBps: BigNumberish; price: BigNumberish }[] = [];
         for (let index = 0; index < 10; index++) {
           try {
+            // Don't get the price from 0x to avoid being rate-limited
             const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(
               orderParams.pool,
               index + 1,
@@ -497,7 +499,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                       specificIds: [tokenId],
                       currency: Sdk.Common.Addresses.Weth[config.chainId],
                       amount: "1",
-                      path: [Sdk.Common.Addresses.Weth[config.chainId], pool.address],
+                      path: [],
                       price: price.toString(),
                       extra: {
                         prices,

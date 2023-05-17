@@ -195,6 +195,7 @@ export const getUserTokensV7Options: RouteOptions = {
               validUntil: Joi.number().unsafe().allow(null),
               source: Joi.object().allow(null),
               rawData: Joi.object().optional().allow(null),
+              isNativeOffChainCancellable: Joi.boolean().optional(),
             },
             acquiredAt: Joi.string().allow(null),
           }),
@@ -760,6 +761,10 @@ export const getUserTokensV7Options: RouteOptions = {
                 url: floorSellSource?.metadata.url,
               },
               rawData: query.includeRawData ? r.floor_sell_raw_data : undefined,
+              isNativeOffChainCancellable: query.includeRawData
+                ? r.floor_sell_raw_data?.zone ===
+                  Sdk.SeaportBase.Addresses.ReservoirCancellationZone[config.chainId]
+                : undefined,
             },
             acquiredAt: acquiredTime,
           },

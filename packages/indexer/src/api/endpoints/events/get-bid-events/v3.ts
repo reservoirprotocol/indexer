@@ -169,7 +169,7 @@ export const getBidEventsV3Options: RouteOptions = {
         FROM bid_events
         ${
           joinWithOrders
-            ? `LEFT JOIN LATERAL (
+            ? `JOIN LATERAL (
                 SELECT
                   orders.currency AS order_currency,
                   orders.currency_price AS order_currency_price,
