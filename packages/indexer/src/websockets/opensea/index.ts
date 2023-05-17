@@ -12,7 +12,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import _, { now } from "lodash";
+import { now } from "lodash";
 import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { generateHash, getSupportedChainName } from "@/websockets/opensea/utils";
@@ -109,12 +109,12 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               if (bidsEvents.length >= maxEventsSize) {
                 const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
 
-                const ids = await MqJobsDataManager.addJobData(
+                const id = await MqJobsDataManager.addJobData(
                   orderbookOrders.queue.name,
                   orderInfoBatch
                 );
 
-                await Promise.all(_.map(ids, async (id) => await backfillBids.addToQueue(id)));
+                await backfillBids.addToQueue(id);
               }
             }
           }
