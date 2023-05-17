@@ -9,6 +9,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { MqJobsDataManager } from "@/models/mq-jobs-data";
 import { GenericOrderInfo } from "@/jobs/orderbook/orders-queue";
+import _ from "lodash";
 
 const QUEUE_NAME = "backfill-bids-queue";
 
@@ -29,7 +30,9 @@ if (config.doBackgroundWork) {
     async (job) => {
       const { id } = job.data;
       const orderInfoBatch = (await MqJobsDataManager.getJobData(id)) as GenericOrderInfo[];
-      await orderbookOrders.addToQueue(orderInfoBatch);
+      await orderbookOrders.addToQueue(
+        _.isArray(orderInfoBatch) ? orderInfoBatch : [orderInfoBatch]
+      );
     },
     { connection: redis.duplicate(), concurrency: 10 }
   );
