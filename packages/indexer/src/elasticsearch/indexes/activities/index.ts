@@ -8,8 +8,10 @@ import { SortResults } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 import { logger } from "@/common/logger";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
 import { ActivityDocument } from "@/elasticsearch/indexes/activities/base";
+import { getNetworkName } from "@/config/network";
+import { config } from "@/config/index";
 
-const INDEX_NAME = "activities";
+const INDEX_NAME = `${getNetworkName()}.activities`;
 
 const MAPPINGS: MappingTypeMapping = {
   dynamic: "false",
@@ -223,6 +225,13 @@ export const createIndex = async (): Promise<void> => {
         },
         index: `${INDEX_NAME}-${Date.now()}`,
         mappings: MAPPINGS,
+        settings: {
+          number_of_shards: config.chainId === 5 ? 4 : 20,
+          sort: {
+            field: ["timestamp", "createdAt"],
+            order: ["desc", "desc"],
+          },
+        },
       });
 
       if (elasticsearchCloud) {
