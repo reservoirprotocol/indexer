@@ -13,17 +13,6 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       return;
     }
 
-    // eslint-disable-next-line
-    console.log({
-      eventInfo: {
-        kind: payload.after.kind,
-        orderId: payload.after.id,
-        trigger: "insert",
-        side: payload.after.side,
-      },
-      eventKind:
-        payload.after.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
-    });
     await WebsocketEventRouter({
       eventInfo: {
         kind: payload.after.kind,
@@ -38,17 +27,10 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
   }
 
   protected async handleUpdate(payload: any): Promise<void> {
-    // eslint-disable-next-line
-    console.log({
-      eventInfo: {
-        kind: payload.after.kind,
-        orderId: payload.after.id,
-        trigger: "update",
-        side: payload.after.side,
-      },
-      eventKind:
-        payload.after.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
-    });
+    if (!payload.after) {
+      return;
+    }
+
     await WebsocketEventRouter({
       eventInfo: {
         kind: payload.after.kind,
