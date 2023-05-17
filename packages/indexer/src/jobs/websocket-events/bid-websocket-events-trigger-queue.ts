@@ -170,6 +170,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           data: result,
         });
       } catch (error) {
+        // eslint-disable-next-line
+        console.log(error);
         logger.error(
           QUEUE_NAME,
           `Error processing websocket event. data=${JSON.stringify(data)}, error=${JSON.stringify(

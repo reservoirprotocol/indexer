@@ -16,7 +16,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
     await WebsocketEventRouter({
       eventInfo: {
         kind: payload.after.kind,
-        orderId: payload.after.order_id,
+        orderId: payload.after.id,
         trigger: "insert",
       },
       eventKind:
@@ -30,7 +30,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
     await WebsocketEventRouter({
       eventInfo: {
         kind: payload.after.kind,
-        orderId: payload.after.order_id,
+        orderId: payload.after.id,
         trigger: "update",
       },
       eventKind:
