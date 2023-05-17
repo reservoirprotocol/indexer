@@ -82,10 +82,24 @@ contract UniversalSwapModule is BaseExchangeModule {
   // --- Swaps ---
 
   function ethToExactOutput(
+    Swap[] calldata swaps,
+    address refundTo
+  ) external payable {
+    uint256 totalSwap = swaps.length;
+    for (uint256 c = 0; c < totalSwap; ) {
+      Swap calldata swap = swaps[c];
+      _ethToExactOutput(swap, refundTo);
+      unchecked {
+        ++c;
+      }
+    }
+  }
+
+
+  function _ethToExactOutput(
     Swap calldata swap,
     address refundTo
-  ) external payable nonReentrant refundETHLeftover(refundTo) {
-   
+  ) private nonReentrant refundETHLeftover(refundTo) {
     // Execute the swap
     UNIVERSAL_ROUTER.execute{value: msg.value}(swap.params.commands, swap.params.inputs, swap.params.deadline);
 
@@ -105,11 +119,26 @@ contract UniversalSwapModule is BaseExchangeModule {
     }
   }
 
+
   function erc20ToExactOutput(
+    Swap[] calldata swaps,
+    address refundTo
+  ) external {
+    uint256 totalSwap = swaps.length;
+    for (uint256 c = 0; c < totalSwap; ) {
+      Swap calldata swap = swaps[c];
+      _erc20ToExactOutput(swap, refundTo);
+      unchecked {
+        ++c;
+      }
+    }
+  }
+
+  function _erc20ToExactOutput(
     Swap calldata swap,
     address refundTo
-  ) external nonReentrant refundERC20Leftover(refundTo, swap.params.tokenIn) {
-    
+  ) private nonReentrant refundERC20Leftover(refundTo, swap.params.tokenIn) {
+
     // Approve the router if needed
     _approveERC20IfNeeded(swap.params.tokenIn, address(PERMIT2), swap.params.amountInMaximum);
     PERMIT2.approve(address(swap.params.tokenIn), address(UNIVERSAL_ROUTER), uint160(swap.params.amountInMaximum), uint48(block.timestamp));

@@ -47,7 +47,7 @@ export const generateSwapExecutions = async (
   toTokenAddress: string,
   toTokenAmount: BigNumberish,
   options: {
-    swapModule: Contract;
+    universalSwapModule: Contract;
     transfers: TransferDetail[];
     refundTo: string;
   }
@@ -64,8 +64,10 @@ export const generateSwapExecutions = async (
       amountIn: toTokenAmount,
       executions: [
         {
-          module: options.swapModule.address,
-          data: options.swapModule.interface.encodeFunctionData("wrap", [options.transfers]),
+          module: options.universalSwapModule.address,
+          data: options.universalSwapModule.interface.encodeFunctionData("wrap", [
+            options.transfers,
+          ]),
           value: toTokenAmount,
         },
       ],
@@ -76,8 +78,10 @@ export const generateSwapExecutions = async (
       amountIn: toTokenAmount,
       executions: [
         {
-          module: options.swapModule.address,
-          data: options.swapModule.interface.encodeFunctionData("unwrap", [options.transfers]),
+          module: options.universalSwapModule.address,
+          data: options.universalSwapModule.interface.encodeFunctionData("unwrap", [
+            options.transfers,
+          ]),
           value: 0,
         },
       ],
@@ -96,7 +100,7 @@ export const generateSwapExecutions = async (
 
     const swapOptions: SwapOptionsUniversalRouter = {
       type: SwapType.UNIVERSAL_ROUTER,
-      recipient: options.swapModule.address,
+      recipient: options.universalSwapModule.address,
       deadlineOrPreviousBlockhash: Math.floor(Date.now() / 1000 + 1800),
       slippageTolerance: new Percent(5, 100),
     };
@@ -168,14 +172,16 @@ export const generateSwapExecutions = async (
 
     const executions: ExecutionInfo[] = [];
     executions.push({
-      module: options.swapModule.address,
-      data: options.swapModule.interface.encodeFunctionData(
+      module: options.universalSwapModule.address,
+      data: options.universalSwapModule.interface.encodeFunctionData(
         fromETH ? "ethToExactOutput" : "erc20ToExactOutput",
         [
-          {
-            params: swapParams,
-            transfers: options.transfers,
-          },
+          [
+            {
+              params: swapParams,
+              transfers: options.transfers,
+            },
+          ],
           options.refundTo,
         ]
       ),

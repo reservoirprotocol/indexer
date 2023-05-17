@@ -20,6 +20,11 @@
         "internalType": "address",
         "name": "swapRouter",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "permit2",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -98,6 +103,19 @@
     ],
     "name": "OwnershipTransferred",
     "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "PERMIT2",
+    "outputs": [
+      {
+        "internalType": "contract IAllowanceTransfer",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
     "inputs": [],
@@ -196,9 +214,9 @@
             "type": "tuple[]"
           }
         ],
-        "internalType": "struct UniversalSwapModule.Swap",
-        "name": "swap",
-        "type": "tuple"
+        "internalType": "struct UniversalSwapModule.Swap[]",
+        "name": "swaps",
+        "type": "tuple[]"
       },
       {
         "internalType": "address",
@@ -275,9 +293,9 @@
             "type": "tuple[]"
           }
         ],
-        "internalType": "struct UniversalSwapModule.Swap",
-        "name": "swap",
-        "type": "tuple"
+        "internalType": "struct UniversalSwapModule.Swap[]",
+        "name": "swaps",
+        "type": "tuple[]"
       },
       {
         "internalType": "address",
@@ -287,7 +305,7 @@
     ],
     "name": "ethToExactOutput",
     "outputs": [],
-    "stateMutability": "payable",
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

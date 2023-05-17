@@ -2431,7 +2431,7 @@ export class Router {
               tokenOut,
               totalAmountOut,
               {
-                swapModule: this.contracts.universalSwapModule,
+                universalSwapModule: this.contracts.universalSwapModule,
                 transfers,
                 refundTo: relayer,
               }
