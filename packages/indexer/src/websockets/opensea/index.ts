@@ -17,6 +17,7 @@ import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { generateHash, getSupportedChainName } from "@/websockets/opensea/utils";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
+import { GenericOrderInfo } from "@/jobs/orderbook/orders-queue";
 import * as orderbookOpenseaListings from "@/jobs/orderbook/opensea-listings-queue";
 import { handleEvent as handleItemListedEvent } from "@/websockets/opensea/handlers/item_listed";
 import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/handlers/item_received_bid";
@@ -24,15 +25,14 @@ import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
 import MetadataApi from "@/utils/metadata-api";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
-import { GenericOrderInfo } from "@/jobs/orderbook/orders-queue";
 import { MqJobsDataManager } from "@/models/mq-jobs-data";
 import * as backfillBids from "@/jobs/backfill/backfill-bids";
-// import { queue } from "@/jobs/events-sync/write-buffers/nft-transfers";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
   const maxEventsSize = config.chainId === 1 ? 200 : 1;
   const bidsEvents: GenericOrderInfo[] = [];
+  const collectionBidsEvents: GenericOrderInfo[] = [];
 
   const client = new OpenSeaStreamClient({
     token: config.openSeaApiKey,
@@ -95,9 +95,17 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
             if (eventType === EventType.ITEM_LISTED) {
               await orderbookOpenseaListings.addToQueue([orderInfo]);
             } else {
-              bidsEvents.push(orderInfo);
+              if (eventType === EventType.COLLECTION_OFFER) {
+                collectionBidsEvents.push(orderInfo);
+              } else {
+                bidsEvents.push(orderInfo);
+              }
 
-              const startTime = now();
+              if (collectionBidsEvents.length >= maxEventsSize) {
+                const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
+                await orderbookOrders.addToQueue(orderInfoBatch);
+              }
+
               if (bidsEvents.length >= maxEventsSize) {
                 const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
 
@@ -107,17 +115,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
                 );
 
                 await Promise.all(_.map(ids, async (id) => await backfillBids.addToQueue(id)));
-                // await orderbookOrders.addToQueue(orderInfoBatch);
-
-                logger.info(
-                  "opensea-websocket",
-                  JSON.stringify({
-                    message: `Flushed ${orderInfoBatch.length} left in the array ${
-                      bidsEvents.length
-                    } add to queue ${now() - startTime}ms`,
-                    addToQueueTime: now() - startTime,
-                  })
-                );
               }
             }
           }
