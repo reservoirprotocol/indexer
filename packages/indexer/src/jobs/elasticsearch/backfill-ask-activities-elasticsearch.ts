@@ -31,6 +31,9 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
     async (job: Job) => {
       const cursor = job.data.cursor as CursorInfo;
 
+      const fromTimestamp = job.data.fromTimestamp || 0;
+      const toTimestamp = job.data.toTimestamp || 9999999999;
+
       const limit = Number((await redis.get(`${QUEUE_NAME}-limit`)) || 1);
 
       try {
@@ -43,6 +46,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
         const query = `
             ${AskCreatedEventHandler.buildBaseQuery()}
             WHERE side = 'sell'
+            AND (updated_at >= to_timestamp($/fromTimestamp/) AND updated_at < to_timestamp($/toTimestamp/)) 
             ${continuationFilter}
             ORDER BY updated_at, id
             LIMIT $/limit/;
@@ -51,6 +55,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
         const results = await ridb.manyOrNone(query, {
           id: cursor?.id,
           updatedAt: cursor?.updatedAt,
+          fromTimestamp,
+          toTimestamp,
           limit,
         });
 
@@ -70,14 +76,21 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
           await ActivitiesIndex.save(activities);
 
-          logger.info(QUEUE_NAME, `Processed ${results.length} activities.`);
-
           const lastResult = results[results.length - 1];
 
-          await addToQueue({
-            updatedAt: lastResult.updated_ts,
-            id: lastResult.order_id,
-          });
+          logger.info(
+            QUEUE_NAME,
+            `Processed ${results.length} activities. fromTimestamp=${fromTimestamp}, toTimestamp=${toTimestamp}, lastTimestamp=${lastResult.event_timestamp}`
+          );
+
+          await addToQueue(
+            {
+              updatedAt: lastResult.updated_ts,
+              id: lastResult.order_id,
+            },
+            fromTimestamp,
+            toTimestamp
+          );
         }
       } catch (error) {
         logger.error(
@@ -96,17 +109,24 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v9`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v13`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
-      await addToQueue();
+      await addToQueue(undefined, undefined, 1609459199);
+      await addToQueue(undefined, 1609459200, 1640995199);
+      await addToQueue(undefined, 1640995200, 1672531199);
+      await addToQueue(undefined, 1672531200);
     })
     .catch(() => {
       // Skip on any errors
     });
 }
 
-export const addToQueue = async (cursor?: CursorInfo) => {
-  await queue.add(randomUUID(), { cursor });
+export const addToQueue = async (
+  cursor?: CursorInfo,
+  fromTimestamp?: number,
+  toTimestamp?: number
+) => {
+  await queue.add(randomUUID(), { cursor, fromTimestamp, toTimestamp });
 };
 
 export interface CursorInfo {
