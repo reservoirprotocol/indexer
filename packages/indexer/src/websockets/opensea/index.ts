@@ -12,7 +12,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { now } from "lodash";
+import _, { now } from "lodash";
 import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { generateHash, getSupportedChainName } from "@/websockets/opensea/utils";
@@ -25,6 +25,9 @@ import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handl
 import MetadataApi from "@/utils/metadata-api";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 import { GenericOrderInfo } from "@/jobs/orderbook/orders-queue";
+import { MqJobsDataManager } from "@/models/mq-jobs-data";
+import * as backfillBids from "@/jobs/backfill/backfill-bids";
+// import { queue } from "@/jobs/events-sync/write-buffers/nft-transfers";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
@@ -97,7 +100,14 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
               const startTime = now();
               if (bidsEvents.length >= maxEventsSize) {
                 const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
-                await orderbookOrders.addToQueue(orderInfoBatch);
+
+                const ids = await MqJobsDataManager.addJobData(
+                  orderbookOrders.queue.name,
+                  orderInfoBatch
+                );
+
+                await Promise.all(_.map(ids, async (id) => await backfillBids.addToQueue(id)));
+                // await orderbookOrders.addToQueue(orderInfoBatch);
 
                 logger.info(
                   "opensea-websocket",

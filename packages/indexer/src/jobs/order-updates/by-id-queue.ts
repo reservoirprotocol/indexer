@@ -19,7 +19,6 @@ import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
 
-
 import { BidEventsList } from "@/models/bid-events-list";
 
 const QUEUE_NAME = "order-updates-by-id";
