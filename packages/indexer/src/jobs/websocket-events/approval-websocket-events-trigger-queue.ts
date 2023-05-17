@@ -37,7 +37,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         const result = {
           address: data.address,
           block: data.block,
-          timestamp: new Date(data.timestamp).toISOString(),
+          timestamp: data.timestamp,
           owner: data.owner,
           operator: data.operator,
           approved: data.approved,
