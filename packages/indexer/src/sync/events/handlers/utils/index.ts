@@ -12,6 +12,7 @@ import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
+import * as mintsProcess from "@/jobs/mints/process";
 import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
 import { AddressZero } from "@ethersproject/constants";
 import { NftTransferEventData } from "@/jobs/activities/transfer-activity";
@@ -52,6 +53,7 @@ export type OnChainData = {
   // For keeping track of mints and last sales
   fillInfos: fillUpdates.FillInfo[];
   mintInfos: tokenUpdatesMint.MintInfo[];
+  mints: mintsProcess.Mint[];
 
   // For properly keeping orders validated on the go
   orderInfos: orderUpdatesById.OrderInfo[];
@@ -78,6 +80,7 @@ export const initOnChainData = (): OnChainData => ({
 
   fillInfos: [],
   mintInfos: [],
+  mints: [],
 
   orderInfos: [],
   makerInfos: [],
@@ -130,6 +133,9 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   // Mints and last sales
   await tokenUpdatesMint.addToQueue(data.mintInfos);
   await fillUpdates.addToQueue(data.fillInfos);
+  if (!backfill) {
+    await mintsProcess.addToQueue(data.mints);
+  }
 
   if (allFillEvents.length) {
     await fillPostProcess.addToQueue([allFillEvents]);
