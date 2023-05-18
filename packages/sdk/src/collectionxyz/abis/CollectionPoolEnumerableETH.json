@@ -16,6 +16,11 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "DepositsArePaused",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -789,24 +794,6 @@
         "type": "tuple"
       }
     ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "contract ERC20",
-        "name": "",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "depositERC20Notification",
-    "outputs": [],
     "stateMutability": "view",
     "type": "function"
   },

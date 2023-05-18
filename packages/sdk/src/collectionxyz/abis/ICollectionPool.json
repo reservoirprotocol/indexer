@@ -124,24 +124,6 @@
   {
     "inputs": [
       {
-        "internalType": "contract ERC20",
-        "name": "a",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "depositERC20Notification",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "uint256[]",
         "name": "ids",
         "type": "uint256[]"

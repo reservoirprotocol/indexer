@@ -8,7 +8,7 @@ directory of this repo.
 from pathlib import Path
 import json
 
-indexerDirectoryName = "reservoir-integration"
+indexerDirectoryName = "indexer"
 
 # Add additional ABIs which are needed by the SDK but not deployed explicitly
 # here (e.g. interfaces)
@@ -30,7 +30,9 @@ path = Path().absolute()
 while path.name != indexerDirectoryName:
     path = path.parent
 collectionRepoPath = (
-    path.parent.joinpath("collectionswap").joinpath("artifacts").joinpath("contracts")
+    path.parent.joinpath("collectionswap-internal")
+    .joinpath("artifacts")
+    .joinpath("contracts")
 )
 
 # Iterate over all the json files only, ignore dbg.jsons. If the filename
