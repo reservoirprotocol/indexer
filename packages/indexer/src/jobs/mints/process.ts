@@ -114,11 +114,11 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        // Allow at most 5 decimals for the unit price
+        // Allow at most a few decimals for the unit price
         const splittedPrice = formatEther(pricePerAmountMinted).split(".");
         if (splittedPrice.length > 1) {
           const numDecimals = splittedPrice[1].length;
-          if (numDecimals > 5) {
+          if (numDecimals > 7) {
             return;
           }
         }
@@ -154,14 +154,87 @@ if (config.doBackgroundWork) {
 
         const params = methodSignature.params.split(",");
 
-        // Case 2: mint method has a single numeric param
         if (params.length === 1 && params[0].includes("int")) {
+          // Case 2: mint method has a single numeric param
+          const numericValue = bn(methodSignature.decodedCalldata[0]);
+          if (numericValue.eq(amountMinted)) {
+            logger.info(
+              QUEUE_NAME,
+              JSON.stringify({
+                txHash: tx,
+                txData: tx.data,
+                kind: "single-numeric-param",
+                calldata: tx.data,
+                price: formatEther(pricePerAmountMinted),
+                methodSignature,
+              })
+            );
+          }
+        } else if (params.length === 1 && params[0] === "address") {
+          // Case 3: mint method has a single address param
+          const addressValue = methodSignature.decodedCalldata[0].toLowerCase();
+          if ([AddressZero, tx.from, contract].includes(addressValue)) {
+            logger.info(
+              QUEUE_NAME,
+              JSON.stringify({
+                txHash: tx,
+                txData: tx.data,
+                kind: "single-address-param",
+                calldata: tx.data,
+                price: formatEther(pricePerAmountMinted),
+                methodSignature,
+              })
+            );
+          }
+        } else if (params.length === 2 && params[0] === "address" && params[1].includes("int")) {
+          // Case 4: mint method has a two params, address and numeric
+
+          const addressValue = methodSignature.decodedCalldata[0].toLowerCase();
+          const numericValue = bn(methodSignature.decodedCalldata[1]);
+          if (
+            [AddressZero, tx.from, contract].includes(addressValue) &&
+            numericValue.eq(amountMinted)
+          ) {
+            logger.info(
+              QUEUE_NAME,
+              JSON.stringify({
+                txHash: tx,
+                txData: tx.data,
+                kind: "two-address-numeric-params",
+                calldata: tx.data,
+                price: formatEther(pricePerAmountMinted),
+                methodSignature,
+              })
+            );
+          }
+        } else if (params.length === 2 && params[0].includes("int") && params[1] === "address") {
+          // Case 5: mint method has a two params, numeric and address
+          const numericValue = bn(methodSignature.decodedCalldata[0]);
+          const addressValue = methodSignature.decodedCalldata[1].toLowerCase();
+          if (
+            [AddressZero, tx.from, contract].includes(addressValue) &&
+            numericValue.eq(amountMinted)
+          ) {
+            logger.info(
+              QUEUE_NAME,
+              JSON.stringify({
+                txHash: tx,
+                txData: tx.data,
+                kind: "two-numeric-address-params",
+                calldata: tx.data,
+                price: formatEther(pricePerAmountMinted),
+                methodSignature,
+              })
+            );
+          }
+        } else {
+          // Case 5: unknown
           logger.info(
             QUEUE_NAME,
             JSON.stringify({
               txHash: tx,
               txData: tx.data,
-              kind: "single-numeric-param",
+              kind: "unknown",
               calldata: tx.data,
               price: formatEther(pricePerAmountMinted),
               methodSignature,
