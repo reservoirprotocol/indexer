@@ -120,18 +120,7 @@ export class MetadataApi {
 
     const { data } = await axios.get(url);
 
-    let tokenMetadata: TokenMetadata[] = (data as any).metadata;
-
-    // Parse imageUrl into different sizes
-    tokenMetadata = tokenMetadata.map((metadata) => {
-      const imageUrl = metadata.imageUrl;
-      return {
-        ...metadata,
-        imageSmallUrl: MetadataApi.getResizedImageUrl(imageUrl, 250),
-        imageMediumUrl: MetadataApi.getResizedImageUrl(imageUrl, 512),
-        imageLargeUrl: MetadataApi.getResizedImageUrl(imageUrl, 1000),
-      };
-    });
+    const tokenMetadata: TokenMetadata[] = (data as any).metadata;
 
     return tokenMetadata;
   }
@@ -171,12 +160,7 @@ export class MetadataApi {
       );
       return null;
     }
-    const tokenMetadata: TokenMetadata = {
-      ...response.data,
-      imageSmallUrl: MetadataApi.getResizedImageUrl(response.data.imageUrl, 250),
-      imageMediumUrl: MetadataApi.getResizedImageUrl(response.data.imageUrl, 512),
-      imageLargeUrl: MetadataApi.getResizedImageUrl(response.data.imageUrl, 1000),
-    };
+    const tokenMetadata: TokenMetadata = response.data;
 
     return tokenMetadata;
   }
@@ -212,19 +196,6 @@ export class MetadataApi {
     }
 
     return config.metadataIndexingMethodCollection;
-  }
-
-  static getResizedImageUrl(imageUrl: string | undefined, size: number): string | undefined {
-    if (imageUrl?.includes("lh3.googleusercontent.com")) {
-      return imageUrl.replace(/=s\d+$/, `=s${size}`);
-    }
-
-    if (imageUrl?.includes("i.seadn.io")) {
-      return imageUrl.replace(/w=\d+/, `w=${size}`);
-    }
-
-    // If the image provider is not recognized, return undefined
-    return undefined;
   }
 }
 
