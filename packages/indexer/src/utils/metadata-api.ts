@@ -215,17 +215,15 @@ export class MetadataApi {
   }
 
   static getResizedImageUrl(imageUrl: string | undefined, size: number): string | undefined {
-    // Check if the url is for a simplehash image
     if (imageUrl?.includes("lh3.googleusercontent.com")) {
       return imageUrl.replace(/=s\d+$/, `=s${size}`);
     }
 
-    // Check if the url is for an Opensea image
     if (imageUrl?.includes("i.seadn.io")) {
       return imageUrl.replace(/w=\d+/, `w=${size}`);
     }
 
-    // If the image provider is not recognized, return null
+    // If the image provider is not recognized, return undefined
     return undefined;
   }
 }
