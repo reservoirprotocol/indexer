@@ -134,6 +134,7 @@ if (config.doBackgroundWork) {
             JSON.stringify({
               txHash: tx,
               txData: tx.data,
+              contract,
               kind: "no-params",
               calldata: tx.data,
               price: formatEther(pricePerAmountMinted),
@@ -163,6 +164,7 @@ if (config.doBackgroundWork) {
               JSON.stringify({
                 txHash: tx,
                 txData: tx.data,
+                contract,
                 kind: "single-numeric-param",
                 calldata: tx.data,
                 price: formatEther(pricePerAmountMinted),
@@ -179,6 +181,7 @@ if (config.doBackgroundWork) {
               JSON.stringify({
                 txHash: tx,
                 txData: tx.data,
+                contract,
                 kind: "single-address-param",
                 calldata: tx.data,
                 price: formatEther(pricePerAmountMinted),
@@ -200,6 +203,7 @@ if (config.doBackgroundWork) {
               JSON.stringify({
                 txHash: tx,
                 txData: tx.data,
+                contract,
                 kind: "two-address-numeric-params",
                 calldata: tx.data,
                 price: formatEther(pricePerAmountMinted),
@@ -220,6 +224,7 @@ if (config.doBackgroundWork) {
               JSON.stringify({
                 txHash: tx,
                 txData: tx.data,
+                contract,
                 kind: "two-numeric-address-params",
                 calldata: tx.data,
                 price: formatEther(pricePerAmountMinted),
@@ -234,6 +239,7 @@ if (config.doBackgroundWork) {
             JSON.stringify({
               txHash: tx,
               txData: tx.data,
+              contract,
               kind: "unknown",
               calldata: tx.data,
               price: formatEther(pricePerAmountMinted),
