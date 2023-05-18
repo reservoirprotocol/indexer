@@ -38,7 +38,7 @@ export const getMethodSignature = async (
       .get(`https://api.openchain.xyz/signature-database/v1/lookup?function=${bytes4}&filter=true`)
       .then((response) => response.data);
 
-    const matches = data?.result?.function?.[bytes4];
+    const matches = data?.result?.function?.[bytes4] ?? [];
     for (const match of matches) {
       if (!match.filtered) {
         // The `match.name` field has the format: `methodName(type0,type1,type2)`

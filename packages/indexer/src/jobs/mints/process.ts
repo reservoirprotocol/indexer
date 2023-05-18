@@ -107,8 +107,13 @@ if (config.doBackgroundWork) {
           return;
         }
 
-        // Make sure the total price is evenly divisible by the amount
+        // Make sure something was actually minted
         const amountMinted = transfers.map((t) => Number(t.amount)).reduce((a, b) => a + b);
+        if (amountMinted === 0) {
+          return;
+        }
+
+        // Make sure the total price is evenly divisible by the amount
         const pricePerAmountMinted = bn(tx.value).div(amountMinted);
         if (!bn(tx.value).eq(pricePerAmountMinted.mul(amountMinted))) {
           return;
