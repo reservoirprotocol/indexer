@@ -73,27 +73,20 @@ if (config.doBackgroundWork) {
       const data = events.map((event) => {
         let status = "active";
 
-        switch (event.order.fillabilityStatus) {
-          case "filled":
-            status = "filled";
-            break;
-
-          case "cancelled":
-            status = "cancelled";
-            break;
-
-          case "expired":
-            status = "expired";
-            break;
-
-          case "no-balance":
-          case "no-approval":
-            status = "inactive";
-            break;
+        if (event.order.fillabilityStatus === "filled") {
+          status = "filled";
+        } else if (event.order.fillabilityStatus === "cancelled") {
+          status = "cancelled";
+        } else if (event.order.fillabilityStatus === "expired") {
+          status = "expired";
+        } else if (event.order.fillabilityStatus === "no-balance") {
+          status = "inactive";
+        } else if (event.order.approvalStatus === "no-approval") {
+          status = "inactive";
         }
 
         return {
-          kind: event.order.fillabilityStatus,
+          kind: event.trigger.kind,
           status,
           contract: toBuffer(event.order.contract),
           token_set_id: event.order.tokenSetId,
