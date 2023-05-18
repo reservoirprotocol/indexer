@@ -34,6 +34,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 5:
         url = `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
+      case 999:
+        url = "";
+        break;
       case 5001:
         url = "https://rpc.testnet.mantle.xyz";
         break;
@@ -57,8 +60,8 @@ const getNetworkConfig = (chainId?: number) => {
     accounts: process.env.DEPLOYER_PK ? [process.env.DEPLOYER_PK] : undefined,
   };
 };
-const networkConfig = getNetworkConfig();
 
+const networkConfig = getNetworkConfig();
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [

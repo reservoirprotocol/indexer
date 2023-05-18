@@ -245,7 +245,7 @@ export const trigger = {
       ]),
     CollectionXyzModule: async (chainId: number) =>
       dv("CollectionXyzModule", "v1", [
-        OWNER,
+        DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.CollectionXyz.Addresses.CollectionPoolFactory[chainId],
       ]),
