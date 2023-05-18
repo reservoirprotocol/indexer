@@ -226,7 +226,7 @@ export const createIndex = async (): Promise<void> => {
         index: `${INDEX_NAME}-${Date.now()}`,
         mappings: MAPPINGS,
         settings: {
-          number_of_shards: config.chainId === 5 ? 4 : 20,
+          number_of_shards: config.chainId === 5 ? 4 : 40,
           sort: {
             field: ["timestamp", "createdAt"],
             order: ["desc", "desc"],

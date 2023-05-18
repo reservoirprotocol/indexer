@@ -159,6 +159,8 @@ export const getSearchActivitiesV1Options: RouteOptions = {
 
     const esQuery = {};
 
+    (esQuery as any).track_total_hits = false;
+
     if (query.types && !_.isArray(query.types)) {
       query.types = [query.types];
     }
@@ -265,12 +267,12 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       (esQuery as any).bool.filter.push(usersFilter);
     }
 
-    let esSort;
+    const esSort: any[] = ["_doc"];
 
     if (query.sortBy == "eventTimestamp") {
-      esSort = [{ timestamp: { order: "desc" } }];
+      esSort.push({ timestamp: { order: "desc" } });
     } else {
-      esSort = [{ createdAt: { order: "desc" } }];
+      esSort.push({ createdAt: { order: "desc" } });
     }
 
     let searchAfter;

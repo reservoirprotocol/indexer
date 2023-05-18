@@ -30,7 +30,8 @@ import * as backfillBids from "@/jobs/backfill/backfill-bids";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
-  const maxEventsSize = config.chainId === 1 ? 200 : 1;
+  const maxCollectionBidsSize = config.chainId === 1 ? 50 : 1;
+  const maxBidsSize = config.chainId === 1 ? 200 : 1;
   const bidsEvents: GenericOrderInfo[] = [];
   const collectionBidsEvents: GenericOrderInfo[] = [];
 
@@ -101,12 +102,12 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
                 bidsEvents.push(orderInfo);
               }
 
-              if (collectionBidsEvents.length >= maxEventsSize) {
+              if (collectionBidsEvents.length >= maxCollectionBidsSize) {
                 const orderInfoBatch = collectionBidsEvents.splice(0, collectionBidsEvents.length);
                 await orderbookOrders.addToQueue(orderInfoBatch);
               }
 
-              if (bidsEvents.length >= maxEventsSize) {
+              if (bidsEvents.length >= maxBidsSize) {
                 const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
 
                 const id = await MqJobsDataManager.addJobData(

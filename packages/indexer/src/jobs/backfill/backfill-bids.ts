@@ -30,9 +30,12 @@ if (config.doBackgroundWork) {
     async (job) => {
       const { id } = job.data;
       const orderInfoBatch = (await MqJobsDataManager.getJobData(id)) as GenericOrderInfo[];
-      await orderbookOrders.addToQueue(
-        _.isArray(orderInfoBatch) ? orderInfoBatch : [orderInfoBatch]
-      );
+
+      if (!_.isEmpty(orderInfoBatch)) {
+        await orderbookOrders.addToQueue(
+          _.isArray(orderInfoBatch) ? orderInfoBatch : [orderInfoBatch]
+        );
+      }
     },
     { connection: redis.duplicate(), concurrency: 10 }
   );
