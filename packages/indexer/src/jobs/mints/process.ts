@@ -6,6 +6,7 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+import { getNetworkSettings } from "@/config/network";
 import { fetchTransaction } from "@/events-sync/utils";
 import { getMethodSignature } from "@/utils/method-signatures";
 
@@ -63,6 +64,11 @@ if (config.doBackgroundWork) {
 
         // Return early if no transfers are available
         if (!transfers.length) {
+          return;
+        }
+
+        // Exclude certain contracts
+        if (getNetworkSettings().mintsAsSalesBlacklist.includes(transfers[0].contract)) {
           return;
         }
 

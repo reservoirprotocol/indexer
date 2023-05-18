@@ -306,6 +306,11 @@ export const getNetworkSettings = (): NetworkSettings => {
         ...defaultNetworkSettings,
         backfillBlockBatchSize: 128,
         subDomain: "api-goerli",
+        mintsAsSalesBlacklist: [
+          ...defaultNetworkSettings.mintsAsSalesBlacklist,
+          // Uniswap V3: Positions NFT
+          "0xc36442b4a4522e871399cd717abdd847ab11fe88",
+        ],
         washTradingExcludedContracts: [
           // ArtBlocks Contracts
           "0xda62f67be7194775a75be91cbf9feedcc5776d4b",
