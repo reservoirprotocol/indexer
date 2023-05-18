@@ -18,7 +18,7 @@ interface TokenMetadata {
   name?: string;
   description?: string;
   imageUrl?: string;
-  originalImageUrl?: string;
+  imageOriginalUrl?: string;
   imageSmallUrl?: string;
   imageMediumUrl?: string;
   imageLargeUrl?: string;
