@@ -174,6 +174,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
           type: activity.type,
           fromAddress: activity.fromAddress,
           toAddress: activity.toAddress,
+          // When creating a new version make sure price is always returned (https://linear.app/reservoir/issue/PLATF-1323/usersactivityv6-price-property-missing)
           price: activity.order
             ? await getJoiPriceObject(
                 {

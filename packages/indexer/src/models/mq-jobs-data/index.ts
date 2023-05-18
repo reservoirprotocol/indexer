@@ -4,7 +4,10 @@ import { idb, ridb } from "@/common/db";
 import _ from "lodash";
 
 export class MqJobsDataManager {
-  public static async addJobData(queueName: string, data: object | object[]): Promise<string[]> {
+  public static async addMultipleJobData(
+    queueName: string,
+    data: object | object[]
+  ): Promise<string[]> {
     const placeholders = { queueName };
     const values: string[] = [];
 
@@ -27,6 +30,26 @@ export class MqJobsDataManager {
     );
 
     return _.map(result, (r) => r.id);
+  }
+
+  public static async addJobData(queueName: string, data: object[]): Promise<string> {
+    if (!_.isArray(data)) {
+      data = [data];
+    }
+
+    const result = await idb.one(
+      `
+        INSERT INTO mq_jobs_data (queue_name, data)
+        VALUES ($/queueName/, $/data:json/)
+        RETURNING id;
+      `,
+      {
+        queueName,
+        data,
+      }
+    );
+
+    return result.id;
   }
 
   public static async getJobData(id: string) {

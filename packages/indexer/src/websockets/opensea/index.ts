@@ -12,7 +12,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import { WebSocket } from "ws";
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import _, { now } from "lodash";
+import { now } from "lodash";
 import { config } from "@/config/index";
 import { OpenseaOrderParams } from "@/orderbook/orders/seaport-v1.1";
 import { generateHash, getSupportedChainName } from "@/websockets/opensea/utils";
@@ -30,7 +30,8 @@ import * as backfillBids from "@/jobs/backfill/backfill-bids";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
-  const maxEventsSize = config.chainId === 1 ? 200 : 1;
+  const maxCollectionBidsSize = config.chainId === 1 ? 50 : 1;
+  const maxBidsSize = config.chainId === 1 ? 200 : 1;
   const bidsEvents: GenericOrderInfo[] = [];
   const collectionBidsEvents: GenericOrderInfo[] = [];
 
@@ -101,20 +102,20 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
                 bidsEvents.push(orderInfo);
               }
 
-              if (collectionBidsEvents.length >= maxEventsSize) {
+              if (collectionBidsEvents.length >= maxCollectionBidsSize) {
                 const orderInfoBatch = collectionBidsEvents.splice(0, collectionBidsEvents.length);
                 await orderbookOrders.addToQueue(orderInfoBatch);
               }
 
-              if (bidsEvents.length >= maxEventsSize) {
+              if (bidsEvents.length >= maxBidsSize) {
                 const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
 
-                const ids = await MqJobsDataManager.addJobData(
+                const id = await MqJobsDataManager.addJobData(
                   orderbookOrders.queue.name,
                   orderInfoBatch
                 );
 
-                await Promise.all(_.map(ids, async (id) => await backfillBids.addToQueue(id)));
+                await backfillBids.addToQueue(id);
               }
             }
           }

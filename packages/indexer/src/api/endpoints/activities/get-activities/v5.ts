@@ -113,6 +113,7 @@ export const getActivityV5Options: RouteOptions = {
           tokenId: activity.tokenId,
           fromAddress: activity.fromAddress,
           toAddress: activity.toAddress,
+          // When creating a new version make sure price is always returned (https://linear.app/reservoir/issue/PLATF-1323/usersactivityv6-price-property-missing)
           price: activity.order?.currency
             ? await getJoiPriceObject(
                 {
