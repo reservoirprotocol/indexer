@@ -198,6 +198,13 @@ export type GenericOrderInfo =
       info: orders.looksRareV2.OrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
+    }
+  | {
+      kind: "collectionxyz";
+      info: orders.collectionxyz.OrderInfo;
+      relayToArweave?: boolean;
+      validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
     };
 
 export const jobProcessor = async (job: Job) => {
@@ -298,6 +305,11 @@ export const jobProcessor = async (job: Job) => {
 
       case "looks-rare-v2": {
         result = await orders.looksRareV2.save([info]);
+        break;
+      }
+
+      case "collectionxyz": {
+        result = await orders.collectionxyz.save([info]);
         break;
       }
     }

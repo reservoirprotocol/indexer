@@ -42,6 +42,10 @@ export const SwapModule: ChainIdToAddress = {
 
 // Exchange modules
 
+export const CollectionXyzModule: ChainIdToAddress = {
+  [Network.EthereumGoerli]: "0x946d176e10561a1bb75ec04aaac2c798b7f5f45a",
+};
+
 export const FoundationModule: ChainIdToAddress = {
   [Network.Ethereum]: "0x29155db9c01ac5412ad03c577d71bd9d0e90db97",
 };

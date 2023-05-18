@@ -97,6 +97,10 @@ export type GenericOrder =
       order: Sdk.Sudoswap.Order;
     }
   | {
+      kind: "collectionxyz";
+      order: Sdk.CollectionXyz.Order;
+    }
+  | {
       kind: "zora";
       order: Sdk.Zora.Order;
     }
