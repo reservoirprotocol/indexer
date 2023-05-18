@@ -273,6 +273,18 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0x6982508145454ce325ddbe47a25d4ec3d2311933",
+            {
+              contract: "0x6982508145454ce325ddbe47a25d4ec3d2311933",
+              name: "Pepe",
+              symbol: "PEPE",
+              decimals: 18,
+              metadata: {
+                image:"https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg?1682922725",
+              },
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",
