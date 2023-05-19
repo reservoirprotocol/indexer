@@ -121,7 +121,7 @@ if (config.doBackgroundWork) {
           await collectionRecalcTokenCount.addToQueue(collection.id);
 
           await collectionRecalcOwnerCount.addToQueue([
-            { kind: "collectionId", data: { collectionId: collection.id } },
+            { context: QUEUE_NAME, kind: "collectionId", data: { collectionId: collection.id } },
           ]);
 
           // Refresh any dynamic token set

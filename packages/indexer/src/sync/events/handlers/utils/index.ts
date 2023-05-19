@@ -147,6 +147,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
 
   const recalcCollectionOwnerCountInfo: RecalcCollectionOwnerCountInfo[] =
     data.nftTransferEvents.map((event) => ({
+      context: "event-sync",
       kind: "contactAndTokenId",
       data: {
         contract: event.baseEventParams.address,

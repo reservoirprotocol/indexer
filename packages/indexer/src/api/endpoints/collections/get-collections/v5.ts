@@ -361,7 +361,11 @@ export const getCollectionsV5Options: RouteOptions = {
 
           if (collectionResult.owner_count === null) {
             await collectionRecalcOwnerCount.addToQueue([
-              { kind: "collectionId", data: { collectionId: collectionResult.id } },
+              {
+                context: `get-collections-${version}-handler`,
+                kind: "collectionId",
+                data: { collectionId: collectionResult.id },
+              },
             ]);
           }
         }

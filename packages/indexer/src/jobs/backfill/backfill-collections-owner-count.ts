@@ -66,6 +66,7 @@ if (config.doBackgroundWork) {
       if (results.length) {
         const recalcCollectionOwnerCountInfo: RecalcCollectionOwnerCountInfo[] = results.map(
           (result) => ({
+            context: QUEUE_NAME,
             kind: "collectionId",
             data: {
               collectionId: result.id,

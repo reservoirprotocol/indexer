@@ -107,7 +107,7 @@ export class Collections {
     const tokenCount = await Tokens.countTokensInCollection(collection.id);
 
     await collectionRecalcOwnerCount.addToQueue([
-      { kind: "collectionId", data: { collectionId: collection.id } },
+      { context: "collections", kind: "collectionId", data: { collectionId: collection.id } },
     ]);
 
     const query = `
