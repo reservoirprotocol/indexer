@@ -1,13 +1,13 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { logger } from "@/common/logger";
-import { acquireLock, redis } from "@/common/redis";
 import { config } from "@/config/index";
+import { acquireLock, getLockExpiration, redis } from "@/common/redis";
 import { idb } from "@/common/db";
 import { randomUUID } from "crypto";
 import { Collections } from "@/models/collections";
 
-const QUEUE_NAME = "collection-calc-owner-count-queue";
+const QUEUE_NAME = "collection-recalc-owner-count-queue";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -31,42 +31,31 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { kind, data } = job.data as RecalcCollectionOwnerCountInfo;
 
+      logger.info(QUEUE_NAME, `Start. jobData=${JSON.stringify(job.data)}`);
+
       let collection;
 
       if (kind === "contactAndTokenId") {
         const { contract, tokenId } = data;
 
         collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
+      } else {
+        collection = await Collections.getById(data.collectionId);
       }
 
       if (collection) {
         const acquiredCalcLock = await acquireLock(getCalcLockName(collection.id), 60 * 5);
 
-        if (!acquiredCalcLock) {
-          const acquiredScheduleLock = await acquireLock(
-            getScheduleLockName(collection.id),
-            60 * 5
+        if (acquiredCalcLock) {
+          logger.info(
+            QUEUE_NAME,
+            `acquiredCalcLock. jobData=${JSON.stringify(job.data)}, collection=${collection.id}`
           );
 
-          if (acquiredScheduleLock) {
-            addToQueue(
-              [
-                {
-                  kind: "collectionId",
-                  data: {
-                    collectionId: collection.id,
-                  },
-                },
-              ],
-              60 * 5
-            );
-          }
-        }
+          let query;
 
-        let query;
-
-        if (collection.tokenIdRange) {
-          query = `
+          if (collection.tokenIdRange) {
+            query = `
                       UPDATE "collections"
                       SET "owner_count" = (
                         SELECT
@@ -79,8 +68,8 @@ if (config.doBackgroundWork) {
                           "updated_at" = now()
                       WHERE "id" = $/collectionId/;
                   `;
-        } else {
-          query = `
+          } else {
+            query = `
                       UPDATE "collections"
                       SET "owner_count" = (
                         SELECT
@@ -93,13 +82,50 @@ if (config.doBackgroundWork) {
                           "updated_at" = now()
                       WHERE "id" = $/collectionId/;
                   `;
+          }
+
+          await idb.none(query, {
+            collectionId: collection.id,
+          });
+
+          logger.info(
+            QUEUE_NAME,
+            `Updated owner count. jobData=${JSON.stringify(job.data)}, collection=${collection.id}`
+          );
+        } else {
+          logger.info(
+            QUEUE_NAME,
+            `Reschedule. jobData=${JSON.stringify(job.data)}, collection=${collection.id}`
+          );
+
+          const acquiredScheduleLock = await acquireLock(
+            getScheduleLockName(collection.id),
+            60 * 5
+          );
+
+          if (acquiredScheduleLock) {
+            const delay = await getLockExpiration(getCalcLockName(collection.id));
+
+            logger.info(
+              QUEUE_NAME,
+              `acquiredScheduleLock. jobData=${JSON.stringify(job.data)}, collection=${
+                collection.id
+              }, delay=${delay}`
+            );
+
+            await addToQueue(
+              [
+                {
+                  kind: "collectionId",
+                  data: {
+                    collectionId: collection.id,
+                  },
+                },
+              ],
+              delay
+            );
+          }
         }
-
-        await idb.none(query, {
-          collectionId: collection.id,
-        });
-
-        logger.info(QUEUE_NAME, `Updated owner count for collection ${collection.id}`);
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
