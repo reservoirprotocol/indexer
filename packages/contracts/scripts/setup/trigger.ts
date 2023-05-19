@@ -244,10 +244,10 @@ export const trigger = {
         Sdk.Zora.Addresses.Exchange[chainId],
       ]),
     CollectionXyzModule: async (chainId: number) =>
-      dv("CollectionXyzModule", "v1", [
+      dv("CollectionXyzModule", "v2", [
         DEPLOYER,
         Sdk.RouterV6.Addresses.Router[chainId],
-        Sdk.CollectionXyz.Addresses.CollectionPoolFactory[chainId],
+        Sdk.CollectionXyz.Addresses.CollectionRouter[chainId],
       ]),
   },
   // Utilities

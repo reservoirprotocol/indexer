@@ -15,8 +15,6 @@ const main = async () => {
 
   chainId;
   trigger;
-
-  await trigger.Modules.CollectionXyzModule(1);
 };
 
 main()
