@@ -24,6 +24,10 @@ process.on("unhandledRejection", (error) => {
 });
 
 const setup = async () => {
+  if (process.env.LOCAL_TESTING) {
+    return;
+  }
+
   // eslint-disable-next-line no-console
   if (config.doBackgroundWork) {
     await Sources.syncSources();
@@ -39,7 +43,7 @@ const setup = async () => {
     startKafkaProducer();
   }
 
-  if (config) await Sources.getInstance();
+  await Sources.getInstance();
   await Sources.forceDataReload();
 
   if (config.doElasticsearchWork) {
