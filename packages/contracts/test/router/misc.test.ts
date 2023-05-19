@@ -31,7 +31,6 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
   let router: Contract;
   let balanceAssertModule: Contract;
   let seaportModule: Contract;
-  let swapModule: Contract;
   let universalSwapModule: Contract;
 
   beforeEach(async () => {
@@ -49,16 +48,6 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
       .getContractFactory("SeaportModule", deployer)
       .then((factory) =>
         factory.deploy(deployer.address, router.address, Sdk.SeaportV11.Addresses.Exchange[chainId])
-      );
-    swapModule = await ethers
-      .getContractFactory("SwapModule", deployer)
-      .then((factory) =>
-        factory.deploy(
-          deployer.address,
-          router.address,
-          Sdk.Common.Addresses.Weth[chainId],
-          Sdk.Common.Addresses.SwapRouter[chainId]
-        )
       );
     
     universalSwapModule = await ethers
@@ -83,7 +72,7 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
         emilio: await ethers.provider.getBalance(emilio.address),
         router: await ethers.provider.getBalance(router.address),
         seaportModule: await ethers.provider.getBalance(seaportModule.address),
-        swapModule: await ethers.provider.getBalance(swapModule.address),
+        universalSwapModule: await ethers.provider.getBalance(universalSwapModule.address),
       };
     } else {
       const contract = new Sdk.Common.Helpers.Erc20(ethers.provider, token);
@@ -95,7 +84,7 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
         emilio: await contract.getBalance(emilio.address),
         router: await contract.getBalance(router.address),
         seaportModule: await contract.getBalance(seaportModule.address),
-        swapModule: await ethers.provider.getBalance(swapModule.address),
+        universalSwapModule: await ethers.provider.getBalance(universalSwapModule.address),
       };
     }
   };
@@ -337,7 +326,7 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
           [],
           {
             // Route funds to the module for unwrapping WETH
-            fillTo: swapModule.address,
+            fillTo: universalSwapModule.address,
             refundTo: bob.address,
             revertIfIncomplete: true,
           },
@@ -346,8 +335,8 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
         value: 0,
       },
       {
-        module: swapModule.address,
-        data: swapModule.interface.encodeFunctionData("unwrap", [
+        module: universalSwapModule.address,
+        data: universalSwapModule.interface.encodeFunctionData("unwrap", [
           [
             {
               recipient: bob.address,
@@ -395,10 +384,10 @@ describe("[ReservoirV6_0_1] Various edge-cases", () => {
     // Router is stateless
     expect(ethBalancesAfter.router).to.eq(0);
     expect(ethBalancesAfter.seaportModule).to.eq(0);
-    expect(ethBalancesAfter.swapModule).to.eq(0);
+    expect(ethBalancesAfter.universalSwapModule).to.eq(0);
     expect(wethBalancesAfter.router).to.eq(0);
     expect(wethBalancesAfter.seaportModule).to.eq(0);
-    expect(wethBalancesAfter.swapModule).to.eq(0);
+    expect(wethBalancesAfter.universalSwapModule).to.eq(0);
   });
 
   it("Fill with balance assert", async () => {

@@ -74,3 +74,7 @@ export const Create3Factory: ChainIdToAddress = {
 export const UniversalRouter: ChainIdToAddress = {
   [Network.Ethereum]: "0xef1c6e67703c7bd7107eed8303fbe6ec2554bf6b",
 };
+
+export const Permit2: ChainIdToAddress = {
+  [Network.Ethereum]: "0x000000000022d473030f116ddee9f6b43ac78ba3",
+};

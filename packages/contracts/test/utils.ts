@@ -166,7 +166,7 @@ export const setupRouterWithModules = async (chainId: number, deployer: SignerWi
         deployer.address,
         Sdk.Common.Addresses.Weth[chainId],
         Sdk.Common.Addresses.UniversalRouter[chainId],
-        '0x000000000022D473030F116dDEE9F6B43aC78BA3'
+        Sdk.Common.Addresses.Permit2[chainId],
       )
     )) as any;
   Sdk.RouterV6.Addresses.UniversalSwapModule[chainId] = universalSwapModule.address.toLowerCase();
