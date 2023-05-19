@@ -22,6 +22,7 @@ import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
+import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 
 const version = "v5";
 
@@ -332,7 +333,9 @@ export const getCollectionsV5Options: RouteOptions = {
         const collectionResult = await idb.oneOrNone(
           `
               SELECT
-                collections.token_count
+                collections.id,
+                collections.token_count,
+                collections.owner_count
               FROM collections
               WHERE ${query.id ? "collections.id = $/id/" : "collections.slug = $/slug/"}
               ORDER BY created_at DESC  
@@ -357,6 +360,12 @@ export const getCollectionsV5Options: RouteOptions = {
                     AND amount > 0
                   ) z ON TRUE
                 `;
+          }
+
+          if (collectionResult.owner_count === null) {
+            await collectionRecalcOwnerCount.addToQueue([
+              { kind: "collectionId", data: { collectionId: collectionResult.id } },
+            ]);
           }
         }
       }
