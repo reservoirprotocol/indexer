@@ -30,8 +30,6 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      return;
-
       const { collection } = job.data as { collection: string };
 
       try {
