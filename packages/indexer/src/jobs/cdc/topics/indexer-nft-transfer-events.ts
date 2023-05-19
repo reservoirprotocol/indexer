@@ -24,7 +24,6 @@ export class IndexerTransferEventsHandler extends KafkaEventHandler {
   }
 
   protected async handleUpdate(payload: any): Promise<void> {
-    // probably do nothing here
     if (!payload.after) {
       return;
     }

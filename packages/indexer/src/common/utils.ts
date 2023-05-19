@@ -130,12 +130,18 @@ export const regex = {
 
 export const isBase64 = (base64: string) => {
   try {
+    // The base64 regex above is normally used for strings > 4 characters, and it has issues with
+    // strings that are exactly 4 characters long. Most base64 regex that I've seen have this issue.
+    // This function is mainly for detecting base64 strings in payloads from debeezium, which are sometimes 4 characters long.
+    // An example of this is the "side" field in the orders table, which is either "buy" or "sell". For "sell" string, this function
+    // normally would return true if it was not for the check below that checks if the string is exactly "sell".
+
     if (!base64 || base64.length % 4 !== 0 || typeof base64 !== "string" || base64 === "sell") {
       return false;
     }
     // This is strictly for hex from postgres
-    // if it includes an equal sign, it's probably base64
-    if (base64.includes("=")) {
+    // if it ends with an equal sign, it's very likely to be base64
+    if (base64.endsWith("=")) {
       return true;
     }
     return regex.base64.test(base64);

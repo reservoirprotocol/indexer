@@ -61,6 +61,9 @@ export const config = {
   kafkaBrokers: String(process.env.KAFKA_BROKERS).split(","),
   kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
 
+  // for testing order websocket triggers
+  doOldOrderWebsocketWork: Boolean(Number(process.env.DO_OLD_ORDER_WEBSOCKET_WORK)),
+
   maxTokenSetSize: 100000,
 
   awsAccessKeyId: String(process.env.AWS_ACCESS_KEY_ID || process.env.FC_AWS_ACCESS_KEY_ID),

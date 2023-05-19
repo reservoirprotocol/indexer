@@ -5,7 +5,6 @@ import { TopicHandlers } from "@/jobs/cdc/topics";
 import { logger } from "@/common/logger";
 import { getServiceName } from "@/config/network";
 
-// Create a Kafka client
 const kafka = new Kafka({
   clientId: config.kafkaClientId,
   brokers: config.kafkaBrokers,
@@ -16,12 +15,11 @@ export const producer = kafka.producer();
 export const consumer = kafka.consumer({
   groupId: config.kafkaConsumerGroupId,
 });
-// Function to start the Kafka producer
+
 export async function startKafkaProducer(): Promise<void> {
   await producer.connect();
 }
 
-// // Function to start the Kafka consumer
 export async function startKafkaConsumer(): Promise<void> {
   await consumer.connect();
 
@@ -29,16 +27,16 @@ export async function startKafkaConsumer(): Promise<void> {
     return topicHandler.getTopics();
   }).flat();
 
-  // Do this one at a time, as sometimes the consumer will re-create a topic that already exists if we use the method to subscribe to all topics at once
+  // Do this one at a time, as sometimes the consumer will re-create a topic that already exists if we use the method to subscribe to all topics at once and
+  // one of the topics do not exist.
   await Promise.all(
     topicsToSubscribe.map(async (topic) => {
       await consumer.subscribe({ topic });
     })
   );
 
-  // Subscribe to the topics
   await consumer.run({
-    partitionsConsumedConcurrently: 1,
+    partitionsConsumedConcurrently: config.kafkaPartitionsConsumedConcurrently,
 
     eachMessage: async ({ message, topic }) => {
       try {
@@ -58,7 +56,6 @@ export async function startKafkaConsumer(): Promise<void> {
             }
 
             await handler.handle(event.payload);
-
             break;
           }
         }
@@ -83,7 +80,8 @@ export async function startKafkaConsumer(): Promise<void> {
   });
 }
 
-// This can be used to restart the Kafka consumer, for example if the consumer is disconnected, or if we need to subscribe to new topics
+// This can be used to restart the Kafka consumer, for example if the consumer is disconnected, or if we need to subscribe to new topics as
+// we cannot subscribe to new topics while the consumer is running.
 export async function restartKafkaConsumer(): Promise<void> {
   await consumer.disconnect();
   await startKafkaConsumer();
