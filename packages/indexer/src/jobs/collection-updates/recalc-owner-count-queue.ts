@@ -181,10 +181,6 @@ export const getScheduleLockName = (collectionId: string) => {
 };
 
 export const addToQueue = async (infos: RecalcCollectionOwnerCountInfo[], delayInSeconds = 0) => {
-  if (config.chainId !== 1) {
-    return;
-  }
-
   await queue.addBulk(
     infos.map((info) => ({
       name: randomUUID(),
