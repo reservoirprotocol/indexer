@@ -56,7 +56,7 @@ interface ICollectionRouter {
   struct PoolSwapSpecific {
     ICollectionPool pool;
     uint256[] nftIds;
-    bytes32[] proofs;
+    bytes32[] proof;
     bool[] proofFlags;
     /// @dev only used for selling into pools
     bytes externalFilterContext;
