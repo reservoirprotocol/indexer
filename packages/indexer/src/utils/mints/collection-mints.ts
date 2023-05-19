@@ -99,6 +99,8 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
         collections.contract,
         contracts.kind
       FROM collections
+      JOIN contracts
+        ON collections.contract = contracts.address
       WHERE collections.id = $/collection/
     `,
     { collection: collectionMint.collection }

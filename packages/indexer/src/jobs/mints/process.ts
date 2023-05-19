@@ -19,7 +19,7 @@ const QUEUE_NAME = "mints-process";
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
-    attempts: 10,
+    attempts: 3,
     backoff: {
       type: "exponential",
       delay: 20000,
