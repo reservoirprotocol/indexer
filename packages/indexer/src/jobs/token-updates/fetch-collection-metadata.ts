@@ -15,6 +15,7 @@ import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 
 import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
+import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
@@ -126,6 +127,9 @@ if (config.doBackgroundWork) {
 
         // Schedule a job to re-count tokens in the collection
         await collectionRecalcTokenCount.addToQueue(collection.id);
+        await collectionRecalcOwnerCount.addToQueue([
+          { kind: "collectionId", data: { collectionId: collection.id } },
+        ]);
 
         // If token has moved collections, update the old collection's token count
         if (oldCollectionId) {

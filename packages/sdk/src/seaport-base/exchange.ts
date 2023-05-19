@@ -121,7 +121,7 @@ export abstract class SeaportBaseExchange {
           from: taker,
           to: this.contract.address,
           data:
-            this.contract.interface.encodeFunctionData("fulfillBasicOrder", [
+            this.contract.interface.encodeFunctionData("fulfillBasicOrder_efficient_6GL6yc", [
               {
                 considerationToken: info.paymentToken,
                 considerationIdentifier: "0",

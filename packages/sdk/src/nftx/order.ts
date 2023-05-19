@@ -1,3 +1,6 @@
+import { Provider } from "@ethersproject/abstract-provider";
+
+import { getPoolPriceFrom0x } from "./helpers";
 import * as Types from "./types";
 import { lc, s } from "../utils";
 
@@ -13,6 +16,11 @@ export class Order {
     } catch {
       throw new Error("Invalid params");
     }
+  }
+
+  async getQuote(count: number, slippage: number, provider: Provider) {
+    const side = this.params.specificIds?.length ? "buy" : "sell";
+    return getPoolPriceFrom0x(this.params.pool, count, side, slippage, provider);
   }
 }
 
@@ -31,6 +39,7 @@ const normalize = (order: Types.OrderParams): Types.OrderParams => {
     currency: s(order.currency),
     amount: s(order.amount),
     path: order.path ? order.path.map(s) : [],
+    swapCallData: order.swapCallData ? lc(order.swapCallData) : undefined,
     price: s(order.price),
     extra: {
       prices: order.extra.prices.map(s),

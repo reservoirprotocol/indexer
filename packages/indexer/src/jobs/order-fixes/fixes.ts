@@ -19,6 +19,10 @@ import * as x2y2Check from "@/orderbook/orders/x2y2/check";
 import * as zeroExV4Check from "@/orderbook/orders/zeroex-v4/check";
 import * as blurCheck from "@/orderbook/orders/blur/check";
 import * as nftxCheck from "@/orderbook/orders/nftx/check";
+import * as looksRareV2Check from "@/orderbook/orders/looks-rare-v2/check";
+import { baseProvider } from "@/common/provider";
+import { BigNumber, Contract } from "ethers";
+import { Interface } from "ethers/lib/utils";
 
 const QUEUE_NAME = "order-fixes";
 
@@ -97,6 +101,33 @@ if (config.doBackgroundWork) {
                       } else {
                         return;
                       }
+                    }
+                  }
+                  break;
+                }
+
+                case "looks-rare-v2": {
+                  const order = new Sdk.LooksRareV2.Order(config.chainId, result.raw_data);
+                  try {
+                    await looksRareV2Check.offChainCheck(order, {
+                      onChainApprovalRecheck: true,
+                      checkFilledOrCancelled: true,
+                    });
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  } catch (error: any) {
+                    if (error.message === "cancelled") {
+                      fillabilityStatus = "cancelled";
+                    } else if (error.message === "filled") {
+                      fillabilityStatus = "filled";
+                    } else if (error.message === "no-balance") {
+                      fillabilityStatus = "no-balance";
+                    } else if (error.message === "no-approval") {
+                      approvalStatus = "no-approval";
+                    } else if (error.message === "no-balance-no-approval") {
+                      fillabilityStatus = "no-balance";
+                      approvalStatus = "no-approval";
+                    } else {
+                      return;
                     }
                   }
                   break;
@@ -284,10 +315,30 @@ if (config.doBackgroundWork) {
 
                 case "sudoswap": {
                   try {
+                    const order = new Sdk.Sudoswap.Order(config.chainId, result.raw_data);
+                    const cacheKey = `order-fixes:sudoswap:${order.params.pair}`;
+                    if (!redis.get(cacheKey)) {
+                      await redis.set(cacheKey, "locked", "EX", 3600);
+                      await orderbook.addToQueue([
+                        {
+                          kind: "sudoswap",
+                          info: {
+                            orderParams: {
+                              pool: order.params.pair,
+                              txHash: HashZero,
+                              txTimestamp: now(),
+                              txBlock: result.block_number,
+                              logIndex: result.log_index,
+                              forceRecheck: true,
+                            },
+                            metadata: {},
+                          },
+                        },
+                      ]);
+                    }
+
                     // TODO: Add support for bid validation
                     if (result.side === "sell") {
-                      const order = new Sdk.Sudoswap.Order(config.chainId, result.raw_data);
-
                       const [, contract, tokenId] = result.token_set_id.split(":");
                       const balance = await commonHelpers.getNftBalance(
                         contract,
@@ -295,6 +346,33 @@ if (config.doBackgroundWork) {
                         order.params.pair
                       );
                       if (balance.lte(0)) {
+                        fillabilityStatus = "no-balance";
+                      }
+                    }
+                  } catch {
+                    return;
+                  }
+
+                  break;
+                }
+
+                case "collectionxyz": {
+                  try {
+                    if (result.side === "sell") {
+                      const [, , tokenId] = result.token_set_id.split(":");
+                      // It is not sufficient to check NFT ownership; the pool
+                      // must recognize ownership of this tokenId.
+                      const poolContract = new Contract(
+                        result.raw_data.pool,
+                        new Interface([`function getAllHeldIds() view returns (uint256[])`]),
+                        baseProvider
+                      );
+                      const legitIds: BigNumber[] = await poolContract.getAllHeldIds();
+                      let isLegit = false;
+                      legitIds.forEach((legitId) => {
+                        if (legitId.toString() === tokenId) isLegit = true;
+                      });
+                      if (!isLegit) {
                         fillabilityStatus = "no-balance";
                       }
                     }

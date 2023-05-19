@@ -63,7 +63,7 @@ if (config.doBackgroundWork && (config.chainId === 137 ? config.doNftTransfersWr
 }
 
 export const addToQueue = async (query: string) => {
-  const ids = await MqJobsDataManager.addJobData(QUEUE_NAME, { query });
+  const ids = await MqJobsDataManager.addMultipleJobData(QUEUE_NAME, { query });
   await Promise.all(_.map(ids, async (id) => await queue.add(id, { id })));
 };
 

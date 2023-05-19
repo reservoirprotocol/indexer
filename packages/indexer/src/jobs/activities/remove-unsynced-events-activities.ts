@@ -9,6 +9,7 @@ import { config } from "@/config/index";
 
 import { Activities } from "@/models/activities";
 import { UserActivities } from "@/models/user-activities";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const QUEUE_NAME = "remove-unsynced-events-activities-queue";
 
@@ -33,6 +34,10 @@ if (config.doBackgroundWork) {
         Activities.deleteByBlockHash(blockHash),
         UserActivities.deleteByBlockHash(blockHash),
       ]);
+
+      if (config.doElasticsearchWork) {
+        await ActivitiesIndex.deleteActivitiesByBlockHash(blockHash);
+      }
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

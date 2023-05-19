@@ -12,7 +12,13 @@ import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as tokenUpdatesMint from "@/jobs/token-updates/mint-queue";
+import * as mintsProcess from "@/jobs/mints/process";
 import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
+import { AddressZero } from "@ethersproject/constants";
+import { NftTransferEventData } from "@/jobs/activities/transfer-activity";
+import { FillEventData } from "@/jobs/activities/sale-activity";
+import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
+import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -49,6 +55,7 @@ export type OnChainData = {
   // For keeping track of mints and last sales
   fillInfos: fillUpdates.FillInfo[];
   mintInfos: tokenUpdatesMint.MintInfo[];
+  mints: mintsProcess.Mint[];
 
   // For properly keeping orders validated on the go
   orderInfos: orderUpdatesById.OrderInfo[];
@@ -75,6 +82,7 @@ export const initOnChainData = (): OnChainData => ({
 
   fillInfos: [],
   mintInfos: [],
+  mints: [],
 
   orderInfos: [],
   makerInfos: [],
@@ -127,12 +135,26 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   // Mints and last sales
   await tokenUpdatesMint.addToQueue(data.mintInfos);
   await fillUpdates.addToQueue(data.fillInfos);
+  if (!backfill) {
+    await mintsProcess.addToQueue(data.mints);
+  }
 
   if (allFillEvents.length) {
     await fillPostProcess.addToQueue([allFillEvents]);
   }
 
   // TODO: Is this the best place to handle activities?
+
+  const recalcCollectionOwnerCountInfo: RecalcCollectionOwnerCountInfo[] =
+    data.nftTransferEvents.map((event) => ({
+      kind: "contactAndTokenId",
+      data: {
+        contract: event.baseEventParams.address,
+        tokenId: event.tokenId,
+      },
+    }));
+
+  await collectionRecalcOwnerCount.addToQueue(recalcCollectionOwnerCountInfo);
 
   // Process fill activities
   const fillActivityInfos: processActivityEvent.EventInfo[] = allFillEvents.map((event) => {
@@ -163,7 +185,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       },
     };
   });
-  await processActivityEvent.addToQueue(fillActivityInfos);
+  await processActivityEvent.addActivitiesToList(fillActivityInfos);
 
   // Process transfer activities
   const transferActivityInfos: processActivityEvent.EventInfo[] = data.nftTransferEvents.map(
@@ -186,8 +208,27 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
         batchIndex: event.baseEventParams.batchIndex,
         blockHash: event.baseEventParams.blockHash,
         timestamp: event.baseEventParams.timestamp,
-      },
+      } as NftTransferEventData,
     })
   );
-  await processActivityEvent.addToQueue(transferActivityInfos);
+
+  const filteredTransferActivityInfos = transferActivityInfos.filter((transferActivityInfo) => {
+    const transferActivityInfoData = transferActivityInfo.data as NftTransferEventData;
+
+    if (transferActivityInfoData.fromAddress !== AddressZero) {
+      return true;
+    }
+
+    return !fillActivityInfos.some((fillActivityInfo) => {
+      const fillActivityInfoData = fillActivityInfo.data as FillEventData;
+
+      return (
+        fillActivityInfoData.transactionHash === transferActivityInfoData.transactionHash &&
+        fillActivityInfoData.logIndex === transferActivityInfoData.logIndex &&
+        fillActivityInfoData.batchIndex === transferActivityInfoData.batchIndex
+      );
+    });
+  });
+
+  await processActivityEvent.addActivitiesToList(filteredTransferActivityInfos);
 };

@@ -1,7 +1,6 @@
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
-import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
 import axios from "axios";
 import _ from "lodash";
 import pLimit from "p-limit";
@@ -18,6 +17,7 @@ import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/confi
 import { Collections } from "@/models/collections";
 import { Sources } from "@/models/sources";
 import { SourcesEntity } from "@/models/sources/sources-entity";
+import { topBidsCache } from "@/models/top-bids-caching";
 import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
 import { offChainCheck } from "@/orderbook/orders/seaport-base/check";
 import * as tokenSet from "@/orderbook/token-sets";
@@ -27,7 +27,6 @@ import * as royalties from "@/utils/royalties";
 
 import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
-import { topBidsCache } from "@/models/top-bids-caching";
 import * as orderbook from "@/jobs/orderbook/orders-queue";
 
 export type OrderInfo = {
@@ -39,7 +38,7 @@ export type OrderInfo = {
 };
 
 export declare type OpenseaOrderParams = {
-  kind: OrderKind;
+  kind: Sdk.SeaportBase.Types.OrderKind;
   side: "buy" | "sell";
   hash: string;
   price?: string;
@@ -122,7 +121,6 @@ export const save = async (
       if (
         ![
           HashZero,
-          Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
           Sdk.SeaportBase.Addresses.OriginConduitKey[config.chainId],
           Sdk.SeaportBase.Addresses.SpaceIdConduitKey[config.chainId],
         ].includes(order.params.conduitKey)
@@ -650,6 +648,17 @@ export const save = async (
             Number(tokenId)
           );
 
+          logger.debug(
+            "orders-seaport-v1.4-save",
+            JSON.stringify({
+              topic: "validateBidValue",
+              collectionTopBidValue,
+              contract: info.contract,
+              tokenId,
+              value: value.toString(),
+            })
+          );
+
           if (collectionTopBidValue) {
             if (Number(value.toString()) <= collectionTopBidValue) {
               return results.push({
@@ -748,9 +757,7 @@ export const save = async (
         source_id_int: source?.id,
         is_reservoir: isReservoir ? isReservoir : null,
         contract: toBuffer(info.contract),
-        conduit: toBuffer(
-          new Sdk.SeaportV14.Exchange(config.chainId).deriveConduit(order.params.conduitKey)
-        ),
+        conduit: toBuffer(exchange.deriveConduit(order.params.conduitKey)),
         fee_bps: feeBps,
         fee_breakdown: feeBreakdown || null,
         dynamic: info.isDynamic ?? null,

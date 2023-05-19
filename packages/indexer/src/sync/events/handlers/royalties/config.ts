@@ -47,6 +47,8 @@ addPlatformAddress("sudoswap", [
 ]);
 addPlatformAddress("bend-dao", ["0xf3ab1d58ce6b9e0d42b8958c918649305e1b1d26"]);
 
+addPlatformAddress("godid", ["0xe89b80d335a643495cfcf004037a381565edc130"]);
+
 // List of supported exchanges
 export const supportedExchanges: Map<OrderKind, string> = new Map();
 supportedExchanges.set("blur", Sdk.Blur.Addresses.Exchange[config.chainId]);

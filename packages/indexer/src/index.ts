@@ -12,6 +12,7 @@ import { start } from "@/api/index";
 import { config } from "@/config/index";
 import { logger } from "@/common/logger";
 import { getNetworkSettings } from "@/config/network";
+import { initIndexes } from "@/elasticsearch/indexes";
 import { Sources } from "@/models/sources";
 import { startKafkaConsumer, startKafkaProducer } from "@/jobs/cdc/index";
 
@@ -23,6 +24,11 @@ process.on("unhandledRejection", (error) => {
 });
 
 const setup = async () => {
+  if (process.env.LOCAL_TESTING) {
+    return;
+  }
+
+
   if (config.doBackgroundWork) {
     await Sources.syncSources();
 
@@ -33,12 +39,16 @@ const setup = async () => {
   }
 
   await Sources.getInstance();
+  await Sources.forceDataReload();
+  
   if (config.doKafkaWork) {
     startKafkaConsumer();
     startKafkaProducer();
   }
 
-  await Sources.forceDataReload();
+  if (config.doElasticsearchWork) {
+    await initIndexes();
+  }
 };
 
 setup().then(() => start());

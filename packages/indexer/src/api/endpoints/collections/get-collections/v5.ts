@@ -6,8 +6,9 @@ import * as Sdk from "@reservoir0x/sdk";
 import _ from "lodash";
 import Joi from "joi";
 
-import { redb } from "@/common/db";
+import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { parseEther } from "@ethersproject/units";
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
 import {
   buildContinuation,
@@ -21,6 +22,7 @@ import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
+import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 
 const version = "v5";
 
@@ -30,7 +32,7 @@ export const getCollectionsV5Options: RouteOptions = {
     expiresIn: 10000,
   },
   description: "Collections",
-  notes: "Use this API to explore a collection’s metadata and statistics (sales, volume, etc).",
+  notes: "Use this API to explore a collection's metadata and statistics (sales, volume, etc).",
   tags: ["api", "Collections"],
   plugins: {
     "hapi-swagger": {
@@ -66,6 +68,8 @@ export const getCollectionsV5Options: RouteOptions = {
       name: Joi.string()
         .lowercase()
         .description("Search for collections that match a string. Example: `bored`"),
+      maxFloorAskPrice: Joi.number().description("Maximum floor price of the collection"),
+      minFloorAskPrice: Joi.number().description("Minumum floor price of the collection"),
       includeTopBid: Joi.boolean()
         .default(false)
         .description("If true, top bid will be returned in the response."),
@@ -326,10 +330,12 @@ export const getCollectionsV5Options: RouteOptions = {
 
       // TODO: Cache owners count on collection instead of not allowing for big collections.
       if (query.includeOwnerCount) {
-        const collectionResult = await redb.oneOrNone(
+        const collectionResult = await idb.oneOrNone(
           `
               SELECT
-                collections.token_count
+                collections.id,
+                collections.token_count,
+                collections.owner_count
               FROM collections
               WHERE ${query.id ? "collections.id = $/id/" : "collections.slug = $/slug/"}
               ORDER BY created_at DESC  
@@ -354,6 +360,12 @@ export const getCollectionsV5Options: RouteOptions = {
                     AND amount > 0
                   ) z ON TRUE
                 `;
+          }
+
+          if (collectionResult.owner_count === null) {
+            await collectionRecalcOwnerCount.addToQueue([
+              { kind: "collectionId", data: { collectionId: collectionResult.id } },
+            ]);
           }
         }
       }
@@ -382,7 +394,8 @@ export const getCollectionsV5Options: RouteOptions = {
                 END) AS month_sale_count,
             COUNT(*) AS total_sale_count
           FROM fill_events_2 fe
-          WHERE fe.contract = x.contract
+          JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
+          WHERE t.collection_id = x.id
           AND fe.is_deleted = 0
         ) s ON TRUE
       `;
@@ -507,6 +520,16 @@ export const getCollectionsV5Options: RouteOptions = {
       if (query.name) {
         query.name = `%${query.name}%`;
         conditions.push(`collections.name ILIKE $/name/`);
+      }
+
+      if (query.maxFloorAskPrice) {
+        query.maxFloorAskPrice = parseEther(query.maxFloorAskPrice.toString()).toString();
+        conditions.push(`collections.floor_sell_value <= $/maxFloorAskPrice/`);
+      }
+
+      if (query.minFloorAskPrice) {
+        query.minFloorAskPrice = parseEther(query.minFloorAskPrice.toString()).toString();
+        conditions.push(`collections.floor_sell_value >= $/minFloorAskPrice/`);
       }
 
       // Sorting and pagination
