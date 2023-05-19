@@ -109,7 +109,7 @@ export const swapNftInPool: EventData = {
   abi: new Interface([
     `event SwapNFTInPool(
       uint256[] nftIds,
-      uint256 inputAmount,
+      uint256 outputAmount,
       uint256 tradeFee,
       uint256 protocolFee,
       tuple(uint256 amount, address recipient)[] royaltyDue
@@ -125,7 +125,7 @@ export const swapNftOutPool: EventData = {
   abi: new Interface([
     `event SwapNFTOutPool(
       uint256[] nftIds,
-      uint256 outputAmount,
+      uint256 inputAmount,
       uint256 tradeFee,
       uint256 protocolFee,
       tuple(uint256 amount, address recipient)[] royaltyDue
