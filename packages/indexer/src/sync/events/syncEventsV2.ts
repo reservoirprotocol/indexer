@@ -10,6 +10,7 @@ import * as es from "@/events-sync/storage";
 import * as syncEventsUtils from "@/events-sync/utilsV2";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
+import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
@@ -224,12 +225,17 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
 };
 
 export const syncEvents = async (block: number) => {
+  let blockData: BlockWithTransactions;
   try {
     logger.info("sync-events-v2", `Events realtime syncing block ${block}`);
     const startSyncTime = Date.now();
 
     const startGetBlockTime = Date.now();
-    const blockData = await syncEventsUtils.fetchBlock(block);
+    blockData = await syncEventsUtils.fetchBlock(block);
+    logger.info(
+      "sync-events-v2",
+      `Events realtime syncing block ${block} - blockData: ${JSON.stringify(blockData)}`
+    );
     const endGetBlockTime = Date.now();
 
     const eventFilter: Filter = {
@@ -296,15 +302,14 @@ export const syncEvents = async (block: number) => {
       JSON.stringify({
         message: `Events realtime syncing block ${block}`,
         block,
-        syncTime: (endSyncTime - startSyncTime) / 1000,
-        getBlockTime: (endGetBlockTime - startGetBlockTime) / 1000,
-        processLogsAndSaveDataTime:
-          (endProcessLogsAndSaveDataTime - startProcessLogsAndSaveDataTime) / 1000,
-        processEventBatchesTime: (endProcessEventBatchesTime - startProcessEventBatchesTime) / 1000,
+        syncTime: endSyncTime - startSyncTime,
+        getBlockTime: endGetBlockTime - startGetBlockTime,
+        processLogsAndSaveDataTime: endProcessLogsAndSaveDataTime - startProcessLogsAndSaveDataTime,
+        processEventBatchesTime: endProcessEventBatchesTime - startProcessEventBatchesTime,
       })
     );
   } catch (error) {
-    logger.error("sync-events-v2", `Events realtime syncing failed: ${error}`);
+    logger.error("sync-events-v2", `Events realtime syncing failed: ${error}, block: ${block}`);
     throw error;
   }
 };
