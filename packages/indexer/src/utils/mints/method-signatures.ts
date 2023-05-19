@@ -6,7 +6,8 @@ import { idb } from "@/common/db";
 import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 
-type MethodSignature = {
+export type MethodSignature = {
+  signature: string;
   name?: string;
   params: string;
   decodedCalldata: Result;
@@ -72,6 +73,7 @@ export const getMethodSignature = async (
     try {
       const decodedCalldata = iface.decodeFunctionData(name, calldata);
       return {
+        signature: bytes4,
         name,
         params,
         decodedCalldata,
@@ -99,6 +101,7 @@ export const getMethodSignature = async (
 
     if (paramTypes) {
       return {
+        signature: bytes4,
         params: paramTypes.join(","),
         decodedCalldata: defaultAbiCoder.decode(paramTypes, "0x" + calldata.slice(10)),
       };

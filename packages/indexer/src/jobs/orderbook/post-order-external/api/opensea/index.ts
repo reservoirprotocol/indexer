@@ -82,6 +82,7 @@ export const postOrder = async (order: Sdk.SeaportV15.Order, apiKey: string) => 
       info: {
         orderParams: order.params,
         metadata: {},
+        isOpenSea: true,
       },
     },
   ]);
