@@ -128,7 +128,7 @@ if (config.doBackgroundWork) {
         // Schedule a job to re-count tokens in the collection
         await collectionRecalcTokenCount.addToQueue(collection.id);
         await collectionRecalcOwnerCount.addToQueue([
-          { kind: "collectionId", data: { collectionId: collection.id } },
+          { context: QUEUE_NAME, kind: "collectionId", data: { collectionId: collection.id } },
         ]);
 
         // If token has moved collections, update the old collection's token count

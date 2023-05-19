@@ -31,6 +31,14 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { kind, data } = job.data as RecalcCollectionOwnerCountInfo;
 
+      logger.info(
+        QUEUE_NAME,
+        JSON.stringify({
+          topic: "Start",
+          jobData: job.data,
+        })
+      );
+
       let collection;
 
       if (kind === "contactAndTokenId") {
@@ -126,6 +134,7 @@ if (config.doBackgroundWork) {
             await addToQueue(
               [
                 {
+                  context: QUEUE_NAME,
                   kind: "collectionId",
                   data: {
                     collectionId: collection.id,
@@ -138,7 +147,7 @@ if (config.doBackgroundWork) {
         }
       }
     },
-    { connection: redis.duplicate(), concurrency: 1 }
+    { connection: redis.duplicate(), concurrency: 30 }
   );
 
   worker.on("error", (error) => {
@@ -148,6 +157,7 @@ if (config.doBackgroundWork) {
 
 export type RecalcCollectionOwnerCountInfo =
   | {
+      context?: string;
       kind: "contactAndTokenId";
       data: {
         contract: string;
@@ -155,6 +165,7 @@ export type RecalcCollectionOwnerCountInfo =
       };
     }
   | {
+      context?: string;
       kind: "collectionId";
       data: {
         collectionId: string;
@@ -170,6 +181,10 @@ export const getScheduleLockName = (collectionId: string) => {
 };
 
 export const addToQueue = async (infos: RecalcCollectionOwnerCountInfo[], delayInSeconds = 0) => {
+  if (config.chainId !== 1) {
+    return;
+  }
+
   await queue.addBulk(
     infos.map((info) => ({
       name: randomUUID(),
