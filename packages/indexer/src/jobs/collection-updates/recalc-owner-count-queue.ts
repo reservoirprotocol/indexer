@@ -31,14 +31,6 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { kind, data } = job.data as RecalcCollectionOwnerCountInfo;
 
-      logger.info(
-        QUEUE_NAME,
-        JSON.stringify({
-          topic: "Start",
-          jobData: job.data,
-        })
-      );
-
       let collection;
 
       if (kind === "contactAndTokenId") {
@@ -64,7 +56,7 @@ if (config.doBackgroundWork) {
                             ) AS owner_count 
                           FROM  nft_balances 
                             JOIN collections ON nft_balances.contract = collections.contract 
-                            AND nft_balances.token_id < @ collections.token_id_range 
+                            AND nft_balances.token_id <@ collections.token_id_range 
                           WHERE collections.id = $/collectionId/
                             AND nft_balances.amount > 0
                         ) 
@@ -74,7 +66,7 @@ if (config.doBackgroundWork) {
                           updated_at = now() 
                         FROM x 
                         WHERE id = $/collectionId/ 
-                          AND collections.owner_count != x.owner_count;
+                          AND COALESCE(collections.owner_count, 0) != x.owner_count;
 
                   `;
           } else {
@@ -96,7 +88,7 @@ if (config.doBackgroundWork) {
                           "updated_at" = now() 
                         FROM x
                         WHERE id = $/collectionId/
-                          AND collections.owner_count != x.owner_count;
+                          AND COALESCE(collections.owner_count, 0) != x.owner_count;
                   `;
           }
 
