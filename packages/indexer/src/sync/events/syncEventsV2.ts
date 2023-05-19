@@ -10,7 +10,6 @@ import * as es from "@/events-sync/storage";
 import * as syncEventsUtils from "@/events-sync/utilsV2";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
-import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
@@ -225,17 +224,16 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
 };
 
 export const syncEvents = async (block: number) => {
-  let blockData: BlockWithTransactions;
   try {
     logger.info("sync-events-v2", `Events realtime syncing block ${block}`);
     const startSyncTime = Date.now();
 
     const startGetBlockTime = Date.now();
-    blockData = await syncEventsUtils.fetchBlock(block);
-    logger.info(
-      "sync-events-v2",
-      `Events realtime syncing block ${block} - blockData: ${JSON.stringify(blockData)}`
-    );
+    const blockData = await syncEventsUtils.fetchBlock(block);
+    if (!blockData) {
+      logger.error("sync-events-v2", `Block ${block} not found`);
+      throw new Error(`Block ${block} not found`);
+    }
     const endGetBlockTime = Date.now();
 
     const eventFilter: Filter = {
@@ -278,7 +276,7 @@ export const syncEvents = async (block: number) => {
           });
         }
       } catch (error) {
-        logger.info("sync-events-v2", `Failed to handle events: ${error}`);
+        logger.error("sync-events-v2", `Failed to handle events: ${error}`);
         throw error;
       }
     });
