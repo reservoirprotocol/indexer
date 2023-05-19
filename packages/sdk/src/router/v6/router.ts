@@ -3436,6 +3436,7 @@ export class Router {
         case "collectionxyz": {
           const order = detail.order as Sdk.CollectionXyz.Order;
           const module = this.contracts.collectionXyzModule;
+
           const acceptedSet = detail.extraArgs.tokenIds as string[];
           const { proof, proofFlags } =
             // acceptedSet === [] for unfiltered pools
@@ -3451,7 +3452,12 @@ export class Router {
                 order.params.pool,
                 // Single id, no need to sort
                 { nftId: detail.tokenId, proof, proofFlags, externalFilterContext: [] },
-                bn(order.params.extra.prices[0]),
+                bn(order.params.extra.prices[0]).sub(
+                  // Take into account any fees
+                  bn(order.params.extra.prices[0])
+                    .mul(detail.extraArgs?.totalFeeBps ?? 0)
+                    .div(10000)
+                ),
                 Math.floor(Date.now() / 1000) + 10 * 60,
                 {
                   fillTo: taker,

@@ -379,6 +379,7 @@ export const getExecuteSellV7Options: RouteOptions = {
               rawData: order.rawData,
               source: source || undefined,
               fees: additionalFees,
+              builtInFeeBps: builtInFees.map(({ bps }) => bps).reduce((a, b) => a + b, 0),
               isProtected:
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (order.rawData as any).zone ===
