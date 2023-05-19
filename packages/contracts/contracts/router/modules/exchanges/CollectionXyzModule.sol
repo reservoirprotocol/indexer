@@ -10,7 +10,7 @@ import {ICollectionPool, ICollectionRouter} from "../../../interfaces/ICollectio
 
 struct CollectionXyzOrderParams {
   uint256 nftId;
-  bytes32[] proofs;
+  bytes32[] proof;
   bool[] proofFlags;
   bytes externalFilterContext;
 }
@@ -57,7 +57,7 @@ contract CollectionXyzModule is BaseExchangeModule {
       swapList[0] = ICollectionRouter.PoolSwapSpecific({
         pool: pools[i],
         nftIds: new uint256[](1),
-        proofs: orderParams[i].proofs,
+        proof: orderParams[i].proof,
         proofFlags: orderParams[i].proofFlags,
         externalFilterContext: orderParams[i].externalFilterContext
       });
@@ -112,7 +112,7 @@ contract CollectionXyzModule is BaseExchangeModule {
       swapList[0] = ICollectionRouter.PoolSwapSpecific({
         pool: pools[i],
         nftIds: new uint256[](1),
-        proofs: orderParams[i].proofs,
+        proof: orderParams[i].proof,
         proofFlags: orderParams[i].proofFlags,
         externalFilterContext: orderParams[i].externalFilterContext
       });
@@ -158,7 +158,7 @@ contract CollectionXyzModule is BaseExchangeModule {
     swapList[0] = ICollectionRouter.PoolSwapSpecific({
       pool: pool,
       nftIds: new uint256[](1),
-      proofs: orderParams.proofs,
+      proof: orderParams.proof,
       proofFlags: orderParams.proofFlags,
       externalFilterContext: orderParams.externalFilterContext
     });
