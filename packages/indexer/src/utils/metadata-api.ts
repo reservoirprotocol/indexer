@@ -17,11 +17,19 @@ interface TokenMetadata {
   flagged: boolean;
   name?: string;
   description?: string;
+  originalMetadata?: string;
   imageUrl?: string;
   imageOriginalUrl?: string;
   imageSmallUrl?: string;
-  imageMediumUrl?: string;
   imageLargeUrl?: string;
+  imageProperties?: {
+    width?: number;
+    height?: number;
+    size?: number;
+    mime_type?: string;
+  };
+  animationOriginalUrl?: string;
+  metadataOriginalUrl?: string;
   mediaUrl?: string;
   attributes: {
     key: string;

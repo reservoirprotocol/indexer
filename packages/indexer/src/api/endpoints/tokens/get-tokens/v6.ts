@@ -1057,7 +1057,13 @@ export const getTokensV6Options: RouteOptions = {
             name: r.name,
             description: r.description,
             image: Assets.getLocalAssetsLink(r.image),
-            metadata: r.metadata,
+            metadata: {
+              image_original_url: r.metadata.image_original_url || undefined,
+              image_small_url:
+                r.metadata.image_small_url || Assets.getResizedImageUrl(r.image, 250),
+              image_large_url:
+                r.metadata.image_large_url || Assets.getResizedImageUrl(r.image, 1000),
+            },
             media: r.media,
             kind: r.kind,
             isFlagged: Boolean(Number(r.is_flagged)),

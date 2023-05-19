@@ -42,4 +42,25 @@ export class Assets {
 
     return `${baseUrl}?${queryParams.toString()}`;
   }
+
+  public static getResizedImageUrl(imageUrl: string | undefined, size: number): string | undefined {
+    if (imageUrl?.includes("lh3.googleusercontent.com")) {
+      if (imageUrl.match(/=s\d+$/)) {
+        return imageUrl.replace(/=s\d+$/, `=s${size}`);
+      } else {
+        return `${imageUrl}=s${size}`;
+      }
+    }
+
+    if (imageUrl?.includes("i.seadn.io")) {
+      if (imageUrl.match(/w=\d+/)) {
+        return imageUrl.replace(/w=\d+/, `w=${size}`);
+      } else {
+        return `${imageUrl}?w=${size}`;
+      }
+    }
+
+    // If the image provider is not recognized, return undefined
+    return undefined;
+  }
 }

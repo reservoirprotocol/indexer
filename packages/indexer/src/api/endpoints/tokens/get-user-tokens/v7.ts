@@ -25,6 +25,7 @@ import {
 } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
+import { Assets } from "@/utils/assets";
 
 const version = "v7";
 
@@ -636,7 +637,13 @@ export const getUserTokensV7Options: RouteOptions = {
             kind: r.kind,
             name: r.name,
             image: r.image,
-            metadata: r.token_metadata,
+            metadata: {
+              image_original_url: r.token_metadata.image_original_url || undefined,
+              image_small_url:
+                r.token_metadata.image_small_url || Assets.getResizedImageUrl(r.image, 250),
+              image_large_url:
+                r.token_metadata.image_large_url || Assets.getResizedImageUrl(r.image, 1000),
+            },
             rarityScore: r.rarity_score,
             rarityRank: r.rarity_rank,
             supply: !_.isNull(r.supply) ? r.supply : null,

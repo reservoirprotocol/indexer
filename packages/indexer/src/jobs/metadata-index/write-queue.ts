@@ -51,11 +51,14 @@ if (config.doBackgroundWork) {
         tokenId,
         name,
         description,
+        originalMetadata,
         imageUrl,
         imageOriginalUrl,
         imageSmallUrl,
-        imageMediumUrl,
         imageLargeUrl,
+        imageProperties,
+        animationOriginalUrl,
+        metadataOriginalUrl,
         mediaUrl,
         flagged,
         attributes,
@@ -86,10 +89,13 @@ if (config.doBackgroundWork) {
             image: imageUrl || null,
             metadata:
               {
+                original_metadata: originalMetadata || null,
                 image_original_url: imageOriginalUrl || null,
                 image_small_url: imageSmallUrl || null,
-                image_medium_url: imageMediumUrl || null,
                 image_large_url: imageLargeUrl || null,
+                image_properties: imageProperties || null,
+                animation_original_url: animationOriginalUrl || null,
+                metadata_original_url: metadataOriginalUrl || null,
               } || {},
             media: mediaUrl || null,
           }
@@ -456,11 +462,19 @@ export type TokenMetadataInfo = {
   tokenId: string;
   name?: string;
   description?: string;
+  originalMetadata?: string;
   imageUrl?: string;
   imageOriginalUrl?: string;
   imageSmallUrl?: string;
-  imageMediumUrl?: string;
   imageLargeUrl?: string;
+  imageProperties?: {
+    width?: number;
+    height?: number;
+    size?: number;
+    mime_type?: string;
+  };
+  animationOriginalUrl?: string;
+  metadataOriginalUrl?: string;
   mediaUrl?: string;
   flagged?: boolean;
   attributes: {
