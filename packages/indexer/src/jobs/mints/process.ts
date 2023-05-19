@@ -187,7 +187,9 @@ if (config.doBackgroundWork) {
         }
 
         // For now, we only support simple data types in the calldata
-        if (["(", ")", "[", "]", "bytes", "string"].includes(methodSignature.params)) {
+        if (
+          ["(", ")", "[", "]", "bytes", "string"].some((x) => methodSignature.params.includes(x))
+        ) {
           return;
         }
 
