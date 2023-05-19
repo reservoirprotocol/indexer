@@ -3,9 +3,10 @@ import { JsonRpcProvider } from "@ethersproject/providers";
 import { getCallTrace, getStateChange } from "@georgeroman/evm-tx-simulator";
 import { TxData } from "@reservoir0x/sdk/src/utils";
 
+import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { idb } from "@/common/db";
 
 export type MintDetails =
   | {
@@ -42,6 +43,7 @@ export const getMintTxData = (
   price: string
 ): TxData => {
   const params = details.methodParams.split(",");
+  logger.info("mints-process", JSON.stringify({ params, minter, quantity }));
 
   let calldata: string | undefined;
   switch (details.kind) {
@@ -65,6 +67,8 @@ export const getMintTxData = (
       calldata = details.methodSignature + defaultAbiCoder.encode(params, [minter, quantity]);
       break;
   }
+
+  logger.info("mints-process", JSON.stringify({ calldata }));
 
   if (!calldata) {
     throw new Error("Mint not supported");
