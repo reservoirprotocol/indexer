@@ -28,6 +28,7 @@
     "@hapi/inert": "^6.0.4",
     "@hapi/vision": "^6.1.0",
     "@joi/date": "^2.1.0",
+    "@openchainxyz/abi-guesser": "^1.0.2",
     "@opensea/stream-js": "^0.0.23",
     "@poprank/rankings": "1.1.20",
     "@reservoir0x/sdk": "*",

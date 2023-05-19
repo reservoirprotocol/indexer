@@ -6,7 +6,7 @@ import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { randomUUID } from "crypto";
 import { BidEventsList } from "@/models/bid-events-list";
-import { idb } from "@/common/db";
+import { idb, pgp } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import _ from "lodash";
 
@@ -33,108 +33,91 @@ if (config.doBackgroundWork) {
     QUEUE_NAME,
     async (job) => {
       const bidEventsList = new BidEventsList();
-      const events = await bidEventsList.get(750);
-      const values = [];
-      let replacements = {};
+      let events = await bidEventsList.get(750);
 
-      let i = 0;
-      for (const event of events) {
-        values.push(`(
-            $/kind${i}/,
-            (
-              CASE
-                WHEN $/fillabilityStatus${i}/ = 'filled' THEN 'filled'
-                WHEN $/fillabilityStatus${i}/ = 'cancelled' THEN 'cancelled'
-                WHEN $/fillabilityStatus${i}/ = 'expired' THEN 'expired'
-                WHEN $/fillabilityStatus${i}/ = 'no-balance' THEN 'inactive'
-                WHEN $/approvalStatus${i}/ = 'no-approval' THEN 'inactive'
-                ELSE 'active'
-              END
-            )::order_event_status_t,
-            $/contract${i}/,
-            $/tokenSetId${i}/,
-            $/orderId${i}/,
-            $/orderSourceIdInt${i}/,
-            $/validBetween${i}/,
-            $/quantityRemaining${i}/,
-            $/nonce${i}/,
-            $/maker${i}/,
-            $/price${i}/,
-            $/value${i}/,
-            $/txHash${i}/,
-            $/txTimestamp${i}/,
-            $/orderKind${i}/,
-            $/orderCurrency${i}/,
-            $/orderCurrencyPrice${i}/,
-            $/orderNormalizedValue${i}/,
-            $/orderCurrencyNormalizedValue${i}/,
-            $/orderRawData${i}/
-          )
-        `);
+      const columns = new pgp.helpers.ColumnSet(
+        [
+          "kind",
+          "status",
+          "contract",
+          "token_set_id",
+          "order_id",
+          "order_source_id_int",
+          "order_valid_between",
+          "order_quantity_remaining",
+          "order_nonce",
+          "maker",
+          "price",
+          "value",
+          "tx_hash",
+          "tx_timestamp",
+          "order_kind",
+          "order_currency",
+          "order_currency_price",
+          "order_normalized_value",
+          "order_currency_normalized_value",
+          "order_raw_data",
+        ],
+        { table: "bid_events" }
+      );
 
-        replacements = _.merge(replacements, {
-          [`fillabilityStatus${i}`]: event.order.fillabilityStatus,
-          [`approvalStatus${i}`]: event.order.approvalStatus,
-          [`contract${i}`]: toBuffer(event.order.contract),
-          [`tokenSetId${i}`]: event.order.tokenSetId,
-          [`orderId${i}`]: event.order.id,
-          [`orderSourceIdInt${i}`]: event.order.sourceIdInt,
-          [`validBetween${i}`]: event.order.validBetween,
-          [`quantityRemaining${i}`]: event.order.quantityRemaining,
-          [`nonce${i}`]: event.order.nonce,
-          [`maker${i}`]: toBuffer(event.order.maker),
-          [`price${i}`]: event.order.price,
-          [`value${i}`]: event.order.value,
-          [`kind${i}`]: event.trigger.kind,
-          [`txHash${i}`]: event.trigger.txHash ? toBuffer(event.trigger.txHash) : null,
-          [`txTimestamp${i}`]: event.trigger.txTimestamp || null,
-          [`orderKind${i}`]: event.order.kind,
-          [`orderCurrency${i}`]: toBuffer(event.order.currency),
-          [`orderCurrencyPrice${i}`]: event.order.currency_price,
-          [`orderNormalizedValue${i}`]: event.order.normalized_value,
-          [`orderCurrencyNormalizedValue${i}`]: event.order.currency_normalized_value,
-          [`orderRawData${i}`]: event.order.raw_data,
-        });
+      events = events.filter((event) => {
+        if (!event.trigger.kind) {
+          logger.error(QUEUE_NAME, `no trigger kind for ${JSON.stringify(event)}`);
+          return false;
+        }
 
-        ++i;
-      }
+        return true;
+      });
 
-      if (!_.isEmpty(values)) {
+      const data = events.map((event) => {
+        let status = "active";
+
+        if (event.order.fillabilityStatus === "filled") {
+          status = "filled";
+        } else if (event.order.fillabilityStatus === "cancelled") {
+          status = "cancelled";
+        } else if (event.order.fillabilityStatus === "expired") {
+          status = "expired";
+        } else if (event.order.fillabilityStatus === "no-balance") {
+          status = "inactive";
+        } else if (event.order.approvalStatus === "no-approval") {
+          status = "inactive";
+        }
+
+        return {
+          kind: event.trigger.kind,
+          status,
+          contract: toBuffer(event.order.contract),
+          token_set_id: event.order.tokenSetId,
+          order_id: event.order.id,
+          order_source_id_int: event.order.sourceIdInt,
+          order_valid_between: event.order.validBetween,
+          order_quantity_remaining: event.order.quantityRemaining,
+          order_nonce: event.order.nonce,
+          maker: toBuffer(event.order.maker),
+          price: event.order.price,
+          value: event.order.value,
+          tx_hash: event.trigger.txHash ? toBuffer(event.trigger.txHash) : null,
+          tx_timestamp: event.trigger.txTimestamp || null,
+          order_kind: event.order.kind,
+          order_currency: toBuffer(event.order.currency),
+          order_currency_price: event.order.currency_price,
+          order_normalized_value: event.order.normalized_value,
+          order_currency_normalized_value: event.order.currency_normalized_value,
+          order_raw_data: event.order.raw_data,
+        };
+      });
+
+      if (!_.isEmpty(data)) {
         try {
-          await idb.none(
-            `
-            INSERT INTO bid_events (
-              kind,
-              status,
-              contract,
-              token_set_id,
-              order_id,
-              order_source_id_int,
-              order_valid_between,
-              order_quantity_remaining,
-              order_nonce,
-              maker,
-              price,
-              value,
-              tx_hash,
-              tx_timestamp,
-              order_kind,
-              order_currency,
-              order_currency_price,
-              order_normalized_value,
-              order_currency_normalized_value,
-              order_raw_data
-            )
-            VALUES ${_.join(values, ",")}
-          `,
-            replacements
-          );
+          const query = pgp.helpers.insert(data, columns) + " ON CONFLICT DO NOTHING";
+          await idb.none(query);
+          job.data.checkForMore = true;
         } catch (error) {
           logger.error(QUEUE_NAME, `failed to insert into bid_events ${error}`);
           await bidEventsList.add(events);
         }
-
-        job.data.checkForMore = true;
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }

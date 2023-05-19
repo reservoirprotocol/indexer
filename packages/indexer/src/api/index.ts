@@ -159,6 +159,17 @@ export const start = async (): Promise<void> => {
       return reply.continue;
     }
 
+    if (request.route.path.startsWith("/admin/bullmq")) {
+      return reply.continue;
+    }
+
+    if (
+      request.headers["x-admin-api-key"] &&
+      request.headers["x-admin-api-key"] === config.adminApiKey
+    ) {
+      return reply.continue;
+    }
+
     const remoteAddress = request.headers["x-forwarded-for"]
       ? _.split(request.headers["x-forwarded-for"], ",")[0]
       : request.info.remoteAddress;

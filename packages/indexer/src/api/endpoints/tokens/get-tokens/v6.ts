@@ -121,10 +121,10 @@ export const getTokensV6Options: RouteOptions = {
         .min(1)
         .description("Get tokens with a max rarity rank (inclusive)"),
       minFloorAskPrice: Joi.number().description(
-        "Get tokens with a min floor ask price (inclusive)"
+        "Get tokens with a min floor ask price (inclusive); use native currency"
       ),
       maxFloorAskPrice: Joi.number().description(
-        "Get tokens with a max floor ask price (inclusive)"
+        "Get tokens with a max floor ask price (inclusive); use native currency"
       ),
       flagStatus: Joi.number()
         .allow(-1, 0, 1)

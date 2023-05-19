@@ -4,9 +4,10 @@ import { HashZero } from "@ethersproject/constants";
 import { Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
-import { idb } from "@/common/db";
+import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
+import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 
@@ -27,42 +28,64 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
-      const { id } = job.data;
-      const limit = 500;
+      const { side, id, createdAt } = job.data;
+      const limit = 1000;
 
       const results = await idb.manyOrNone(
         `
-          WITH
-            x AS (
-              SELECT
-                orders.id,
-                orders.fillability_status
-              FROM orders
-              WHERE orders.kind = 'seaport'
-                AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
-                AND orders.id > $/id/
-              ORDER BY orders.id
-              LIMIT $/limit/
-            ),
-            y AS (
-              UPDATE orders SET
-                fillability_status = 'cancelled',
-                updated_at = now()
-              FROM x
-              WHERE orders.id = x.id
-            )
-          SELECT * FROM x
+          SELECT
+            orders.id,
+            orders.kind,
+            orders.conduit,
+            orders.created_at
+          FROM orders
+          WHERE orders.side = $/side/
+            AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
+            AND (orders.created_at, orders.id) < ($/createdAt/, $/id/)
+          ORDER BY
+            orders.created_at DESC,
+            orders.id DESC
+          LIMIT $/limit/
         `,
         {
+          side,
+          createdAt,
           id,
           limit,
         }
       );
 
-      await orderUpdatesById.addToQueue(
-        results
-          .filter(({ fillability_status }) => fillability_status === "fillable")
-          .map(
+      const values: any[] = [];
+      const columns = new pgp.helpers.ColumnSet(["id", "fillability_status"], {
+        table: "orders",
+      });
+      for (const r of results) {
+        if (
+          r.kind === "seaport-v1.4" &&
+          fromBuffer(r.conduit) === "0x1e0049783f008a0085193e00003d00cd54003c71"
+        ) {
+          values.push({
+            id: r.id,
+            fillability_status: "cancelled",
+          });
+        }
+      }
+
+      if (values.length) {
+        await idb.none(
+          `
+            UPDATE orders SET
+              fillability_status = x.fillability_status::order_fillability_status_t,
+              updated_at = now()
+            FROM (
+              VALUES ${pgp.helpers.values(values, columns)}
+            ) AS x(id, fillability_status)
+            WHERE orders.id = x.id::TEXT
+          `
+        );
+
+        await orderUpdatesById.addToQueue(
+          values.map(
             ({ id }) =>
               ({
                 context: `cancelled-${id}`,
@@ -72,11 +95,12 @@ if (config.doBackgroundWork) {
                 },
               } as orderUpdatesById.OrderInfo)
           )
-      );
+        );
+      }
 
       if (results.length >= limit) {
         const lastResult = results[results.length - 1];
-        await addToQueue(lastResult.id);
+        await addToQueue(side, lastResult.created_at, lastResult.id);
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
@@ -86,23 +110,17 @@ if (config.doBackgroundWork) {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
 
-  if ([5, 10, 137, 42161].includes(config.chainId)) {
-    redlock
-      .acquire([`${QUEUE_NAME}-lock-2`], 60 * 60 * 24 * 30 * 1000)
-      .then(async () => {
-        await addToQueue("0x0" + HashZero.slice(3));
-        await addToQueue("0x3" + HashZero.slice(3));
-        await addToQueue("0x6" + HashZero.slice(3));
-        await addToQueue("0x9" + HashZero.slice(3));
-        await addToQueue("0xb" + HashZero.slice(3));
-        await addToQueue("0xe" + HashZero.slice(3));
-      })
-      .catch(() => {
-        // Skip on any errors
-      });
-  }
+  redlock
+    .acquire([`${QUEUE_NAME}-lock-7`], 60 * 60 * 24 * 30 * 1000)
+    .then(async () => {
+      await addToQueue("sell", new Date().toISOString(), HashZero);
+      await addToQueue("buy", new Date().toISOString(), HashZero);
+    })
+    .catch(() => {
+      // Skip on any errors
+    });
 }
 
-export const addToQueue = async (id: string) => {
-  await queue.add(randomUUID(), { id });
+export const addToQueue = async (side: string, createdAt: string, id: string) => {
+  await queue.add(randomUUID(), { side, id, createdAt }, { jobId: `${side}-${createdAt}-${id}-7` });
 };

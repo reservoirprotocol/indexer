@@ -273,6 +273,19 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0xda9f05a3e133c2907e7173495022a936a3808d45",
+            {
+              contract: "0xda9f05a3e133c2907e7173495022a936a3808d45",
+              name: "Nelkcoin",
+              symbol: "NELK",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://ipfs.thirdwebcdn.com/ipfs/QmTVfXH5aogD3u5yCPDp4KAvbFeBGvwkxQKRVEQsftXkfo/favicon-32x32.png",
+              },
+            },
+          ],
         ]),
         coingecko: {
           networkId: "ethereum",
@@ -306,6 +319,11 @@ export const getNetworkSettings = (): NetworkSettings => {
         ...defaultNetworkSettings,
         backfillBlockBatchSize: 128,
         subDomain: "api-goerli",
+        mintsAsSalesBlacklist: [
+          ...defaultNetworkSettings.mintsAsSalesBlacklist,
+          // Uniswap V3: Positions NFT
+          "0xc36442b4a4522e871399cd717abdd847ab11fe88",
+        ],
         washTradingExcludedContracts: [
           // ArtBlocks Contracts
           "0xda62f67be7194775a75be91cbf9feedcc5776d4b",

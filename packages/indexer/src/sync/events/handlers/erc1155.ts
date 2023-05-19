@@ -86,6 +86,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             tokenId,
             mintedTimestamp: baseEventParams.timestamp,
           });
+          onChainData.mints.push({
+            txHash: baseEventParams.txHash,
+          });
 
           if (!ns.mintsAsSalesBlacklist.includes(baseEventParams.address)) {
             if (!mintedTokens.has(baseEventParams.txHash)) {
@@ -164,6 +167,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               contract: baseEventParams.address,
               tokenId: tokenIds[i],
               mintedTimestamp: baseEventParams.timestamp,
+            });
+            onChainData.mints.push({
+              txHash: baseEventParams.txHash,
             });
 
             if (!ns.mintsAsSalesBlacklist.includes(baseEventParams.address)) {

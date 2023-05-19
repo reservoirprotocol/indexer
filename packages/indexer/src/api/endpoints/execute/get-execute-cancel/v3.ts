@@ -33,7 +33,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
         "seaport",
         "seaport-v1.4",
         "seaport-v1.5",
-        "looks-rare",
+        "looks-rare-v2",
         "zeroex-v4-erc721",
         "zeroex-v4-erc1155",
         "universe",
@@ -427,9 +427,9 @@ export const getExecuteCancelV3Options: RouteOptions = {
           break;
         }
 
-        case "looks-rare": {
-          const order = new Sdk.LooksRare.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.LooksRare.Exchange(config.chainId);
+        case "looks-rare-v2": {
+          const order = new Sdk.LooksRareV2.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.LooksRareV2.Exchange(config.chainId);
 
           cancelTx = exchange.cancelOrderTx(maker, order);
 

@@ -42,14 +42,14 @@ export const getAttributesAllV4Options: RouteOptions = {
     schema: Joi.object({
       attributes: Joi.array().items(
         Joi.object({
-          key: Joi.string().required(),
-          attributeCount: Joi.number(),
+          key: Joi.string().required().description("Case sensitive"),
+          attributeCount: Joi.number().description("Number of possible attribute kinds"),
           kind: Joi.string().valid("string", "number", "date", "range").required(),
           minRange: Joi.number().unsafe().allow(null),
           maxRange: Joi.number().unsafe().allow(null),
           values: Joi.array().items(
             Joi.object({
-              value: JoiAttributeValue,
+              value: JoiAttributeValue.description("Case sensitive"),
               count: Joi.number(),
               floorAskPrice: JoiPrice.allow(null).description(
                 "Returned only for attributes with less than 10k tokens"

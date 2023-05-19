@@ -25,15 +25,11 @@ import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
 import MetadataApi from "@/utils/metadata-api";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
-import { MqJobsDataManager } from "@/models/mq-jobs-data";
-import * as backfillBids from "@/jobs/backfill/backfill-bids";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
-  const maxCollectionBidsSize = config.chainId === 1 ? 50 : 1;
   const maxBidsSize = config.chainId === 1 ? 200 : 1;
   const bidsEvents: GenericOrderInfo[] = [];
-  const collectionBidsEvents: GenericOrderInfo[] = [];
 
   const client = new OpenSeaStreamClient({
     token: config.openSeaApiKey,
@@ -96,26 +92,11 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
             if (eventType === EventType.ITEM_LISTED) {
               await orderbookOpenseaListings.addToQueue([orderInfo]);
             } else {
-              if (eventType === EventType.COLLECTION_OFFER) {
-                collectionBidsEvents.push(orderInfo);
-              } else {
-                bidsEvents.push(orderInfo);
-              }
-
-              if (collectionBidsEvents.length >= maxCollectionBidsSize) {
-                const orderInfoBatch = collectionBidsEvents.splice(0, collectionBidsEvents.length);
-                await orderbookOrders.addToQueue(orderInfoBatch);
-              }
+              bidsEvents.push(orderInfo);
 
               if (bidsEvents.length >= maxBidsSize) {
                 const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
-
-                const id = await MqJobsDataManager.addJobData(
-                  orderbookOrders.queue.name,
-                  orderInfoBatch
-                );
-
-                await backfillBids.addToQueue(id);
+                await orderbookOrders.addToQueue(orderInfoBatch);
               }
             }
           }

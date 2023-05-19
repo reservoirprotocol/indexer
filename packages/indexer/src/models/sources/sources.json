@@ -6,7 +6,7 @@
     "address": "0x5b3256965e7c3cf26e11fcaf296dfc8807c01073",
     "data": {
       "icon": "https://raw.githubusercontent.com/reservoirprotocol/indexer/v5/src/models/sources/opensea-logo.svg",
-      "tokenUrlMainnet": "https://opensea.io/assets/${contract}/${tokenId}",
+      "tokenUrlMainnet": "https://opensea.io/assets/ethereum/${contract}/${tokenId}",
       "tokenUrlRinkeby": "https://testnets.opensea.io/assets/${contract}/${tokenId}",
       "tokenUrlGoerli": "https://testnets.opensea.io/assets/${contract}/${tokenId}",
       "tokenUrlPolygon": "https://opensea.io/assets/matic/${contract}/${tokenId}",
