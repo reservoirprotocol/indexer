@@ -75,7 +75,9 @@ export const getAsksEventsV3Options: RouteOptions = {
             contract: Joi.string().lowercase().pattern(regex.address),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             price: JoiPrice.allow(null),
-            quantityRemaining: Joi.number().unsafe().description("With ERC1155s, quantity can be higher than 1"),
+            quantityRemaining: Joi.number()
+              .unsafe()
+              .description("With ERC1155s, quantity can be higher than 1"),
             nonce: Joi.string().pattern(regex.number).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
@@ -83,7 +85,9 @@ export const getAsksEventsV3Options: RouteOptions = {
             kind: Joi.string(),
             source: Joi.string().allow("", null),
             isDynamic: Joi.boolean(),
-            criteria: JoiOrderCriteria.allow(null).description("`kind` can return `token`, `collection`, or `attribute`."),
+            criteria: JoiOrderCriteria.allow(null).description(
+              "`kind` can return `token`, `collection`, or `attribute`."
+            ),
           }),
           event: Joi.object({
             id: Joi.number().unsafe(),

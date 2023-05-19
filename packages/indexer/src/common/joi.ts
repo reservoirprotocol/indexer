@@ -741,7 +741,10 @@ export const JoiSale = Joi.object({
   royaltyFeeBps: Joi.number().optional(),
   marketplaceFeeBps: Joi.number().optional(),
   paidFullRoyalty: Joi.boolean().optional(),
-  feeBreakdown: Joi.array().items(JoiFeeBreakdown).optional().description("`kind` can be `marketplace` or `royalty`"),
+  feeBreakdown: Joi.array()
+    .items(JoiFeeBreakdown)
+    .optional()
+    .description("`kind` can be `marketplace` or `royalty`"),
   isDeleted: Joi.boolean().optional(),
   createdAt: Joi.string().optional().description("Time when added to indexer"),
   updatedAt: Joi.string().optional().description("Time when updated in indexer"),

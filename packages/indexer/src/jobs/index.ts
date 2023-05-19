@@ -60,6 +60,7 @@ import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
 import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
+import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
@@ -210,6 +211,7 @@ export const allJobQueues = [
   collectionUpdatesNonFlaggedFloorAsk.queue,
   collectionSetCommunity.queue,
   collectionRecalcTokenCount.queue,
+  collectionRecalcOwnerCount.queue,
 
   tokenSetUpdatesTopBid.queue,
   tokenSetUpdatesTopBidSingleToken.queue,
