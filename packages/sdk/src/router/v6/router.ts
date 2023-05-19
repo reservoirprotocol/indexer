@@ -1712,7 +1712,7 @@ export class Router {
           collectionXyzDetails.map((d) => ({
             nftId: d.tokenId,
             // Unused for buying from pools
-            proofs: [],
+            proof: [],
             proofFlags: [],
             externalFilterContext: [],
           })),

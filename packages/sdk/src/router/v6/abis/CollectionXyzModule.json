@@ -123,7 +123,7 @@
           },
           {
             "internalType": "bytes32[]",
-            "name": "proofs",
+            "name": "proof",
             "type": "bytes32[]"
           },
           {
@@ -217,7 +217,7 @@
           },
           {
             "internalType": "bytes32[]",
-            "name": "proofs",
+            "name": "proof",
             "type": "bytes32[]"
           },
           {
@@ -409,7 +409,7 @@
           },
           {
             "internalType": "bytes32[]",
-            "name": "proofs",
+            "name": "proof",
             "type": "bytes32[]"
           },
           {
