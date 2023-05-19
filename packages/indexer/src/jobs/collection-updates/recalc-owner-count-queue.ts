@@ -57,8 +57,7 @@ if (config.doBackgroundWork) {
                           FROM  nft_balances 
                             JOIN collections ON nft_balances.contract = collections.contract 
                             AND nft_balances.token_id < @ collections.token_id_range 
-                          WHERE 
-                            collections.id = $/collectionId/
+                          WHERE collections.id = $/collectionId/
                             AND nft_balances.amount > 0
                         ) 
                         UPDATE collections 
@@ -66,24 +65,30 @@ if (config.doBackgroundWork) {
                           owner_count = x.owner_count, 
                           updated_at = now() 
                         FROM x 
-                        WHERE 
-                          id = $/collectionId/ 
+                        WHERE id = $/collectionId/ 
                           AND collections.owner_count != x.owner_count;
 
                   `;
           } else {
             query = `
-                      UPDATE "collections"
-                      SET "owner_count" = (
-                        SELECT
-                          COUNT(DISTINCT(owner)) AS owner_count
-                        FROM nft_balances
-                        JOIN tokens ON tokens.contract = nft_balances.contract
-                        AND tokens.token_id = nft_balances.token_id
-                        WHERE tokens.collection_id = collections.id AND nft_balances.amount > 0
-                        ),
-                          "updated_at" = now()
-                      WHERE "id" = $/collectionId/;
+                      WITH x as (
+                          SELECT 
+                            COUNT(
+                              DISTINCT(owner)
+                            ) AS owner_count 
+                          FROM nft_balances
+                            JOIN tokens ON tokens.contract = nft_balances.contract 
+                            AND tokens.token_id = nft_balances.token_id 
+                          WHERE tokens.collection_id = $/collectionId/
+                            AND nft_balances.amount > 0
+                        ) 
+                        UPDATE collections
+                        SET 
+                          "owner_count" = x.owner_count, 
+                          "updated_at" = now() 
+                        FROM x
+                        WHERE id = $/collectionId/
+                          AND collections.owner_count != x.owner_count;
                   `;
           }
 
@@ -93,14 +98,13 @@ if (config.doBackgroundWork) {
 
           logger.info(
             QUEUE_NAME,
-            `Updated owner count. jobData=${JSON.stringify(job.data)}, collection=${collection.id}`
+            JSON.stringify({
+              topic: "Updated owner count",
+              jobData: job.data,
+              collection: collection.id,
+            })
           );
         } else {
-          logger.info(
-            QUEUE_NAME,
-            `Reschedule. jobData=${JSON.stringify(job.data)}, collection=${collection.id}`
-          );
-
           const acquiredScheduleLock = await acquireLock(
             getScheduleLockName(collection.id),
             60 * 5
@@ -111,9 +115,12 @@ if (config.doBackgroundWork) {
 
             logger.info(
               QUEUE_NAME,
-              `acquiredScheduleLock. jobData=${JSON.stringify(job.data)}, collection=${
-                collection.id
-              }, delay=${delay}`
+              JSON.stringify({
+                topic: "Reschedule job",
+                jobData: job.data,
+                collection: collection.id,
+                delay,
+              })
             );
 
             await addToQueue(
