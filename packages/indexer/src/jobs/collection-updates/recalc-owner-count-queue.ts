@@ -171,6 +171,23 @@ export const getScheduleLockName = (collectionId: string) => {
   return `${QUEUE_NAME}-schedule-lock:${collectionId}`;
 };
 
-export const addToQueue = async () => {
-  return;
+export const addToQueue = async (infos: RecalcCollectionOwnerCountInfo[], delayInSeconds = 0) => {
+  logger.debug(
+    QUEUE_NAME,
+    JSON.stringify({
+      topic: "addToQueue",
+      infos: infos,
+      delayInSeconds,
+    })
+  );
+
+  // await queue.addBulk(
+  //   infos.map((info) => ({
+  //     name: randomUUID(),
+  //     data: info,
+  //     opts: {
+  //       delay: delayInSeconds * 1000,
+  //     },
+  //   }))
+  // );
 };
