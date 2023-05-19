@@ -134,7 +134,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           }
 
           let i = 0;
-          for (const tokenId of parsedLog.args["nftIds"]) {
+          for (const nftId of parsedLog.args["nftIds"]) {
+            const tokenId = nftId.toString();
             const orderId = getOrderId(baseEventParams.address, "sell", tokenId);
 
             onChainData.fillEventsOnChain.push({
@@ -163,7 +164,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               context: `collectionxyz-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
               orderSide: "sell", // Pool is selling to taker
               contract: pool.nft,
-              tokenId: tokenId,
+              tokenId,
               amount: "1",
               price: priceData.nativePrice,
               timestamp: baseEventParams.timestamp,
@@ -287,7 +288,8 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             }
 
             let i = 0;
-            for (const tokenId of parsedLog.args["nftIds"]) {
+            for (const nftId of parsedLog.args["nftIds"]) {
+              const tokenId = nftId.toString();
               const orderId = getOrderId(baseEventParams.address, "buy");
 
               onChainData.fillEventsPartial.push({
@@ -316,7 +318,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 context: `collectionxyz-${pool.nft}-${tokenId}-${baseEventParams.txHash}`,
                 orderSide: "buy", // Pool is buying from taker
                 contract: pool.nft,
-                tokenId: tokenId,
+                tokenId,
                 amount: "1",
                 price: priceData.nativePrice,
                 timestamp: baseEventParams.timestamp,
