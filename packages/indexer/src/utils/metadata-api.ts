@@ -73,39 +73,28 @@ export class MetadataApi {
         config.metadataApiBaseUrlAlt
       }/v4/${getNetworkName()}/metadata/collection?method=${indexingMethod}&token=${contract}:${tokenId}`;
 
-      try {
-        const { data } = await axios.get(url);
+      const { data } = await axios.get(url);
 
-        const collection: {
-          id: string;
-          slug: string;
-          name: string;
-          community: string | null;
-          metadata: object | null;
-          royalties?: object;
-          openseaRoyalties?: object;
-          openseaFees?: object;
-          contract: string;
-          tokenIdRange: [string, string] | null;
-          tokenSetId: string | null;
-          isFallback?: boolean;
-        } = (data as any).collection;
+      const collection: {
+        id: string;
+        slug: string;
+        name: string;
+        community: string | null;
+        metadata: object | null;
+        royalties?: object;
+        openseaRoyalties?: object;
+        openseaFees?: object;
+        contract: string;
+        tokenIdRange: [string, string] | null;
+        tokenSetId: string | null;
+        isFallback?: boolean;
+      } = (data as any).collection;
 
-        if (collection.isFallback && !options?.allowFallback) {
-          throw new Error("Fallback collection data not acceptable");
-        }
-
-        return collection;
-      } catch (error) {
-        logger.error(
-          "MetadataApi",
-          `getCollectionMetadata. contract=${contract}, tokenId=${tokenId}, community=${community}, options=${JSON.stringify(
-            options
-          )}, url=${url}, error=${error}`
-        );
-
-        throw error;
+      if (collection.isFallback && !options?.allowFallback) {
+        throw new Error("Fallback collection data not acceptable");
       }
+
+      return collection;
     }
   }
 
