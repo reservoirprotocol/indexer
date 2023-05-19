@@ -158,7 +158,7 @@ const getFeeBpsAndBreakdown = async (
         recipient: royaltyRecipient,
         bps: Math.round(royaltyBps),
       },
-    ];
+    ].filter(({ bps }) => bps > 0);
 
     return { totalFeeBps, feeBreakdown };
   }
@@ -423,10 +423,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
           const tokenBalance: BigNumber = await poolContract.liquidity();
 
-          const {
-            totalAmount: currencyPrice,
-            outputAmount: currencyValue,
-          }: { totalAmount: BigNumber; outputAmount: BigNumber } =
+          const { totalAmount: currencyPrice }: { totalAmount: BigNumber } =
             await poolContract.getSellNFTQuote(1);
 
           if (currencyPrice.lte(tokenBalance)) {
@@ -460,11 +457,15 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 AddressZero,
               orderParams.assetRecipient ?? orderResult?.raw_data?.assetRecipient ?? AddressZero
             );
+
             const { feeBreakdown, totalFeeBps } = await getFeeBpsAndBreakdown(
               poolContract,
               royaltyRecipient,
               id
             );
+
+            const currencyValue = currencyPrice.sub(currencyPrice.mul(totalFeeBps).div(10000));
+
             const { missingRoyaltyAmount, missingRoyalties } = await computeRoyaltyInfo(
               pool.nft,
               currencyPrice,
@@ -747,8 +748,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               });
             }
           } else {
-            // The pool didn't have balance to fulfill the order. Update order
-            // status
+            // The pool didn't have balance to fulfill the order - update order status
             await idb.none(
               `
                 UPDATE orders SET
@@ -783,12 +783,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Handle sell orders
       try {
         if ([CollectionPoolType.NFT, CollectionPoolType.TRADE].includes(pool.poolType)) {
-          const {
-            totalAmount: currencyPrice,
-            inputAmount: currencyValue,
-          }: { totalAmount: BigNumber; inputAmount: BigNumber } = await poolContract.getBuyNFTQuote(
-            1
-          );
+          const { totalAmount: currencyPrice }: { totalAmount: BigNumber; inputAmount: BigNumber } =
+            await poolContract.getBuyNFTQuote(1);
+          const currencyValue = currencyPrice;
 
           // Fetch all token ids owned by the pool
           const poolOwnedTokenIds = ((await poolContract.getAllHeldIds()) as BigNumber[]).map(
