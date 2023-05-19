@@ -4,7 +4,6 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { acquireLock, getLockExpiration, redis } from "@/common/redis";
 import { idb } from "@/common/db";
-import { randomUUID } from "crypto";
 import { Collections } from "@/models/collections";
 
 const QUEUE_NAME = "collection-recalc-owner-count-queue";
@@ -172,14 +171,6 @@ export const getScheduleLockName = (collectionId: string) => {
   return `${QUEUE_NAME}-schedule-lock:${collectionId}`;
 };
 
-export const addToQueue = async (infos: RecalcCollectionOwnerCountInfo[], delayInSeconds = 0) => {
-  await queue.addBulk(
-    infos.map((info) => ({
-      name: randomUUID(),
-      data: info,
-      opts: {
-        delay: delayInSeconds * 1000,
-      },
-    }))
-  );
+export const addToQueue = async () => {
+  return;
 };
