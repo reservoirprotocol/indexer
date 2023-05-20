@@ -42,7 +42,11 @@ if (config.doBackgroundWork) {
       }
 
       if (collection) {
-        const acquiredCalcLock = await acquireLock(getCalcLockName(collection.id), 60 * 5);
+        const calcLockExpiration = collection.tokenCount > 30000 ? 60 * 15 : 60 * 5;
+        const acquiredCalcLock = await acquireLock(
+          getCalcLockName(collection.id),
+          calcLockExpiration
+        );
 
         if (acquiredCalcLock) {
           let query;
