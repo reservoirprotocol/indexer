@@ -28,7 +28,6 @@ const setup = async () => {
     return;
   }
 
-
   if (config.doBackgroundWork) {
     await Sources.syncSources();
 
@@ -40,7 +39,7 @@ const setup = async () => {
 
   await Sources.getInstance();
   await Sources.forceDataReload();
-  
+
   if (config.doKafkaWork) {
     startKafkaConsumer();
     startKafkaProducer();

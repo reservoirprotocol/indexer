@@ -4,8 +4,8 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { acquireLock, getLockExpiration, redis } from "@/common/redis";
 import { idb } from "@/common/db";
-import { randomUUID } from "crypto";
 import { Collections } from "@/models/collections";
+import { randomUUID } from "crypto";
 
 const QUEUE_NAME = "collection-recalc-owner-count-queue";
 
@@ -50,7 +50,11 @@ if (config.doBackgroundWork) {
       }
 
       if (collection) {
-        const acquiredCalcLock = await acquireLock(getCalcLockName(collection.id), 60 * 5);
+        const calcLockExpiration = collection.tokenCount > 30000 ? 60 * 15 : 60 * 5;
+        const acquiredCalcLock = await acquireLock(
+          getCalcLockName(collection.id),
+          calcLockExpiration
+        );
 
         if (acquiredCalcLock) {
           let query;
@@ -64,7 +68,7 @@ if (config.doBackgroundWork) {
                             ) AS owner_count 
                           FROM  nft_balances 
                             JOIN collections ON nft_balances.contract = collections.contract 
-                            AND nft_balances.token_id < @ collections.token_id_range 
+                            AND nft_balances.token_id <@ collections.token_id_range 
                           WHERE collections.id = $/collectionId/
                             AND nft_balances.amount > 0
                         ) 
@@ -74,7 +78,7 @@ if (config.doBackgroundWork) {
                           updated_at = now() 
                         FROM x 
                         WHERE id = $/collectionId/ 
-                          AND collections.owner_count != x.owner_count;
+                          AND COALESCE(collections.owner_count, 0) != x.owner_count;
 
                   `;
           } else {
@@ -96,7 +100,7 @@ if (config.doBackgroundWork) {
                           "updated_at" = now() 
                         FROM x
                         WHERE id = $/collectionId/
-                          AND collections.owner_count != x.owner_count;
+                          AND COALESCE(collections.owner_count, 0) != x.owner_count;
                   `;
           }
 
@@ -104,7 +108,7 @@ if (config.doBackgroundWork) {
             collectionId: collection.id,
           });
 
-          logger.info(
+          logger.debug(
             QUEUE_NAME,
             JSON.stringify({
               topic: "Updated owner count",
@@ -120,16 +124,6 @@ if (config.doBackgroundWork) {
 
           if (acquiredScheduleLock) {
             const delay = await getLockExpiration(getCalcLockName(collection.id));
-
-            logger.info(
-              QUEUE_NAME,
-              JSON.stringify({
-                topic: "Reschedule job",
-                jobData: job.data,
-                collection: collection.id,
-                delay,
-              })
-            );
 
             await addToQueue(
               [
@@ -147,7 +141,7 @@ if (config.doBackgroundWork) {
         }
       }
     },
-    { connection: redis.duplicate(), concurrency: 30 }
+    { connection: redis.duplicate(), concurrency: 10 }
   );
 
   worker.on("error", (error) => {
@@ -181,6 +175,20 @@ export const getScheduleLockName = (collectionId: string) => {
 };
 
 export const addToQueue = async (infos: RecalcCollectionOwnerCountInfo[], delayInSeconds = 0) => {
+  logger.debug(
+    QUEUE_NAME,
+    JSON.stringify({
+      topic: "addToQueue",
+      infos: infos,
+      delayInSeconds,
+    })
+  );
+
+  // Disable for bsc while its backfilling
+  if (config.chainId === 56) {
+    return;
+  }
+
   await queue.addBulk(
     infos.map((info) => ({
       name: randomUUID(),

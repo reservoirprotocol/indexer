@@ -785,14 +785,18 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
       const addGlobalFee = async (item: (typeof path)[0], fee: Sdk.RouterV6.Types.Fee) => {
         // Global fees get split across all eligible orders
-        fee.amount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+        const adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
 
         const itemNetPrice = bn(item.rawQuote).sub(
           item.feesOnTop.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0))
         );
 
-        const amount = formatPrice(fee.amount, (await getCurrency(item.currency)).decimals, true);
-        const rawAmount = bn(fee.amount).toString();
+        const amount = formatPrice(
+          adjustedFeeAmount,
+          (await getCurrency(item.currency)).decimals,
+          true
+        );
+        const rawAmount = bn(adjustedFeeAmount).toString();
 
         item.feesOnTop.push({
           recipient: fee.recipient,

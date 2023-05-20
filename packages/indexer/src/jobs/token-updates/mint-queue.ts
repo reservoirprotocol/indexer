@@ -13,7 +13,6 @@ import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-to
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 
 const QUEUE_NAME = "token-updates-mint-queue";
 
@@ -119,10 +118,6 @@ if (config.doBackgroundWork) {
 
           // Schedule a job to re-count tokens in the collection
           await collectionRecalcTokenCount.addToQueue(collection.id);
-
-          await collectionRecalcOwnerCount.addToQueue([
-            { context: QUEUE_NAME, kind: "collectionId", data: { collectionId: collection.id } },
-          ]);
 
           // Refresh any dynamic token set
           const cacheKey = `refresh-collection-non-flagged-token-set:${collection.id}`;
