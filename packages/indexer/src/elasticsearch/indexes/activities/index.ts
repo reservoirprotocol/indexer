@@ -134,6 +134,7 @@ export const search = async (params: {
   sort?: Sort | undefined;
   size?: number | undefined;
   search_after?: SortResults | undefined;
+  track_total_hits?: boolean;
 }): Promise<ActivityDocument[]> => {
   try {
     const esResult = await elasticsearch.search<ActivityDocument>({

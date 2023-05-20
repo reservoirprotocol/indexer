@@ -159,8 +159,6 @@ export const getSearchActivitiesV1Options: RouteOptions = {
 
     const esQuery = {};
 
-    (esQuery as any).track_total_hits = false;
-
     if (query.types && !_.isArray(query.types)) {
       query.types = [query.types];
     }
