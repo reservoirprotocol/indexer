@@ -17,6 +17,8 @@ import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
 import { AddressZero } from "@ethersproject/constants";
 import { NftTransferEventData } from "@/jobs/activities/transfer-activity";
 import { FillEventData } from "@/jobs/activities/sale-activity";
+import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
+import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -142,6 +144,20 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   }
 
   // TODO: Is this the best place to handle activities?
+
+  const recalcCollectionOwnerCountInfo: RecalcCollectionOwnerCountInfo[] =
+    data.nftTransferEvents.map((event) => ({
+      context: "event-sync",
+      kind: "contactAndTokenId",
+      data: {
+        contract: event.baseEventParams.address,
+        tokenId: event.tokenId,
+      },
+    }));
+
+  if (recalcCollectionOwnerCountInfo.length) {
+    await collectionRecalcOwnerCount.addToQueue(recalcCollectionOwnerCountInfo);
+  }
 
   // Process fill activities
   const fillActivityInfos: processActivityEvent.EventInfo[] = allFillEvents.map((event) => {

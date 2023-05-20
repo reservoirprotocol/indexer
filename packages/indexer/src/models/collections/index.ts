@@ -17,6 +17,7 @@ import MetadataApi from "@/utils/metadata-api";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as royalties from "@/utils/royalties";
+import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {
@@ -87,7 +88,6 @@ export class Collections {
 
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
-    const tokenCount = await Tokens.countTokensInCollection(collection.id);
 
     if (collection.metadata == null) {
       const collectionResult = await Collections.getById(collection.id);
@@ -103,6 +103,12 @@ export class Collections {
         throw new Error("Invalid collection metadata");
       }
     }
+
+    const tokenCount = await Tokens.countTokensInCollection(collection.id);
+
+    await collectionRecalcOwnerCount.addToQueue([
+      { context: "collections", kind: "collectionId", data: { collectionId: collection.id } },
+    ]);
 
     const query = `
       UPDATE collections SET
