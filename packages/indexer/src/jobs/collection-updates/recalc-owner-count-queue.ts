@@ -182,6 +182,11 @@ export const addToQueue = async (infos: RecalcCollectionOwnerCountInfo[], delayI
     })
   );
 
+  // Disable for bsc while its backfilling
+  if (config.chainId === 56) {
+    return;
+  }
+
   await queue.addBulk(
     infos.map((info) => ({
       name: randomUUID(),
