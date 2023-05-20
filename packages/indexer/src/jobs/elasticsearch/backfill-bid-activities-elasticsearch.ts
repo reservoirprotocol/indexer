@@ -30,8 +30,9 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
-      const cursor = job.data.cursor as CursorInfo;
+      job.data.addToQueue = false;
 
+      const cursor = job.data.cursor as CursorInfo;
       const fromTimestamp = job.data.fromTimestamp || 0;
       const toTimestamp = job.data.toTimestamp || 9999999999;
 
@@ -89,14 +90,11 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             }`
           );
 
-          await addToQueue(
-            {
-              updatedAt: lastResult.updated_ts,
-              id: lastResult.order_id,
-            },
-            fromTimestamp,
-            toTimestamp
-          );
+          job.data.addToQueue = true;
+          job.data.addToQueueCursor = {
+            updatedAt: lastResult.updated_ts,
+            id: lastResult.order_id,
+          };
         }
       } catch (error) {
         logger.error(
@@ -109,6 +107,12 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
+
+  worker.on("completed", async (job) => {
+    if (job.data.addToQueue) {
+      await addToQueue(job.data.addToQueueCursor, job.data.fromTimestamp, job.data.toTimestamp);
+    }
+  });
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
