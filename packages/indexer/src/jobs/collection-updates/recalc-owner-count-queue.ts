@@ -100,7 +100,7 @@ if (config.doBackgroundWork) {
             collectionId: collection.id,
           });
 
-          logger.info(
+          logger.debug(
             QUEUE_NAME,
             JSON.stringify({
               topic: "Updated owner count",
@@ -116,16 +116,6 @@ if (config.doBackgroundWork) {
 
           if (acquiredScheduleLock) {
             const delay = await getLockExpiration(getCalcLockName(collection.id));
-
-            logger.info(
-              QUEUE_NAME,
-              JSON.stringify({
-                topic: "Reschedule job",
-                jobData: job.data,
-                collection: collection.id,
-                delay,
-              })
-            );
 
             await addToQueue(
               [
