@@ -1,12 +1,17 @@
 import { defaultAbiCoder } from "@ethersproject/abi";
 import { JsonRpcProvider } from "@ethersproject/providers";
-import { getCallTrace, getStateChange } from "@georgeroman/evm-tx-simulator";
+import { getCallTrace } from "@georgeroman/evm-tx-simulator";
+import { CallTrace, Log } from "@georgeroman/evm-tx-simulator/dist/types";
 import { TxData } from "@reservoir0x/sdk/src/utils";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
+
+import { EventData } from "@/events-sync/data";
+import * as erc721 from "@/events-sync/data/erc721";
+import * as erc1155 from "@/events-sync/data/erc1155";
 
 export type MintDetails =
   | {
@@ -175,23 +180,60 @@ const simulateMint = async (
       },
     },
     provider,
-    { skipReverts: true }
+    {
+      skipReverts: true,
+      includeLogs: true,
+    }
   );
   if (callTrace.error) {
     return false;
   }
 
-  const result = getStateChange(callTrace);
-
-  let amountMinted = bn(0);
-  for (const token of Object.keys(result[minter].tokenBalanceState)) {
-    if (token.startsWith(`${contractKind}:${contract}`)) {
-      amountMinted = bn(amountMinted).add(result[minter].tokenBalanceState[token]);
+  const getLogs = (call: CallTrace): Log[] => {
+    if (!call.logs?.length) {
+      return [];
     }
-  }
 
-  if (amountMinted.eq(quantity)) {
-    return true;
+    const logs = call.logs ?? [];
+    for (const c of call.calls ?? []) {
+      logs.push(...getLogs(c));
+    }
+
+    return logs;
+  };
+
+  const matchesEventData = (log: Log, eventData: EventData) =>
+    log.address.toLowerCase() === contract &&
+    log.topics[0] === eventData.topic &&
+    log.topics.length === eventData.numTopics;
+
+  for (const log of getLogs(callTrace)) {
+    if (contractKind === "erc721") {
+      if (matchesEventData(log, erc721.transfer)) {
+        const parsedLog = erc721.transfer.abi.parseLog(log);
+        if (parsedLog.args["to"] === minter) {
+          return true;
+        }
+      }
+    } else if (contractKind === "erc1155") {
+      if (matchesEventData(log, erc1155.transferSingle)) {
+        const parsedLog = erc1155.transferSingle.abi.parseLog(log);
+        if (
+          parsedLog.args["to"] === minter &&
+          parsedLog.args["amount"].toString() === String(quantity)
+        ) {
+          return true;
+        }
+      } else if (matchesEventData(log, erc1155.transferBatch)) {
+        const parsedLog = erc1155.transferBatch.abi.parseLog(log);
+        if (
+          parsedLog.args["to"] === minter &&
+          parsedLog.args["amounts"][0].toString() === String(quantity)
+        ) {
+          return true;
+        }
+      }
+    }
   }
 
   return false;
