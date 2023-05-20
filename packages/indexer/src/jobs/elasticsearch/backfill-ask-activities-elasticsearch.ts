@@ -113,12 +113,11 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v13`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v14`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
-      await addToQueue(undefined, undefined, 1609459199);
-      await addToQueue(undefined, 1609459200, 1640995199);
-      await addToQueue(undefined, 1640995200, 1672531199);
-      await addToQueue(undefined, 1672531200);
+      await addToQueue(undefined, 1652056408, 1659312000);
+      await addToQueue(undefined, 1659312000, 1664582400);
+      await addToQueue(undefined, 1664582400, 1672531200);
     })
     .catch(() => {
       // Skip on any errors

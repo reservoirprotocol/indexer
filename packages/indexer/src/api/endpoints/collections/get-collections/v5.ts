@@ -21,7 +21,7 @@ import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
+// import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 
 const version = "v5";
 
@@ -359,15 +359,15 @@ export const getCollectionsV5Options: RouteOptions = {
                 `;
           }
 
-          if (collectionResult.owner_count === null) {
-            await collectionRecalcOwnerCount.addToQueue([
-              {
-                context: `get-collections-${version}-handler`,
-                kind: "collectionId",
-                data: { collectionId: collectionResult.id },
-              },
-            ]);
-          }
+          // if (collectionResult.owner_count === null) {
+          //   await collectionRecalcOwnerCount.addToQueue([
+          //     {
+          //       context: `get-collections-${version}-handler`,
+          //       kind: "collectionId",
+          //       data: { collectionId: collectionResult.id },
+          //     },
+          //   ]);
+          // }
         }
       }
 

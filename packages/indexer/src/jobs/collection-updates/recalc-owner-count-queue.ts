@@ -5,6 +5,7 @@ import { config } from "@/config/index";
 import { acquireLock, getLockExpiration, redis } from "@/common/redis";
 import { idb } from "@/common/db";
 import { Collections } from "@/models/collections";
+import { randomUUID } from "crypto";
 
 const QUEUE_NAME = "collection-recalc-owner-count-queue";
 
@@ -138,7 +139,7 @@ if (config.doBackgroundWork) {
         }
       }
     },
-    { connection: redis.duplicate(), concurrency: 30 }
+    { connection: redis.duplicate(), concurrency: 10 }
   );
 
   worker.on("error", (error) => {
@@ -181,13 +182,13 @@ export const addToQueue = async (infos: RecalcCollectionOwnerCountInfo[], delayI
     })
   );
 
-  // await queue.addBulk(
-  //   infos.map((info) => ({
-  //     name: randomUUID(),
-  //     data: info,
-  //     opts: {
-  //       delay: delayInSeconds * 1000,
-  //     },
-  //   }))
-  // );
+  await queue.addBulk(
+    infos.map((info) => ({
+      name: randomUUID(),
+      data: info,
+      opts: {
+        delay: delayInSeconds * 1000,
+      },
+    }))
+  );
 };

@@ -155,7 +155,9 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       },
     }));
 
-  await collectionRecalcOwnerCount.addToQueue(recalcCollectionOwnerCountInfo);
+  if (recalcCollectionOwnerCountInfo.length) {
+    await collectionRecalcOwnerCount.addToQueue(recalcCollectionOwnerCountInfo);
+  }
 
   // Process fill activities
   const fillActivityInfos: processActivityEvent.EventInfo[] = allFillEvents.map((event) => {
