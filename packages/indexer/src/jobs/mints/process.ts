@@ -267,7 +267,7 @@ if (config.doBackgroundWork) {
         }
 
         if (collectionMint) {
-          const success = await simulateAndSaveCollectionMint(collection);
+          const success = await simulateAndSaveCollectionMint(collectionMint);
           if (!success) {
             logger.info(
               QUEUE_NAME,
