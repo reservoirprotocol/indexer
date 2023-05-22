@@ -469,7 +469,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             const { missingRoyaltyAmount, missingRoyalties } = await computeRoyaltyInfo(
               pool.nft,
               currencyPrice,
-              feeBreakdown.filter((fee) => fee.kind === "royalty")[0]!.bps,
+              feeBreakdown.filter((fee) => fee.kind === "royalty")[0]?.bps ?? 0,
               royaltyRecipient
             );
             const currencyNormalizedValue = bn(currencyValue).sub(missingRoyaltyAmount);
@@ -830,7 +830,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   const { missingRoyaltyAmount, missingRoyalties } = await computeRoyaltyInfo(
                     pool.nft,
                     currencyPrice,
-                    feeBreakdown.filter((fee) => fee.kind === "royalty")[0]!.bps,
+                    feeBreakdown.filter((fee) => fee.kind === "royalty")[0]?.bps ?? 0,
                     royaltyRecipient
                   );
                   const currencyNormalizedValue = bn(currencyValue).add(missingRoyaltyAmount);
