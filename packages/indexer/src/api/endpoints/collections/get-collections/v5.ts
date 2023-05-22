@@ -197,7 +197,9 @@ export const getCollectionsV5Options: RouteOptions = {
               tokenId: Joi.string().pattern(regex.number).allow(null),
               name: Joi.string().allow(null),
               image: Joi.string().allow("", null),
-            }).allow(null).description("Lowest Ask Price."),
+            })
+              .allow(null)
+              .description("Lowest Ask Price."),
           },
           topBid: Joi.object({
             id: Joi.string().allow(null),
@@ -206,7 +208,9 @@ export const getCollectionsV5Options: RouteOptions = {
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-          }).optional().decription("Highest current offer"),
+          })
+            .optional()
+            .description("Highest current offer"),
           rank: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
@@ -219,39 +223,47 @@ export const getCollectionsV5Options: RouteOptions = {
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
           }).description("Total volume in given time period."),
-          volumeChange: {
+          volumeChange: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
-          }.description("Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14])"),
-          floorSale: {
+          }).description(
+            "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14])"
+          ),
+          floorSale: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
-          }.description("The floor sale from X-days ago."),
-          floorSaleChange: {
+          }).description("The floor sale from X-days ago."),
+          floorSaleChange: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
-          }.description("Floor sale change from X-days vs X-days ago. (e.g. 7day floor sale vs floor sale 14 days ago)"),
-          salesCount: {
+          }).description(
+            "Floor sale change from X-days vs X-days ago. (e.g. 7day floor sale vs floor sale 14 days ago)"
+          ),
+          salesCount: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
-          }.description("Number of sales of X-days period"),
-          collectionBidSupported: Joi.boolean().description(`true` or `false`),
+          }).description("Number of sales of X-days period"),
+          collectionBidSupported: Joi.boolean().description(`true or false`),
           ownerCount: Joi.number().optional().description("Number of owners."),
           attributes: Joi.array()
             .items(
               Joi.object({
                 key: Joi.string().allow("", null).description("Case sensitive"),
-                kind: Joi.string().allow("", null).description("`string`, `number`, `date`, or `range`"),
+                kind: Joi.string()
+                  .allow("", null)
+                  .description("`string`, `number`, `date`, or `range`"),
                 count: Joi.number().allow("", null),
               })
             )
             .optional(),
-          contractKind: Joi.string().allow("", null).description("Returns `erc721`, `erc1155`, etc."),
+          contractKind: Joi.string()
+            .allow("", null)
+            .description("Returns `erc721`, `erc1155`, etc."),
           mintedTimestamp: Joi.number().allow(null),
         })
       ),

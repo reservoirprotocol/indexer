@@ -74,7 +74,9 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           customFeesSupported: Joi.boolean(),
           minimumBidExpiry: Joi.number(),
           minimumPrecision: Joi.string(),
-          supportedBidCurrencies: Joi.array().items(Joi.string()).description(erc20 contract addresses),
+          supportedBidCurrencies: Joi.array()
+            .items(Joi.string())
+            .description("erc20 contract addresses"),
         })
       ),
     }),

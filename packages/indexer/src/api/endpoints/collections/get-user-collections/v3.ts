@@ -95,7 +95,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
               .lowercase()
               .pattern(/^0x[a-fA-F0-9]{40}$/),
             floorAskPrice: JoiPrice.allow(null).description("Current floor ask price"),
-            topBidValue: JoiPrice.allow(null).description("Top bid offer currently if offer is valid"),
+            topBidValue: JoiPrice.allow(null).description(
+              "Top bid offer currently if offer is valid"
+            ),
             topBidMaker: Joi.string()
               .lowercase()
               .pattern(/^0x[a-fA-F0-9]{40}$/)
@@ -117,7 +119,9 @@ export const getUserCollectionsV3Options: RouteOptions = {
               "1day": Joi.number().unsafe().allow(null),
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
-            }.description("Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14])"),
+            }.description(
+              "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14])"
+            ),
             floorSale: {
               "1day": Joi.number().unsafe().allow(null),
               "7day": Joi.number().unsafe().allow(null),
