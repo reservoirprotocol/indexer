@@ -6,7 +6,7 @@ import * as Sdk from "@reservoir0x/sdk";
 import _ from "lodash";
 import Joi from "joi";
 
-import { idb, redb } from "@/common/db";
+import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { parseEther } from "@ethersproject/units";
 import { JoiPrice, getJoiPriceObject } from "@/common/joi";
@@ -22,7 +22,6 @@ import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
-// import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 
 const version = "v5";
 
@@ -85,19 +84,6 @@ export const getCollectionsV5Options: RouteOptions = {
         })
         .description(
           "If true, attributes will be included in the response. Must filter by `id` or `slug` to a particular collection."
-        ),
-      includeOwnerCount: Joi.boolean()
-        .when("id", {
-          is: Joi.exist(),
-          then: Joi.allow(),
-          otherwise: Joi.when("slug", {
-            is: Joi.exist(),
-            then: Joi.allow(),
-            otherwise: Joi.forbidden(),
-          }),
-        })
-        .description(
-          "If true, owner count will be included in the response. Must filter by `id` or `slug` to a particular collection and the collection has less than 50k tokens."
         ),
       includeSalesCount: Joi.boolean()
         .when("id", {
@@ -335,57 +321,6 @@ export const getCollectionsV5Options: RouteOptions = {
         `;
       }
 
-      // Include owner count
-      let ownerCountSelectQuery = "";
-      let ownerCountJoinQuery = "";
-      let includeOwnerCount = false;
-
-      // TODO: Cache owners count on collection instead of not allowing for big collections.
-      if (query.includeOwnerCount) {
-        const collectionResult = await idb.oneOrNone(
-          `
-              SELECT
-                collections.id,
-                collections.token_count,
-                collections.owner_count
-              FROM collections
-              WHERE ${query.id ? "collections.id = $/id/" : "collections.slug = $/slug/"}
-              ORDER BY created_at DESC  
-              LIMIT 1  
-            `,
-          { slug: query.slug, id: query.id }
-        );
-
-        if (collectionResult) {
-          const isLargeCollection = collectionResult.token_count > 50000;
-
-          if (!isLargeCollection) {
-            includeOwnerCount = true;
-            ownerCountSelectQuery = ", z.*";
-            ownerCountJoinQuery = `
-                  LEFT JOIN LATERAL (
-                    SELECT
-                      COUNT(DISTINCT(owner)) AS owner_count
-                    FROM nft_balances
-                    WHERE nft_balances.contract = x.contract
-                      AND nft_balances.token_id <@ x.token_id_range
-                    AND amount > 0
-                  ) z ON TRUE
-                `;
-          }
-
-          // if (collectionResult.owner_count === null) {
-          //   await collectionRecalcOwnerCount.addToQueue([
-          //     {
-          //       context: `get-collections-${version}-handler`,
-          //       kind: "collectionId",
-          //       data: { collectionId: collectionResult.id },
-          //     },
-          //   ]);
-          // }
-        }
-      }
-
       let saleCountSelectQuery = "";
       let saleCountJoinQuery = "";
       if (query.includeSalesCount) {
@@ -481,6 +416,7 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.day30_floor_sell_value,
           ${floorAskSelectQuery}
           collections.token_count,
+          collections.owner_count,
           collections.created_at,
           collections.minted_timestamp,
           (
@@ -637,7 +573,6 @@ export const getCollectionsV5Options: RouteOptions = {
         SELECT
           x.*,
           y.*
-          ${ownerCountSelectQuery}
           ${attributesSelectQuery}
           ${topBidSelectQuery}
           ${saleCountSelectQuery}
@@ -659,7 +594,6 @@ export const getCollectionsV5Options: RouteOptions = {
            JOIN tokens ON tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id
            WHERE orders.id = x.floor_sell_id
         ) y ON TRUE
-        ${ownerCountJoinQuery}
         ${attributesJoinQuery}
         ${topBidJoinQuery}
         ${saleCountJoinQuery}
@@ -819,7 +753,7 @@ export const getCollectionsV5Options: RouteOptions = {
                 }
               : undefined,
             collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
-            ownerCount: includeOwnerCount ? Number(r.owner_count) : undefined,
+            ownerCount: Number(r.owner_count),
             attributes: query.includeAttributes
               ? _.map(_.sortBy(r.attributes, ["rank", "key"]), (attribute) => ({
                   key: attribute.key,

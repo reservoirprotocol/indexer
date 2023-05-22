@@ -370,7 +370,7 @@ export class RateLimitRules {
       }
 
       if (rateLimitObject) {
-        rateLimitObject.keyPrefix = `${config.chainId}:${route}:${rule.id}`;
+        rateLimitObject.keyPrefix = `${config.chainId}:${rule.id}:${route}`;
 
         return {
           ruleParams: rule,
