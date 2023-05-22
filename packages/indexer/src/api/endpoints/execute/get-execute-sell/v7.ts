@@ -126,7 +126,7 @@ export const getExecuteSellV7Options: RouteOptions = {
         .description(
           "If true, filling will be forced to use the common 'approval + transfer' method instead of the approval-less 'on-received hook' method"
         ),
-      maxFeePerGas: Joi.string().pattern(regex.number).description("Optional custom gas settings."),
+      maxFeePerGas: Joi.string().pattern(regex.number).description("Optional custom gas settings. Includes base fee & priority fee in this limit."),
       maxPriorityFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional custom gas settings."),
