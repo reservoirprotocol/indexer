@@ -154,9 +154,9 @@ export const getCollectionsV5Options: RouteOptions = {
       continuation: Joi.string().allow(null),
       collections: Joi.array().items(
         Joi.object({
-          id: Joi.string(),
+          id: Joi.string().description("Collection id"),
           slug: Joi.string().allow("", null).description("Open Sea slug"),
-          createdAt: Joi.string(),
+          createdAt: Joi.string().description("Time when added to indexer"),
           name: Joi.string().allow("", null),
           image: Joi.string().allow("", null),
           banner: Joi.string().allow("", null),
@@ -166,8 +166,8 @@ export const getCollectionsV5Options: RouteOptions = {
           openseaVerificationStatus: Joi.string().allow("", null),
           description: Joi.string().allow("", null),
           sampleImages: Joi.array().items(Joi.string().allow("", null)),
-          tokenCount: Joi.string(),
-          onSaleCount: Joi.string(),
+          tokenCount: Joi.string().description("Total tokens within the collection."),
+          onSaleCount: Joi.string().description("Total tokens currently on sale."),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           tokenSetId: Joi.string().allow(null),
           royalties: Joi.object({
@@ -197,7 +197,7 @@ export const getCollectionsV5Options: RouteOptions = {
               tokenId: Joi.string().pattern(regex.number).allow(null),
               name: Joi.string().allow(null),
               image: Joi.string().allow("", null),
-            }).allow(null),
+            }).allow(null).description("Lowest Ask Price."),
           },
           topBid: Joi.object({
             id: Joi.string().allow(null),
@@ -206,52 +206,52 @@ export const getCollectionsV5Options: RouteOptions = {
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-          }).optional(),
+          }).optional().decription("Highest current offer"),
           rank: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
-          }),
+          }).description("Current rank based from overall volume"),
           volume: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
-          }),
+          }).description("Total volume in given time period."),
           volumeChange: {
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
-          },
+          }.description("Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14])"),
           floorSale: {
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
-          },
+          }.description("The floor sale from X-days ago."),
           floorSaleChange: {
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
-          },
+          }.description("Floor sale change from X-days vs X-days ago. (e.g. 7day floor sale vs floor sale 14 days ago)"),
           salesCount: {
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
-          },
-          collectionBidSupported: Joi.boolean(),
-          ownerCount: Joi.number().optional(),
+          }.description("Number of sales of X-days period"),
+          collectionBidSupported: Joi.boolean().description(`true` or `false`),
+          ownerCount: Joi.number().optional().description("Number of owners."),
           attributes: Joi.array()
             .items(
               Joi.object({
-                key: Joi.string().allow("", null),
-                kind: Joi.string().allow("", null),
+                key: Joi.string().allow("", null).description("Case sensitive"),
+                kind: Joi.string().allow("", null).description("`string`, `number`, `date`, or `range`"),
                 count: Joi.number().allow("", null),
               })
             )
             .optional(),
-          contractKind: Joi.string().allow("", null),
+          contractKind: Joi.string().allow("", null).description("Returns `erc721`, `erc1155`, etc."),
           mintedTimestamp: Joi.number().allow(null),
         })
       ),

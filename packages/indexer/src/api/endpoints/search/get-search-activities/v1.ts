@@ -265,7 +265,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       (esQuery as any).bool.filter.push(usersFilter);
     }
 
-    const esSort: any[] = ["_doc"];
+    const esSort: any[] = [];
 
     if (query.sortBy == "eventTimestamp") {
       esSort.push({ timestamp: { order: "desc" } });

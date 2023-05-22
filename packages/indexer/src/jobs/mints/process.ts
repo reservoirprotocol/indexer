@@ -1,5 +1,6 @@
 import { AddressZero } from "@ethersproject/constants";
 import { formatEther } from "@ethersproject/units";
+import * as Sdk from "@reservoir0x/sdk";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 
 import { idb } from "@/common/db";
@@ -9,14 +10,16 @@ import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { fetchTransaction } from "@/events-sync/utils";
-import { getMethodSignature } from "@/utils/method-signatures";
+import { Sources } from "@/models/sources";
+import { CollectionMint, simulateAndSaveCollectionMint } from "@/utils/mints/collection-mints";
+import { getMethodSignature } from "@/utils/mints/method-signatures";
 
 const QUEUE_NAME = "mints-process";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
   defaultJobOptions: {
-    attempts: 10,
+    attempts: 3,
     backoff: {
       type: "exponential",
       delay: 20000,
@@ -101,6 +104,23 @@ if (config.doBackgroundWork) {
           return;
         }
 
+        // At most one attempt per collection per 5 minutes
+        const mintDetailsLockKey = `mint-details:${collection}`;
+        const mintDetailsLock = await redis.get(mintDetailsLockKey);
+        if (mintDetailsLock) {
+          return;
+        }
+        await redis.set(mintDetailsLockKey, "locked", "EX", 5 * 60);
+
+        // Return early if we already have the mint details for the collection
+        const collectionMintResult = await idb.oneOrNone(
+          "SELECT 1 FROM collection_mints WHERE collection_id = $/collection/",
+          { collection }
+        );
+        if (collectionMintResult) {
+          return;
+        }
+
         // Make sure that every mint in the transaction goes to the transaction sender
         const tx = await fetchTransaction(txHash);
         if (!transfers.every((t) => t.from === AddressZero && t.to === tx.from)) {
@@ -128,23 +148,36 @@ if (config.doBackgroundWork) {
           }
         }
 
+        // There must be some calldata
         if (tx.data.length < 10) {
           return;
         }
 
-        // Case 1: mint method has no params
+        // Remove any source tags at the end of the calldata (`mint.fun` uses them)
+        if (tx.data.length > 10) {
+          const sources = await Sources.getInstance();
+          const source = sources.getByDomainHash(tx.data.slice(-8));
+          if (source) {
+            tx.data = tx.data.slice(0, -8);
+          }
+        }
+
+        let collectionMint: CollectionMint | undefined;
+
         if (tx.data.length === 10) {
-          logger.info(
-            QUEUE_NAME,
-            JSON.stringify({
-              txHash: tx,
-              txData: tx.data,
-              contract,
-              kind: "no-params",
-              calldata: tx.data,
-              price: formatEther(pricePerAmountMinted),
-            })
-          );
+          // Case 1: empty
+          collectionMint = {
+            collection,
+            kind: "public",
+            status: "open",
+            details: {
+              kind: "empty",
+              methodSignature: tx.data,
+              methodParams: "",
+            },
+            currency: Sdk.Common.Addresses.Eth[config.chainId],
+            price: pricePerAmountMinted.toString(),
+          };
         }
 
         // Try to get the method signature from the calldata
@@ -154,83 +187,95 @@ if (config.doBackgroundWork) {
         }
 
         // For now, we only support simple data types in the calldata
-        if (["(", ")", "[", "]", "bytes", "string"].includes(methodSignature.params)) {
+        if (
+          ["(", ")", "[", "]", "bytes", "string"].some((x) => methodSignature.params.includes(x))
+        ) {
           return;
         }
 
         const params = methodSignature.params.split(",");
-
         if (params.length === 1 && params[0].includes("int")) {
-          // Case 2: mint method has a single numeric param
+          // Case 2: numeric
           const numericValue = bn(methodSignature.decodedCalldata[0]);
           if (numericValue.eq(amountMinted)) {
-            logger.info(
-              QUEUE_NAME,
-              JSON.stringify({
-                txHash: tx,
-                txData: tx.data,
-                contract,
-                kind: "single-numeric-param",
-                calldata: tx.data,
-                price: formatEther(pricePerAmountMinted),
-                methodSignature,
-              })
-            );
+            collectionMint = {
+              collection,
+              kind: "public",
+              status: "open",
+              details: {
+                kind: "numeric",
+                methodSignature: methodSignature.signature,
+                methodParams: methodSignature.params,
+              },
+              currency: Sdk.Common.Addresses.Eth[config.chainId],
+              price: pricePerAmountMinted.toString(),
+            };
           }
         } else if (params.length === 1 && params[0] === "address") {
-          // Case 3: mint method has a single address param
+          // Case 3: address
           const addressValue = methodSignature.decodedCalldata[0].toLowerCase();
           if ([AddressZero, tx.from, contract].includes(addressValue)) {
-            logger.info(
-              QUEUE_NAME,
-              JSON.stringify({
-                txHash: tx,
-                txData: tx.data,
-                contract,
-                kind: "single-address-param",
-                calldata: tx.data,
-                price: formatEther(pricePerAmountMinted),
-                methodSignature,
-              })
-            );
+            collectionMint = {
+              collection,
+              kind: "public",
+              status: "open",
+              details: {
+                kind: "address",
+                methodSignature: methodSignature.signature,
+                methodParams: methodSignature.params,
+              },
+              currency: Sdk.Common.Addresses.Eth[config.chainId],
+              price: pricePerAmountMinted.toString(),
+            };
           }
         } else if (params.length === 2 && params[0] === "address" && params[1].includes("int")) {
-          // Case 4: mint method has a two params, address and numeric
-
+          // Case 4: address-numeric
           const addressValue = methodSignature.decodedCalldata[0].toLowerCase();
           const numericValue = bn(methodSignature.decodedCalldata[1]);
-          if (
-            [AddressZero, tx.from, contract].includes(addressValue) &&
-            numericValue.eq(amountMinted)
-          ) {
-            logger.info(
-              QUEUE_NAME,
-              JSON.stringify({
-                txHash: tx,
-                txData: tx.data,
-                contract,
-                kind: "two-address-numeric-params",
-                calldata: tx.data,
-                price: formatEther(pricePerAmountMinted),
-                methodSignature,
-              })
-            );
+          if ([AddressZero, tx.from].includes(addressValue) && numericValue.eq(amountMinted)) {
+            collectionMint = {
+              collection,
+              kind: "public",
+              status: "open",
+              details: {
+                kind: "address-numeric",
+                methodSignature: methodSignature.signature,
+                methodParams: methodSignature.params,
+              },
+              currency: Sdk.Common.Addresses.Eth[config.chainId],
+              price: pricePerAmountMinted.toString(),
+            };
           }
         } else if (params.length === 2 && params[0].includes("int") && params[1] === "address") {
-          // Case 5: mint method has a two params, numeric and address
+          // Case 5: numeric-address
           const numericValue = bn(methodSignature.decodedCalldata[0]);
           const addressValue = methodSignature.decodedCalldata[1].toLowerCase();
-          if (
-            [AddressZero, tx.from, contract].includes(addressValue) &&
-            numericValue.eq(amountMinted)
-          ) {
+          if ([AddressZero, tx.from].includes(addressValue) && numericValue.eq(amountMinted)) {
+            collectionMint = {
+              collection,
+              kind: "public",
+              status: "open",
+              details: {
+                kind: "numeric-address",
+                methodSignature: methodSignature.signature,
+                methodParams: methodSignature.params,
+              },
+              currency: Sdk.Common.Addresses.Eth[config.chainId],
+              price: pricePerAmountMinted.toString(),
+            };
+          }
+        }
+
+        if (collectionMint) {
+          const success = await simulateAndSaveCollectionMint(collectionMint);
+          if (!success) {
             logger.info(
               QUEUE_NAME,
               JSON.stringify({
                 txHash: tx,
                 txData: tx.data,
                 contract,
-                kind: "two-numeric-address-params",
+                kind: "known-but-failed",
                 calldata: tx.data,
                 price: formatEther(pricePerAmountMinted),
                 methodSignature,
@@ -238,7 +283,6 @@ if (config.doBackgroundWork) {
             );
           }
         } else {
-          // Case 5: unknown
           logger.info(
             QUEUE_NAME,
             JSON.stringify({

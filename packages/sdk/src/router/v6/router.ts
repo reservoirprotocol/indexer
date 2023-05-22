@@ -1718,17 +1718,32 @@ export class Router {
       // Aggregate same-pool orders
       const perPoolOrders: { [pool: string]: Sdk.Nftx.Order[] } = {};
       for (const details of nftxDetails) {
-        const order = details.order as Sdk.Nftx.Order;
-        if (!perPoolOrders[order.params.pool]) {
-          perPoolOrders[order.params.pool] = [];
-        }
-        perPoolOrders[order.params.pool].push(order);
+        try {
+          const order = details.order as Sdk.Nftx.Order;
 
-        // Attach the ZeroEx calldata
-        const index = perPoolOrders[order.params.pool].length - 1;
-        const { swapCallData, price } = await order.getQuote(index + 1, 500, this.provider);
-        order.params.swapCallData = swapCallData;
-        order.params.price = price.toString();
+          if (!perPoolOrders[order.params.pool]) {
+            perPoolOrders[order.params.pool] = [];
+          }
+
+          // Attach the ZeroEx calldata
+          const index = perPoolOrders[order.params.pool].length;
+          const { swapCallData, price } = await order.getQuote(index + 1, 500, this.provider);
+          order.params.swapCallData = swapCallData;
+          order.params.price = price.toString();
+
+          perPoolOrders[order.params.pool].push(order);
+        } catch (error) {
+          if (options?.onError) {
+            await options.onError("nftx-listing", error, {
+              orderId: details.orderId,
+              additionalInfo: { detail: details, taker },
+            });
+          }
+
+          if (!options?.partial) {
+            throw new Error(getErrorMessage(error));
+          }
+        }
       }
 
       const aggregatedOrders = Object.entries(perPoolOrders).map(([pool, orders]) => ({

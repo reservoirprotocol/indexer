@@ -121,8 +121,4 @@ export const config = {
   // Elasticsearch
   elasticsearchUrl: String(process.env.ELASTICSEARCH_URL || ""),
   doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
-
-  elasticsearchCloudId: String(process.env.ELASTICSEARCH_CLOUD_ID || ""),
-  elasticsearchUsername: String(process.env.ELASTICSEARCH_USERNAME),
-  elasticsearchPassword: String(process.env.ELASTICSEARCH_PASSWORD),
 };

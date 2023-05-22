@@ -8,8 +8,8 @@ import "@/pubsub/index";
 import "@/websockets/index";
 
 import { start } from "@/api/index";
-import { config } from "@/config/index";
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { initIndexes } from "@/elasticsearch/indexes";
 import { Sources } from "@/models/sources";
@@ -22,6 +22,10 @@ process.on("unhandledRejection", (error) => {
 });
 
 const setup = async () => {
+  if (process.env.LOCAL_TESTING) {
+    return;
+  }
+
   if (config.doBackgroundWork) {
     await Sources.syncSources();
 

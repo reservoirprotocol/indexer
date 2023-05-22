@@ -9,18 +9,18 @@ import Vision from "@hapi/vision";
 import HapiPulse from "hapi-pulse";
 import HapiSwagger from "hapi-swagger";
 import _ from "lodash";
-import { RateLimiterRes } from "rate-limiter-flexible";
 import qs from "qs";
+import { RateLimiterRes } from "rate-limiter-flexible";
 
 import { setupRoutes } from "@/api/routes";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
+import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 import { allJobQueues, gracefulShutdownJobWorkers } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
-import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
 let server: Hapi.Server;
 
@@ -91,8 +91,10 @@ export const start = async (): Promise<void> => {
     }
   );
 
-  // Getting rate limit instance will load rate limit rules into memory
-  await RateLimitRules.getInstance(true);
+  if (!process.env.LOCAL_TESTING) {
+    // Getting rate limit instance will load rate limit rules into memory
+    await RateLimitRules.getInstance(true);
+  }
 
   const apiDescription =
     "You are viewing the reference docs for the Reservoir API.\
@@ -148,206 +150,208 @@ export const start = async (): Promise<void> => {
     },
   ]);
 
-  server.ext("onPostAuth", async (request, reply) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const isInjected = (request as any).isInjected;
-    if (isInjected) {
-      request.headers["x-api-key"] = config.adminApiKey;
-    }
-
-    if (isInjected || request.route.path === "/livez") {
-      return reply.continue;
-    }
-
-    if (request.route.path.startsWith("/admin/bullmq")) {
-      return reply.continue;
-    }
-
-    if (
-      request.headers["x-admin-api-key"] &&
-      request.headers["x-admin-api-key"] === config.adminApiKey
-    ) {
-      return reply.continue;
-    }
-
-    const remoteAddress = request.headers["x-forwarded-for"]
-      ? _.split(request.headers["x-forwarded-for"], ",")[0]
-      : request.info.remoteAddress;
-
-    const origin = request.headers["origin"];
-
-    const key = request.headers["x-api-key"];
-    const apiKey = await ApiKeyManager.getApiKey(key, remoteAddress, origin);
-    const tier = apiKey?.tier || 0;
-    let rateLimitRule;
-
-    // Get the rule for the incoming request
-    const rateLimitRules = await RateLimitRules.getInstance();
-
-    try {
-      rateLimitRule = rateLimitRules.getRateLimitObject(
-        request.route.path,
-        request.route.method,
-        tier,
-        apiKey?.key,
-        new Map(Object.entries(_.merge(request.payload, request.query, request.params)))
-      );
-    } catch (error) {
-      if (error instanceof BlockedRouteError) {
-        const blockedRouteResponse = {
-          statusCode: 429,
-          error: "Route is suspended",
-          message: `Request to ${request.route.path} is currently suspended`,
-        };
-
-        return reply
-          .response(blockedRouteResponse)
-          .type("application/json")
-          .code(429)
-          .header("tier", `${tier}`)
-          .takeover();
+  if (!process.env.LOCAL_TESTING) {
+    server.ext("onPostAuth", async (request, reply) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isInjected = (request as any).isInjected;
+      if (isInjected) {
+        request.headers["x-api-key"] = config.adminApiKey;
       }
-    }
 
-    // If matching rule was found
-    if (rateLimitRule) {
-      // If the requested path has no limit
-      if (rateLimitRule.rule.points == 0) {
+      if (isInjected || request.route.path === "/livez") {
         return reply.continue;
       }
 
-      const rateLimitKey =
-        _.isUndefined(key) || _.isEmpty(key) || _.isNull(apiKey) ? remoteAddress : key; // If no api key or the api key is invalid use IP
+      if (request.route.path.startsWith("/admin/bullmq")) {
+        return reply.continue;
+      }
+
+      if (
+        request.headers["x-admin-api-key"] &&
+        request.headers["x-admin-api-key"] === config.adminApiKey
+      ) {
+        return reply.continue;
+      }
+
+      const remoteAddress = request.headers["x-forwarded-for"]
+        ? _.split(request.headers["x-forwarded-for"], ",")[0]
+        : request.info.remoteAddress;
+
+      const origin = request.headers["origin"];
+
+      const key = request.headers["x-api-key"];
+      const apiKey = await ApiKeyManager.getApiKey(key, remoteAddress, origin);
+      const tier = apiKey?.tier || 0;
+      let rateLimitRule;
+
+      // Get the rule for the incoming request
+      const rateLimitRules = await RateLimitRules.getInstance();
 
       try {
-        if (key && tier) {
-          request.pre.metrics = {
-            apiKey: key,
-            route: request.route.path,
-            points: rateLimitRule.pointsToConsume,
-            timestamp: _.now(),
-          };
-        }
-
-        const rateLimiterRes = await rateLimitRule.rule.consume(
-          rateLimitKey,
-          rateLimitRule.pointsToConsume
+        rateLimitRule = rateLimitRules.getRateLimitObject(
+          request.route.path,
+          request.route.method,
+          tier,
+          apiKey?.key,
+          new Map(Object.entries(_.merge(request.payload, request.query, request.params)))
         );
-
-        if (rateLimiterRes) {
-          // Generate the rate limiting header and add them to the request object to be added to the response in the onPreResponse event
-          request.headers["tier"] = tier;
-          request.headers["X-RateLimit-Limit"] = `${rateLimitRule.rule.points}`;
-          request.headers["X-RateLimit-Remaining"] = `${rateLimiterRes.remainingPoints}`;
-          request.headers["X-RateLimit-Reset"] = `${new Date(
-            Date.now() + rateLimiterRes.msBeforeNext
-          )}`;
-        }
       } catch (error) {
-        if (error instanceof RateLimiterRes) {
-          if (
-            error.consumedPoints &&
-            (error.consumedPoints == Number(rateLimitRule.rule.points) + 1 ||
-              error.consumedPoints % 50 == 0)
-          ) {
-            const log = {
-              message: `${rateLimitKey} ${apiKey?.appName || ""} reached allowed rate limit ${
-                rateLimitRule.rule.points
-              } credits in ${rateLimitRule.rule.duration}s by calling ${
-                error.consumedPoints
-              } times on route ${request.route.path}${
-                request.info.referrer ? ` from referrer ${request.info.referrer} ` : ""
-              } x-api-key ${key}`,
-              route: request.route.path,
-              appName: apiKey?.appName || "",
-              key: rateLimitKey,
-              referrer: request.info.referrer,
-            };
-
-            logger.warn("rate-limiter", JSON.stringify(log));
-          }
-
-          const message = `Max ${rateLimitRule.rule.points} credits in ${
-            rateLimitRule.rule.duration
-          }s reached, Detected tier ${tier}, Blocked by rule ID ${rateLimitRule.ruleParams.id}${
-            !_.isEmpty(rateLimitRule.ruleParams.payload)
-              ? ` Payload ${JSON.stringify(rateLimitRule.ruleParams.payload)}`
-              : ``
-          }. Please register for an API key by creating a free account at https://dashboard.reservoir.tools to increase your rate limit.`;
-
-          const tooManyRequestsResponse = {
+        if (error instanceof BlockedRouteError) {
+          const blockedRouteResponse = {
             statusCode: 429,
-            error: "Too Many Requests",
-            message,
+            error: "Route is suspended",
+            message: `Request to ${request.route.path} is currently suspended`,
           };
 
           return reply
-            .response(tooManyRequestsResponse)
+            .response(blockedRouteResponse)
             .type("application/json")
             .code(429)
             .header("tier", `${tier}`)
             .takeover();
-        } else {
-          logger.warn("rate-limiter", `Rate limit error ${error}`);
         }
       }
-    }
 
-    return reply.continue;
-  });
+      // If matching rule was found
+      if (rateLimitRule) {
+        // If the requested path has no limit
+        if (rateLimitRule.rule.points == 0) {
+          return reply.continue;
+        }
 
-  server.ext("onPreHandler", async (request, h) => {
-    ApiKeyManager.logRequest(request).catch();
-    return h.continue;
-  });
+        const rateLimitKey =
+          _.isUndefined(key) || _.isEmpty(key) || _.isNull(apiKey) ? remoteAddress : key; // If no api key or the api key is invalid use IP
 
-  server.ext("onPreResponse", (request, reply) => {
-    const response = request.response;
+        try {
+          if (key && tier) {
+            request.pre.metrics = {
+              apiKey: key,
+              route: request.route.path,
+              points: rateLimitRule.pointsToConsume,
+              timestamp: _.now(),
+            };
+          }
 
-    // Set custom response in case of timeout
-    if ("isBoom" in response && "output" in response) {
-      if (response["output"]["statusCode"] >= 500) {
-        ApiKeyManager.logUnexpectedErrorResponse(request, response);
+          const rateLimiterRes = await rateLimitRule.rule.consume(
+            rateLimitKey,
+            rateLimitRule.pointsToConsume
+          );
+
+          if (rateLimiterRes) {
+            // Generate the rate limiting header and add them to the request object to be added to the response in the onPreResponse event
+            request.headers["tier"] = tier;
+            request.headers["X-RateLimit-Limit"] = `${rateLimitRule.rule.points}`;
+            request.headers["X-RateLimit-Remaining"] = `${rateLimiterRes.remainingPoints}`;
+            request.headers["X-RateLimit-Reset"] = `${new Date(
+              Date.now() + rateLimiterRes.msBeforeNext
+            )}`;
+          }
+        } catch (error) {
+          if (error instanceof RateLimiterRes) {
+            if (
+              error.consumedPoints &&
+              (error.consumedPoints == Number(rateLimitRule.rule.points) + 1 ||
+                error.consumedPoints % 50 == 0)
+            ) {
+              const log = {
+                message: `${rateLimitKey} ${apiKey?.appName || ""} reached allowed rate limit ${
+                  rateLimitRule.rule.points
+                } credits in ${rateLimitRule.rule.duration}s by calling ${
+                  error.consumedPoints
+                } times on route ${request.route.path}${
+                  request.info.referrer ? ` from referrer ${request.info.referrer} ` : ""
+                } x-api-key ${key}`,
+                route: request.route.path,
+                appName: apiKey?.appName || "",
+                key: rateLimitKey,
+                referrer: request.info.referrer,
+              };
+
+              logger.warn("rate-limiter", JSON.stringify(log));
+            }
+
+            const message = `Max ${rateLimitRule.rule.points} credits in ${
+              rateLimitRule.rule.duration
+            }s reached, Detected tier ${tier}, Blocked by rule ID ${rateLimitRule.ruleParams.id}${
+              !_.isEmpty(rateLimitRule.ruleParams.payload)
+                ? ` Payload ${JSON.stringify(rateLimitRule.ruleParams.payload)}`
+                : ``
+            }. Please register for an API key by creating a free account at https://dashboard.reservoir.tools to increase your rate limit.`;
+
+            const tooManyRequestsResponse = {
+              statusCode: 429,
+              error: "Too Many Requests",
+              message,
+            };
+
+            return reply
+              .response(tooManyRequestsResponse)
+              .type("application/json")
+              .code(429)
+              .header("tier", `${tier}`)
+              .takeover();
+          } else {
+            logger.warn("rate-limiter", `Rate limit error ${error}`);
+          }
+        }
       }
 
-      if (response["output"]["statusCode"] == 503) {
-        const timeoutResponse = {
-          statusCode: 504,
-          error: "Gateway Timeout",
-          message: "Query cancelled because it took longer than 10s to execute",
-        };
+      return reply.continue;
+    });
 
-        return reply.response(timeoutResponse).type("application/json").code(504);
+    server.ext("onPreHandler", async (request, h) => {
+      ApiKeyManager.logRequest(request).catch();
+      return h.continue;
+    });
+
+    server.ext("onPreResponse", (request, reply) => {
+      const response = request.response;
+
+      // Set custom response in case of timeout
+      if ("isBoom" in response && "output" in response) {
+        if (response["output"]["statusCode"] >= 500) {
+          ApiKeyManager.logUnexpectedErrorResponse(request, response);
+        }
+
+        if (response["output"]["statusCode"] == 503) {
+          const timeoutResponse = {
+            statusCode: 504,
+            error: "Gateway Timeout",
+            message: "Query cancelled because it took longer than 10s to execute",
+          };
+
+          return reply.response(timeoutResponse).type("application/json").code(504);
+        }
       }
-    }
 
-    const typedResponse = response as Hapi.ResponseObject;
-    let statusCode = typedResponse.statusCode;
+      const typedResponse = response as Hapi.ResponseObject;
+      let statusCode = typedResponse.statusCode;
 
-    // Indicate it's an error response
-    if ("output" in response) {
-      statusCode = _.toInteger(response["output"]["statusCode"]);
-    }
-
-    // Count the API usage, to prevent any latency on the request no need to wait and ignore errors
-    if (request.pre.metrics && statusCode >= 100 && statusCode < 500) {
-      request.pre.metrics.statusCode = statusCode;
-      countApiUsage.addToQueue(request.pre.metrics).catch();
-    }
-
-    if (!(response instanceof Boom)) {
-      typedResponse.header("tier", request.headers["tier"]);
-      typedResponse.header("X-RateLimit-Limit", request.headers["X-RateLimit-Limit"]);
-      typedResponse.header("X-RateLimit-Remaining", request.headers["X-RateLimit-Remaining"]);
-      typedResponse.header("X-RateLimit-Reset", request.headers["X-RateLimit-Reset"]);
-
-      if (request.route.settings.tags && request.route.settings.tags.includes("x-deprecated")) {
-        typedResponse.header("Deprecation", "true");
+      // Indicate it's an error response
+      if ("output" in response) {
+        statusCode = _.toInteger(response["output"]["statusCode"]);
       }
-    }
 
-    return reply.continue;
-  });
+      // Count the API usage, to prevent any latency on the request no need to wait and ignore errors
+      if (request.pre.metrics && statusCode >= 100 && statusCode < 500) {
+        request.pre.metrics.statusCode = statusCode;
+        countApiUsage.addToQueue(request.pre.metrics).catch();
+      }
+
+      if (!(response instanceof Boom)) {
+        typedResponse.header("tier", request.headers["tier"]);
+        typedResponse.header("X-RateLimit-Limit", request.headers["X-RateLimit-Limit"]);
+        typedResponse.header("X-RateLimit-Remaining", request.headers["X-RateLimit-Remaining"]);
+        typedResponse.header("X-RateLimit-Reset", request.headers["X-RateLimit-Reset"]);
+
+        if (request.route.settings.tags && request.route.settings.tags.includes("x-deprecated")) {
+          typedResponse.header("Deprecation", "true");
+        }
+      }
+
+      return reply.continue;
+    });
+  }
 
   setupRoutes(server);
 
