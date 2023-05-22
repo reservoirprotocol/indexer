@@ -262,7 +262,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
 
             let taker = decodedInput.tokenRecipient.toLowerCase();
             const price = bn(parsedLog.args["outputAmount"])
-              .div(decodedInput.nfts.ids.length)
+              .div(parsedLog.args["nftIds"].length)
               .toString();
 
             // Handle: attribution
