@@ -30,18 +30,10 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       job.data.addToQueue = false;
 
-      let cursor = job.data.cursor as CursorInfo;
+      const cursor = job.data.cursor as CursorInfo;
       let continuationFilter = "";
 
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1;
-
-      if (!cursor) {
-        const cursorJson = await redis.get(`${QUEUE_NAME}-next-cursor`);
-
-        if (cursorJson) {
-          cursor = JSON.parse(cursorJson);
-        }
-      }
 
       if (cursor) {
         continuationFilter = `AND (collections.id) > ($/collectionId/)`;
@@ -85,11 +77,11 @@ if (config.doBackgroundWork) {
             collectionId: lastResult.id,
           };
 
-          await redis.set(`${QUEUE_NAME}-next-cursor`, JSON.stringify(nextCursor));
-
           job.data.addToQueue = true;
           job.data.addToQueueCursor = nextCursor;
         }
+
+        logger.info(QUEUE_NAME, `Triggered owner count recalc for ${results.length} collections`);
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
@@ -97,7 +89,7 @@ if (config.doBackgroundWork) {
 
   worker.on("completed", async (job) => {
     if (job.data.addToQueue) {
-      await addToQueue(job.data.addToQueueCursor, 5000);
+      await addToQueue(job.data.addToQueueCursor, 2000);
     }
   });
 
