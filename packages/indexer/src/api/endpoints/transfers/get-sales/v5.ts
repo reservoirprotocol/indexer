@@ -14,7 +14,8 @@ const version = "v5";
 
 export const getSalesV5Options: RouteOptions = {
   description: "Sales",
-  notes: "Get recent sales for a contract or token. Array of contracts max limit is 20.",
+  notes:
+    "Get recent sales for a contract or token. Paid mints are returned in this `sales` endpoint, free mints can be found in the `/activities/` endpoints. Array of contracts max limit is 20.",
   tags: ["api", "Sales"],
   plugins: {
     "hapi-swagger": {

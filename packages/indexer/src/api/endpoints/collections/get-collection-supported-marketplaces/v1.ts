@@ -63,7 +63,7 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           imageUrl: Joi.string(),
           fee: Joi.object({
             bps: Joi.number(),
-          }),
+          }).description("Marketplace Fee"),
           royalties: Joi.object({
             minBps: Joi.number(),
             maxBps: Joi.number(),
@@ -74,7 +74,9 @@ export const getCollectionSupportedMarketplacesV1Options: RouteOptions = {
           customFeesSupported: Joi.boolean(),
           minimumBidExpiry: Joi.number(),
           minimumPrecision: Joi.string(),
-          supportedBidCurrencies: Joi.array().items(Joi.string()),
+          supportedBidCurrencies: Joi.array()
+            .items(Joi.string())
+            .description("erc20 contract addresses"),
         })
       ),
     }),

@@ -31,14 +31,6 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { kind, data } = job.data as RecalcCollectionOwnerCountInfo;
 
-      logger.info(
-        QUEUE_NAME,
-        JSON.stringify({
-          topic: "Start",
-          jobData: job.data,
-        })
-      );
-
       let collection;
 
       if (kind === "contactAndTokenId") {
