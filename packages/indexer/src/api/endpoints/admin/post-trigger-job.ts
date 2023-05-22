@@ -15,8 +15,8 @@ export const postTriggerJobOptions: RouteOptions = {
       "x-admin-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     payload: Joi.object({
-      job: Joi.string().allow(""),
-      data: Joi.any(),
+      path: Joi.string().allow(""),
+      params: Joi.any(),
     }),
   },
   handler: async (request: Request) => {
@@ -27,9 +27,9 @@ export const postTriggerJobOptions: RouteOptions = {
     const payload = request.payload as any;
 
     try {
-      const job = await import(`@/jobs/${payload.job}`);
+      const job = await import(`@/jobs/${payload.path}`);
 
-      job.addToQueue(payload.data);
+      job.addToQueue(...payload.params);
 
       return true;
     } catch (error) {
