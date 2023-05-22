@@ -9,8 +9,8 @@ import "@/pubsub/index";
 import "@/websockets/index";
 
 import { start } from "@/api/index";
-import { config } from "@/config/index";
 import { logger } from "@/common/logger";
+import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { initIndexes } from "@/elasticsearch/indexes";
 import { Sources } from "@/models/sources";

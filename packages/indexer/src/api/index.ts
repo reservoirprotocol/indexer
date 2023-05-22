@@ -9,18 +9,18 @@ import Vision from "@hapi/vision";
 import HapiPulse from "hapi-pulse";
 import HapiSwagger from "hapi-swagger";
 import _ from "lodash";
-import { RateLimiterRes } from "rate-limiter-flexible";
 import qs from "qs";
+import { RateLimiterRes } from "rate-limiter-flexible";
 
 import { setupRoutes } from "@/api/routes";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkName } from "@/config/network";
+import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 import { allJobQueues, gracefulShutdownJobWorkers } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedRouteError } from "@/models/rate-limit-rules/errors";
-import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
 let server: Hapi.Server;
 
