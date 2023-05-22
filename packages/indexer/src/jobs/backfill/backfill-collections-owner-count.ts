@@ -30,18 +30,10 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       job.data.addToQueue = false;
 
-      let cursor = job.data.cursor as CursorInfo;
+      const cursor = job.data.cursor as CursorInfo;
       let continuationFilter = "";
 
       const limit = (await redis.get(`${QUEUE_NAME}-limit`)) || 1;
-
-      if (!cursor) {
-        const cursorJson = await redis.get(`${QUEUE_NAME}-next-cursor`);
-
-        if (cursorJson) {
-          cursor = JSON.parse(cursorJson);
-        }
-      }
 
       if (cursor) {
         continuationFilter = `AND (collections.id) > ($/collectionId/)`;
@@ -85,8 +77,6 @@ if (config.doBackgroundWork) {
             collectionId: lastResult.id,
           };
 
-          await redis.set(`${QUEUE_NAME}-next-cursor`, JSON.stringify(nextCursor));
-
           job.data.addToQueue = true;
           job.data.addToQueueCursor = nextCursor;
         }
@@ -106,7 +96,7 @@ if (config.doBackgroundWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v3`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v4`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue();
     })
