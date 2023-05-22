@@ -28,6 +28,8 @@ if (config.doBackgroundWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
+      job.data.addToQueue = false;
+
       let cursor = job.data.cursor as CursorInfo;
       let continuationFilter = "";
 
@@ -85,12 +87,19 @@ if (config.doBackgroundWork) {
 
           await redis.set(`${QUEUE_NAME}-next-cursor`, JSON.stringify(nextCursor));
 
-          await addToQueue(nextCursor, 5000);
+          job.data.addToQueue = true;
+          job.data.addToQueueCursor = nextCursor;
         }
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
+
+  worker.on("completed", async (job) => {
+    if (job.data.addToQueue) {
+      await addToQueue(job.data.addToQueueCursor, 5000);
+    }
+  });
 
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
