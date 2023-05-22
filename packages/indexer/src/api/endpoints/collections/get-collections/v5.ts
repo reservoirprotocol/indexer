@@ -212,8 +212,8 @@ export const getCollectionsV5Options: RouteOptions = {
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
           })
-            .optional()
-            .description("Highest current offer"),
+            .description("Highest current offer")
+            .optional(),
           rank: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
