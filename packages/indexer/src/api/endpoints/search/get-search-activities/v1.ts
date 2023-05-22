@@ -110,7 +110,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description("Input any ERC20 address to return result in given currency"),
-    }),
+    }).oxor("collection", "collectionsSetId", "contractsSetId", "community"),
   },
   response: {
     schema: Joi.object({
@@ -240,26 +240,18 @@ export const getSearchActivitiesV1Options: RouteOptions = {
     }
 
     if (query.users) {
+      if (!_.isArray(query.users)) {
+        query.users = [query.users];
+      }
+
       const usersFilter = { bool: { should: [] } };
 
       (usersFilter as any).bool.should.push({
-        bool: {
-          must: [
-            {
-              term: { fromAddress: query.users },
-            },
-          ],
-        },
+        terms: { fromAddress: query.users },
       });
 
       (usersFilter as any).bool.should.push({
-        bool: {
-          must: [
-            {
-              term: { toAddress: query.users },
-            },
-          ],
-        },
+        terms: { toAddress: query.users },
       });
 
       (esQuery as any).bool.filter.push(usersFilter);
