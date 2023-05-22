@@ -96,19 +96,20 @@ export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: bo
   const onChainData = initOnChainData();
   await Promise.all(
     batch.events.map(async (events) => {
-      if (events.data.length) {
-        const handler = eventKindToHandler.get(events.kind);
-        if (handler) {
-          await handler(events.data, onChainData, batch.backfill);
-        } else {
-          logger.error(
-            "process-events-batch",
-            JSON.stringify({
-              error: "missing-handler-for-event-kind",
-              data: `Event kind ${events.kind} is missing a corresponding handler`,
-            })
-          );
-        }
+      if (!events.data.length) {
+        return;
+      }
+      const handler = eventKindToHandler.get(events.kind);
+      if (handler) {
+        await handler(events.data, onChainData, batch.backfill);
+      } else {
+        logger.error(
+          "process-events-batch",
+          JSON.stringify({
+            error: "missing-handler-for-event-kind",
+            data: `Event kind ${events.kind} is missing a corresponding handler`,
+          })
+        );
       }
     })
   );
