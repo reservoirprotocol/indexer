@@ -6,7 +6,7 @@ import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { bn, fromBuffer, regex } from "@/common/utils";
 import { Sources } from "@/models/sources";
-import { getMintTxData } from "@/utils/mints/collection-mints";
+import { generateMintTxData } from "@/utils/mints/calldata/generator";
 
 const version = "v1";
 
@@ -99,7 +99,7 @@ export const postExecuteMintV1Options: RouteOptions = {
         throw Boom.badRequest("Minting not available on collection");
       }
 
-      const txData = getMintTxData(
+      const txData = generateMintTxData(
         collectionMint.details,
         payload.taker,
         fromBuffer(collectionMint.contract),

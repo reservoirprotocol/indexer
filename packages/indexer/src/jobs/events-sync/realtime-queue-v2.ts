@@ -5,7 +5,6 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { syncEvents } from "@/events-sync/syncEventsV2";
-import _ from "lodash";
 
 const QUEUE_NAME = "events-sync-realtime-v2";
 
@@ -25,10 +24,7 @@ export const queue = new Queue(QUEUE_NAME, {
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (
-  config.doBackgroundWork &&
-  (_.includes([137, 42161, 10], config.chainId) ? config.doProcessRealtime : true)
-) {
+if (config.doBackgroundWork && config.chainId === 1 && config.doProcessRealtime) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {

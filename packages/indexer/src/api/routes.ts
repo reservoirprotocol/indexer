@@ -220,6 +220,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/trigger-job",
+    options: adminEndpoints.postTriggerJobOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/resync-source",
     options: adminEndpoints.postResyncSourceOptions,
   });
