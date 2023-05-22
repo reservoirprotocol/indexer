@@ -72,7 +72,8 @@ export type OrderKind =
   | "zeroex-v2"
   | "zeroex-v3"
   | "treasure"
-  | "looks-rare-v2";
+  | "looks-rare-v2"
+  | "blend";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -155,6 +156,7 @@ export const getOrderSourceByOrderKind = async (
       case "nftx":
         return sources.getOrInsert("nftx.io");
       case "blur":
+      case "blend":
         return sources.getOrInsert("blur.io");
       case "flow":
         return sources.getOrInsert("flow.so");

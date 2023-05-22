@@ -18,7 +18,6 @@ import * as tokenSetUpdatesTopBid from "@/jobs/token-set-updates/top-bid-queue";
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as tokenUpdatesFloorAsk from "@/jobs/token-updates/floor-queue";
 import * as tokenUpdatesNormalizedFloorAsk from "@/jobs/token-updates/normalized-floor-queue";
-
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
@@ -301,14 +300,18 @@ if (config.doBackgroundWork) {
               ]);
             }
 
-            await WebsocketEventRouter({
-              eventInfo: {
-                kind: trigger.kind,
-                orderId: order.id,
-              },
-              eventKind:
-                order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
-            });
+            if (config.doOldOrderWebsocketWork) {
+              await WebsocketEventRouter({
+                eventInfo: {
+                  kind: trigger.kind,
+                  orderId: order.id,
+                },
+                eventKind:
+                  order.side === "sell"
+                    ? WebsocketEventKind.SellOrder
+                    : WebsocketEventKind.BuyOrder,
+              });
+            }
           }
         }
 

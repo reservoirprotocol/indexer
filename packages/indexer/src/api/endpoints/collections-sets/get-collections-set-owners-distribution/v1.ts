@@ -35,7 +35,9 @@ export const getCollectionsSetOwnersDistributionV1Options: RouteOptions = {
       ownersDistribution: Joi.array().items(
         Joi.object({
           tokenCount: Joi.number().unsafe(),
-          ownerCount: Joi.number().unsafe(),
+          ownerCount: Joi.number()
+            .unsafe()
+            .description("The amount of owners with the same `tokenCount`."),
         })
       ),
     }).label(`getCollectionsSetOwnersDistribution${version.toUpperCase()}Response`),

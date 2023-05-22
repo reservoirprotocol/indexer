@@ -229,6 +229,10 @@ export const extractEventsBatches = async (
             kind: "looks-rare-v2",
             data: kindToEvents.get("looks-rare-v2") ?? [],
           },
+          {
+            kind: "blend",
+            data: kindToEvents.get("blend") ?? [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {

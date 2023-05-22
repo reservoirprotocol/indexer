@@ -58,8 +58,8 @@ export const getCrossCollectionsOwnersV1Options: RouteOptions = {
     schema: Joi.object({
       owners: Joi.array().items(
         Joi.object({
-          address: Joi.string(),
-          count: Joi.number(),
+          address: Joi.string().description("Wallet Address"),
+          count: Joi.number().description("Token Count"),
           collections: Joi.array(),
         })
       ),

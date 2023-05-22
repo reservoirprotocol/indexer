@@ -1,10 +1,10 @@
 import { BulkJobOptions } from "bullmq";
 import { randomUUID } from "crypto";
 import Redis from "ioredis";
+import _ from "lodash";
 import Redlock from "redlock";
 
 import { config } from "@/config/index";
-import _ from "lodash";
 
 // TODO: Research using a connection pool rather than
 // creating a new connection every time, as we do now.
@@ -12,6 +12,8 @@ import _ from "lodash";
 export const redis = new Redis(config.redisUrl, {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
+  // To avoid annoying timeout errors
+  connectTimeout: process.env.LOCAL_TESTING ? 1000 * 1000 : undefined,
 });
 
 export const redisSubscriber = new Redis(config.redisUrl, {

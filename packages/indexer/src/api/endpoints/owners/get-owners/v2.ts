@@ -85,9 +85,13 @@ export const getOwnersV2Options: RouteOptions = {
           ownership: Joi.object({
             tokenCount: Joi.string(),
             onSaleCount: Joi.string(),
-            floorAskPrice: JoiPrice.allow(null),
-            topBidValue: JoiPrice.allow(null),
-            totalBidValue: JoiPrice.allow(null),
+            floorAskPrice: JoiPrice.allow(null).description(
+              "Can return `null` if there is no Floor Ask"
+            ),
+            topBidValue: JoiPrice.allow(null).description("Can return `null` if there are no bids"),
+            totalBidValue: JoiPrice.allow(null).description(
+              "Can return `null` if there are no bids"
+            ),
           }),
         })
       ),

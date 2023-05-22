@@ -38,6 +38,7 @@ import * as zeroExV2 from "@/events-sync/handlers/zeroex-v2";
 import * as zeroExV3 from "@/events-sync/handlers/zeroex-v3";
 import * as treasure from "@/events-sync/handlers/treasure";
 import * as looksRareV2 from "@/events-sync/handlers/looks-rare-v2";
+import * as blend from "@/events-sync/handlers/blend";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {
@@ -88,25 +89,27 @@ export const eventKindToHandler = new Map<
   ["zeroex-v3", (e, d) => zeroExV3.handleEvents(e, d)],
   ["treasure", (e, d) => treasure.handleEvents(e, d)],
   ["looks-rare-v2", (e, d) => looksRareV2.handleEvents(e, d)],
+  ["blend", (e, d) => blend.handleEvents(e, d)],
 ]);
 
 export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: boolean) => {
   const onChainData = initOnChainData();
   await Promise.all(
     batch.events.map(async (events) => {
-      if (events.data.length) {
-        const handler = eventKindToHandler.get(events.kind);
-        if (handler) {
-          await handler(events.data, onChainData, batch.backfill);
-        } else {
-          logger.error(
-            "process-events-batch",
-            JSON.stringify({
-              error: "missing-handler-for-event-kind",
-              data: `Event kind ${events.kind} is missing a corresponding handler`,
-            })
-          );
-        }
+      if (!events.data.length) {
+        return;
+      }
+      const handler = eventKindToHandler.get(events.kind);
+      if (handler) {
+        await handler(events.data, onChainData, batch.backfill);
+      } else {
+        logger.error(
+          "process-events-batch",
+          JSON.stringify({
+            error: "missing-handler-for-event-kind",
+            data: `Event kind ${events.kind} is missing a corresponding handler`,
+          })
+        );
       }
     })
   );

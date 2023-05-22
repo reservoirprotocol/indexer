@@ -454,9 +454,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      case "nftx-swap": {
+      case "nftx-swap":
+      case "nftx-mint":
+      case "nftx-burn": {
         const ftPool = await nftxUtils.getFtPoolDetails(baseEventParams.address, true, "sushiswap");
-
         if (ftPool) {
           const token0NftPool = await nftxUtils.getNftPoolDetails(ftPool.token0, true);
           if (token0NftPool) {
@@ -498,7 +499,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         break;
       }
 
-      // The order's prices doesn't consider Uniswap V3 yet
+      // The off-chain order pricing doesn't consider Uniswap V3 yet
 
       // case "nftx-swap-v3": {
       //   const skipCheck = false;

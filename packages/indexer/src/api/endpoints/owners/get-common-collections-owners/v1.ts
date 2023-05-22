@@ -16,7 +16,7 @@ export const getCommonCollectionsOwnersV1Options: RouteOptions = {
     expiresIn: 60 * 60 * 1000,
   },
   description: "Common Collections",
-  notes: "This API can be used to find top common collections among the given owners",
+  notes: "This API can be used to find top common collections from an array of owners.",
   tags: ["api", "Owners"],
   plugins: {
     "hapi-swagger": {
@@ -58,8 +58,8 @@ export const getCommonCollectionsOwnersV1Options: RouteOptions = {
     schema: Joi.object({
       collections: Joi.array().items(
         Joi.object({
-          address: Joi.string(),
-          count: Joi.number(),
+          address: Joi.string().description("Contract address"),
+          count: Joi.number().description("Token count"),
           owners: Joi.array(),
         })
       ),
