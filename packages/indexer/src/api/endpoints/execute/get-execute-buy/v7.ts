@@ -32,6 +32,7 @@ const version = "v7";
 
 export const getExecuteBuyV7Options: RouteOptions = {
   description: "Buy tokens (fill listings)",
+  notes: "Use this API to fill listings. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks. Please mark `excludeEOA` as `true` to exclude Blur orders.",
   tags: ["api", "Fill Orders (buy & sell)"],
   timeout: {
     server: 40 * 1000,
