@@ -42,8 +42,7 @@ export async function startKafkaConsumer(): Promise<void> {
 
     eachMessage: async ({ message, topic }) => {
       try {
-        const eventValues = JSON.parse(message.value!.toString());
-        const keyValue = JSON.parse(message.key!.toString());
+        const event = JSON.parse(message.value!.toString());
 
         // Find the corresponding topic handler and call the handle method on it, if the topic is not a dead letter topic
         if (topic.endsWith("-dead-letter")) {
@@ -58,11 +57,11 @@ export async function startKafkaConsumer(): Promise<void> {
         for (const handler of TopicHandlers) {
           if (handler.getTopics().includes(topic)) {
             // If the event has not been retried before, set the retryCount to 0
-            if (!eventValues.payload.retryCount) {
-              eventValues.payload.retryCount = 0;
+            if (!event.payload.retryCount) {
+              event.payload.retryCount = 0;
             }
 
-            await handler.handle(eventValues, keyValue);
+            await handler.handle(event.payload);
             break;
           } else {
             logger.error(
