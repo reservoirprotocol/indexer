@@ -63,14 +63,6 @@ export async function startKafkaConsumer(): Promise<void> {
 
             await handler.handle(event.payload);
             break;
-          } else {
-            logger.error(
-              `${getServiceName()}-kafka-consumer`,
-              `No handler found for topic=${topic}`
-            );
-
-            // If the event has an issue with finding its corresponding topic handler, send it to the dead letter queue
-            throw new Error(`No handler found for topic=${topic}`);
           }
         }
       } catch (error) {
