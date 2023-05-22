@@ -159,7 +159,12 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           rawData: rawResult.raw_data,
         };
 
-        const eventType = data.trigger === "insert" ? "bid.created" : "bid.updated";
+        let eventType;
+        if (config.doOldOrderWebsocketWork) {
+          eventType = data.kind === "new-order" ? "bid.created" : "bid.updated";
+        } else {
+          eventType = data.trigger === "insert" ? "bid.created" : "bid.updated";
+        }
 
         await publishWebsocketEvent({
           event: eventType,

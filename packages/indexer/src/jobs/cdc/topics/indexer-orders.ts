@@ -15,9 +15,6 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       return;
     }
 
-    // eslint-disable-next-line
-    console.log("payload.after", payload.after);
-
     if (!config.doOldOrderWebsocketWork) {
       await WebsocketEventRouter({
         eventInfo: {

@@ -8,7 +8,6 @@
     "clean": "rm -rf ./dist tsconfig.tsbuildinfo",
     "compile": "tsc -b",
     "build": "yarn clean; yarn compile",
-    "build-fast": "tsc -b --incremental",
     "dev": "tsc-watch --onSuccess \"node -r module-alias/register ./dist/index.js\"",
     "start": "yarn migrate up; node -r module-alias/register ./dist/index.js",
     "migrate": "node ../../node_modules/node-pg-migrate/bin/node-pg-migrate -m ./src/migrations --no-check-order",

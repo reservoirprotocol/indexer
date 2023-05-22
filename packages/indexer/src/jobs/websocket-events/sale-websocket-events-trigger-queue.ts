@@ -10,7 +10,7 @@ import _ from "lodash";
 import { getJoiSaleObject } from "@/common/joi";
 
 import { idb } from "@/common/db";
-import { fromBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 
 const QUEUE_NAME = "sale-websocket-events-trigger-queue";
@@ -69,17 +69,19 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             fill_events_2.marketplace_fee_breakdown,
             fill_events_2.paid_full_royalty,
             fill_events_2.is_deleted,
-            extract(epoch from fill_events_2.updated_at) updated_ts,
+            fill_events_2.updated_at,
             fill_events_2.created_at
           FROM fill_events_2
           LEFT JOIN currencies
             ON fill_events_2.currency = currencies.contract
           WHERE
-            fill_events_2.tx_hash = E'${
-              "\\\\" + data.tx_hash.replace("0x", "x")
-            }' AND fill_events_2.log_index = $/log_index/
+            fill_events_2.tx_hash = $/txHash/ AND fill_events_2.log_index = $/log_index/ AND fill_events_2.batch_index = $/batch_index/
         `,
-          { log_index: data.log_index }
+          {
+            log_index: data.log_index,
+            batch_index: data.batch_index,
+            txHash: toBuffer(data.tx_hash),
+          }
         );
 
         const result = await getJoiSaleObject({
@@ -119,7 +121,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           logIndex: r.log_index,
           batchIndex: r.batch_index,
           createdAt: new Date(r.created_at).toISOString(),
-          updatedAt: new Date(r.updated_ts * 1000).toISOString(),
+          updatedAt: new Date(r.updated_at).toISOString(),
         });
 
         result.id = crypto
@@ -147,6 +149,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           data: result,
         });
       } catch (error) {
+        // eslint-disable-next-line
+        console.log(error);
         logger.error(
           QUEUE_NAME,
           `Error processing websocket event. data=${JSON.stringify(data)}, error=${JSON.stringify(
@@ -184,5 +188,6 @@ export const addToQueue = async (events: EventInfo[]) => {
 export type SaleWebsocketEventInfo = {
   tx_hash: string;
   log_index: number;
+  batch_index: number;
   trigger: "insert" | "update" | "delete";
 };
