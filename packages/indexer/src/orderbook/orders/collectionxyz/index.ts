@@ -130,7 +130,7 @@ const getFeeBpsAndBreakdown = async (
     };
   } else {
     const [tradeBps, protocolBps, royaltyBps, carryBps] = (await poolContract.feeMultipliers()).map(
-      (fee: number) => fee / 10
+      (fee: number) => fee / 100
     );
 
     // Carry fee doesn't add to input amount
