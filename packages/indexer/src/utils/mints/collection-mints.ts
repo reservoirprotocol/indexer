@@ -57,19 +57,21 @@ export const getMintTxData = (
       break;
 
     case "numeric":
-      calldata = details.methodSignature + defaultAbiCoder.encode(params, [quantity]);
+      calldata = details.methodSignature + defaultAbiCoder.encode(params, [quantity]).slice(2);
       break;
 
     case "address":
-      calldata = details.methodSignature + defaultAbiCoder.encode(params, [minter]);
+      calldata = details.methodSignature + defaultAbiCoder.encode(params, [minter]).slice(2);
       break;
 
     case "numeric-address":
-      calldata = details.methodSignature + defaultAbiCoder.encode(params, [quantity, minter]);
+      calldata =
+        details.methodSignature + defaultAbiCoder.encode(params, [quantity, minter]).slice(2);
       break;
 
     case "address-numeric":
-      calldata = details.methodSignature + defaultAbiCoder.encode(params, [minter, quantity]);
+      calldata =
+        details.methodSignature + defaultAbiCoder.encode(params, [minter, quantity]).slice(2);
       break;
   }
 
