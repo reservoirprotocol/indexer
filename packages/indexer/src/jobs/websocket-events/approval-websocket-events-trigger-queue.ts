@@ -41,6 +41,9 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           owner: data.owner,
           operator: data.operator,
           approved: data.approved,
+          txHash: data.tx_hash,
+          logIndex: data.log_index,
+          batchIndex: data.batch_index,
         };
 
         let eventType = "";
@@ -98,5 +101,10 @@ export type ApprovalWebsocketEventInfo = {
   owner: string;
   operator: string;
   approved: string;
+  block_hash: string;
+  tx_hash: string;
+  tx_index: string;
+  log_index: string;
+  batch_index: string;
   trigger: "insert" | "update" | "delete";
 };

@@ -2,46 +2,46 @@
 
 import { logger } from "@/common/logger";
 import { producer } from "..";
-import { base64ToHex, isBase64 } from "@/common/utils";
+import { base64ToHex } from "@/common/utils";
 import { getNetworkName } from "@/config/network";
 
 export abstract class KafkaEventHandler {
   abstract topicName: string;
   maxRetries = 5;
 
-  async handle(payload: any): Promise<void> {
+  async handle(event: any, key: any): Promise<void> {
     try {
       // convert any hex strings to strings
-      this.convertPayloadHexToString(payload);
+      this.convertPayloadHexToString(event.payload, key);
 
-      switch (payload.op) {
+      switch (event.payload.op) {
         case "c":
-          this.handleInsert(payload);
+          this.handleInsert(event.payload);
           break;
         case "u":
-          this.handleUpdate(payload);
+          this.handleUpdate(event.payload);
           break;
         case "d":
           this.handleDelete();
           break;
         default:
-          logger.error(this.topicName, `Unknown operation type: ${payload.op}`);
+          logger.error(this.topicName, `Unknown operation type: ${event.payload.op}`);
           break;
       }
     } catch (error) {
-      payload.retryCount += 1;
+      event.payload.retryCount += 1;
       let topicToSendTo = `${this.topicName}-error`;
 
       // If the event has already been retried maxRetries times, send it to the dead letter queue
-      if (payload.retryCount > this.maxRetries) {
+      if (event.payload.retryCount > this.maxRetries) {
         topicToSendTo = `${this.topicName}-dead-letter`;
       }
 
       logger.error(
         this.topicName,
         `Error handling event: ${error}, topicToSendTo=${topicToSendTo}, payload=${JSON.stringify(
-          payload
-        )}, retryCount=${payload.retryCount}`
+          event.payload
+        )}, retryCount=${event.payload.retryCount}`
       );
 
       producer.send({
@@ -50,7 +50,7 @@ export abstract class KafkaEventHandler {
           {
             value: JSON.stringify({
               error: JSON.stringify(error),
-              payload,
+              payload: event.payload,
             }),
           },
         ],
@@ -63,27 +63,20 @@ export abstract class KafkaEventHandler {
     return [`${getNetworkName()}.${this.topicName}`, `${getNetworkName()}.${this.topicName}-error`];
   }
 
-  convertPayloadHexToString(payload: any) {
-    const numericKeys = ["amount", "token_id"];
-
+  convertPayloadHexToString(payload: any, keyPayload: any) {
     // go through all the keys in the payload and convert any hex strings to strings
     // This is necessary because debeezium converts bytea values and other non string values to base64 strings
-    for (const key in payload.after) {
-      if (isBase64(payload.after[key])) {
-        payload.after[key] = base64ToHex(payload.after[key]);
-        // if the key is a numeric key, convert the value to a number (hex -> number -> string)
-        if (numericKeys.includes(key) && typeof payload.after[key] === "string") {
-          payload.after[key] = Number(payload.after[key]).toString();
-        }
-      }
-    }
+    for (const key in keyPayload.payload.after) {
+      payload.after[key] = base64ToHex(payload.after[key]);
+      // if the key is a numeric key, convert the value to a number (hex -> number -> string)
 
-    for (const key in payload.before) {
-      if (isBase64(payload.before[key])) {
-        payload.before[key] = base64ToHex(payload.before[key]);
-        // if the key is a numeric key, convert the value to a number (hex -> number -> string)
-        if (numericKeys.includes(key) && typeof payload.before[key] === "string") {
-          payload.before[key] = Number(payload.before[key]).toString();
+      for (const type of keyPayload.schema.fields) {
+        if (
+          type.field === key &&
+          type?.name &&
+          type?.name === "org.apache.kafka.connect.data.Decimal"
+        ) {
+          payload.after[key] = Number(payload.after[key]).toString();
         }
       }
     }

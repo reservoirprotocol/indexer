@@ -17,10 +17,12 @@ export const consumer = kafka.consumer({
 });
 
 export async function startKafkaProducer(): Promise<void> {
+  logger.info(`${getServiceName()}-kafka`, "Starting Kafka producer");
   await producer.connect();
 }
 
 export async function startKafkaConsumer(): Promise<void> {
+  logger.info(`${getServiceName()}-kafka`, "Starting Kafka consumer");
   await consumer.connect();
 
   const topicsToSubscribe = TopicHandlers.map((topicHandler) => {
@@ -40,23 +42,36 @@ export async function startKafkaConsumer(): Promise<void> {
 
     eachMessage: async ({ message, topic }) => {
       try {
-        const event = JSON.parse(message.value!.toString());
+        const eventValues = JSON.parse(message.value!.toString());
+        const keyValue = JSON.parse(message.key!.toString());
 
         // Find the corresponding topic handler and call the handle method on it, if the topic is not a dead letter topic
         if (topic.endsWith("-dead-letter")) {
           // if topic is dead letter, no need to process it
+          logger.info(
+            `${getServiceName()}-kafka-consumer`,
+            `Dead letter topic=${topic}, message=${JSON.stringify(event)}`
+          );
           return;
         }
 
         for (const handler of TopicHandlers) {
           if (handler.getTopics().includes(topic)) {
             // If the event has not been retried before, set the retryCount to 0
-            if (!event.payload.retryCount) {
-              event.payload.retryCount = 0;
+            if (!eventValues.payload.retryCount) {
+              eventValues.payload.retryCount = 0;
             }
 
-            await handler.handle(event.payload);
+            await handler.handle(eventValues, keyValue);
             break;
+          } else {
+            logger.error(
+              `${getServiceName()}-kafka-consumer`,
+              `No handler found for topic=${topic}`
+            );
+
+            // If the event has an issue with finding its corresponding topic handler, send it to the dead letter queue
+            throw new Error(`No handler found for topic=${topic}`);
           }
         }
       } catch (error) {
