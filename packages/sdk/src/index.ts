@@ -41,6 +41,7 @@ import * as ZeroExV3 from "./zeroex-v3";
 import * as ZeroExV4 from "./zeroex-v4";
 import * as Zora from "./zora";
 import * as LooksRareV2 from "./looks-rare-v2";
+import * as Blend from "./blend";
 
 // Overrides (shouldn't belong here)
 if (process.env.SEAPORT_V15_OVERRIDE) {
@@ -109,4 +110,5 @@ export {
   ZeroExV4,
   Zora,
   LooksRareV2,
+  Blend,
 };

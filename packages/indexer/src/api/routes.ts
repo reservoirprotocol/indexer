@@ -784,6 +784,12 @@ export const setupRoutes = (server: Server) => {
     options: executeEndpoints.postCancelSignatureV1Options,
   });
 
+  server.route({
+    method: "POST",
+    path: "/execute/mint/v1",
+    options: executeEndpoints.postExecuteMintV1Options,
+  });
+
   // Health
 
   // Both `/readyz` and `/livez` point to the same handler,
