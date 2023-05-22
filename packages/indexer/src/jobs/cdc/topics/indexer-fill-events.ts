@@ -13,6 +13,9 @@ export class IndexerFillEventsHandler extends KafkaEventHandler {
       return;
     }
 
+    // eslint-disable-next-line
+    console.log("payload.after", payload.after);
+
     await WebsocketEventRouter({
       eventInfo: {
         tx_hash: payload.after.tx_hash,

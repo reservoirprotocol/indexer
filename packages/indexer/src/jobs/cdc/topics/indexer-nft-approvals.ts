@@ -13,6 +13,9 @@ export class IndexerApprovalEventsHandler extends KafkaEventHandler {
       return;
     }
 
+    // eslint-disable-next-line
+    console.log("payload.after", payload.after);
+
     await WebsocketEventRouter({
       eventInfo: {
         ...payload.after,

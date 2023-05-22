@@ -13,6 +13,8 @@ export class IndexerTransferEventsHandler extends KafkaEventHandler {
     if (!payload.after) {
       return;
     }
+    // eslint-disable-next-line
+    console.log("payload.after", payload.after);
 
     await WebsocketEventRouter({
       eventInfo: {
