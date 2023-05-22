@@ -81,7 +81,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
           const lastResult = results[results.length - 1];
 
-          logger.info(
+          logger.debug(
             QUEUE_NAME,
             `Processed ${results.length} activities. cursor=${JSON.stringify(
               cursor
