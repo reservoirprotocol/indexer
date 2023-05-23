@@ -82,7 +82,7 @@ if (config.doBackgroundWork) {
             collectionId: collection.id,
           });
 
-          if (ownerCount !== collection.ownerCount) {
+          if (Number(ownerCount) !== collection.ownerCount) {
             await idb.none(
               `
               UPDATE collections
@@ -96,18 +96,18 @@ if (config.doBackgroundWork) {
                 ownerCount,
               }
             );
-          }
 
-          logger.info(
-            QUEUE_NAME,
-            JSON.stringify({
-              topic: "Updated owner count",
-              jobData: job.data,
-              collection: collection.id,
-              collectionOwnerCount: collection.ownerCount,
-              ownerCount,
-            })
-          );
+            logger.debug(
+              QUEUE_NAME,
+              JSON.stringify({
+                topic: "Updated owner count",
+                jobData: job.data,
+                collection: collection.id,
+                collectionOwnerCount: collection.ownerCount,
+                ownerCount,
+              })
+            );
+          }
         } else {
           const acquiredScheduleLock = await acquireLock(
             getScheduleLockName(collection.id),
