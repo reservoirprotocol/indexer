@@ -40,6 +40,9 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
     `,
     { collection: collectionMint.collection }
   );
+  if (!collectionResult) {
+    return false;
+  }
 
   const minter = "0x0000000000000000000000000000000000000001";
   const contract = fromBuffer(collectionResult.contract);
