@@ -85,7 +85,7 @@ export class AskCancelActivity {
         activityHash = getActivityHash(
           data.transactionHash,
           data.logIndex.toString(),
-          data.batchIndex.toString()
+          data.batchIndex ? data.batchIndex.toString() : ""
         );
       } else {
         activityHash = getActivityHash(ActivityType.ask_cancel, data.orderId);

@@ -9,6 +9,7 @@ import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { fetchTransaction } from "@/events-sync/utils";
 import { Sources } from "@/models/sources";
+import { AbiParam } from "@/utils/mints/calldata/generator";
 import { CollectionMint, simulateAndSaveCollectionMint } from "@/utils/mints/collection-mints";
 import { getMethodSignature } from "@/utils/mints/method-signatures";
 
@@ -138,21 +139,21 @@ export const detectMint = async (txHash: string, skipCache = false) => {
     }
   }
 
-  let collectionMint: CollectionMint | undefined;
-
+  let collectionMint: CollectionMint;
   if (tx.data.length === 10) {
-    // Case 1: empty
     collectionMint = {
       collection,
       stage: "public-sale",
       kind: "public",
       status: "open",
-      standardAndDetails: {
-        standard: "unknown",
-        details: {
-          kind: "empty",
-          methodSignature: tx.data,
-          methodParams: "",
+      standard: "unknown",
+      details: {
+        tx: {
+          to: tx.to,
+          data: {
+            signature: tx.data,
+            params: [],
+          },
         },
       },
       currency: Sdk.Common.Addresses.Eth[config.chainId],
@@ -167,98 +168,56 @@ export const detectMint = async (txHash: string, skipCache = false) => {
   }
 
   // For now, we only support simple data types in the calldata
-  if (["(", ")", "[", "]", "bytes", "string"].some((x) => methodSignature.params.includes(x))) {
+  if (["(", ")", "[", "]", "bytes"].some((x) => methodSignature.params.includes(x))) {
     return;
   }
 
-  const params = methodSignature.params.split(",");
-  if (params.length === 1 && params[0].includes("int")) {
-    // Case 2: numeric
-    const numericValue = bn(methodSignature.decodedCalldata[0]);
-    if (numericValue.eq(amountMinted)) {
-      collectionMint = {
-        collection,
-        stage: "public-sale",
-        kind: "public",
-        status: "open",
-        standardAndDetails: {
-          standard: "unknown",
-          details: {
-            kind: "numeric",
-            methodSignature: methodSignature.signature,
-            methodParams: methodSignature.params,
-          },
-        },
-        currency: Sdk.Common.Addresses.Eth[config.chainId],
-        price: pricePerAmountMinted.toString(),
-      };
+  const params: AbiParam[] = [];
+  methodSignature.params.split(",").forEach((abiType, i) => {
+    const decodedValue = methodSignature.decodedCalldata[i];
+
+    if (abiType.includes("int") && bn(decodedValue).eq(amountMinted)) {
+      params.push({
+        kind: "quantity",
+        abiType,
+      });
+    } else if (abiType.includes("address") && decodedValue.toLowerCase() === contract) {
+      params.push({
+        kind: "contract",
+        abiType,
+      });
+    } else if (abiType.includes("address") && decodedValue.toLowerCase() === tx.from) {
+      params.push({
+        kind: "recipient",
+        abiType,
+      });
+    } else {
+      params.push({
+        kind: "unknown",
+        abiType,
+        abiValue: decodedValue.toString(),
+      });
     }
-  } else if (params.length === 1 && params[0] === "address") {
-    // Case 3: address
-    const addressValue = methodSignature.decodedCalldata[0].toLowerCase();
-    if ([AddressZero, tx.from, contract].includes(addressValue)) {
-      collectionMint = {
-        collection,
-        stage: "public-sale",
-        kind: "public",
-        status: "open",
-        standardAndDetails: {
-          standard: "unknown",
-          details: {
-            kind: "address",
-            methodSignature: methodSignature.signature,
-            methodParams: methodSignature.params,
-          },
+  });
+
+  collectionMint = {
+    collection,
+    stage: "public-sale",
+    kind: "public",
+    status: "open",
+    standard: "unknown",
+    details: {
+      tx: {
+        to: tx.to,
+        data: {
+          signature: methodSignature.signature,
+          params,
         },
-        currency: Sdk.Common.Addresses.Eth[config.chainId],
-        price: pricePerAmountMinted.toString(),
-      };
-    }
-  } else if (params.length === 2 && params[0] === "address" && params[1].includes("int")) {
-    // Case 4: address-numeric
-    const addressValue = methodSignature.decodedCalldata[0].toLowerCase();
-    const numericValue = bn(methodSignature.decodedCalldata[1]);
-    if ([AddressZero, tx.from].includes(addressValue) && numericValue.eq(amountMinted)) {
-      collectionMint = {
-        collection,
-        stage: "public-sale",
-        kind: "public",
-        status: "open",
-        standardAndDetails: {
-          standard: "unknown",
-          details: {
-            kind: "address-numeric",
-            methodSignature: methodSignature.signature,
-            methodParams: methodSignature.params,
-          },
-        },
-        currency: Sdk.Common.Addresses.Eth[config.chainId],
-        price: pricePerAmountMinted.toString(),
-      };
-    }
-  } else if (params.length === 2 && params[0].includes("int") && params[1] === "address") {
-    // Case 5: numeric-address
-    const numericValue = bn(methodSignature.decodedCalldata[0]);
-    const addressValue = methodSignature.decodedCalldata[1].toLowerCase();
-    if ([AddressZero, tx.from].includes(addressValue) && numericValue.eq(amountMinted)) {
-      collectionMint = {
-        collection,
-        stage: "public-sale",
-        kind: "public",
-        status: "open",
-        standardAndDetails: {
-          standard: "unknown",
-          details: {
-            kind: "numeric-address",
-            methodSignature: methodSignature.signature,
-            methodParams: methodSignature.params,
-          },
-        },
-        currency: Sdk.Common.Addresses.Eth[config.chainId],
-        price: pricePerAmountMinted.toString(),
-      };
-    }
-  }
+      },
+    },
+    currency: Sdk.Common.Addresses.Eth[config.chainId],
+    price: pricePerAmountMinted.toString(),
+  };
 
   if (collectionMint) {
     return simulateAndSaveCollectionMint(collectionMint);

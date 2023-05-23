@@ -64,28 +64,28 @@ if (config.doBackgroundWork) {
         const queries: PgPromiseQuery[] = [];
         queries.push({
           query: `
-              INSERT INTO "collections" (
-                "id",
-                "slug",
-                "name",
-                "community",
-                "metadata",
-                "contract",
-                "token_id_range",
-                "token_set_id",
-                "minted_timestamp"
-              ) VALUES (
-                $/id/,
-                $/slug/,
-                $/name/,
-                $/community/,
-                $/metadata:json/,
-                $/contract/,
-                ${tokenIdRangeParam},
-                $/tokenSetId/,
-                $/mintedTimestamp/
-              ) ON CONFLICT DO NOTHING;
-            `,
+            INSERT INTO "collections" (
+              "id",
+              "slug",
+              "name",
+              "community",
+              "metadata",
+              "contract",
+              "token_id_range",
+              "token_set_id",
+              "minted_timestamp"
+            ) VALUES (
+              $/id/,
+              $/slug/,
+              $/name/,
+              $/community/,
+              $/metadata:json/,
+              $/contract/,
+              ${tokenIdRangeParam},
+              $/tokenSetId/,
+              $/mintedTimestamp/
+            ) ON CONFLICT DO NOTHING;
+          `,
           values: {
             id: collection.id,
             slug: collection.slug,
@@ -95,7 +95,7 @@ if (config.doBackgroundWork) {
             contract: toBuffer(collection.contract),
             tokenIdRange,
             tokenSetId: collection.tokenSetId,
-            mintedTimestamp,
+            mintedTimestamp: mintedTimestamp ?? null,
           },
         });
 
@@ -203,7 +203,7 @@ if (config.doBackgroundWork) {
 export type FetchCollectionMetadataInfo = {
   contract: string;
   tokenId: string;
-  mintedTimestamp: number;
+  mintedTimestamp?: number;
   newCollection?: boolean;
   oldCollectionId?: string;
 };

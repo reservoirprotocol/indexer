@@ -22,7 +22,7 @@ export class BidCancelActivity {
       activityHash = getActivityHash(
         data.transactionHash,
         data.logIndex.toString(),
-        data.batchIndex.toString()
+        data.batchIndex ? data.batchIndex.toString() : ""
       );
     } else {
       activityHash = getActivityHash(ActivityType.bid_cancel, data.orderId);

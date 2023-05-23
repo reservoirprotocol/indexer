@@ -11,13 +11,14 @@ import * as syncEventsUtils from "@/events-sync/utilsV2";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
 
+import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
+
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
-  // First, associate each event to its corresponding tx
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
 
-  enhancedEvents.map((event) => () => {
+  enhancedEvents.forEach((event) => {
     const txHash = event.baseEventParams.txHash;
     if (!txHashToEvents.has(txHash)) {
       txHashToEvents.set(txHash, []);
@@ -25,10 +26,9 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
     txHashToEvents.get(txHash)!.push(event);
   });
 
-  // Then, for each tx split the events by their kind
   const txHashToEventsBatch = new Map<string, EventsBatch>();
 
-  [...txHashToEvents.entries()].map(([txHash, events]) => () => {
+  [...txHashToEvents.entries()].forEach(([txHash, events]) => {
     const kindToEvents = new Map<EventKind, EnhancedEvent[]>();
     let blockHash = "";
 
@@ -231,8 +231,10 @@ export const syncEvents = async (block: number) => {
     const startGetBlockTime = Date.now();
     const blockData = await syncEventsUtils.fetchBlock(block);
     if (!blockData) {
-      logger.error("sync-events-v2", `Block ${block} not found`);
-      throw new Error(`Block ${block} not found`);
+      logger.warn("sync-events-v2", `Block ${block} not found`);
+      // throw new Error(`Block ${block} not found`);
+      await realtimeEventsSyncV2.addToQueue({ block });
+      return;
     }
     const endGetBlockTime = Date.now();
 
@@ -241,7 +243,6 @@ export const syncEvents = async (block: number) => {
       fromBlock: block,
       toBlock: block + 1,
     };
-    const enhancedEvents: EnhancedEvent[] = [];
     const availableEventData = getEventData();
 
     const startProcessLogsAndSaveDataTime = Date.now();
@@ -257,7 +258,7 @@ export const syncEvents = async (block: number) => {
 
     const endProcessLogsAndSaveDataTime = Date.now();
 
-    logs.map((log) => {
+    let enhancedEvents = logs.map((log) => {
       try {
         const baseEventParams = parseEvent(log, blockData.timestamp);
 
@@ -268,12 +269,12 @@ export const syncEvents = async (block: number) => {
             (addresses ? addresses[log.address.toLowerCase()] : true)
         );
         if (eventData) {
-          enhancedEvents.push({
+          return {
             kind: eventData.kind,
             subKind: eventData.subKind,
             baseEventParams,
             log,
-          });
+          };
         }
       } catch (error) {
         logger.error("sync-events-v2", `Failed to handle events: ${error}`);
@@ -281,8 +282,19 @@ export const syncEvents = async (block: number) => {
       }
     });
 
+    enhancedEvents = enhancedEvents.filter((e) => e) as EnhancedEvent[];
+
+    logger.info(
+      "sync-events-v2",
+      `Events realtime syncing block ${block} - ${enhancedEvents.length} events`
+    );
     // Process the retrieved events
-    const eventsBatches = extractEventsBatches(enhancedEvents);
+    const eventsBatches = extractEventsBatches(enhancedEvents as EnhancedEvent[]);
+
+    logger.info(
+      "sync-events-v2",
+      `Events realtime syncing block ${block} - ${eventsBatches.length} batches`
+    );
 
     const startProcessEventBatchesTime = Date.now();
     await Promise.all(
@@ -301,6 +313,7 @@ export const syncEvents = async (block: number) => {
         message: `Events realtime syncing block ${block}`,
         block,
         syncTime: endSyncTime - startSyncTime,
+        blockSyncTime: endProcessLogsAndSaveDataTime - startSyncTime,
         getBlockTime: endGetBlockTime - startGetBlockTime,
         processLogsAndSaveDataTime: endProcessLogsAndSaveDataTime - startProcessLogsAndSaveDataTime,
         processEventBatchesTime: endProcessEventBatchesTime - startProcessEventBatchesTime,
