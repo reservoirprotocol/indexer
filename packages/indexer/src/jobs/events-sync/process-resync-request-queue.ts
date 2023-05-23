@@ -30,7 +30,7 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { fromBlock, toBlock, backfill, syncDetails, blocksPerBatch } = job.data;
 
-      if (fromBlock === toBlock) {
+      if (Number(toBlock) - Number(fromBlock) <= 16) {
         await syncEvents(fromBlock, toBlock, { backfill, syncDetails });
       } else {
         await eventsSyncBackfill.addToQueue(fromBlock, toBlock, {
