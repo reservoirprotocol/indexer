@@ -238,7 +238,7 @@ export const getCollectionsV5Options: RouteOptions = {
             allTime: Joi.number().unsafe().allow(null),
           }).description("Number of sales of X-days period"),
           collectionBidSupported: Joi.boolean().description(`true or false`),
-          ownerCount: Joi.number().optional().description("Unique number of owners."),
+          ownerCount: Joi.number().description("Unique number of owners."),
           attributes: Joi.array()
             .items(
               Joi.object({
@@ -753,7 +753,7 @@ export const getCollectionsV5Options: RouteOptions = {
                 }
               : undefined,
             collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
-            ownerCount: r.owner_count ? Number(r.owner_count) : null,
+            ownerCount: Number(r.owner_count),
             attributes: query.includeAttributes
               ? _.map(_.sortBy(r.attributes, ["rank", "key"]), (attribute) => ({
                   key: attribute.key,
