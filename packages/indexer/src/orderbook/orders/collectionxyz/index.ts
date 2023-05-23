@@ -584,6 +584,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               return;
             }
 
+            // Generate next 10 prices
+            const pricesAsBn: BigNumber[] = [];
+            for (let i = 0; i < 10; i++) {
+              // Get cumulative price
+              const { totalAmount }: { totalAmount: BigNumber } =
+                await poolContract.getSellNFTQuote(i + 1);
+              // Subtract next largest cumulative price ?? bn(0) for unit price
+              pricesAsBn.push(totalAmount.sub(pricesAsBn[0] ?? bn(0)));
+            }
+            const prices = pricesAsBn.map((n) => n.toString());
+
             // No entry found, create new row. Only columns which are constant
             // for all buy orders should be in this if-branch. Everything else
             // might need to be updated
@@ -611,9 +622,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   assetRecipient: orderParams.assetRecipient,
                   royaltyRecipientFallback: orderParams.royaltyRecipientFallback,
                   extra: {
-                    // Not much point keeping more than 1 unit price. Keep the expected input
-                    // amount which is currencyPrice
-                    prices: [currencyPrice.toString()],
+                    prices,
                   },
                 }
               );
@@ -675,9 +684,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               );
 
               sdkOrder.params.extra = {
-                // Not much point keeping more than 1 unit price. Keep the expected input
-                // amount which is currencyPrice
-                prices: [currencyPrice.toString()],
+                prices,
               };
               sdkOrder.params.tokenSetId = tokenSetId;
 
@@ -856,6 +863,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     return;
                   }
 
+                  // Generate next 10 prices
+                  const pricesAsBn: BigNumber[] = [];
+                  for (let i = 0; i < 10; i++) {
+                    // Get cumulative price
+                    const { totalAmount }: { totalAmount: BigNumber } =
+                      await poolContract.getBuyNFTQuote(1);
+                    // Subtract next largest cumulative price ?? bn(0) for unit price
+                    pricesAsBn.push(totalAmount.sub(pricesAsBn[0] ?? bn(0)));
+                  }
+                  const prices = pricesAsBn.map((n) => n.toString());
+
                   // Order for this tokenId doesn't exist. Create new row.
                   if (!orderResult) {
                     const schemaHash = generateSchemaHash();
@@ -896,7 +914,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                         royaltyRecipientFallback: orderParams.royaltyRecipientFallback,
                         extra: {
                           // Selling to pool -> Router needs expected output == currencyValue
-                          prices: [currencyValue.toString()],
+                          prices,
                         },
                       }
                     );
@@ -958,9 +976,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     );
 
                     sdkOrder.params.extra = {
-                      // Not much point keeping more than 1 unit price. Router
-                      // needs expected output == currencyValue
-                      prices: [currencyValue.toString()],
+                      // Router needs expected output == currencyValue
+                      prices,
                     };
                     // tokenSetId is 1:1 with order id for asks
                     // sdkOrder.params.tokenSetId = tokenSetId;
