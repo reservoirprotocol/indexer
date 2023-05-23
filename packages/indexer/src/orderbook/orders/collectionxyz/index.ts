@@ -798,7 +798,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           for (let i = 0; i < Math.min(poolOwnedTokenIds.length, 10); i++) {
             // Get cumulative price
             const { totalAmount }: { totalAmount: BigNumber } = await poolContract.getBuyNFTQuote(
-              1
+              i + 1
             );
             // Subtract next largest cumulative price ?? bn(0) for unit price
             pricesAsBn.push(totalAmount.sub(pricesAsBn[pricesAsBn.length - 1] ?? bn(0)));
