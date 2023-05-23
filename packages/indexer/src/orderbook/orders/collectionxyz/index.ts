@@ -435,7 +435,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             while (numBuyableNFTs < 10) {
               const { totalAmount }: { totalAmount: BigNumber } =
                 await poolContract.getSellNFTQuote(numBuyableNFTs);
-              const unitPrice = totalAmount.sub(pricesAsBn[0] ?? bn(0));
+              const unitPrice = totalAmount.sub(pricesAsBn[pricesAsBn.length - 1] ?? bn(0));
 
               if (tokenBalance.lte(totalAmount)) {
                 break;
@@ -801,7 +801,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               1
             );
             // Subtract next largest cumulative price ?? bn(0) for unit price
-            pricesAsBn.push(totalAmount.sub(pricesAsBn[0] ?? bn(0)));
+            pricesAsBn.push(totalAmount.sub(pricesAsBn[pricesAsBn.length - 1] ?? bn(0)));
           }
           const prices = pricesAsBn.map((n) => n.toString());
 
