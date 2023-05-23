@@ -983,7 +983,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // Handle approvals
         for (const approval of approvals) {
           const approvedAmount = await onChainData
-            .fetchAndUpdateFtApproval(approval.currency, approval.owner, approval.operator, true)
+            .fetchAndUpdateFtApproval(approval.currency, approval.owner, approval.operator)
             .then((a) => a.value);
 
           const isApproved = bn(approvedAmount).gte(approval.amount);

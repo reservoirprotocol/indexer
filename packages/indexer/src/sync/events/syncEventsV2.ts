@@ -11,6 +11,8 @@ import * as syncEventsUtils from "@/events-sync/utilsV2";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
 
+import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
+
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
@@ -230,7 +232,9 @@ export const syncEvents = async (block: number) => {
     const blockData = await syncEventsUtils.fetchBlock(block);
     if (!blockData) {
       logger.warn("sync-events-v2", `Block ${block} not found`);
-      throw new Error(`Block ${block} not found`);
+      // throw new Error(`Block ${block} not found`);
+      await realtimeEventsSyncV2.addToQueue({ block });
+      return;
     }
     const endGetBlockTime = Date.now();
 

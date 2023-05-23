@@ -10,17 +10,17 @@ import { buildContinuation, formatEth, fromBuffer, regex, splitContinuation } fr
 import { Assets } from "@/utils/assets";
 import { JoiAttributeValue } from "@/common/joi";
 
-const version = "v4";
+const version = "v5";
 
-export const getAttributesExploreV4Options: RouteOptions = {
+export const getAttributesExploreV5Options: RouteOptions = {
   cache: {
     privacy: "public",
     expiresIn: 10000,
   },
   description: "Explore attributes",
   notes:
-    "Use this API to see stats on a specific attribute within a collection. This endpoint will return `tokenCount`, `onSaleCount`, `sampleImages`, and `floorAsk` by default. ",
-  tags: ["api", "x-deprecated", "Attributes"],
+    "Use this API to see stats on a specific attribute within a collection. This endpoint will return `tokenCount`, `onSaleCount`, `sampleImages`, and `floorAskPrices` by default.\n\n- `floorAskPrices` will not be returned on attributes with more than 10k tokens.",
+  tags: ["api", "Attributes"],
   plugins: {
     "hapi-swagger": {
       order: 15,
@@ -77,16 +77,12 @@ export const getAttributesExploreV4Options: RouteOptions = {
     schema: Joi.object({
       attributes: Joi.array().items(
         Joi.object({
-          key: Joi.string().required().description("Case sensitive"),
-          value: JoiAttributeValue.description("Case sensitive"),
-          tokenCount: Joi.number().required().description("Total token count with this attribute."),
-          onSaleCount: Joi.number()
-            .required()
-            .description("Token count with this attribute on sale."),
+          key: Joi.string().required(),
+          value: JoiAttributeValue,
+          tokenCount: Joi.number().required(),
+          onSaleCount: Joi.number().required(),
           sampleImages: Joi.array().items(Joi.string().allow("", null)),
-          floorAskPrices: Joi.array()
-            .items(Joi.number().unsafe())
-            .description("Current floor price ask."),
+          floorAskPrices: Joi.array().items(Joi.number().unsafe()),
           lastBuys: Joi.array().items(
             Joi.object({
               tokenId: Joi.string().required(),
@@ -264,9 +260,11 @@ export const getAttributesExploreV4Options: RouteOptions = {
         onSaleCount: Number(r.on_sale_count),
         sampleImages: Assets.getLocalAssetsLink(r.sample_images) || [],
         floorAskPrices:
-          query.maxFloorAskPrices > 1
-            ? (r.floor_sell_values || []).map(formatEth)
-            : [formatEth(r.floor_sell_value || 0)],
+          Number(r.token_count) <= 10000 // We only calculate attribute floor up to 10k tokens
+            ? query.maxFloorAskPrices > 1
+              ? (r.floor_sell_values || []).map(formatEth)
+              : [formatEth(r.floor_sell_value || 0)]
+            : [],
         lastBuys: query.maxLastSells
           ? (r.last_buys || []).map(({ tokenId, value, timestamp }: any) => ({
               tokenId: `${tokenId}`,
