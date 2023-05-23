@@ -74,10 +74,12 @@ export const generateMintTxData = (
   const data =
     details.tx.data.signature +
     (abiData.length
-      ? defaultAbiCoder.encode(
-          abiData.map(({ abiType }) => abiType),
-          abiData.map(({ abiValue }) => abiValue)
-        )
+      ? defaultAbiCoder
+          .encode(
+            abiData.map(({ abiType }) => abiType),
+            abiData.map(({ abiValue }) => abiValue)
+          )
+          .slice(2)
       : "");
 
   return {
