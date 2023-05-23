@@ -54,6 +54,7 @@ export type CollectionsEntityParams = {
   token_set_id: string;
   non_flagged_token_set_id: string;
   token_count: number;
+  owner_count: number;
   created_at: string;
   updated_at: string;
   day1_volume: number;
@@ -82,6 +83,7 @@ export class CollectionsEntity {
   tokenSetId: string;
   nonFlaggedTokenSetId: string;
   tokenCount: number;
+  ownerCount: number;
   createdAt: string;
   updatedAt: string;
   day1Volume: number;
@@ -109,6 +111,7 @@ export class CollectionsEntity {
     this.tokenSetId = params.token_set_id;
     this.nonFlaggedTokenSetId = params.non_flagged_token_set_id;
     this.tokenCount = params.token_count;
+    this.ownerCount = params.owner_count;
     this.createdAt = params.created_at;
     this.updatedAt = params.updated_at;
     this.day1Volume = params.day1_volume;

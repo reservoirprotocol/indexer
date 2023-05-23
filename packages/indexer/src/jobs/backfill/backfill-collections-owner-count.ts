@@ -80,6 +80,8 @@ if (config.doBackgroundWork) {
           job.data.addToQueue = true;
           job.data.addToQueueCursor = nextCursor;
         }
+
+        logger.info(QUEUE_NAME, `Triggered owner count recalc for ${results.length} collections`);
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
@@ -87,7 +89,7 @@ if (config.doBackgroundWork) {
 
   worker.on("completed", async (job) => {
     if (job.data.addToQueue) {
-      await addToQueue(job.data.addToQueueCursor, 5000);
+      await addToQueue(job.data.addToQueueCursor, 2000);
     }
   });
 

@@ -3,7 +3,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { acquireLock, getLockExpiration, redis } from "@/common/redis";
-import { idb } from "@/common/db";
+import { idb, ridb } from "@/common/db";
 import { Collections } from "@/models/collections";
 import { randomUUID } from "crypto";
 
@@ -49,63 +49,64 @@ if (config.doBackgroundWork) {
         );
 
         if (acquiredCalcLock) {
-          let query;
+          let ownerCountQuery;
 
           if (collection.tokenIdRange) {
-            query = `
-                      WITH x as (
-                          SELECT 
+            ownerCountQuery = `
+                       SELECT 
                             COUNT(
                               DISTINCT(owner)
-                            ) AS owner_count 
+                            ) AS "ownerCount" 
                           FROM  nft_balances 
                             JOIN collections ON nft_balances.contract = collections.contract 
                             AND nft_balances.token_id <@ collections.token_id_range 
                           WHERE collections.id = $/collectionId/
-                            AND nft_balances.amount > 0
-                        ) 
-                        UPDATE collections 
-                        SET 
-                          owner_count = x.owner_count, 
-                          updated_at = now() 
-                        FROM x 
-                        WHERE id = $/collectionId/ 
-                          AND COALESCE(collections.owner_count, 0) != x.owner_count;
+                            AND nft_balances.amount > 0;
 
                   `;
           } else {
-            query = `
-                      WITH x as (
-                          SELECT 
+            ownerCountQuery = `
+                      SELECT 
                             COUNT(
                               DISTINCT(owner)
-                            ) AS owner_count 
+                            ) AS "ownerCount" 
                           FROM nft_balances
                             JOIN tokens ON tokens.contract = nft_balances.contract 
                             AND tokens.token_id = nft_balances.token_id 
                           WHERE tokens.collection_id = $/collectionId/
-                            AND nft_balances.amount > 0
-                        ) 
-                        UPDATE collections
-                        SET 
-                          "owner_count" = x.owner_count, 
-                          "updated_at" = now() 
-                        FROM x
-                        WHERE id = $/collectionId/
-                          AND COALESCE(collections.owner_count, 0) != x.owner_count;
+                            AND nft_balances.amount > 0;
                   `;
           }
 
-          await idb.none(query, {
+          const { ownerCount } = await ridb.oneOrNone(ownerCountQuery, {
             collectionId: collection.id,
           });
+
+          if (Number(ownerCount) !== collection.ownerCount) {
+            await idb.none(
+              `
+              UPDATE collections
+                SET 
+                  owner_count = $/ownerCount/, 
+                  updated_at = now() 
+                WHERE id = $/collectionId/
+              `,
+              {
+                collectionId: collection.id,
+                ownerCount,
+              }
+            );
+          }
 
           logger.debug(
             QUEUE_NAME,
             JSON.stringify({
-              topic: "Updated owner count",
+              topic: "Update owner count",
               jobData: job.data,
               collection: collection.id,
+              collectionOwnerCount: collection.ownerCount,
+              ownerCount,
+              updated: Number(ownerCount) !== collection.ownerCount,
             })
           );
         } else {
@@ -176,7 +177,7 @@ export const addToQueue = async (infos: RecalcCollectionOwnerCountInfo[], delayI
     })
   );
 
-  // Disable for bsc while its backfilling
+  // Disable for bsc while its back filling
   if (config.chainId === 56) {
     return;
   }
