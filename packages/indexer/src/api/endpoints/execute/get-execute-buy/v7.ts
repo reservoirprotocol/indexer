@@ -147,7 +147,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       openseaApiKey: Joi.string().description(
         "Optional OpenSea API key used for filling. You don't need to pass your own key, but if you don't, you are more likely to be rate-limited."
       ),
-      blurAuth: Joi.string().description("Optional Blur auth used for filling"),
+      blurAuth: Joi.string().description("Advanced use case to pass personal blurAuthToken; the API will generate one if left empty."),
     }),
   },
   response: {
