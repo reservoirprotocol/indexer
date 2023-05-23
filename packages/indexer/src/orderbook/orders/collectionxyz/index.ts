@@ -958,9 +958,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     );
 
                     sdkOrder.params.extra = {
-                      // Not much point keeping more than 1 unit price. Keep the expected input
-                      // amount which is currencyPrice
-                      prices: [currencyPrice.toString()],
+                      // Not much point keeping more than 1 unit price. Router
+                      // needs expected output == currencyValue
+                      prices: [currencyValue.toString()],
                     };
                     // tokenSetId is 1:1 with order id for asks
                     // sdkOrder.params.tokenSetId = tokenSetId;
