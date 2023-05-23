@@ -430,17 +430,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             // Determine how many NFTs can be bought (though the price will
             // increase with each unit)
             let numBuyableNFTs = 1;
+            const pricesAsBn: BigNumber[] = [];
             // Hardcoded limit in case there's way too much liquidity
             while (numBuyableNFTs < 10) {
               const { totalAmount }: { totalAmount: BigNumber } =
                 await poolContract.getSellNFTQuote(numBuyableNFTs);
+              const unitPrice = totalAmount.sub(pricesAsBn[pricesAsBn.length - 1] ?? bn(0));
 
               if (tokenBalance.lte(totalAmount)) {
                 break;
               }
 
+              pricesAsBn.push(unitPrice);
               numBuyableNFTs++;
             }
+
+            const prices = pricesAsBn.map((n) => n.toString());
 
             // Handle royalties and fees
             // For bids, we can't predict which tokenID is going to be sold
@@ -611,9 +616,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   assetRecipient: orderParams.assetRecipient,
                   royaltyRecipientFallback: orderParams.royaltyRecipientFallback,
                   extra: {
-                    // Not much point keeping more than 1 unit price. Keep the expected input
-                    // amount which is currencyPrice
-                    prices: [currencyPrice.toString()],
+                    prices,
                   },
                 }
               );
@@ -675,9 +678,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               );
 
               sdkOrder.params.extra = {
-                // Not much point keeping more than 1 unit price. Keep the expected input
-                // amount which is currencyPrice
-                prices: [currencyPrice.toString()],
+                prices,
               };
               sdkOrder.params.tokenSetId = tokenSetId;
 
@@ -792,6 +793,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             (bn) => bn.toString()
           );
 
+          // Generate up to next 10 prices
+          const pricesAsBn: BigNumber[] = [];
+          for (let i = 0; i < Math.min(poolOwnedTokenIds.length, 10); i++) {
+            // Get cumulative price
+            const { totalAmount }: { totalAmount: BigNumber } = await poolContract.getBuyNFTQuote(
+              1
+            );
+            // Subtract next largest cumulative price ?? bn(0) for unit price
+            pricesAsBn.push(totalAmount.sub(pricesAsBn[pricesAsBn.length - 1] ?? bn(0)));
+          }
+          const prices = pricesAsBn.map((n) => n.toString());
+
           const limit = pLimit(50);
           // Create a single tokenId order for every tokenId in the pool.
           await Promise.all(
@@ -896,7 +909,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                         royaltyRecipientFallback: orderParams.royaltyRecipientFallback,
                         extra: {
                           // Selling to pool -> Router needs expected output == currencyValue
-                          prices: [currencyValue.toString()],
+                          prices,
                         },
                       }
                     );
@@ -958,9 +971,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     );
 
                     sdkOrder.params.extra = {
-                      // Not much point keeping more than 1 unit price. Keep the expected input
-                      // amount which is currencyPrice
-                      prices: [currencyPrice.toString()],
+                      // Router needs expected output == currencyValue
+                      prices,
                     };
                     // tokenSetId is 1:1 with order id for asks
                     // sdkOrder.params.tokenSetId = tokenSetId;
