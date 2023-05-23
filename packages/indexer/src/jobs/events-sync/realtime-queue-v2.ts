@@ -13,18 +13,20 @@ export const queue = new Queue(QUEUE_NAME, {
   defaultJobOptions: {
     // In order to be as lean as possible, leave retrying
     // any failed processes to be done by subsequent jobs
-    removeOnComplete: true,
-    removeOnFail: {
-      age: 1,
-      count: 1,
+
+    attempts: 30,
+    backoff: {
+      type: "fixed",
+      delay: 100,
     },
-    timeout: 45000,
+    removeOnComplete: 1000,
+    removeOnFail: 1000,
   },
 });
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && config.chainId === 1 && config.doProcessRealtime) {
+if (config.doBackgroundWork && config.chainId === 1) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {

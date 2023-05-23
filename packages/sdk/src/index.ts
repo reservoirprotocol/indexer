@@ -26,6 +26,7 @@ import * as SeaportV11 from "./seaport-v1.1";
 import * as SeaportV14 from "./seaport-v1.4";
 import * as SeaportV15 from "./seaport-v1.5";
 import * as Alienswap from "./alienswap";
+import * as Seadrop from "./seadrop";
 import * as SeaportBase from "./seaport-base";
 import * as Sudoswap from "./sudoswap";
 import * as SuperRare from "./superrare";
@@ -90,6 +91,7 @@ export {
   Okex,
   Quixotic,
   Rarible,
+  Seadrop,
   SeaportV11,
   SeaportV14,
   SeaportV15,

@@ -10,8 +10,12 @@ export class BidCancelledEventHandler extends BidCreatedEventHandler {
   }
 
   getActivityId(): string {
-    if (this.txHash && this.logIndex && this.batchIndex) {
-      return getActivityHash(this.txHash, this.logIndex.toString(), this.batchIndex.toString());
+    if (this.txHash && this.logIndex) {
+      return getActivityHash(
+        this.txHash,
+        this.logIndex.toString(),
+        this.batchIndex ? this.batchIndex.toString() : ""
+      );
     }
 
     return getActivityHash(ActivityType.bid_cancel, this.orderId);
