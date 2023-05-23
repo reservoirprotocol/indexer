@@ -96,18 +96,19 @@ if (config.doBackgroundWork) {
                 ownerCount,
               }
             );
-
-            logger.debug(
-              QUEUE_NAME,
-              JSON.stringify({
-                topic: "Updated owner count",
-                jobData: job.data,
-                collection: collection.id,
-                collectionOwnerCount: collection.ownerCount,
-                ownerCount,
-              })
-            );
           }
+
+          logger.info(
+            QUEUE_NAME,
+            JSON.stringify({
+              topic: "Update owner count",
+              jobData: job.data,
+              collection: collection.id,
+              collectionOwnerCount: collection.ownerCount,
+              ownerCount,
+              updated: Number(ownerCount) !== collection.ownerCount,
+            })
+          );
         } else {
           const acquiredScheduleLock = await acquireLock(
             getScheduleLockName(collection.id),
