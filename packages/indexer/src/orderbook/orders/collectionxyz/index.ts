@@ -430,17 +430,22 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             // Determine how many NFTs can be bought (though the price will
             // increase with each unit)
             let numBuyableNFTs = 1;
+            const pricesAsBn: BigNumber[] = [];
             // Hardcoded limit in case there's way too much liquidity
             while (numBuyableNFTs < 10) {
               const { totalAmount }: { totalAmount: BigNumber } =
                 await poolContract.getSellNFTQuote(numBuyableNFTs);
+              const unitPrice = totalAmount.sub(pricesAsBn[0] ?? bn(0));
 
               if (tokenBalance.lte(totalAmount)) {
                 break;
               }
 
+              pricesAsBn.push(unitPrice);
               numBuyableNFTs++;
             }
+
+            const prices = pricesAsBn.map((n) => n.toString());
 
             // Handle royalties and fees
             // For bids, we can't predict which tokenID is going to be sold
@@ -583,17 +588,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               });
               return;
             }
-
-            // Generate next 10 prices
-            const pricesAsBn: BigNumber[] = [];
-            for (let i = 0; i < 10; i++) {
-              // Get cumulative price
-              const { totalAmount }: { totalAmount: BigNumber } =
-                await poolContract.getSellNFTQuote(i + 1);
-              // Subtract next largest cumulative price ?? bn(0) for unit price
-              pricesAsBn.push(totalAmount.sub(pricesAsBn[0] ?? bn(0)));
-            }
-            const prices = pricesAsBn.map((n) => n.toString());
 
             // No entry found, create new row. Only columns which are constant
             // for all buy orders should be in this if-branch. Everything else
@@ -799,6 +793,18 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             (bn) => bn.toString()
           );
 
+          // Generate up to next 10 prices
+          const pricesAsBn: BigNumber[] = [];
+          for (let i = 0; i < Math.min(poolOwnedTokenIds.length, 10); i++) {
+            // Get cumulative price
+            const { totalAmount }: { totalAmount: BigNumber } = await poolContract.getBuyNFTQuote(
+              1
+            );
+            // Subtract next largest cumulative price ?? bn(0) for unit price
+            pricesAsBn.push(totalAmount.sub(pricesAsBn[0] ?? bn(0)));
+          }
+          const prices = pricesAsBn.map((n) => n.toString());
+
           const limit = pLimit(50);
           // Create a single tokenId order for every tokenId in the pool.
           await Promise.all(
@@ -862,17 +868,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     });
                     return;
                   }
-
-                  // Generate next 10 prices
-                  const pricesAsBn: BigNumber[] = [];
-                  for (let i = 0; i < 10; i++) {
-                    // Get cumulative price
-                    const { totalAmount }: { totalAmount: BigNumber } =
-                      await poolContract.getBuyNFTQuote(1);
-                    // Subtract next largest cumulative price ?? bn(0) for unit price
-                    pricesAsBn.push(totalAmount.sub(pricesAsBn[0] ?? bn(0)));
-                  }
-                  const prices = pricesAsBn.map((n) => n.toString());
 
                   // Order for this tokenId doesn't exist. Create new row.
                   if (!orderResult) {
