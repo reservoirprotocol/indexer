@@ -62,6 +62,7 @@ export const getRedirectTokenImageV1Options: RouteOptions = {
         token.image,
         ImageSize[(query.imageSize as keyof typeof ImageSize) || "medium"]
       );
+      delete request.query.imageSize;
       const imageWithQueryParams = Assets.addImageParams(imageUrl, request.query);
       return response.redirect(imageWithQueryParams).header("cache-control", `${1000 * 60}`);
     } catch (error) {
