@@ -56,7 +56,7 @@ if (config.doBackgroundWork) {
                        SELECT 
                             COUNT(
                               DISTINCT(owner)
-                            ) AS ownerCount 
+                            ) AS "ownerCount" 
                           FROM  nft_balances 
                             JOIN collections ON nft_balances.contract = collections.contract 
                             AND nft_balances.token_id <@ collections.token_id_range 
@@ -69,7 +69,7 @@ if (config.doBackgroundWork) {
                       SELECT 
                             COUNT(
                               DISTINCT(owner)
-                            ) AS ownerCount 
+                            ) AS "ownerCount" 
                           FROM nft_balances
                             JOIN tokens ON tokens.contract = nft_balances.contract 
                             AND tokens.token_id = nft_balances.token_id 
