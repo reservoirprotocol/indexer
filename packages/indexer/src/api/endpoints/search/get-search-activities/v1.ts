@@ -22,6 +22,7 @@ import { ActivityType } from "@/elasticsearch/indexes/activities/base";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 import * as Boom from "@hapi/boom";
+import { ContractSets } from "@/models/contract-sets";
 
 const version = "v1";
 
@@ -46,6 +47,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         .description(
           "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
         ),
+      contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
       collection: Joi.string()
         .lowercase()
         .description(
@@ -110,7 +112,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description("Input any ERC20 address to return result in given currency"),
-    }),
+    }).oxor("collection", "collectionsSetId", "contractsSetId", "community"),
   },
   response: {
     schema: Joi.object({
@@ -173,8 +175,16 @@ export const getSearchActivitiesV1Options: RouteOptions = {
 
     if (query.collectionsSetId) {
       collectionIds = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+
+      if (collectionIds.length === 0) {
+        throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+      }
     } else if (query.community) {
       collectionIds = await Collections.getIdsByCommunity(query.community);
+
+      if (collectionIds.length === 0) {
+        throw Boom.badRequest(`No collections for community ${query.community}`);
+      }
     } else if (query.collection) {
       collectionIds = [query.collection];
     }
@@ -182,6 +192,21 @@ export const getSearchActivitiesV1Options: RouteOptions = {
     if (collectionIds.length) {
       (esQuery as any).bool.filter.push({
         terms: { "collection.id": collectionIds },
+      });
+    }
+
+    let contracts: string[] = [];
+
+    if (query.contractsSetId) {
+      contracts = await ContractSets.getContracts(query.contractsSetId);
+      if (_.isEmpty(contracts)) {
+        throw Boom.badRequest(`No contracts for contracts set ${query.contractsSetId}`);
+      }
+    }
+
+    if (contracts.length) {
+      (esQuery as any).bool.filter.push({
+        terms: { contract: contracts },
       });
     }
 
@@ -240,26 +265,18 @@ export const getSearchActivitiesV1Options: RouteOptions = {
     }
 
     if (query.users) {
+      if (!_.isArray(query.users)) {
+        query.users = [query.users];
+      }
+
       const usersFilter = { bool: { should: [] } };
 
       (usersFilter as any).bool.should.push({
-        bool: {
-          must: [
-            {
-              term: { fromAddress: query.users },
-            },
-          ],
-        },
+        terms: { fromAddress: query.users },
       });
 
       (usersFilter as any).bool.should.push({
-        bool: {
-          must: [
-            {
-              term: { toAddress: query.users },
-            },
-          ],
-        },
+        terms: { toAddress: query.users },
       });
 
       (esQuery as any).bool.filter.push(usersFilter);

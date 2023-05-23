@@ -98,7 +98,7 @@ if (config.doBackgroundWork) {
   });
 
   redlock
-    .acquire([`${QUEUE_NAME}-lock-v2`], 60 * 60 * 24 * 30 * 1000)
+    .acquire([`${QUEUE_NAME}-lock-v5`], 60 * 60 * 24 * 30 * 1000)
     .then(async () => {
       await addToQueue();
     })
