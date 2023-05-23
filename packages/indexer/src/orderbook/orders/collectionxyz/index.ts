@@ -427,21 +427,24 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             await poolContract.getSellNFTQuote(1);
 
           if (currencyPrice.lte(tokenBalance)) {
-            // Determine how many NFTs can be bought (though the price will
-            // increase with each unit)
-            let numBuyableNFTs = 1;
+            // Generate first 10 prices
             const pricesAsBn: BigNumber[] = [];
-            // Hardcoded limit in case there's way too much liquidity
+            let totalPriceSoFar = bn(0);
+            let numBuyableNFTs = 1;
             while (numBuyableNFTs < 10) {
               const { totalAmount }: { totalAmount: BigNumber } =
                 await poolContract.getSellNFTQuote(numBuyableNFTs);
-              const unitPrice = totalAmount.sub(pricesAsBn[pricesAsBn.length - 1] ?? bn(0));
 
               if (tokenBalance.lte(totalAmount)) {
+                // Stop if not enough liquidity is available
                 break;
               }
 
-              pricesAsBn.push(unitPrice);
+              const currentPrice = totalAmount.sub(totalPriceSoFar);
+              pricesAsBn.push(currentPrice);
+
+              totalPriceSoFar = totalPriceSoFar.add(currentPrice);
+
               numBuyableNFTs++;
             }
 
@@ -793,16 +796,20 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             (bn) => bn.toString()
           );
 
-          // Generate up to next 10 prices
+          // Generate first 10 prices
           const pricesAsBn: BigNumber[] = [];
+          let totalPriceSoFar = bn(0);
           for (let i = 0; i < Math.min(poolOwnedTokenIds.length, 10); i++) {
-            // Get cumulative price
             const { totalAmount }: { totalAmount: BigNumber } = await poolContract.getBuyNFTQuote(
               i + 1
             );
-            // Subtract next largest cumulative price ?? bn(0) for unit price
-            pricesAsBn.push(totalAmount.sub(pricesAsBn[pricesAsBn.length - 1] ?? bn(0)));
+
+            const currentPrice = totalAmount.sub(totalPriceSoFar);
+            pricesAsBn.push(currentPrice);
+
+            totalPriceSoFar = totalPriceSoFar.add(currentPrice);
           }
+
           const prices = pricesAsBn.map((n) => n.toString());
 
           const limit = pLimit(50);
