@@ -98,7 +98,7 @@ if (config.doBackgroundWork) {
             );
           }
 
-          logger.info(
+          logger.debug(
             QUEUE_NAME,
             JSON.stringify({
               topic: "Update owner count",
