@@ -204,6 +204,8 @@ export const getTokensV6Options: RouteOptions = {
             name: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
+            imageSmallUrl: Joi.string().allow("", null),
+            imageLargeUrl: Joi.string().allow("", null),
             metadata: Joi.object().allow(null),
             media: Joi.string().allow("", null),
             kind: Joi.string().allow("", null),
@@ -1057,12 +1059,10 @@ export const getTokensV6Options: RouteOptions = {
             name: r.name,
             description: r.description,
             image: Assets.getLocalAssetsLink(r.image),
+            imageSmallUrl: Assets.getResizedImageUrl(r.image, 250),
+            imageLargeUrl: Assets.getResizedImageUrl(r.image, 1000),
             metadata: {
-              image_original_url: r.metadata.image_original_url || undefined,
-              image_small_url:
-                r.metadata.image_small_url || Assets.getResizedImageUrl(r.image, 250),
-              image_large_url:
-                r.metadata.image_large_url || Assets.getResizedImageUrl(r.image, 1000),
+              imageOriginalUrl: r.metadata.image_original_url || null,
             },
             media: r.media,
             kind: r.kind,

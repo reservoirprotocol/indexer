@@ -43,7 +43,7 @@ export class Assets {
     return `${baseUrl}?${queryParams.toString()}`;
   }
 
-  public static getResizedImageUrl(imageUrl: string | undefined, size: number): string | undefined {
+  public static getResizedImageUrl(imageUrl: string, size: number): string {
     if (imageUrl?.includes("lh3.googleusercontent.com")) {
       if (imageUrl.match(/=s\d+$/)) {
         return imageUrl.replace(/=s\d+$/, `=s${size}`);
@@ -60,7 +60,6 @@ export class Assets {
       }
     }
 
-    // If the image provider is not recognized, return undefined
-    return undefined;
+    return imageUrl;
   }
 }

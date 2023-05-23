@@ -143,6 +143,8 @@ export const getUserTokensV7Options: RouteOptions = {
             kind: Joi.string(),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
+            imageSmallUrl: Joi.string().allow("", null),
+            imageLargeUrl: Joi.string().allow("", null),
             metadata: Joi.object().allow(null),
             supply: Joi.number().unsafe().allow(null),
             remainingSupply: Joi.number().unsafe().allow(null),
@@ -637,12 +639,10 @@ export const getUserTokensV7Options: RouteOptions = {
             kind: r.kind,
             name: r.name,
             image: r.image,
+            imageSmallUrl: Assets.getResizedImageUrl(r.image, 250),
+            imageLargeUrl: Assets.getResizedImageUrl(r.image, 1000),
             metadata: {
-              image_original_url: r.token_metadata.image_original_url || undefined,
-              image_small_url:
-                r.token_metadata.image_small_url || Assets.getResizedImageUrl(r.image, 250),
-              image_large_url:
-                r.token_metadata.image_large_url || Assets.getResizedImageUrl(r.image, 1000),
+              imageOriginalUrl: r.token_metadata.image_original_url || undefined,
             },
             rarityScore: r.rarity_score,
             rarityRank: r.rarity_rank,

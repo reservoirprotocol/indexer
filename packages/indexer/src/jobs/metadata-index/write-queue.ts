@@ -54,8 +54,6 @@ if (config.doBackgroundWork) {
         originalMetadata,
         imageUrl,
         imageOriginalUrl,
-        imageSmallUrl,
-        imageLargeUrl,
         imageProperties,
         animationOriginalUrl,
         metadataOriginalUrl,
@@ -91,8 +89,6 @@ if (config.doBackgroundWork) {
               {
                 original_metadata: originalMetadata || null,
                 image_original_url: imageOriginalUrl || null,
-                image_small_url: imageSmallUrl || null,
-                image_large_url: imageLargeUrl || null,
                 image_properties: imageProperties || null,
                 animation_original_url: animationOriginalUrl || null,
                 metadata_original_url: metadataOriginalUrl || null,
@@ -462,11 +458,9 @@ export type TokenMetadataInfo = {
   tokenId: string;
   name?: string;
   description?: string;
-  originalMetadata?: string;
+  originalMetadata?: JSON;
   imageUrl?: string;
   imageOriginalUrl?: string;
-  imageSmallUrl?: string;
-  imageLargeUrl?: string;
   imageProperties?: {
     width?: number;
     height?: number;

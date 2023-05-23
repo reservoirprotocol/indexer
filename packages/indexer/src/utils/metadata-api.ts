@@ -17,11 +17,9 @@ interface TokenMetadata {
   flagged: boolean;
   name?: string;
   description?: string;
-  originalMetadata?: string;
+  originalMetadata?: JSON;
   imageUrl?: string;
   imageOriginalUrl?: string;
-  imageSmallUrl?: string;
-  imageLargeUrl?: string;
   imageProperties?: {
     width?: number;
     height?: number;
