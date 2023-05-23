@@ -5,7 +5,7 @@ import { CallTrace, Log } from "@georgeroman/evm-tx-simulator/dist/types";
 import { idb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import { MintStandardAndDetails, generateMintTxData } from "@/utils/mints/calldata/generator";
+import { MintDetails, generateMintTxData } from "@/utils/mints/calldata/generator";
 
 import { EventData } from "@/events-sync/data";
 import * as erc721 from "@/events-sync/data/erc721";
@@ -14,9 +14,11 @@ import * as erc1155 from "@/events-sync/data/erc1155";
 export type CollectionMint = {
   collection: string;
   stage: string;
+  // TODO: Refactor these hardcoded types
   kind: "public";
   status: "open" | "closed";
-  standardAndDetails: MintStandardAndDetails;
+  standard: "unknown";
+  details: MintDetails;
   currency: string;
   price: string;
   maxMintsPerWallet?: number;
@@ -46,13 +48,7 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
   const contractKind = collectionResult.kind;
 
   // Generate the calldata for minting
-  const txData = generateMintTxData(
-    collectionMint.standardAndDetails,
-    minter,
-    contract,
-    quantity,
-    price
-  );
+  const txData = generateMintTxData(collectionMint.details, minter, contract, quantity, price);
 
   // Simulate the mint
   // TODO: Binary search for the maximum quantity per wallet
@@ -71,7 +67,7 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
       `,
       {
         collection: collectionMint.collection,
-        standard: collectionMint.standardAndDetails.standard,
+        standard: collectionMint.standard,
       }
     );
 
@@ -106,7 +102,7 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
         stage: collectionMint.stage,
         kind: collectionMint.kind,
         status: collectionMint.status,
-        details: collectionMint.standardAndDetails.details,
+        details: collectionMint.details,
         currency: toBuffer(collectionMint.currency),
         price: collectionMint.price,
         maxMintsPerWallet: collectionMint.maxMintsPerWallet ?? null,

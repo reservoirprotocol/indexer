@@ -3,61 +3,87 @@ import { TxData } from "@reservoir0x/sdk/src/utils";
 
 import { bn } from "@/common/utils";
 
-export type MintStandardAndDetails =
+export type AbiParam =
   | {
-      standard: "unknown";
-      details: {
-        kind: "empty" | "numeric" | "address" | "numeric-address" | "address-numeric";
-        methodSignature: string;
-        methodParams: string;
-      };
+      kind: "unknown";
+      abiType: string;
+      abiValue: string;
     }
   | {
-      standard: "seadrop-v1.0";
-      details: object;
+      kind: "quantity";
+      abiType: string;
+    }
+  | {
+      kind: "recipient";
+      abiType: string;
+    }
+  | {
+      kind: "contract";
+      abiType: string;
     };
 
+export type MintDetails = {
+  tx: {
+    to: string;
+    data: {
+      signature: string;
+      params: AbiParam[];
+    };
+  };
+};
+
 export const generateMintTxData = (
-  { standard, details }: MintStandardAndDetails,
+  details: MintDetails,
   minter: string,
   contract: string,
   quantity: number,
   price: string
 ): TxData => {
-  let calldata: string | undefined;
-  switch (standard) {
-    case "unknown": {
-      const params = details.methodParams.split(",");
-      if (details.kind === "empty") {
-        calldata = details.methodSignature;
-      } else if (details.kind === "numeric") {
-        calldata = details.methodSignature + defaultAbiCoder.encode(params, [quantity]).slice(2);
-      } else if (details.kind === "address") {
-        calldata = details.methodSignature + defaultAbiCoder.encode(params, [minter]).slice(2);
-      } else if (details.kind === "numeric-address") {
-        calldata =
-          details.methodSignature + defaultAbiCoder.encode(params, [quantity, minter]).slice(2);
-      } else if (details.kind === "address-numeric") {
-        calldata =
-          details.methodSignature + defaultAbiCoder.encode(params, [minter, quantity]).slice(2);
+  const abiData = details.tx.data.params.map((p) => {
+    switch (p.kind) {
+      case "contract": {
+        return {
+          abiType: p.abiType,
+          abiValue: contract,
+        };
       }
 
-      break;
-    }
+      case "quantity": {
+        return {
+          abiType: p.abiType,
+          abiValue: quantity,
+        };
+      }
 
-    case "seadrop-v1.0": {
-      calldata = "0x";
-    }
-  }
+      case "recipient": {
+        return {
+          abiType: p.abiType,
+          abiValue: minter,
+        };
+      }
 
-  if (!calldata) {
-    throw new Error("Mint not supported");
-  }
+      default: {
+        return {
+          abiType: p.abiType,
+          abiValue: p.abiValue,
+        };
+      }
+    }
+  });
+
+  const data =
+    details.tx.data.signature +
+    (abiData.length
+      ? defaultAbiCoder.encode(
+          abiData.map(({ abiType }) => abiType),
+          abiData.map(({ abiValue }) => abiValue)
+        )
+      : "");
 
   return {
     from: minter,
-    to: contract,
-    data: calldata,
+    to: details.tx.to,
+    data,
     value: bn(price).mul(quantity).toHexString(),
   };
 };
