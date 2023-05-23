@@ -1669,18 +1669,24 @@ export class Router {
 
     // Handle Collection listings
     if (collectionXyzDetails.length) {
-      const orders = collectionXyzDetails.map((d) => d.order as Sdk.CollectionXyz.Order);
+      const ordersAndTokens = collectionXyzDetails.map(
+        (d) =>
+          ({ order: d.order, tokenId: d.tokenId } as {
+            order: Sdk.CollectionXyz.Order;
+            tokenId: string;
+          })
+      );
       const module = this.contracts.collectionXyzModule;
 
       const fees = getFees(collectionXyzDetails);
-      const price = orders
-        .map((order) =>
+      const price = ordersAndTokens
+        .map(({ order, tokenId }) =>
           bn(
             order.params.extra.prices[
               // Handle multiple listings from the same pool
-              orders
-                .filter((o) => o.params.pool === order.params.pool)
-                .findIndex((o) => o.params.tokenId === order.params.tokenId)
+              ordersAndTokens
+                .filter((ot) => ot.order.params.pool === order.params.pool)
+                .findIndex((ot) => ot.tokenId === tokenId)
             ]
           )
         )
