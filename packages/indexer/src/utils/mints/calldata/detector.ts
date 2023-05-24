@@ -3,6 +3,7 @@ import { formatEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
 
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -220,8 +221,11 @@ export const detectMint = async (txHash: string, skipCache = false) => {
   };
 
   if (collectionMint) {
-    return simulateAndSaveCollectionMint(collectionMint);
+    const result = await simulateAndSaveCollectionMint(collectionMint);
+    logger.info("mints-process", JSON.stringify({ success: result, collectionMint }));
+    return result;
   } else {
+    logger.info("mints-process", JSON.stringify({ success: false, collectionMint }));
     return false;
   }
 };

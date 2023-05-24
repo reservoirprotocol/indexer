@@ -1116,6 +1116,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
     await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
   }
 
+  logger.info("collectionxyz-debug", JSON.stringify(results));
+
   await ordersUpdateById.addToQueue(
     results
       .filter(({ status }) => status === "success")

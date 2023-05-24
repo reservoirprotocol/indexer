@@ -28,6 +28,13 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const makerAssetType = makerAssetData.slice(0, 10);
         const takerAssetType = takerAssetData.slice(0, 10);
 
+        if (![ERC20Proxy, ERC721Proxy, ERC1155Proxy].includes(makerAssetType)) {
+          break;
+        }
+        if (![ERC20Proxy, ERC721Proxy, ERC1155Proxy].includes(takerAssetType)) {
+          break;
+        }
+
         const orderSide = makerAssetType === ERC20Proxy ? "buy" : "sell";
         if (orderSide === "sell" && ![ERC20Proxy].includes(takerAssetType)) {
           break;

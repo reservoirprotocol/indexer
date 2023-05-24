@@ -86,7 +86,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         );
 
         if (!exchangeCallTrace) {
-          return;
+          break;
         }
 
         const result = iface.decodeFunctionData("run", exchangeCallTrace.input);
