@@ -44,9 +44,9 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "Filter to a particular collection with collection id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
-      slug: Joi.string()
-        .lowercase()
-        .description("Filter to a particular collection slug. Example: `boredapeyachtclub`"),
+      slug: Joi.string().description(
+        "Filter to a particular collection slug. Example: `boredapeyachtclub`"
+      ),
       collectionsSetId: Joi.string()
         .lowercase()
         .description(
