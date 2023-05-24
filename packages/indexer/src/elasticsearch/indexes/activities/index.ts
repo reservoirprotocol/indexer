@@ -30,6 +30,7 @@ const MAPPINGS: MappingTypeMapping = {
         id: { type: "keyword" },
         name: { type: "keyword" },
         image: { type: "keyword" },
+        media: { type: "keyword" },
       },
     },
     collection: {
