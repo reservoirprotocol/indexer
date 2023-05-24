@@ -93,19 +93,27 @@ export const initOnChainData = (): OnChainData => ({
 // Process on-chain data (save to db, trigger any further processes, ...)
 export const processOnChainData = async (data: OnChainData, backfill?: boolean) => {
   // Post-process fill events
+
   const allFillEvents = concat(data.fillEvents, data.fillEventsPartial, data.fillEventsOnChain);
+  const startAssignSourceToFillEvents = Date.now();
   if (!backfill) {
     await Promise.all([assignSourceToFillEvents(allFillEvents)]);
   }
+  const endAssignSourceToFillEvents = Date.now();
 
   // Persist events
   // WARNING! Fills should always come first in order to properly mark
   // the fillability status of orders as 'filled' and not 'no-balance'
+  const startPersistEvents = Date.now();
   await Promise.all([
     es.fills.addEvents(data.fillEvents),
     es.fills.addEventsPartial(data.fillEventsPartial),
     es.fills.addEventsOnChain(data.fillEventsOnChain),
   ]);
+  const endPersistEvents = Date.now();
+
+  // Persist other events
+  const startPersistOtherEvents = Date.now();
   await Promise.all([
     es.cancels.addEvents(data.cancelEvents),
     es.cancels.addEventsOnChain(data.cancelEventsOnChain),
@@ -115,6 +123,8 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     es.ftTransfers.addEvents(data.ftTransferEvents, Boolean(backfill)),
     es.nftTransfers.addEvents(data.nftTransferEvents, Boolean(backfill)),
   ]);
+
+  const endPersistOtherEvents = Date.now();
 
   // Trigger further processes:
   // - revalidate potentially-affected orders
@@ -139,9 +149,11 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     await mintsProcess.addToQueue(data.mints);
   }
 
+  const startFillPostProcess = Date.now();
   if (allFillEvents.length) {
     await fillPostProcess.addToQueue([allFillEvents]);
   }
+  const endFillPostProcess = Date.now();
 
   // TODO: Is this the best place to handle activities?
 
@@ -188,7 +200,10 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
       },
     };
   });
+
+  const startProcessActivityEvent = Date.now();
   await processActivityEvent.addActivitiesToList(fillActivityInfos);
+  const endProcessActivityEvent = Date.now();
 
   // Process transfer activities
   const transferActivityInfos: processActivityEvent.EventInfo[] = data.nftTransferEvents.map(
@@ -233,5 +248,36 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     });
   });
 
+  const startProcessTransferActivityEvent = Date.now();
   await processActivityEvent.addActivitiesToList(filteredTransferActivityInfos);
+  const endProcessTransferActivityEvent = Date.now();
+
+  return {
+    // return the time it took to process each step
+    assignSourceToFillEvents: endAssignSourceToFillEvents - startAssignSourceToFillEvents,
+    persistEvents: endPersistEvents - startPersistEvents,
+    persistOtherEvents: endPersistOtherEvents - startPersistOtherEvents,
+    fillPostProcess: endFillPostProcess - startFillPostProcess,
+    processActivityEvent: endProcessActivityEvent - startProcessActivityEvent,
+    processTransferActivityEvent:
+      endProcessTransferActivityEvent - startProcessTransferActivityEvent,
+
+    // return the number of events processed
+    fillEvents: data.fillEvents.length,
+    fillEventsPartial: data.fillEventsPartial.length,
+    fillEventsOnChain: data.fillEventsOnChain.length,
+    cancelEvents: data.cancelEvents.length,
+    cancelEventsOnChain: data.cancelEventsOnChain.length,
+    bulkCancelEvents: data.bulkCancelEvents.length,
+    nonceCancelEvents: data.nonceCancelEvents.length,
+    nftApprovalEvents: data.nftApprovalEvents.length,
+    ftTransferEvents: data.ftTransferEvents.length,
+    nftTransferEvents: data.nftTransferEvents.length,
+    fillInfos: data.fillInfos.length,
+    orderInfos: data.orderInfos.length,
+    makerInfos: data.makerInfos.length,
+    orders: data.orders.length,
+    mints: data.mints.length,
+    mintInfos: data.mintInfos.length,
+  };
 };

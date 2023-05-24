@@ -368,6 +368,8 @@ export const syncEvents = async (block: number) => {
           saveBlocksTime,
           saveBlockTransactionsTime,
           blockMinedTimestamp: blockData.timestamp,
+          startJobTimestamp: startSyncTime,
+          getBlockTimestamp: endGetBlockTime,
         },
         transactions: {
           count: blockData.transactions.length,
