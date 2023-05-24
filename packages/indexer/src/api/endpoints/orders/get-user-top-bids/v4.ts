@@ -29,7 +29,7 @@ const version = "v4";
 
 export const getUserTopBidsV4Options: RouteOptions = {
   description: "User Top Bids",
-  notes: "Return the top bids for the given user tokens",
+  notes: "Return the top bids for the given user tokens. Please mark `excludeEOA` as `true` to exclude Blur orders.",
   tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
