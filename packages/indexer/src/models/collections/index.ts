@@ -87,6 +87,11 @@ export class Collections {
   }
 
   public static async updateCollectionCache(contract: string, tokenId: string, community = "") {
+    logger.info(
+      "updateCollectionCache",
+      `Start. contract=${contract}, tokenId=${tokenId}, community=${community}`
+    );
+
     const collection = await MetadataApi.getCollectionMetadata(contract, tokenId, community);
 
     if (collection.metadata == null) {
@@ -107,7 +112,11 @@ export class Collections {
     const tokenCount = await Tokens.countTokensInCollection(collection.id);
 
     await collectionRecalcOwnerCount.addToQueue([
-      { context: "collections", kind: "collectionId", data: { collectionId: collection.id } },
+      {
+        context: "updateCollectionCache",
+        kind: "collectionId",
+        data: { collectionId: collection.id },
+      },
     ]);
 
     const query = `
