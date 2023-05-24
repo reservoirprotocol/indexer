@@ -77,6 +77,7 @@ export class AskCreatedEventHandler extends BaseActivityEventHandler {
                         tokens.token_id,
                         tokens.name AS "token_name",
                         tokens.image AS "token_image",
+                        tokens.media AS "token_media",
                         collections.id AS "collection_id",
                         collections.name AS "collection_name",
                         (collections.metadata ->> 'imageUrl')::TEXT AS "collection_image"

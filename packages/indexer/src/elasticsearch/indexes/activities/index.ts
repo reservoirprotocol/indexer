@@ -30,6 +30,7 @@ const MAPPINGS: MappingTypeMapping = {
         id: { type: "keyword" },
         name: { type: "keyword" },
         image: { type: "keyword" },
+        media: { type: "keyword" },
       },
     },
     collection: {
@@ -161,7 +162,7 @@ export const search = async (params: {
   }
 };
 
-export const createIndex = async (): Promise<void> => {
+export const initIndex = async (): Promise<void> => {
   try {
     if (await elasticsearch.indices.exists({ index: INDEX_NAME })) {
       const response = await elasticsearch.indices.get({ index: INDEX_NAME });

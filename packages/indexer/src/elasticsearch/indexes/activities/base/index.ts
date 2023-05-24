@@ -45,6 +45,7 @@ export interface ActivityDocument extends BaseDocument {
     id: string;
     name: string;
     image: string;
+    media: string;
   };
   collection?: {
     id: string;
@@ -81,12 +82,6 @@ export interface BuildActivityData extends BuildDocumentData {
   amount?: number;
   token_name?: string;
   token_image?: string;
-  token_last_buy_value?: number;
-  token_last_sell_value?: number;
-  token_last_buy_timestamp?: number;
-  token_last_sell_timestamp?: number;
-  token_rarity_score?: number;
-  token_rarity_rank?: number;
   token_media?: string;
   collection_name?: string;
   collection_image?: string;
@@ -151,6 +146,7 @@ export class ActivityBuilder extends DocumentBuilder {
             id: data.token_id,
             name: data.token_name,
             image: data.token_image,
+            // media: data.token_media,
           }
         : undefined,
       collection: data.collection_id

@@ -166,15 +166,6 @@ export const jobProcessor = async (job: Job) => {
 
           const orderInfo = order.getInfo();
 
-          logger.info(
-            QUEUE_NAME,
-            `Post Order Failed - Invalid Fees Debug. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderKind=${
-              order.params.kind
-            }, contract=${orderInfo?.contract}, tokenId=${
-              orderInfo?.tokenId
-            }, orderId=${orderId}, orderData=${JSON.stringify(orderData)}, retry: ${retry}`
-          );
-
           let rawResult;
 
           if (order.params.kind !== "single-token") {
