@@ -7,6 +7,22 @@ import { config } from "@/config/index";
 import { searchForCall } from "@georgeroman/evm-tx-simulator";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
 
+import { idb, pgp } from "@/common/db";
+import { toBuffer } from "@/common/utils";
+
+type DbEvent = {
+  address: Buffer;
+  block: number;
+  block_hash: Buffer;
+  tx_hash: Buffer;
+  tx_index: number;
+  log_index: number;
+  timestamp: number;
+  batch_index: number;
+  maker: Buffer;
+  nonce: string;
+};
+
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For keeping track of all individual trades per transaction
   const trades = {
@@ -17,6 +33,79 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
   for (const { subKind, baseEventParams, log } of events) {
     const eventData = getEventData([subKind])[0];
     switch (subKind) {
+      case "blend-offer-cancelled": {
+        const parsedLog = eventData.abi.parseLog(log);
+        const maker = parsedLog.args["user"].toLowerCase();
+        const salt = parsedLog.args["salt"].toString();
+        const batchIndex = baseEventParams.batchIndex;
+        const nonceCancelValues: DbEvent[] = [];
+
+        nonceCancelValues.push({
+          address: toBuffer(baseEventParams.address),
+          block: baseEventParams.block,
+          block_hash: toBuffer(baseEventParams.blockHash),
+          tx_hash: toBuffer(baseEventParams.txHash),
+          tx_index: baseEventParams.txIndex,
+          log_index: baseEventParams.logIndex,
+          timestamp: baseEventParams.timestamp,
+          batch_index: batchIndex,
+          maker: toBuffer(maker),
+          nonce: salt,
+        });
+
+        const columns = new pgp.helpers.ColumnSet(
+          [
+            "address",
+            "block",
+            "block_hash",
+            "tx_hash",
+            "tx_index",
+            "log_index",
+            "timestamp",
+            "batch_index",
+            "maker",
+            "nonce",
+          ],
+          { table: "blend_salt_nonce_cancel_events" }
+        );
+
+        // Atomically insert the nonce cancel events and update order statuses.
+        const query = `
+            WITH "x" AS (
+                INSERT INTO "blend_salt_nonce_cancel_events" (
+                "address",
+                "block",
+                "block_hash",
+                "tx_hash",
+                "tx_index",
+                "log_index",
+                "timestamp",
+                "batch_index",
+                "maker",
+                "nonce"
+                ) VALUES ${pgp.helpers.values(nonceCancelValues, columns)}
+                ON CONFLICT DO NOTHING
+                RETURNING "maker", "nonce", "tx_hash", "timestamp", "log_index", "batch_index", "block_hash"
+            )
+            UPDATE orders as "o" SET 
+                "fillability_status" = 'cancelled',
+                "expiration" = to_timestamp("x"."timestamp"),
+                "updated_at" = now()
+            FROM x
+            WHERE "o"."kind" = 'blend'
+                AND "o"."maker" = "x"."maker"
+                AND ("o"."fillability_status" = 'fillable' OR "o"."fillability_status" = 'no-balance')
+                AND ("o"."raw_data"->>'salt')::NUMERIC IN ($/salts:list/)
+            RETURNING "o".id
+            `;
+
+        await idb.manyOrNone(query, {
+          salts: nonceCancelValues.map((_) => _.nonce),
+        });
+
+        break;
+      }
+
       case "blend-nonce-incremented": {
         const parsedLog = eventData.abi.parseLog(log);
         const maker = parsedLog.args["user"].toLowerCase();

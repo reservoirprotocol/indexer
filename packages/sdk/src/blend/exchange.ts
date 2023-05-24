@@ -75,4 +75,26 @@ export class Exchange {
       data: data + generateSourceBytes(options?.source),
     };
   }
+
+  // --- Cancel order ---
+
+  public async cancelOrder(maker: Signer, order: Order): Promise<ContractTransaction> {
+    const tx = this.cancelOrdersTx(await maker.getAddress(), [order]);
+    return maker.sendTransaction(tx);
+  }
+
+  public cancelOrdersTx(maker: string, orders: Order[]): TxData {
+    return {
+      from: maker,
+      to: this.contract.address,
+      data: this.contract.interface.encodeFunctionData("cancelOffers", [
+        orders.map((c) => c.params.salt),
+      ]),
+    };
+  }
+
+  public async cancelOrders(maker: Signer, orders: Order[]): Promise<ContractTransaction> {
+    const tx = this.cancelOrdersTx(await maker.getAddress(), orders);
+    return maker.sendTransaction(tx);
+  }
 }

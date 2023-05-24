@@ -77,3 +77,12 @@ export const nonceIncremented: EventData = {
   numTopics: 1,
   abi: new Interface([`event NonceIncremented(address indexed user, uint256 newNonce)`]),
 };
+
+export const offerCancelled: EventData = {
+  kind: "blend",
+  subKind: "blend-offer-cancelled",
+  addresses: { [Blend.Addresses.Blend[config.chainId]?.toLowerCase()]: true },
+  topic: "0x899cab278284ae4a91172caa0943607a0bcb19766254c3ebe1139be00650b102",
+  numTopics: 2,
+  abi: new Interface([`event OfferCancelled(address indexed user, uint256 salt)`]),
+};

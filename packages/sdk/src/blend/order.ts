@@ -162,6 +162,7 @@ const normalize = (order: Types.OrderParams): Types.OrderParams => {
     salt: s(order.salt),
     lienId: s(order.lienId),
     expirationTime: n(order.expirationTime),
+    lien: order.lien ?? undefined,
     signature: order.signature ? lc(order.signature) : undefined,
   };
 };

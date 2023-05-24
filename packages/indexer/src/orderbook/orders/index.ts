@@ -21,6 +21,7 @@ export * as nftx from "@/orderbook/orders/nftx";
 export * as manifold from "@/orderbook/orders/manifold";
 export * as superrare from "@/orderbook/orders/superrare";
 export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
+export * as blend from "@/orderbook/orders/blend";
 
 // Imports
 

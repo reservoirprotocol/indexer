@@ -7,7 +7,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from "chai";
 import { ethers, network } from "hardhat";
 import { hexZeroPad, splitSignature } from "@ethersproject/bytes";
-
+import * as indexerHelper from "../../indexer-helper";
 import {
   bn,
   getChainId,
@@ -24,6 +24,7 @@ import {
     EIP712_SELL_OFFER_TYPES,
     EIP712_ORACLE_OFFER_TYPES
 } from "@reservoir0x/sdk/src/blend/order";
+import { Addresses } from "@reservoir0x/sdk/src/blur";
 
 describe("Blend", () => {
   const chainId = getChainId();
@@ -39,6 +40,8 @@ describe("Blend", () => {
 
   beforeEach(async () => {
     [deployer, alice, bob, ted, carol] = await ethers.getSigners();
+     // Reset Indexer
+     await indexerHelper.reset();
 
     ({ erc20 } = await setupTokens(deployer));
     ({ erc721 } = await setupNFTs(deployer));
@@ -92,6 +95,8 @@ describe("Blend", () => {
 
     const nonce = await exchange.contract.connect(lender).nonces(lender.address);
     const blockTime = await getCurrentTimestamp(ethers.provider);
+
+    const salt = "265875887785256855606558013756560384" + Math.floor(Math.random() * 10000000)
     const loanOffer = {
         lender: buyer.address,
         collection: erc721.address,
@@ -99,8 +104,8 @@ describe("Blend", () => {
         minAmount: 0,
         maxAmount: price,
         auctionDuration: 9000,
-        salt: "265875887785256855606558013756560384533",
-        expirationTime: (blockTime + 60 * 60).toString(),
+        salt,
+        expirationTime: (blockTime + (86400 * 30)).toString(),
         rate: 0,
         oracle: oracle.address,
         nonce
@@ -154,7 +159,6 @@ describe("Blend", () => {
             if (parsedLog.name === "LoanOfferTaken") {
                 const args = parsedLog.args;
                 lienId = parsedLog.args.lienId.toString();
-                // console.log("args", args)
                 lien = {
                     lender: args.lender,
                     borrower: args.borrower,
@@ -165,7 +169,7 @@ describe("Blend", () => {
                     auctionStartBlock: 0,
                     startTime: block.timestamp.toString(),
                     auctionDuration: args.auctionDuration.toString(),
-                }     
+                }   
             }
         } catch {
         }
@@ -177,17 +181,15 @@ describe("Blend", () => {
         borrower: borrower.address,
         lienId,
         price: price.toString(),
-        expirationTime: (blockTime + 60 * 60).toString(),
-        salt: "265875887785256855606558013756560384533",
+        expirationTime: (blockTime + (86400 * 30)).toString(),
+        salt,
         oracle: oracle.address,
         fees: [],
         nonce: nonce.toString()
     }
 
-    // console.log("lien", lien)
      // sign Lender Offer
      const sellOfferHash = _TypedDataEncoder.hashStruct("SellOffer", EIP712_SELL_OFFER_TYPES, sellOffer);
-    //  console.log("sellOfferHash", sellOfferHash)
      const sellOfferSignature =  await borrower._signTypedData(EIP712_DOMAIN(chainId), EIP712_SELL_OFFER_TYPES, sellOffer);
  
      // oracle sign
@@ -218,8 +220,43 @@ describe("Blend", () => {
     order.checkSignature();
     order.checkFillability(ethers.provider);
 
+    order.params.lien = lien!;
 
-    await exchange.fillOrder(carol, order, lien!)
+     // Call the Indexer to save the order
+     const saveResult = await indexerHelper.doOrderSaving({
+        contract: erc721.address,
+        kind: "erc721",
+        currency: Addresses.Beth[chainId],
+        // Refresh balance incase the local indexer doesn't have the state
+        makers: [order.params.borrower],
+        nfts: [
+          {
+            collection: erc721.address,
+            tokenId: soldTokenId.toString(),
+            owner: Blend.Addresses.Blend[chainId],
+          },
+        ],
+        orders: [
+          // Order Info
+          {
+            // export name from the @/orderbook/index
+            kind: "blend",
+            data: order.params,
+          },
+        ],
+    });
+
+    const orderInfo = saveResult[0];
+
+    if (true) {
+        const cancelTx = await exchange.cancelOrder(borrower, order);
+        await cancelTx.wait();
+        // const tx = await exchange.fillOrder(carol, order, lien!)
+        // await tx.wait();
+        const parseResult = await indexerHelper.doEventParsing(cancelTx.hash, false);
+        const finalOrderState = await indexerHelper.getOrder(orderInfo.id);
+        expect(finalOrderState.fillability_status).to.eq("cancelled");
+    }
     // const sellTxData = await exchange.contract.connect(carol).populateTransaction.buyLocked(
     //     lien,
     //     sellOffer,
@@ -275,11 +312,11 @@ describe("Blend", () => {
     // const sellerEthBalanceAfter = await ethers.provider.getBalance(
     //   seller.address
     // );
-    const ownerAfter = await nft.getOwner(soldTokenId);
+    // const ownerAfter = await nft.getOwner(soldTokenId);
 
     // expect(buyerEthBalanceBefore.sub(buyerEthBalanceAfter)).to.be.gt(price);
     // expect(sellerEthBalanceAfter).to.eq(sellerEthBalanceBefore.add(price));
-    expect(ownerAfter).to.eq(carol.address);
+    // expect(ownerAfter).to.eq(carol.address);
   });
 
 });
