@@ -41,18 +41,34 @@ export const getSearchActivitiesV1Options: RouteOptions = {
   },
   validate: {
     query: Joi.object({
-      token: Joi.string()
-        .lowercase()
-        .pattern(regex.token)
-        .description(
-          "Filter to a particular token. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:123`"
-        ),
+      tokens: Joi.alternatives().try(
+        Joi.array()
+          .max(50)
+          .items(Joi.string().lowercase().pattern(regex.token))
+          .description(
+            "Array of tokens. Max limit is 50. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+          ),
+        Joi.string()
+          .lowercase()
+          .pattern(regex.token)
+          .description(
+            "Array of tokens. Max limit is 50. Example: `tokens[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:704 tokens[1]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63:979`"
+          )
+      ),
+      collections: Joi.alternatives().try(
+        Joi.array()
+          .max(50)
+          .items(Joi.string().lowercase())
+          .description(
+            "Array of collections. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          ),
+        Joi.string()
+          .lowercase()
+          .description(
+            "Array of collections. Max limit is 50. Example: `collections[0]: 0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
+          )
+      ),
       contractsSetId: Joi.string().lowercase().description("Filter to a particular contracts set."),
-      collection: Joi.string()
-        .lowercase()
-        .description(
-          "Filter to a particular collection with collection-id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
-        ),
       collectionsSetId: Joi.string()
         .lowercase()
         .description("Filter to a particular collection set."),
@@ -86,12 +102,6 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         .default(50)
         .description(
           "Amount of items returned. Max limit is 50 when `includedMetadata=true` otherwise max limit is 1000."
-        ),
-      sortBy: Joi.string()
-        .valid("eventTimestamp", "createdAt")
-        .default("eventTimestamp")
-        .description(
-          "Order the items are returned in the response. The blockchain event time is `eventTimestamp`. The event time recorded is `createdAt`."
         ),
       continuation: Joi.string().description(
         "Use continuation token to request next offset of items."
@@ -131,14 +141,15 @@ export const getSearchActivitiesV1Options: RouteOptions = {
             .pattern(/^0x[a-fA-F0-9]{40}$/)
             .allow(null),
           token: Joi.object({
-            tokenId: Joi.string().allow(null),
-            tokenName: Joi.string().allow("", null),
-            tokenImage: Joi.string().allow("", null),
+            id: Joi.string().allow(null),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
+            media: Joi.string().allow(null),
           }),
           collection: Joi.object({
-            collectionId: Joi.string().allow(null),
-            collectionName: Joi.string().allow("", null),
-            collectionImage: Joi.string().allow("", null),
+            id: Joi.string().allow(null),
+            name: Joi.string().allow("", null),
+            image: Joi.string().allow("", null),
           }),
           txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
           logIndex: Joi.number().allow(null),
@@ -185,8 +196,12 @@ export const getSearchActivitiesV1Options: RouteOptions = {
       if (collectionIds.length === 0) {
         throw Boom.badRequest(`No collections for community ${query.community}`);
       }
-    } else if (query.collection) {
-      collectionIds = [query.collection];
+    } else if (query.collections) {
+      if (!_.isArray(query.collections)) {
+        query.collections = [query.collections];
+      }
+
+      collectionIds = query.collections;
     }
 
     if (collectionIds.length) {
@@ -212,15 +227,19 @@ export const getSearchActivitiesV1Options: RouteOptions = {
 
     let tokens: { contract: string; tokenId: string }[] = [];
 
-    if (query.token) {
-      const [contract, tokenId] = query.token.split(":");
+    if (query.tokens) {
+      if (!_.isArray(query.tokens)) {
+        query.tokens = [query.tokens];
+      }
 
-      tokens = [
-        {
+      for (const token of query.tokens) {
+        const [contract, tokenId] = token.split(":");
+
+        tokens.push({
           contract,
           tokenId,
-        },
-      ];
+        });
+      }
     } else if (query.attributes) {
       const attributes: string[] = [];
 
@@ -284,11 +303,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
 
     const esSort: any[] = [];
 
-    if (query.sortBy == "eventTimestamp") {
-      esSort.push({ timestamp: { order: "desc" } });
-    } else {
-      esSort.push({ createdAt: { order: "desc" } });
-    }
+    esSort.push({ timestamp: { order: "desc" } });
 
     let searchAfter;
 
@@ -323,6 +338,12 @@ export const getSearchActivitiesV1Options: RouteOptions = {
                     amount: String(activity.pricing.currencyPrice ?? activity.pricing.price),
                     nativeAmount: String(activity.pricing.price),
                   },
+                  net: activity.pricing.value
+                    ? {
+                        amount: String(activity.pricing.currencyValue ?? activity.pricing.value),
+                        nativeAmount: String(activity.pricing.value),
+                      }
+                    : undefined,
                 },
                 currency,
                 query.displayCurrency
@@ -333,14 +354,15 @@ export const getSearchActivitiesV1Options: RouteOptions = {
           createdAt: new Date(activity.createdAt).toISOString(),
           contract: activity.contract,
           token: {
-            tokenId: activity.token?.id,
-            tokenName: activity.token?.name,
-            tokenImage: activity.token?.image,
+            id: activity.token?.id,
+            name: activity.token?.name,
+            image: activity.token?.image,
+            media: activity.token?.media,
           },
           collection: {
-            collectionId: activity.collection?.id,
-            collectionName: activity.collection?.name,
-            collectionImage: activity.collection?.image,
+            id: activity.collection?.id,
+            name: activity.collection?.name,
+            image: activity.collection?.image,
           },
           txHash: activity.event?.txHash,
           logIndex: activity.event?.logIndex,
@@ -362,10 +384,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         const lastActivity = _.last(activities);
 
         if (lastActivity) {
-          const continuationValue =
-            query.sortBy == "eventTimestamp"
-              ? lastActivity.timestamp
-              : new Date(lastActivity.createdAt).toISOString();
+          const continuationValue = lastActivity.timestamp;
           continuation = buildContinuation(`${continuationValue}`);
         }
       }

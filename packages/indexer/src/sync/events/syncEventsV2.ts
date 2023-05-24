@@ -3,7 +3,7 @@ import { Filter } from "@ethersproject/abstract-provider";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { EventKind, getEventData } from "@/events-sync/data";
-import { EventsBatch, EventsByKind, processEventsBatch } from "@/events-sync/handlers";
+import { EventsBatch, EventsByKind, processEventsBatchV2 } from "@/events-sync/handlers";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
 import { parseEvent } from "@/events-sync/parserV2";
 import * as es from "@/events-sync/storage";
@@ -247,7 +247,10 @@ const _saveBlock = async (blockData: Block) => {
   const timerStart = Date.now();
   await blocksModel.saveBlock(blockData);
   const timerEnd = Date.now();
-  return timerEnd - timerStart;
+  return {
+    saveBlocksTime: timerEnd - timerStart,
+    endSaveBlocksTime: timerEnd,
+  };
 };
 
 const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
@@ -285,7 +288,11 @@ export const syncEvents = async (block: number) => {
 
     const availableEventData = getEventData();
 
-    const [{ logs, getLogsTime }, saveBlocksTime, saveBlockTransactionsTime] = await Promise.all([
+    const [
+      { logs, getLogsTime },
+      { saveBlocksTime, endSaveBlocksTime },
+      saveBlockTransactionsTime,
+    ] = await Promise.all([
       _getLogs(eventFilter),
       _saveBlock({
         number: block,
@@ -334,24 +341,8 @@ export const syncEvents = async (block: number) => {
     );
 
     const startProcessLogs = Date.now();
-    const eventBatchProcesssingLatencies: {
-      batch: EventsBatch;
-      latency: number;
-    }[] = [];
-    await Promise.all(
-      eventsBatches.map(async (eventsBatch) => {
-        const startTime = Date.now();
 
-        await processEventsBatch(eventsBatch, false);
-
-        const endTime = Date.now();
-
-        eventBatchProcesssingLatencies.push({
-          batch: eventsBatch,
-          latency: endTime - startTime,
-        });
-      })
-    );
+    const processEventsLatencies = await processEventsBatchV2(eventsBatches);
 
     const endProcessLogs = Date.now();
 
@@ -363,7 +354,7 @@ export const syncEvents = async (block: number) => {
         message: `Events realtime syncing block ${block}`,
         block,
         syncTime: endSyncTime - startSyncTime,
-        blockSyncTime: saveBlocksTime - startSyncTime,
+        blockSyncTime: endSaveBlocksTime - startSyncTime,
 
         logs: {
           count: logs.length,
@@ -376,12 +367,13 @@ export const syncEvents = async (block: number) => {
           getBlockTime: endGetBlockTime - startGetBlockTime,
           saveBlocksTime,
           saveBlockTransactionsTime,
+          blockMinedTimestamp: blockData.timestamp,
         },
         transactions: {
           count: blockData.transactions.length,
           saveBlockTransactionsTime,
         },
-        eventBatchProcesssingLatencies: eventBatchProcesssingLatencies,
+        processEventsLatencies: processEventsLatencies,
       })
     );
   } catch (error) {

@@ -47,7 +47,7 @@ export class RateLimitRules {
         const rulesQuery = `
           SELECT *
           FROM rate_limit_rules
-          ORDER BY route DESC, api_key DESC, payload DESC, method DESC, tier DESC
+          ORDER BY route DESC, api_key DESC, payload DESC, method DESC, tier DESC NULLS LAST
         `;
 
         rulesRawData = await redb.manyOrNone(rulesQuery);

@@ -4,7 +4,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 import { ridb } from "@/common/db";
 import { config } from "@/config/index";
 
@@ -115,17 +115,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  redlock
-    .acquire([`${QUEUE_NAME}-lock-v14`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await addToQueue(undefined, 1652056408, 1659312000);
-      await addToQueue(undefined, 1659312000, 1664582400);
-      await addToQueue(undefined, 1664582400, 1672531200);
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
 }
 
 export const addToQueue = async (
