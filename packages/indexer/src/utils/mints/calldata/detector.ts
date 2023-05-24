@@ -195,7 +195,7 @@ export const detectMint = async (txHash: string, skipCache = false) => {
       params.push({
         kind: "unknown",
         abiType,
-        abiValue: decodedValue.toString(),
+        abiValue: decodedValue.toString().toLowerCase(),
       });
     }
   });

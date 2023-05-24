@@ -233,17 +233,13 @@ export const syncEvents = async (block: number) => {
     if (!blockData) {
       logger.warn("sync-events-v2", `Block ${block} not found`);
       throw new Error(`Block ${block} not found`);
-      // await realtimeEventsSyncV2.addToQueue({ block });
-      return;
     }
     const endGetBlockTime = Date.now();
 
     const eventFilter: Filter = {
       topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
-
-      // convert block to hexadecimal
-      fromBlock: `0x${block.toString(16)}`,
-      toBlock: `0x${block.toString(16)}`,
+      fromBlock: block,
+      toBlock: block,
     };
 
     logger.info(
