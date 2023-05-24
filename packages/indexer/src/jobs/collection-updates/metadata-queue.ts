@@ -72,6 +72,13 @@ export const addToQueueBulk = async (
   collectionMetadataInfos: CollectionMetadataInfo[],
   delay = 0
 ) => {
+  logger.info(
+    QUEUE_NAME,
+    `debugaAdToQueueBulk. collectionMetadataInfos=${JSON.stringify(
+      collectionMetadataInfos
+    )}, callStack=${new Error().stack}`
+  );
+
   await queue.addBulk(
     collectionMetadataInfos.map((collectionMetadataInfo) => ({
       name: `${collectionMetadataInfo.contract}-${collectionMetadataInfo.tokenId}-${collectionMetadataInfo.community}`,
@@ -88,6 +95,13 @@ export const addToQueue = async (
   delay = 0,
   forceRefresh = false
 ) => {
+  logger.info(
+    QUEUE_NAME,
+    `debugAddToQueue. contract=${JSON.stringify(
+      contract
+    )}, tokenId=${tokenId}, community=${community}, callStack=${new Error().stack}`
+  );
+
   if (_.isArray(contract)) {
     await queue.addBulk(
       _.map(contract, (c) => ({
