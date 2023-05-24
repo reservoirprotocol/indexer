@@ -3,17 +3,19 @@ import { Filter } from "@ethersproject/abstract-provider";
 import { logger } from "@/common/logger";
 import { baseProvider } from "@/common/provider";
 import { EventKind, getEventData } from "@/events-sync/data";
-import { EventsBatch, EventsByKind, processEventsBatch } from "@/events-sync/handlers";
+import { EventsBatch, EventsByKind, processEventsBatchV2 } from "@/events-sync/handlers";
 import { EnhancedEvent } from "@/events-sync/handlers/utils";
 import { parseEvent } from "@/events-sync/parserV2";
 import * as es from "@/events-sync/storage";
 import * as syncEventsUtils from "@/events-sync/utilsV2";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
+import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
-import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
+// import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
 
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
+import { Block } from "@/models/blocks";
 
 export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBatch[] => {
   const txHashToEvents = new Map<string, EnhancedEvent[]>();
@@ -212,6 +214,14 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
         kind: "looks-rare-v2",
         data: kindToEvents.get("looks-rare-v2") ?? [],
       },
+      {
+        kind: "blend",
+        data: kindToEvents.get("blend") ?? [],
+      },
+      {
+        kind: "collectionxyz",
+        data: kindToEvents.get("collectionxyz") ?? [],
+      },
     ];
 
     txHashToEventsBatch.set(txHash, {
@@ -223,6 +233,33 @@ export const extractEventsBatches = (enhancedEvents: EnhancedEvent[]): EventsBat
   return [...txHashToEventsBatch.values()];
 };
 
+const _getLogs = async (eventFilter: Filter) => {
+  const timerStart = Date.now();
+  const logs = await baseProvider.getLogs(eventFilter);
+  const timerEnd = Date.now();
+  return {
+    logs,
+    getLogsTime: timerEnd - timerStart,
+  };
+};
+
+const _saveBlock = async (blockData: Block) => {
+  const timerStart = Date.now();
+  await blocksModel.saveBlock(blockData);
+  const timerEnd = Date.now();
+  return {
+    saveBlocksTime: timerEnd - timerStart,
+    endSaveBlocksTime: timerEnd,
+  };
+};
+
+const _saveBlockTransactions = async (blockData: BlockWithTransactions) => {
+  const timerStart = Date.now();
+  await syncEventsUtils.saveBlockTransactions(blockData);
+  const timerEnd = Date.now();
+  return timerEnd - timerStart;
+};
+
 export const syncEvents = async (block: number) => {
   try {
     logger.info("sync-events-v2", `Events realtime syncing block ${block}`);
@@ -232,31 +269,38 @@ export const syncEvents = async (block: number) => {
     const blockData = await syncEventsUtils.fetchBlock(block);
     if (!blockData) {
       logger.warn("sync-events-v2", `Block ${block} not found`);
-      // throw new Error(`Block ${block} not found`);
-      await realtimeEventsSyncV2.addToQueue({ block });
-      return;
+      throw new Error(`Block ${block} not found`);
     }
     const endGetBlockTime = Date.now();
 
     const eventFilter: Filter = {
       topics: [[...new Set(getEventData().map(({ topic }) => topic))]],
       fromBlock: block,
-      toBlock: block + 1,
+      toBlock: block,
     };
+
+    logger.info(
+      "sync-events-v2",
+      `Events realtime syncing block ${block} - getLogs using filter: ${JSON.stringify(
+        eventFilter
+      )}`
+    );
+
     const availableEventData = getEventData();
 
-    const startProcessLogsAndSaveDataTime = Date.now();
-    const [logs] = await Promise.all([
-      baseProvider.getLogs(eventFilter),
-      blocksModel.saveBlock({
+    const [
+      { logs, getLogsTime },
+      { saveBlocksTime, endSaveBlocksTime },
+      saveBlockTransactionsTime,
+    ] = await Promise.all([
+      _getLogs(eventFilter),
+      _saveBlock({
         number: block,
         hash: blockData.hash,
         timestamp: blockData.timestamp,
       }),
-      syncEventsUtils.saveBlockTransactions(blockData),
+      _saveBlockTransactions(blockData),
     ]);
-
-    const endProcessLogsAndSaveDataTime = Date.now();
 
     let enhancedEvents = logs.map((log) => {
       try {
@@ -296,14 +340,11 @@ export const syncEvents = async (block: number) => {
       `Events realtime syncing block ${block} - ${eventsBatches.length} batches`
     );
 
-    const startProcessEventBatchesTime = Date.now();
-    await Promise.all(
-      eventsBatches.map(async (eventsBatch) => {
-        await processEventsBatch(eventsBatch, false);
-      })
-    );
+    const startProcessLogs = Date.now();
 
-    const endProcessEventBatchesTime = Date.now();
+    const processEventsLatencies = await processEventsBatchV2(eventsBatches);
+
+    const endProcessLogs = Date.now();
 
     const endSyncTime = Date.now();
 
@@ -313,10 +354,26 @@ export const syncEvents = async (block: number) => {
         message: `Events realtime syncing block ${block}`,
         block,
         syncTime: endSyncTime - startSyncTime,
-        blockSyncTime: endProcessLogsAndSaveDataTime - startSyncTime,
-        getBlockTime: endGetBlockTime - startGetBlockTime,
-        processLogsAndSaveDataTime: endProcessLogsAndSaveDataTime - startProcessLogsAndSaveDataTime,
-        processEventBatchesTime: endProcessEventBatchesTime - startProcessEventBatchesTime,
+        blockSyncTime: endSaveBlocksTime - startSyncTime,
+
+        logs: {
+          count: logs.length,
+          eventCount: enhancedEvents.length,
+          getLogsTime,
+          processLogs: endProcessLogs - startProcessLogs,
+        },
+        blocks: {
+          count: 1,
+          getBlockTime: endGetBlockTime - startGetBlockTime,
+          saveBlocksTime,
+          saveBlockTransactionsTime,
+          blockMinedTimestamp: blockData.timestamp,
+        },
+        transactions: {
+          count: blockData.transactions.length,
+          saveBlockTransactionsTime,
+        },
+        processEventsLatencies: processEventsLatencies,
       })
     );
   } catch (error) {

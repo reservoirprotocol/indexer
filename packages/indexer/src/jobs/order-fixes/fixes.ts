@@ -1,10 +1,14 @@
+import { Interface } from "@ethersproject/abi";
+import { BigNumber } from "@ethersproject/bignumber";
 import { HashZero } from "@ethersproject/constants";
+import { Contract } from "@ethersproject/contracts";
 import * as Sdk from "@reservoir0x/sdk";
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { idb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { redis } from "@/common/redis";
 import { now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
@@ -343,6 +347,38 @@ if (config.doBackgroundWork) {
                         order.params.pair
                       );
                       if (balance.lte(0)) {
+                        fillabilityStatus = "no-balance";
+                      }
+                    }
+                  } catch {
+                    return;
+                  }
+
+                  break;
+                }
+
+                case "collectionxyz": {
+                  try {
+                    if (result.side === "sell") {
+                      const [, , tokenId] = result.token_set_id.split(":");
+
+                      // It's not sufficient to check ownership - the pool must recognize ownership of the token
+                      const poolContract = new Contract(
+                        result.raw_data.pool,
+                        new Interface([`function getAllHeldIds() view returns (uint256[])`]),
+                        baseProvider
+                      );
+
+                      let isLegit = false;
+
+                      const legitIds = await poolContract.getAllHeldIds();
+                      legitIds.forEach((legitId: BigNumber) => {
+                        if (legitId.toString() === tokenId) {
+                          isLegit = true;
+                        }
+                      });
+
+                      if (!isLegit) {
                         fillabilityStatus = "no-balance";
                       }
                     }

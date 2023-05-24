@@ -20,7 +20,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
   description: "Explore attributes",
   notes:
     "Use this API to see stats on a specific attribute within a collection. This endpoint will return `tokenCount`, `onSaleCount`, `sampleImages`, and `floorAsk` by default. ",
-  tags: ["api", "Attributes"],
+  tags: ["api", "x-deprecated", "Attributes"],
   plugins: {
     "hapi-swagger": {
       order: 15,

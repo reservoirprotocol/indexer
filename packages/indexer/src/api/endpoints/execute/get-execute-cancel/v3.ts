@@ -30,6 +30,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
       orderIds: Joi.array().items(Joi.string()).min(1),
       maker: Joi.string().pattern(regex.address),
       orderKind: Joi.string().valid(
+        "blur",
         "seaport",
         "seaport-v1.4",
         "seaport-v1.5",
@@ -466,6 +467,14 @@ export const getExecuteCancelV3Options: RouteOptions = {
           const exchange = new Sdk.Flow.Exchange(config.chainId);
           const nonce = order.nonce;
           cancelTx = exchange.cancelMultipleOrdersTx(order.signer, [nonce]);
+
+          break;
+        }
+
+        case "blur": {
+          const order = new Sdk.Blur.Order(config.chainId, orderResult.raw_data);
+          const exchange = new Sdk.Blur.Exchange(config.chainId);
+          cancelTx = exchange.cancelOrderTx(order.params.trader, order);
 
           break;
         }

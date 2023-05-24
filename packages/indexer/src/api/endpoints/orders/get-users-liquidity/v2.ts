@@ -15,7 +15,7 @@ export const getUsersLiquidityV2Options: RouteOptions = {
   description: "User bid liquidity rankings",
   notes:
     "This API calculates the total liquidity created by users, based on the number of tokens they are top bidder for.",
-  tags: ["api", "Stats"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 7,

@@ -16,6 +16,9 @@ export const Eth: ChainIdToAddress = {
   [Network.MantleTestnet]: AddressZero,
   [Network.LineaTestnet]: AddressZero,
   [Network.MiscTestnet]: AddressZero,
+  [Network.Mumbai]: AddressZero,
+  [Network.ArbitrumNova]: AddressZero,
+  [Network.BaseGoerli]: AddressZero,
 };
 
 export const Weth: ChainIdToAddress = {
@@ -27,14 +30,17 @@ export const Weth: ChainIdToAddress = {
   [Network.Optimism]: "0x4200000000000000000000000000000000000006",
   [Network.Gnosis]: "0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1",
   [Network.Arbitrum]: "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+  [Network.ArbitrumNova]: "0x722e8bdd2ce80a4422e880164f2079488e115365",
   // Polygon: Wrapped MATIC
   [Network.Polygon]: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+  [Network.Mumbai]: "0x9c3c9283d3e44854697cd22d3faa240cfb032889",
   // Avalanche: Wrapped AVAX
   [Network.Avalanche]: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
   [Network.ScrollAlpha]: "0x7160570bb153edd0ea1775ec2b2ac9b65f1ab61b",
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
   [Network.LineaTestnet]: "0x2c1b868d6596a18e32e61b901e4060c872647b6c",
   [Network.MiscTestnet]: "0x4200000000000000000000000000000000000006",
+  [Network.BaseGoerli]: "0x497c4c4041613bd4642760f3e4428abc88b3a565",
 };
 
 // TODO: Include addresses across all supported chains

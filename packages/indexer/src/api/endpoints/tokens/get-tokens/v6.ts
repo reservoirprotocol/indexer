@@ -998,33 +998,12 @@ export const getTokensV6Options: RouteOptions = {
                   },
                 },
               };
-            } else if (r.floor_sell_order_kind === "sudoswap") {
+            } else if (["sudoswap", "nftx", "collectionxyz"].includes(r.floor_sell_order_kind)) {
               // Pool orders
               dynamicPricing = {
                 kind: "pool",
                 data: {
-                  pool: r.floor_sell_raw_data.pair,
-                  prices: await Promise.all(
-                    (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
-                      getJoiPriceObject(
-                        {
-                          gross: {
-                            amount: bn(price).add(missingRoyalties).toString(),
-                          },
-                        },
-                        floorAskCurrency,
-                        query.displayCurrency
-                      )
-                    )
-                  ),
-                },
-              };
-            } else if (r.floor_sell_order_kind === "nftx") {
-              // Pool orders
-              dynamicPricing = {
-                kind: "pool",
-                data: {
-                  pool: r.floor_sell_raw_data.pool,
+                  pool: r.floor_sell_raw_data.pair ?? r.floor_sell_raw_data.pool,
                   prices: await Promise.all(
                     (r.floor_sell_raw_data.extra.prices as string[]).map((price) =>
                       getJoiPriceObject(

@@ -160,5 +160,11 @@
     "v2": {
       "1": "0xcd4ebd768ccbe022274506f5e45d14fd90dc5be7"
     }
+  },
+  "CollectionXyzModule": {
+    "v2": {
+      "1": "0x22097b493ea4c202d5b85cc9faf6d116830aa8a3",
+      "5": "0x22097b493ea4c202d5b85cc9faf6d116830aa8a3"
+    }
   }
 }
