@@ -772,14 +772,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             });
           }
         }
-      } catch (error) {
-        // The only time we want to continue to process asks is if we threw an
-        // error due to an externally filtered bid
-        if (!(error instanceof Error && error.message === "external-filtered-bids-not-supported"))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        // The only time we want to continue processing asks is if we threw an error due to an externally filtered bid
+        if (!(error instanceof Error && error.message === "external-filtered-bids-not-supported")) {
           logger.error(
             "orders-collectionxyz-save",
-            `Failed to handle buy order with params ${JSON.stringify(orderParams)}: ${error}`
+            `Failed to handle buy order with params ${JSON.stringify(orderParams)}: ${error} (${
+              error.stack
+            })`
           );
+        }
       }
 
       // Handle sell orders
@@ -1050,10 +1053,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             )
           );
         }
-      } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
         logger.error(
           "orders-collectionxyz-save",
-          `Failed to handle sell order with params ${JSON.stringify(orderParams)}: ${error}`
+          `Failed to handle sell order with params ${JSON.stringify(orderParams)}: ${error} (${
+            error.stack
+          })`
         );
       }
     } catch (error) {
