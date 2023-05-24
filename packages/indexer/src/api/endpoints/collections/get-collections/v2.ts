@@ -37,9 +37,7 @@ export const getCollectionsV2Options: RouteOptions = {
       name: Joi.string()
         .lowercase()
         .description("Search for collections that match a string, e.g. `bored`"),
-      slug: Joi.string()
-        .lowercase()
-        .description("Filter to a particular slug, e.g. `boredapeyachtclub`"),
+      slug: Joi.string().description("Filter to a particular slug, e.g. `boredapeyachtclub`"),
       sortBy: Joi.string()
         .valid("1DayVolume", "7DayVolume", "30DayVolume", "allTimeVolume")
         .default("allTimeVolume"),
