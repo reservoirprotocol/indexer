@@ -55,7 +55,6 @@ import SwapModuleAbi from "./abis/SwapModule.json";
 import X2Y2ModuleAbi from "./abis/X2Y2Module.json";
 import ZeroExV4ModuleAbi from "./abis/ZeroExV4Module.json";
 import ZoraModuleAbi from "./abis/ZoraModule.json";
-import { TokenIDs } from "fummpel";
 
 type SetupOptions = {
   x2y2ApiKey?: string;
