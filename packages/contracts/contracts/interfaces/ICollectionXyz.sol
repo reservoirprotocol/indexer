@@ -41,15 +41,17 @@ interface ICollectionPool {
 
   function externalFilter() external view returns (address);
 
-  function getBuyNFTQuote(uint256 numNFTs)
+  function getBuyNFTQuote(
+    uint256 numNFTs
+  )
     external
     view
     returns (
-        CurveParams memory newParams,
-        uint256 totalAmount,
-        uint256 inputAmount,
-        CurveFees memory fees
-        );
+      CurveParams memory newParams,
+      uint256 totalAmount,
+      uint256 inputAmount,
+      CurveFees memory fees
+    );
 }
 
 interface ICollectionRouter {
@@ -63,23 +65,23 @@ interface ICollectionRouter {
   }
 
   function swapETHForSpecificNFTs(
-      PoolSwapSpecific[] calldata swapList,
-      address ethRecipient,
-      address nftRecipient,
-      uint256 deadline
-      ) external payable returns (uint256 remainingValue);
+    PoolSwapSpecific[] calldata swapList,
+    address ethRecipient,
+    address nftRecipient,
+    uint256 deadline
+  ) external payable returns (uint256 remainingValue);
 
   function swapERC20ForSpecificNFTs(
-      PoolSwapSpecific[] calldata swapList,
-      uint256 inputAmount,
-      address nftRecipient,
-      uint256 deadline
-      ) external returns (uint256 remainingValue);
+    PoolSwapSpecific[] calldata swapList,
+    uint256 inputAmount,
+    address nftRecipient,
+    uint256 deadline
+  ) external returns (uint256 remainingValue);
 
   function swapNFTsForToken(
-      PoolSwapSpecific[] calldata swapList,
-      uint256 minOutput,
-      address tokenRecipient,
-      uint256 deadline
-      ) external returns (uint256 outputAmount);
+    PoolSwapSpecific[] calldata swapList,
+    uint256 minOutput,
+    address tokenRecipient,
+    uint256 deadline
+  ) external returns (uint256 outputAmount);
 }

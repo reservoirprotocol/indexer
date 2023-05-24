@@ -1,8 +1,12 @@
 import { Interface } from "@ethersproject/abi";
-import { AddressZero } from "@ethersproject/constants";
+import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
+import { keccak256 as keccakWithoutTypes } from "@ethersproject/keccak256";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
+import { TokenIDs } from "fummpel";
+import MerkleTree from "merkletreejs";
 import pLimit from "p-limit";
 
 import { idb, pgp, redb } from "@/common/db";
@@ -11,20 +15,16 @@ import { baseProvider } from "@/common/provider";
 import { bn, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
-import { Sources } from "@/models/sources";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
-import * as tokenSet from "@/orderbook/token-sets";
-import * as royalties from "@/utils/royalties";
 import {
   CollectionPoolType,
   getCollectionPool,
   saveCollectionPool,
 } from "@/models/collection-pools";
-import { BigNumber, BigNumberish, ethers } from "ethers";
-import { TokenIDs } from "fummpel";
+import { Sources } from "@/models/sources";
+import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
+import * as tokenSet from "@/orderbook/token-sets";
 import { getUSDAndNativePrices } from "@/utils/prices";
-import MerkleTree from "merkletreejs";
-import { keccak256 as keccakWithoutTypes } from "@ethersproject/keccak256";
+import * as royalties from "@/utils/royalties";
 
 const hashFn = (tokenId: BigNumberish) => keccak256(["uint256"], [tokenId]);
 
@@ -37,26 +37,25 @@ const generateMerkleTree = (tokenIds: BigNumberish[]) => {
   return new MerkleTree(leaves, keccakWithoutTypes, { sort: true });
 };
 
-/**
- * Convert 0x hex string to 32 byte Uint8Array
- */
-export function hexToBytes(input: string): Uint8Array {
+const hexToBytes = (input: string): Uint8Array => {
   if (input[0] != "0" && input[1] != "x") {
-    throw "not hex";
+    throw new Error("Invalid hex input");
   }
 
-  const hex = input.substr(2);
-  if (hex.length === 0) return new Uint8Array([]);
-  const digits = hex.match(/[0-9a-fA-F]{2}/g);
+  const hex = input.slice(2);
+  if (hex.length === 0) {
+    return new Uint8Array([]);
+  }
 
+  const digits = hex.match(/[0-9a-fA-F]{2}/g);
   if (digits!.length * 2 != hex.length) {
-    throw "not hex";
+    throw new Error("Invalid hex input");
   }
 
   return new Uint8Array(digits!.map((h) => parseInt(h, 16)));
-}
+};
 
-const factoryAddress = Sdk.CollectionXyz.Addresses.CollectionPoolFactory[config.chainId];
+const FACTORY = Sdk.CollectionXyz.Addresses.CollectionPoolFactory[config.chainId];
 
 export type OrderInfo = {
   orderParams: {
@@ -143,7 +142,7 @@ const getFeeBpsAndBreakdown = async (
       {
         // Protocol fee
         kind: "marketplace",
-        recipient: factoryAddress,
+        recipient: FACTORY,
         bps: Math.round(protocolBps + (tradeBps * carryBps) / 1e5),
       },
       {
@@ -521,8 +520,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             // Check if there's encodedTokenIds to process. If not, just don't
             // change the values existing in DB.
             if (orderParams.encodedTokenIds !== undefined) {
-              const isFiltered =
-                (await poolContract.tokenIDFilterRoot()) !== ethers.constants.HashZero;
+              const isFiltered = (await poolContract.tokenIDFilterRoot()) !== HashZero;
               if (!isFiltered) {
                 // Non-filtered pool, save tokenSetId and schema hash of a
                 // contract TokenSet
@@ -995,6 +993,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     if (orderParams.assetRecipient !== undefined) {
                       sdkOrder.params.assetRecipient = orderParams.assetRecipient;
                     }
+
                     await idb.none(
                       `
                         UPDATE orders SET

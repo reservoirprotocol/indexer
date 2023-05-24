@@ -40,6 +40,7 @@ import * as treasure from "@/events-sync/handlers/treasure";
 import * as looksRareV2 from "@/events-sync/handlers/looks-rare-v2";
 import * as collectionxyz from "@/events-sync/handlers/collectionxyz";
 import * as blend from "@/events-sync/handlers/blend";
+import * as collectionxyz from "@/events-sync/handlers/collectionxyz";
 
 // A list of events having the same high-level kind
 export type EventsByKind = {

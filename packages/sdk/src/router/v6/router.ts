@@ -4,6 +4,11 @@ import { AddressZero, HashZero } from "@ethersproject/constants";
 import { Contract } from "@ethersproject/contracts";
 import axios from "axios";
 
+// Needed for `collectionxyz`
+import { TokenIDs } from "fummpel";
+// Needed for `rarible`
+import { encodeForMatchOrders } from "../../rarible/utils";
+
 import * as Addresses from "./addresses";
 import * as ApprovalProxy from "./approval-proxy";
 
@@ -23,7 +28,6 @@ import {
 import { generateSwapExecutions } from "./uniswap";
 import { generateFTApprovalTxData, generateNFTApprovalTxData, isETH, isWETH } from "./utils";
 import * as Sdk from "../../index";
-import { encodeForMatchOrders } from "../../rarible/utils";
 import { TxData, bn, generateSourceBytes, getErrorMessage, uniqBy } from "../../utils";
 
 // Tokens

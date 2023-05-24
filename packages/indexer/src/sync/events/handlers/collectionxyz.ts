@@ -1,16 +1,16 @@
 import { Interface } from "@ethersproject/abi";
+import { Contract } from "@ethersproject/contracts";
 import { searchForCall } from "@georgeroman/evm-tx-simulator";
 
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { bn } from "@/common/utils";
 import { getEventData } from "@/events-sync/data";
+import { acceptsTokenIds } from "@/events-sync/data/collectionxyz";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
 import * as utils from "@/events-sync/utils";
-import { getUSDAndNativePrices } from "@/utils/prices";
-import { baseProvider } from "@/common/provider";
-import { acceptsTokenIds } from "@/events-sync/data/collectionxyz";
 import { getOrderId, getPoolDetails } from "@/orderbook/orders/collectionxyz";
-import { Contract } from "ethers";
+import { getUSDAndNativePrices } from "@/utils/prices";
 
 export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChainData) => {
   // For keeping track of all individual trades per transaction
