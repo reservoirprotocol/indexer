@@ -66,7 +66,7 @@ export type CollectionMetadataInfo = {
   contract: string;
   tokenId: string;
   community: string;
-  forceRefresh: boolean;
+  forceRefresh?: boolean;
 };
 
 export const addToQueueBulk = async (
