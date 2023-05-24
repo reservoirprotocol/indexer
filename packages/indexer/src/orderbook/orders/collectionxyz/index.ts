@@ -555,6 +555,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
                 const merkleTree = generateMerkleTree(acceptedSet);
                 tokenSetId = `list:${pool.nft}:${merkleTree.getHexRoot()}`;
+
                 const schema = {
                   kind: "token-set", // The type of TokenList that just takes an array of token ids
                   data: {
@@ -563,6 +564,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   },
                 };
                 schemaHash = generateSchemaHash(schema);
+
                 await tokenSet.mixedTokenList.save([
                   {
                     // This must === `list:${pool.nft}:${generateMerkleTree(acceptedSet).getHexRoot()}`
@@ -580,7 +582,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
             // By this point, there should be a valid token set id and schema
             // hash for the order to be defined
-            if (tokenSetId === undefined || schemaHash === undefined) {
+            if (!tokenSetId || !schemaHash) {
               results.push({
                 id,
                 txHash: orderParams.txHash,
