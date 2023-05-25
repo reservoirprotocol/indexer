@@ -55,7 +55,15 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
 
   // Simulate the mint
   // TODO: Binary search for the maximum quantity per wallet
-  const success = await simulateMint(minter, contract, quantity, price, txData.data, contractKind);
+  const success = await simulateMint(
+    minter,
+    contract,
+    contractKind,
+    quantity,
+    price,
+    txData.to,
+    txData.data
+  );
 
   if (success) {
     await idb.none(
@@ -118,13 +126,14 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
   return success;
 };
 
-const simulateMint = async (
+export const simulateMint = async (
   minter: string,
   contract: string,
+  contractKind: "erc721" | "erc1155",
   quantity: number,
   price: string,
-  calldata: string,
-  contractKind: "erc721" | "erc1155"
+  to: string,
+  calldata: string
 ) => {
   const value = bn(price).mul(quantity);
 
@@ -132,7 +141,7 @@ const simulateMint = async (
   const callTrace = await getCallTrace(
     {
       from: minter,
-      to: contract,
+      to,
       data: calldata,
       value,
       gas: 10000000,
