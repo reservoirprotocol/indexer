@@ -7,15 +7,9 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { Tokens } from "@/models/tokens";
 import * as Boom from "@hapi/boom";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v1";
-
-enum ImageSize {
-  small = 250,
-  medium = 512,
-  large = 1000,
-}
 
 export const getRedirectTokenImageV1Options: RouteOptions = {
   cache: {

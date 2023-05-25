@@ -1,6 +1,12 @@
 import _ from "lodash";
 import { MergeRefs, ReqRefDefaults } from "@hapi/hapi";
 
+export enum ImageSize {
+  small = 250,
+  medium = 512,
+  large = 1000,
+}
+
 export class Assets {
   public static getLocalAssetsLink(assets: string | string[]) {
     if (_.isEmpty(assets) || assets == "") {

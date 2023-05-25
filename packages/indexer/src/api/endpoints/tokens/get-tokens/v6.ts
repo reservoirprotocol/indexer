@@ -25,7 +25,7 @@ import {
 } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v6";
 
@@ -204,8 +204,8 @@ export const getTokensV6Options: RouteOptions = {
             name: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
-            imageSmallUrl: Joi.string().allow("", null),
-            imageLargeUrl: Joi.string().allow("", null),
+            imageSmall: Joi.string().allow("", null),
+            imageLarge: Joi.string().allow("", null),
             metadata: Joi.object().allow(null),
             media: Joi.string().allow("", null),
             kind: Joi.string().allow("", null),
@@ -1059,11 +1059,13 @@ export const getTokensV6Options: RouteOptions = {
             name: r.name,
             description: r.description,
             image: Assets.getLocalAssetsLink(r.image),
-            imageSmallUrl: Assets.getResizedImageUrl(r.image, 250),
-            imageLargeUrl: Assets.getResizedImageUrl(r.image, 1000),
-            metadata: {
-              imageOriginalUrl: r.metadata.image_original_url || null,
-            },
+            imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
+            imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
+            metadata: r.metadata.image_original_url
+              ? {
+                  imageOriginal: r.metadata.image_original_url,
+                }
+              : undefined,
             media: r.media,
             kind: r.kind,
             isFlagged: Boolean(Number(r.is_flagged)),

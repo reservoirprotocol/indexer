@@ -25,7 +25,7 @@ import {
 } from "@/common/joi";
 import { Sources } from "@/models/sources";
 import _ from "lodash";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
 
 const version = "v7";
 
@@ -143,8 +143,8 @@ export const getUserTokensV7Options: RouteOptions = {
             kind: Joi.string(),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
-            imageSmallUrl: Joi.string().allow("", null),
-            imageLargeUrl: Joi.string().allow("", null),
+            imageSmall: Joi.string().allow("", null),
+            imageLarge: Joi.string().allow("", null),
             metadata: Joi.object().allow(null),
             supply: Joi.number().unsafe().allow(null),
             remainingSupply: Joi.number().unsafe().allow(null),
@@ -639,11 +639,13 @@ export const getUserTokensV7Options: RouteOptions = {
             kind: r.kind,
             name: r.name,
             image: r.image,
-            imageSmallUrl: Assets.getResizedImageUrl(r.image, 250),
-            imageLargeUrl: Assets.getResizedImageUrl(r.image, 1000),
-            metadata: {
-              imageOriginalUrl: r.token_metadata.image_original_url || undefined,
-            },
+            imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
+            imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
+            metadata: r.token_metadata.image_original_url
+              ? {
+                  imageOriginal: r.token_metadata.image_original_url,
+                }
+              : undefined,
             rarityScore: r.rarity_score,
             rarityRank: r.rarity_rank,
             supply: !_.isNull(r.supply) ? r.supply : null,
