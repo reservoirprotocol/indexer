@@ -19,6 +19,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
         WHERE updated_at < current_date - INTERVAL '${ArchiveBidOrders.maxAgeDay} days'
         AND side = 'buy'
         AND fillability_status = 'expired'
+        ORDER BY updated_at DESC, id ASC
         LIMIT 1
       `;
 
