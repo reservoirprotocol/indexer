@@ -73,7 +73,7 @@ export const nonceIncremented: EventData = {
   kind: "blend",
   subKind: "blend-nonce-incremented",
   addresses: { [Blend.Addresses.Blend[config.chainId]?.toLowerCase()]: true },
-  topic: "0x7ffb5bd9cdc79a6f9bc6e00c82f43836e0afbb204d47972001f6e853764a8ef1",
+  topic: "0xa82a649bbd060c9099cd7b7326e2b0dc9e9af0836480e0f849dc9eaa79710b3b",
   numTopics: 1,
   abi: new Interface([`event NonceIncremented(address indexed user, uint256 newNonce)`]),
 };

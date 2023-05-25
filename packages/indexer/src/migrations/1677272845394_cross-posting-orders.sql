@@ -30,6 +30,10 @@ CREATE TABLE "cross_posting_orders" (
   "updated_at" TIMESTAMPTZ DEFAULT now()
 );
 
+ALTER TABLE "cross_posting_orders"
+  ADD CONSTRAINT "cross_posting_orders_pk"
+  PRIMARY KEY ("id");
+
 -- Down Migration
 
 DROP TABLE "cross_posting_orders";

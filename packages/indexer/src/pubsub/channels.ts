@@ -5,3 +5,8 @@ export enum Channel {
   RoutersUpdated = "routers-updated",
   SourcesUpdated = "sources-updated",
 }
+
+export enum AllChainsChannel {
+  ApiKeyCreated = "api-key-created-all-chains",
+  ApiKeyUpdated = "api-key-updated-all-chains",
+}
