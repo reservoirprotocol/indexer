@@ -35,7 +35,7 @@ if (config.doBackgroundWork) {
           })
         );
 
-        if (await acquireLock(QUEUE_NAME, 1)) {
+        if (await acquireLock(QUEUE_NAME, 20)) {
           logger.info(
             QUEUE_NAME,
             JSON.stringify({
