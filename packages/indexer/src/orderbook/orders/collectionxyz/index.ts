@@ -80,6 +80,8 @@ export type OrderInfo = {
     txTimestamp: number;
     txBlock: number;
     logIndex: number;
+    // Misc options
+    forceRecheck?: boolean;
   };
   metadata: OrderMetadata;
 };
@@ -102,7 +104,8 @@ type SaveResult = {
 const getFeeBpsAndBreakdown = async (
   poolContract: Contract,
   royaltyRecipient: string,
-  orderId: string
+  orderId: string,
+  feesUpdated: boolean
 ): Promise<{
   feeBreakdown: {
     kind: string;
@@ -121,7 +124,7 @@ const getFeeBpsAndBreakdown = async (
     `,
     { orderId }
   );
-  if (orderResult) {
+  if (orderResult && !feesUpdated) {
     // Row exists, return relevant rows
     return {
       feeBreakdown: orderResult.fee_breakdown,
@@ -384,6 +387,11 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
       const isERC20 = pool.token !== Sdk.Common.Addresses.Eth[config.chainId];
 
+      // Force recheck at most once per hour
+      const recheckCondition = orderParams.forceRecheck
+        ? `AND orders.updated_at < to_timestamp(${orderParams.txTimestamp - 3600})`
+        : `AND (orders.block_number, orders.log_index) < (${orderParams.txBlock}, ${orderParams.logIndex})`;
+
       // Handle bids
       try {
         if ([CollectionPoolType.TOKEN, CollectionPoolType.TRADE].includes(pool.poolType)) {
@@ -468,7 +476,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             const { feeBreakdown, totalFeeBps } = await getFeeBpsAndBreakdown(
               poolContract,
               royaltyRecipient,
-              id
+              id,
+              orderParams.feesModified
             );
 
             const currencyValue = currencyPrice.sub(currencyPrice.mul(totalFeeBps).div(10000));
@@ -718,10 +727,9 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                     fee_breakdown = $/feeBreakdown:json/,
                     block_number = $/blockNumber/,
                     log_index = $/logIndex/,
-                    token_set_id = $/tokenSetId/,
-                    token_set_schema_hash = $/schemaHash/
+                    token_set_id = $/tokenSetId/
                   WHERE orders.id = $/id/
-                    AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
+                    ${recheckCondition}
                 `,
                 {
                   id,
@@ -739,7 +747,6 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   blockNumber: orderParams.txBlock,
                   logIndex: orderParams.logIndex,
                   tokenSetId,
-                  schemaHash: toBuffer(schemaHash),
                 }
               );
 
@@ -758,11 +765,17 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 UPDATE orders SET
                   fillability_status = 'no-balance',
                   expiration = to_timestamp(${orderParams.txTimestamp}),
+                  block_number = $/blockNumber/,
+                  log_index = $/logIndex/,
                   updated_at = now()
                 WHERE orders.id = $/id/
-                  AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
+                  ${recheckCondition}
               `,
-              { id }
+              {
+                id,
+                blockNumber: orderParams.txBlock,
+                logIndex: orderParams.logIndex,
+              }
             );
 
             results.push({
@@ -848,7 +861,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   const { feeBreakdown, totalFeeBps } = await getFeeBpsAndBreakdown(
                     poolContract,
                     royaltyRecipient,
-                    id
+                    id,
+                    orderParams.feesModified
                   );
                   const { missingRoyaltyAmount, missingRoyalties } = await computeRoyaltyInfo(
                     pool.nft,
@@ -1021,7 +1035,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                           block_number = $/blockNumber/,
                           log_index = $/logIndex/
                         WHERE orders.id = $/id/
-                          AND lower(orders.valid_between) < to_timestamp(${orderParams.txTimestamp})
+                          ${recheckCondition}
                       `,
                       {
                         id,
