@@ -1,7 +1,7 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import cron from "node-cron";
 
-import { redb } from "@/common/db";
+import { ridb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { config } from "@/config/index";
@@ -63,7 +63,7 @@ if (config.doBackgroundWork) {
       await redlock
         .acquire(["pending-expired-orders-check-lock"], (2 * 3600 - 5) * 1000)
         .then(async () => {
-          const result = await redb.oneOrNone(
+          const result = await ridb.oneOrNone(
             `
               SELECT
                 count(*) AS expired_count
