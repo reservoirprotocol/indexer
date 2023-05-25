@@ -225,3 +225,7 @@ jobs:
             ./prod/platform/indexer-websocket-polygon.yaml \
             ${{ github.sha }} \
             indexer-websocket-polygon
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker
