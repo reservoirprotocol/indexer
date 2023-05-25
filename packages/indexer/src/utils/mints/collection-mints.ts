@@ -161,14 +161,11 @@ export const simulateMint = async (
   }
 
   const getLogs = (call: CallTrace): Log[] => {
-    if (!call.logs?.length) {
-      return [];
-    }
-
-    const logs = call.logs ?? [];
+    const logs: Log[] = [];
     for (const c of call.calls ?? []) {
       logs.push(...getLogs(c));
     }
+    logs.push(...(call.logs ?? []));
 
     return logs;
   };
