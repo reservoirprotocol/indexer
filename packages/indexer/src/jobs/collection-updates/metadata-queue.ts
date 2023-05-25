@@ -35,7 +35,7 @@ if (config.doBackgroundWork) {
           })
         );
 
-        if (await acquireLock(QUEUE_NAME, 20)) {
+        if (await acquireLock(QUEUE_NAME, 1)) {
           logger.info(
             QUEUE_NAME,
             JSON.stringify({
@@ -73,7 +73,7 @@ if (config.doBackgroundWork) {
         }
       }
     },
-    { connection: redis.duplicate(), concurrency: 1 }
+    { connection: redis.duplicate(), concurrency: 20 }
   );
 
   worker.on("completed", async (job: Job) => {
