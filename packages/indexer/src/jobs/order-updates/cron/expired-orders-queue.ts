@@ -47,7 +47,7 @@ if (config.doBackgroundWork) {
         );
       }
 
-      await redis.set(lastTimestampKey, lastTimestamp);
+      await redis.set(lastTimestampKey, currentTime);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
