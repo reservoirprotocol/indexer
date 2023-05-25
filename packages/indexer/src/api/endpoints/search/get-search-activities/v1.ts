@@ -122,7 +122,7 @@ export const getSearchActivitiesV1Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description("Input any ERC20 address to return result in given currency"),
-    }).oxor("collection", "collectionsSetId", "contractsSetId", "community"),
+    }).oxor("collections", "collectionsSetId", "contractsSetId", "community"),
   },
   response: {
     schema: Joi.object({
