@@ -29,13 +29,19 @@ if (config.doBackgroundWork) {
       if (forceRefresh || (await acquireLock(`${QUEUE_NAME}:${contract}`, 5 * 60))) {
         logger.info(
           QUEUE_NAME,
-          `Refresh collection metadata - got contract lock. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
+          JSON.stringify({
+            message: "got contract lock",
+            jobData: job.data,
+          })
         );
 
         if (await acquireLock(QUEUE_NAME, 1)) {
           logger.info(
             QUEUE_NAME,
-            `Refresh collection metadata - got update lock. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
+            JSON.stringify({
+              message: "got update lock",
+              jobData: job.data,
+            })
           );
 
           try {
@@ -43,13 +49,20 @@ if (config.doBackgroundWork) {
           } catch (error) {
             logger.error(
               QUEUE_NAME,
-              `Failed to update collection metadata. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, error=${error}`
+              JSON.stringify({
+                message: "updateCollectionCache error",
+                jobData: job.data,
+                error,
+              })
             );
           }
         } else {
           logger.info(
             QUEUE_NAME,
-            `Refresh collection metadata - reschedule. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
+            JSON.stringify({
+              message: "reschedule",
+              jobData: job.data,
+            })
           );
 
           job.data.addToQueue = true;
