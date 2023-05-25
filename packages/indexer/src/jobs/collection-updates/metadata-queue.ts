@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import _ from "lodash";
 
 import { logger } from "@/common/logger";
-import { redis, acquireLock } from "@/common/redis";
+import { redis, acquireLock, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { Collections } from "@/models/collections";
 
@@ -26,12 +26,16 @@ if (config.doBackgroundWork) {
     async (job: Job) => {
       const { contract, tokenId, community, forceRefresh } = job.data;
 
-      if (await acquireLock(QUEUE_NAME, 1)) {
-        // Lock this contract for the next 5 minutes
-        if (forceRefresh || (await acquireLock(`${QUEUE_NAME}:${contract}`, 5 * 60))) {
+      if (forceRefresh || (await acquireLock(`${QUEUE_NAME}:${contract}`, 5 * 60))) {
+        logger.info(
+          QUEUE_NAME,
+          `Refresh collection metadata - got contract lock. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
+        );
+
+        if (await acquireLock(QUEUE_NAME, 1)) {
           logger.info(
             QUEUE_NAME,
-            `Refresh collection metadata - got lock. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
+            `Refresh collection metadata - got update lock. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
           );
 
           try {
@@ -42,9 +46,18 @@ if (config.doBackgroundWork) {
               `Failed to update collection metadata. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}, error=${error}`
             );
           }
+        } else {
+          logger.info(
+            QUEUE_NAME,
+            `Refresh collection metadata - reschedule. contract=${contract}, tokenId=${tokenId}, community=${community}, forceRefresh=${forceRefresh}`
+          );
+
+          job.data.addToQueue = true;
+
+          if (!forceRefresh) {
+            await releaseLock(`${QUEUE_NAME}:${contract}`);
+          }
         }
-      } else {
-        job.data.addToQueue = true;
       }
     },
     { connection: redis.duplicate(), concurrency: 1 }
