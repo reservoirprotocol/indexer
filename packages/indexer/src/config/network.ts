@@ -301,6 +301,19 @@ export const getNetworkSettings = (): NetworkSettings => {
               },
             },
           ],
+          [
+            "0x830a8512db4f6fca51968593e2667156c2c483a8",
+            {
+              contract: "0x830a8512db4f6fca51968593e2667156c2c483a8",
+              name: "WEN Token",
+              symbol: "WEN",
+              decimals: 18,
+              metadata: {
+                image:
+                  "https://s2.coinmarketcap.com/static/img/coins/64x64/25256.png", 
+              },
+            },
+          ]
         ]),
         coingecko: {
           networkId: "ethereum",
