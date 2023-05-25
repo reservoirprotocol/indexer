@@ -78,7 +78,7 @@ export const getTransfersV3Options: RouteOptions = {
           }),
           from: Joi.string().lowercase().pattern(regex.address),
           to: Joi.string().lowercase().pattern(regex.address),
-          amount: Joi.string(),
+          amount: Joi.string().description("Can be higher than 1 if erc1155."),
           txHash: Joi.string().lowercase().pattern(regex.bytes32),
           block: Joi.number(),
           logIndex: Joi.number(),

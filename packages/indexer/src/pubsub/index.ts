@@ -1,7 +1,7 @@
 import _ from "lodash";
 
 import { logger } from "@/common/logger";
-import { redisSubscriber, allChainsSyncRedisSubscriber } from "@/common/redis";
+import { redisSubscriber, allChainsSyncRedisSubscriber, acquireLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { AllChainsChannel, Channel } from "@/pubsub/channels";
 
@@ -11,6 +11,7 @@ import { RoutersUpdatedEvent } from "@/pubsub/routers-updated-event";
 import { SourcesUpdatedEvent } from "@/pubsub/sources-updated-event";
 import { ApiKeyCreatedAllChainsEvent } from "@/pubsub/api-key-created-all-chains-event";
 import { ApiKeyUpdatedAllChainsEvent } from "@/pubsub/api-key-updated-all-chains-event";
+import getUuidByString from "uuid-by-string";
 
 // Subscribe to all channels defined in the `Channel` enum
 redisSubscriber.subscribe(_.values(Channel), (error, count) => {
@@ -57,19 +58,22 @@ if (config.chainId !== 1) {
   });
 
   allChainsSyncRedisSubscriber.on("message", async (channel, message) => {
-    logger.info(
-      "pubsub-all-chains",
-      `Received message on channel ${channel}, message = ${message}`
-    );
+    // Prevent multiple pods processing same message
+    if (await acquireLock(getUuidByString(message), 60)) {
+      logger.info(
+        "pubsub-all-chains",
+        `Received message on channel ${channel}, message = ${message}`
+      );
 
-    switch (channel) {
-      case AllChainsChannel.ApiKeyCreated:
-        await ApiKeyCreatedAllChainsEvent.handleEvent(message);
-        break;
+      switch (channel) {
+        case AllChainsChannel.ApiKeyCreated:
+          await ApiKeyCreatedAllChainsEvent.handleEvent(message);
+          break;
 
-      case AllChainsChannel.ApiKeyUpdated:
-        await ApiKeyUpdatedAllChainsEvent.handleEvent(message);
-        break;
+        case AllChainsChannel.ApiKeyUpdated:
+          await ApiKeyUpdatedAllChainsEvent.handleEvent(message);
+          break;
+      }
     }
   });
 }

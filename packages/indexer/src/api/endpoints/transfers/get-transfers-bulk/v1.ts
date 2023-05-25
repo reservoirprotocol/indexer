@@ -67,7 +67,7 @@ export const getTransfersBulkV1Options: RouteOptions = {
           }),
           from: Joi.string().lowercase().pattern(regex.address),
           to: Joi.string().lowercase().pattern(regex.address),
-          amount: Joi.string(),
+          amount: Joi.string().description("Can be more than 1 if erc1155."),
           block: Joi.number(),
           txHash: Joi.string().lowercase().pattern(regex.bytes32),
           logIndex: Joi.number(),

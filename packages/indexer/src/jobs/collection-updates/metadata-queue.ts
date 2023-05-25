@@ -27,23 +27,7 @@ if (config.doBackgroundWork) {
       const { contract, tokenId, community, forceRefresh } = job.data;
 
       if (forceRefresh || (await acquireLock(`${QUEUE_NAME}:${contract}`, 5 * 60))) {
-        logger.info(
-          QUEUE_NAME,
-          JSON.stringify({
-            message: "got contract lock",
-            jobData: job.data,
-          })
-        );
-
         if (await acquireLock(QUEUE_NAME, 1)) {
-          logger.info(
-            QUEUE_NAME,
-            JSON.stringify({
-              message: "got update lock",
-              jobData: job.data,
-            })
-          );
-
           try {
             await Collections.updateCollectionCache(contract, tokenId, community);
           } catch (error) {
@@ -57,14 +41,6 @@ if (config.doBackgroundWork) {
             );
           }
         } else {
-          logger.info(
-            QUEUE_NAME,
-            JSON.stringify({
-              message: "reschedule",
-              jobData: job.data,
-            })
-          );
-
           job.data.addToQueue = true;
 
           if (!forceRefresh) {
