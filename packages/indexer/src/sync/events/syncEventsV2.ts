@@ -302,29 +302,29 @@ export const syncEvents = async (block: number) => {
       _saveBlockTransactions(blockData),
     ]);
 
-    let enhancedEvents = logs.map((log) => {
-      try {
-        const baseEventParams = parseEvent(log, blockData.timestamp);
-
-        const eventData = availableEventData.find(
-          ({ addresses, numTopics, topic }) =>
-            log.topics[0] === topic &&
-            log.topics.length === numTopics &&
-            (addresses ? addresses[log.address.toLowerCase()] : true)
-        );
-        if (eventData) {
-          return {
-            kind: eventData.kind,
-            subKind: eventData.subKind,
-            baseEventParams,
-            log,
-          };
+    let enhancedEvents = logs
+      .map((log) => {
+        try {
+          const baseEventParams = parseEvent(log, blockData.timestamp);
+          return availableEventData
+            .filter(
+              ({ addresses, numTopics, topic }) =>
+                log.topics[0] === topic &&
+                log.topics.length === numTopics &&
+                (addresses ? addresses[log.address.toLowerCase()] : true)
+            )
+            .map((eventData) => ({
+              kind: eventData.kind,
+              subKind: eventData.subKind,
+              baseEventParams,
+              log,
+            }));
+        } catch (error) {
+          logger.error("sync-events-v2", `Failed to handle events: ${error}`);
+          throw error;
         }
-      } catch (error) {
-        logger.error("sync-events-v2", `Failed to handle events: ${error}`);
-        throw error;
-      }
-    });
+      })
+      .flat();
 
     enhancedEvents = enhancedEvents.filter((e) => e) as EnhancedEvent[];
 

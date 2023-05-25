@@ -1,10 +1,15 @@
 import { Interface } from "@ethersproject/abi";
+import { CollectionXyz } from "@reservoir0x/sdk";
 
+import { config } from "@/config/index";
 import { EventData } from "@/events-sync/data";
 
 export const newPool: EventData = {
   kind: "collectionxyz",
   subKind: "collectionxyz-new-pool",
+  addresses: {
+    [CollectionXyz.Addresses.CollectionPoolFactory[config.chainId]?.toLowerCase()]: true,
+  },
   topic: "0x77948cb83ef3caff9ac13dfab1ea1f8a6875c98370287ce587f5dbc74cc5b6b0",
   numTopics: 3,
   abi: new Interface([
