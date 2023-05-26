@@ -12,7 +12,7 @@ import { ridb } from "@/common/db";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-cancelled";
 
-const QUEUE_NAME = "backfill-bid-activities-elasticsearch";
+const QUEUE_NAME = "backfill-bid-cancel-activities-elasticsearch";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),

@@ -11,7 +11,7 @@ import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
 
-const QUEUE_NAME = "backfill-ask-activities-elasticsearch";
+const QUEUE_NAME = "backfill-ask-cancel-activities-elasticsearch";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
