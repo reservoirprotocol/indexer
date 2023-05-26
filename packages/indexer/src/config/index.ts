@@ -134,4 +134,5 @@ export const config = {
   // Elasticsearch
   elasticsearchUrl: String(process.env.ELASTICSEARCH_URL || ""),
   doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
+  enableElasticsearchRead: Boolean(Number(process.env.ENABLE_ELASTICSEARCH_READ)),
 };

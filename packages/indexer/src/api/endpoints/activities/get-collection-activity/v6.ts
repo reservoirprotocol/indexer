@@ -4,7 +4,7 @@ import _ from "lodash";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
 import { logger } from "@/common/logger";
-import { buildContinuation, regex, splitContinuation } from "@/common/utils";
+import { buildContinuation, fromBuffer, regex, splitContinuation } from "@/common/utils";
 import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
 import {
@@ -15,6 +15,11 @@ import {
 } from "@/common/joi";
 import { config } from "@/config/index";
 import * as Sdk from "@reservoir0x/sdk";
+import { CollectionSets } from "@/models/collection-sets";
+import * as Boom from "@hapi/boom";
+import { Collections } from "@/models/collections";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { redb } from "@/common/db";
 
 const version = "v6";
 
@@ -95,6 +100,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
+      es: Joi.boolean().default(false),
       continuation: Joi.string().allow(null),
       activities: Joi.array().items(
         Joi.object({
@@ -146,11 +152,129 @@ export const getCollectionActivityV6Options: RouteOptions = {
       query.types = [query.types];
     }
 
-    if (query.continuation) {
-      query.continuation = splitContinuation(query.continuation)[0];
-    }
-
     try {
+      if (query.es === "1") {
+        if (query.collectionsSetId) {
+          query.collection = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+          if (_.isEmpty(query.collection)) {
+            throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+          }
+        }
+
+        if (query.community) {
+          query.collection = await Collections.getIdsByCommunity(query.community);
+
+          if (query.collection.length === 0) {
+            throw Boom.badRequest(`No collections for community ${query.community}`);
+          }
+        }
+
+        let tokens: { contract: string; tokenId: string }[] = [];
+
+        if (query.attributes) {
+          const attributes: string[] = [];
+
+          Object.entries(query.attributes).forEach(([key, values]) => {
+            (Array.isArray(values) ? values : [values]).forEach((value) =>
+              attributes.push(`('${key}', '${value}')`)
+            );
+          });
+
+          const tokensResult = await redb.manyOrNone(`
+            SELECT contract, token_id
+            FROM token_attributes
+            WHERE collection_id IN ('${query.collection.join(",")}')
+            AND (key, value) IN (${attributes.join(",")});
+          `);
+
+          tokens = _.map(tokensResult, (token) => ({
+            contract: fromBuffer(token.contract),
+            tokenId: token.token_id,
+          }));
+        }
+
+        const { activities, continuation } = await ActivitiesIndex.search({
+          types: query.types,
+          tokens,
+          collections: [query.collection],
+          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+          limit: query.limit,
+          continuation: query.continuation,
+        });
+
+        const result = _.map(activities, async (activity) => {
+          const currency = activity.pricing?.currency
+            ? activity.pricing.currency
+            : Sdk.Common.Addresses.Eth[config.chainId];
+
+          const orderCriteria = activity.order?.criteria
+            ? {
+                kind: activity.order.criteria.kind,
+                data: {
+                  collectionId: activity.collection?.id,
+                  collectionName: activity.collection?.name,
+                  tokenId: activity.token?.id,
+                  tokenName: activity.token?.name,
+                  image:
+                    activity.order.criteria.kind === "token"
+                      ? activity.token?.image
+                      : activity.collection?.image,
+                  attributes: activity.order.criteria.data.attribute
+                    ? [activity.order.criteria.data.attribute]
+                    : undefined,
+                },
+              }
+            : undefined;
+
+          return {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: await getJoiPriceObject(
+              {
+                gross: {
+                  amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
+                  nativeAmount: String(activity.pricing?.price),
+                },
+              },
+              currency,
+              query.displayCurrency
+            ),
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            createdAt: activity.createdAt.toISOString(),
+            contract: activity.contract,
+            token: {
+              tokenId: activity.token?.id,
+              tokenName: activity.token?.name,
+              tokenImage: activity.token?.image,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: activity.collection?.name,
+              collectionImage: activity.collection?.image,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            order: activity.order?.id
+              ? await getJoiActivityOrderObject({
+                  id: activity.order.id,
+                  side: activity.order.side,
+                  sourceIdInt: activity.order.sourceId,
+                  criteria: orderCriteria || null,
+                })
+              : undefined,
+          };
+        });
+
+        return { activities: result, continuation, es: true };
+      }
+
+      if (query.continuation) {
+        query.continuation = splitContinuation(query.continuation)[0];
+      }
+
       const activities = await Activities.getCollectionActivities(
         query.collection,
         query.community,

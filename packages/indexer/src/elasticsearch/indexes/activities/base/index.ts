@@ -57,7 +57,21 @@ export interface ActivityDocument extends BaseDocument {
     side: string;
     sourceId: number;
     kind: string;
-    criteria: Record<string, unknown>;
+    criteria: {
+      kind: string;
+      data: {
+        attribute?: {
+          key: string;
+          value: string;
+        };
+        collection?: {
+          id: string;
+        };
+        token?: {
+          tokenId: string;
+        };
+      };
+    };
   };
 }
 
@@ -94,7 +108,10 @@ export interface BuildActivityData extends BuildDocumentData {
   order_side?: string;
   order_source_id_int?: number;
   order_kind?: string;
-  order_criteria?: Record<string, unknown>;
+  order_criteria?: {
+    kind: string;
+    data: Record<string, unknown>;
+  };
 }
 
 export class ActivityBuilder extends DocumentBuilder {

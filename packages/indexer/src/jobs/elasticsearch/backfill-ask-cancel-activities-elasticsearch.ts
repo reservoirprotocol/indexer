@@ -9,9 +9,9 @@ import { ridb } from "@/common/db";
 import { config } from "@/config/index";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
-import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
+import { AskCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-cancelled";
 
-const QUEUE_NAME = "backfill-ask-activities-elasticsearch";
+const QUEUE_NAME = "backfill-ask-cancel-activities-elasticsearch";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -50,8 +50,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
         const orderFilter = orderId ? `AND orderId = $/orderId/` : "";
 
         const query = `
-            ${AskCreatedEventHandler.buildBaseQuery()}
-            WHERE side = 'sell'
+            ${AskCancelledEventHandler.buildBaseQuery()}
+            WHERE side = 'sell' AND fillability_status = 'cancelled'
             ${timestampFilter}
             ${orderFilter}
             ${continuationFilter}
@@ -73,7 +73,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const activities = [];
 
           for (const result of results) {
-            const eventHandler = new AskCreatedEventHandler(
+            const eventHandler = new AskCancelledEventHandler(
               result.order_id,
               result.event_tx_hash,
               result.event_log_index,
@@ -82,21 +82,21 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
             const activity = eventHandler.buildDocument(result);
 
+            logger.debug(
+              QUEUE_NAME,
+              JSON.stringify({
+                message: `Generated activity ${activity.id}.`,
+                result,
+                activity,
+              })
+            );
+
             activities.push(activity);
           }
 
           await ActivitiesIndex.save(activities);
 
           const lastResult = results[results.length - 1];
-
-          logger.debug(
-            QUEUE_NAME,
-            `Processed ${results.length} activities. cursor=${JSON.stringify(
-              cursor
-            )}, fromTimestamp=${fromTimestamp}, toTimestamp=${toTimestamp}, lastTimestamp=${
-              lastResult.updated_ts
-            }`
-          );
 
           job.data.addToQueue = true;
           job.data.addToQueueCursor = {

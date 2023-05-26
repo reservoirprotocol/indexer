@@ -8,6 +8,8 @@ import { logger } from "@/common/logger";
 import { formatEth, regex } from "@/common/utils";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { UserActivities } from "@/models/user-activities";
+import { config } from "@/config/index";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const version = "v1";
 
@@ -56,6 +58,7 @@ export const getUserActivityV1Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
+      es: Joi.boolean().default(false),
       continuation: Joi.number().allow(null),
       activities: Joi.array().items(
         Joi.object({
@@ -95,6 +98,43 @@ export const getUserActivityV1Options: RouteOptions = {
     }
 
     try {
+      if (query.es === "1" || config.enableElasticsearchRead) {
+        const { activities, continuation } = await ActivitiesIndex.search({
+          types: query.types,
+          users: [params.user],
+          sortBy: "timestamp",
+          limit: query.limit,
+          continuation: query.continuation,
+          continuationAsInt: true,
+        });
+
+        const result = _.map(activities, (activity) => {
+          return {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: formatEth(activity.pricing?.price || 0),
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            token: {
+              tokenId: activity.token?.id,
+              tokenName: activity.token?.name,
+              tokenImage: activity.token?.image,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: activity.collection?.name,
+              collectionImage: activity.collection?.image,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+          };
+        });
+
+        return { activities: result, continuation: continuation ? Number(continuation) : null };
+      }
+
       const activities = await UserActivities.getActivities(
         [params.user],
         [],

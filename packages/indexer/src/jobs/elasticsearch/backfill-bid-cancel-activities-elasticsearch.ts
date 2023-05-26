@@ -5,13 +5,14 @@ import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
-import { ridb } from "@/common/db";
+
 import { config } from "@/config/index";
+import { ridb } from "@/common/db";
 
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
-import { AskCreatedEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/ask-created";
+import { BidCancelledEventHandler } from "@/elasticsearch/indexes/activities/event-handlers/bid-cancelled";
 
-const QUEUE_NAME = "backfill-ask-activities-elasticsearch";
+const QUEUE_NAME = "backfill-bid-cancel-activities-elasticsearch";
 
 export const queue = new Queue(QUEUE_NAME, {
   connection: redis.duplicate(),
@@ -34,10 +35,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
       const cursor = job.data.cursor as CursorInfo;
       const fromTimestamp = job.data.fromTimestamp || 0;
       const toTimestamp = job.data.toTimestamp || 9999999999;
-      const timestampFilterField = job.data.timestampFilterField;
-      const orderId = job.data.orderId;
 
-      const limit = Number((await redis.get(`${QUEUE_NAME}-limit`)) || 1);
+      const limit = Number((await redis.get(`${QUEUE_NAME}-limit`)) || 1000);
 
       try {
         let continuationFilter = "";
@@ -46,14 +45,11 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           continuationFilter = `AND (updated_at, id) > (to_timestamp($/updatedAt/), $/id/)`;
         }
 
-        const timestampFilter = `AND ($/timestampFilterField:name/ >= to_timestamp($/fromTimestamp/) AND $/timestampFilterField:name/ < to_timestamp($/toTimestamp/))`;
-        const orderFilter = orderId ? `AND orderId = $/orderId/` : "";
-
         const query = `
-            ${AskCreatedEventHandler.buildBaseQuery()}
-            WHERE side = 'sell'
-            ${timestampFilter}
-            ${orderFilter}
+            ${BidCancelledEventHandler.buildBaseQuery()}
+            WHERE side = 'buy' AND fillability_status = 'cancelled'
+            AND fillability_status = 'fillable' AND approval_status = 'approved'
+            AND (updated_at >= to_timestamp($/fromTimestamp/) AND updated_at < to_timestamp($/toTimestamp/)) 
             ${continuationFilter}
             ORDER BY updated_at, id
             LIMIT $/limit/;
@@ -64,8 +60,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           updatedAt: cursor?.updatedAt,
           fromTimestamp,
           toTimestamp,
-          timestampFilterField,
-          orderId,
           limit,
         });
 
@@ -73,7 +67,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           const activities = [];
 
           for (const result of results) {
-            const eventHandler = new AskCreatedEventHandler(
+            const eventHandler = new BidCancelledEventHandler(
               result.order_id,
               result.event_tx_hash,
               result.event_log_index,
@@ -130,17 +124,9 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 export const addToQueue = async (
   cursor?: CursorInfo,
   fromTimestamp?: number,
-  toTimestamp?: number,
-  timestampFilterField = "updated_at",
-  orderId?: string
+  toTimestamp?: number
 ) => {
-  await queue.add(randomUUID(), {
-    cursor,
-    fromTimestamp,
-    toTimestamp,
-    timestampFilterField,
-    orderId,
-  });
+  await queue.add(randomUUID(), { cursor, fromTimestamp, toTimestamp });
 };
 
 export interface CursorInfo {
