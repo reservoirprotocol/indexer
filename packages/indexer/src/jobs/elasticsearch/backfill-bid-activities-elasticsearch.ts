@@ -68,6 +68,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
           for (const result of results) {
             const eventHandler = new BidCreatedEventHandler(
+              result.order_id,
               result.event_tx_hash,
               result.event_log_index,
               result.event_batch_index
