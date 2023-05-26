@@ -9,6 +9,8 @@ import { buildContinuation, formatEth, regex, splitContinuation } from "@/common
 import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { Sources } from "@/models/sources";
+import { config } from "@/config/index";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const version = "v3";
 
@@ -71,6 +73,7 @@ export const getCollectionActivityV3Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
+      es: Joi.boolean().default(false),
       continuation: Joi.string().allow(null),
       activities: Joi.array().items(
         Joi.object({
@@ -119,11 +122,90 @@ export const getCollectionActivityV3Options: RouteOptions = {
       query.types = [query.types];
     }
 
-    if (query.continuation) {
-      query.continuation = splitContinuation(query.continuation)[0];
-    }
-
     try {
+      if (query.es === "1" || config.enableElasticsearchRead) {
+        const sources = await Sources.getInstance();
+
+        const { activities, continuation } = await ActivitiesIndex.search({
+          types: query.types,
+          collections: [params.collection],
+          sortBy: "timestamp",
+          limit: query.limit,
+          continuation: query.continuation,
+        });
+
+        const result = _.map(activities, (activity) => {
+          const orderSource = activity.order?.sourceId
+            ? sources.get(activity.order.sourceId)
+            : undefined;
+
+          const orderMetadata = activity.order?.criteria
+            ? {
+                kind: activity.order.criteria.kind,
+                data: {
+                  collectionId: activity.collection?.id,
+                  collectionName: activity.collection?.name,
+                  tokenId: activity.token?.id,
+                  tokenName: activity.token?.name,
+                  image:
+                    activity.order.criteria.kind === "token"
+                      ? activity.token?.image
+                      : activity.collection?.image,
+                  attributes: activity.order.criteria.data.attribute
+                    ? [activity.order.criteria.data.attribute]
+                    : undefined,
+                },
+              }
+            : undefined;
+
+          return {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: formatEth(activity.pricing?.price || 0),
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            token: {
+              tokenId: activity.token?.id,
+              tokenName: activity.token?.name,
+              tokenImage: activity.token?.image,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: activity.collection?.name,
+              collectionImage: activity.collection?.image,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            order: activity.order?.id
+              ? {
+                  id: activity.order.id,
+                  side: activity.order.side
+                    ? activity.order.side === "sell"
+                      ? "ask"
+                      : "bid"
+                    : undefined,
+                  source: orderSource
+                    ? {
+                        domain: orderSource?.domain,
+                        name: orderSource?.getTitle(),
+                        icon: orderSource?.getIcon(),
+                      }
+                    : undefined,
+                  metadata: orderMetadata,
+                }
+              : undefined,
+          };
+        });
+
+        return { activities: result, continuation, es: true };
+      }
+
+      if (query.continuation) {
+        query.continuation = splitContinuation(query.continuation)[0];
+      }
+
       const activities = await Activities.getCollectionActivities(
         params.collection,
         "",

@@ -10,6 +10,11 @@ import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { Sources } from "@/models/sources";
 import { JoiOrderMetadata } from "@/common/joi";
+import { config } from "@/config/index";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { CollectionSets } from "@/models/collection-sets";
+import * as Boom from "@hapi/boom";
+import { Collections } from "@/models/collections";
 
 const version = "v4";
 
@@ -75,6 +80,7 @@ export const getCollectionActivityV4Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
+      es: Joi.boolean().default(false),
       continuation: Joi.string().allow(null),
       activities: Joi.array().items(
         Joi.object({
@@ -123,11 +129,107 @@ export const getCollectionActivityV4Options: RouteOptions = {
       query.types = [query.types];
     }
 
-    if (query.continuation) {
-      query.continuation = splitContinuation(query.continuation)[0];
-    }
-
     try {
+      if (query.es === "1" || config.enableElasticsearchRead) {
+        if (query.collectionsSetId) {
+          query.collection = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+          if (_.isEmpty(query.collection)) {
+            throw Boom.badRequest(`No collections for collection set ${query.collectionsSetId}`);
+          }
+        }
+
+        if (query.community) {
+          query.collection = await Collections.getIdsByCommunity(query.community);
+
+          if (query.collection.length === 0) {
+            throw Boom.badRequest(`No collections for community ${query.community}`);
+          }
+        }
+
+        const sources = await Sources.getInstance();
+
+        const { activities, continuation } = await ActivitiesIndex.search({
+          types: query.types,
+          collections: [query.collection],
+          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+          limit: query.limit,
+          continuation: query.continuation,
+        });
+
+        const result = _.map(activities, (activity) => {
+          const orderSource = activity.order?.sourceId
+            ? sources.get(activity.order.sourceId)
+            : undefined;
+
+          const orderCriteria = activity.order?.criteria
+            ? {
+                kind: activity.order.criteria.kind,
+                data: {
+                  collectionId: activity.collection?.id,
+                  collectionName: activity.collection?.name,
+                  tokenId: activity.token?.id,
+                  tokenName: activity.token?.name,
+                  image:
+                    activity.order.criteria.kind === "token"
+                      ? activity.token?.image
+                      : activity.collection?.image,
+                  attributes: activity.order.criteria.data.attribute
+                    ? [activity.order.criteria.data.attribute]
+                    : undefined,
+                },
+              }
+            : undefined;
+
+          return {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: formatEth(activity.pricing?.price || 0),
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            createdAt: activity.createdAt.toISOString(),
+            contract: activity.contract,
+            token: {
+              tokenId: activity.token?.id,
+              tokenName: activity.token?.name,
+              tokenImage: activity.token?.image,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: activity.collection?.name,
+              collectionImage: activity.collection?.image,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            order: activity.order?.id
+              ? {
+                  id: activity.order.id,
+                  side: activity.order.side
+                    ? activity.order.side === "sell"
+                      ? "ask"
+                      : "bid"
+                    : undefined,
+                  source: orderSource
+                    ? {
+                        domain: orderSource?.domain,
+                        name: orderSource?.getTitle(),
+                        icon: orderSource?.getIcon(),
+                      }
+                    : undefined,
+                  metadata: orderCriteria,
+                }
+              : undefined,
+          };
+        });
+
+        return { activities: result, continuation, es: true };
+      }
+
+      if (query.continuation) {
+        query.continuation = splitContinuation(query.continuation)[0];
+      }
+
       const activities = await Activities.getCollectionActivities(
         query.collection,
         query.community,

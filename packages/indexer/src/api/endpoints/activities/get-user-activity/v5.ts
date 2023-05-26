@@ -14,6 +14,9 @@ import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
 import { JoiOrderCriteria } from "@/common/joi";
 import { ContractSets } from "@/models/contract-sets";
+import { config } from "@/config/index";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { Collections } from "@/models/collections";
 
 const version = "v5";
 
@@ -98,6 +101,7 @@ export const getUserActivityV5Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
+      es: Joi.boolean().default(false),
       continuation: Joi.string().allow(null),
       activities: Joi.array().items(
         Joi.object({
@@ -161,10 +165,6 @@ export const getUserActivityV5Options: RouteOptions = {
       query.users = [query.users];
     }
 
-    if (query.continuation) {
-      query.continuation = splitContinuation(query.continuation)[0];
-    }
-
     if (query.collectionsSetId) {
       query.collection = await CollectionSets.getCollectionsIds(query.collectionsSetId);
       if (_.isEmpty(query.collection)) {
@@ -180,6 +180,105 @@ export const getUserActivityV5Options: RouteOptions = {
     }
 
     try {
+      if (query.es === "1" || config.enableElasticsearchRead) {
+        if (!_.isArray(query.collection)) {
+          query.collection = [query.collection];
+        }
+
+        if (query.community) {
+          query.collection = await Collections.getIdsByCommunity(query.community);
+
+          if (query.collection.length === 0) {
+            throw Boom.badRequest(`No collections for community ${query.community}`);
+          }
+        }
+
+        const sources = await Sources.getInstance();
+
+        const { activities, continuation } = await ActivitiesIndex.search({
+          types: query.types,
+          users: query.users,
+          collections: query.collection,
+          contracts: query.contracts,
+          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+          limit: query.limit,
+          continuation: query.continuation,
+        });
+
+        const result = _.map(activities, (activity) => {
+          const orderSource = activity.order?.sourceId
+            ? sources.get(activity.order.sourceId)
+            : undefined;
+
+          const orderCriteria = activity.order?.criteria
+            ? {
+                kind: activity.order.criteria.kind,
+                data: {
+                  collectionId: activity.collection?.id,
+                  collectionName: activity.collection?.name,
+                  tokenId: activity.token?.id,
+                  tokenName: activity.token?.name,
+                  image:
+                    activity.order.criteria.kind === "token"
+                      ? activity.token?.image
+                      : activity.collection?.image,
+                  attributes: activity.order.criteria.data.attribute
+                    ? [activity.order.criteria.data.attribute]
+                    : undefined,
+                },
+              }
+            : undefined;
+
+          return {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: formatEth(activity.pricing?.price || 0),
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            createdAt: activity.createdAt.toISOString(),
+            contract: activity.contract,
+            token: {
+              tokenId: activity.token?.id,
+              tokenName: activity.token?.name,
+              tokenImage: activity.token?.image,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: activity.collection?.name,
+              collectionImage: activity.collection?.image,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            order: activity.order?.id
+              ? {
+                  id: activity.order.id,
+                  side: activity.order.side
+                    ? activity.order.side === "sell"
+                      ? "ask"
+                      : "bid"
+                    : undefined,
+                  source: orderSource
+                    ? {
+                        domain: orderSource?.domain,
+                        name: orderSource?.getTitle(),
+                        icon: orderSource?.getIcon(),
+                      }
+                    : undefined,
+                  criteria: orderCriteria,
+                }
+              : undefined,
+          };
+        });
+
+        return { activities: result, continuation, es: true };
+      }
+
+      if (query.continuation) {
+        query.continuation = splitContinuation(query.continuation)[0];
+      }
+
       const activities = await UserActivities.getActivities(
         query.users,
         query.collection,
