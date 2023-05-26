@@ -125,9 +125,7 @@ export const processEventsBatch = async (batch: EventsBatch, skipProcessing?: bo
 
 export const processEventsBatchV2 = async (batches: EventsBatch[]) => {
   const startTime = Date.now();
-  // const onChainData = initOnChainData();
-  // create 10 on chain data objects
-  const onChainDatas = Array.from({ length: 10 }, () => initOnChainData());
+  const onChainData = initOnChainData();
 
   const batchArray = batches.map((batch) => {
     return batch.events.map((events) => {
@@ -145,10 +143,6 @@ export const processEventsBatchV2 = async (batches: EventsBatch[]) => {
   }[] = [];
   await Promise.all(
     flattenedArray.map(async (events) => {
-      // pick the on chain data with the least amount of fillEvents
-      const onChainData = onChainDatas.reduce((prev, curr) => {
-        return prev.fillEvents.length < curr.fillEvents.length ? prev : curr;
-      });
       const startTime = Date.now();
       if (!events.data.length) {
         return;
@@ -177,17 +171,7 @@ export const processEventsBatchV2 = async (batches: EventsBatch[]) => {
   const endProcessLogsTime = Date.now();
 
   const startSaveOnChainDataTime = Date.now();
-
-  // eslint-disable-next-line
-  const processOnChainLatencies: any[] = [];
-
-  await Promise.all(
-    onChainDatas.map(async (onChainData) => {
-      const processOnChainLatency = await processOnChainData(onChainData, false);
-      processOnChainLatencies.push(processOnChainLatency);
-    })
-  );
-
+  const processOnChainLatencies = await processOnChainData(onChainData, false);
   const endSaveOnChainDataTime = Date.now();
 
   const endTime = Date.now();
