@@ -70,6 +70,7 @@ export const SwapRouter: ChainIdToAddress = {
   [Network.Optimism]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.Polygon]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.Arbitrum]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
+  [Network.Bsc]: "0xb971ef87ede563556b2ed4b1c0b0019111dd85d2",
 };
 
 export const Create3Factory: ChainIdToAddress = {

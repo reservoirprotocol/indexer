@@ -43,7 +43,7 @@ if (config.doBackgroundWork) {
       const currentTime = now();
       if (currentTime > lastTimestamp) {
         await backfillExpiredOrders.addToQueue(
-          _.range(0, currentTime - lastTimestamp).map((s) => currentTime - s)
+          _.range(0, currentTime - lastTimestamp + 1).map((s) => currentTime - s)
         );
       }
 
