@@ -29,8 +29,10 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       });
     } else {
       logger.info(
-        this.topicName,
-        `Old order websocket work is enabled, skipping websocket event router for order=${
+        "kahfka-event-handler",
+        `${
+          this.topicName
+        }: Old order websocket work is enabled, skipping websocket event router for order=${
           JSON.stringify(payload.after) || "null"
         }`
       );
@@ -56,8 +58,10 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       });
     } else {
       logger.info(
-        this.topicName,
-        `Old order websocket work is enabled, skipping websocket event router for order=${
+        "kahfka-event-handler",
+        `${
+          this.topicName
+        }: Old order websocket work is enabled, skipping websocket event router for order=${
           JSON.stringify(payload.after) || "null"
         }`
       );
