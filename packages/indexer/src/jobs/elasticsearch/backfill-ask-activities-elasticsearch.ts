@@ -46,7 +46,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           continuationFilter = `AND (updated_at, id) > (to_timestamp($/updatedAt/), $/id/)`;
         }
 
-        const timestampFilter = `AND ($/timestampFilterField/ >= to_timestamp($/fromTimestamp/) AND $/timestampFilterField/ < to_timestamp($/toTimestamp/))`;
+        const timestampFilter = `AND ($/timestampFilterField:name/ >= to_timestamp($/fromTimestamp/) AND $/timestampFilterField:name/ < to_timestamp($/toTimestamp/))`;
         const orderFilter = orderId ? `AND orderId = $/orderId/` : "";
 
         const query = `
