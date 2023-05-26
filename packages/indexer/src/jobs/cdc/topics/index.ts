@@ -6,7 +6,6 @@ import { IndexerTransferEventsHandler } from "@/jobs/cdc/topics/indexer-nft-tran
 import { IndexerOrdersHandler } from "@/jobs/cdc/topics/indexer-orders";
 
 export const TopicHandlers: KafkaEventHandler[] = [
-  new IndexerOrdersHandler(),
   new IndexerTransferEventsHandler(),
   new IndexerApprovalEventsHandler(),
   new IndexerFillEventsHandler(),

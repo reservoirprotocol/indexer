@@ -47,7 +47,8 @@ if (config.doBackgroundWork) {
         );
       }
 
-      await redis.set(lastTimestampKey, currentTime);
+      // Make sure to have some redundancy checks
+      await redis.set(lastTimestampKey, currentTime - intervalInSeconds);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
