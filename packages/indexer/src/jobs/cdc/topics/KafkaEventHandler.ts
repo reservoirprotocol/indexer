@@ -12,13 +12,14 @@ export abstract class KafkaEventHandler {
   async handle(payload: any): Promise<void> {
     try {
       // convert any hex strings to strings
-      this.convertPayloadHexToString(payload);
 
       switch (payload.op) {
         case "c":
+          this.convertPayloadHexToString(payload);
           this.handleInsert(payload);
           break;
         case "u":
+          this.convertPayloadHexToString(payload);
           this.handleUpdate(payload);
           break;
         case "d":
