@@ -82,21 +82,21 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
             const activity = eventHandler.buildDocument(result);
 
-            logger.debug(
-              QUEUE_NAME,
-              JSON.stringify({
-                message: `Generated activity ${activity.id}.`,
-                result,
-                activity,
-              })
-            );
-
             activities.push(activity);
           }
 
           await ActivitiesIndex.save(activities);
 
           const lastResult = results[results.length - 1];
+
+          logger.debug(
+            QUEUE_NAME,
+            `Processed ${results.length} activities. cursor=${JSON.stringify(
+              cursor
+            )}, fromTimestamp=${fromTimestamp}, toTimestamp=${toTimestamp}, lastTimestamp=${
+              lastResult.updated_ts
+            }`
+          );
 
           job.data.addToQueue = true;
           job.data.addToQueueCursor = {
