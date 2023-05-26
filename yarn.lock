@@ -6000,10 +6000,10 @@ builtins@^5.0.0:
   dependencies:
     semver "^7.0.0"
 
-bullmq@1.76.1:
-  version "1.76.1"
-  resolved "https://registry.npmjs.org/bullmq/-/bullmq-1.76.1.tgz"
-  integrity sha512-K+TAT2mbuDEz99IuC/rY+vwmA6jpUH0w5y61pdNx0xVdHdAWn6dd9Vs0MnCObZDHCdbNgGvFumfOjCzHjD4VVg==
+bullmq@1.76.6:
+  version "1.76.6"
+  resolved "https://registry.yarnpkg.com/bullmq/-/bullmq-1.76.6.tgz#1b39cae9f86aaaa28e63d16ed03dae89bd89ea21"
+  integrity sha512-IfOcaYFm1RLOGRRNsOibVJL5kSvWZ6/Zyu1rSrRr2Pe4UqGES6HoJwCqtWsdIXf/LcT6JCKnY9fR+zzvfm9quw==
   dependencies:
     cron-parser "^2.18.0"
     get-port "^5.1.1"

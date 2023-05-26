@@ -66,23 +66,40 @@ export async function startKafkaConsumer(): Promise<void> {
           }
         }
       } catch (error) {
-        logger.error(
-          `${getServiceName()}-kafka-consumer`,
-          `Error handling topic=${topic}, error=${error}, payload=${message.value!.toString()}`
-        );
+        try {
+          logger.error(
+            `${getServiceName()}-kafka-consumer`,
+            `Error handling topic=${topic}, error=${error}, payload=${JSON.stringify(message)}`
+          );
 
-        const newMessage = {
-          error: JSON.stringify(error),
-          value: message.value,
-        };
+          const newMessage = {
+            error: JSON.stringify(error),
+            value: message.value,
+          };
 
-        // If the event has an issue with finding its corresponding topic handler, send it to the dead letter queue
-        await producer.send({
-          topic: `${topic}-dead-letter`,
-          messages: [newMessage],
-        });
+          // If the event has an issue with finding its corresponding topic handler, send it to the dead letter queue
+          await producer.send({
+            topic: `${topic}-dead-letter`,
+            messages: [newMessage],
+          });
+        } catch (error) {
+          logger.error(
+            `${getServiceName()}-kafka-consumer`,
+            `Error sending to dead letter topic=${topic}, error=${error}}`
+          );
+        }
       }
     },
+  });
+
+  consumer.on("consumer.crash", async (error) => {
+    logger.error(`${getServiceName()}-kafka-consumer`, `Consumer crashed, error=${error}`);
+    await restartKafkaConsumer();
+  });
+
+  consumer.on("consumer.disconnect", async (error) => {
+    logger.error(`${getServiceName()}-kafka-consumer`, `Consumer disconnected, error=${error}`);
+    await restartKafkaConsumer();
   });
 }
 
