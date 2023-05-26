@@ -34,6 +34,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
       const cursor = job.data.cursor as CursorInfo;
       const fromTimestamp = job.data.fromTimestamp || 0;
       const toTimestamp = job.data.toTimestamp || 9999999999;
+      const timestampFilterField = job.data.timestampFilterField;
+      const orderId = job.data.orderId;
 
       const limit = Number((await redis.get(`${QUEUE_NAME}-limit`)) || 1);
 
@@ -44,10 +46,14 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           continuationFilter = `AND (updated_at, id) > (to_timestamp($/updatedAt/), $/id/)`;
         }
 
+        const timestampFilter = `AND ($/timestampFilterField/ >= to_timestamp($/fromTimestamp/) AND $/timestampFilterField/ < to_timestamp($/toTimestamp/))`;
+        const orderFilter = orderId ? `AND orderId = $/orderId/` : "";
+
         const query = `
             ${AskCreatedEventHandler.buildBaseQuery()}
             WHERE side = 'sell'
-            AND (updated_at >= to_timestamp($/fromTimestamp/) AND updated_at < to_timestamp($/toTimestamp/)) 
+            ${timestampFilter}
+            ${orderFilter}
             ${continuationFilter}
             ORDER BY updated_at, id
             LIMIT $/limit/;
@@ -58,6 +64,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
           updatedAt: cursor?.updatedAt,
           fromTimestamp,
           toTimestamp,
+          timestampFilterField,
+          orderId,
           limit,
         });
 
@@ -66,11 +74,21 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
           for (const result of results) {
             const eventHandler = new AskCreatedEventHandler(
+              result.order_id,
               result.event_tx_hash,
               result.event_log_index,
               result.event_batch_index
             );
             const activity = eventHandler.buildDocument(result);
+
+            logger.info(
+              QUEUE_NAME,
+              JSON.stringify({
+                message: `Generated activity ${activity.id}.`,
+                result,
+                activity,
+              })
+            );
 
             activities.push(activity);
           }
@@ -120,9 +138,17 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 export const addToQueue = async (
   cursor?: CursorInfo,
   fromTimestamp?: number,
-  toTimestamp?: number
+  toTimestamp?: number,
+  timestampFilterField = "updated_at",
+  orderId?: string
 ) => {
-  await queue.add(randomUUID(), { cursor, fromTimestamp, toTimestamp });
+  await queue.add(randomUUID(), {
+    cursor,
+    fromTimestamp,
+    toTimestamp,
+    timestampFilterField,
+    orderId,
+  });
 };
 
 export interface CursorInfo {
