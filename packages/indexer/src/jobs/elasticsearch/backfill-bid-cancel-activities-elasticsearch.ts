@@ -76,15 +76,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
             const activity = eventHandler.buildDocument(result);
 
-            logger.debug(
-              QUEUE_NAME,
-              JSON.stringify({
-                message: `Generated activity ${activity.id}.`,
-                result,
-                activity,
-              })
-            );
-
             activities.push(activity);
           }
 
