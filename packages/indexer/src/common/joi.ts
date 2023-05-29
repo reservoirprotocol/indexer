@@ -26,9 +26,9 @@ const JoiPriceAmount = Joi.object({
 
 const JoiPriceCurrency = Joi.object({
   contract: Joi.string().pattern(regex.address),
-  name: Joi.string(),
-  symbol: Joi.string(),
-  decimals: Joi.number(),
+  name: Joi.string().allow(null),
+  symbol: Joi.string().allow(null),
+  decimals: Joi.number().allow(null),
 });
 
 export const JoiPrice = Joi.object({
