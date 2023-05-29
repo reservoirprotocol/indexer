@@ -3,6 +3,7 @@ import { getCallTraceLogs } from "@georgeroman/evm-tx-simulator";
 import { Log } from "@georgeroman/evm-tx-simulator/dist/types";
 
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { MintDetails, generateMintTxData } from "@/utils/mints/calldata/generator";
@@ -158,7 +159,9 @@ export const simulateMint = async (
         method: "customTrace",
       }
     );
-  } catch {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    logger.info("mints-process", `Error: ${error} (${error.stack})`);
     return false;
   }
 
@@ -166,6 +169,8 @@ export const simulateMint = async (
     log.address.toLowerCase() === contract &&
     log.topics[0] === eventData.topic &&
     log.topics.length === eventData.numTopics;
+
+  logger.info("mints-process", `Logs: ${JSON.stringify(logs)}`);
 
   for (const log of logs) {
     if (contractKind === "erc721") {
