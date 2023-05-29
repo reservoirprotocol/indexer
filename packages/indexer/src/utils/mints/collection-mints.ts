@@ -1,6 +1,6 @@
 import { JsonRpcProvider } from "@ethersproject/providers";
-import { getCallTrace } from "@georgeroman/evm-tx-simulator";
-import { CallTrace, Log } from "@georgeroman/evm-tx-simulator/dist/types";
+import { getCallTraceLogs } from "@georgeroman/evm-tx-simulator";
+import { Log } from "@georgeroman/evm-tx-simulator/dist/types";
 
 import { idb } from "@/common/db";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
@@ -138,44 +138,36 @@ export const simulateMint = async (
   const value = bn(price).mul(quantity);
 
   const provider = new JsonRpcProvider(config.traceNetworkHttpUrl);
-  const callTrace = await getCallTrace(
-    {
-      from: minter,
-      to,
-      data: calldata,
-      value,
-      gas: 10000000,
-      gasPrice: 0,
-      balanceOverrides: {
-        [minter]: value,
+
+  let logs: Log[];
+  try {
+    logs = await getCallTraceLogs(
+      {
+        from: minter,
+        to,
+        data: calldata,
+        value,
+        gas: 10000000,
+        gasPrice: 0,
+        balanceOverrides: {
+          [minter]: value,
+        },
       },
-    },
-    provider,
-    {
-      skipReverts: true,
-      includeLogs: true,
-    }
-  );
-  if (callTrace.error) {
+      provider,
+      {
+        method: "customTrace",
+      }
+    );
+  } catch {
     return false;
   }
-
-  const getLogs = (call: CallTrace): Log[] => {
-    const logs: Log[] = [];
-    for (const c of call.calls ?? []) {
-      logs.push(...getLogs(c));
-    }
-    logs.push(...(call.logs ?? []));
-
-    return logs;
-  };
 
   const matchesEventData = (log: Log, eventData: EventData) =>
     log.address.toLowerCase() === contract &&
     log.topics[0] === eventData.topic &&
     log.topics.length === eventData.numTopics;
 
-  for (const log of getLogs(callTrace)) {
+  for (const log of logs) {
     if (contractKind === "erc721") {
       if (matchesEventData(log, erc721.transfer)) {
         const parsedLog = erc721.transfer.abi.parseLog(log);
