@@ -205,7 +205,7 @@ export const getTokenActivityV5Options: RouteOptions = {
             ),
             amount: Number(activity.amount),
             timestamp: activity.timestamp,
-            createdAt: activity.createdAt.toISOString(),
+            createdAt: new Date(activity.createdAt).toISOString(),
             contract: activity.contract,
             token: {
               tokenId: activity.token?.id,

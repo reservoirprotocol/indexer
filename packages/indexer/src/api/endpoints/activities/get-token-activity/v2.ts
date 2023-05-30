@@ -191,7 +191,7 @@ export const getTokenActivityV2Options: RouteOptions = {
           price: formatEth(activity.price),
           amount: activity.amount,
           timestamp: activity.eventTimestamp,
-          createdAt: activity.createdAt.toISOString(),
+          createdAt: new Date(activity.createdAt).toISOString(),
           token: {
             tokenId: activity.token?.tokenId,
             tokenName: activity.token?.tokenName,
