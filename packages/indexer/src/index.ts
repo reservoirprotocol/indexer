@@ -21,7 +21,6 @@ process.on("unhandledRejection", (error) => {
 
   // For now, just skip any unhandled errors
   // process.exit(1);
-  // test redeploy
 });
 
 const setup = async () => {
