@@ -26,6 +26,7 @@ import {
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
 import { Assets } from "@/utils/assets";
+import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v6";
 
@@ -577,13 +578,6 @@ export const getTokensV6Options: RouteOptions = {
         `;
       }
 
-      if (query.collectionsSetId) {
-        baseQuery += `
-          JOIN collections_sets_collections csc
-            ON t.collection_id = csc.collection_id
-        `;
-      }
-
       if (query.attributes) {
         const attributes: { key: string; value: any }[] = [];
         Object.entries(query.attributes).forEach(([key, value]) => attributes.push({ key, value }));
@@ -689,10 +683,6 @@ export const getTokensV6Options: RouteOptions = {
 
       if (query.tokenSetId) {
         conditions.push(`tst.token_set_id = $/tokenSetId/`);
-      }
-
-      if (query.collectionsSetId) {
-        conditions.push(`csc.collections_set_id = $/collectionsSetId/`);
       }
 
       if (query.currencies) {
@@ -813,52 +803,74 @@ export const getTokensV6Options: RouteOptions = {
 
       // Sorting
 
+      const getSort = function (sortBy: string, union: boolean) {
+        switch (sortBy) {
+          case "rarity": {
+            return ` ORDER BY ${union ? "" : "t."}rarity_rank ${
+              query.sortDirection || "ASC"
+            } NULLS ${nullsPosition}, ${union ? "" : "t."}contract ${
+              query.sortDirection || "ASC"
+            }, ${union ? "" : "t."}token_id ${query.sortDirection || "ASC"}`;
+          }
+          case "tokenId": {
+            return ` ORDER BY ${union ? "" : "t."}contract ${query.sortDirection || "ASC"}, ${
+              union ? "" : "t."
+            }token_id ${query.sortDirection || "ASC"}`;
+          }
+          case "floorAskPrice":
+          default: {
+            const sortColumn = query.nativeSource
+              ? `${union ? "" : "s."}floor_sell_value`
+              : query.normalizeRoyalties
+              ? `${union ? "" : "t."}normalized_floor_sell_value`
+              : `${union ? "" : "t."}floor_sell_value`;
+
+            return ` ORDER BY ${sortColumn} ${
+              query.sortDirection || "ASC"
+            } NULLS ${nullsPosition}, ${union ? "" : "t."}contract ${
+              query.sortDirection || "ASC"
+            }, ${union ? "" : "t."}token_id ${query.sortDirection || "ASC"}`;
+          }
+        }
+      };
+
       // Only allow sorting on floorSell when we filter by collection / attributes / tokenSetId / rarity
       if (
         query.collection ||
         query.attributes ||
         query.tokenSetId ||
         query.rarity ||
-        query.collectionsSetId ||
         query.tokens
       ) {
-        switch (query.sortBy) {
-          case "rarity": {
-            baseQuery += ` ORDER BY t.rarity_rank ${
-              query.sortDirection || "ASC"
-            } NULLS ${nullsPosition}, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
-              query.sortDirection || "ASC"
-            }`;
-            break;
-          }
-
-          case "tokenId": {
-            baseQuery += ` ORDER BY t.contract ${query.sortDirection || "ASC"}, t.token_id ${
-              query.sortDirection || "ASC"
-            }`;
-            break;
-          }
-
-          case "floorAskPrice":
-          default: {
-            const sortColumn = query.nativeSource
-              ? "s.floor_sell_value"
-              : query.normalizeRoyalties
-              ? "t.normalized_floor_sell_value"
-              : "t.floor_sell_value";
-
-            baseQuery += ` ORDER BY ${sortColumn} ${
-              query.sortDirection || "ASC"
-            } NULLS ${nullsPosition}, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
-              query.sortDirection || "ASC"
-            }`;
-            break;
-          }
-        }
+        baseQuery += getSort(query.sortBy, false);
       } else if (query.contract) {
         baseQuery += ` ORDER BY t.contract ${query.sortDirection || "ASC"}, t.token_id ${
           query.sortDirection || "ASC"
         }`;
+      }
+
+      // Break query into UNION of results for each collectionId when filtering on collectionsSetId
+      if (query.collectionsSetId) {
+        const collectionsSetQueries = [];
+        const collections = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+        const collectionsSetSort = getSort(query.sortBy, true);
+
+        for (const i in collections) {
+          (query as any)[`collection${i}`] = collections[i];
+          collectionsSetQueries.push(
+            `(
+              ${baseQuery}
+              ${conditions.length ? `AND ` : `WHERE `} t.collection_id = $/collection${i}/
+              ${collectionsSetSort}
+              LIMIT $/limit/
+            )`
+          );
+        }
+
+        baseQuery = `
+          ${collectionsSetQueries.join(` UNION ALL `)}
+          ${collectionsSetSort}
+        `;
       }
 
       baseQuery += ` LIMIT $/limit/`;
