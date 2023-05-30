@@ -386,6 +386,34 @@ export const getExecuteCancelV3Options: RouteOptions = {
 
       let cancelTx: TxData;
 
+      // Set up generic filling steps
+      let steps: {
+        id: string;
+        action: string;
+        description: string;
+        kind: string;
+        items: {
+          status: string;
+          tip?: string;
+          data?: object;
+        }[];
+      }[] = [
+        {
+          id: "auth",
+          action: "Sign in to Blur",
+          description: "Some marketplaces require signing an auth message before filling",
+          kind: "signature",
+          items: [],
+        },
+        {
+          id: "cancellation-signature",
+          action: "Cancel order",
+          description: "Authorize the cancellation of the order",
+          kind: "signature",
+          items: [],
+        },
+      ];
+
       const maker = fromBuffer(orderResult.maker);
       switch (orderResult.kind) {
         case "seaport": {
@@ -472,40 +500,96 @@ export const getExecuteCancelV3Options: RouteOptions = {
         }
 
         case "blur": {
-          const order = new Sdk.Blur.Order(config.chainId, orderResult.raw_data);
-          const exchange = new Sdk.Blur.Exchange(config.chainId);
-          cancelTx = exchange.cancelOrderTx(order.params.trader, order);
+          if (orderResult.raw_data.createdAt) {
+            // Handle Blur authentication
+            const blurAuthId = b.getAuthId(maker);
+            const blurAuth = await b.getAuth(blurAuthId);
+            if (!blurAuth) {
+              const blurAuthChallengeId = b.getAuthChallengeId(maker);
+
+              let blurAuthChallenge = await b.getAuthChallenge(blurAuthChallengeId);
+              if (!blurAuthChallenge) {
+                blurAuthChallenge = (await axios
+                  .get(`${config.orderFetcherBaseUrl}/api/blur-auth-challenge?taker=${maker}`)
+                  .then((response) => response.data.authChallenge)) as b.AuthChallenge;
+
+                await b.saveAuthChallenge(
+                  blurAuthChallengeId,
+                  blurAuthChallenge,
+                  // Give a 1 minute buffer for the auth challenge to expire
+                  Math.floor(new Date(blurAuthChallenge?.expiresOn).getTime() / 1000) - now() - 60
+                );
+              }
+
+              steps[0].items.push({
+                status: "incomplete",
+                data: {
+                  sign: {
+                    signatureKind: "eip191",
+                    message: blurAuthChallenge.message,
+                  },
+                  post: {
+                    endpoint: "/execute/auth-signature/v1",
+                    method: "POST",
+                    body: {
+                      kind: "blur",
+                      id: blurAuthChallengeId,
+                    },
+                  },
+                },
+              });
+
+              // Force the client to poll
+              steps[1].items.push({
+                status: "incomplete",
+                tip: "This step is dependent on a previous step. Once you've completed it, re-call the API to get the data for this step.",
+              });
+
+              return { steps };
+            } else {
+              steps[0].items.push({
+                status: "complete",
+              });
+
+              cancelTx = await axios
+                .post(`${config.orderFetcherBaseUrl}/api/blur-cancel-listings`, {
+                  maker,
+                  contract: orderResult.raw_data.collection,
+                  tokenId: orderResult.raw_data.tokenId,
+                  authToken: blurAuth.accessToken,
+                })
+                .then((response) => response.data);
+            }
+          } else {
+            const order = new Sdk.Blur.Order(config.chainId, orderResult.raw_data);
+            const exchange = new Sdk.Blur.Exchange(config.chainId);
+            cancelTx = exchange.cancelOrderTx(order.params.trader, order);
+          }
 
           break;
         }
 
-        // TODO: Add support for X2Y2 (it's tricky because of the signature requirement)
+        // TODO: Add support for X2Y2
 
         default: {
           throw Boom.notImplemented("Unsupported order kind");
         }
       }
 
+      steps[1].items.push({
+        status: "incomplete",
+        data: {
+          ...cancelTx,
+          ...gasSettings,
+        },
+      });
+
+      if (orderResult.kind !== "blur") {
+        steps = steps.slice(1);
+      }
+
       return {
-        steps: [
-          {
-            id: "cancellation",
-            action: "Submit cancellation",
-            description: `To cancel ${
-              isBulkCancel ? "these orders" : "this order"
-            } you must confirm the transaction and pay the gas fee`,
-            kind: "transaction",
-            items: [
-              {
-                status: "incomplete",
-                data: {
-                  ...cancelTx,
-                  ...gasSettings,
-                },
-              },
-            ],
-          },
-        ],
+        steps,
       };
     } catch (error) {
       logger.error(`get-execute-cancel-${version}-handler`, `Handler failure: ${error}`);

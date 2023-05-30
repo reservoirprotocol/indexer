@@ -1,4 +1,4 @@
-import { AddressZero } from "@ethersproject/constants";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
 import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
@@ -21,7 +21,7 @@ type SaveResult = {
   id: string;
   status: string;
   unfillable?: boolean;
-  triggerKind?: "new-order" | "cancelled" | "reprice";
+  triggerKind?: "new-order" | "cancel" | "reprice";
 };
 
 // Listings (full)
@@ -309,9 +309,18 @@ export type PartialListingOrderInfo = {
   metadata: OrderMetadata;
 };
 
-const getBlurListingId = (collection: string, tokenId: string, owner: string) =>
-  // Deterministic order id
-  keccak256(["string", "address", "uint256", "address"], ["blur", collection, tokenId, owner]);
+const getBlurListingId = (orderParams: PartialListingOrderParams, owner: string) =>
+  keccak256(
+    ["string", "address", "address", "uint256", "uint256", "uint256"],
+    [
+      "blur",
+      owner,
+      orderParams.collection,
+      orderParams.tokenId,
+      parseEther(orderParams.price!),
+      Math.floor(new Date(orderParams.createdAt!).getTime() / 1000),
+    ]
+  );
 
 export const savePartialListings = async (
   orderInfos: PartialListingOrderInfo[],
@@ -323,80 +332,68 @@ export const savePartialListings = async (
   const handleOrder = async ({ orderParams }: PartialListingOrderInfo) => {
     logger.info("blur-debug", JSON.stringify(orderInfos));
 
-    // Fetch all wallets that ever owned the current token
-    const owners = await idb
-      .manyOrNone(
+    try {
+      // Fetch current owner
+      const owner = await idb
+        .oneOrNone(
+          `
+            SELECT
+              nft_balances.owner
+            FROM nft_balances
+            WHERE nft_balances.contract = $/contract/
+              AND nft_balances.token_id = $/tokenId/
+              AND nft_balances.amount > 0
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(orderParams.collection),
+            tokenId: orderParams.tokenId,
+          }
+        )
+        .then((r) => fromBuffer(r.owner));
+
+      // Handle: source
+      const sources = await Sources.getInstance();
+      const source = await sources.getOrInsert("blur.io");
+
+      // Invalidate any old orders
+      const anyActiveOrders = orderParams.price && orderParams.createdAt;
+      const invalidatedOrderIds = await idb.manyOrNone(
         `
-          SELECT
-            nft_balances.owner,
-            nft_balances.amount
-          FROM nft_balances
-          WHERE nft_balances.contract = $/contract/
-            AND nft_balances.token_id = $/tokenId/
+          UPDATE orders SET
+            fillability_status = 'cancelled',
+            expiration = now(),
+            updated_at = now()
+          WHERE orders.token_set_id = $/tokenSetId/
+            AND orders.source_id_int = $/sourceId/
+            AND orders.fillability_status = 'fillable'
+            AND orders.raw_data->>'createdAt' IS NOT NULL
+            AND orders.id != $/excludeOrderId/
+          RETURNING orders.id
         `,
         {
-          contract: toBuffer(orderParams.collection),
-          tokenId: orderParams.tokenId,
+          tokenSetId: `token:${orderParams.collection}:${orderParams.tokenId}`,
+          sourceId: source.id,
+          excludeOrderId: anyActiveOrders ? getBlurListingId(orderParams, owner) : HashZero,
         }
-      )
-      .then((results) =>
-        results.map((r) => ({
-          owner: fromBuffer(r.owner),
-          amount: bn(r.amount),
-        }))
       );
-
-    // Select the current owner of the token
-    const currentOwner = owners.find((o) => o.amount.gt(0))!.owner;
-
-    const invalidateOrdersFromOwners = async (owners: string[]) =>
-      Promise.all(
-        owners.map(async (owner) => {
-          const result = await idb.oneOrNone(
-            `
-              UPDATE orders SET
-                fillability_status = 'cancelled',
-                expiration = now(),
-                updated_at = now()
-              WHERE orders.id = $/id/
-                AND orders.fillability_status != 'cancelled'
-              RETURNING orders.id
-            `,
-            {
-              id: getBlurListingId(orderParams.collection, orderParams.tokenId, owner),
-            }
-          );
-          if (result?.id) {
-            results.push({
-              id: result.id,
-              status: "success",
-              triggerKind: "cancelled",
-            });
-          }
-        })
-      );
-
-    try {
-      const invalidateAll = !orderParams.price || !orderParams.createdAt;
-      if (invalidateAll) {
-        // If no `amount` and `createdAt` fields are set then the token has no active Blur listings
-        // We invalidate all currently fillable listings associated to the token (from all owners)
-        await invalidateOrdersFromOwners(owners.map(({ owner }) => owner));
-      } else {
-        // Otherwise, we invalidate currently fillable listings from previous owners only
-        await invalidateOrdersFromOwners(
-          owners.map(({ owner }) => owner).filter((owner) => owner !== currentOwner)
-        );
-      }
-
-      const id = getBlurListingId(orderParams.collection, orderParams.tokenId, currentOwner);
-      if (invalidateAll) {
-        // No order is fillable, so we return early
-        return results.push({
+      for (const { id } of invalidatedOrderIds) {
+        results.push({
           id,
-          status: "redundant",
+          status: "success",
+          triggerKind: "cancel",
         });
       }
+
+      if (!anyActiveOrders) {
+        // No order is fillable, so we return early
+        return results.push({
+          id: HashZero,
+          status: "no-active-orders",
+        });
+      }
+
+      const id = getBlurListingId(orderParams, owner);
 
       // Handle: royalties
       let feeBps = 0;
@@ -451,10 +448,6 @@ export const savePartialListings = async (
           });
         }
 
-        // Handle: source
-        const sources = await Sources.getInstance();
-        const source = await sources.getOrInsert("blur.io");
-
         // Handle: native Reservoir orders
         const isReservoir = false;
 
@@ -466,7 +459,7 @@ export const savePartialListings = async (
           approval_status: "approved",
           token_set_id: tokenSetId,
           token_set_schema_hash: toBuffer(schemaHash),
-          maker: toBuffer(currentOwner),
+          maker: toBuffer(owner),
           taker: toBuffer(AddressZero),
           price: price.toString(),
           value: price.toString(),
