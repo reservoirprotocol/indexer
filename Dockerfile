@@ -5,7 +5,8 @@ ARG PORT=80
 EXPOSE ${PORT}
 
 WORKDIR /indexer
-ADD . /indexer
+ADD package.json yarn.lock /indexer/
 RUN yarn install
+ADD . /indexer
 RUN yarn build
 CMD yarn start
