@@ -98,6 +98,9 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. Must filter by `id` or `slug` to a particular collection."
         ),
+      includeMintData: Joi.boolean()
+        .default(false)
+        .description("If true, mint data for the collection will be included in the response."),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -254,6 +257,7 @@ export const getCollectionsV5Options: RouteOptions = {
             .allow("", null)
             .description("Returns `erc721`, `erc1155`, etc."),
           mintedTimestamp: Joi.number().allow(null),
+          isMintable: Joi.boolean().allow(null),
         })
       ),
     }).label(`getCollections${version.toUpperCase()}Response`),
@@ -318,6 +322,28 @@ export const getCollectionsV5Options: RouteOptions = {
               WHERE attribute_keys.collection_id = x.id
             GROUP BY attribute_keys.collection_id
           ) w ON TRUE
+        `;
+      }
+
+      // Include mint data
+      let mintDataSelectQuery = "";
+      let mintDataJoinQuery = "";
+      if (query.includeMintData) {
+        mintDataSelectQuery = ", v.*";
+        mintDataJoinQuery = `
+          LEFT JOIN LATERAL (
+            SELECT
+              (
+                CASE
+                  WHEN collection_mints.status = 'open' THEN TRUE
+                  ELSE FALSE
+                END
+              ) AS is_mintable
+            FROM collection_mints
+            WHERE collection_mints.collection_id = x.id
+              AND collection_mints.kind = 'public'
+            LIMIT 1
+          ) v ON TRUE
         `;
       }
 
@@ -576,6 +602,7 @@ export const getCollectionsV5Options: RouteOptions = {
           ${attributesSelectQuery}
           ${topBidSelectQuery}
           ${saleCountSelectQuery}
+          ${mintDataSelectQuery}
         FROM x
         LEFT JOIN LATERAL (
            SELECT
@@ -597,6 +624,7 @@ export const getCollectionsV5Options: RouteOptions = {
         ${attributesJoinQuery}
         ${topBidJoinQuery}
         ${saleCountJoinQuery}
+        ${mintDataJoinQuery}
       `;
 
       // Any further joins might not preserve sorting
@@ -763,6 +791,7 @@ export const getCollectionsV5Options: RouteOptions = {
               : undefined,
             contractKind: r.contract_kind,
             mintedTimestamp: r.minted_timestamp,
+            isMintable: r.is_mintable,
           };
         })
       );
