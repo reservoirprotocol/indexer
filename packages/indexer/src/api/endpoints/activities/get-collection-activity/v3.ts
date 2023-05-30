@@ -135,28 +135,33 @@ export const getCollectionActivityV3Options: RouteOptions = {
         });
 
         const result = _.map(activities, (activity) => {
-          const orderSource = activity.order?.sourceId
-            ? sources.get(activity.order.sourceId)
-            : undefined;
+          const orderSource =
+            query.includeMetadata && activity.order?.sourceId
+              ? sources.get(activity.order.sourceId)
+              : undefined;
 
-          const orderMetadata = activity.order?.criteria
-            ? {
-                kind: activity.order.criteria.kind,
-                data: {
-                  collectionId: activity.collection?.id,
-                  collectionName: activity.collection?.name,
-                  tokenId: activity.token?.id,
-                  tokenName: activity.token?.name,
-                  image:
-                    activity.order.criteria.kind === "token"
-                      ? activity.token?.image
-                      : activity.collection?.image,
-                  attributes: activity.order.criteria.data.attribute
-                    ? [activity.order.criteria.data.attribute]
-                    : undefined,
-                },
-              }
-            : undefined;
+          let orderMetadata;
+
+          if (query.includeMetadata) {
+            orderMetadata = activity.order?.criteria
+              ? {
+                  kind: activity.order.criteria.kind,
+                  data: {
+                    collectionId: activity.collection?.id,
+                    collectionName: activity.collection?.name,
+                    tokenId: activity.token?.id,
+                    tokenName: activity.token?.name,
+                    image:
+                      activity.order.criteria.kind === "token"
+                        ? activity.token?.image
+                        : activity.collection?.image,
+                    attributes: activity.order.criteria.data.attribute
+                      ? [activity.order.criteria.data.attribute]
+                      : undefined,
+                  },
+                }
+              : undefined;
+          }
 
           return {
             type: activity.type,
@@ -167,13 +172,13 @@ export const getCollectionActivityV3Options: RouteOptions = {
             timestamp: activity.timestamp,
             token: {
               tokenId: activity.token?.id,
-              tokenName: activity.token?.name,
-              tokenImage: activity.token?.image,
+              tokenName: query.includeMetadata ? activity.token?.name : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image : undefined,
             },
             collection: {
               collectionId: activity.collection?.id,
-              collectionName: activity.collection?.name,
-              collectionImage: activity.collection?.image,
+              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+              collectionImage: query.includeMetadata ? activity.collection?.image : undefined,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,

@@ -220,24 +220,46 @@ export const getUserActivityV6Options: RouteOptions = {
             ? activity.pricing.currency
             : Sdk.Common.Addresses.Eth[config.chainId];
 
-          const orderCriteria = activity.order?.criteria
-            ? {
-                kind: activity.order.criteria.kind,
-                data: {
-                  collectionId: activity.collection?.id,
-                  collectionName: activity.collection?.name,
-                  tokenId: activity.token?.id,
-                  tokenName: activity.token?.name,
-                  image:
-                    activity.order.criteria.kind === "token"
-                      ? activity.token?.image
-                      : activity.collection?.image,
-                  attributes: activity.order.criteria.data.attribute
-                    ? [activity.order.criteria.data.attribute]
-                    : undefined,
-                },
-              }
-            : undefined;
+          let order;
+
+          if (query.includeMetadata) {
+            const orderCriteria = activity.order?.criteria
+              ? {
+                  kind: activity.order.criteria.kind,
+                  data: {
+                    collectionId: activity.collection?.id,
+                    collectionName: activity.collection?.name,
+                    tokenId: activity.token?.id,
+                    tokenName: activity.token?.name,
+                    image:
+                      activity.order.criteria.kind === "token"
+                        ? activity.token?.image
+                        : activity.collection?.image,
+                    attributes: activity.order.criteria.data.attribute
+                      ? [activity.order.criteria.data.attribute]
+                      : undefined,
+                  },
+                }
+              : undefined;
+
+            order = activity.order?.id
+              ? await getJoiActivityOrderObject({
+                  id: activity.order.id,
+                  side: activity.order.side,
+                  sourceIdInt: activity.order.sourceId,
+                  criteria: orderCriteria || null,
+                })
+              : undefined;
+          } else {
+            order = activity.order?.id
+              ? await getJoiActivityOrderObject({
+                  id: activity.order.id,
+                  side: null,
+                  sourceIdInt: null,
+                  criteria: null,
+                })
+              : undefined;
+          }
 
           return {
             type: activity.type,
@@ -259,25 +281,18 @@ export const getUserActivityV6Options: RouteOptions = {
             contract: activity.contract,
             token: {
               tokenId: activity.token?.id,
-              tokenName: activity.token?.name,
-              tokenImage: activity.token?.image,
+              tokenName: query.includeMetadata ? activity.token?.name : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image : undefined,
             },
             collection: {
               collectionId: activity.collection?.id,
-              collectionName: activity.collection?.name,
-              collectionImage: activity.collection?.image,
+              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+              collectionImage: query.includeMetadata ? activity.collection?.image : undefined,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,
             batchIndex: activity.event?.batchIndex,
-            order: activity.order?.id
-              ? await getJoiActivityOrderObject({
-                  id: activity.order.id,
-                  side: activity.order.side,
-                  sourceIdInt: activity.order.sourceId,
-                  criteria: orderCriteria || null,
-                })
-              : undefined,
+            order,
           };
         });
 
