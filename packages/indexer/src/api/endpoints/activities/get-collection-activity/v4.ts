@@ -164,24 +164,28 @@ export const getCollectionActivityV4Options: RouteOptions = {
               ? sources.get(activity.order.sourceId)
               : undefined;
 
-            const orderCriteria = activity.order?.criteria
-              ? {
-                  kind: activity.order.criteria.kind,
-                  data: {
-                    collectionId: activity.collection?.id,
-                    collectionName: activity.collection?.name,
-                    tokenId: activity.token?.id,
-                    tokenName: activity.token?.name,
-                    image:
-                      activity.order.criteria.kind === "token"
-                        ? activity.token?.image
-                        : activity.collection?.image,
-                    attributes: activity.order.criteria.data.attribute
-                      ? [activity.order.criteria.data.attribute]
-                      : undefined,
-                  },
-                }
-              : undefined;
+            let orderCriteria;
+
+            if (activity.order?.criteria) {
+              orderCriteria = {
+                kind: activity.order.criteria.kind,
+                data: {
+                  collectionName: activity.collection?.name,
+                  image:
+                    activity.order.criteria.kind === "token"
+                      ? activity.token?.image
+                      : activity.collection?.image,
+                },
+              };
+
+              if (activity.order.criteria.kind === "token") {
+                (orderCriteria as any).data.tokenName = activity.token?.name;
+              }
+
+              if (activity.order.criteria.kind === "attribute") {
+                (orderCriteria as any).data.attributes = [activity.order.criteria.data.attribute];
+              }
+            }
 
             order = activity.order?.id
               ? {
@@ -226,7 +230,10 @@ export const getCollectionActivityV4Options: RouteOptions = {
             collection: {
               collectionId: activity.collection?.id,
               collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-              collectionImage: query.includeMetadata ? activity.collection?.image : undefined,
+              collectionImage:
+                query.includeMetadata && activity.collection?.image != null
+                  ? activity.collection?.image
+                  : undefined,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,
