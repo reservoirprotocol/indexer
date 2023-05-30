@@ -106,7 +106,9 @@ export const getUserActivityV6Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description("Input any ERC20 address to return result in given currency."),
-    }).oxor("collection", "collectionsSetId", "contractsSetId", "community"),
+    })
+      .oxor("collection", "collectionsSetId", "contractsSetId", "community")
+      .options({ allowUnknown: true, stripUnknown: false }),
   },
   response: {
     schema: Joi.object({

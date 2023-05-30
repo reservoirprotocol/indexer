@@ -74,7 +74,7 @@ export const getTokenActivityV5Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description("Input any ERC20 address to return result in given currency"),
-    }),
+    }).options({ allowUnknown: true, stripUnknown: false }),
   },
   response: {
     schema: Joi.object({

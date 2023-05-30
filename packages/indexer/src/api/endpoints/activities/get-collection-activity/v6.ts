@@ -96,7 +96,8 @@ export const getCollectionActivityV6Options: RouteOptions = {
         .description("Input any ERC20 address to return result in given currency"),
     })
       .xor("collection", "collectionsSetId", "community")
-      .with("attributes", "collection"),
+      .with("attributes", "collection")
+      .options({ allowUnknown: true, stripUnknown: false }),
   },
   response: {
     schema: Joi.object({
