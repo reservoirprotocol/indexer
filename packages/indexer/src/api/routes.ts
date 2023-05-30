@@ -292,6 +292,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/resync-nft-balances",
+    options: adminEndpoints.postResyncNftBalances,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/resync-sale-royalties",
     options: adminEndpoints.postResyncSaleRoyalties,
   });

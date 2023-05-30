@@ -203,14 +203,14 @@ export const postOrderV3Options: RouteOptions = {
             throw Boom.badRequest("Unsupported orderbook");
           }
 
-          const orderInfo: orders.blur.ListingOrderInfo = {
+          const orderInfo: orders.blur.FullListingOrderInfo = {
             orderParams: order.data,
             metadata: {
               schema,
             },
           };
 
-          const [result] = await orders.blur.saveListings([orderInfo]);
+          const [result] = await orders.blur.saveFullListings([orderInfo]);
 
           if (result.status === "already-exists") {
             return { message: "Success", orderId: result.id };

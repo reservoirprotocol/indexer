@@ -231,10 +231,7 @@ export const generateListingDetailsV6 = (
       return {
         kind: "blur",
         ...common,
-        // To support Blur partial data filling
-        order: order.rawData.salt
-          ? new Sdk.Blur.Order(config.chainId, order.rawData)
-          : order.rawData,
+        order: order.rawData,
       };
     }
 
