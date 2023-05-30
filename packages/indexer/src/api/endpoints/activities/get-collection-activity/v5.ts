@@ -186,7 +186,7 @@ export const getCollectionActivityV5Options: RouteOptions = {
 
               if (activity.order.criteria.kind === "token") {
                 (orderCriteria as any).data.token = {
-                  id: activity.token?.id,
+                  tokenId: activity.token?.id,
                   name: activity.token?.name,
                   image: activity.token?.image,
                 };
@@ -212,7 +212,7 @@ export const getCollectionActivityV5Options: RouteOptions = {
                         icon: orderSource?.getIcon(),
                       }
                     : undefined,
-                  metadata: orderCriteria,
+                  criteria: orderCriteria,
                 }
               : undefined;
           } else {
