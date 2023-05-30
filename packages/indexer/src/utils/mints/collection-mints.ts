@@ -35,7 +35,7 @@ export const getOpenCollectionMints = async (collection: string): Promise<Collec
         collection_mint_standards.standard
       FROM collection_mints
       JOIN collection_mint_standards
-        ON collection_mints.collection = collection_mints_standards.collection_id
+        ON collection_mints.collection_id = collection_mint_standards.collection_id
       WHERE collection_mints.collection_id = $/collection/
         AND collection_mints.status = 'open'
     `,
@@ -45,7 +45,7 @@ export const getOpenCollectionMints = async (collection: string): Promise<Collec
   return results.map(
     (r) =>
       ({
-        collection: r.collection,
+        collection: r.collection_id,
         stage: r.stage,
         kind: r.kind,
         status: r.status,
