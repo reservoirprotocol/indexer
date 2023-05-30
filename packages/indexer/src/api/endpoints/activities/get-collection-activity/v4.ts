@@ -76,7 +76,9 @@ export const getCollectionActivityV4Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
-    }).xor("collection", "collectionsSetId", "community"),
+    })
+      .xor("collection", "collectionsSetId", "community")
+      .options({ allowUnknown: true, stripUnknown: false }),
   },
   response: {
     schema: Joi.object({

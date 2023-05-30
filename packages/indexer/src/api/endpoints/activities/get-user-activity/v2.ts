@@ -63,7 +63,7 @@ export const getUserActivityV2Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
-    }),
+    }).options({ allowUnknown: true, stripUnknown: false }),
   },
   response: {
     schema: Joi.object({

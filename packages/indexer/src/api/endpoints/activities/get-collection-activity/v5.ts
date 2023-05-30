@@ -81,7 +81,8 @@ export const getCollectionActivityV5Options: RouteOptions = {
         .description("Types of events returned in response. Example: 'types=sale'"),
     })
       .xor("collection", "collectionsSetId", "community")
-      .with("attributes", "collection"),
+      .with("attributes", "collection")
+      .options({ allowUnknown: true, stripUnknown: false }),
   },
   response: {
     schema: Joi.object({
