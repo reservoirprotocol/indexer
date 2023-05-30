@@ -22,14 +22,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup node
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "yarn"
+      # - name: Setup node
+      #   uses: actions/setup-node@v3
+      #   with:
+      #     node-version: ${{ env.NODE_VERSION }}
+      #     cache: "yarn"
 
-      - name: Install dependencies
-        run: "yarn install"
+      # - name: Install dependencies
+      #   run: "yarn install"
 
       # - name: Get Release Versions
       #   uses: cycjimmy/semantic-release-action@v3
