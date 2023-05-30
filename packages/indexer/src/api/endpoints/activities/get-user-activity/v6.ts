@@ -223,24 +223,32 @@ export const getUserActivityV6Options: RouteOptions = {
           let order;
 
           if (query.includeMetadata) {
-            const orderCriteria = activity.order?.criteria
-              ? {
-                  kind: activity.order.criteria.kind,
-                  data: {
-                    collectionId: activity.collection?.id,
-                    collectionName: activity.collection?.name,
-                    tokenId: activity.token?.id,
-                    tokenName: activity.token?.name,
-                    image:
-                      activity.order.criteria.kind === "token"
-                        ? activity.token?.image
-                        : activity.collection?.image,
-                    attributes: activity.order.criteria.data.attribute
-                      ? [activity.order.criteria.data.attribute]
-                      : undefined,
+            let orderCriteria;
+
+            if (activity.order?.criteria) {
+              orderCriteria = {
+                kind: activity.order.criteria.kind,
+                data: {
+                  collection: {
+                    id: activity.collection?.id,
+                    name: activity.collection?.name,
+                    image: activity.collection?.image,
                   },
-                }
-              : undefined;
+                },
+              };
+
+              if (activity.order.criteria.kind === "token") {
+                (orderCriteria as any).data.token = {
+                  id: activity.token?.id,
+                  name: activity.token?.name,
+                  image: activity.token?.image,
+                };
+              }
+
+              if (activity.order.criteria.kind === "attribute") {
+                (orderCriteria as any).data.attribute = activity.order.criteria.data.attribute;
+              }
+            }
 
             order = activity.order?.id
               ? await getJoiActivityOrderObject({
@@ -287,7 +295,10 @@ export const getUserActivityV6Options: RouteOptions = {
             collection: {
               collectionId: activity.collection?.id,
               collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-              collectionImage: query.includeMetadata ? activity.collection?.image : undefined,
+              collectionImage:
+                query.includeMetadata && activity.collection?.image != null
+                  ? activity.collection?.image
+                  : undefined,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,

@@ -146,7 +146,8 @@ export const getCollectionActivityV2Options: RouteOptions = {
             collection: {
               collectionId: activity.collection?.id,
               collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-              collectionImage: query.includeMetadata ? activity.collection?.image : undefined,
+              collectionImage:
+                activity.collection?.image != null ? activity.collection?.image : undefined,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,

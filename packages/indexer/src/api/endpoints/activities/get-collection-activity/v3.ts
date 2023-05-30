@@ -140,27 +140,27 @@ export const getCollectionActivityV3Options: RouteOptions = {
               ? sources.get(activity.order.sourceId)
               : undefined;
 
-          let orderMetadata;
+          let orderCriteria;
 
-          if (query.includeMetadata) {
-            orderMetadata = activity.order?.criteria
-              ? {
-                  kind: activity.order.criteria.kind,
-                  data: {
-                    collectionId: activity.collection?.id,
-                    collectionName: activity.collection?.name,
-                    tokenId: activity.token?.id,
-                    tokenName: activity.token?.name,
-                    image:
-                      activity.order.criteria.kind === "token"
-                        ? activity.token?.image
-                        : activity.collection?.image,
-                    attributes: activity.order.criteria.data.attribute
-                      ? [activity.order.criteria.data.attribute]
-                      : undefined,
-                  },
-                }
-              : undefined;
+          if (activity.order?.criteria) {
+            orderCriteria = {
+              kind: activity.order.criteria.kind,
+              data: {
+                collectionName: activity.collection?.name,
+                image:
+                  activity.order.criteria.kind === "token"
+                    ? activity.token?.image
+                    : activity.collection?.image,
+              },
+            };
+
+            if (activity.order.criteria.kind === "token") {
+              (orderCriteria as any).data.tokenName = activity.token?.name;
+            }
+
+            if (activity.order.criteria.kind === "attribute") {
+              (orderCriteria as any).data.attributes = [activity.order.criteria.data.attribute];
+            }
           }
 
           return {
@@ -178,7 +178,10 @@ export const getCollectionActivityV3Options: RouteOptions = {
             collection: {
               collectionId: activity.collection?.id,
               collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-              collectionImage: query.includeMetadata ? activity.collection?.image : undefined,
+              collectionImage:
+                query.includeMetadata && activity.collection?.image != null
+                  ? activity.collection?.image
+                  : undefined,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,
@@ -198,7 +201,7 @@ export const getCollectionActivityV3Options: RouteOptions = {
                         icon: orderSource?.getIcon(),
                       }
                     : undefined,
-                  metadata: orderMetadata,
+                  metadata: orderCriteria,
                 }
               : undefined,
           };

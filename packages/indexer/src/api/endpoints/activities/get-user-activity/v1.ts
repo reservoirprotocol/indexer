@@ -124,7 +124,8 @@ export const getUserActivityV1Options: RouteOptions = {
             collection: {
               collectionId: activity.collection?.id,
               collectionName: activity.collection?.name,
-              collectionImage: activity.collection?.image,
+              collectionImage:
+                activity.collection?.image != null ? activity.collection?.image : undefined,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,
