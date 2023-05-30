@@ -22,6 +22,7 @@ import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "@/jobs/websocket-events/websocket-event-router";
+
 import { BidEventsList } from "@/models/bid-events-list";
 
 const QUEUE_NAME = "order-updates-by-id";
