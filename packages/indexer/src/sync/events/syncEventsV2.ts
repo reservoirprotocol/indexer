@@ -379,7 +379,7 @@ export const syncEvents = async (block: number) => {
       })
     );
   } catch (error) {
-    logger.error("sync-events-v2", `Events realtime syncing failed: ${error}, block: ${block}`);
+    logger.warn("sync-events-v2", `Events realtime syncing failed: ${error}, block: ${block}`);
     throw error;
   }
 };
