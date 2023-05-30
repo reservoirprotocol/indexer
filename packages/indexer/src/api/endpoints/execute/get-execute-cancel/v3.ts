@@ -160,7 +160,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
         const maker = payload.orderIds[0].split(":")[1];
 
         // Set up generic filling steps
-        const steps: {
+        let steps: {
           id: string;
           action: string;
           description: string;
@@ -256,6 +256,10 @@ export const getExecuteCancelV3Options: RouteOptions = {
             },
           },
         });
+
+        if (steps[0].items[0].status === "complete") {
+          steps = steps.slice(1);
+        }
 
         return { steps };
       }
@@ -408,8 +412,9 @@ export const getExecuteCancelV3Options: RouteOptions = {
         {
           id: "cancellation-signature",
           action: "Cancel order",
-          description: "Authorize the cancellation of the order",
-          kind: "signature",
+          description:
+            "To cancel these orders you must confirm the transaction and pay the gas fee",
+          kind: "transaction",
           items: [],
         },
       ];
@@ -584,7 +589,7 @@ export const getExecuteCancelV3Options: RouteOptions = {
         },
       });
 
-      if (orderResult.kind !== "blur") {
+      if (!steps[0].items.length || steps[0].items[0].status === "complete") {
         steps = steps.slice(1);
       }
 
