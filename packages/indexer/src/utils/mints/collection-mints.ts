@@ -27,7 +27,40 @@ export type CollectionMint = {
   endTime?: number;
 };
 
-export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMint) => {
+export const getOpenCollectionMints = async (collection: string): Promise<CollectionMint[]> => {
+  const results = await idb.manyOrNone(
+    `
+      SELECT
+        collection_mints.*,
+        collection_mint_standards.standard
+      FROM collection_mints
+      JOIN collection_mint_standards
+        ON collection_mints.collection = collection_mints_standards.collection_id
+      WHERE collection_mints.collection_id = $/collection/
+        AND collection_mints.status = 'open'
+    `,
+    { collection }
+  );
+
+  return results.map(
+    (r) =>
+      ({
+        collection: r.collection,
+        stage: r.stage,
+        kind: r.kind,
+        status: r.status,
+        standard: r.standard,
+        details: r.details,
+        currency: fromBuffer(r.currency),
+        price: r.price,
+        maxMintsPerWallet: r.max_mints_per_wallet,
+        startTime: r.start_time ? Math.floor(new Date(r.start_time).getTime() / 1000) : undefined,
+        endTime: r.end_time ? Math.floor(new Date(r.end_time).getTime() / 1000) : undefined,
+      } as CollectionMint)
+  );
+};
+
+export const simulateCollectionMint = async (collectionMint: CollectionMint) => {
   // Fetch the collection's contract and kind
   const collectionResult = await idb.oneOrNone(
     `
@@ -56,7 +89,7 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
 
   // Simulate the mint
   // TODO: Binary search for the maximum quantity per wallet
-  const success = await simulateMint(
+  return simulateViaOnChainCall(
     minter,
     contract,
     contractKind,
@@ -65,7 +98,27 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
     txData.to,
     txData.data
   );
+};
 
+export const simulateAndUpdateCollectionMint = async (collectionMint: CollectionMint) => {
+  const success = await simulateCollectionMint(collectionMint);
+  await idb.none(
+    `
+      UPDATE collection_mints SET
+        status = $/status/
+      WHERE collection_mints.collection_id = $/collection/
+        AND collection_mints.stage = $/stage/
+    `,
+    {
+      collection: collectionMint.collection,
+      stage: collectionMint.stage,
+      status: success ? "open" : "closed",
+    }
+  );
+};
+
+export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMint) => {
+  const success = await simulateCollectionMint(collectionMint);
   if (success) {
     await idb.none(
       `
@@ -127,7 +180,7 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
   return success;
 };
 
-export const simulateMint = async (
+export const simulateViaOnChainCall = async (
   minter: string,
   contract: string,
   contractKind: "erc721" | "erc1155",
