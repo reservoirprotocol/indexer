@@ -167,7 +167,7 @@ export const getTokenActivityV5Options: RouteOptions = {
 
               if (activity.order.criteria.kind === "token") {
                 (orderCriteria as any).data.token = {
-                  id: activity.token?.id,
+                  tokenId: activity.token?.id,
                   name: activity.token?.name,
                   image: activity.token?.image,
                 };
@@ -204,8 +204,8 @@ export const getTokenActivityV5Options: RouteOptions = {
             price: await getJoiPriceObject(
               {
                 gross: {
-                  amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
-                  nativeAmount: String(activity.pricing?.price),
+                  amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price ?? 0),
+                  nativeAmount: String(activity.pricing?.price ?? 0),
                 },
               },
               currency,
@@ -235,7 +235,7 @@ export const getTokenActivityV5Options: RouteOptions = {
           };
         });
 
-        return { activities: result, continuation, es: true };
+        return { activities: await Promise.all(result), continuation, es: true };
       }
 
       if (query.continuation) {

@@ -227,7 +227,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
 
               if (activity.order.criteria.kind === "token") {
                 (orderCriteria as any).data.token = {
-                  id: activity.token?.id,
+                  tokenId: activity.token?.id,
                   name: activity.token?.name,
                   image: activity.token?.image,
                 };
@@ -261,16 +261,18 @@ export const getCollectionActivityV6Options: RouteOptions = {
             type: activity.type,
             fromAddress: activity.fromAddress,
             toAddress: activity.toAddress || null,
-            price: await getJoiPriceObject(
-              {
-                gross: {
-                  amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
-                  nativeAmount: String(activity.pricing?.price),
-                },
-              },
-              currency,
-              query.displayCurrency
-            ),
+            price: activity.order?.id
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
+                      nativeAmount: String(activity.pricing?.price),
+                    },
+                  },
+                  currency,
+                  query.displayCurrency
+                )
+              : undefined,
             amount: Number(activity.amount),
             timestamp: activity.timestamp,
             createdAt: new Date(activity.createdAt).toISOString(),
@@ -295,7 +297,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
           };
         });
 
-        return { activities: result, continuation, es: true };
+        return { activities: await Promise.all(result), continuation, es: true };
       }
 
       if (query.continuation) {
