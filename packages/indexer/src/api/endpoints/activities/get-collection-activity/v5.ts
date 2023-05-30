@@ -166,48 +166,29 @@ export const getCollectionActivityV5Options: RouteOptions = {
             ? sources.get(activity.order.sourceId)
             : undefined;
 
-          const orderCriteria = activity.order?.criteria
-            ? {
-                kind: activity.order.criteria.kind,
-                data: {
-                  collectionId: activity.collection?.id,
-                  collectionName: activity.collection?.name,
-                  tokenId: activity.token?.id,
-                  tokenName: activity.token?.name,
-                  image:
-                    activity.order.criteria.kind === "token"
-                      ? activity.token?.image
-                      : activity.collection?.image,
-                  attributes: activity.order.criteria.data.attribute
-                    ? [activity.order.criteria.data.attribute]
-                    : undefined,
-                },
-              }
-            : undefined;
+          let order;
 
-          return {
-            type: activity.type,
-            fromAddress: activity.fromAddress,
-            toAddress: activity.toAddress || null,
-            price: formatEth(activity.pricing?.price || 0),
-            amount: Number(activity.amount),
-            timestamp: activity.timestamp,
-            createdAt: activity.createdAt.toISOString(),
-            contract: activity.contract,
-            token: {
-              tokenId: activity.token?.id,
-              tokenName: activity.token?.name,
-              tokenImage: activity.token?.image,
-            },
-            collection: {
-              collectionId: activity.collection?.id,
-              collectionName: activity.collection?.name,
-              collectionImage: activity.collection?.image,
-            },
-            txHash: activity.event?.txHash,
-            logIndex: activity.event?.logIndex,
-            batchIndex: activity.event?.batchIndex,
-            order: activity.order?.id
+          if (query.includeMetadata) {
+            const orderCriteria = activity.order?.criteria
+              ? {
+                  kind: activity.order.criteria.kind,
+                  data: {
+                    collectionId: activity.collection?.id,
+                    collectionName: activity.collection?.name,
+                    tokenId: activity.token?.id,
+                    tokenName: activity.token?.name,
+                    image:
+                      activity.order.criteria.kind === "token"
+                        ? activity.token?.image
+                        : activity.collection?.image,
+                    attributes: activity.order.criteria.data.attribute
+                      ? [activity.order.criteria.data.attribute]
+                      : undefined,
+                  },
+                }
+              : undefined;
+
+            order = activity.order?.id
               ? {
                   id: activity.order.id,
                   side: activity.order.side
@@ -222,9 +203,47 @@ export const getCollectionActivityV5Options: RouteOptions = {
                         icon: orderSource?.getIcon(),
                       }
                     : undefined,
-                  criteria: orderCriteria,
+                  metadata: orderCriteria,
                 }
-              : undefined,
+              : undefined;
+          } else {
+            order = activity.order?.id
+              ? {
+                  id: activity.order.id,
+                  source: orderSource
+                    ? {
+                        domain: orderSource?.domain,
+                        name: orderSource?.getTitle(),
+                        icon: orderSource?.getIcon(),
+                      }
+                    : undefined,
+                }
+              : undefined;
+          }
+
+          return {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: formatEth(activity.pricing?.price || 0),
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            createdAt: activity.createdAt.toISOString(),
+            contract: activity.contract,
+            token: {
+              tokenId: activity.token?.id,
+              tokenName: query.includeMetadata ? activity.token?.name : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image : undefined,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+              collectionImage: query.includeMetadata ? activity.collection?.image : undefined,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            order,
           };
         });
 

@@ -219,13 +219,13 @@ export const getUserActivityV4Options: RouteOptions = {
             contract: activity.contract,
             token: {
               tokenId: activity.token?.id,
-              tokenName: activity.token?.name,
-              tokenImage: activity.token?.image,
+              tokenName: query.includeMetadata ? activity.token?.name : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image : undefined,
             },
             collection: {
               collectionId: activity.collection?.id,
-              collectionName: activity.collection?.name,
-              collectionImage: activity.collection?.image,
+              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+              collectionImage: query.includeMetadata ? activity.collection?.image : undefined,
             },
             txHash: activity.event?.txHash,
             logIndex: activity.event?.logIndex,
