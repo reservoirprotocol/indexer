@@ -72,7 +72,7 @@ export const getStatsV2Options: RouteOptions = {
               image: Joi.string().allow("", null),
             }).description("Can be null if no active asks."),
           }),
-          topBid: Joi.object.description("Can be null is not active bids"){
+          topBid: Joi.object().description("Can be null is not active bids"){
             id: Joi.string().allow(null),
             price: JoiPrice.allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
