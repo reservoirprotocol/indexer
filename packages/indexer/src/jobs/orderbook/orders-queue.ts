@@ -170,13 +170,19 @@ export type GenericOrderInfo =
     }
   | {
       kind: "blur";
-      info: orders.blur.ListingOrderInfo;
+      info: orders.blur.FullListingOrderInfo;
+      validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
+    }
+  | {
+      kind: "blur-listing";
+      info: orders.blur.PartialListingOrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "blur-bid";
-      info: orders.blur.BidOrderInfo;
+      info: orders.blur.PartialBidOrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
     }
@@ -290,12 +296,17 @@ export const jobProcessor = async (job: Job) => {
       }
 
       case "blur": {
-        result = await orders.blur.saveListings([info], ingestMethod);
+        result = await orders.blur.saveFullListings([info], ingestMethod);
+        break;
+      }
+
+      case "blur-listing": {
+        result = await orders.blur.savePartialListings([info], ingestMethod);
         break;
       }
 
       case "blur-bid": {
-        result = await orders.blur.saveBids([info], ingestMethod);
+        result = await orders.blur.savePartialBids([info], ingestMethod);
         break;
       }
 
