@@ -228,7 +228,7 @@ export const getCollectionActivityV5Options: RouteOptions = {
             price: formatEth(activity.pricing?.price || 0),
             amount: Number(activity.amount),
             timestamp: activity.timestamp,
-            createdAt: activity.createdAt.toISOString(),
+            createdAt: new Date(activity.createdAt).toISOString(),
             contract: activity.contract,
             token: {
               tokenId: activity.token?.id,
