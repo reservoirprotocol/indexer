@@ -226,7 +226,7 @@ export const getTokensV6Options: RouteOptions = {
                 Joi.object({
                   key: Joi.string().description("Case sensitive."),
                   kind: Joi.string().description("Can be `string`, `number`, `date`, or `range`."),
-                  value: JoiAttributeValue("Case sensitive."),
+                  value: JoiAttributeValue.description("Case sensitive."),
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
                   floorAskPrice: Joi.number().unsafe().allow(null),
