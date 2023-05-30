@@ -105,9 +105,11 @@ export const simulateAndUpdateCollectionMint = async (collectionMint: Collection
   await idb.none(
     `
       UPDATE collection_mints SET
-        status = $/status/
+        status = $/status/,
+        updated_at = now()
       WHERE collection_mints.collection_id = $/collection/
         AND collection_mints.stage = $/stage/
+        AND collection_mints.status != $/status/
     `,
     {
       collection: collectionMint.collection,
