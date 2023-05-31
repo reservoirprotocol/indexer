@@ -54,7 +54,10 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(tokens: TokenRecalcSupplyPayload[], delay = 60 * 5 * 1000) {
-    await this.sendBatch(tokens, delay);
+    await this.sendBatch(
+      tokens.map((t) => ({ payload: t, jobId: `${t.contract}:${t.tokenId}` })),
+      delay
+    );
   }
 }
 
@@ -64,7 +67,7 @@ tokenReclacSupplyJob.on("onCompleted", (message) => {
   logger.info(
     tokenReclacSupplyJob.getQueue(),
     `COMPLETED in ${
-      Number(message.completeTime) - Number(message.publishTime)
+      (Number(message.completeTime) - Number(message.publishTime)) / 1000
     } message ${JSON.stringify(message)}`
   );
 });

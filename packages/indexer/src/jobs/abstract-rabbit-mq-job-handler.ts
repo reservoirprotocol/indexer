@@ -110,14 +110,19 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
     return this.backoff;
   }
 
-  protected async send(payload: any, delay = 0, priority = 0) {
-    await RabbitMq.send(this.getQueue(), { payload }, delay, priority);
+  protected async send(job: { payload: any; jobId?: string }, delay = 0, priority = 0) {
+    await RabbitMq.send(
+      this.getQueue(),
+      { payload: job.payload, jobId: `${this.getQueue()}:${job.jobId}` },
+      delay,
+      priority
+    );
   }
 
-  protected async sendBatch(payload: any[], delay = 0, priority = 0) {
+  protected async sendBatch(job: { payload: any; jobId?: string }[], delay = 0, priority = 0) {
     await RabbitMq.sendBatch(
       this.getQueue(),
-      payload.map((p) => ({ payload: p })),
+      job.map((j) => ({ payload: j.payload, jobId: `${this.getQueue()}:${j.jobId}` })),
       delay,
       priority
     );
