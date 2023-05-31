@@ -98,7 +98,7 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. Must filter by `id` or `slug` to a particular collection."
         ),
-      includeMintData: Joi.boolean()
+      includeMintStages: Joi.boolean()
         .default(false)
         .description("If true, mint data for the collection will be included in the response."),
       normalizeRoyalties: Joi.boolean()
@@ -257,7 +257,16 @@ export const getCollectionsV5Options: RouteOptions = {
             .allow("", null)
             .description("Returns `erc721`, `erc1155`, etc."),
           mintedTimestamp: Joi.number().allow(null),
-          isMintable: Joi.boolean().allow(null),
+          mintStages: Joi.array().items(
+            Joi.object({
+              stage: Joi.string().required(),
+              kind: Joi.string().required(),
+              price: JoiPrice.required(),
+              startTime: Joi.number().allow(null),
+              endTime: Joi.number().allow(null),
+              maxMintsPerWallet: Joi.number().allow(null),
+            })
+          ),
         })
       ),
     }).label(`getCollections${version.toUpperCase()}Response`),
@@ -325,24 +334,28 @@ export const getCollectionsV5Options: RouteOptions = {
         `;
       }
 
-      // Include mint data
-      let mintDataSelectQuery = "";
-      let mintDataJoinQuery = "";
-      if (query.includeMintData) {
-        mintDataSelectQuery = ", v.*";
-        mintDataJoinQuery = `
+      // Include mint stages
+      let mintStagesSelectQuery = "";
+      let mintStagesJoinQuery = "";
+      if (query.includeMintStages) {
+        mintStagesSelectQuery = ", v.*";
+        mintStagesJoinQuery = `
           LEFT JOIN LATERAL (
             SELECT
-              (
-                CASE
-                  WHEN collection_mints.status = 'open' THEN TRUE
-                  ELSE FALSE
-                END
-              ) AS is_mintable
+              array_agg(
+                json_build_object(
+                  'stage', collection_mints.stage,
+                  'kind', collection_mints.kind,
+                  'currency', concat('0x', encode(collection_mints.currency, 'hex')),
+                  'price', collection_mints.price::TEXT,
+                  'startTime', collection_mints.start_time,
+                  'endTime', collection_mints.end_time,
+                  'maxMintsPerWallet', collection_mints.max_mints_per_wallet
+                )
+              ) AS mint_stages
             FROM collection_mints
             WHERE collection_mints.collection_id = x.id
-              AND collection_mints.kind = 'public'
-            LIMIT 1
+              AND collection_mints.status = 'open'
           ) v ON TRUE
         `;
       }
@@ -602,7 +615,7 @@ export const getCollectionsV5Options: RouteOptions = {
           ${attributesSelectQuery}
           ${topBidSelectQuery}
           ${saleCountSelectQuery}
-          ${mintDataSelectQuery}
+          ${mintStagesSelectQuery}
         FROM x
         LEFT JOIN LATERAL (
            SELECT
@@ -624,7 +637,7 @@ export const getCollectionsV5Options: RouteOptions = {
         ${attributesJoinQuery}
         ${topBidJoinQuery}
         ${saleCountJoinQuery}
-        ${mintDataJoinQuery}
+        ${mintStagesJoinQuery}
       `;
 
       // Any further joins might not preserve sorting
@@ -791,7 +804,18 @@ export const getCollectionsV5Options: RouteOptions = {
               : undefined,
             contractKind: r.contract_kind,
             mintedTimestamp: r.minted_timestamp,
-            isMintable: r.is_mintable,
+            mintStages: r.mint_stages
+              ? await Promise.all(
+                  r.mint_stages.map(async (m: any) => ({
+                    stage: m.stage,
+                    kind: m.kind,
+                    price: await getJoiPriceObject({ gross: { amount: m.price } }, m.currency),
+                    startTime: m.startTime,
+                    endTime: m.endTime,
+                    maxMintsPerWallet: m.maxMintsPerWallet,
+                  }))
+                )
+              : [],
           };
         })
       );

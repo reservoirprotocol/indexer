@@ -211,7 +211,7 @@ export const simulateViaOnChainCall = async (
       },
       provider,
       {
-        method: "customTrace",
+        method: "withLog",
       }
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
