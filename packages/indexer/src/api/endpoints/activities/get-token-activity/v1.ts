@@ -37,7 +37,7 @@ export const getTokenActivityV1Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(200)
+        .max(20)
         .default(20)
         .description("Amount of items returned in response."),
       continuation: Joi.number().description(
