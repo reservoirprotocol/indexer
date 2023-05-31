@@ -52,7 +52,7 @@ export const getNetworkName = () => {
       return "arbitrum-nova";
 
     case 999:
-      return "misc-testnet";
+      return "zora-testnet";
 
     default:
       return "unknown";
@@ -797,7 +797,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         },
       };
     }
-    // Misc Testnet
+    // Zora Testnet
     case 999: {
       return {
         ...defaultNetworkSettings,
@@ -806,7 +806,7 @@ export const getNetworkSettings = (): NetworkSettings => {
         realtimeSyncFrequencySeconds: 5,
         lastBlockLatency: 5,
         headBlockDelay: 10,
-        subDomain: "api-misc-testnet",
+        subDomain: "api-zora-testnet",
         onStartup: async () => {
           // Insert the native currency
           await Promise.all([
