@@ -181,6 +181,7 @@ import { getMachineId } from "@/common/machine-id";
 import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 import { logger } from "@/common/logger";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -350,7 +351,7 @@ export class RabbitMqJobsConsumer {
    * Return array of all jobs classes, any new job MUST be added here
    */
   public static getQueues(): AbstractRabbitMqJobHandler[] {
-    return [tokenReclacSupplyJob];
+    return [tokenReclacSupplyJob, tokenRefreshCacheJob];
   }
 
   public static async connect() {

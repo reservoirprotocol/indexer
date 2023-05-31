@@ -12,7 +12,7 @@ import * as tokenSets from "@/orderbook/token-sets";
 import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
-import * as tokenRefreshCache from "@/jobs/token-updates/token-refresh-cache";
+import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 
 const QUEUE_NAME = "token-updates-mint-queue";
 
@@ -178,7 +178,7 @@ if (config.doBackgroundWork) {
         }
 
         // Set any cached information (eg. floor sell)
-        await tokenRefreshCache.addToQueue(contract, tokenId);
+        await tokenRefreshCacheJob.addToQueue({ contract, tokenId });
       } catch (error) {
         logger.error(
           QUEUE_NAME,

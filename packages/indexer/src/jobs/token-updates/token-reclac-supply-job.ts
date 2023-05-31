@@ -65,7 +65,7 @@ export const tokenReclacSupplyJob = new TokenReclacSupplyJob();
 
 tokenReclacSupplyJob.on("onCompleted", (message) => {
   logger.info(
-    tokenReclacSupplyJob.getQueue(),
+    tokenReclacSupplyJob.queueName,
     `COMPLETED in ${
       (Number(message.completeTime) - Number(message.publishTime)) / 1000
     } message ${JSON.stringify(message)}`
