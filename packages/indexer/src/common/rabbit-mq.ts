@@ -115,10 +115,14 @@ export class RabbitMq {
       await this.rabbitMqPublisherChannel.assertQueue(queue.getRetryQueue(), options);
 
       // Bind queues to the delayed exchange
-      await this.rabbitMqPublisherChannel.bindQueue(queue.getQueue(), "delayed", queue.getQueue());
+      await this.rabbitMqPublisherChannel.bindQueue(
+        queue.getQueue(),
+        `${getNetworkName()}.delayed`,
+        queue.getQueue()
+      );
       await this.rabbitMqPublisherChannel.bindQueue(
         queue.getRetryQueue(),
-        "delayed",
+        `${getNetworkName()}.delayed`,
         queue.getRetryQueue()
       );
 
