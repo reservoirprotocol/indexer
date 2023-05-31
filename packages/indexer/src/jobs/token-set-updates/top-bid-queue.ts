@@ -9,7 +9,7 @@ import { config } from "@/config/index";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
-} from "../websocket-events/websocket-event-router";
+} from "@/jobs/websocket-events/websocket-event-router";
 import _ from "lodash";
 import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
