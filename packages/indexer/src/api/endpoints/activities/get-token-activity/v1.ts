@@ -119,8 +119,6 @@ export const getTokenActivityV1Options: RouteOptions = {
             ? sources.get(activity.order.sourceId)
             : undefined;
 
-          // console.log("activity", activity.timestamp, activity.id, activity.order?.id);
-
           return {
             type: activity.type,
             fromAddress: activity.fromAddress,
