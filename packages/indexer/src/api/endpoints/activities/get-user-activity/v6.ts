@@ -257,7 +257,7 @@ export const getUserActivityV6Options: RouteOptions = {
                   id: activity.order.id,
                   side: activity.order.side,
                   sourceIdInt: activity.order.sourceId,
-                  criteria: orderCriteria || null,
+                  criteria: orderCriteria,
                 })
               : undefined;
           } else {
@@ -266,7 +266,7 @@ export const getUserActivityV6Options: RouteOptions = {
                   id: activity.order.id,
                   side: null,
                   sourceIdInt: null,
-                  criteria: null,
+                  criteria: undefined,
                 })
               : undefined;
           }
