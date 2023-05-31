@@ -243,7 +243,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
                   id: activity.order.id,
                   side: activity.order.side,
                   sourceIdInt: activity.order.sourceId,
-                  criteria: orderCriteria || null,
+                  criteria: orderCriteria,
                 })
               : undefined;
           } else {
@@ -252,7 +252,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
                   id: activity.order.id,
                   side: null,
                   sourceIdInt: activity.order.sourceId,
-                  criteria: null,
+                  criteria: undefined,
                 })
               : undefined;
           }

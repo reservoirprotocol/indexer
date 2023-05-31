@@ -183,7 +183,7 @@ export const getTokenActivityV5Options: RouteOptions = {
                   id: activity.order.id,
                   side: activity.order.side,
                   sourceIdInt: activity.order.sourceId,
-                  criteria: orderCriteria || null,
+                  criteria: orderCriteria,
                 })
               : undefined;
           } else {
@@ -192,7 +192,7 @@ export const getTokenActivityV5Options: RouteOptions = {
                   id: activity.order.id,
                   side: null,
                   sourceIdInt: null,
-                  criteria: null,
+                  criteria: undefined,
                 })
               : undefined;
           }
