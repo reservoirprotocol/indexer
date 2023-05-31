@@ -102,7 +102,7 @@ export const getTokenActivityV1Options: RouteOptions = {
     try {
       const [contract, tokenId] = params.token.split(":");
 
-      if (query.es === "1" || config.enableElasticsearchRead) {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
         const sources = await Sources.getInstance();
 
         const { activities, continuation } = await ActivitiesIndex.search({

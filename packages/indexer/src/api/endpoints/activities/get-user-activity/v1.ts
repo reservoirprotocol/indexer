@@ -98,7 +98,7 @@ export const getUserActivityV1Options: RouteOptions = {
     }
 
     try {
-      if (query.es === "1" || config.enableElasticsearchRead) {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
         const { activities, continuation } = await ActivitiesIndex.search({
           types: query.types,
           users: [params.user],
@@ -133,7 +133,11 @@ export const getUserActivityV1Options: RouteOptions = {
           };
         });
 
-        return { activities: result, continuation: continuation ? Number(continuation) : null };
+        return {
+          activities: result,
+          continuation: continuation ? Number(continuation) : null,
+          es: true,
+        };
       }
 
       const activities = await UserActivities.getActivities(
