@@ -48,6 +48,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       items: Joi.array()
         .items(
           Joi.object({
+            collection: Joi.string().lowercase().description("Collection to buy."),
             token: Joi.string().lowercase().pattern(regex.token).description("Token to buy."),
             quantity: Joi.number()
               .integer()
@@ -91,8 +92,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
               .when("token", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
               .description("Only consider orders from this source."),
           })
-            .oxor("token", "orderId", "rawOrder")
-            .or("token", "orderId", "rawOrder")
+            .oxor("token", "collection", "orderId", "rawOrder")
+            .or("token", "collection", "orderId", "rawOrder")
             .oxor("preferredOrderSource", "exactOrderSource")
         )
         .min(1)
@@ -415,19 +416,22 @@ export const getExecuteBuyV7Options: RouteOptions = {
       };
 
       const items: {
-        token: string;
-        quantity: number;
+        token?: string;
+        collection?: string;
         orderId?: string;
         rawOrder?: {
           kind: string;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           data: any;
         };
+        quantity: number;
         preferredOrderSource?: string;
         exactOrderSource?: string;
       }[] = payload.items;
 
-      for (const item of items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+
         // Scenario 1: fill via `rawOrder`
         if (item.rawOrder) {
           const order = item.rawOrder;
@@ -597,7 +601,66 @@ export const getExecuteBuyV7Options: RouteOptions = {
           );
         }
 
-        // Scenario 3: fill via `token`
+        // Scenario 3: fill via `collection`
+        if (item.collection) {
+          // Filtering by collection on the `orders` table is inefficient, so what we
+          // do here is select the cheapest tokens from the `tokens` table and filter
+          // out the ones that aren't fillable. For this to work we fetch more tokens
+          // than we need, so we can filter out the ones that aren't fillable and not
+          // end up with too few tokens.
+
+          const redundancyFactor = 5;
+          const results = await idb.manyOrNone(
+            `
+              WITH x AS (
+                SELECT
+                  tokens.contract,
+                  tokens.token_id,
+                  ${
+                    payload.normalizeRoyalties
+                      ? "tokens.normalized_floor_sell_id"
+                      : "tokens.floor_sell_id"
+                  } AS order_id
+                FROM tokens
+                WHERE tokens.collection_id = $/collection/
+                ORDER BY ${
+                  payload.normalizeRoyalties
+                    ? "tokens.normalized_floor_sell_value"
+                    : "tokens.floor_sell_value"
+                }
+                LIMIT $/quantity/ * ${redundancyFactor}
+              )
+              SELECT
+                x.contract,
+                x.token_id
+              FROM x
+              JOIN orders
+                ON x.order_id = orders.id
+              WHERE orders.fillability_status = 'fillable'
+                AND orders.approval_status = 'approved'
+              LIMIT $/quantity/
+            `,
+            {
+              collection: item.collection,
+              quantity: item.quantity,
+            }
+          );
+
+          // Add each retrieved token as a new item so that it will get
+          // processed by the next pipeline of the same API rather than
+          // building something custom for it.
+
+          for (const result of results) {
+            items.push({
+              token: `${fromBuffer(result.contract)}:${result.token_id}`,
+              quantity: 1,
+            });
+          }
+
+          continue;
+        }
+
+        // Scenario 4: fill via `token`
         if (item.token) {
           const [contract, tokenId] = item.token.split(":");
 
