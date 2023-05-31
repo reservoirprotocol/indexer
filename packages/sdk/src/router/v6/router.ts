@@ -3698,6 +3698,11 @@ export class Router {
           const tokenId = detail.tokenId;
           order.params.specificIds = [tokenId];
 
+          // Cover the case where the path is missing
+          order.params.path = order.params.path.length
+            ? order.params.path
+            : [order.params.pool, Sdk.Common.Addresses.Weth[this.chainId]];
+
           executionsWithDetails.push({
             detail,
             execution: {
