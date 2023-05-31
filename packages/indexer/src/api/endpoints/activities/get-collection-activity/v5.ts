@@ -14,6 +14,7 @@ import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
 import { Collections } from "@/models/collections";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { config } from "@/config/index";
 
 const version = "v5";
 
@@ -135,7 +136,7 @@ export const getCollectionActivityV5Options: RouteOptions = {
     }
 
     try {
-      if (query.es === "1") {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
         if (query.collection && !_.isArray(query.collection)) {
           query.collection = [query.collection];
         }
