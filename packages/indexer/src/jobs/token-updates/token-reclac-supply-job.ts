@@ -17,7 +17,7 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 10;
 
-  protected async process(token: TokenRecalcSupplyPayload) {
+  protected async process(payload: TokenRecalcSupplyPayload) {
     const totalSupplyQuery = `
       SELECT SUM(amount) AS "supply"
       FROM nft_transfer_events
@@ -27,8 +27,8 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
     `;
 
     const totalSupply = await redb.oneOrNone(totalSupplyQuery, {
-      contract: toBuffer(token.contract),
-      tokenId: token.tokenId,
+      contract: toBuffer(payload.contract),
+      tokenId: payload.tokenId,
       addressZero: toBuffer(AddressZero),
     });
 
@@ -42,12 +42,12 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
     `;
 
     const totalRemainingSupply = await redb.oneOrNone(totalRemainingSupplyQuery, {
-      contract: toBuffer(token.contract),
-      tokenId: token.tokenId,
+      contract: toBuffer(payload.contract),
+      tokenId: payload.tokenId,
       addressZero: toBuffer(AddressZero),
     });
 
-    await Tokens.update(token.contract, token.tokenId, {
+    await Tokens.update(payload.contract, payload.tokenId, {
       supply: totalSupply.supply,
       remainingSupply: totalRemainingSupply.remainingSupply,
     });

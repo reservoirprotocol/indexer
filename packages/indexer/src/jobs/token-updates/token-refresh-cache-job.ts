@@ -19,15 +19,15 @@ export class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
   maxRetries = 10;
   concurrency = 10;
 
-  protected async process(token: TokenRefreshCacheJobPayload) {
-    if (token.contract === "0x4923917e9e288b95405e2c893d0ac46b895dda22") {
+  protected async process(payload: TokenRefreshCacheJobPayload) {
+    if (payload.contract === "0x4923917e9e288b95405e2c893d0ac46b895dda22") {
       // Skip OpenSea Shared contract simulations
       return;
     }
 
     // Refresh the token floor ask and top bid
-    await Tokens.recalculateTokenFloorSell(token.contract, token.tokenId);
-    await Tokens.recalculateTokenTopBid(token.contract, token.tokenId);
+    await Tokens.recalculateTokenFloorSell(payload.contract, payload.tokenId);
+    await Tokens.recalculateTokenTopBid(payload.contract, payload.tokenId);
 
     // Simulate and revalidate the floor ask on the token
     const floorAsk = await idb.oneOrNone(
@@ -39,8 +39,8 @@ export class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
             AND tokens.token_id = $/tokenId/
         `,
       {
-        contract: toBuffer(token.contract),
-        tokenId: token.tokenId,
+        contract: toBuffer(payload.contract),
+        tokenId: payload.tokenId,
       }
     );
     if (floorAsk) {
@@ -61,7 +61,7 @@ export class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
     }
 
     // Top bid simulation is very costly so we only do it if explicitly requested
-    if (token.checkTopBid) {
+    if (payload.checkTopBid) {
       // Simulate and revalidate the top bid on the token
       const topBid = await idb.oneOrNone(
         `
@@ -86,8 +86,8 @@ export class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
             LIMIT 1
           `,
         {
-          contract: toBuffer(token.contract),
-          tokenId: token.tokenId,
+          contract: toBuffer(payload.contract),
+          tokenId: payload.tokenId,
         }
       );
       if (topBid) {
@@ -111,8 +111,8 @@ export class TokenRefreshCacheJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue(token: TokenRefreshCacheJobPayload) {
-    await this.send({ payload: token, jobId: `${token.contract}:${token.tokenId}:${now()}` });
+  public async addToQueue(payload: TokenRefreshCacheJobPayload) {
+    await this.send({ payload: payload, jobId: `${payload.contract}:${payload.tokenId}:${now()}` });
   }
 }
 

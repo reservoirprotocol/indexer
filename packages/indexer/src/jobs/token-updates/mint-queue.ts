@@ -9,10 +9,10 @@ import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import * as tokenSets from "@/orderbook/token-sets";
 
-import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as fetchCollectionMetadata from "@/jobs/token-updates/fetch-collection-metadata";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 
 const QUEUE_NAME = "token-updates-mint-queue";
 
@@ -117,7 +117,7 @@ if (config.doBackgroundWork) {
           await idb.none(pgp.helpers.concat(queries));
 
           // Schedule a job to re-count tokens in the collection
-          await collectionRecalcTokenCount.addToQueue(collection.id);
+          await recalcOwnerCountQueueJob.addToQueue({ collection: collection.id });
 
           // Refresh any dynamic token set
           const cacheKey = `refresh-collection-non-flagged-token-set:${collection.id}`;
