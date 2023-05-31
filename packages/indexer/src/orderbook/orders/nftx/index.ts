@@ -207,7 +207,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               pool: pool.address,
               specificIds: [],
               currency: Sdk.Common.Addresses.Weth[config.chainId],
-              path: [],
+              path: [pool.address, Sdk.Common.Addresses.Weth[config.chainId]],
               price: price.toString(),
               extra: {
                 prices,
@@ -505,7 +505,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                       specificIds: [tokenId],
                       currency: Sdk.Common.Addresses.Weth[config.chainId],
                       amount: "1",
-                      path: [],
+                      path: [Sdk.Common.Addresses.Weth[config.chainId], pool.address],
                       price: price.toString(),
                       extra: {
                         prices,

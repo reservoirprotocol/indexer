@@ -1029,6 +1029,10 @@ export const getExecuteSellV7Options: RouteOptions = {
             steps,
             path,
           };
+        } else {
+          steps[1].items.push({
+            status: "complete",
+          });
         }
       }
 

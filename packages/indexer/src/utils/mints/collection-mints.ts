@@ -1,8 +1,9 @@
 import { JsonRpcProvider } from "@ethersproject/providers";
-import { getCallTrace } from "@georgeroman/evm-tx-simulator";
-import { CallTrace, Log } from "@georgeroman/evm-tx-simulator/dist/types";
+import { getCallTraceLogs } from "@georgeroman/evm-tx-simulator";
+import { Log } from "@georgeroman/evm-tx-simulator/dist/types";
 
 import { idb } from "@/common/db";
+import { logger } from "@/common/logger";
 import { bn, fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { MintDetails, generateMintTxData } from "@/utils/mints/calldata/generator";
@@ -26,7 +27,40 @@ export type CollectionMint = {
   endTime?: number;
 };
 
-export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMint) => {
+export const getOpenCollectionMints = async (collection: string): Promise<CollectionMint[]> => {
+  const results = await idb.manyOrNone(
+    `
+      SELECT
+        collection_mints.*,
+        collection_mint_standards.standard
+      FROM collection_mints
+      JOIN collection_mint_standards
+        ON collection_mints.collection_id = collection_mint_standards.collection_id
+      WHERE collection_mints.collection_id = $/collection/
+        AND collection_mints.status = 'open'
+    `,
+    { collection }
+  );
+
+  return results.map(
+    (r) =>
+      ({
+        collection: r.collection_id,
+        stage: r.stage,
+        kind: r.kind,
+        status: r.status,
+        standard: r.standard,
+        details: r.details,
+        currency: fromBuffer(r.currency),
+        price: r.price,
+        maxMintsPerWallet: r.max_mints_per_wallet,
+        startTime: r.start_time ? Math.floor(new Date(r.start_time).getTime() / 1000) : undefined,
+        endTime: r.end_time ? Math.floor(new Date(r.end_time).getTime() / 1000) : undefined,
+      } as CollectionMint)
+  );
+};
+
+export const simulateCollectionMint = async (collectionMint: CollectionMint) => {
   // Fetch the collection's contract and kind
   const collectionResult = await idb.oneOrNone(
     `
@@ -55,7 +89,7 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
 
   // Simulate the mint
   // TODO: Binary search for the maximum quantity per wallet
-  const success = await simulateMint(
+  return simulateViaOnChainCall(
     minter,
     contract,
     contractKind,
@@ -64,7 +98,29 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
     txData.to,
     txData.data
   );
+};
 
+export const simulateAndUpdateCollectionMint = async (collectionMint: CollectionMint) => {
+  const success = await simulateCollectionMint(collectionMint);
+  await idb.none(
+    `
+      UPDATE collection_mints SET
+        status = $/status/,
+        updated_at = now()
+      WHERE collection_mints.collection_id = $/collection/
+        AND collection_mints.stage = $/stage/
+        AND collection_mints.status != $/status/
+    `,
+    {
+      collection: collectionMint.collection,
+      stage: collectionMint.stage,
+      status: success ? "open" : "closed",
+    }
+  );
+};
+
+export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMint) => {
+  const success = await simulateCollectionMint(collectionMint);
   if (success) {
     await idb.none(
       `
@@ -126,7 +182,7 @@ export const simulateAndSaveCollectionMint = async (collectionMint: CollectionMi
   return success;
 };
 
-export const simulateMint = async (
+export const simulateViaOnChainCall = async (
   minter: string,
   contract: string,
   contractKind: "erc721" | "erc1155",
@@ -138,44 +194,40 @@ export const simulateMint = async (
   const value = bn(price).mul(quantity);
 
   const provider = new JsonRpcProvider(config.traceNetworkHttpUrl);
-  const callTrace = await getCallTrace(
-    {
-      from: minter,
-      to,
-      data: calldata,
-      value,
-      gas: 10000000,
-      gasPrice: 0,
-      balanceOverrides: {
-        [minter]: value,
+
+  let logs: Log[];
+  try {
+    logs = await getCallTraceLogs(
+      {
+        from: minter,
+        to,
+        data: calldata,
+        value,
+        gas: 10000000,
+        gasPrice: 0,
+        balanceOverrides: {
+          [minter]: value,
+        },
       },
-    },
-    provider,
-    {
-      skipReverts: true,
-      includeLogs: true,
-    }
-  );
-  if (callTrace.error) {
+      provider,
+      {
+        method: "withLog",
+      }
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    logger.info("mints-process", `Error: ${error} (${error.stack})`);
     return false;
   }
-
-  const getLogs = (call: CallTrace): Log[] => {
-    const logs: Log[] = [];
-    for (const c of call.calls ?? []) {
-      logs.push(...getLogs(c));
-    }
-    logs.push(...(call.logs ?? []));
-
-    return logs;
-  };
 
   const matchesEventData = (log: Log, eventData: EventData) =>
     log.address.toLowerCase() === contract &&
     log.topics[0] === eventData.topic &&
     log.topics.length === eventData.numTopics;
 
-  for (const log of getLogs(callTrace)) {
+  logger.info("mints-process", `Logs: ${JSON.stringify(logs)}`);
+
+  for (const log of logs) {
     if (contractKind === "erc721") {
       if (matchesEventData(log, erc721.transfer)) {
         const parsedLog = erc721.transfer.abi.parseLog(log);

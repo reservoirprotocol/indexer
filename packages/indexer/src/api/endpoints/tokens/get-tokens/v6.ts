@@ -322,6 +322,11 @@ export const getTokensV6Options: RouteOptions = {
                 AND nb.token_id = t.token_id
                 AND nb.amount > 0
                 AND nb.owner != o.maker
+                AND (
+                  o.taker IS NULL
+                  OR o.taker = '\\x0000000000000000000000000000000000000000'
+                  OR o.taker = nb.owner
+                )
             )
             ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
           ORDER BY o.value DESC
