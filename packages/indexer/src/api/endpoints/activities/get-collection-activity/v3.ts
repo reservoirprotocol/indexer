@@ -9,7 +9,6 @@ import { buildContinuation, formatEth, regex, splitContinuation } from "@/common
 import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { Sources } from "@/models/sources";
-import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const version = "v3";
@@ -123,7 +122,7 @@ export const getCollectionActivityV3Options: RouteOptions = {
     }
 
     try {
-      if (query.es === "1" || config.enableElasticsearchRead) {
+      if (query.es === "1") {
         const sources = await Sources.getInstance();
 
         const { activities, continuation } = await ActivitiesIndex.search({
@@ -140,29 +139,6 @@ export const getCollectionActivityV3Options: RouteOptions = {
               ? sources.get(activity.order.sourceId)
               : undefined;
 
-          let orderCriteria;
-
-          if (activity.order?.criteria) {
-            orderCriteria = {
-              kind: activity.order.criteria.kind,
-              data: {
-                collectionName: activity.collection?.name,
-                image:
-                  activity.order.criteria.kind === "token"
-                    ? activity.token?.image
-                    : activity.collection?.image,
-              },
-            };
-
-            if (activity.order.criteria.kind === "token") {
-              (orderCriteria as any).data.tokenName = activity.token?.name;
-            }
-
-            if (activity.order.criteria.kind === "attribute") {
-              (orderCriteria as any).data.attributes = [activity.order.criteria.data.attribute];
-            }
-          }
-
           return {
             type: activity.type,
             fromAddress: activity.fromAddress,
@@ -170,10 +146,12 @@ export const getCollectionActivityV3Options: RouteOptions = {
             price: formatEth(activity.pricing?.price || 0),
             amount: Number(activity.amount),
             timestamp: activity.timestamp,
+            createdAt: new Date(activity.createdAt).toISOString(),
+            contract: activity.contract,
             token: {
-              tokenId: activity.token?.id,
-              tokenName: query.includeMetadata ? activity.token?.name : undefined,
-              tokenImage: query.includeMetadata ? activity.token?.image : undefined,
+              tokenId: activity.token?.id || null,
+              tokenName: query.includeMetadata ? activity.token?.name || null : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image || null : undefined,
             },
             collection: {
               collectionId: activity.collection?.id,
@@ -201,7 +179,6 @@ export const getCollectionActivityV3Options: RouteOptions = {
                         icon: orderSource?.getIcon(),
                       }
                     : undefined,
-                  metadata: orderCriteria,
                 }
               : undefined,
           };

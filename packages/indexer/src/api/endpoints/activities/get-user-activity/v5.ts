@@ -14,7 +14,6 @@ import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
 import { JoiOrderCriteria } from "@/common/joi";
 import { ContractSets } from "@/models/contract-sets";
-import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Collections } from "@/models/collections";
 
@@ -182,8 +181,8 @@ export const getUserActivityV5Options: RouteOptions = {
     }
 
     try {
-      if (query.es === "1" || config.enableElasticsearchRead) {
-        if (!_.isArray(query.collection)) {
+      if (query.es === "1") {
+        if (query.collection && !_.isArray(query.collection)) {
           query.collection = [query.collection];
         }
 
@@ -281,6 +280,9 @@ export const getUserActivityV5Options: RouteOptions = {
               tokenId: activity.token?.id,
               tokenName: query.includeMetadata ? activity.token?.name : undefined,
               tokenImage: query.includeMetadata ? activity.token?.image : undefined,
+              tokenMedia: query.includeMetadata ? null : undefined,
+              tokenRarityRank: query.includeMetadata ? null : undefined,
+              tokenRarityScore: query.includeMetadata ? null : undefined,
             },
             collection: {
               collectionId: activity.collection?.id,

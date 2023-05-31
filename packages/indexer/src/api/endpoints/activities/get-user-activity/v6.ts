@@ -195,7 +195,7 @@ export const getUserActivityV6Options: RouteOptions = {
 
     try {
       if (query.es === "1") {
-        if (!_.isArray(query.collection)) {
+        if (query.collection && !_.isArray(query.collection)) {
           query.collection = [query.collection];
         }
 
@@ -295,6 +295,9 @@ export const getUserActivityV6Options: RouteOptions = {
               tokenId: activity.token?.id,
               tokenName: query.includeMetadata ? activity.token?.name : undefined,
               tokenImage: query.includeMetadata ? activity.token?.image : undefined,
+              tokenMedia: query.includeMetadata ? null : undefined,
+              tokenRarityRank: query.includeMetadata ? null : undefined,
+              tokenRarityScore: query.includeMetadata ? null : undefined,
             },
             collection: {
               collectionId: activity.collection?.id,
@@ -311,7 +314,7 @@ export const getUserActivityV6Options: RouteOptions = {
           };
         });
 
-        return { activities: result, continuation, es: true };
+        return { activities: await Promise.all(result), continuation, es: true };
       }
 
       if (query.continuation) {

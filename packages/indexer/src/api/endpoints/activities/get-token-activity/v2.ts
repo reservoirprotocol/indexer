@@ -9,7 +9,6 @@ import { buildContinuation, formatEth, regex, splitContinuation } from "@/common
 import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { Sources } from "@/models/sources";
-import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const version = "v2";
@@ -109,7 +108,7 @@ export const getTokenActivityV2Options: RouteOptions = {
     try {
       const [contract, tokenId] = params.token.split(":");
 
-      if (query.es === "1" || config.enableElasticsearchRead) {
+      if (query.es === "1") {
         const sources = await Sources.getInstance();
 
         const { activities, continuation } = await ActivitiesIndex.search({

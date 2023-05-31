@@ -124,9 +124,9 @@ export const getCollectionActivityV1Options: RouteOptions = {
             amount: Number(activity.amount),
             timestamp: activity.timestamp,
             token: {
-              tokenId: activity.token?.id,
-              tokenName: activity.token?.name,
-              tokenImage: activity.token?.image,
+              tokenId: activity.token?.id || null,
+              tokenName: activity.token?.name || null,
+              tokenImage: activity.token?.image || null,
             },
             collection: {
               collectionId: activity.collection?.id,
