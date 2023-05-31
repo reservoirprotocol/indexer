@@ -10,7 +10,7 @@ import _ from "lodash";
 import { publishWebsocketEvent } from "@/common/websocketPublisher";
 import { redb } from "@/common/db";
 import { getJoiPriceObject } from "@/common/joi";
-import { fromBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer } from "@/common/utils";
 import { Assets } from "@/utils/assets";
 
 import * as Sdk from "@reservoir0x/sdk";
@@ -41,8 +41,6 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
       const { data } = job.data as EventInfo;
 
       try {
-        let query;
-
         const selectFloorData = `
         t.floor_sell_id,
         t.floor_sell_maker,
@@ -51,7 +49,15 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         t.floor_sell_source_id_int,
         t.floor_sell_value,
         t.floor_sell_currency,
-        t.floor_sell_currency_value
+        t.floor_sell_currency_value,
+        t.normalized_floor_sell_id,
+        t.normalized_floor_sell_maker,
+        t.normalized_floor_sell_valid_from,
+        t.normalized_floor_sell_valid_to,
+        t.normalized_floor_sell_source_id_int,
+        t.normalized_floor_sell_value,
+        t.normalized_floor_sell_currency,
+        t.normalized_floor_sell_currency_value
       `;
 
         let baseQuery = `
@@ -71,45 +77,40 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           t.is_flagged,
           t.last_flag_update,
           t.last_flag_change,
-          t.supply,
-          t.remaining_supply,
           c.slug,
-          (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
-          (
-            SELECT
-              nb.owner
-            FROM nft_balances nb
-            WHERE nb.contract = t.contract
-              AND nb.token_id = t.token_id
-              AND nb.amount > 0
-            LIMIT 1
-          ) AS owner
+          (c.metadata ->> 'imageUrl')::TEXT AS collection_image
         FROM tokens t
         JOIN collections c ON t.collection_id = c.id
         JOIN contracts con ON t.contract = con.address
       `;
 
-        baseQuery += `
-          JOIN token_sets_tokens tst
-            ON t.contract = tst.contract
-            AND t.token_id = tst.token_id
-        `;
-
         // Filters
 
         const conditions: string[] = [];
-        conditions.push(`t.collection_id = $/collection/`);
+        conditions.push(`t.contract = $/contract/`);
         conditions.push(`t.token_id = $/tokenId/`);
 
         if (conditions.length) {
           baseQuery += " WHERE " + conditions.map((c) => `(${c})`).join(" AND ");
         }
 
-        baseQuery += ` LIMIT $/limit/`;
+        baseQuery += ` LIMIT 1`;
 
-        const rawResult = await redb.manyOrNone(baseQuery, query);
+        // eslint-disable-next-line
+        console.log(baseQuery, {
+          contract: data.after.contract ? toBuffer(data.after.contract) : null,
+          tokenId: data.after.token_id,
+        });
+
+        const rawResult = await redb.manyOrNone(baseQuery, {
+          contract: data.after.contract ? toBuffer(data.after.contract) : null,
+          tokenId: data.after.token_id,
+        });
 
         const r = rawResult[0];
+
+        // eslint-disable-next-line
+        console.log(r, rawResult);
 
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
@@ -123,6 +124,16 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         // that don't have the currencies cached in the tokens table
         const floorAskCurrency = r.floor_sell_currency
           ? fromBuffer(r.floor_sell_currency)
+          : Sdk.Common.Addresses.Eth[config.chainId];
+
+        const normalizedFloorSellSource = r.normalized_floor_sell_value
+          ? sources.get(Number(r.normalized_floor_sell_source_id_int), contract, tokenId)
+          : undefined;
+
+        // Use default currencies for backwards compatibility with entries
+        // that don't have the currencies cached in the tokens table
+        const normalizedFloorAskCurrency = r.normalized_floor_sell_currency
+          ? fromBuffer(r.normalized_floor_sell_currency)
           : Sdk.Common.Addresses.Eth[config.chainId];
 
         const result = {
@@ -147,10 +158,9 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
               image: Assets.getLocalAssetsLink(r.collection_image),
               slug: r.slug,
             },
-            owner: r.owner ? fromBuffer(r.owner) : null,
           },
           market: {
-            floorAsk: {
+            floorAsk: r.floor_sell_value && {
               id: r.floor_sell_id,
               price: r.floor_sell_id
                 ? await getJoiPriceObject(
@@ -174,6 +184,34 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
                 name: floorSellSource?.getTitle(),
                 icon: floorSellSource?.getIcon(),
                 url: floorSellSource?.metadata.url,
+              },
+            },
+            floorAskNormalized: r.normalized_floor_sell_value && {
+              id: r.normalized_floor_sell_id,
+              price: r.normalized_floor_sell_id
+                ? await getJoiPriceObject(
+                    {
+                      gross: {
+                        amount:
+                          r.normalized_floor_sell_currency_value ?? r.normalized_floor_sell_value,
+                        nativeAmount: r.normalized_floor_sell_value,
+                      },
+                    },
+                    normalizedFloorAskCurrency,
+                    undefined
+                  )
+                : null,
+              maker: r.normalized_floor_sell_maker
+                ? fromBuffer(r.normalized_floor_sell_maker)
+                : null,
+              validFrom: r.normalized_floor_sell_value ? r.normalized_floor_sell_valid_from : null,
+              validUntil: r.normalized_floor_sell_value ? r.normalized_floor_sell_valid_to : null,
+              source: {
+                id: normalizedFloorSellSource?.address,
+                domain: normalizedFloorSellSource?.domain,
+                name: normalizedFloorSellSource?.getTitle(),
+                icon: normalizedFloorSellSource?.getIcon(),
+                url: normalizedFloorSellSource?.metadata.url,
               },
             },
           },
@@ -237,51 +275,51 @@ export const addToQueue = async (events: EventInfo[]) => {
 };
 
 interface TokenInfo {
-  contract: string;
-  token_id: string;
-  name: string;
-  description: string;
-  image: string;
-  media: string;
-  collection_id: string;
-  attributes: string;
-  floor_sell_id: string;
-  floor_sell_value: string;
-  floor_sell_maker: string;
-  floor_sell_valid_from: string;
-  floor_sell_valid_to: string;
-  floor_sell_source_id: string;
-  floor_sell_source_id_int: string;
-  floor_sell_is_reservoir: string;
-  top_buy_id: string;
-  top_buy_value: string;
-  top_buy_maker: string;
-  last_sell_timestamp: string;
-  last_sell_value: string;
-  last_buy_timestamp: string;
-  last_buy_value: string;
-  last_metadata_sync: string;
-  created_at: string;
-  updated_at: string;
-  rarity_score: string;
-  rarity_rank: string;
-  is_flagged: string;
-  last_flag_update: string;
-  floor_sell_currency: string;
-  floor_sell_currency_value: string;
-  minted_timestamp: number;
-  normalized_floor_sell_id: string;
-  normalized_floor_sell_value: string;
-  normalized_floor_sell_maker: string;
-  normalized_floor_sell_valid_from: string;
-  normalized_floor_sell_valid_to: string;
-  normalized_floor_sell_source_id_int: string;
-  normalized_floor_sell_is_reservoir: string;
-  normalized_floor_sell_currency: string;
-  normalized_floor_sell_currency_value: string;
-  last_flag_change: string;
-  supply: string;
-  remaining_supply: string;
+  contract?: string;
+  token_id?: string;
+  name?: string;
+  description?: string;
+  image?: string;
+  media?: string;
+  collection_id?: string;
+  attributes?: string;
+  floor_sell_id?: string;
+  floor_sell_value?: string;
+  floor_sell_maker?: string;
+  floor_sell_valid_from?: string;
+  floor_sell_valid_to?: string;
+  floor_sell_source_id?: string;
+  floor_sell_source_id_int?: string;
+  floor_sell_is_reservoir?: string;
+  top_buy_id?: string;
+  top_buy_value?: string;
+  top_buy_maker?: string;
+  last_sell_timestamp?: string;
+  last_sell_value?: string;
+  last_buy_timestamp?: string;
+  last_buy_value?: string;
+  last_metadata_sync?: string;
+  created_at?: string;
+  updated_at?: string;
+  rarity_score?: string;
+  rarity_rank?: string;
+  is_flagged?: string;
+  last_flag_update?: string;
+  floor_sell_currency?: string;
+  floor_sell_currency_value?: string;
+  minted_timestamp?: number;
+  normalized_floor_sell_id?: string;
+  normalized_floor_sell_value?: string;
+  normalized_floor_sell_maker?: string;
+  normalized_floor_sell_valid_from?: string;
+  normalized_floor_sell_valid_to?: string;
+  normalized_floor_sell_source_id_int?: string;
+  normalized_floor_sell_is_reservoir?: string;
+  normalized_floor_sell_currency?: string;
+  normalized_floor_sell_currency_value?: string;
+  last_flag_change?: string;
+  supply?: string;
+  remaining_supply?: string;
 }
 
 export type TokenWebsocketEventInfo = {
