@@ -11,6 +11,7 @@ import { ActivityType } from "@/models/activities/activities-entity";
 import { Sources } from "@/models/sources";
 import { JoiOrderCriteria } from "@/common/joi";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { config } from "@/config/index";
 
 const version = "v4";
 
@@ -121,7 +122,7 @@ export const getTokenActivityV4Options: RouteOptions = {
     try {
       const [contract, tokenId] = params.token.split(":");
 
-      if (query.es === "1") {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
         const sources = await Sources.getInstance();
 
         const { activities, continuation } = await ActivitiesIndex.search({
