@@ -184,6 +184,10 @@ import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
+import { normalizedFloorQueueJob } from "@/jobs/token-updates/normalized-floor-queue-job";
+import { mintQueueJob } from "@/jobs/token-updates/mint-queue-job";
+import { floorQueueJob } from "@/jobs/token-updates/floor-queue-job";
+import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -358,6 +362,10 @@ export class RabbitMqJobsConsumer {
       tokenRefreshCacheJob,
       recalcOwnerCountQueueJob,
       recalcTokenCountQueueJob,
+      normalizedFloorQueueJob,
+      mintQueueJob,
+      floorQueueJob,
+      fetchCollectionMetadataJob,
     ];
   }
 

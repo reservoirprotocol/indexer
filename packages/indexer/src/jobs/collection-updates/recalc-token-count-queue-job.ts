@@ -10,7 +10,7 @@ export type RecalcTokenCountQueueJobPayload = {
 export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-recalc-token-count-queue";
   maxRetries = 10;
-  concurrency = 10;
+  concurrency = 1;
   backoff = {
     type: "exponential",
     delay: 20000,
