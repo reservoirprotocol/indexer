@@ -52,7 +52,7 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
       }
 
       logger.error(
-        this.getQueue(),
+        this.queueName,
         `Error handling event: ${error}, queueName=${queueName}, payload=${JSON.stringify(
           message
         )}, retryCount=${message.retryCount}`

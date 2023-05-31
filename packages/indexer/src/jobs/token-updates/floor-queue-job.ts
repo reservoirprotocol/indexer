@@ -2,9 +2,9 @@ import { idb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import * as handleNewSellOrder from "@/jobs/update-attribute/handle-new-sell-order";
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
+import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
 
 export type FloorQueueJobPayload = {
   kind: string;
@@ -162,7 +162,7 @@ export class FloorQueueJob extends AbstractRabbitMqJobHandler {
       if (sellOrderResult) {
         // Update attributes floor
         sellOrderResult.contract = fromBuffer(sellOrderResult.contract);
-        await handleNewSellOrder.addToQueue(sellOrderResult);
+        await handleNewSellOrderJob.addToQueue(sellOrderResult);
 
         // Update collection floor
         sellOrderResult.txHash = sellOrderResult.txHash ? fromBuffer(sellOrderResult.txHash) : null;

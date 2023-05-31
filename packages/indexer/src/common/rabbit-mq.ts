@@ -5,9 +5,11 @@ import { config } from "@/config/index";
 import _ from "lodash";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { logger } from "@/common/logger";
+import { getNetworkName } from "@/config/network";
 
 export type RabbitMQMessage = {
   payload: any;
+  delay?: number;
   jobId?: string;
   publishTime?: number;
   consumedTime?: number;
@@ -31,6 +33,8 @@ export class RabbitMq {
     try {
       await new Promise<void>((resolve, reject) => {
         if (delay) {
+          content.delay = delay;
+
           // If delay given publish to the delayed exchange
           RabbitMq.rabbitMqPublisherChannel.publish(
             "delayed",
@@ -86,11 +90,15 @@ export class RabbitMq {
 
   public static async assertQueuesAndExchanges() {
     // Assert the exchange for delayed messages
-    await this.rabbitMqPublisherChannel.assertExchange("delayed", "x-delayed-message", {
-      durable: true,
-      autoDelete: false,
-      arguments: { "x-delayed-type": "direct", "x-message-deduplication": true },
-    });
+    await this.rabbitMqPublisherChannel.assertExchange(
+      `${getNetworkName()}.delayed`,
+      "x-delayed-message",
+      {
+        durable: true,
+        autoDelete: false,
+        arguments: { "x-delayed-type": "direct", "x-message-deduplication": true },
+      }
+    );
 
     // Assert the consumer queues
     const consumerQueues = RabbitMqJobsConsumer.getQueues();
