@@ -39,4 +39,4 @@ export class RecalcTokenCountQueueJob extends AbstractRabbitMqJobHandler {
   }
 }
 
-export const recalcOwnerCountQueueJob = new RecalcTokenCountQueueJob();
+export const recalcTokenCountQueueJob = new RecalcTokenCountQueueJob();

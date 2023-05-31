@@ -182,6 +182,8 @@ import { PausedRabbitMqQueues } from "@/models/paused-rabbit-mq-queues";
 import { logger } from "@/common/logger";
 import { RabbitMQMessage } from "@/common/rabbit-mq";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -351,7 +353,12 @@ export class RabbitMqJobsConsumer {
    * Return array of all jobs classes, any new job MUST be added here
    */
   public static getQueues(): AbstractRabbitMqJobHandler[] {
-    return [tokenReclacSupplyJob, tokenRefreshCacheJob];
+    return [
+      tokenReclacSupplyJob,
+      tokenRefreshCacheJob,
+      recalcOwnerCountQueueJob,
+      recalcTokenCountQueueJob,
+    ];
   }
 
   public static async connect() {

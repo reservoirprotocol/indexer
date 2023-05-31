@@ -17,8 +17,8 @@ import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
 import { AddressZero } from "@ethersproject/constants";
 import { NftTransferEventData } from "@/jobs/activities/transfer-activity";
 import { FillEventData } from "@/jobs/activities/sale-activity";
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -168,7 +168,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     }));
 
   if (recalcCollectionOwnerCountInfo.length) {
-    await collectionRecalcOwnerCount.addToQueue(recalcCollectionOwnerCountInfo);
+    await recalcOwnerCountQueueJob.addToQueue(recalcCollectionOwnerCountInfo);
   }
 
   // Process fill activities
