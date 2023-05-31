@@ -25,10 +25,8 @@ export const queue = new Queue(QUEUE_NAME, {
 });
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
-export const enabledRealtimeChains = [1, 137];
-
 // BACKGROUND WORKER ONLY
-if (config.doBackgroundWork && enabledRealtimeChains.includes(config.chainId)) {
+if (config.doBackgroundWork && config.enableRealtimeProcessing) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
