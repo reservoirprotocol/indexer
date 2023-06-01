@@ -254,7 +254,9 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
         await publishWebsocketEvent({
           event: eventType,
-          tags: {},
+          tags: {
+            contract: contract,
+          },
           changed,
           data: result,
         });
