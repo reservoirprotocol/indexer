@@ -15,6 +15,8 @@ import * as flagStatusUpdate from "@/jobs/flag-status/update";
 import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
 import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
+import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
+
 import PgPromise from "pg-promise";
 import { updateActivities } from "@/jobs/activities/utils";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
@@ -117,6 +119,15 @@ if (config.doBackgroundWork) {
 
             // Trigger a delayed job to recalc the daily volumes
             await updateCollectionDailyVolume.addToQueue(collection, contract);
+
+            if (config.doElasticsearchWork) {
+              await updateActivitiesCollection.addToQueue(
+                contract,
+                tokenId,
+                collection,
+                result.collection_id
+              );
+            }
           }
 
           // Set the new collection and update the token association

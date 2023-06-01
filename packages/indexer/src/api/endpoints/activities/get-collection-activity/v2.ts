@@ -9,8 +9,8 @@ import { buildContinuation, formatEth, regex, splitContinuation } from "@/common
 import { Activities } from "@/models/activities";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { Sources } from "@/models/sources";
-import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { config } from "@/config/index";
 
 const version = "v2";
 
@@ -115,7 +115,7 @@ export const getCollectionActivityV2Options: RouteOptions = {
     }
 
     try {
-      if (query.es === "1" || config.enableElasticsearchRead) {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
         const sources = await Sources.getInstance();
 
         const { activities, continuation } = await ActivitiesIndex.search({
@@ -138,10 +138,11 @@ export const getCollectionActivityV2Options: RouteOptions = {
             price: formatEth(activity.pricing?.price || 0),
             amount: Number(activity.amount),
             timestamp: activity.timestamp,
+            createdAt: new Date(activity.createdAt).toISOString(),
             token: {
-              tokenId: activity.token?.id,
-              tokenName: query.includeMetadata ? activity.token?.name : undefined,
-              tokenImage: query.includeMetadata ? activity.token?.image : undefined,
+              tokenId: activity.token?.id || null,
+              tokenName: query.includeMetadata ? activity.token?.name || null : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image || null : undefined,
             },
             collection: {
               collectionId: activity.collection?.id,

@@ -9,8 +9,8 @@ import { formatEth, regex } from "@/common/utils";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { Sources } from "@/models/sources";
-import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { config } from "@/config/index";
 
 const version = "v2";
 
@@ -111,7 +111,7 @@ export const getUserActivityV2Options: RouteOptions = {
     }
 
     try {
-      if (query.es === "1" || config.enableElasticsearchRead) {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
         const sources = await Sources.getInstance();
 
         const { activities, continuation } = await ActivitiesIndex.search({
@@ -120,6 +120,7 @@ export const getUserActivityV2Options: RouteOptions = {
           sortBy: "timestamp",
           limit: query.limit,
           continuation: query.continuation,
+          continuationAsInt: true,
         });
 
         const result = _.map(activities, (activity) => {
@@ -135,9 +136,9 @@ export const getUserActivityV2Options: RouteOptions = {
             amount: Number(activity.amount),
             timestamp: activity.timestamp,
             token: {
-              tokenId: activity.token?.id,
-              tokenName: activity.token?.name,
-              tokenImage: activity.token?.image,
+              tokenId: activity.token?.id || null,
+              tokenName: query.includeMetadata ? activity.token?.name || null : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image || null : undefined,
             },
             collection: {
               collectionId: activity.collection?.id,

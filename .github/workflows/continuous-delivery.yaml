@@ -58,8 +58,6 @@ jobs:
           tags: |
             ghcr.io/reservoirprotocol/indexer:latest
             ghcr.io/reservoirprotocol/indexer:${{ github.sha }}
-          cache-from: type=gha,scope=indexer
-          cache-to: type=gha,scope=indexer
           # ghcr.io/reservoirprotocol/indexer:${{ steps.semantic.outputs.new_release_version }}
           # build-args: |
           #   VERSION=${{ steps.semantic.outputs.new_release_version }}
@@ -156,9 +154,9 @@ jobs:
             ${{ github.sha }} \
             indexer-api-scroll-alpha
           ./utils/version_update.sh \
-            ./prod/platform/indexer-api-misc-testnet.yaml \
+            ./prod/platform/indexer-api-zora-testnet.yaml \
             ${{ github.sha }} \
-            indexer-api-misc-testnet
+            indexer-api-zora-testnet
           ./utils/version_update.sh \
             ./prod/platform/indexer-worker.yaml \
             ${{ github.sha }} \
@@ -216,9 +214,9 @@ jobs:
             ${{ github.sha }} \
             indexer-worker-scroll-alpha
           ./utils/version_update.sh \
-            ./prod/platform/indexer-worker-misc-testnet.yaml \
+            ./prod/platform/indexer-worker-zora-testnet.yaml \
             ${{ github.sha }} \
-            indexer-worker-misc-testnet
+            indexer-worker-zora-testnet
           ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-ethereum.yaml \
             ${{ github.sha }} \

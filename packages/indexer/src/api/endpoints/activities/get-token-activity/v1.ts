@@ -102,7 +102,7 @@ export const getTokenActivityV1Options: RouteOptions = {
     try {
       const [contract, tokenId] = params.token.split(":");
 
-      if (query.es === "1" || config.enableElasticsearchRead) {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
         const sources = await Sources.getInstance();
 
         const { activities, continuation } = await ActivitiesIndex.search({
@@ -118,8 +118,6 @@ export const getTokenActivityV1Options: RouteOptions = {
           const source = activity.order?.sourceId
             ? sources.get(activity.order.sourceId)
             : undefined;
-
-          // console.log("activity", activity.timestamp, activity.id, activity.order?.id);
 
           return {
             type: activity.type,

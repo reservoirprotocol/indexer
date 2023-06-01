@@ -135,6 +135,10 @@ export const config = {
   doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
   enableElasticsearchRead: Boolean(Number(process.env.ENABLE_ELASTICSEARCH_READ)),
 
+  // realtime v2
+  enableRealtimeProcessing: Boolean(process.env.ENABLE_REALTIME_PROCESSING),
+  enableRealtimeV2BlockQueue: Boolean(process.env.ENABLE_REALTIME_V2_BLOCK_QUEUE),
+
   // RabbitMq
   rabbitMqUrl: String(process.env.RABBIT_MQ_URL),
 };

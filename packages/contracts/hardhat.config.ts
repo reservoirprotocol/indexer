@@ -101,7 +101,7 @@ const config: HardhatUserConfig = {
     arbitrum: getNetworkConfig(42161),
     // Testnets
     goerli: getNetworkConfig(5),
-    "misc-testnet": getNetworkConfig(999),
+    "zora-testnet": getNetworkConfig(999),
     "mantle-testnet": getNetworkConfig(5001),
     "linea-testnet": getNetworkConfig(59140),
     "scroll-alpha": getNetworkConfig(534353),

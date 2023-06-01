@@ -13,9 +13,9 @@ import { getOrderSourceByOrderKind, OrderKind } from "@/orderbook/orders";
 import { CollectionSets } from "@/models/collection-sets";
 import * as Boom from "@hapi/boom";
 import { JoiOrderMetadata } from "@/common/joi";
-import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 import { Collections } from "@/models/collections";
+import { config } from "@/config/index";
 
 const version = "v4";
 
@@ -162,8 +162,8 @@ export const getUserActivityV4Options: RouteOptions = {
     }
 
     try {
-      if (query.es === "1" || config.enableElasticsearchRead) {
-        if (!_.isArray(query.collection)) {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
+        if (query.collection && !_.isArray(query.collection)) {
           query.collection = [query.collection];
         }
 
@@ -187,59 +187,37 @@ export const getUserActivityV4Options: RouteOptions = {
         });
 
         const result = _.map(activities, (activity) => {
-          const orderSource = activity.order?.sourceId
-            ? sources.get(activity.order.sourceId)
-            : undefined;
+          let order;
 
-          let orderCriteria;
+          if (query.includeMetadata) {
+            const orderSource = activity.order?.sourceId
+              ? sources.get(activity.order.sourceId)
+              : undefined;
 
-          if (activity.order?.criteria) {
-            orderCriteria = {
-              kind: activity.order.criteria.kind,
-              data: {
-                collectionName: activity.collection?.name,
-                image:
-                  activity.order.criteria.kind === "token"
-                    ? activity.token?.image
-                    : activity.collection?.image,
-              },
-            };
+            let orderCriteria;
 
-            if (activity.order.criteria.kind === "token") {
-              (orderCriteria as any).data.tokenName = activity.token?.name;
+            if (activity.order?.criteria) {
+              orderCriteria = {
+                kind: activity.order.criteria.kind,
+                data: {
+                  collectionName: activity.collection?.name,
+                  image:
+                    activity.order.criteria.kind === "token"
+                      ? activity.token?.image
+                      : activity.collection?.image,
+                },
+              };
+
+              if (activity.order.criteria.kind === "token") {
+                (orderCriteria as any).data.tokenName = activity.token?.name;
+              }
+
+              if (activity.order.criteria.kind === "attribute") {
+                (orderCriteria as any).data.attributes = [activity.order.criteria.data.attribute];
+              }
             }
 
-            if (activity.order.criteria.kind === "attribute") {
-              (orderCriteria as any).data.attributes = [activity.order.criteria.data.attribute];
-            }
-          }
-
-          return {
-            type: activity.type,
-            fromAddress: activity.fromAddress,
-            toAddress: activity.toAddress || null,
-            price: formatEth(activity.pricing?.price || 0),
-            amount: Number(activity.amount),
-            timestamp: activity.timestamp,
-            createdAt: new Date(activity.createdAt).toISOString(),
-            contract: activity.contract,
-            token: {
-              tokenId: activity.token?.id,
-              tokenName: query.includeMetadata ? activity.token?.name : undefined,
-              tokenImage: query.includeMetadata ? activity.token?.image : undefined,
-            },
-            collection: {
-              collectionId: activity.collection?.id,
-              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
-              collectionImage:
-                query.includeMetadata && activity.collection?.image != null
-                  ? activity.collection?.image
-                  : undefined,
-            },
-            txHash: activity.event?.txHash,
-            logIndex: activity.event?.logIndex,
-            batchIndex: activity.event?.batchIndex,
-            order: activity.order?.id
+            order = activity.order?.id
               ? {
                   id: activity.order.id,
                   side: activity.order.side
@@ -256,7 +234,41 @@ export const getUserActivityV4Options: RouteOptions = {
                     : undefined,
                   metadata: orderCriteria,
                 }
-              : undefined,
+              : undefined;
+          } else {
+            order = activity.order?.id
+              ? {
+                  id: activity.order.id,
+                }
+              : undefined;
+          }
+
+          return {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: formatEth(activity.pricing?.price || 0),
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            createdAt: new Date(activity.createdAt).toISOString(),
+            contract: activity.contract,
+            token: {
+              tokenId: activity.token?.id || null,
+              tokenName: query.includeMetadata ? activity.token?.name || null : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image || null : undefined,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+              collectionImage:
+                query.includeMetadata && activity.collection?.image != null
+                  ? activity.collection?.image
+                  : undefined,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            order,
           };
         });
 

@@ -155,6 +155,10 @@ export const getCollectionActivityV6Options: RouteOptions = {
 
     try {
       if (query.es === "1") {
+        if (query.collection && !_.isArray(query.collection)) {
+          query.collection = [query.collection];
+        }
+
         if (query.collectionsSetId) {
           query.collection = await CollectionSets.getCollectionsIds(query.collectionsSetId);
           if (_.isEmpty(query.collection)) {
@@ -197,7 +201,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
         const { activities, continuation } = await ActivitiesIndex.search({
           types: query.types,
           tokens,
-          collections: [query.collection],
+          collections: query.collection,
           sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
           limit: query.limit,
           continuation: query.continuation,
@@ -261,26 +265,24 @@ export const getCollectionActivityV6Options: RouteOptions = {
             type: activity.type,
             fromAddress: activity.fromAddress,
             toAddress: activity.toAddress || null,
-            price: activity.order?.id
-              ? await getJoiPriceObject(
-                  {
-                    gross: {
-                      amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
-                      nativeAmount: String(activity.pricing?.price),
-                    },
-                  },
-                  currency,
-                  query.displayCurrency
-                )
-              : undefined,
+            price: await getJoiPriceObject(
+              {
+                gross: {
+                  amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price ?? 0),
+                  nativeAmount: String(activity.pricing?.price ?? 0),
+                },
+              },
+              currency,
+              query.displayCurrency
+            ),
             amount: Number(activity.amount),
             timestamp: activity.timestamp,
             createdAt: new Date(activity.createdAt).toISOString(),
             contract: activity.contract,
             token: {
-              tokenId: activity.token?.id,
-              tokenName: query.includeMetadata ? activity.token?.name : undefined,
-              tokenImage: query.includeMetadata ? activity.token?.image : undefined,
+              tokenId: activity.token?.id || null,
+              tokenName: query.includeMetadata ? activity.token?.name || null : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image || null : undefined,
             },
             collection: {
               collectionId: activity.collection?.id,

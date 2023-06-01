@@ -9,8 +9,8 @@ import { buildContinuation, formatEth, regex, splitContinuation } from "@/common
 import { ActivityType } from "@/models/activities/activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { Sources } from "@/models/sources";
-import { config } from "@/config/index";
 import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import { config } from "@/config/index";
 
 const version = "v3";
 
@@ -118,7 +118,7 @@ export const getUserActivityV3Options: RouteOptions = {
     }
 
     try {
-      if (query.es === "1" || config.enableElasticsearchRead) {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
         const sources = await Sources.getInstance();
 
         const { activities, continuation } = await ActivitiesIndex.search({
@@ -141,6 +141,7 @@ export const getUserActivityV3Options: RouteOptions = {
             price: formatEth(activity.pricing?.price || 0),
             amount: Number(activity.amount),
             timestamp: activity.timestamp,
+            createdAt: new Date(activity.createdAt).toISOString(),
             token: {
               tokenId: activity.token?.id,
               tokenName: activity.token?.name,

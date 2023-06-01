@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { elasticsearch } from "@/common/elasticsearch";
+
 import {
   MappingTypeMapping,
   QueryDslQueryContainer,
@@ -103,12 +104,25 @@ const MAPPINGS: MappingTypeMapping = {
 
 export const save = async (activities: ActivityDocument[]): Promise<void> => {
   try {
-    await elasticsearch.bulk({
+    const response = await elasticsearch.bulk({
       body: activities.flatMap((activity) => [
         { index: { _index: INDEX_NAME, _id: activity.id } },
         activity,
       ]),
     });
+
+    if (response.errors) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "save-errors",
+          data: {
+            activities: JSON.stringify(activities),
+          },
+          response,
+        })
+      );
+    }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
@@ -268,9 +282,8 @@ const _search = async (params: {
     logger.info(
       "elasticsearch-search-activities",
       JSON.stringify({
-        params,
         latency: esResult.took,
-        paramsJson: JSON.stringify(params),
+        params: JSON.stringify(params),
       })
     );
 
@@ -286,6 +299,21 @@ const _search = async (params: {
         error,
       })
     );
+
+    if ((error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception") {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "node_not_connected_exception",
+          data: {
+            params: JSON.stringify(params),
+          },
+          error,
+        })
+      );
+
+      throw new Error("Could not perform search.");
+    }
 
     throw error;
   }
@@ -365,9 +393,9 @@ export const updateActivitiesMissingCollection = async (
       },
     };
 
-    await elasticsearch.updateByQuery({
+    const response = await elasticsearch.updateByQuery({
       index: INDEX_NAME,
-      refresh: true,
+      conflicts: "proceed",
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
@@ -382,6 +410,36 @@ export const updateActivitiesMissingCollection = async (
         },
       },
     });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesMissingCollection",
+          data: {
+            contract,
+            tokenId,
+            collection,
+          },
+          query,
+          response,
+        })
+      );
+    } else {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesMissingCollection",
+          data: {
+            contract,
+            tokenId,
+            collection,
+          },
+          query,
+          response,
+        })
+      );
+    }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
@@ -391,6 +449,103 @@ export const updateActivitiesMissingCollection = async (
           contract,
           tokenId,
           collection,
+        },
+        error,
+      })
+    );
+
+    throw error;
+  }
+};
+
+export const updateActivitiesCollection = async (
+  contract: string,
+  tokenId: string,
+  newCollection: CollectionsEntity,
+  oldCollectionId: string
+): Promise<void> => {
+  try {
+    const query = {
+      bool: {
+        filter: [
+          {
+            term: {
+              "collection.id": oldCollectionId,
+            },
+          },
+          {
+            term: {
+              contract,
+            },
+          },
+          {
+            term: {
+              "token.id": tokenId,
+            },
+          },
+        ],
+      },
+    };
+
+    const response = await elasticsearch.updateByQuery({
+      index: INDEX_NAME,
+      conflicts: "proceed",
+      // This is needed due to issue with elasticsearch DSL.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      query: query,
+      script: {
+        source:
+          "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
+        params: {
+          collection_id: newCollection.id,
+          collection_name: newCollection.name,
+          collection_image: newCollection.metadata.imageUrl,
+        },
+      },
+    });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesCollection",
+          data: {
+            contract,
+            tokenId,
+            newCollection,
+            oldCollectionId,
+          },
+          query,
+          response,
+        })
+      );
+    } else {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesCollection",
+          data: {
+            contract,
+            tokenId,
+            newCollection,
+            oldCollectionId,
+          },
+          query,
+          response,
+        })
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "updateActivitiesCollection",
+        data: {
+          contract,
+          tokenId,
+          oldCollectionId,
+          newCollection,
         },
         error,
       })
@@ -414,14 +569,40 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<vo
       },
     };
 
-    await elasticsearch.deleteByQuery({
+    const response = await elasticsearch.deleteByQuery({
       index: INDEX_NAME,
-      refresh: true,
+      conflicts: "proceed",
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       query: query,
     });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "deleteActivitiesByBlockHash",
+          data: {
+            blockHash,
+          },
+          query,
+          response,
+        })
+      );
+    } else {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "deleteActivitiesByBlockHash",
+          data: {
+            blockHash,
+          },
+          query,
+          response,
+        })
+      );
+    }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
