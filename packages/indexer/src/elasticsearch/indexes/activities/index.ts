@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { elasticsearch } from "@/common/elasticsearch";
+
 import {
   MappingTypeMapping,
   QueryDslQueryContainer,
@@ -285,6 +286,21 @@ const _search = async (params: {
         error,
       })
     );
+
+    if ((error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception") {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "node_not_connected_exception error",
+          data: {
+            params: JSON.stringify(params),
+          },
+          error,
+        })
+      );
+
+      throw new Error("Could not perform search.");
+    }
 
     throw error;
   }
