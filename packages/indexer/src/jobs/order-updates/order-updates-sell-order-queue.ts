@@ -21,8 +21,8 @@ import {
 import { floorQueueJob } from "@/jobs/token-updates/floor-queue-job";
 import {
   processActivityEventJob,
-  ProcessActivityEventJobKind,
-  ProcessActivityEventJobPayload,
+  ActivityEventKind,
+  ActivityEvent,
 } from "@/jobs/activities/process-activity-event-job";
 
 const QUEUE_NAME = "order-updates-sell-order";
@@ -185,12 +185,12 @@ if (config.doBackgroundWork) {
 
             if (order.side === "sell") {
               eventInfo = {
-                kind: ProcessActivityEventJobKind.sellOrderCancelled,
+                kind: ActivityEventKind.sellOrderCancelled,
                 data: eventData,
               };
             } else if (order.side === "buy") {
               eventInfo = {
-                kind: ProcessActivityEventJobKind.buyOrderCancelled,
+                kind: ActivityEventKind.buyOrderCancelled,
                 data: eventData,
               };
             }
@@ -215,7 +215,7 @@ if (config.doBackgroundWork) {
 
             if (order.side === "sell") {
               eventInfo = {
-                kind: ProcessActivityEventJobKind.newSellOrder,
+                kind: ActivityEventKind.newSellOrder,
                 data: eventData,
               };
             }
@@ -233,9 +233,7 @@ if (config.doBackgroundWork) {
           }
 
           if (eventInfo) {
-            await processActivityEventJob.addActivitiesToList([
-              eventInfo as ProcessActivityEventJobPayload,
-            ]);
+            await processActivityEventJob.addActivitiesToList([eventInfo as ActivityEvent]);
           }
         }
 

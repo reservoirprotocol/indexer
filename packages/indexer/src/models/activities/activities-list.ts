@@ -2,12 +2,12 @@
 
 import _ from "lodash";
 import { redis } from "@/common/redis";
-import { ProcessActivityEventJobPayload } from "@/jobs/activities/process-activity-event-job";
+import { ActivityEvent } from "@/jobs/activities/process-activity-event-job";
 
 export class ActivitiesList {
   public key = "activities-list";
 
-  public async add(events: ProcessActivityEventJobPayload[]) {
+  public async add(events: ActivityEvent[]) {
     if (_.isEmpty(events)) {
       return;
     }
@@ -18,11 +18,11 @@ export class ActivitiesList {
     );
   }
 
-  public async get(count = 500): Promise<ProcessActivityEventJobPayload[]> {
+  public async get(count = 500): Promise<ActivityEvent[]> {
     const events = await redis.lpop(this.key, count);
 
     if (events) {
-      return _.map(events, (event) => JSON.parse(event) as ProcessActivityEventJobPayload);
+      return _.map(events, (event) => JSON.parse(event) as ActivityEvent);
     }
 
     return [];

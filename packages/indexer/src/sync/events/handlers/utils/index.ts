@@ -20,8 +20,8 @@ import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner
 import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
 import {
   processActivityEventJob,
-  ProcessActivityEventJobKind,
-  ProcessActivityEventJobPayload,
+  ActivityEventKind,
+  ActivityEvent,
 } from "@/jobs/activities/process-activity-event-job";
 
 // Semi-parsed and classified event
@@ -176,7 +176,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   }
 
   // Process fill activities
-  const fillActivityInfos: ProcessActivityEventJobPayload[] = allFillEvents.map((event) => {
+  const fillActivityInfos: ActivityEvent[] = allFillEvents.map((event) => {
     let fromAddress = event.maker;
     let toAddress = event.taker;
 
@@ -186,7 +186,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     }
 
     return {
-      kind: ProcessActivityEventJobKind.fillEvent,
+      kind: ActivityEventKind.fillEvent,
       data: {
         contract: event.contract,
         tokenId: event.tokenId,
@@ -210,29 +210,27 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   const endProcessActivityEvent = Date.now();
 
   // Process transfer activities
-  const transferActivityInfos: ProcessActivityEventJobPayload[] = data.nftTransferEvents.map(
-    (event) => ({
-      context: [
-        ProcessActivityEventJobKind.nftTransferEvent,
-        event.baseEventParams.txHash,
-        event.baseEventParams.logIndex,
-        event.baseEventParams.batchIndex,
-      ].join(":"),
-      kind: ProcessActivityEventJobKind.nftTransferEvent,
-      data: {
-        contract: event.baseEventParams.address,
-        tokenId: event.tokenId,
-        fromAddress: event.from,
-        toAddress: event.to,
-        amount: Number(event.amount),
-        transactionHash: event.baseEventParams.txHash,
-        logIndex: event.baseEventParams.logIndex,
-        batchIndex: event.baseEventParams.batchIndex,
-        blockHash: event.baseEventParams.blockHash,
-        timestamp: event.baseEventParams.timestamp,
-      } as NftTransferEventData,
-    })
-  );
+  const transferActivityInfos: ActivityEvent[] = data.nftTransferEvents.map((event) => ({
+    context: [
+      ActivityEventKind.nftTransferEvent,
+      event.baseEventParams.txHash,
+      event.baseEventParams.logIndex,
+      event.baseEventParams.batchIndex,
+    ].join(":"),
+    kind: ActivityEventKind.nftTransferEvent,
+    data: {
+      contract: event.baseEventParams.address,
+      tokenId: event.tokenId,
+      fromAddress: event.from,
+      toAddress: event.to,
+      amount: Number(event.amount),
+      transactionHash: event.baseEventParams.txHash,
+      logIndex: event.baseEventParams.logIndex,
+      batchIndex: event.baseEventParams.batchIndex,
+      blockHash: event.baseEventParams.blockHash,
+      timestamp: event.baseEventParams.timestamp,
+    } as NftTransferEventData,
+  }));
 
   const filteredTransferActivityInfos = transferActivityInfos.filter((transferActivityInfo) => {
     const transferActivityInfoData = transferActivityInfo.data as NftTransferEventData;
