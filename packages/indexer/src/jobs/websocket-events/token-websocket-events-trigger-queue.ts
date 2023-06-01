@@ -33,6 +33,25 @@ export const queue = new Queue(QUEUE_NAME, {
 });
 new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 
+const changedMapping = {
+  name: "name",
+  description: "description",
+  image: "image",
+  media: "media",
+  collection_id: "collection.id",
+  floor_sell_id: "market.floorAsk.id",
+  floor_sell_value: "market.floorAsk.price.gross.amount",
+  rarity_score: "token.rarity",
+  rarity_rank: "token.rarityRank",
+  is_flagged: "token.isFlagged",
+  last_flag_update: "token.lastFlagUpdate",
+  last_flag_change: "token.lastFlagChange",
+  normalized_floor_sell_id: "market.floorAskNormalized.id",
+  normalized_floor_sell_value: "market.floorAskNormalized.price.gross.amount",
+  supply: "token.supply",
+  remaining_supply: "token.remainingSupply",
+};
+
 // BACKGROUND WORKER ONLY
 if (config.doBackgroundWork && config.doWebsocketServerWork) {
   const worker = new Worker(
@@ -224,7 +243,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           eventType = "token.updated";
 
           // go through before and after to see what changed
-          for (const key in data.before) {
+          for (const key in changedMapping) {
             // eslint-disable-next-line
             // @ts-ignore
             if (data.before[key] !== data.after[key]) {
