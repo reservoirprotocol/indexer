@@ -6,6 +6,7 @@ import _ from "lodash";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
 import { logger } from "@/common/logger";
 import { getNetworkName } from "@/config/network";
+import { acquireLock } from "@/common/redis";
 
 export type RabbitMQMessage = {
   payload: any;
@@ -33,6 +34,15 @@ export class RabbitMq {
     content.publishTime = content.publishTime ?? _.now();
 
     try {
+      // For deduplication messages with delay use redis lock
+      if (delay) {
+        if (content.jobId) {
+          if (!(await acquireLock(content.jobId, Number(delay / 1000)))) {
+            return;
+          }
+        }
+      }
+
       await new Promise<void>((resolve, reject) => {
         if (delay) {
           content.delay = delay;
@@ -46,7 +56,6 @@ export class RabbitMq {
               priority,
               headers: {
                 "x-delay": delay,
-                "x-deduplication-header": content.jobId,
               },
             },
             (error) => {
@@ -98,7 +107,7 @@ export class RabbitMq {
       {
         durable: true,
         autoDelete: false,
-        arguments: { "x-delayed-type": "direct", "x-message-deduplication": true },
+        arguments: { "x-delayed-type": "direct" },
       }
     );
 
