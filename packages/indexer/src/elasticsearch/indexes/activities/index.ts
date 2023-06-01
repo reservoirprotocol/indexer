@@ -468,11 +468,11 @@ export const updateActivitiesCollection = async (
     const query = {
       bool: {
         must: [
-          {
-            term: {
-              "collection.id": oldCollectionId.toLowerCase(),
-            },
-          },
+          // {
+          //   term: {
+          //     "collection.id": oldCollectionId.toLowerCase(),
+          //   },
+          // },
           {
             term: {
               contract,
