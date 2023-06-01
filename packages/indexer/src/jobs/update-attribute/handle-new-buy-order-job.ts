@@ -1,0 +1,26 @@
+import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
+import { Attributes } from "@/models/attributes";
+
+export type HandleNewBuyOrderJobPayload = {
+  attributeId: number;
+  topBuyValue: number | null;
+};
+
+export class HandleNewBuyOrderJob extends AbstractRabbitMqJobHandler {
+  queueName = "handle-new-buy-order-queue";
+  maxRetries = 10;
+  concurrency = 3;
+
+  protected async process(payload: HandleNewBuyOrderJobPayload) {
+    await Attributes.update(payload.attributeId, {
+      topBuyValue: payload.topBuyValue,
+      buyUpdatedAt: new Date().toISOString(),
+    });
+  }
+
+  public async addToQueue(params: HandleNewBuyOrderJobPayload) {
+    await this.send({ payload: params });
+  }
+}
+
+export const handleNewBuyOrderJob = new HandleNewBuyOrderJob();

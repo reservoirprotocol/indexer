@@ -15,6 +15,7 @@ import {
   JoiPrice,
 } from "@/common/joi";
 import { config } from "@/config/index";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const version = "v5";
 
@@ -73,10 +74,11 @@ export const getTokenActivityV5Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description("Input any ERC20 address to return result in given currency"),
-    }),
+    }).options({ allowUnknown: true, stripUnknown: false }),
   },
   response: {
     schema: Joi.object({
+      es: Joi.boolean().default(false),
       continuation: Joi.string().allow(null),
       activities: Joi.array().items(
         Joi.object({
@@ -129,12 +131,117 @@ export const getTokenActivityV5Options: RouteOptions = {
       query.types = [query.types];
     }
 
-    if (query.continuation) {
-      query.continuation = splitContinuation(query.continuation)[0];
-    }
-
     try {
       const [contract, tokenId] = params.token.split(":");
+
+      if (query.es === "1") {
+        const { activities, continuation } = await ActivitiesIndex.search({
+          types: query.types,
+          tokens: [{ contract, tokenId }],
+          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+          limit: query.limit,
+          continuation: query.continuation,
+        });
+
+        const result = _.map(activities, async (activity) => {
+          const currency = activity.pricing?.currency
+            ? activity.pricing.currency
+            : Sdk.Common.Addresses.Eth[config.chainId];
+
+          let order;
+
+          if (query.includeMetadata) {
+            let orderCriteria;
+
+            if (activity.order?.criteria) {
+              orderCriteria = {
+                kind: activity.order.criteria.kind,
+                data: {
+                  collection: {
+                    id: activity.collection?.id,
+                    name: activity.collection?.name,
+                    image: activity.collection?.image,
+                  },
+                },
+              };
+
+              if (activity.order.criteria.kind === "token") {
+                (orderCriteria as any).data.token = {
+                  tokenId: activity.token?.id,
+                  name: activity.token?.name,
+                  image: activity.token?.image,
+                };
+              }
+
+              if (activity.order.criteria.kind === "attribute") {
+                (orderCriteria as any).data.attribute = activity.order.criteria.data.attribute;
+              }
+            }
+
+            order = activity.order?.id
+              ? await getJoiActivityOrderObject({
+                  id: activity.order.id,
+                  side: activity.order.side,
+                  sourceIdInt: activity.order.sourceId,
+                  criteria: orderCriteria,
+                })
+              : undefined;
+          } else {
+            order = activity.order?.id
+              ? await getJoiActivityOrderObject({
+                  id: activity.order.id,
+                  side: null,
+                  sourceIdInt: null,
+                  criteria: undefined,
+                })
+              : undefined;
+          }
+
+          return {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: await getJoiPriceObject(
+              {
+                gross: {
+                  amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price ?? 0),
+                  nativeAmount: String(activity.pricing?.price ?? 0),
+                },
+              },
+              currency,
+              query.displayCurrency
+            ),
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            createdAt: new Date(activity.createdAt).toISOString(),
+            contract: activity.contract,
+            token: {
+              tokenId: activity.token?.id,
+              tokenName: query.includeMetadata ? activity.token?.name : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image : undefined,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+              collectionImage:
+                query.includeMetadata && activity.collection?.image != null
+                  ? activity.collection?.image
+                  : undefined,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            order,
+          };
+        });
+
+        return { activities: await Promise.all(result), continuation, es: true };
+      }
+
+      if (query.continuation) {
+        query.continuation = splitContinuation(query.continuation)[0];
+      }
+
       const activities = await Activities.getTokenActivities(
         contract,
         tokenId,

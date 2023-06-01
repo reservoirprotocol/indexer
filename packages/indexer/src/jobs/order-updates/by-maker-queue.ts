@@ -324,6 +324,7 @@ if (config.doBackgroundWork) {
                   orders.source_id_int,
                   orders.fillability_status AS old_status,
                   orders.quantity_remaining,
+                  orders.kind,
                   LEAST(nft_balances.amount, orders.quantity_remaining) AS quantity_fillable,
                   (CASE
                     WHEN LEAST(nft_balances.amount, orders.quantity_remaining) > 0 THEN 'fillable'
@@ -423,6 +424,7 @@ if (config.doBackgroundWork) {
               `
                 SELECT
                   orders.id,
+                  orders.kind,
                   orders.source_id_int,
                   orders.approval_status AS old_status,
                   x.new_status,

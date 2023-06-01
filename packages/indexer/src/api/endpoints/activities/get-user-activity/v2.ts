@@ -9,6 +9,8 @@ import { formatEth, regex } from "@/common/utils";
 import { ActivityType } from "@/models/activities/activities-entity";
 import { UserActivities } from "@/models/user-activities";
 import { Sources } from "@/models/sources";
+import { config } from "@/config/index";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
 
 const version = "v2";
 
@@ -61,10 +63,11 @@ export const getUserActivityV2Options: RouteOptions = {
             .valid(..._.values(ActivityType))
         )
         .description("Types of events returned in response. Example: 'types=sale'"),
-    }),
+    }).options({ allowUnknown: true, stripUnknown: false }),
   },
   response: {
     schema: Joi.object({
+      es: Joi.boolean().default(false),
       continuation: Joi.number().allow(null),
       activities: Joi.array().items(
         Joi.object({
@@ -108,6 +111,60 @@ export const getUserActivityV2Options: RouteOptions = {
     }
 
     try {
+      if (query.es === "1" || config.enableElasticsearchRead) {
+        const sources = await Sources.getInstance();
+
+        const { activities, continuation } = await ActivitiesIndex.search({
+          types: query.types,
+          users: query.users,
+          sortBy: "timestamp",
+          limit: query.limit,
+          continuation: query.continuation,
+        });
+
+        const result = _.map(activities, (activity) => {
+          const source = activity.order?.sourceId
+            ? sources.get(activity.order.sourceId)
+            : undefined;
+
+          return {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: formatEth(activity.pricing?.price || 0),
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            token: {
+              tokenId: activity.token?.id,
+              tokenName: activity.token?.name,
+              tokenImage: activity.token?.image,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: activity.collection?.name,
+              collectionImage:
+                activity.collection?.image != null ? activity.collection?.image : undefined,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            source: source
+              ? {
+                  domain: source?.domain,
+                  name: source?.getTitle(),
+                  icon: source?.getIcon(),
+                }
+              : undefined,
+          };
+        });
+
+        return {
+          activities: result,
+          continuation: continuation ? Number(continuation) : null,
+          es: true,
+        };
+      }
+
       const activities = await UserActivities.getActivities(
         query.users,
         [],

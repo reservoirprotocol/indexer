@@ -190,7 +190,9 @@ export const getTokenStatusOracleV2Options: RouteOptions = {
 
       return { messages };
     } catch (error) {
-      logger.error(`get-token-status-oracle-${version}-handler`, `Handler failure: ${error}`);
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(`get-token-status-oracle-${version}-handler`, `Handler failure: ${error}`);
+      }
       throw error;
     }
   },

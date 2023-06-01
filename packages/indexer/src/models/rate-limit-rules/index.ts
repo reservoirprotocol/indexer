@@ -22,23 +22,18 @@ export class RateLimitRules {
 
   public rulesEntities: Map<string, RateLimitRuleEntity[]>; // Map of route to local DB rules entities
   public rules: Map<number, RateLimiterRedis>; // Map of rule ID to rate limit redis object
-  public apiRoutesPoints: Map<string, { route: string; points: number }>; // Map of route to points
-  public apiRoutesPointsCache: Map<string, number>; // Local cache of points per route to avoid redundant iterations and regex matching
   public apiRoutesRegexRulesCache: Map<string, RateLimitRuleEntity[]>; // Local cache of matching regex rules per route to avoid redundant iterations and regex matching
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   private constructor() {
     this.rulesEntities = new Map();
     this.rules = new Map();
-    this.apiRoutesPoints = new Map();
-    this.apiRoutesPointsCache = new Map();
     this.apiRoutesRegexRulesCache = new Map();
   }
 
   private async loadData(forceDbLoad = false) {
     // Try to load from cache
     const rulesCache = await redis.get(RateLimitRules.getCacheKey());
-    let routesPointsRawData = [];
     let rulesRawData: RateLimitRuleEntityParams[] = [];
 
     if (_.isNull(rulesCache) || forceDbLoad) {
@@ -55,21 +50,9 @@ export class RateLimitRules {
         logger.error("rate-limit-rules", "Failed to load rate limit rules");
       }
 
-      try {
-        const apiRoutesPointsQuery = `
-          SELECT *
-          FROM api_routes_points
-          ORDER BY route ASC
-        `;
-
-        routesPointsRawData = await redb.manyOrNone(apiRoutesPointsQuery);
-      } catch (error) {
-        logger.error("rate-limit-rules", "Failed to load rate limit rules");
-      }
-
       await redis.set(
         RateLimitRules.getCacheKey(),
-        JSON.stringify({ rulesRawData, routesPointsRawData }),
+        JSON.stringify({ rulesRawData }),
         "EX",
         60 * 60 * 24
       );
@@ -77,12 +60,10 @@ export class RateLimitRules {
       // Parse the cache data
       const parsedRulesCache = JSON.parse(rulesCache);
       rulesRawData = parsedRulesCache.rulesRawData;
-      routesPointsRawData = parsedRulesCache.routesPointsRawData;
     }
 
     const rulesEntities = new Map<string, RateLimitRuleEntity[]>(); // Reset current rules entities
     const rules = new Map(); // Reset current rules
-    const apiRoutesPoints = new Map(); // Reset current rules
 
     // Parse rules data
     for (const rule of rulesRawData) {
@@ -105,15 +86,8 @@ export class RateLimitRules {
       );
     }
 
-    // Parse routes points cost
-    for (const rulePoints of routesPointsRawData) {
-      apiRoutesPoints.set(rulePoints.route, { route: rulePoints.route, points: rulePoints.points });
-    }
-
     this.rulesEntities = rulesEntities;
     this.rules = rules;
-    this.apiRoutesPoints = apiRoutesPoints;
-    this.apiRoutesPointsCache = new Map();
     this.apiRoutesRegexRulesCache = new Map();
   }
 
@@ -332,18 +306,6 @@ export class RateLimitRules {
     }
   }
 
-  public getPointsToConsume(route: string) {
-    const defaultCost = 1;
-
-    for (const [routeKey, pointsData] of this.apiRoutesPoints) {
-      if (route.match(routeKey)) {
-        return pointsData.points;
-      }
-    }
-
-    return defaultCost; // Default cost
-  }
-
   public getRateLimitObject(
     route: string,
     method: string,
@@ -360,14 +322,7 @@ export class RateLimitRules {
       }
 
       const rateLimitObject = this.rules.get(rule.id);
-
-      // Get points to consume from cache to avoid iterations and regex which are expensive
-      const pointsToConsumeCacheKey = `${rule.id}-${route}`;
-      let pointsToConsume = this.apiRoutesPointsCache.get(pointsToConsumeCacheKey);
-      if (!pointsToConsume) {
-        pointsToConsume = rule.options.pointsToConsume || this.getPointsToConsume(route);
-        this.apiRoutesPointsCache.set(pointsToConsumeCacheKey, pointsToConsume);
-      }
+      const pointsToConsume = rule.options.pointsToConsume || 1;
 
       if (rateLimitObject) {
         rateLimitObject.keyPrefix = `${config.chainId}:${rule.id}:${route}`;
