@@ -246,7 +246,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           for (const key in changedMapping) {
             // eslint-disable-next-line
             // @ts-ignore
-            if (data.before[key] !== data.after[key]) {
+            if (data.before[key] && data.after[key] && data.before[key] !== data.after[key]) {
               changed.push(key);
             }
           }
