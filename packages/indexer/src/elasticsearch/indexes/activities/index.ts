@@ -159,14 +159,18 @@ export const search = async (params: {
   }
 
   if (params.collections?.length) {
+    const collections = params.collections.map((collection) => collection.toLowerCase());
+
     (esQuery as any).bool.filter.push({
-      terms: { "collection.id": params.collections },
+      terms: { "collection.id": collections },
     });
   }
 
   if (params.contracts?.length) {
+    const contracts = params.contracts.map((contract) => contract.toLowerCase());
+
     (esQuery as any).bool.filter.push({
-      terms: { contract: params.contracts },
+      terms: { contract: contracts },
     });
   }
 
@@ -174,14 +178,17 @@ export const search = async (params: {
     const tokensFilter = { bool: { should: [] } };
 
     for (const token of params.tokens) {
+      const contract = token.contract.toLowerCase();
+      const tokenId = token.tokenId;
+
       (tokensFilter as any).bool.should.push({
         bool: {
           must: [
             {
-              term: { contract: token.contract },
+              term: { contract },
             },
             {
-              term: { ["token.id"]: token.tokenId },
+              term: { ["token.id"]: tokenId },
             },
           ],
         },
@@ -192,14 +199,16 @@ export const search = async (params: {
   }
 
   if (params.users?.length) {
+    const users = params.users.map((user) => user.toLowerCase());
+
     const usersFilter = { bool: { should: [] } };
 
     (usersFilter as any).bool.should.push({
-      terms: { fromAddress: params.users },
+      terms: { fromAddress: users },
     });
 
     (usersFilter as any).bool.should.push({
-      terms: { toAddress: params.users },
+      terms: { toAddress: users },
     });
 
     (esQuery as any).bool.filter.push(usersFilter);
@@ -488,7 +497,7 @@ export const updateActivitiesCollection = async (
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      query: JSON.stringify(query),
+      query,
       script: {
         source:
           "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
