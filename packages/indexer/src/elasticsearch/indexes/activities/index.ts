@@ -470,7 +470,7 @@ export const updateActivitiesCollection = async (
         filter: [
           {
             term: {
-              "collection.id": oldCollectionId,
+              "collection.id": oldCollectionId.toLowerCase(),
             },
           },
           {
