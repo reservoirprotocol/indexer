@@ -13,8 +13,8 @@ import { Sources } from "@/models/sources";
 
 import {
   processActivityEventJob,
-  ProcessActivityEventJobKind,
-  ProcessActivityEventJobPayload,
+  ActivityEventKind,
+  ActivityEvent,
 } from "@/jobs/activities/process-activity-event-job";
 // import * as tokenSetUpdatesTopBidSingleToken from "@/jobs/token-set-updates/top-bid-single-token-queue";
 
@@ -257,12 +257,12 @@ if (config.doBackgroundWork) {
 
               if (order.side === "sell") {
                 eventInfo = {
-                  kind: ProcessActivityEventJobKind.sellOrderCancelled,
+                  kind: ActivityEventKind.sellOrderCancelled,
                   data: eventData,
                 };
               } else if (order.side === "buy") {
                 eventInfo = {
-                  kind: ProcessActivityEventJobKind.buyOrderCancelled,
+                  kind: ActivityEventKind.buyOrderCancelled,
                   data: eventData,
                 };
               }
@@ -287,21 +287,19 @@ if (config.doBackgroundWork) {
 
               if (order.side === "sell") {
                 eventInfo = {
-                  kind: ProcessActivityEventJobKind.newSellOrder,
+                  kind: ActivityEventKind.newSellOrder,
                   data: eventData,
                 };
               } else if (order.side === "buy") {
                 eventInfo = {
-                  kind: ProcessActivityEventJobKind.newBuyOrder,
+                  kind: ActivityEventKind.newBuyOrder,
                   data: eventData,
                 };
               }
             }
 
             if (eventInfo) {
-              await processActivityEventJob.addActivitiesToList([
-                eventInfo as ProcessActivityEventJobPayload,
-              ]);
+              await processActivityEventJob.addActivitiesToList([eventInfo as ActivityEvent]);
             }
 
             if (config.doOldOrderWebsocketWork) {

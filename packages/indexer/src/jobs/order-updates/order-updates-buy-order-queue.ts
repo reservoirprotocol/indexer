@@ -19,8 +19,8 @@ import {
 import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
 import {
   processActivityEventJob,
-  ProcessActivityEventJobKind,
-  ProcessActivityEventJobPayload,
+  ActivityEventKind,
+  ActivityEvent,
 } from "@/jobs/activities/process-activity-event-job";
 
 const QUEUE_NAME = "order-updates-buy-order";
@@ -268,7 +268,7 @@ if (config.doBackgroundWork) {
 
             if (order.side === "buy") {
               eventInfo = {
-                kind: ProcessActivityEventJobKind.buyOrderCancelled,
+                kind: ActivityEventKind.buyOrderCancelled,
                 data: eventData,
               };
             }
@@ -293,12 +293,12 @@ if (config.doBackgroundWork) {
 
             if (order.side === "sell") {
               eventInfo = {
-                kind: ProcessActivityEventJobKind.newSellOrder,
+                kind: ActivityEventKind.newSellOrder,
                 data: eventData,
               };
             } else if (order.side === "buy") {
               eventInfo = {
-                kind: ProcessActivityEventJobKind.newBuyOrder,
+                kind: ActivityEventKind.newBuyOrder,
                 data: eventData,
               };
             }
@@ -313,9 +313,7 @@ if (config.doBackgroundWork) {
           });
 
           if (eventInfo) {
-            await processActivityEventJob.addActivitiesToList([
-              eventInfo as ProcessActivityEventJobPayload,
-            ]);
+            await processActivityEventJob.addActivitiesToList([eventInfo as ActivityEvent]);
           }
         }
 

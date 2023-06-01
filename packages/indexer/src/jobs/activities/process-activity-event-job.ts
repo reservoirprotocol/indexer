@@ -18,7 +18,7 @@ import { config } from "@/config/index";
 import cron from "node-cron";
 import { redlock } from "@/common/redis";
 
-export enum ProcessActivityEventJobKind {
+export enum ActivityEventKind {
   fillEvent = "fillEvent",
   nftTransferEvent = "nftTransferEvent",
   newSellOrder = "newSellOrder",
@@ -27,43 +27,41 @@ export enum ProcessActivityEventJobKind {
   buyOrderCancelled = "buyOrderCancelled",
 }
 
-export type ProcessActivityEventJobPayload =
+export type ActivityEvent =
   | {
-      kind: ProcessActivityEventJobKind.newSellOrder;
+      kind: ActivityEventKind.newSellOrder;
       data: NewSellOrderEventData;
       context?: string;
-      checkForMore?: boolean | undefined;
     }
   | {
-      kind: ProcessActivityEventJobKind.newBuyOrder;
+      kind: ActivityEventKind.newBuyOrder;
       data: NewBuyOrderEventData;
       context?: string;
-      checkForMore?: boolean | undefined;
     }
   | {
-      kind: ProcessActivityEventJobKind.nftTransferEvent;
+      kind: ActivityEventKind.nftTransferEvent;
       data: NftTransferEventData;
       context?: string;
-      checkForMore?: boolean | undefined;
     }
   | {
-      kind: ProcessActivityEventJobKind.fillEvent;
+      kind: ActivityEventKind.fillEvent;
       data: FillEventData;
       context?: string;
-      checkForMore?: boolean | undefined;
     }
   | {
-      kind: ProcessActivityEventJobKind.sellOrderCancelled;
+      kind: ActivityEventKind.sellOrderCancelled;
       data: SellOrderCancelledEventData;
       context?: string;
-      checkForMore?: boolean | undefined;
     }
   | {
-      kind: ProcessActivityEventJobKind.buyOrderCancelled;
+      kind: ActivityEventKind.buyOrderCancelled;
       data: BuyOrderCancelledEventData;
       context?: string;
-      checkForMore?: boolean | undefined;
     };
+
+export type ProcessActivityEventJobPayload = {
+  checkForMore: boolean;
+};
 
 export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
   queueName = "process-activity-event-queue";
@@ -82,49 +80,47 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
     payload.checkForMore = !_.isEmpty(activitiesToProcess);
 
     const aggregatedActivities = {
-      [ProcessActivityEventJobKind.fillEvent]: [] as FillEventData[],
-      [ProcessActivityEventJobKind.nftTransferEvent]: [] as NftTransferEventData[],
-      [ProcessActivityEventJobKind.newSellOrder]: [] as NewSellOrderEventData[],
-      [ProcessActivityEventJobKind.newBuyOrder]: [] as NewBuyOrderEventData[],
-      [ProcessActivityEventJobKind.buyOrderCancelled]: [] as BuyOrderCancelledEventData[],
-      [ProcessActivityEventJobKind.sellOrderCancelled]: [] as SellOrderCancelledEventData[],
+      [ActivityEventKind.fillEvent]: [] as FillEventData[],
+      [ActivityEventKind.nftTransferEvent]: [] as NftTransferEventData[],
+      [ActivityEventKind.newSellOrder]: [] as NewSellOrderEventData[],
+      [ActivityEventKind.newBuyOrder]: [] as NewBuyOrderEventData[],
+      [ActivityEventKind.buyOrderCancelled]: [] as BuyOrderCancelledEventData[],
+      [ActivityEventKind.sellOrderCancelled]: [] as SellOrderCancelledEventData[],
     };
 
     // Aggregate activities by kind
     for (const activity of activitiesToProcess) {
       switch (activity.kind) {
-        case ProcessActivityEventJobKind.fillEvent:
-          aggregatedActivities[ProcessActivityEventJobKind.fillEvent].push(
-            activity.data as FillEventData
-          );
+        case ActivityEventKind.fillEvent:
+          aggregatedActivities[ActivityEventKind.fillEvent].push(activity.data as FillEventData);
           break;
 
-        case ProcessActivityEventJobKind.nftTransferEvent:
-          aggregatedActivities[ProcessActivityEventJobKind.nftTransferEvent].push(
+        case ActivityEventKind.nftTransferEvent:
+          aggregatedActivities[ActivityEventKind.nftTransferEvent].push(
             activity.data as NftTransferEventData
           );
           break;
 
-        case ProcessActivityEventJobKind.newSellOrder:
-          aggregatedActivities[ProcessActivityEventJobKind.newSellOrder].push(
+        case ActivityEventKind.newSellOrder:
+          aggregatedActivities[ActivityEventKind.newSellOrder].push(
             activity.data as NewSellOrderEventData
           );
           break;
 
-        case ProcessActivityEventJobKind.newBuyOrder:
-          aggregatedActivities[ProcessActivityEventJobKind.newBuyOrder].push(
+        case ActivityEventKind.newBuyOrder:
+          aggregatedActivities[ActivityEventKind.newBuyOrder].push(
             activity.data as NewBuyOrderEventData
           );
           break;
 
-        case ProcessActivityEventJobKind.buyOrderCancelled:
-          aggregatedActivities[ProcessActivityEventJobKind.buyOrderCancelled].push(
+        case ActivityEventKind.buyOrderCancelled:
+          aggregatedActivities[ActivityEventKind.buyOrderCancelled].push(
             activity.data as BuyOrderCancelledEventData
           );
           break;
 
-        case ProcessActivityEventJobKind.sellOrderCancelled:
-          aggregatedActivities[ProcessActivityEventJobKind.sellOrderCancelled].push(
+        case ActivityEventKind.sellOrderCancelled:
+          aggregatedActivities[ActivityEventKind.sellOrderCancelled].push(
             activity.data as SellOrderCancelledEventData
           );
           break;
@@ -135,27 +131,27 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
       if (!_.isEmpty(activities)) {
         try {
           switch (kind) {
-            case ProcessActivityEventJobKind.fillEvent:
+            case ActivityEventKind.fillEvent:
               await SaleActivity.handleEvents(activities as FillEventData[]);
               break;
 
-            case ProcessActivityEventJobKind.nftTransferEvent:
+            case ActivityEventKind.nftTransferEvent:
               await TransferActivity.handleEvents(activities as NftTransferEventData[]);
               break;
 
-            case ProcessActivityEventJobKind.newSellOrder:
+            case ActivityEventKind.newSellOrder:
               await AskActivity.handleEvents(activities as NewSellOrderEventData[]);
               break;
 
-            case ProcessActivityEventJobKind.newBuyOrder:
+            case ActivityEventKind.newBuyOrder:
               await BidActivity.handleEvents(activities as NewBuyOrderEventData[]);
               break;
 
-            case ProcessActivityEventJobKind.buyOrderCancelled:
+            case ActivityEventKind.buyOrderCancelled:
               await BidCancelActivity.handleEvents(activities as BuyOrderCancelledEventData[]);
               break;
 
-            case ProcessActivityEventJobKind.sellOrderCancelled:
+            case ActivityEventKind.sellOrderCancelled:
               await AskCancelActivity.handleEvents(activities as SellOrderCancelledEventData[]);
               break;
           }
@@ -174,7 +170,7 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addActivitiesToList(events: ProcessActivityEventJobPayload[]) {
+  public async addActivitiesToList(events: ActivityEvent[]) {
     const activitiesList = new ActivitiesList();
     await activitiesList.add(events);
   }
