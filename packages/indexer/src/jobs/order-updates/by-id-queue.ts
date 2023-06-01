@@ -11,7 +11,11 @@ import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
 import { Sources } from "@/models/sources";
 
-import * as processActivityEvent from "@/jobs/activities/process-activity-event";
+import {
+  processActivityEventJob,
+  ProcessActivityEventJobKind,
+  ProcessActivityEventJobPayload,
+} from "@/jobs/activities/process-activity-event-job";
 // import * as tokenSetUpdatesTopBidSingleToken from "@/jobs/token-set-updates/top-bid-single-token-queue";
 
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
@@ -253,12 +257,12 @@ if (config.doBackgroundWork) {
 
               if (order.side === "sell") {
                 eventInfo = {
-                  kind: processActivityEvent.EventKind.sellOrderCancelled,
+                  kind: ProcessActivityEventJobKind.sellOrderCancelled,
                   data: eventData,
                 };
               } else if (order.side === "buy") {
                 eventInfo = {
-                  kind: processActivityEvent.EventKind.buyOrderCancelled,
+                  kind: ProcessActivityEventJobKind.buyOrderCancelled,
                   data: eventData,
                 };
               }
@@ -283,20 +287,20 @@ if (config.doBackgroundWork) {
 
               if (order.side === "sell") {
                 eventInfo = {
-                  kind: processActivityEvent.EventKind.newSellOrder,
+                  kind: ProcessActivityEventJobKind.newSellOrder,
                   data: eventData,
                 };
               } else if (order.side === "buy") {
                 eventInfo = {
-                  kind: processActivityEvent.EventKind.newBuyOrder,
+                  kind: ProcessActivityEventJobKind.newBuyOrder,
                   data: eventData,
                 };
               }
             }
 
             if (eventInfo) {
-              await processActivityEvent.addActivitiesToList([
-                eventInfo as processActivityEvent.EventInfo,
+              await processActivityEventJob.addActivitiesToList([
+                eventInfo as ProcessActivityEventJobPayload,
               ]);
             }
 

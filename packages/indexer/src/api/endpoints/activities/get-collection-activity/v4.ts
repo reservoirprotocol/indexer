@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import Joi from "joi";
 import _ from "lodash";
 import { Request, RouteOptions } from "@hapi/hapi";
-import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { buildContinuation, formatEth, regex, splitContinuation } from "@/common/utils";

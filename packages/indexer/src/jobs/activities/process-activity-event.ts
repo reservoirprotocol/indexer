@@ -88,43 +88,43 @@ if (config.doBackgroundWork) {
         };
 
         // Aggregate activities by kind
-        for (const activity of activitiesToProcess) {
-          switch (activity.kind) {
-            case EventKind.fillEvent:
-              aggregatedActivities[EventKind.fillEvent].push(activity.data as FillEventData);
-              break;
-
-            case EventKind.nftTransferEvent:
-              aggregatedActivities[EventKind.nftTransferEvent].push(
-                activity.data as NftTransferEventData
-              );
-              break;
-
-            case EventKind.newSellOrder:
-              aggregatedActivities[EventKind.newSellOrder].push(
-                activity.data as NewSellOrderEventData
-              );
-              break;
-
-            case EventKind.newBuyOrder:
-              aggregatedActivities[EventKind.newBuyOrder].push(
-                activity.data as NewBuyOrderEventData
-              );
-              break;
-
-            case EventKind.buyOrderCancelled:
-              aggregatedActivities[EventKind.buyOrderCancelled].push(
-                activity.data as BuyOrderCancelledEventData
-              );
-              break;
-
-            case EventKind.sellOrderCancelled:
-              aggregatedActivities[EventKind.sellOrderCancelled].push(
-                activity.data as SellOrderCancelledEventData
-              );
-              break;
-          }
-        }
+        // for (const activity of activitiesToProcess) {
+        //   switch (activity.kind) {
+        //     case EventKind.fillEvent:
+        //       aggregatedActivities[EventKind.fillEvent].push(activity.data as FillEventData);
+        //       break;
+        //
+        //     case EventKind.nftTransferEvent:
+        //       aggregatedActivities[EventKind.nftTransferEvent].push(
+        //         activity.data as NftTransferEventData
+        //       );
+        //       break;
+        //
+        //     case EventKind.newSellOrder:
+        //       aggregatedActivities[EventKind.newSellOrder].push(
+        //         activity.data as NewSellOrderEventData
+        //       );
+        //       break;
+        //
+        //     case EventKind.newBuyOrder:
+        //       aggregatedActivities[EventKind.newBuyOrder].push(
+        //         activity.data as NewBuyOrderEventData
+        //       );
+        //       break;
+        //
+        //     case EventKind.buyOrderCancelled:
+        //       aggregatedActivities[EventKind.buyOrderCancelled].push(
+        //         activity.data as BuyOrderCancelledEventData
+        //       );
+        //       break;
+        //
+        //     case EventKind.sellOrderCancelled:
+        //       aggregatedActivities[EventKind.sellOrderCancelled].push(
+        //         activity.data as SellOrderCancelledEventData
+        //       );
+        //       break;
+        //   }
+        // }
 
         for (const [kind, activities] of Object.entries(aggregatedActivities)) {
           if (!_.isEmpty(activities)) {
@@ -224,10 +224,10 @@ export type EventInfo =
       context?: string;
     };
 
-export const addActivitiesToList = async (events: EventInfo[]) => {
-  const activitiesList = new ActivitiesList();
-  await activitiesList.add(events);
-};
+// export const addActivitiesToList = async (events: EventInfo[]) => {
+//   const activitiesList = new ActivitiesList();
+//   await activitiesList.add(events);
+// };
 
 export const addToQueue = async () => {
   await queue.add(randomUUID(), {});
