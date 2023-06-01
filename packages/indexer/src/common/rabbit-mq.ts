@@ -35,12 +35,8 @@ export class RabbitMq {
 
     try {
       // For deduplication messages with delay use redis lock
-      if (delay) {
-        if (content.jobId) {
-          if (!(await acquireLock(content.jobId, Number(delay / 1000)))) {
-            return;
-          }
-        }
+      if (delay && content.jobId && !(await acquireLock(content.jobId, Number(delay / 1000)))) {
+        return;
       }
 
       await new Promise<void>((resolve, reject) => {
