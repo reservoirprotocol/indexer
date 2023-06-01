@@ -180,7 +180,7 @@ export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue() {
-    await this.send({});
+    await this.send();
   }
 }
 

@@ -200,6 +200,7 @@ import { fetchSourceInfoJob } from "@/jobs/sources/fetch-source-info-job";
 import { processActivityEventJob } from "@/jobs/activities/process-activity-event-job";
 import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
 import { fixActivitiesMissingCollectionJob } from "@/jobs/activities/fix-activities-missing-collection-job";
+import { topBidUpdateQueueJob } from "@/jobs/bid-updates/top-bid-update-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -391,6 +392,7 @@ export class RabbitMqJobsConsumer {
       processActivityEventJob,
       removeUnsyncedEventsActivitiesJob,
       fixActivitiesMissingCollectionJob,
+      topBidUpdateQueueJob,
     ];
   }
 
