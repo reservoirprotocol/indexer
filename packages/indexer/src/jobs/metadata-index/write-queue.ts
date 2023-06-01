@@ -10,7 +10,6 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-import * as rarityQueue from "@/jobs/collection-updates/rarity-queue";
 import * as flagStatusUpdate from "@/jobs/flag-status/update";
 import * as updateCollectionActivity from "@/jobs/collection-updates/update-collection-activity";
 import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
@@ -23,6 +22,7 @@ import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collectio
 import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attribute-key-counts-job";
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
+import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
 
 const QUEUE_NAME = "metadata-index-write-queue";
 
@@ -418,7 +418,7 @@ if (config.doBackgroundWork) {
 
         // If any attributes changed
         if (!_.isEmpty(attributesToRefresh)) {
-          await rarityQueue.addToQueue(collection); // Recalculate the collection rarity
+          await rarityQueueJob.addToQueue({ collectionId: collection }); // Recalculate the collection rarity
         }
 
         if (!_.isEmpty(tokenAttributeCounter)) {
