@@ -32,37 +32,37 @@ export type ProcessActivityEventJobPayload =
       kind: ProcessActivityEventJobKind.newSellOrder;
       data: NewSellOrderEventData;
       context?: string;
-      checkForMore?: boolean;
+      checkForMore?: boolean | undefined;
     }
   | {
       kind: ProcessActivityEventJobKind.newBuyOrder;
       data: NewBuyOrderEventData;
       context?: string;
-      checkForMore?: boolean;
+      checkForMore?: boolean | undefined;
     }
   | {
       kind: ProcessActivityEventJobKind.nftTransferEvent;
       data: NftTransferEventData;
       context?: string;
-      checkForMore?: boolean;
+      checkForMore?: boolean | undefined;
     }
   | {
       kind: ProcessActivityEventJobKind.fillEvent;
       data: FillEventData;
       context?: string;
-      checkForMore?: boolean;
+      checkForMore?: boolean | undefined;
     }
   | {
       kind: ProcessActivityEventJobKind.sellOrderCancelled;
       data: SellOrderCancelledEventData;
       context?: string;
-      checkForMore?: boolean;
+      checkForMore?: boolean | undefined;
     }
   | {
       kind: ProcessActivityEventJobKind.buyOrderCancelled;
       data: BuyOrderCancelledEventData;
       context?: string;
-      checkForMore?: boolean;
+      checkForMore?: boolean | undefined;
     };
 
 export class ProcessActivityEventJob extends AbstractRabbitMqJobHandler {
