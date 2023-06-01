@@ -368,31 +368,31 @@ export const updateActivitiesMissingCollection = async (
   tokenId: number,
   collection: CollectionsEntity
 ): Promise<void> => {
-  try {
-    const query = {
-      bool: {
-        must_not: [
-          {
-            exists: {
-              field: "collection.id",
-            },
+  const query = {
+    bool: {
+      must_not: [
+        {
+          exists: {
+            field: "collection.id",
           },
-        ],
-        must: [
-          {
-            term: {
-              contract,
-            },
+        },
+      ],
+      must: [
+        {
+          term: {
+            contract: contract.toLowerCase(),
           },
-          {
-            term: {
-              "token.id": tokenId,
-            },
+        },
+        {
+          term: {
+            "token.id": tokenId,
           },
-        ],
-      },
-    };
+        },
+      ],
+    },
+  };
 
+  try {
     const response = await elasticsearch.updateByQuery({
       index: INDEX_NAME,
       conflicts: "proceed",
@@ -464,29 +464,24 @@ export const updateActivitiesCollection = async (
   newCollection: CollectionsEntity,
   oldCollectionId: string
 ): Promise<void> => {
-  try {
-    const query = {
-      bool: {
-        must: [
-          // {
-          //   term: {
-          //     "collection.id": oldCollectionId.toLowerCase(),
-          //   },
-          // },
-          {
-            term: {
-              contract,
-            },
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            contract: contract.toLowerCase(),
           },
-          {
-            term: {
-              "token.id": tokenId,
-            },
+        },
+        {
+          term: {
+            "token.id": tokenId,
           },
-        ],
-      },
-    };
+        },
+      ],
+    },
+  };
 
+  try {
     const response = await elasticsearch.updateByQuery({
       index: INDEX_NAME,
       conflicts: "proceed",
@@ -547,6 +542,7 @@ export const updateActivitiesCollection = async (
           oldCollectionId,
           newCollection,
         },
+        query: JSON.stringify(query),
         error,
       })
     );
@@ -556,19 +552,19 @@ export const updateActivitiesCollection = async (
 };
 
 export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<void> => {
-  try {
-    const query = {
-      bool: {
-        must: [
-          {
-            term: {
-              "event.blockHash": blockHash,
-            },
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            "event.blockHash": blockHash,
           },
-        ],
-      },
-    };
+        },
+      ],
+    },
+  };
 
+  try {
     const response = await elasticsearch.deleteByQuery({
       index: INDEX_NAME,
       conflicts: "proceed",
@@ -611,6 +607,7 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<vo
         data: {
           blockHash,
         },
+        query: JSON.stringify(query),
         error,
       })
     );
