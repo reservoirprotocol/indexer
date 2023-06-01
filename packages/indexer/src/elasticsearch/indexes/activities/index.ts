@@ -421,7 +421,7 @@ export const updateActivitiesMissingCollection = async (
             tokenId,
             collection,
           },
-          query,
+          query: JSON.stringify(query),
           response,
         })
       );
@@ -435,7 +435,7 @@ export const updateActivitiesMissingCollection = async (
             tokenId,
             collection,
           },
-          query,
+          query: JSON.stringify(query),
           response,
         })
       );
@@ -467,7 +467,7 @@ export const updateActivitiesCollection = async (
   try {
     const query = {
       bool: {
-        filter: [
+        must: [
           {
             term: {
               "collection.id": oldCollectionId.toLowerCase(),
@@ -493,7 +493,7 @@ export const updateActivitiesCollection = async (
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      query: query,
+      query: JSON.stringify(query),
       script: {
         source:
           "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
@@ -516,7 +516,7 @@ export const updateActivitiesCollection = async (
             newCollection,
             oldCollectionId,
           },
-          query,
+          query: JSON.stringify(query),
           response,
         })
       );
@@ -531,7 +531,7 @@ export const updateActivitiesCollection = async (
             newCollection,
             oldCollectionId,
           },
-          query,
+          query: JSON.stringify(query),
           response,
         })
       );
