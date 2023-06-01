@@ -197,6 +197,7 @@ import { resyncAttributeKeyCountsJob } from "@/jobs/update-attribute/resync-attr
 import { resyncAttributeValueCountsJob } from "@/jobs/update-attribute/resync-attribute-value-counts-job";
 import { resyncAttributeCountsJob } from "@/jobs/update-attribute/update-attribute-counts-job";
 import { topBidQueueJob } from "@/jobs/token-set-updates/top-bid-queue-job";
+import { topBidSingleTokenQueueJob } from "@/jobs/token-set-updates/top-bid-single-token-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -384,6 +385,7 @@ export class RabbitMqJobsConsumer {
       resyncAttributeValueCountsJob,
       resyncAttributeCountsJob,
       topBidQueueJob,
+      topBidSingleTokenQueueJob,
     ];
   }
 
