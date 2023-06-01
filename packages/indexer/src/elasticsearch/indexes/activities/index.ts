@@ -104,12 +104,25 @@ const MAPPINGS: MappingTypeMapping = {
 
 export const save = async (activities: ActivityDocument[]): Promise<void> => {
   try {
-    await elasticsearch.bulk({
+    const response = await elasticsearch.bulk({
       body: activities.flatMap((activity) => [
         { index: { _index: INDEX_NAME, _id: activity.id } },
         activity,
       ]),
     });
+
+    if (response.errors) {
+      logger.warn(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "save-errors",
+          data: {
+            activities: JSON.stringify(activities),
+          },
+          response,
+        })
+      );
+    }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
@@ -291,7 +304,7 @@ const _search = async (params: {
       logger.error(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "node_not_connected_exception error",
+          topic: "node_not_connected_exception",
           data: {
             params: JSON.stringify(params),
           },
