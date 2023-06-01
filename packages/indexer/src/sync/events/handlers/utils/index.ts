@@ -6,7 +6,6 @@ import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
-import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
@@ -19,6 +18,11 @@ import { FillEventData } from "@/jobs/activities/sale-activity";
 import { RecalcCollectionOwnerCountInfo } from "@/jobs/collection-updates/recalc-owner-count-queue";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import { mintQueueJob, MintQueueJobPayload } from "@/jobs/token-updates/mint-queue-job";
+import {
+  processActivityEventJob,
+  ProcessActivityEventJobKind,
+  ProcessActivityEventJobPayload,
+} from "@/jobs/activities/process-activity-event-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -172,7 +176,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   }
 
   // Process fill activities
-  const fillActivityInfos: processActivityEvent.EventInfo[] = allFillEvents.map((event) => {
+  const fillActivityInfos: ProcessActivityEventJobPayload[] = allFillEvents.map((event) => {
     let fromAddress = event.maker;
     let toAddress = event.taker;
 
@@ -182,7 +186,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     }
 
     return {
-      kind: processActivityEvent.EventKind.fillEvent,
+      kind: ProcessActivityEventJobKind.fillEvent,
       data: {
         contract: event.contract,
         tokenId: event.tokenId,
@@ -202,19 +206,19 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   });
 
   const startProcessActivityEvent = Date.now();
-  await processActivityEvent.addActivitiesToList(fillActivityInfos);
+  await processActivityEventJob.addActivitiesToList(fillActivityInfos);
   const endProcessActivityEvent = Date.now();
 
   // Process transfer activities
-  const transferActivityInfos: processActivityEvent.EventInfo[] = data.nftTransferEvents.map(
+  const transferActivityInfos: ProcessActivityEventJobPayload[] = data.nftTransferEvents.map(
     (event) => ({
       context: [
-        processActivityEvent.EventKind.nftTransferEvent,
+        ProcessActivityEventJobKind.nftTransferEvent,
         event.baseEventParams.txHash,
         event.baseEventParams.logIndex,
         event.baseEventParams.batchIndex,
       ].join(":"),
-      kind: processActivityEvent.EventKind.nftTransferEvent,
+      kind: ProcessActivityEventJobKind.nftTransferEvent,
       data: {
         contract: event.baseEventParams.address,
         tokenId: event.tokenId,
@@ -249,7 +253,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   });
 
   const startProcessTransferActivityEvent = Date.now();
-  await processActivityEvent.addActivitiesToList(filteredTransferActivityInfos);
+  await processActivityEventJob.addActivitiesToList(filteredTransferActivityInfos);
   const endProcessTransferActivityEvent = Date.now();
 
   return {

@@ -13,10 +13,10 @@ import { logger } from "@/common/logger";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import { initIndexes } from "@/elasticsearch/indexes";
-import { Sources } from "@/models/sources";
 import { startKafkaConsumer, startKafkaProducer } from "@/jobs/cdc/index";
 import { RabbitMq } from "@/common/rabbit-mq";
 import { RabbitMqJobsConsumer } from "@/jobs/index";
+import { Sources } from "@/models/sources";
 
 process.on("unhandledRejection", (error) => {
   logger.error("process", `Unhandled rejection: ${error}`);
@@ -34,8 +34,8 @@ const setup = async () => {
   await RabbitMq.assertQueuesAndExchanges(); // Assert queues and exchanges
 
   if (config.doBackgroundWork) {
-    await Sources.syncSources();
     await RabbitMqJobsConsumer.startRabbitJobsConsumer();
+    await Sources.syncSources();
 
     const networkSettings = getNetworkSettings();
     if (networkSettings.onStartup) {
