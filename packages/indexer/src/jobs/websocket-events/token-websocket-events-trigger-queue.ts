@@ -250,6 +250,10 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
               }
             }
           }
+
+          if (!changed.length) {
+            return;
+          }
         }
 
         await publishWebsocketEvent({
