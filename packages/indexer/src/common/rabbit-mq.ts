@@ -56,6 +56,7 @@ export class RabbitMq {
               priority,
               headers: {
                 "x-delay": delay,
+                "x-deduplication-header": content.jobId,
               },
             },
             (error) => {
