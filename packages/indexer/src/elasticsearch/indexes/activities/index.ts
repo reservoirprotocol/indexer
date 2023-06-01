@@ -112,7 +112,7 @@ export const save = async (activities: ActivityDocument[]): Promise<void> => {
     });
 
     if (response.errors) {
-      logger.warn(
+      logger.error(
         "elasticsearch-activities",
         JSON.stringify({
           topic: "save-errors",
@@ -393,9 +393,9 @@ export const updateActivitiesMissingCollection = async (
       },
     };
 
-    await elasticsearch.updateByQuery({
+    const response = await elasticsearch.updateByQuery({
       index: INDEX_NAME,
-      refresh: true,
+      conflicts: "proceed",
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
@@ -410,6 +410,36 @@ export const updateActivitiesMissingCollection = async (
         },
       },
     });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesMissingCollection",
+          data: {
+            contract,
+            tokenId,
+            collection,
+          },
+          query,
+          response,
+        })
+      );
+    } else {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesMissingCollection",
+          data: {
+            contract,
+            tokenId,
+            collection,
+          },
+          query,
+          response,
+        })
+      );
+    }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
@@ -419,6 +449,103 @@ export const updateActivitiesMissingCollection = async (
           contract,
           tokenId,
           collection,
+        },
+        error,
+      })
+    );
+
+    throw error;
+  }
+};
+
+export const updateActivitiesCollection = async (
+  contract: string,
+  tokenId: string,
+  newCollection: CollectionsEntity,
+  oldCollectionId: string
+): Promise<void> => {
+  try {
+    const query = {
+      bool: {
+        filter: [
+          {
+            term: {
+              "collection.id": oldCollectionId,
+            },
+          },
+          {
+            term: {
+              contract,
+            },
+          },
+          {
+            term: {
+              "token.id": tokenId,
+            },
+          },
+        ],
+      },
+    };
+
+    const response = await elasticsearch.updateByQuery({
+      index: INDEX_NAME,
+      conflicts: "proceed",
+      // This is needed due to issue with elasticsearch DSL.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      query: query,
+      script: {
+        source:
+          "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
+        params: {
+          collection_id: newCollection.id,
+          collection_name: newCollection.name,
+          collection_image: newCollection.metadata.imageUrl,
+        },
+      },
+    });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesCollection",
+          data: {
+            contract,
+            tokenId,
+            newCollection,
+            oldCollectionId,
+          },
+          query,
+          response,
+        })
+      );
+    } else {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesCollection",
+          data: {
+            contract,
+            tokenId,
+            newCollection,
+            oldCollectionId,
+          },
+          query,
+          response,
+        })
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "updateActivitiesCollection",
+        data: {
+          contract,
+          tokenId,
+          oldCollectionId,
+          newCollection,
         },
         error,
       })
@@ -442,14 +569,40 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<vo
       },
     };
 
-    await elasticsearch.deleteByQuery({
+    const response = await elasticsearch.deleteByQuery({
       index: INDEX_NAME,
-      refresh: true,
+      conflicts: "proceed",
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       query: query,
     });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "deleteActivitiesByBlockHash",
+          data: {
+            blockHash,
+          },
+          query,
+          response,
+        })
+      );
+    } else {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "deleteActivitiesByBlockHash",
+          data: {
+            blockHash,
+          },
+          query,
+          response,
+        })
+      );
+    }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
