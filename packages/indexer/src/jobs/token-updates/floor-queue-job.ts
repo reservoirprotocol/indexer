@@ -2,9 +2,8 @@ import { idb } from "@/common/db";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
 import { logger } from "@/common/logger";
-import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 
 export type FloorQueueJobPayload = {
   kind: string;
@@ -166,8 +165,8 @@ export class FloorQueueJob extends AbstractRabbitMqJobHandler {
 
         // Update collection floor
         sellOrderResult.txHash = sellOrderResult.txHash ? fromBuffer(sellOrderResult.txHash) : null;
-        await collectionUpdatesFloorAsk.addToQueue([sellOrderResult]);
-        await collectionUpdatesNonFlaggedFloorAsk.addToQueue([sellOrderResult]);
+        await floorQueueJob.addToQueue([sellOrderResult]);
+        await nonFlaggedFloorQueueJob.addToQueue([sellOrderResult]);
 
         if (payload.kind === "revalidation") {
           logger.error(this.queueName, `StaleCache: ${JSON.stringify(sellOrderResult)}`);

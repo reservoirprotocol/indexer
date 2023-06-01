@@ -15,11 +15,11 @@ import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 
 import * as collectionsRefreshCache from "@/jobs/collections-refresh/collections-refresh-cache";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import * as blurBidsRefresh from "@/jobs/order-updates/misc/blur-bids-refresh";
+import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
 
 const version = "v1";
 
@@ -99,12 +99,14 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionUpdatesMetadata.addToQueue(
-          collection.contract,
-          tokenId,
-          collection.community,
-          0,
-          true
+        await metadataQueueJob.addToQueue(
+          {
+            contract: collection.contract,
+            tokenId,
+            community: collection.community,
+            forceRefresh: true,
+          },
+          0
         );
 
         if (collection.slug) {
@@ -172,12 +174,14 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
         // Refresh the collection metadata
         const tokenId = await Tokens.getSingleToken(payload.collection);
 
-        await collectionUpdatesMetadata.addToQueue(
-          collection.contract,
-          tokenId,
-          collection.community,
-          0,
-          payload.overrideCoolDown
+        await metadataQueueJob.addToQueue(
+          {
+            contract: collection.contract,
+            tokenId,
+            community: collection.community,
+            forceRefresh: payload.overrideCoolDown,
+          },
+          0
         );
 
         if (collection.slug) {

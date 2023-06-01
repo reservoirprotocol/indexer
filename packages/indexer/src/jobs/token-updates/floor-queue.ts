@@ -6,9 +6,9 @@ import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
-import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import { handleNewSellOrderJob } from "@/jobs/update-attribute/handle-new-sell-order-job";
+import { floorQueueJob } from "@/jobs/collection-updates/floor-queue-job";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 
 const QUEUE_NAME = "token-updates-floor-ask-queue";
 
@@ -181,8 +181,8 @@ if (config.doBackgroundWork) {
           sellOrderResult.txHash = sellOrderResult.txHash
             ? fromBuffer(sellOrderResult.txHash)
             : null;
-          await collectionUpdatesFloorAsk.addToQueue([sellOrderResult]);
-          await collectionUpdatesNonFlaggedFloorAsk.addToQueue([sellOrderResult]);
+          await floorQueueJob.addToQueue([sellOrderResult]);
+          await nonFlaggedFloorQueueJob.addToQueue([sellOrderResult]);
 
           if (kind === "revalidation") {
             logger.error(QUEUE_NAME, `StaleCache: ${JSON.stringify(sellOrderResult)}`);
