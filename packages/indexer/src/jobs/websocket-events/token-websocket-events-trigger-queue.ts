@@ -241,13 +241,13 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         if (data.trigger === "insert") eventType = "token.created";
         else if (data.trigger === "update") {
           eventType = "token.updated";
-
-          // go through before and after to see what changed
-          for (const key in changedMapping) {
-            // eslint-disable-next-line
-            // @ts-ignore
-            if (data.before[key] && data.after[key] && data.before[key] !== data.after[key]) {
-              changed.push(key);
+          if (data.before) {
+            for (const key in changedMapping) {
+              // eslint-disable-next-line
+              // @ts-ignore
+              if (data.before[key] && data.after[key] && data.before[key] !== data.after[key]) {
+                changed.push(key);
+              }
             }
           }
         }
