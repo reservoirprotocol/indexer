@@ -142,7 +142,10 @@ export const getUserTokensV7Options: RouteOptions = {
             kind: Joi.string().description("Can be erc721, erc115, etc."),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
-            supply: Joi.number().unsafe().allow(null).description("Can be higher than one if erc1155."),
+            supply: Joi.number()
+              .unsafe()
+              .allow(null)
+              .description("Can be higher than one if erc1155."),
             remainingSupply: Joi.number().unsafe().allow(null),
             rarityScore: Joi.number().allow(null),
             rarityRank: Joi.number().allow(null),
@@ -166,7 +169,9 @@ export const getUserTokensV7Options: RouteOptions = {
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
               source: Joi.object().allow(null),
-            }).optional().description("Can be null if not active bids."),
+            })
+              .optional()
+              .description("Can be null if not active bids."),
             lastAppraisalValue: Joi.number().unsafe().allow(null).description("Can be null."),
             attributes: Joi.array()
               .items(
@@ -186,7 +191,7 @@ export const getUserTokensV7Options: RouteOptions = {
           ownership: Joi.object({
             tokenCount: Joi.string(),
             onSaleCount: Joi.string(),
-            floorAsk: Joi.description("Can be null if no asks."){ //Is this the best way to add a description for floorAsk maybe null? Thx
+            floorAsk: Joi.object({
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
@@ -196,7 +201,7 @@ export const getUserTokensV7Options: RouteOptions = {
               source: Joi.object().allow(null),
               rawData: Joi.object().optional().allow(null),
               isNativeOffChainCancellable: Joi.boolean().optional(),
-            },
+            }).description("Can be null if no asks."),
             acquiredAt: Joi.string().allow(null),
           }),
         })

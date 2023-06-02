@@ -209,7 +209,10 @@ export const getTokensV6Options: RouteOptions = {
             isFlagged: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
-            supply: Joi.number().unsafe().allow(null).description("Can be higher than 1 if erc1155"),
+            supply: Joi.number()
+              .unsafe()
+              .allow(null)
+              .description("Can be higher than 1 if erc1155"),
             remainingSupply: Joi.number().unsafe().allow(null),
             rarity: Joi.number().unsafe().allow(null),
             rarityRank: Joi.number().unsafe().allow(null),
@@ -266,7 +269,8 @@ export const getTokensV6Options: RouteOptions = {
                     bps: Joi.number(),
                   })
                 )
-                .allow(null).description("Can be null if no active bids"),
+                .allow(null)
+                .description("Can be null if no active bids"),
             }).optional(),
           }),
         })
