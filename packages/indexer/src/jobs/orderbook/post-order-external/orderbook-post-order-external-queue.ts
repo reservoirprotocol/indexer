@@ -26,7 +26,9 @@ import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import { CrossPostingOrderStatus } from "@/models/cross-posting-orders";
 import { TSTAttribute, TSTCollection, TSTCollectionNonFlagged } from "@/orderbook/token-sets/utils";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { fromBuffer, now, toBuffer } from "@/common/utils";
+
+import { addToQueue as addToQueueOpensea } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
 
 const QUEUE_NAME = "orderbook-post-order-external-queue";
 const MAX_RETRIES = 5;
@@ -78,6 +80,33 @@ export const jobProcessor = async (job: Job) => {
   const rateLimiter = getRateLimiter(orderbook);
   const rateLimiterKey = `${orderbook}:${orderbookApiKey}`;
 
+  // TODO: move this to a validateOrder method
+  if (orderbook === "opensea") {
+    const order = new Sdk.SeaportV15.Order(
+      config.chainId,
+      orderData as Sdk.SeaportBase.Types.OrderComponents
+    );
+
+    if (order.params.endTime <= now()) {
+      logger.info(
+        job.queueName,
+        `Post Order Failed - Order is expired. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+          orderData
+        )}, retry=${retry}`
+      );
+
+      if (crossPostingOrderId) {
+        await crossPostingOrdersModel.updateOrderStatus(
+          crossPostingOrderId,
+          CrossPostingOrderStatus.failed,
+          "Order is expired."
+        );
+      }
+
+      return;
+    }
+  }
+
   try {
     await rateLimiter.consume(rateLimiterKey, 1);
   } catch (error) {
@@ -90,19 +119,23 @@ export const jobProcessor = async (job: Job) => {
   if (isRateLimited) {
     // If limit reached, reschedule job based on the limit expiration.
     logger.debug(
-      QUEUE_NAME,
+      job.queueName,
       `Post Order Rate Limited. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
         orderData
       )}, rateLimitExpiration=${rateLimitExpiration}, retry=${retry}`
     );
 
-    await addToQueue(job.data, rateLimitExpiration, true);
+    if (orderbook === "opensea") {
+      await addToQueueOpensea(job.data, rateLimitExpiration, true);
+    } else {
+      await addToQueue(job.data, rateLimitExpiration, true);
+    }
   } else {
     try {
       await postOrder(orderbook, orderId, orderData, orderbookApiKey, orderSchema);
 
       logger.info(
-        QUEUE_NAME,
+        job.queueName,
         `Post Order Success. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
           orderData
         )}, rateLimitExpiration=${rateLimitExpiration}, retry=${retry}`
@@ -125,17 +158,21 @@ export const jobProcessor = async (job: Job) => {
           await rateLimiter.block(rateLimiterKey, Math.floor(delay / 1000));
         } catch (error) {
           logger.error(
-            QUEUE_NAME,
+            job.queueName,
             `Unable to set expiration. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
               orderData
             )}, retry=${retry}, delay=${delay}, error=${error}`
           );
         }
 
-        await addToQueue(job.data, delay, true);
+        if (orderbook === "opensea") {
+          await addToQueueOpensea(job.data, delay, true);
+        } else {
+          await addToQueue(job.data, delay, true);
+        }
 
         logger.warn(
-          QUEUE_NAME,
+          job.queueName,
           `Post Order Throttled. orderbook=${orderbook}, orderbookApiKey=${orderbookApiKey}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
           )}, delay=${delay}, retry=${retry}`
@@ -143,7 +180,7 @@ export const jobProcessor = async (job: Job) => {
       } else if (error instanceof InvalidRequestError) {
         // If the order is invalid, fail the job.
         logger.info(
-          QUEUE_NAME,
+          job.queueName,
           `Post Order Failed - Invalid Order. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
           )}, retry=${retry}, error=${error}, errorKind=${error.kind}`
@@ -206,7 +243,7 @@ export const jobProcessor = async (job: Job) => {
 
           if (rawResult) {
             logger.info(
-              QUEUE_NAME,
+              job.queueName,
               `Post Order Failed - Invalid Fees - Refreshing. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderbookApiKey=${orderbookApiKey}, orderKind=${
                 order.params.kind
               }, orderId=${orderId}, orderData=${JSON.stringify(
@@ -224,7 +261,7 @@ export const jobProcessor = async (job: Job) => {
       } else if (retry < MAX_RETRIES) {
         // If we got an unknown error from the api, reschedule job based on fixed delay.
         logger.info(
-          QUEUE_NAME,
+          job.queueName,
           `Post Order Failed - Retrying. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
           )}, retry: ${retry}`
@@ -232,10 +269,14 @@ export const jobProcessor = async (job: Job) => {
 
         job.data.retry = retry + 1;
 
-        await addToQueue(job.data, 1000, true);
+        if (orderbook === "opensea") {
+          await addToQueueOpensea(job.data, 1000, true);
+        } else {
+          await addToQueue(job.data, 1000, true);
+        }
       } else {
         logger.info(
-          QUEUE_NAME,
+          job.queueName,
           `Post Order Failed - Max Retries Reached. orderbook${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
           )}, retry=${retry}, error=${error}`

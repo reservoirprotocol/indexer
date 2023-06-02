@@ -108,6 +108,7 @@ export enum Network {
   Polygon = 137,
   Arbitrum = 42161,
   Avalanche = 43114,
+  ArbitrumNova = 42170,
   // Testnets
   EthereumGoerli = 5,
   ZoraTestnet = 999,
@@ -115,7 +116,6 @@ export enum Network {
   LineaTestnet = 59140,
   ScrollAlpha = 534353,
   Mumbai = 80001,
-  ArbitrumNova = 42170,
   BaseGoerli = 84531,
 }
 

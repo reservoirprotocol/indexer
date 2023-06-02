@@ -19,6 +19,8 @@ import * as updateCollectionActivity from "@/jobs/collection-updates/update-coll
 import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-collection-user-activity";
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute-counts";
+import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
+
 import PgPromise from "pg-promise";
 import { updateActivities } from "@/jobs/activities/utils";
 
@@ -117,6 +119,15 @@ if (config.doBackgroundWork) {
 
             // Trigger a delayed job to recalc the daily volumes
             await updateCollectionDailyVolume.addToQueue(collection, contract);
+
+            if (config.doElasticsearchWork) {
+              await updateActivitiesCollection.addToQueue(
+                contract,
+                tokenId,
+                collection,
+                result.collection_id
+              );
+            }
           }
 
           // Set the new collection and update the token association

@@ -139,10 +139,13 @@ export const getUserTokensV7Options: RouteOptions = {
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
-            kind: Joi.string(),
+            kind: Joi.string().description("Can be erc721, erc115, etc."),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
-            supply: Joi.number().unsafe().allow(null),
+            supply: Joi.number()
+              .unsafe()
+              .allow(null)
+              .description("Can be higher than one if erc1155."),
             remainingSupply: Joi.number().unsafe().allow(null),
             rarityScore: Joi.number().allow(null),
             rarityRank: Joi.number().allow(null),
@@ -152,7 +155,7 @@ export const getUserTokensV7Options: RouteOptions = {
               name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
               openseaVerificationStatus: Joi.string().allow("", null),
-              floorAskPrice: JoiPrice.allow(null),
+              floorAskPrice: JoiPrice.allow(null).description("Can be null if no active asks."),
               royaltiesBps: Joi.number().allow(null),
               royalties: Joi.array().items(
                 Joi.object({
@@ -166,18 +169,20 @@ export const getUserTokensV7Options: RouteOptions = {
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
               source: Joi.object().allow(null),
-            }).optional(),
-            lastAppraisalValue: Joi.number().unsafe().allow(null),
+            })
+              .optional()
+              .description("Can be null if not active bids."),
+            lastAppraisalValue: Joi.number().unsafe().allow(null).description("Can be null."),
             attributes: Joi.array()
               .items(
                 Joi.object({
-                  key: Joi.string(),
-                  kind: Joi.string(),
-                  value: JoiAttributeValue,
+                  key: Joi.string().description("Case sensitive"),
+                  kind: Joi.string().description("Can be `string`, `number, `date, or `range`."),
+                  value: JoiAttributeValue.description("Case sensitive."),
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
-                  floorAskPrice: Joi.number().unsafe().allow(null),
-                  topBidValue: Joi.number().unsafe().allow(null),
+                  floorAskPrice: Joi.number().unsafe().allow(null).description("Can be null."),
+                  topBidValue: Joi.number().unsafe().allow(null).description("Can be null."),
                   createdAt: Joi.string(),
                 })
               )
@@ -186,7 +191,7 @@ export const getUserTokensV7Options: RouteOptions = {
           ownership: Joi.object({
             tokenCount: Joi.string(),
             onSaleCount: Joi.string(),
-            floorAsk: {
+            floorAsk: Joi.object({
               id: Joi.string().allow(null),
               price: JoiPrice.allow(null),
               maker: Joi.string().lowercase().pattern(regex.address).allow(null),
@@ -196,7 +201,7 @@ export const getUserTokensV7Options: RouteOptions = {
               source: Joi.object().allow(null),
               rawData: Joi.object().optional().allow(null),
               isNativeOffChainCancellable: Joi.boolean().optional(),
-            },
+            }).description("Can be null if no asks."),
             acquiredAt: Joi.string().allow(null),
           }),
         })
