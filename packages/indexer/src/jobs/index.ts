@@ -219,6 +219,11 @@ import { processArchiveDataJob } from "@/jobs/data-archive/process-archive-data-
 import { exportDataJob } from "@/jobs/data-export/export-data-job";
 import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
 import { fillUpdatesJob } from "@/jobs/fill-updates/fill-updates-job";
+import { backfillQueueJob } from "@/jobs/events-sync/backfill-queue-job";
+import { blockCheckQueueJob } from "@/jobs/events-sync/block-check-queue-job";
+import { processResyncRequestQueueJob } from "@/jobs/events-sync/process-resync-request-queue-job";
+import { realtimeQueueJob } from "@/jobs/events-sync/realtime-queue-job";
+import { realtimeQueueV2Job } from "@/jobs/events-sync/realtime-queue-v2-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -431,6 +436,11 @@ export class RabbitMqJobsConsumer {
       exportDataJob,
       fillPostProcessJob,
       fillUpdatesJob,
+      backfillQueueJob,
+      blockCheckQueueJob,
+      processResyncRequestQueueJob,
+      realtimeQueueJob,
+      realtimeQueueV2Job,
     ];
   }
 

@@ -78,8 +78,7 @@ export class RarityQueueJob extends AbstractRabbitMqJobHandler {
   public async addToQueue(params: { collectionId: string | string[] }, delay = 60 * 60 * 1000) {
     if (_.isArray(params.collectionId)) {
       await this.sendBatch(
-        params.collectionId.map((id) => ({ payload: { collectionId: id } })),
-        delay
+        params.collectionId.map((id) => ({ payload: { collectionId: id }, delay }))
       );
     } else {
       await this.send({ payload: { collectionId: params.collectionId } }, delay);
