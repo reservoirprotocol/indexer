@@ -5,7 +5,6 @@ import { logger } from "@/common/logger";
 import MetadataApi from "@/utils/metadata-api";
 import _ from "lodash";
 import { config } from "@/config/index";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import { getNetworkSettings } from "@/config/network";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
@@ -14,6 +13,7 @@ import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner
 import { floorQueueJob } from "@/jobs/collection-updates/floor-queue-job";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 import { normalizedFloorQueueJob } from "@/jobs/collection-updates/normalized-floor-queue-job";
+import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
 
 export type FetchCollectionMetadataJobPayload = {
   contract: string;
@@ -150,12 +150,12 @@ export class FetchCollectionMetadataJob extends AbstractRabbitMqJobHandler {
       }
 
       if (collection?.id && !config.disableRealtimeMetadataRefresh) {
-        await metadataIndexFetch.addToQueue(
+        await metadataFetchQueueJob.addToQueue(
           [
             {
               kind: "single-token",
               data: {
-                method: metadataIndexFetch.getIndexingMethod(collection.community),
+                method: metadataFetchQueueJob.getIndexingMethod(collection.community),
                 contract: payload.contract,
                 tokenId: payload.tokenId,
                 collection: collection.id,

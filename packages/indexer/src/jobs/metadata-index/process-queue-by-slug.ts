@@ -6,9 +6,7 @@ import { randomUUID } from "crypto";
 import { logger } from "@/common/logger";
 import { redis, extendLock, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
-import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 import MetadataApi from "@/utils/metadata-api";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import _ from "lodash";
 import {
   PendingRefreshTokensBySlug,
@@ -16,6 +14,8 @@ import {
 } from "@/models/pending-refresh-tokens-by-slug";
 import { Tokens } from "@/models/tokens";
 import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
+import { metadataWriteQueueJob } from "@/jobs/metadata-index/write-queue-job";
 
 const QUEUE_NAME = "metadata-index-process-queue-by-slug";
 
@@ -45,7 +45,7 @@ async function addToTokenRefreshQueueAndUpdateCollectionMetadata(
 
   const tokenId = await Tokens.getSingleToken(refreshTokenBySlug.collection);
   await Promise.all([
-    metadataIndexFetch.addToQueue(
+    metadataFetchQueueJob.addToQueue(
       [
         {
           kind: "full-collection",
@@ -131,7 +131,7 @@ if (config.doBackgroundWork) {
                 refreshTokenBySlug
               )}, error=${JSON.stringify(error.response.data)}`
             );
-            await metadataIndexFetch.addToQueue(
+            await metadataFetchQueueJob.addToQueue(
               [
                 {
                   kind: "full-collection",
@@ -160,7 +160,7 @@ if (config.doBackgroundWork) {
         )}, metadata=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`
       );
 
-      await metadataIndexWrite.addToQueue(
+      await metadataWriteQueueJob.addToQueue(
         metadata.map((m) => ({
           ...m,
         }))
