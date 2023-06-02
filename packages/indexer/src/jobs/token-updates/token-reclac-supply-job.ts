@@ -54,8 +54,7 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
 
   public async addToQueue(tokens: TokenRecalcSupplyPayload[], delay = 60 * 5 * 1000) {
     await this.sendBatch(
-      tokens.map((t) => ({ payload: t, jobId: `${t.contract}:${t.tokenId}` })),
-      delay
+      tokens.map((t) => ({ payload: t, jobId: `${t.contract}:${t.tokenId}`, delay }))
     );
   }
 }

@@ -162,8 +162,8 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
     await this.sendBatch(
       infos.map((info) => ({
         payload: info,
-      })),
-      delayInSeconds * 1000
+        delay: delayInSeconds * 1000,
+      }))
     );
   }
 }

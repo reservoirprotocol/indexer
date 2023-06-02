@@ -17,11 +17,11 @@ import MetadataApi from "@/utils/metadata-api";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as royalties from "@/utils/royalties";
-import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 import {
   getOpenCollectionMints,
   simulateAndUpdateCollectionMint,
 } from "@/utils/mints/collection-mints";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 
 export class Collections {
   public static async getById(collectionId: string, readReplica = false) {

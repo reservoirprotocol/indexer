@@ -57,10 +57,7 @@ export class MetadataQueueJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueueBulk(collectionMetadataInfos: CollectionMetadataInfo[], delay = 0) {
-    await this.sendBatch(
-      collectionMetadataInfos.map((params) => ({ payload: params })),
-      delay
-    );
+    await this.sendBatch(collectionMetadataInfos.map((params) => ({ payload: params, delay })));
   }
 
   public async addToQueue(
@@ -85,8 +82,8 @@ export class MetadataQueueJob extends AbstractRabbitMqJobHandler {
             community: p.community,
             forceRefresh: params.forceRefresh,
           },
-        })),
-        delay
+          delay,
+        }))
       );
     } else {
       await this.send(
