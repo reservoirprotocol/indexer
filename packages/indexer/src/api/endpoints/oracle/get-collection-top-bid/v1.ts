@@ -311,7 +311,12 @@ export const getCollectionTopBidOracleV1Options: RouteOptions = {
         message,
       };
     } catch (error) {
-      logger.error(`get-collection-top-bid-oracle-${version}-handler`, `Handler failure: ${error}`);
+      if (!(error instanceof Boom.Boom)) {
+        logger.error(
+          `get-collection-top-bid-oracle-${version}-handler`,
+          `Handler failure: ${error}`
+        );
+      }
       throw error;
     }
   },

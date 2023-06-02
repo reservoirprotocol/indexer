@@ -101,11 +101,6 @@ if (config.doBackgroundWork) {
 
       const metadata = results.flat(1);
 
-      logger.info(
-        QUEUE_NAME,
-        `Debug. method=${method}, count=${count}, countTotal=${countTotal}, refreshTokens=${refreshTokens.length}, refreshTokensChunks=${refreshTokensChunks.length}, metadata=${metadata.length}, rateLimitExpiredIn=${rateLimitExpiredIn}`
-      );
-
       await metadataIndexWrite.addToQueue(
         metadata.map((m) => ({
           ...m,

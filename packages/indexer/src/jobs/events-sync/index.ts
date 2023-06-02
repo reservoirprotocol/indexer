@@ -68,7 +68,7 @@ if (config.doBackgroundWork && config.catchup) {
 
         try {
           await realtimeEventsSync.addToQueue();
-          if (config.chainId === 1) {
+          if (config.enableRealtimeV2BlockQueue) {
             await realtimeEventsSyncV2.addToQueue({ block });
           }
         } catch (error) {

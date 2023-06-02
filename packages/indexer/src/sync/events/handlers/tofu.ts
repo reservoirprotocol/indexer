@@ -1,4 +1,5 @@
 import { Interface } from "@ethersproject/abi";
+import { searchForCall } from "@georgeroman/evm-tx-simulator";
 
 import { getEventData } from "@/events-sync/data";
 import { EnhancedEvent, OnChainData } from "@/events-sync/handlers/utils";
@@ -26,9 +27,69 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         }
 
         const iface = new Interface([
-          "function run(tuple(address user, tuple(address token, uint256 tokenId, uint256 amount, uint8 kind, bytes mintData)[] bundle, address currency, uint256 price, uint256 deadline, bytes32 salt, uint8 kind) intent, tuple(bytes32 intentionHash, address signer, uint256 txDeadline, bytes32 salt, uint256 id, uint8 opcode, address caller, address currency, uint256 price, uint256 incentiveRate, tuple(uint256[] coupons, uint256 feeRate, uint256 royaltyRate, uint256 buyerCashbackRate, address feeAddress, address royaltyAddress) settlement, tuple(address token, uint256 tokenId, uint256 amount, uint8 kind, bytes mintData)[] bundle, uint256 deadline) detail, bytes sigIntent, bytes sigDetail) payable",
+          `function run(
+            tuple(
+              address user,
+              tuple(
+                address token,
+                uint256 tokenId,
+                uint256 amount,
+                uint8 kind,
+                bytes mintData
+              )[] bundle,
+              address currency,
+              uint256 price,
+              uint256 deadline,
+              bytes32 salt,
+              uint8 kind
+            ) intent,
+            tuple(
+              bytes32 intentionHash,
+              address signer,
+              uint256 txDeadline,
+              bytes32 salt,
+              uint256 id,
+              uint8 opcode,
+              address caller,
+              address currency,
+              uint256 price,
+              uint256 incentiveRate,
+              tuple(
+                uint256[] coupons,
+                uint256 feeRate,
+                uint256 royaltyRate,
+                uint256 buyerCashbackRate,
+                address feeAddress,
+                address royaltyAddress
+              ) settlement,
+              tuple(
+                address token,
+                uint256 tokenId,
+                uint256 amount,
+                uint8 kind,
+                bytes mintData
+              )[] bundle,
+              uint256 deadline
+            ) detail,
+            bytes sigIntent,
+            bytes sigDetail
+          )`,
         ]);
-        const result = iface.decodeFunctionData("run", txTrace.calls.input);
+        const exchangeCallTrace = searchForCall(
+          txTrace.calls,
+          {
+            to: baseEventParams.address,
+            type: "CALL",
+            sigHashes: [iface.getSighash("run")],
+          },
+          0
+        );
+
+        if (!exchangeCallTrace) {
+          break;
+        }
+
+        const result = iface.decodeFunctionData("run", exchangeCallTrace.input);
         const opcode = result.detail.opcode;
         const nftTokens = result.intent.bundle;
 

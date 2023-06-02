@@ -122,28 +122,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
       const [, contract, tokenId] = event.payload.item.nft_id.split("/");
 
-      // const token = await ridb.oneOrNone(
-      //   `SELECT metadata_indexed
-      //         FROM tokens
-      //         WHERE contract = $/contract/
-      //         AND token_id = $/tokenId/`,
-      //   {
-      //     contract: toBuffer(contract),
-      //     tokenId,
-      //   }
-      // );
-      //
-      // logger.debug(
-      //   "opensea-websocket-item-metadata-update-event",
-      //   `Metadata received. contract=${contract}, tokenId=${tokenId}, event=${JSON.stringify(
-      //     event
-      //   )}, token=${JSON.stringify(token)}`
-      // );
-      //
-      // if (!token || token.metadata_indexed) {
-      //   return;
-      // }
-
       const metadata = {
         asset_contract: {
           address: contract,
@@ -162,13 +140,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
 
       const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
 
-      logger.info(
-        "opensea-websocket-item-metadata-update-event",
-        `Metadata parsed. contract=${contract}, tokenId=${tokenId}, event=${JSON.stringify(
-          event
-        )}, metadata=${JSON.stringify(metadata)}, parsedMetadata=${JSON.stringify(parsedMetadata)}`
-      );
-
       if (parsedMetadata) {
         await metadataIndexWrite.addToQueue([parsedMetadata]);
       }
@@ -180,20 +151,6 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     }
   });
 }
-
-// const saveEvent = async (event: BaseStreamMessage<unknown>) => {
-//   if (!config.openseaWebsocketEventsAwsFirehoseDeliveryStreamName) {
-//     return;
-//   }
-//
-//   const openseaWebsocketEvents = new OpenseaWebsocketEvents();
-//   await openseaWebsocketEvents.add([
-//     {
-//       event,
-//       createdAt: new Date().toISOString(),
-//     },
-//   ]);
-// };
 
 export const getEventHash = (event: BaseStreamMessage<unknown>): string => {
   /* eslint-disable @typescript-eslint/no-explicit-any */

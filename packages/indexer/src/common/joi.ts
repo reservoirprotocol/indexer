@@ -26,9 +26,9 @@ const JoiPriceAmount = Joi.object({
 
 const JoiPriceCurrency = Joi.object({
   contract: Joi.string().pattern(regex.address),
-  name: Joi.string(),
-  symbol: Joi.string(),
-  decimals: Joi.number(),
+  name: Joi.string().allow(null),
+  symbol: Joi.string().allow(null),
+  decimals: Joi.number().allow(null),
 });
 
 export const JoiPrice = Joi.object({
@@ -318,7 +318,8 @@ export const getJoiDynamicPricingObject = async (
   raw_data:
     | Sdk.SeaportBase.Types.OrderComponents
     | Sdk.Sudoswap.OrderParams
-    | Sdk.Nftx.Types.OrderParams,
+    | Sdk.Nftx.Types.OrderParams
+    | Sdk.CollectionXyz.Types.OrderParams,
   currency?: string,
   missing_royalties?: []
 ) => {
@@ -385,6 +386,27 @@ export const getJoiDynamicPricingObject = async (
               },
               floorAskCurrency
             )
+          )
+        ),
+      },
+    };
+  } else if (kind === "collectionxyz") {
+    // Pool orders
+    return {
+      kind: "pool",
+      data: {
+        pool: (raw_data as Sdk.CollectionXyz.Types.OrderParams).pool,
+        prices: await Promise.all(
+          ((raw_data as Sdk.CollectionXyz.Types.OrderParams).extra.prices as string[]).map(
+            (price) =>
+              getJoiPriceObject(
+                {
+                  gross: {
+                    amount: bn(price).add(missingRoyalties).toString(),
+                  },
+                },
+                floorAskCurrency
+              )
           )
         ),
       },
@@ -683,7 +705,7 @@ export const getJoiActivityOrderObject = async (order: {
   id: string | null;
   side: string | null;
   sourceIdInt: number | null | undefined;
-  criteria: Record<string, unknown> | null;
+  criteria: Record<string, unknown> | null | undefined;
 }) => {
   const sources = await Sources.getInstance();
   const orderSource = order.sourceIdInt ? sources.get(order.sourceIdInt) : undefined;

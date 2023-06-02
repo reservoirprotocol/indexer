@@ -20,7 +20,7 @@ export const getActivityV5Options: RouteOptions = {
   description: "All activity",
   notes:
     "This API can be used to return all activity including sales, asks, transfers, mints, bids, cancelled bids, and cancelled asks.",
-  tags: ["api", "Activity"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 1,

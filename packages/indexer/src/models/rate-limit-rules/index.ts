@@ -22,23 +22,18 @@ export class RateLimitRules {
 
   public rulesEntities: Map<string, RateLimitRuleEntity[]>; // Map of route to local DB rules entities
   public rules: Map<number, RateLimiterRedis>; // Map of rule ID to rate limit redis object
-  public apiRoutesPoints: Map<string, { route: string; points: number }>; // Map of route to points
-  public apiRoutesPointsCache: Map<string, number>; // Local cache of points per route to avoid redundant iterations and regex matching
   public apiRoutesRegexRulesCache: Map<string, RateLimitRuleEntity[]>; // Local cache of matching regex rules per route to avoid redundant iterations and regex matching
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   private constructor() {
     this.rulesEntities = new Map();
     this.rules = new Map();
-    this.apiRoutesPoints = new Map();
-    this.apiRoutesPointsCache = new Map();
     this.apiRoutesRegexRulesCache = new Map();
   }
 
   private async loadData(forceDbLoad = false) {
     // Try to load from cache
     const rulesCache = await redis.get(RateLimitRules.getCacheKey());
-    let routesPointsRawData = [];
     let rulesRawData: RateLimitRuleEntityParams[] = [];
 
     if (_.isNull(rulesCache) || forceDbLoad) {
@@ -47,7 +42,7 @@ export class RateLimitRules {
         const rulesQuery = `
           SELECT *
           FROM rate_limit_rules
-          ORDER BY route DESC, api_key DESC, payload DESC, method DESC, tier DESC
+          ORDER BY route DESC, api_key DESC, payload DESC, method DESC, tier DESC NULLS LAST
         `;
 
         rulesRawData = await redb.manyOrNone(rulesQuery);
@@ -55,21 +50,9 @@ export class RateLimitRules {
         logger.error("rate-limit-rules", "Failed to load rate limit rules");
       }
 
-      try {
-        const apiRoutesPointsQuery = `
-          SELECT *
-          FROM api_routes_points
-          ORDER BY route ASC
-        `;
-
-        routesPointsRawData = await redb.manyOrNone(apiRoutesPointsQuery);
-      } catch (error) {
-        logger.error("rate-limit-rules", "Failed to load rate limit rules");
-      }
-
       await redis.set(
         RateLimitRules.getCacheKey(),
-        JSON.stringify({ rulesRawData, routesPointsRawData }),
+        JSON.stringify({ rulesRawData }),
         "EX",
         60 * 60 * 24
       );
@@ -77,12 +60,10 @@ export class RateLimitRules {
       // Parse the cache data
       const parsedRulesCache = JSON.parse(rulesCache);
       rulesRawData = parsedRulesCache.rulesRawData;
-      routesPointsRawData = parsedRulesCache.routesPointsRawData;
     }
 
     const rulesEntities = new Map<string, RateLimitRuleEntity[]>(); // Reset current rules entities
     const rules = new Map(); // Reset current rules
-    const apiRoutesPoints = new Map(); // Reset current rules
 
     // Parse rules data
     for (const rule of rulesRawData) {
@@ -105,15 +86,8 @@ export class RateLimitRules {
       );
     }
 
-    // Parse routes points cost
-    for (const rulePoints of routesPointsRawData) {
-      apiRoutesPoints.set(rulePoints.route, { route: rulePoints.route, points: rulePoints.points });
-    }
-
     this.rulesEntities = rulesEntities;
     this.rules = rules;
-    this.apiRoutesPoints = apiRoutesPoints;
-    this.apiRoutesPointsCache = new Map();
     this.apiRoutesRegexRulesCache = new Map();
   }
 
@@ -280,29 +254,13 @@ export class RateLimitRules {
         const verifyMethod = rule.method !== "";
         const verifyTier = !_.isNull(rule.tier);
 
-        // Check the rule criteria if any not matching the rule is not matching
+        // Check the rule criteria, if none are not matching the rule is not matching
         if (verifyApiKey && rule.apiKey !== apiKey) {
           continue;
         }
 
-        if (verifyPayload) {
-          let payloadMatching = true;
-
-          // If rule needs payload verification all params need to match
-          for (const rulePayload of rule.payload) {
-            // If the request consists any of the keys in the request and the value match
-            if (
-              !payload.has(rulePayload.key) ||
-              (rulePayload.value !== "*" &&
-                _.toLower(payload.get(rulePayload.key)) !== _.toLower(rulePayload.value))
-            ) {
-              payloadMatching = false;
-            }
-          }
-
-          if (!payloadMatching) {
-            continue;
-          }
+        if (verifyPayload && !this.isPayloadMatchRulePayload(rule, payload)) {
+          continue;
         }
 
         if (verifyMethod && rule.method !== method) {
@@ -322,6 +280,22 @@ export class RateLimitRules {
     return this.getTierDefaultRule(tier);
   }
 
+  public isPayloadMatchRulePayload(rule: RateLimitRuleEntity, payload: Map<string, string>) {
+    // If rule needs payload verification all params need to match
+    for (const rulePayload of rule.payload) {
+      // If the request consists any of the keys in the request and the value match
+      if (
+        !payload.has(rulePayload.key) ||
+        (rulePayload.value !== "*" &&
+          _.toLower(payload.get(rulePayload.key)) !== _.toLower(rulePayload.value))
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   public getTierDefaultRule(tier: number) {
     // No matching rule found, return default rules
     const defaultRules = this.rulesEntities.get("/") || [];
@@ -330,18 +304,6 @@ export class RateLimitRules {
         return rule;
       }
     }
-  }
-
-  public getPointsToConsume(route: string) {
-    const defaultCost = 1;
-
-    for (const [routeKey, pointsData] of this.apiRoutesPoints) {
-      if (route.match(routeKey)) {
-        return pointsData.points;
-      }
-    }
-
-    return defaultCost; // Default cost
   }
 
   public getRateLimitObject(
@@ -360,17 +322,20 @@ export class RateLimitRules {
       }
 
       const rateLimitObject = this.rules.get(rule.id);
-
-      // Get points to consume from cache to avoid iterations and regex which are expensive
-      const pointsToConsumeCacheKey = `${rule.id}-${route}`;
-      let pointsToConsume = this.apiRoutesPointsCache.get(pointsToConsumeCacheKey);
-      if (!pointsToConsume) {
-        pointsToConsume = rule.options.pointsToConsume || this.getPointsToConsume(route);
-        this.apiRoutesPointsCache.set(pointsToConsumeCacheKey, pointsToConsume);
-      }
+      const pointsToConsume = rule.options.pointsToConsume || 1;
 
       if (rateLimitObject) {
         rateLimitObject.keyPrefix = `${config.chainId}:${rule.id}:${route}`;
+
+        // If no points defined for the rule take tier default points
+        if (_.isUndefined(rule.options.points)) {
+          rateLimitObject.points = Number(this.getTierDefaultRule(tier)?.options.points);
+        }
+
+        // If no duration defined for the rule take tier default duration
+        if (_.isUndefined(rule.options.duration)) {
+          rateLimitObject.duration = Number(this.getTierDefaultRule(tier)?.options.duration);
+        }
 
         return {
           ruleParams: rule,

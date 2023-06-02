@@ -5,10 +5,10 @@ import { Request } from "@hapi/hapi";
 
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
-import { redis } from "@/common/redis";
+import { allChainsSyncRedis, redis } from "@/common/redis";
 import { ApiKeyEntity, ApiKeyUpdateParams } from "@/models/api-keys/api-key-entity";
 import getUuidByString from "uuid-by-string";
-import { Channel } from "@/pubsub/channels";
+import { AllChainsChannel, Channel } from "@/pubsub/channels";
 import axios from "axios";
 import { getNetworkName } from "@/config/network";
 import { config } from "@/config/index";
@@ -67,6 +67,14 @@ export class ApiKeyManager {
 
     if (created) {
       await ApiKeyManager.notifyApiKeyCreated(values);
+
+      // Sync to other chains only if created on mainnet
+      if (config.chainId === 1) {
+        await allChainsSyncRedis.publish(
+          AllChainsChannel.ApiKeyCreated,
+          JSON.stringify({ values })
+        );
+      }
     }
 
     return {
@@ -325,6 +333,14 @@ export class ApiKeyManager {
 
     await ApiKeyManager.deleteCachedApiKey(key); // reload the cache
     await redis.publish(Channel.ApiKeyUpdated, JSON.stringify({ key }));
+
+    // Sync to other chains only if created on mainnet
+    if (config.chainId === 1) {
+      await allChainsSyncRedis.publish(
+        AllChainsChannel.ApiKeyUpdated,
+        JSON.stringify({ key, fields })
+      );
+    }
   }
 
   static async notifyApiKeyCreated(values: ApiKeyRecord) {

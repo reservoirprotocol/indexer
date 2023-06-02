@@ -167,6 +167,8 @@ import * as backfillTransferActivitiesElasticsearch from "@/jobs/elasticsearch/b
 import * as backfillSaleActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-sale-activities-elasticsearch";
 import * as backfillAskActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-ask-activities-elasticsearch";
 import * as backfillBidActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-activities-elasticsearch";
+import * as backfillAskCancelActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-ask-cancel-activities-elasticsearch";
+import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-cancel-activities-elasticsearch";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -323,4 +325,6 @@ export const allJobQueues = [
   backfillSaleActivitiesElasticsearch.queue,
   backfillAskActivitiesElasticsearch.queue,
   backfillBidActivitiesElasticsearch.queue,
+  backfillAskCancelActivitiesElasticsearch.queue,
+  backfillBidCancelActivitiesElasticsearch.queue,
 ];

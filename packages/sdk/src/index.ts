@@ -6,6 +6,7 @@ import * as RouterV6 from "./router/v6";
 import * as Beeple from "./beeple";
 import * as BendDao from "./bend-dao";
 import * as Blur from "./blur";
+import * as CollectionXyz from "./collectionxyz";
 import * as CryptoArte from "./cryptoarte";
 import * as CryptoKitties from "./cryptokitties";
 import * as CryptoPunks from "./cryptopunks";
@@ -75,6 +76,7 @@ export {
   Beeple,
   BendDao,
   Blur,
+  CollectionXyz,
   CryptoArte,
   CryptoKitties,
   CryptoPunks,

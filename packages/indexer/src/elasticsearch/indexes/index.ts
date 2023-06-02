@@ -1,8 +1,15 @@
 import * as activitiesIndex from "@/elasticsearch/indexes/activities";
 import { logger } from "@/common/logger";
+import { acquireLock } from "@/common/redis";
 
 export const initIndexes = async (): Promise<void> => {
-  await Promise.all([activitiesIndex.createIndex()]);
+  const acquiredLock = await acquireLock("elasticsearchInitIndexes", 60);
 
-  logger.info("elasticsearch", `Initialized Indices!`);
+  if (acquiredLock) {
+    await Promise.all([activitiesIndex.initIndex()]);
+
+    logger.info("elasticsearch", `Initialized Indices!`);
+  } else {
+    logger.info("elasticsearch", `Skip Initialized Indices!`);
+  }
 };

@@ -45,6 +45,7 @@ export interface ActivityDocument extends BaseDocument {
     id: string;
     name: string;
     image: string;
+    media: string;
   };
   collection?: {
     id: string;
@@ -56,7 +57,21 @@ export interface ActivityDocument extends BaseDocument {
     side: string;
     sourceId: number;
     kind: string;
-    criteria: Record<string, unknown>;
+    criteria: {
+      kind: string;
+      data: {
+        attribute?: {
+          key: string;
+          value: string;
+        };
+        collection?: {
+          id: string;
+        };
+        token?: {
+          tokenId: string;
+        };
+      };
+    };
   };
 }
 
@@ -81,12 +96,6 @@ export interface BuildActivityData extends BuildDocumentData {
   amount?: number;
   token_name?: string;
   token_image?: string;
-  token_last_buy_value?: number;
-  token_last_sell_value?: number;
-  token_last_buy_timestamp?: number;
-  token_last_sell_timestamp?: number;
-  token_rarity_score?: number;
-  token_rarity_rank?: number;
   token_media?: string;
   collection_name?: string;
   collection_image?: string;
@@ -99,7 +108,10 @@ export interface BuildActivityData extends BuildDocumentData {
   order_side?: string;
   order_source_id_int?: number;
   order_kind?: string;
-  order_criteria?: Record<string, unknown>;
+  order_criteria?: {
+    kind: string;
+    data: Record<string, unknown>;
+  };
 }
 
 export class ActivityBuilder extends DocumentBuilder {
@@ -151,6 +163,7 @@ export class ActivityBuilder extends DocumentBuilder {
             id: data.token_id,
             name: data.token_name,
             image: data.token_image,
+            // media: data.token_media,
           }
         : undefined,
       collection: data.collection_id

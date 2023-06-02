@@ -145,6 +145,8 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
           event: eventType,
           tags: {
             contract: fromBuffer(r.contract),
+            maker: fromBuffer(r.maker),
+            taker: fromBuffer(r.taker),
           },
           data: result,
         });

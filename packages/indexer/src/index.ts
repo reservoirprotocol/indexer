@@ -28,6 +28,7 @@ const setup = async () => {
     return;
   }
 
+  // eslint-disable-next-line no-console
   if (config.doBackgroundWork) {
     await Sources.syncSources();
 
@@ -37,12 +38,12 @@ const setup = async () => {
     }
   }
 
-  await Sources.getInstance();
   if (config.doKafkaWork) {
     startKafkaConsumer();
     startKafkaProducer();
   }
 
+  await Sources.getInstance();
   await Sources.forceDataReload();
 
   if (config.doElasticsearchWork) {

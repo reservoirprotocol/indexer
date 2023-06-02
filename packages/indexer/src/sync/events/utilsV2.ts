@@ -3,7 +3,7 @@ import { bn } from "@/common/utils";
 
 import { baseProvider } from "@/common/provider";
 
-import { saveTransactions } from "@/models/transactions";
+import { saveTransactionsV2 } from "@/models/transactions";
 
 import { BlockWithTransactions } from "@ethersproject/abstract-provider";
 
@@ -37,5 +37,5 @@ export const saveBlockTransactions = async (block: BlockWithTransactions) => {
   });
 
   // Save all transactions within the block
-  await saveTransactions(transactions);
+  await saveTransactionsV2(transactions);
 };
