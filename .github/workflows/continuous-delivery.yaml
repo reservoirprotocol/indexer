@@ -158,6 +158,10 @@ jobs:
             ${{ github.sha }} \
             indexer-api-zora-testnet
           ./utils/version_update.sh \
+            ./prod/platform/indexer-api-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-api-goerli
+          ./utils/version_update.sh \
             ./prod/platform/indexer-worker.yaml \
             ${{ github.sha }} \
             indexer-worker
@@ -218,6 +222,10 @@ jobs:
             ${{ github.sha }} \
             indexer-worker-zora-testnet
           ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-worker-goerli
+          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-ethereum.yaml \
             ${{ github.sha }} \
             indexer-websocket-ethereum
@@ -225,6 +233,10 @@ jobs:
             ./prod/platform/indexer-websocket-polygon.yaml \
             ${{ github.sha }} \
             indexer-websocket-polygon
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-websocket-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-websocket-goerli
           ./utils/version_update.sh \
             ./prod/platform/indexer-kafka-worker.yaml \
             ${{ github.sha }} \
