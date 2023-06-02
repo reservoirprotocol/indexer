@@ -19,7 +19,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       let eventKind;
       if (payload.after.side === "sell") {
         eventKind = WebsocketEventKind.SellOrder;
-      } else if (payload.after.kind === "buy") {
+      } else if (payload.after.side === "buy") {
         eventKind = WebsocketEventKind.BuyOrder;
       } else {
         logger.warn(
@@ -60,7 +60,7 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
       let eventKind;
       if (payload.after.side === "sell") {
         eventKind = WebsocketEventKind.SellOrder;
-      } else if (payload.after.kind === "buy") {
+      } else if (payload.after.side === "buy") {
         eventKind = WebsocketEventKind.BuyOrder;
       } else {
         logger.warn(
