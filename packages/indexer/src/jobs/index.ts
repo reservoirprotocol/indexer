@@ -229,6 +229,10 @@ import { ftTransfersJob } from "@/jobs/events-sync/write-buffers/ft-transfers-jo
 import { nftTransfersJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 import { backfillJob } from "@/jobs/events-sync/process/backfill-job";
 import { realtimeJob } from "@/jobs/events-sync/process/realtime-job";
+import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
+import { metadataProcessQueueJob } from "@/jobs/metadata-index/process-queue-job";
+import { metadataProcessQueueBySlugJob } from "@/jobs/metadata-index/process-queue-by-slug-job";
+import { metadataWriteQueueJob } from "@/jobs/metadata-index/write-queue-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -451,6 +455,10 @@ export class RabbitMqJobsConsumer {
       nftTransfersJob,
       backfillJob,
       realtimeJob,
+      metadataFetchQueueJob,
+      metadataProcessQueueJob,
+      metadataProcessQueueBySlugJob,
+      metadataWriteQueueJob,
     ];
   }
 
