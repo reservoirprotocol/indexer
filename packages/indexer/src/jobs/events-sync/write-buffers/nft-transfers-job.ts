@@ -4,11 +4,11 @@ import { idb } from "@/common/db";
 import { MqJobsDataManager } from "@/models/mq-jobs-data";
 import _ from "lodash";
 
-export type NftTransfersJobJobPayload = {
+export type NftTransfersJobPayload = {
   id: string;
 };
 
-export class NftTransfersJobJob extends AbstractRabbitMqJobHandler {
+export class NftTransfersJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-nft-transfers-write";
   maxRetries = 15;
   concurrency = 5;
@@ -17,7 +17,7 @@ export class NftTransfersJobJob extends AbstractRabbitMqJobHandler {
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: NftTransfersJobJobPayload) {
+  protected async process(payload: NftTransfersJobPayload) {
     const { id } = payload;
 
     const { query } = (await MqJobsDataManager.getJobData(id)) || {};
@@ -56,4 +56,4 @@ export class NftTransfersJobJob extends AbstractRabbitMqJobHandler {
   }
 }
 
-export const nftTransfersJobJob = new NftTransfersJobJob();
+export const nftTransfersJob = new NftTransfersJob();
