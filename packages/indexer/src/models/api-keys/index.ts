@@ -65,16 +65,11 @@ export class ApiKeyManager {
       // Let's continue here, even if we can't write to redis, we should be able to check the values against the db
     }
 
-    if (created) {
+    // Sync to other chains only if created on mainnet
+    if (created && config.chainId === 1) {
       await ApiKeyManager.notifyApiKeyCreated(values);
 
-      // Sync to other chains only if created on mainnet
-      if (config.chainId === 1) {
-        await allChainsSyncRedis.publish(
-          AllChainsChannel.ApiKeyCreated,
-          JSON.stringify({ values })
-        );
-      }
+      await allChainsSyncRedis.publish(AllChainsChannel.ApiKeyCreated, JSON.stringify({ values }));
     }
 
     return {

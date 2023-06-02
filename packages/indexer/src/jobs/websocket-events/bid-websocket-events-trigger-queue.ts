@@ -95,7 +95,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
         const sources = await Sources.getInstance();
 
         const feeBreakdown = rawResult.fee_breakdown;
-        const feeBps = rawResult.fee_bps;
+        const feeBps = rawResult?.fee_bps;
 
         let source: SourcesEntity | undefined;
         if (rawResult.token_set_id?.startsWith("token")) {
@@ -149,7 +149,7 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
             icon: source?.getIcon(),
             url: source?.metadata.url,
           },
-          feeBps: Number(feeBps.toString()),
+          feeBps: Number(feeBps?.toString()) || 0,
           feeBreakdown: feeBreakdown,
           expiration: Number(rawResult.expiration),
           isReservoir: rawResult.is_reservoir,

@@ -149,7 +149,7 @@ export const postTokensRefreshV1Options: RouteOptions = {
 
       return { message: "Request accepted" };
     } catch (error) {
-      logger.error(`post-tokens-refresh-${version}-handler`, `Handler failure: ${error}`);
+      logger.warn(`post-tokens-refresh-${version}-handler`, `Handler failure: ${error}`);
       throw error;
     }
   },

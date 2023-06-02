@@ -617,7 +617,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // Scenario 3: fill via `collection`
         if (item.collection) {
           // Fetch any open mints on the collection which the taker is elligible for
-          const openMints = await mints.getOpenCollectionMints(item.collection);
+          // const openMints = await mints.getOpenCollectionMints(item.collection);
+          const openMints: mints.CollectionMint[] = [];
           for (const mint of openMints) {
             if (!payload.currency || mint.currency === payload.currency) {
               const collectionData = await idb.one(
@@ -642,12 +643,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 }
               );
               if (collectionData) {
-                // const quantityToMint = mint.maxMintsPerWallet
-                //   ? Math.min(item.quantity, mint.maxMintsPerWallet)
-                //   : item.quantity;
-
-                // For now at most 1 mint
-                const quantityToMint = 1;
+                const quantityToMint = mint.maxMintsPerWallet
+                  ? Math.min(item.quantity, mint.maxMintsPerWallet)
+                  : item.quantity;
 
                 const orderId = `mint:${item.collection}`;
                 mintTxs.push({
