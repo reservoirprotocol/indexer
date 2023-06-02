@@ -28,6 +28,8 @@ import { TSTAttribute, TSTCollection, TSTCollectionNonFlagged } from "@/orderboo
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import { fromBuffer, toBuffer } from "@/common/utils";
 
+import { addToQueue as addToQueueOpensea } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
+
 const QUEUE_NAME = "orderbook-post-order-external-queue";
 const MAX_RETRIES = 5;
 
@@ -96,7 +98,11 @@ export const jobProcessor = async (job: Job) => {
       )}, rateLimitExpiration=${rateLimitExpiration}, retry=${retry}`
     );
 
-    await addToQueue(job.data, rateLimitExpiration, true);
+    if (orderbook === "opensea") {
+      await addToQueueOpensea(job.data, rateLimitExpiration, true);
+    } else {
+      await addToQueue(job.data, rateLimitExpiration, true);
+    }
   } else {
     try {
       await postOrder(orderbook, orderId, orderData, orderbookApiKey, orderSchema);
@@ -132,7 +138,11 @@ export const jobProcessor = async (job: Job) => {
           );
         }
 
-        await addToQueue(job.data, delay, true);
+        if (orderbook === "opensea") {
+          await addToQueueOpensea(job.data, delay, true);
+        } else {
+          await addToQueue(job.data, delay, true);
+        }
 
         logger.warn(
           job.queueName,
@@ -232,7 +242,11 @@ export const jobProcessor = async (job: Job) => {
 
         job.data.retry = retry + 1;
 
-        await addToQueue(job.data, 1000, true);
+        if (orderbook === "opensea") {
+          await addToQueueOpensea(job.data, 1000, true);
+        } else {
+          await addToQueue(job.data, 1000, true);
+        }
       } else {
         logger.info(
           job.queueName,
