@@ -275,29 +275,47 @@ export const search = async (params: {
   }
 };
 
-const _search = async (params: {
-  query?: QueryDslQueryContainer | undefined;
-  sort?: Sort | undefined;
-  size?: number | undefined;
-  search_after?: SortResults | undefined;
-  track_total_hits?: boolean;
-}): Promise<ActivityDocument[]> => {
+const _search = async (
+  params: {
+    query?: QueryDslQueryContainer | undefined;
+    sort?: Sort | undefined;
+    size?: number | undefined;
+    search_after?: SortResults | undefined;
+    track_total_hits?: boolean;
+  },
+  retries = 0
+): Promise<ActivityDocument[]> => {
   try {
     const esResult = await elasticsearch.search<ActivityDocument>({
       index: INDEX_NAME,
       ...params,
     });
 
-    logger.debug(
-      "elasticsearch-search-activities",
-      JSON.stringify({
-        topic: "_search",
-        latency: esResult.took,
-        params: JSON.stringify(params),
-      })
-    );
+    const results = esResult.hits.hits.map((hit) => hit._source!);
 
-    return esResult.hits.hits.map((hit) => hit._source!);
+    if (retries > 0) {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "_search",
+          latency: esResult.took,
+          params: JSON.stringify(params),
+          retries,
+        })
+      );
+    } else {
+      logger.debug(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "_search",
+          latency: esResult.took,
+          params: JSON.stringify(params),
+          retries,
+        })
+      );
+    }
+
+    return results;
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
@@ -307,6 +325,7 @@ const _search = async (params: {
           params: JSON.stringify(params),
         },
         error,
+        retries,
       })
     );
 
@@ -314,11 +333,31 @@ const _search = async (params: {
       logger.error(
         "elasticsearch-activities",
         JSON.stringify({
-          topic: "node_not_connected_exception",
+          topic: "_search",
+          message: "node_not_connected_exception error",
           data: {
             params: JSON.stringify(params),
           },
           error,
+          retries,
+        })
+      );
+
+      if (retries <= 3) {
+        retries += 1;
+        return _search(params, retries);
+      }
+
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "_search",
+          message: "Max retries reached.",
+          data: {
+            params: JSON.stringify(params),
+          },
+          error,
+          retries,
         })
       );
 
