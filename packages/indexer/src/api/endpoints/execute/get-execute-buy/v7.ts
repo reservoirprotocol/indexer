@@ -4,6 +4,7 @@ import { keccak256 } from "@ethersproject/solidity";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import { TxData } from "@reservoir0x/sdk/dist/utils";
 import { FillListingsResult, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import axios from "axios";
 import Joi from "joi";
@@ -26,6 +27,8 @@ import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
 import * as onChainData from "@/utils/on-chain-data";
+import * as mints from "@/utils/mints/collection-mints";
+import { generateMintTxData } from "@/utils/mints/calldata/generator";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
@@ -324,16 +327,18 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
         quantityFilled[order.id] += quantity;
 
-        // Decrement the maker's available NFT balance
-        const key = getMakerBalancesKey(order.maker, token.contract, token.tokenId);
-        if (!makerBalances[key]) {
-          makerBalances[key] = await commonHelpers.getNftBalance(
-            token.contract,
-            token.tokenId,
-            order.maker
-          );
+        if (order.kind !== "mint") {
+          // Decrement the maker's available NFT balance
+          const key = getMakerBalancesKey(order.maker, token.contract, token.tokenId);
+          if (!makerBalances[key]) {
+            makerBalances[key] = await commonHelpers.getNftBalance(
+              token.contract,
+              token.tokenId,
+              order.maker
+            );
+          }
+          makerBalances[key] = makerBalances[key].sub(quantity);
         }
-        makerBalances[key] = makerBalances[key].sub(quantity);
 
         const unitPrice = bn(order.price);
         const additionalFees = payload.normalizeRoyalties ? order.additionalFees ?? [] : [];
@@ -378,41 +383,43 @@ export const getExecuteBuyV7Options: RouteOptions = {
           ],
         });
 
-        const flaggedResult = await idb.oneOrNone(
-          `
-            SELECT
-              tokens.is_flagged
-            FROM tokens
-            WHERE tokens.contract = $/contract/
-              AND tokens.token_id = $/tokenId/
-            LIMIT 1
-          `,
-          {
-            contract: toBuffer(token.contract),
-            tokenId: token.tokenId,
-          }
-        );
-
-        listingDetails.push(
-          generateListingDetailsV6(
+        if (order.kind !== "mint") {
+          const flaggedResult = await idb.oneOrNone(
+            `
+              SELECT
+                tokens.is_flagged
+              FROM tokens
+              WHERE tokens.contract = $/contract/
+                AND tokens.token_id = $/tokenId/
+              LIMIT 1
+            `,
             {
-              id: order.id,
-              kind: order.kind,
-              currency: order.currency,
-              price: order.price,
-              source: path[path.length - 1].source ?? undefined,
-              rawData: order.rawData,
-              fees: additionalFees,
-            },
-            {
-              kind: token.kind,
-              contract: token.contract,
+              contract: toBuffer(token.contract),
               tokenId: token.tokenId,
-              amount: token.quantity,
-              isFlagged: Boolean(flaggedResult.is_flagged),
             }
-          )
-        );
+          );
+
+          listingDetails.push(
+            generateListingDetailsV6(
+              {
+                id: order.id,
+                kind: order.kind,
+                currency: order.currency,
+                price: order.price,
+                source: path[path.length - 1].source ?? undefined,
+                rawData: order.rawData,
+                fees: additionalFees,
+              },
+              {
+                kind: token.kind,
+                contract: token.contract,
+                tokenId: token.tokenId,
+                amount: token.quantity,
+                isFlagged: Boolean(flaggedResult.is_flagged),
+              }
+            )
+          );
+        }
       };
 
       const items: {
@@ -428,6 +435,12 @@ export const getExecuteBuyV7Options: RouteOptions = {
         preferredOrderSource?: string;
         exactOrderSource?: string;
       }[] = payload.items;
+
+      // Keep track of any mint transactions that need to be aggregated
+      const mintTxs: {
+        orderId: string;
+        txData: TxData;
+      }[] = [];
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
@@ -603,61 +616,128 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
         // Scenario 3: fill via `collection`
         if (item.collection) {
-          // Filtering by collection on the `orders` table is inefficient, so what we
-          // do here is select the cheapest tokens from the `tokens` table and filter
-          // out the ones that aren't fillable. For this to work we fetch more tokens
-          // than we need, so we can filter out the ones that aren't fillable and not
-          // end up with too few tokens.
-
-          const redundancyFactor = 5;
-          const results = await idb.manyOrNone(
-            `
-              WITH x AS (
-                SELECT
-                  tokens.contract,
-                  tokens.token_id,
-                  ${
-                    payload.normalizeRoyalties
-                      ? "tokens.normalized_floor_sell_id"
-                      : "tokens.floor_sell_id"
-                  } AS order_id
-                FROM tokens
-                WHERE tokens.collection_id = $/collection/
-                ORDER BY ${
-                  payload.normalizeRoyalties
-                    ? "tokens.normalized_floor_sell_value"
-                    : "tokens.floor_sell_value"
+          // Fetch any open mints on the collection which the taker is elligible for
+          const openMints = await mints.getOpenCollectionMints(item.collection);
+          for (const mint of openMints) {
+            if (!payload.currency || mint.currency === payload.currency) {
+              const collectionData = await idb.one(
+                `
+                  SELECT
+                    collections.contract,
+                    contracts.kind AS token_kind,
+                    (
+                      SELECT
+                        MAX(tokens.token_id) + 1
+                      FROM tokens
+                      WHERE tokens.contract = collections.contract
+                        AND tokens.collection_id = collections.id
+                    ) AS next_token_id
+                  FROM collections
+                  JOIN contracts
+                    ON collections.contract = contracts.address
+                  WHERE collections.id = $/id/
+                `,
+                {
+                  id: item.collection,
                 }
-                LIMIT $/quantity/ * ${redundancyFactor}
-              )
-              SELECT
-                x.contract,
-                x.token_id
-              FROM x
-              JOIN orders
-                ON x.order_id = orders.id
-              WHERE orders.fillability_status = 'fillable'
-                AND orders.approval_status = 'approved'
-              LIMIT $/quantity/
-            `,
-            {
-              collection: item.collection,
-              quantity: item.quantity,
+              );
+              if (collectionData) {
+                const quantityToMint = mint.maxMintsPerWallet
+                  ? Math.min(item.quantity, mint.maxMintsPerWallet)
+                  : item.quantity;
+
+                const orderId = `mint:${item.collection}`;
+                mintTxs.push({
+                  orderId,
+                  txData: generateMintTxData(
+                    mint.details,
+                    payload.taker,
+                    fromBuffer(collectionData.contract),
+                    quantityToMint,
+                    mint.price
+                  ),
+                });
+
+                await addToPath(
+                  {
+                    id: orderId,
+                    kind: "mint",
+                    maker: fromBuffer(collectionData.contract),
+                    price: mint.price,
+                    sourceId: null,
+                    currency: mint.currency,
+                    rawData: {},
+                    builtInFees: [],
+                    additionalFees: [],
+                  },
+                  {
+                    kind: collectionData.token_kind,
+                    contract: fromBuffer(collectionData.contract),
+                    tokenId: collectionData.next_token_id,
+                    quantity: quantityToMint,
+                  }
+                );
+
+                item.quantity -= quantityToMint;
+              }
             }
-          );
-
-          // Add each retrieved token as a new item so that it will get
-          // processed by the next pipeline of the same API rather than
-          // building something custom for it.
-
-          for (const result of results) {
-            items.push({
-              token: `${fromBuffer(result.contract)}:${result.token_id}`,
-              quantity: 1,
-            });
           }
 
-          continue;
+          if (item.quantity > 0) {
+            // Filtering by collection on the `orders` table is inefficient, so what we
+            // do here is select the cheapest tokens from the `tokens` table and filter
+            // out the ones that aren't fillable. For this to work we fetch more tokens
+            // than we need, so we can filter out the ones that aren't fillable and not
+            // end up with too few tokens.
+
+            const redundancyFactor = 5;
+            const tokenResults = await idb.manyOrNone(
+              `
+                WITH x AS (
+                  SELECT
+                    tokens.contract,
+                    tokens.token_id,
+                    ${
+                      payload.normalizeRoyalties
+                        ? "tokens.normalized_floor_sell_id"
+                        : "tokens.floor_sell_id"
+                    } AS order_id
+                  FROM tokens
+                  WHERE tokens.collection_id = $/collection/
+                  ORDER BY ${
+                    payload.normalizeRoyalties
+                      ? "tokens.normalized_floor_sell_value"
+                      : "tokens.floor_sell_value"
+                  }
+                  LIMIT $/quantity/ * ${redundancyFactor}
+                )
+                SELECT
+                  x.contract,
+                  x.token_id
+                FROM x
+                JOIN orders
+                  ON x.order_id = orders.id
+                WHERE orders.fillability_status = 'fillable'
+                  AND orders.approval_status = 'approved'
+                LIMIT $/quantity/
+              `,
+              {
+                collection: item.collection,
+                quantity: item.quantity,
+              }
+            );
+
+            // Add each retrieved token as a new item so that it will get
+            // processed by the next pipeline of the same API rather than
+            // building something custom for it.
+
+            for (const t of tokenResults) {
+              items.push({
+                token: `${fromBuffer(t.contract)}:${t.token_id}`,
+                quantity: 1,
+              });
+            }
+          }
         }
 
         // Scenario 4: fill via `token`
@@ -1043,6 +1123,16 @@ export const getExecuteBuyV7Options: RouteOptions = {
       }
 
       const { txs, success } = result;
+
+      // Add any mint transactions
+      for (const { orderId, txData } of mintTxs) {
+        txs.push({
+          approvals: [],
+          txData,
+          orderIds: [orderId],
+        });
+        success[orderId] = true;
+      }
 
       // Filter out any non-fillable orders from the path
       path = path.filter((p) => success[p.orderId]);
