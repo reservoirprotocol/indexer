@@ -233,6 +233,8 @@ import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
 import { metadataProcessQueueJob } from "@/jobs/metadata-index/process-queue-job";
 import { metadataProcessQueueBySlugJob } from "@/jobs/metadata-index/process-queue-by-slug-job";
 import { metadataWriteQueueJob } from "@/jobs/metadata-index/write-queue-job";
+import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
+import { mintProcessJob } from "@/jobs/mints/mint-process-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -459,6 +461,8 @@ export class RabbitMqJobsConsumer {
       metadataProcessQueueJob,
       metadataProcessQueueBySlugJob,
       metadataWriteQueueJob,
+      countApiUsageJob,
+      mintProcessJob,
     ];
   }
 
