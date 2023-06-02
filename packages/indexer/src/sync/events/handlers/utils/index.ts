@@ -6,12 +6,10 @@ import { assignSourceToFillEvents } from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 
-import * as fillUpdates from "@/jobs/fill-updates/queue";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as mintsProcess from "@/jobs/mints/process";
-import * as fillPostProcess from "@/jobs/fill-updates/fill-post-process";
 import { AddressZero } from "@ethersproject/constants";
 import { NftTransferEventData } from "@/jobs/activities/transfer-activity";
 import { FillEventData } from "@/jobs/activities/sale-activity";
@@ -23,6 +21,8 @@ import {
   ActivityEventKind,
   ActivityEvent,
 } from "@/jobs/activities/process-activity-event-job";
+import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
+import { FillInfo, fillUpdatesJob } from "@/jobs/fill-updates/fill-updates-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -57,7 +57,7 @@ export type OnChainData = {
   nftTransferEvents: es.nftTransfers.Event[];
 
   // For keeping track of mints and last sales
-  fillInfos: fillUpdates.FillInfo[];
+  fillInfos: FillInfo[];
   mintInfos: MintQueueJobPayload[];
   mints: mintsProcess.Mint[];
 
@@ -148,14 +148,14 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
 
   // Mints and last sales
   await mintQueueJob.addToQueue(data.mintInfos);
-  await fillUpdates.addToQueue(data.fillInfos);
+  await fillUpdatesJob.addToQueue(data.fillInfos);
   if (!backfill) {
     await mintsProcess.addToQueue(data.mints);
   }
 
   const startFillPostProcess = Date.now();
   if (allFillEvents.length) {
-    await fillPostProcess.addToQueue([allFillEvents]);
+    await fillPostProcessJob.addToQueue([allFillEvents]);
   }
   const endFillPostProcess = Date.now();
 
