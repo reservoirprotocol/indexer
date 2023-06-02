@@ -6,6 +6,7 @@ import { keccak256 as keccakWithoutTypes } from "@ethersproject/keccak256";
 import { keccak256 } from "@ethersproject/solidity";
 import * as Sdk from "@reservoir0x/sdk";
 import { TokenIDs } from "fummpel";
+import _ from "lodash";
 import MerkleTree from "merkletreejs";
 import pLimit from "p-limit";
 
@@ -21,7 +22,12 @@ import {
   saveCollectionPool,
 } from "@/models/collection-pools";
 import { Sources } from "@/models/sources";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
+import {
+  POOL_ORDERS_MAX_PRICE_POINTS_COUNT,
+  DbOrder,
+  OrderMetadata,
+  generateSchemaHash,
+} from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
@@ -434,28 +440,34 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             await poolContract.getSellNFTQuote(1);
 
           if (currencyPrice.lte(tokenBalance)) {
-            // Generate first 10 prices
-            const pricesAsBn: BigNumber[] = [];
-            let totalPriceSoFar = bn(0);
-            let numBuyableNFTs = 1;
-            while (numBuyableNFTs < 10) {
-              const { totalAmount }: { totalAmount: BigNumber } =
-                await poolContract.getSellNFTQuote(numBuyableNFTs);
+            let tmpPriceList: (BigNumber | undefined)[] = Array.from(
+              { length: POOL_ORDERS_MAX_PRICE_POINTS_COUNT },
+              () => undefined
+            );
+            await Promise.all(
+              _.range(0, POOL_ORDERS_MAX_PRICE_POINTS_COUNT).map(async (index) => {
+                try {
+                  const result = await poolContract.getSellNFTQuote(index + 1);
+                  if (result.totalAmount.lte(tokenBalance)) {
+                    tmpPriceList[index] = result.totalAmount;
+                  }
+                } catch {
+                  // Ignore errors
+                }
+              })
+            );
 
-              if (tokenBalance.lte(totalAmount)) {
-                // Stop if not enough liquidity is available
-                break;
-              }
-
-              const currentPrice = totalAmount.sub(totalPriceSoFar);
-              pricesAsBn.push(currentPrice);
-
-              totalPriceSoFar = totalPriceSoFar.add(currentPrice);
-
-              numBuyableNFTs++;
+            // Stop when the first `undefined` is encountered
+            const firstUndefined = tmpPriceList.findIndex((p) => p === undefined);
+            if (firstUndefined !== -1) {
+              tmpPriceList = tmpPriceList.slice(0, firstUndefined);
             }
+            const priceList = tmpPriceList.map((p) => p!);
 
-            const prices = pricesAsBn.map((n) => n.toString());
+            const prices: BigNumber[] = [];
+            for (let i = 0; i < priceList.length; i++) {
+              prices.push(bn(priceList[i]).sub(i > 0 ? priceList[i - 1] : 0));
+            }
 
             // Handle royalties and fees
             // For bids, we can't predict which tokenID is going to be sold
@@ -628,7 +640,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   assetRecipient: orderParams.assetRecipient,
                   royaltyRecipientFallback: orderParams.royaltyRecipientFallback,
                   extra: {
-                    prices,
+                    prices: prices.map((p) => p.toString()),
                   },
                 }
               );
@@ -656,7 +668,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                 currency_price: currencyPrice.toString(),
                 currency_value: currencyValue.toString(),
                 needs_conversion: isERC20,
-                quantity_remaining: numBuyableNFTs.toString(),
+                quantity_remaining: prices.length.toString(),
                 valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
                 nonce: null,
                 source_id_int: source?.id,
@@ -690,7 +702,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
               );
 
               sdkOrder.params.extra = {
-                prices,
+                prices: prices.map((p) => p.toString()),
               };
               sdkOrder.params.tokenSetId = tokenSetId;
 
@@ -738,7 +750,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                   value: value.toString(),
                   currencyValue: currencyValue.toString(),
                   rawData: sdkOrder.params,
-                  quantityRemaining: numBuyableNFTs.toString(),
+                  quantityRemaining: prices.length.toString(),
                   missingRoyalties: missingRoyalties,
                   normalizedValue: normalizedValue.toString(),
                   currencyNormalizedValue: currencyNormalizedValue.toString(),
@@ -812,21 +824,30 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             (bn) => bn.toString()
           );
 
-          // Generate first 10 prices
-          const pricesAsBn: BigNumber[] = [];
-          let totalPriceSoFar = bn(0);
-          for (let i = 0; i < Math.min(poolOwnedTokenIds.length, 10); i++) {
-            const { totalAmount }: { totalAmount: BigNumber } = await poolContract.getBuyNFTQuote(
-              i + 1
-            );
+          const length = Math.min(poolOwnedTokenIds.length, POOL_ORDERS_MAX_PRICE_POINTS_COUNT);
+          let tmpPriceList: (BigNumber | undefined)[] = Array.from({ length }, () => undefined);
+          await Promise.all(
+            _.range(0, length).map(async (index) => {
+              try {
+                const result = await poolContract.getBuyNFTQuote(index + 1);
+                tmpPriceList[index] = result.totalAmount;
+              } catch {
+                // Ignore errors
+              }
+            })
+          );
 
-            const currentPrice = totalAmount.sub(totalPriceSoFar);
-            pricesAsBn.push(currentPrice);
-
-            totalPriceSoFar = totalPriceSoFar.add(currentPrice);
+          // Stop when the first `undefined` is encountered
+          const firstUndefined = tmpPriceList.findIndex((p) => p === undefined);
+          if (firstUndefined !== -1) {
+            tmpPriceList = tmpPriceList.slice(0, firstUndefined);
           }
+          const priceList = tmpPriceList.map((p) => p!);
 
-          const prices = pricesAsBn.map((n) => n.toString());
+          const prices: BigNumber[] = [];
+          for (let i = 0; i < priceList.length; i++) {
+            prices.push(bn(priceList[i]).sub(i > 0 ? priceList[i - 1] : 0));
+          }
 
           const limit = pLimit(50);
           // Create a single tokenId order for every tokenId in the pool.
@@ -933,7 +954,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
                         royaltyRecipientFallback: orderParams.royaltyRecipientFallback,
                         extra: {
                           // Selling to pool -> Router needs expected output == currencyValue
-                          prices,
+                          prices: prices.map((p) => p.toString()),
                         },
                       }
                     );
@@ -996,7 +1017,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
 
                     sdkOrder.params.extra = {
                       // Router needs expected output == currencyValue
-                      prices,
+                      prices: prices.map((p) => p.toString()),
                     };
                     // tokenSetId is 1:1 with order id for asks
                     // sdkOrder.params.tokenSetId = tokenSetId;

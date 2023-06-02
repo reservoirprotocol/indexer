@@ -17,6 +17,10 @@ import {
   JoiPrice,
 } from "@/common/joi";
 import { ContractSets } from "@/models/contract-sets";
+import { config } from "@/config/index";
+import * as ActivitiesIndex from "@/elasticsearch/indexes/activities";
+import * as Sdk from "@reservoir0x/sdk";
+import { Collections } from "@/models/collections";
 
 const version = "v6";
 
@@ -102,10 +106,13 @@ export const getUserActivityV6Options: RouteOptions = {
         .lowercase()
         .pattern(regex.address)
         .description("Input any ERC20 address to return result in given currency."),
-    }).oxor("collection", "collectionsSetId", "contractsSetId", "community"),
+    })
+      .oxor("collection", "collectionsSetId", "contractsSetId", "community")
+      .options({ allowUnknown: true, stripUnknown: false }),
   },
   response: {
     schema: Joi.object({
+      es: Joi.boolean().default(false),
       continuation: Joi.string().allow(null),
       activities: Joi.array().items(
         Joi.object({
@@ -172,10 +179,6 @@ export const getUserActivityV6Options: RouteOptions = {
       query.users = [query.users];
     }
 
-    if (query.continuation) {
-      query.continuation = splitContinuation(query.continuation)[0];
-    }
-
     if (query.collectionsSetId) {
       query.collection = await CollectionSets.getCollectionsIds(query.collectionsSetId);
       if (_.isEmpty(query.collection)) {
@@ -191,6 +194,133 @@ export const getUserActivityV6Options: RouteOptions = {
     }
 
     try {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
+        if (query.collection && !_.isArray(query.collection)) {
+          query.collection = [query.collection];
+        }
+
+        if (query.community) {
+          query.collection = await Collections.getIdsByCommunity(query.community);
+
+          if (query.collection.length === 0) {
+            throw Boom.badRequest(`No collections for community ${query.community}`);
+          }
+        }
+
+        const { activities, continuation } = await ActivitiesIndex.search({
+          types: query.types,
+          users: query.users,
+          collections: query.collection,
+          contracts: query.contracts,
+          sortBy: query.sortBy === "eventTimestamp" ? "timestamp" : query.sortBy,
+          limit: query.limit,
+          continuation: query.continuation,
+        });
+
+        const result = _.map(activities, async (activity) => {
+          const currency = activity.pricing?.currency
+            ? activity.pricing.currency
+            : Sdk.Common.Addresses.Eth[config.chainId];
+
+          let order;
+
+          if (query.includeMetadata) {
+            let orderCriteria;
+
+            if (activity.order?.criteria) {
+              orderCriteria = {
+                kind: activity.order.criteria.kind,
+                data: {
+                  collection: {
+                    id: activity.collection?.id,
+                    name: activity.collection?.name,
+                    image: activity.collection?.image,
+                  },
+                },
+              };
+
+              if (activity.order.criteria.kind === "token") {
+                (orderCriteria as any).data.token = {
+                  tokenId: activity.token?.id,
+                  name: activity.token?.name,
+                  image: activity.token?.image,
+                };
+              }
+
+              if (activity.order.criteria.kind === "attribute") {
+                (orderCriteria as any).data.attribute = activity.order.criteria.data.attribute;
+              }
+            }
+
+            order = activity.order?.id
+              ? await getJoiActivityOrderObject({
+                  id: activity.order.id,
+                  side: activity.order.side,
+                  sourceIdInt: activity.order.sourceId,
+                  criteria: orderCriteria,
+                })
+              : undefined;
+          } else {
+            order = activity.order?.id
+              ? await getJoiActivityOrderObject({
+                  id: activity.order.id,
+                  side: null,
+                  sourceIdInt: null,
+                  criteria: undefined,
+                })
+              : undefined;
+          }
+
+          return {
+            type: activity.type,
+            fromAddress: activity.fromAddress,
+            toAddress: activity.toAddress || null,
+            price: activity.pricing?.currency
+              ? await getJoiPriceObject(
+                  {
+                    gross: {
+                      amount: String(activity.pricing?.currencyPrice ?? activity.pricing?.price),
+                      nativeAmount: String(activity.pricing?.price),
+                    },
+                  },
+                  currency,
+                  query.displayCurrency
+                )
+              : undefined,
+            amount: Number(activity.amount),
+            timestamp: activity.timestamp,
+            createdAt: new Date(activity.createdAt).toISOString(),
+            contract: activity.contract,
+            token: {
+              tokenId: activity.token?.id,
+              tokenName: query.includeMetadata ? activity.token?.name : undefined,
+              tokenImage: query.includeMetadata ? activity.token?.image : undefined,
+              tokenMedia: query.includeMetadata ? null : undefined,
+              tokenRarityRank: query.includeMetadata ? null : undefined,
+              tokenRarityScore: query.includeMetadata ? null : undefined,
+            },
+            collection: {
+              collectionId: activity.collection?.id,
+              collectionName: query.includeMetadata ? activity.collection?.name : undefined,
+              collectionImage:
+                query.includeMetadata && activity.collection?.image != null
+                  ? activity.collection?.image
+                  : undefined,
+            },
+            txHash: activity.event?.txHash,
+            logIndex: activity.event?.logIndex,
+            batchIndex: activity.event?.batchIndex,
+            order,
+          };
+        });
+
+        return { activities: await Promise.all(result), continuation, es: true };
+      }
+
+      if (query.continuation) {
+        query.continuation = splitContinuation(query.continuation)[0];
+      }
+
       const activities = await UserActivities.getActivities(
         query.users,
         query.collection,

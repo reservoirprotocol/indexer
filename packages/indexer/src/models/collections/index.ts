@@ -17,6 +17,10 @@ import MetadataApi from "@/utils/metadata-api";
 import * as marketplaceBlacklist from "@/utils/marketplace-blacklists";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 import * as royalties from "@/utils/royalties";
+import {
+  getOpenCollectionMints,
+  simulateAndUpdateCollectionMint,
+} from "@/utils/mints/collection-mints";
 import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
 
 export class Collections {
@@ -151,6 +155,12 @@ export class Collections {
 
     // Refresh any contract blacklists
     await marketplaceBlacklist.updateMarketplaceBlacklist(collection.contract);
+
+    // Simulate any open mints
+    const collectionMints = await getOpenCollectionMints(collection.id);
+    await Promise.all(
+      collectionMints.map((collectionMint) => simulateAndUpdateCollectionMint(collectionMint))
+    );
   }
 
   public static async update(collectionId: string, fields: CollectionsEntityUpdateParams) {

@@ -46,7 +46,7 @@ const writeDeployment = async (
 };
 
 const deploy = async (contractName: string, version: string, args: any[]) => {
-  const dh = await DeploymentHelper.getInstance(process.env.CREATE3_FACTORY_ADDRESS_OVERRIDE);
+  const dh = await DeploymentHelper.getInstance();
 
   if (args.some((arg) => !arg || arg === AddressZero || arg === HashZero)) {
     throw new Error("Invalid args");
@@ -122,6 +122,7 @@ export const trigger = {
         const result = await conduitController.getConduit(conduitKey);
         if (!result.exists) {
           await conduitController.createConduit(conduitKey, DEPLOYER);
+          await new Promise((resolve) => setTimeout(resolve, 30000));
           await conduitController.updateChannel(
             result.conduit,
             Sdk.RouterV6.Addresses.ApprovalProxy[chainId],

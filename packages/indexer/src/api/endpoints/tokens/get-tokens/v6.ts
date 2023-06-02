@@ -205,11 +205,14 @@ export const getTokensV6Options: RouteOptions = {
             description: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
             media: Joi.string().allow("", null),
-            kind: Joi.string().allow("", null),
+            kind: Joi.string().allow("", null).description("Can be erc721, erc115, etc."),
             isFlagged: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
-            supply: Joi.number().unsafe().allow(null),
+            supply: Joi.number()
+              .unsafe()
+              .allow(null)
+              .description("Can be higher than 1 if erc1155"),
             remainingSupply: Joi.number().unsafe().allow(null),
             rarity: Joi.number().unsafe().allow(null),
             rarityRank: Joi.number().unsafe().allow(null),
@@ -224,9 +227,9 @@ export const getTokensV6Options: RouteOptions = {
             attributes: Joi.array()
               .items(
                 Joi.object({
-                  key: Joi.string(),
-                  kind: Joi.string(),
-                  value: JoiAttributeValue,
+                  key: Joi.string().description("Case sensitive."),
+                  kind: Joi.string().description("Can be `string`, `number`, `date`, or `range`."),
+                  value: JoiAttributeValue.description("Case sensitive."),
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
                   floorAskPrice: Joi.number().unsafe().allow(null),
@@ -248,7 +251,7 @@ export const getTokensV6Options: RouteOptions = {
               dynamicPricing: Joi.object({
                 kind: Joi.string().valid("dutch", "pool"),
                 data: Joi.object(),
-              }),
+              }).description("Can be null if no active ask."),
               source: Joi.object().allow(null),
             },
             topBid: Joi.object({
@@ -261,12 +264,13 @@ export const getTokensV6Options: RouteOptions = {
               feeBreakdown: Joi.array()
                 .items(
                   Joi.object({
-                    kind: Joi.string(),
+                    kind: Joi.string().description("Can be `marketplace` or `royalty`."),
                     recipient: Joi.string().lowercase().pattern(regex.address).allow(null),
                     bps: Joi.number(),
                   })
                 )
-                .allow(null),
+                .allow(null)
+                .description("Can be null if no active bids"),
             }).optional(),
           }),
         })
@@ -322,6 +326,11 @@ export const getTokensV6Options: RouteOptions = {
                 AND nb.token_id = t.token_id
                 AND nb.amount > 0
                 AND nb.owner != o.maker
+                AND (
+                  o.taker IS NULL
+                  OR o.taker = '\\x0000000000000000000000000000000000000000'
+                  OR o.taker = nb.owner
+                )
             )
             ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
           ORDER BY o.value DESC

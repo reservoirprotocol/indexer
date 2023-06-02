@@ -72,6 +72,7 @@ const prettifyError = (msg: string): PrettyErrorDetails => {
       };
 
     case matches("request was throttled"):
+    case matches("could not fetch calldata for all blur listings"):
       return {
         message: "Unable to fetch the order due to rate limiting. Please try again soon.",
         status: StatusCode.FAILED_DEPENDENCY,

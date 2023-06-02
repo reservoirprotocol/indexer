@@ -89,15 +89,6 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
           const lastResult = results[results.length - 1];
 
-          logger.debug(
-            QUEUE_NAME,
-            `Processed ${results.length} activities. cursor=${JSON.stringify(
-              cursor
-            )}, fromTimestamp=${fromTimestamp}, toTimestamp=${toTimestamp}, lastTimestamp=${
-              lastResult.updated_ts
-            }`
-          );
-
           job.data.addToQueue = true;
           job.data.addToQueueCursor = {
             updatedAt: lastResult.updated_ts,

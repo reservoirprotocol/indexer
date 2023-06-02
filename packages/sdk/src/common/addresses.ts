@@ -15,7 +15,7 @@ export const Eth: ChainIdToAddress = {
   [Network.ScrollAlpha]: AddressZero,
   [Network.MantleTestnet]: AddressZero,
   [Network.LineaTestnet]: AddressZero,
-  [Network.MiscTestnet]: AddressZero,
+  [Network.ZoraTestnet]: AddressZero,
   [Network.Mumbai]: AddressZero,
   [Network.ArbitrumNova]: AddressZero,
   [Network.BaseGoerli]: AddressZero,
@@ -39,7 +39,7 @@ export const Weth: ChainIdToAddress = {
   [Network.ScrollAlpha]: "0x7160570bb153edd0ea1775ec2b2ac9b65f1ab61b",
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
   [Network.LineaTestnet]: "0x2c1b868d6596a18e32e61b901e4060c872647b6c",
-  [Network.MiscTestnet]: "0x4200000000000000000000000000000000000006",
+  [Network.ZoraTestnet]: "0x4200000000000000000000000000000000000006",
   [Network.BaseGoerli]: "0x497c4c4041613bd4642760f3e4428abc88b3a565",
 };
 
@@ -61,7 +61,11 @@ export const RoyaltyEngine: ChainIdToAddress = {
   [Network.Optimism]: "0xef770dfb6d5620977213f55f99bfd781d04bbe15",
   [Network.Polygon]: "0x28edfcf0be7e86b07493466e7631a213bde8eef2",
   [Network.Arbitrum]: "0xef770dfb6d5620977213f55f99bfd781d04bbe15",
-  [Network.MiscTestnet]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
+  [Network.ZoraTestnet]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
+  [Network.ScrollAlpha]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
+  [Network.Mumbai]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
+  [Network.BaseGoerli]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
+  [Network.ArbitrumNova]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
 };
 
 export const SwapRouter: ChainIdToAddress = {
@@ -75,5 +79,6 @@ export const SwapRouter: ChainIdToAddress = {
 
 export const Create3Factory: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
-  [Network.MiscTestnet]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
+  [Network.ZoraTestnet]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
+  [Network.BaseGoerli]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
 };

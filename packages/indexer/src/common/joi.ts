@@ -705,7 +705,7 @@ export const getJoiActivityOrderObject = async (order: {
   id: string | null;
   side: string | null;
   sourceIdInt: number | null | undefined;
-  criteria: Record<string, unknown> | null;
+  criteria: Record<string, unknown> | null | undefined;
 }) => {
   const sources = await Sources.getInstance();
   const orderSource = order.sourceIdInt ? sources.get(order.sourceIdInt) : undefined;

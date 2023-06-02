@@ -79,7 +79,7 @@ if (config.doBackgroundWork) {
 
               switch (result.kind) {
                 case "blur": {
-                  if (result.side === "sell") {
+                  if (result.side === "sell" && !result.raw_data.createdAt) {
                     const order = new Sdk.Blur.Order(config.chainId, result.raw_data);
                     try {
                       await blurCheck.offChainCheck(order, result.originated_at, {

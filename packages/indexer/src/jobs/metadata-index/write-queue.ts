@@ -11,6 +11,8 @@ import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 
 import * as flagStatusUpdate from "@/jobs/flag-status/update";
+import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
+
 import PgPromise from "pg-promise";
 import { updateActivities } from "@/jobs/activities/utils";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
@@ -120,6 +122,15 @@ if (config.doBackgroundWork) {
               newCollectionId: collection,
               contract,
             });
+
+            if (config.doElasticsearchWork) {
+              await updateActivitiesCollection.addToQueue(
+                contract,
+                tokenId,
+                collection,
+                result.collection_id
+              );
+            }
           }
 
           // Set the new collection and update the token association

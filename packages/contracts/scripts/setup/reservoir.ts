@@ -14,11 +14,6 @@ const main = async () => {
     throw new Error("Wrong deployer");
   }
 
-  // Use our CREATE3 factory instance if available
-  if (Sdk.Common.Addresses.Create3Factory[chainId]) {
-    process.env.CREATE3_FACTORY_ADDRESS_OVERRIDE = Sdk.Common.Addresses.Create3Factory[chainId];
-  }
-
   // 1. Deploy the router
   const router = await trigger.Router.V6_0_1().then(() =>
     readDeployment("ReservoirV6_0_1", "v3", chainId)

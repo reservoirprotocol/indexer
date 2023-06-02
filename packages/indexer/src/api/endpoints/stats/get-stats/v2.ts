@@ -70,15 +70,15 @@ export const getStatsV2Options: RouteOptions = {
               tokenId: Joi.string().lowercase().pattern(regex.number).allow(null),
               name: Joi.string().allow("", null),
               image: Joi.string().allow("", null),
-            }),
+            }).description("Can be null if no active asks."),
           }),
-          topBid: {
+          topBid: Joi.object({
             id: Joi.string().allow(null),
             price: JoiPrice.allow(null),
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-          },
+          }).description("Can be null is not active bids"),
         }),
       }).allow(null),
     }).label(`getStats${version.toUpperCase()}Response`),
