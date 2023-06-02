@@ -90,7 +90,7 @@ export const jobProcessor = async (job: Job) => {
   if (isRateLimited) {
     // If limit reached, reschedule job based on the limit expiration.
     logger.debug(
-      QUEUE_NAME,
+      job.queueName,
       `Post Order Rate Limited. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
         orderData
       )}, rateLimitExpiration=${rateLimitExpiration}, retry=${retry}`
@@ -102,7 +102,7 @@ export const jobProcessor = async (job: Job) => {
       await postOrder(orderbook, orderId, orderData, orderbookApiKey, orderSchema);
 
       logger.info(
-        QUEUE_NAME,
+        job.queueName,
         `Post Order Success. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
           orderData
         )}, rateLimitExpiration=${rateLimitExpiration}, retry=${retry}`
@@ -125,7 +125,7 @@ export const jobProcessor = async (job: Job) => {
           await rateLimiter.block(rateLimiterKey, Math.floor(delay / 1000));
         } catch (error) {
           logger.error(
-            QUEUE_NAME,
+            job.queueName,
             `Unable to set expiration. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
               orderData
             )}, retry=${retry}, delay=${delay}, error=${error}`
@@ -135,7 +135,7 @@ export const jobProcessor = async (job: Job) => {
         await addToQueue(job.data, delay, true);
 
         logger.warn(
-          QUEUE_NAME,
+          job.queueName,
           `Post Order Throttled. orderbook=${orderbook}, orderbookApiKey=${orderbookApiKey}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
           )}, delay=${delay}, retry=${retry}`
@@ -143,7 +143,7 @@ export const jobProcessor = async (job: Job) => {
       } else if (error instanceof InvalidRequestError) {
         // If the order is invalid, fail the job.
         logger.info(
-          QUEUE_NAME,
+          job.queueName,
           `Post Order Failed - Invalid Order. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
           )}, retry=${retry}, error=${error}, errorKind=${error.kind}`
@@ -206,7 +206,7 @@ export const jobProcessor = async (job: Job) => {
 
           if (rawResult) {
             logger.info(
-              QUEUE_NAME,
+              job.queueName,
               `Post Order Failed - Invalid Fees - Refreshing. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderbookApiKey=${orderbookApiKey}, orderKind=${
                 order.params.kind
               }, orderId=${orderId}, orderData=${JSON.stringify(
@@ -224,7 +224,7 @@ export const jobProcessor = async (job: Job) => {
       } else if (retry < MAX_RETRIES) {
         // If we got an unknown error from the api, reschedule job based on fixed delay.
         logger.info(
-          QUEUE_NAME,
+          job.queueName,
           `Post Order Failed - Retrying. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
           )}, retry: ${retry}`
@@ -235,7 +235,7 @@ export const jobProcessor = async (job: Job) => {
         await addToQueue(job.data, 1000, true);
       } else {
         logger.info(
-          QUEUE_NAME,
+          job.queueName,
           `Post Order Failed - Max Retries Reached. orderbook${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
             orderData
           )}, retry=${retry}, error=${error}`
