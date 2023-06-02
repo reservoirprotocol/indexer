@@ -154,7 +154,7 @@ export const getCollectionActivityV6Options: RouteOptions = {
     }
 
     try {
-      if (query.es === "1") {
+      if (query.es !== "0" && config.enableElasticsearchRead) {
         if (query.collection && !_.isArray(query.collection)) {
           query.collection = [query.collection];
         }

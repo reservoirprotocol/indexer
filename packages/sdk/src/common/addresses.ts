@@ -62,6 +62,7 @@ export const RoyaltyEngine: ChainIdToAddress = {
   [Network.Polygon]: "0x28edfcf0be7e86b07493466e7631a213bde8eef2",
   [Network.Arbitrum]: "0xef770dfb6d5620977213f55f99bfd781d04bbe15",
   [Network.ZoraTestnet]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
+  [Network.ScrollAlpha]: "0x60b433ee91680189deb2c94b0b062ea283f6b4dd",
 };
 
 export const SwapRouter: ChainIdToAddress = {
