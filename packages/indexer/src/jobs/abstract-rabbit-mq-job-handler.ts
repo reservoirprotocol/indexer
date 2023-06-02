@@ -46,9 +46,13 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
       this.emit("onError", message, error);
       let queueName = this.getRetryQueue();
 
+      // Set the backoff strategy delay
+      let delay = this.getBackoffDelay(message);
+
       // If the event has already been retried maxRetries times, send it to the dead letter queue
       if (message.retryCount > this.maxRetries) {
         queueName = this.getDeadLetterQueue();
+        delay = 0;
       }
 
       logger.error(
@@ -57,9 +61,6 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
           message
         )}, retryCount=${message.retryCount}`
       );
-
-      // Set the backoff strategy delay
-      const delay = this.getBackoffDelay(message);
 
       await RabbitMq.send(queueName, message, delay);
     }
