@@ -112,7 +112,7 @@ export const save = async (activities: ActivityDocument[]): Promise<void> => {
     });
 
     if (response.errors) {
-      logger.warn(
+      logger.error(
         "elasticsearch-activities",
         JSON.stringify({
           topic: "save-errors",
@@ -159,14 +159,18 @@ export const search = async (params: {
   }
 
   if (params.collections?.length) {
+    const collections = params.collections.map((collection) => collection.toLowerCase());
+
     (esQuery as any).bool.filter.push({
-      terms: { "collection.id": params.collections },
+      terms: { "collection.id": collections },
     });
   }
 
   if (params.contracts?.length) {
+    const contracts = params.contracts.map((contract) => contract.toLowerCase());
+
     (esQuery as any).bool.filter.push({
-      terms: { contract: params.contracts },
+      terms: { contract: contracts },
     });
   }
 
@@ -174,14 +178,17 @@ export const search = async (params: {
     const tokensFilter = { bool: { should: [] } };
 
     for (const token of params.tokens) {
+      const contract = token.contract.toLowerCase();
+      const tokenId = token.tokenId;
+
       (tokensFilter as any).bool.should.push({
         bool: {
           must: [
             {
-              term: { contract: token.contract },
+              term: { contract },
             },
             {
-              term: { ["token.id"]: token.tokenId },
+              term: { ["token.id"]: tokenId },
             },
           ],
         },
@@ -192,14 +199,16 @@ export const search = async (params: {
   }
 
   if (params.users?.length) {
+    const users = params.users.map((user) => user.toLowerCase());
+
     const usersFilter = { bool: { should: [] } };
 
     (usersFilter as any).bool.should.push({
-      terms: { fromAddress: params.users },
+      terms: { fromAddress: users },
     });
 
     (usersFilter as any).bool.should.push({
-      terms: { toAddress: params.users },
+      terms: { toAddress: users },
     });
 
     (esQuery as any).bool.filter.push(usersFilter);
@@ -368,34 +377,34 @@ export const updateActivitiesMissingCollection = async (
   tokenId: number,
   collection: CollectionsEntity
 ): Promise<void> => {
-  try {
-    const query = {
-      bool: {
-        must_not: [
-          {
-            exists: {
-              field: "collection.id",
-            },
+  const query = {
+    bool: {
+      must_not: [
+        {
+          exists: {
+            field: "collection.id",
           },
-        ],
-        must: [
-          {
-            term: {
-              contract,
-            },
+        },
+      ],
+      must: [
+        {
+          term: {
+            contract: contract.toLowerCase(),
           },
-          {
-            term: {
-              "token.id": tokenId,
-            },
+        },
+        {
+          term: {
+            "token.id": tokenId,
           },
-        ],
-      },
-    };
+        },
+      ],
+    },
+  };
 
-    await elasticsearch.updateByQuery({
+  try {
+    const response = await elasticsearch.updateByQuery({
       index: INDEX_NAME,
-      refresh: true,
+      conflicts: "proceed",
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
@@ -410,6 +419,36 @@ export const updateActivitiesMissingCollection = async (
         },
       },
     });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesMissingCollection",
+          data: {
+            contract,
+            tokenId,
+            collection,
+          },
+          query: JSON.stringify(query),
+          response,
+        })
+      );
+    } else {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesMissingCollection",
+          data: {
+            contract,
+            tokenId,
+            collection,
+          },
+          query: JSON.stringify(query),
+          response,
+        })
+      );
+    }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
@@ -428,28 +467,147 @@ export const updateActivitiesMissingCollection = async (
   }
 };
 
-export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<void> => {
-  try {
-    const query = {
-      bool: {
-        must: [
-          {
-            term: {
-              "event.blockHash": blockHash,
-            },
+export const updateActivitiesCollection = async (
+  contract: string,
+  tokenId: string,
+  newCollection: CollectionsEntity,
+  oldCollectionId: string
+): Promise<void> => {
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            contract: contract.toLowerCase(),
           },
-        ],
-      },
-    };
+        },
+        {
+          term: {
+            "token.id": tokenId,
+          },
+        },
+      ],
+    },
+  };
 
-    await elasticsearch.deleteByQuery({
+  try {
+    const response = await elasticsearch.updateByQuery({
       index: INDEX_NAME,
-      refresh: true,
+      conflicts: "proceed",
+      // This is needed due to issue with elasticsearch DSL.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      query,
+      script: {
+        source:
+          "ctx._source.collection = [:]; ctx._source.collection.id = params.collection_id; ctx._source.collection.name = params.collection_name; ctx._source.collection.image = params.collection_image;",
+        params: {
+          collection_id: newCollection.id,
+          collection_name: newCollection.name,
+          collection_image: newCollection.metadata.imageUrl,
+        },
+      },
+    });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesCollection",
+          data: {
+            contract,
+            tokenId,
+            newCollection,
+            oldCollectionId,
+          },
+          query: JSON.stringify(query),
+          response,
+        })
+      );
+    } else {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesCollection",
+          data: {
+            contract,
+            tokenId,
+            newCollection,
+            oldCollectionId,
+          },
+          query: JSON.stringify(query),
+          response,
+        })
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "updateActivitiesCollection",
+        data: {
+          contract,
+          tokenId,
+          oldCollectionId,
+          newCollection,
+        },
+        query: JSON.stringify(query),
+        error,
+      })
+    );
+
+    throw error;
+  }
+};
+
+export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<void> => {
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            "event.blockHash": blockHash,
+          },
+        },
+      ],
+    },
+  };
+
+  try {
+    const response = await elasticsearch.deleteByQuery({
+      index: INDEX_NAME,
+      conflicts: "proceed",
       // This is needed due to issue with elasticsearch DSL.
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       query: query,
     });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "deleteActivitiesByBlockHash",
+          data: {
+            blockHash,
+          },
+          query,
+          response,
+        })
+      );
+    } else {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "deleteActivitiesByBlockHash",
+          data: {
+            blockHash,
+          },
+          query,
+          response,
+        })
+      );
+    }
   } catch (error) {
     logger.error(
       "elasticsearch-activities",
@@ -458,6 +616,7 @@ export const deleteActivitiesByBlockHash = async (blockHash: string): Promise<vo
         data: {
           blockHash,
         },
+        query: JSON.stringify(query),
         error,
       })
     );
