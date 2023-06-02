@@ -288,9 +288,10 @@ const _search = async (params: {
       ...params,
     });
 
-    logger.info(
+    logger.debug(
       "elasticsearch-search-activities",
       JSON.stringify({
+        topic: "_search",
         latency: esResult.took,
         params: JSON.stringify(params),
       })
