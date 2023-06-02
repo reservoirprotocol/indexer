@@ -13,7 +13,12 @@ import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
+import {
+  POOL_ORDERS_MAX_PRICE_POINTS_COUNT,
+  DbOrder,
+  OrderMetadata,
+  generateSchemaHash,
+} from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import * as nftx from "@/utils/nftx";
 import * as royalties from "@/utils/royalties";
@@ -125,7 +130,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           });
         } else {
           const priceList = [];
-          for (let index = 0; index < 10; index++) {
+          for (let index = 0; index < POOL_ORDERS_MAX_PRICE_POINTS_COUNT; index++) {
             try {
               // Don't get the price from 0x to avoid being rate-limited
               const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(
@@ -382,7 +387,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
       // Handle sell orders
       try {
         const priceList: { feeBps: BigNumberish; price: BigNumberish }[] = [];
-        for (let index = 0; index < 10; index++) {
+        for (let index = 0; index < POOL_ORDERS_MAX_PRICE_POINTS_COUNT; index++) {
           try {
             // Don't get the price from 0x to avoid being rate-limited
             const poolPrice = await Sdk.Nftx.Helpers.getPoolPrice(

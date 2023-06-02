@@ -15,7 +15,12 @@ import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
 import { SudoswapPoolKind } from "@/models/sudoswap-pools";
 import * as commonHelpers from "@/orderbook/orders/common/helpers";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
+import {
+  POOL_ORDERS_MAX_PRICE_POINTS_COUNT,
+  DbOrder,
+  OrderMetadata,
+  generateSchemaHash,
+} from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import * as royalties from "@/utils/royalties";
 import * as sudoswap from "@/utils/sudoswap";
@@ -117,9 +122,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           const prices = [bn(0)];
           let totalPrice = bn(0);
 
-          // For now, we get at most 10 prices (ideally we use off-chain simulation or multicall)
           let i = 0;
-          while (i < 10) {
+          while (i < POOL_ORDERS_MAX_PRICE_POINTS_COUNT) {
             const result = await poolContract.getSellNFTQuote(prices.length);
             if (result.error !== 0 || result.outputAmount.gt(tokenBalance)) {
               break;
@@ -351,9 +355,8 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
           const prices = [bn(0)];
           let totalPrice = bn(0);
 
-          // For now, we get at most 10 prices (ideally we use off-chain simulation or multicall)
           let i = 0;
-          while (i < 10) {
+          while (i < POOL_ORDERS_MAX_PRICE_POINTS_COUNT) {
             const result = await poolContract.getBuyNFTQuote(prices.length);
             if (result.error !== 0) {
               break;

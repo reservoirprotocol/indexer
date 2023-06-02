@@ -21,7 +21,12 @@ import {
   saveCollectionPool,
 } from "@/models/collection-pools";
 import { Sources } from "@/models/sources";
-import { DbOrder, OrderMetadata, generateSchemaHash } from "@/orderbook/orders/utils";
+import {
+  POOL_ORDERS_MAX_PRICE_POINTS_COUNT,
+  DbOrder,
+  OrderMetadata,
+  generateSchemaHash,
+} from "@/orderbook/orders/utils";
 import * as tokenSet from "@/orderbook/token-sets";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
@@ -434,11 +439,10 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             await poolContract.getSellNFTQuote(1);
 
           if (currencyPrice.lte(tokenBalance)) {
-            // Generate first 10 prices
             const pricesAsBn: BigNumber[] = [];
             let totalPriceSoFar = bn(0);
             let numBuyableNFTs = 1;
-            while (numBuyableNFTs < 10) {
+            while (numBuyableNFTs < POOL_ORDERS_MAX_PRICE_POINTS_COUNT) {
               const { totalAmount }: { totalAmount: BigNumber } =
                 await poolContract.getSellNFTQuote(numBuyableNFTs);
 
@@ -812,10 +816,13 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
             (bn) => bn.toString()
           );
 
-          // Generate first 10 prices
           const pricesAsBn: BigNumber[] = [];
           let totalPriceSoFar = bn(0);
-          for (let i = 0; i < Math.min(poolOwnedTokenIds.length, 10); i++) {
+          for (
+            let i = 0;
+            i < Math.min(poolOwnedTokenIds.length, POOL_ORDERS_MAX_PRICE_POINTS_COUNT);
+            i++
+          ) {
             const { totalAmount }: { totalAmount: BigNumber } = await poolContract.getBuyNFTQuote(
               i + 1
             );
