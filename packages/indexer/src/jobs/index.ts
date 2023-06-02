@@ -204,6 +204,12 @@ import { topBidUpdateQueueJob } from "@/jobs/bid-updates/top-bid-update-queue-jo
 import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
 import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 import { rarityQueueJob } from "@/jobs/collection-updates/rarity-queue-job";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
+import { setCommunityQueueJob } from "@/jobs/collection-updates/set-community-queue-job";
+import { topBidCollectionQueueJob } from "@/jobs/collection-updates/top-bid-collection-queue-job";
+import { updateCollectionActivityJob } from "@/jobs/collection-updates/update-collection-activity-job";
+import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
+import { updateCollectionUserActivityJob } from "@/jobs/collection-updates/update-collection-user-activity-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -401,6 +407,12 @@ export class RabbitMqJobsConsumer {
       nonFlaggedFloorQueueJob,
       normalizedFloorQueueJob,
       rarityQueueJob,
+      refreshContractCollectionsMetadataQueueJob,
+      setCommunityQueueJob,
+      topBidCollectionQueueJob,
+      updateCollectionActivityJob,
+      updateCollectionDailyVolumeJob,
+      updateCollectionUserActivityJob,
     ];
   }
 
