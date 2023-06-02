@@ -94,6 +94,13 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             updatedAt: lastResult.updated_ts,
             id: lastResult.order_id,
           };
+        } else {
+          logger.info(
+            QUEUE_NAME,
+            `No results. cursor=${JSON.stringify(
+              cursor
+            )}, fromTimestamp=${fromTimestamp}, toTimestamp=${toTimestamp}`
+          );
         }
       } catch (error) {
         logger.error(
