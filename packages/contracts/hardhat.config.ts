@@ -30,6 +30,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 42161:
         url = `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
+      case 42170:
+        url = "";
+        break;
       // Testnets
       case 5:
         url = `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
@@ -39,6 +42,12 @@ const getNetworkConfig = (chainId?: number) => {
         break;
       case 5001:
         url = "https://rpc.testnet.mantle.xyz";
+        break;
+      case 80001:
+        url = `https://polygon-mumbai.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
+        break;
+      case 84531:
+        url = "https://goerli.base.org";
         break;
       case 534353:
         url = "https://alpha-rpc.scroll.io/l2";
@@ -99,11 +108,14 @@ const config: HardhatUserConfig = {
     optimism: getNetworkConfig(10),
     polygon: getNetworkConfig(137),
     arbitrum: getNetworkConfig(42161),
+    "arbitrum-nova": getNetworkConfig(42170),
     // Testnets
     goerli: getNetworkConfig(5),
     "zora-testnet": getNetworkConfig(999),
     "mantle-testnet": getNetworkConfig(5001),
     "linea-testnet": getNetworkConfig(59140),
+    mumbai: getNetworkConfig(80001),
+    "base-goerli": getNetworkConfig(84531),
     "scroll-alpha": getNetworkConfig(534353),
     sepolia: getNetworkConfig(11155111),
   },
