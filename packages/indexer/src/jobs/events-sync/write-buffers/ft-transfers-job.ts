@@ -2,11 +2,11 @@ import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rab
 import { logger } from "@/common/logger";
 import { edb } from "@/common/db";
 
-export type FtTransfersJobJobPayload = {
+export type FtTransfersJobPayload = {
   query: string;
 };
 
-export class FtTransfersJobJob extends AbstractRabbitMqJobHandler {
+export class FtTransfersJob extends AbstractRabbitMqJobHandler {
   queueName = "events-sync-ft-transfers-write";
   maxRetries = 15;
   concurrency = 5;
@@ -15,7 +15,7 @@ export class FtTransfersJobJob extends AbstractRabbitMqJobHandler {
     delay: 10000,
   } as BackoffStrategy;
 
-  protected async process(payload: FtTransfersJobJobPayload) {
+  protected async process(payload: FtTransfersJobPayload) {
     const { query } = payload;
 
     try {
@@ -26,9 +26,9 @@ export class FtTransfersJobJob extends AbstractRabbitMqJobHandler {
     }
   }
 
-  public async addToQueue(params: FtTransfersJobJobPayload) {
+  public async addToQueue(params: FtTransfersJobPayload) {
     await this.send({ payload: params });
   }
 }
 
-export const ftTransfersJobJob = new FtTransfersJobJob();
+export const ftTransfersJob = new FtTransfersJob();

@@ -6,7 +6,7 @@ import { config } from "@/config/index";
 import { BaseEventParams } from "@/events-sync/parser";
 import { AddressZero } from "@ethersproject/constants";
 import { tokenReclacSupplyJob } from "@/jobs/token-updates/token-reclac-supply-job";
-import { nftTransfersJobJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
+import { nftTransfersJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 
 export type Event = {
   kind: ContractKind;
@@ -273,7 +273,7 @@ async function insertQueries(queries: string[], backfill: boolean) {
   if (backfill) {
     // When backfilling, use the write buffer to avoid deadlocks
     for (const query of _.chunk(queries, 1000)) {
-      await nftTransfersJobJob.addToQueue(pgp.helpers.concat(query));
+      await nftTransfersJob.addToQueue(pgp.helpers.concat(query));
     }
   } else {
     // Otherwise write directly since there might be jobs that depend
