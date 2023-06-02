@@ -1,5 +1,4 @@
 import { AbstractRabbitMqJobHandler, BackoffStrategy } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { config } from "@/config/index";
 import { ApiUsageCounter } from "@/models/api-usage-counter";
 
 export type CountApiUsageJobPayload = {
@@ -11,7 +10,7 @@ export type CountApiUsageJobPayload = {
 };
 
 export class CountApiUsageJob extends AbstractRabbitMqJobHandler {
-  queueName = `count-api-usage-queue-${config.chainId}`;
+  queueName = "count-api-usage-queue";
   maxRetries = 10;
   concurrency = 10;
   backoff = {
