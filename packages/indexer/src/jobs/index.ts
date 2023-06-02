@@ -213,6 +213,11 @@ import { topBidCollectionQueueJob } from "@/jobs/collection-updates/top-bid-coll
 import { updateCollectionActivityJob } from "@/jobs/collection-updates/update-collection-activity-job";
 import { updateCollectionDailyVolumeJob } from "@/jobs/collection-updates/update-collection-daily-volume-job";
 import { updateCollectionUserActivityJob } from "@/jobs/collection-updates/update-collection-user-activity-job";
+import { collectionRefreshJob } from "@/jobs/collections-refresh/collections-refresh-job";
+import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
+import { currenciesFetchJob } from "@/jobs/currencies/currencies-fetch-job";
+import { oneDayVolumeJob } from "@/jobs/daily-volumes/1day-volumes-job";
+import { dailyVolumeJob } from "@/jobs/daily-volumes/daily-volumes-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -418,6 +423,11 @@ export class RabbitMqJobsConsumer {
       updateCollectionActivityJob,
       updateCollectionDailyVolumeJob,
       updateCollectionUserActivityJob,
+      collectionRefreshJob,
+      collectionRefreshCacheJob,
+      currenciesFetchJob,
+      oneDayVolumeJob,
+      dailyVolumeJob,
     ];
   }
 

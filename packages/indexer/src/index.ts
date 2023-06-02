@@ -1,10 +1,10 @@
 import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
+import "@/jobs/index";
 import "@/jobs/cdc/index";
 import "@/common/tracer";
 import "@/config/polyfills";
-import "@/jobs/index";
 import "@/pubsub/index";
 import "@/websockets/index";
 
