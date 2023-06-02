@@ -9,7 +9,6 @@ import * as es from "@/events-sync/storage";
 import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as orderUpdatesByMaker from "@/jobs/order-updates/by-maker-queue";
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
-import * as mintsProcess from "@/jobs/mints/process";
 import { AddressZero } from "@ethersproject/constants";
 import { NftTransferEventData } from "@/jobs/activities/transfer-activity";
 import { FillEventData } from "@/jobs/activities/sale-activity";
@@ -23,6 +22,7 @@ import {
 } from "@/jobs/activities/process-activity-event-job";
 import { fillPostProcessJob } from "@/jobs/fill-updates/fill-post-process-job";
 import { FillInfo, fillUpdatesJob } from "@/jobs/fill-updates/fill-updates-job";
+import { mintProcessJob, MintProcessJobPayload } from "@/jobs/mints/mint-process-job";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -59,7 +59,7 @@ export type OnChainData = {
   // For keeping track of mints and last sales
   fillInfos: FillInfo[];
   mintInfos: MintQueueJobPayload[];
-  mints: mintsProcess.Mint[];
+  mints: MintProcessJobPayload[];
 
   // For properly keeping orders validated on the go
   orderInfos: orderUpdatesById.OrderInfo[];
@@ -150,7 +150,7 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
   await mintQueueJob.addToQueue(data.mintInfos);
   await fillUpdatesJob.addToQueue(data.fillInfos);
   if (!backfill) {
-    await mintsProcess.addToQueue(data.mints);
+    await mintProcessJob.addToQueue(data.mints);
   }
 
   const startFillPostProcess = Date.now();
