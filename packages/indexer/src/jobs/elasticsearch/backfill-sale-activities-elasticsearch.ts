@@ -100,6 +100,13 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             logIndex: lastResult.event_log_index,
             batchIndex: lastResult.event_batch_index,
           };
+        } else {
+          logger.info(
+            QUEUE_NAME,
+            `No results. cursor=${JSON.stringify(
+              cursor
+            )}, fromTimestamp=${fromTimestamp}, toTimestamp=${toTimestamp}`
+          );
         }
       } catch (error) {
         logger.error(
