@@ -78,7 +78,7 @@ export const getUserCollectionsV3Options: RouteOptions = {
       collections: Joi.array().items(
         Joi.object({
           collection: Joi.object({
-            id: Joi.string(),
+            id: Joi.string().description("Collection Id"),
             slug: Joi.string().allow("", null),
             name: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
@@ -89,13 +89,15 @@ export const getUserCollectionsV3Options: RouteOptions = {
             openseaVerificationStatus: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
             sampleImages: Joi.array().items(Joi.string().allow("", null)),
-            tokenCount: Joi.string(),
+            tokenCount: Joi.string().description("Total token count"),
             tokenSetId: Joi.string().allow(null),
             primaryContract: Joi.string()
               .lowercase()
               .pattern(/^0x[a-fA-F0-9]{40}$/),
-            floorAskPrice: JoiPrice.allow(null),
-            topBidValue: JoiPrice.allow(null),
+            floorAskPrice: JoiPrice.allow(null).description("Current floor ask price"),
+            topBidValue: JoiPrice.allow(null).description(
+              "Top bid offer currently if offer is valid"
+            ),
             topBidMaker: Joi.string()
               .lowercase()
               .pattern(/^0x[a-fA-F0-9]{40}$/)
@@ -106,23 +108,25 @@ export const getUserCollectionsV3Options: RouteOptions = {
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
               allTime: Joi.number().unsafe().allow(null),
-            }),
+            }).description("Current rank based from overall volume"),
             volume: Joi.object({
               "1day": Joi.number().unsafe().allow(null),
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
               allTime: Joi.number().unsafe().allow(null),
-            }),
-            volumeChange: {
+            }).description("Total volume in given time period."),
+            volumeChange: Joi.object({
               "1day": Joi.number().unsafe().allow(null),
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
-            },
-            floorSale: {
+            }).description(
+              "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14])"
+            ),
+            floorSale: Joi.object({
               "1day": Joi.number().unsafe().allow(null),
               "7day": Joi.number().unsafe().allow(null),
               "30day": Joi.number().unsafe().allow(null),
-            },
+            }).description("The floor sale from X-days ago."),
           }),
           ownership: Joi.object({
             tokenCount: Joi.string(),

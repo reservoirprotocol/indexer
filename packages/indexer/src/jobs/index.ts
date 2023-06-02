@@ -32,7 +32,6 @@ import "@/jobs/token-set-updates";
 
 import * as fixActivitiesMissingCollection from "@/jobs/activities/fix-activities-missing-collection";
 import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as processActivityBackfillEvent from "@/jobs/activities/process-activity-event-backfill";
 import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
 
 import * as backfillBlockTimestamps from "@/jobs/backfill/backfill-block-timestamps";
@@ -44,12 +43,12 @@ import * as backfillFoundationSales from "@/jobs/backfill/backfill-foundation-sa
 import * as backfillMints from "@/jobs/backfill/backfill-mints";
 import * as backfillSaleRoyalties from "@/jobs/backfill/backfill-sale-royalties";
 import * as backfillUpdateMissingMetadata from "@/jobs/backfill/backfill-update-missing-metadata";
+import * as backfillInvalidateSeaportV14Orders from "@/jobs/backfill/backfill-cancel-seaport-v11-orders";
 import * as backfillNftBalancesLastTokenAppraisalValue from "@/jobs/backfill/backfill-nft-balances-last-token-appraisal-value";
 import * as backfillCancelEventsCreatedAt from "@/jobs/backfill/backfill-cancel-events-created-at";
 import * as backfillNftTransferEventsCreatedAt from "@/jobs/backfill/backfill-nft-transfer-events-created-at";
 import * as backfillCollectionsRoyalties from "@/jobs/backfill/backfill-collections-royalties";
 import * as backfillWrongNftBalances from "@/jobs/backfill/backfill-wrong-nft-balances";
-import * as backfillZeroAddressBalance from "@/jobs/backfill/backfill-zero-address-balance";
 
 import * as topBidUpdate from "@/jobs/bid-updates/top-bid-update-queue";
 
@@ -61,6 +60,7 @@ import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionSetCommunity from "@/jobs/collection-updates/set-community-queue";
 import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
+import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import * as rarity from "@/jobs/collection-updates/rarity-queue";
 import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
@@ -86,6 +86,7 @@ import * as eventsSyncBlockCheck from "@/jobs/events-sync/block-check-queue";
 import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
 import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 import * as eventsSyncRealtime from "@/jobs/events-sync/realtime-queue";
+import * as eventsSyncRealtimeV2 from "@/jobs/events-sync/realtime-queue-v2";
 import * as eventsSyncFtTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/ft-transfers";
 import * as eventsSyncNftTransfersWriteBuffer from "@/jobs/events-sync/write-buffers/nft-transfers";
 
@@ -102,6 +103,8 @@ import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue-by-slug";
 import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
 import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
+
+import * as mintsProcess from "@/jobs/mints/process";
 
 import * as updateNftBalanceFloorAskPrice from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import * as updateNftBalanceTopBid from "@/jobs/nft-balance-updates/update-top-bid-queue";
@@ -120,6 +123,7 @@ import * as expiredOrdersCron from "@/jobs/order-updates/cron/expired-orders-que
 import * as oracleOrdersCron from "@/jobs/order-updates/cron/oracle-orders-queue";
 import * as blurBidsBufferMisc from "@/jobs/order-updates/misc/blur-bids-buffer";
 import * as blurBidsRefreshMisc from "@/jobs/order-updates/misc/blur-bids-refresh";
+import * as saveBidEvents from "@/jobs/order-updates/save-bid-events";
 
 import * as orderbookOrders from "@/jobs/orderbook/orders-queue";
 import * as orderbookOrdersV2 from "@/jobs/orderbook/orders-queue-v2";
@@ -150,11 +154,22 @@ import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute
 
 import * as askWebsocketEventsTriggerQueue from "@/jobs/websocket-events/ask-websocket-events-trigger-queue";
 import * as bidWebsocketEventsTriggerQueue from "@/jobs/websocket-events/bid-websocket-events-trigger-queue";
+import * as approvalWebsocketEventsTriggerQueue from "@/jobs/websocket-events/approval-websocket-events-trigger-queue";
+import * as transferWebsocketEventsTriggerQueue from "@/jobs/websocket-events/transfer-websocket-events-trigger-queue";
+import * as saleWebsocketEventsTriggerQueue from "@/jobs/websocket-events/sale-websocket-events-trigger-queue";
 import * as newTopBidTriggerQueue from "@/jobs/websocket-events/new-top-bid-trigger-queue";
 import * as countApiUsage from "@/jobs/metrics/count-api-usage";
 
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as openseaOrdersFetchQueue from "@/jobs/opensea-orders/fetch-queue";
+
+import * as backfillTransferActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-transfer-activities-elasticsearch";
+import * as backfillSaleActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-sale-activities-elasticsearch";
+import * as backfillAskActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-ask-activities-elasticsearch";
+import * as backfillBidActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-activities-elasticsearch";
+import * as backfillAskCancelActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-ask-cancel-activities-elasticsearch";
+import * as backfillBidCancelActivitiesElasticsearch from "@/jobs/elasticsearch/backfill-bid-cancel-activities-elasticsearch";
+import * as updateActivitiesCollectionJob from "@/jobs/elasticsearch/update-activities-collection";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -173,7 +188,6 @@ export const gracefulShutdownJobWorkers = [
 export const allJobQueues = [
   fixActivitiesMissingCollection.queue,
   processActivityEvent.queue,
-  processActivityBackfillEvent.queue,
   removeUnsyncedEventsActivities.queue,
 
   backfillBlockTimestamps.queue,
@@ -190,7 +204,7 @@ export const allJobQueues = [
   backfillNftTransferEventsCreatedAt.queue,
   backfillCollectionsRoyalties.queue,
   backfillWrongNftBalances.queue,
-  backfillZeroAddressBalance.queue,
+  backfillInvalidateSeaportV14Orders.queue,
 
   currencies.queue,
 
@@ -204,6 +218,7 @@ export const allJobQueues = [
   collectionUpdatesNonFlaggedFloorAsk.queue,
   collectionSetCommunity.queue,
   collectionRecalcTokenCount.queue,
+  collectionRecalcOwnerCount.queue,
 
   tokenSetUpdatesTopBid.queue,
   tokenSetUpdatesTopBidSingleToken.queue,
@@ -229,6 +244,7 @@ export const allJobQueues = [
   eventsSyncBackfillProcess.queue,
   eventsSyncRealtimeProcess.queue,
   eventsSyncRealtime.queue,
+  eventsSyncRealtimeV2.queue,
   eventsSyncFtTransfersWriteBuffer.queue,
   eventsSyncNftTransfersWriteBuffer.queue,
 
@@ -245,6 +261,8 @@ export const allJobQueues = [
   metadataIndexProcessBySlug.queue,
   metadataIndexProcess.queue,
   metadataIndexWrite.queue,
+
+  mintsProcess.queue,
 
   updateNftBalanceFloorAskPrice.queue,
   updateNftBalanceTopBid.queue,
@@ -263,6 +281,7 @@ export const allJobQueues = [
   oracleOrdersCron.queue,
   blurBidsBufferMisc.queue,
   blurBidsRefreshMisc.queue,
+  saveBidEvents.queue,
 
   orderbookOrders.queue,
   orderbookOrdersV2.queue,
@@ -293,10 +312,21 @@ export const allJobQueues = [
 
   askWebsocketEventsTriggerQueue.queue,
   bidWebsocketEventsTriggerQueue.queue,
+  approvalWebsocketEventsTriggerQueue.queue,
+  transferWebsocketEventsTriggerQueue.queue,
+  saleWebsocketEventsTriggerQueue.queue,
   newTopBidTriggerQueue.queue,
 
   countApiUsage.queue,
 
   openseaOrdersProcessQueue.queue,
   openseaOrdersFetchQueue.queue,
+
+  backfillTransferActivitiesElasticsearch.queue,
+  backfillSaleActivitiesElasticsearch.queue,
+  backfillAskActivitiesElasticsearch.queue,
+  backfillBidActivitiesElasticsearch.queue,
+  backfillAskCancelActivitiesElasticsearch.queue,
+  backfillBidCancelActivitiesElasticsearch.queue,
+  updateActivitiesCollectionJob.queue,
 ];

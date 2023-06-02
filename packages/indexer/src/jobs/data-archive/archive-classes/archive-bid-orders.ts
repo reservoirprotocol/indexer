@@ -19,6 +19,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
         WHERE updated_at < current_date - INTERVAL '${ArchiveBidOrders.maxAgeDay} days'
         AND side = 'buy'
         AND fillability_status = 'expired'
+        ORDER BY updated_at DESC, id ASC
         LIMIT 1
       `;
 
@@ -46,6 +47,7 @@ export class ArchiveBidOrders implements ArchiveInterface {
   async generateJsonFile(filename: string, startTime: string, endTime: string) {
     const limit = 5000;
     let continuation = "";
+    let continuationValues: { updatedAt: number; id: string } = { updatedAt: 0, id: "" };
     let count = 0;
     let records;
 
@@ -55,10 +57,10 @@ export class ArchiveBidOrders implements ArchiveInterface {
     // Get all relevant records for the given time frame
     do {
       const query = `
-            SELECT *
+            SELECT *, extract(epoch from updated_at) AS updated_at_cont
             FROM ${ArchiveBidOrders.tableName}
-            WHERE updated_at >= '${startTime}'
-            AND updated_at < '${endTime}'
+            WHERE updated_at >= $/startTime/
+            AND updated_at < $/endTime/
             AND side = 'buy'
             AND fillability_status = 'expired'
             ${continuation}
@@ -67,7 +69,13 @@ export class ArchiveBidOrders implements ArchiveInterface {
           `;
 
       // Parse the data
-      records = await idb.manyOrNone(query);
+      records = await idb.manyOrNone(query, {
+        startTime,
+        endTime,
+        updateAt: continuationValues.updatedAt,
+        id: continuationValues.id,
+      });
+
       records = records.map((r) => {
         return {
           ...r,
@@ -91,9 +99,8 @@ export class ArchiveBidOrders implements ArchiveInterface {
 
       count += _.size(records);
 
-      continuation = `AND (updated_at, id) > ('${_.last(records)?.updated_at}', '${
-        _.last(records)?.id
-      }')`;
+      continuationValues = { updatedAt: _.last(records)?.updated_at_cont, id: _.last(records)?.id };
+      continuation = `AND (updated_at, id) > (to_timestamp($/updateAt/), $/id/)`;
     } while (limit === _.size(records));
 
     // Close Stream

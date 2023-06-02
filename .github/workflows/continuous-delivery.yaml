@@ -22,14 +22,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup node
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "yarn"
+      # - name: Setup node
+      #   uses: actions/setup-node@v3
+      #   with:
+      #     node-version: ${{ env.NODE_VERSION }}
+      #     cache: "yarn"
 
-      - name: Install dependencies
-        run: "yarn install"
+      # - name: Install dependencies
+      #   run: "yarn install"
 
       # - name: Get Release Versions
       #   uses: cycjimmy/semantic-release-action@v3
@@ -134,6 +134,30 @@ jobs:
             ${{ github.sha }} \
             indexer-api-bsc
           ./utils/version_update.sh \
+            ./prod/platform/indexer-api-sepolia.yaml \
+            ${{ github.sha }} \
+            indexer-api-sepolia
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-mumbai.yaml \
+            ${{ github.sha }} \
+            indexer-api-mumbai
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-base-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-api-base-goerli
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-arbitrum-nova.yaml \
+            ${{ github.sha }} \
+            indexer-api-arbitrum-nova
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-scroll-alpha.yaml \
+            ${{ github.sha }} \
+            indexer-api-scroll-alpha
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-api-zora-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-api-zora-testnet
+          ./utils/version_update.sh \
             ./prod/platform/indexer-worker.yaml \
             ${{ github.sha }} \
             indexer-worker
@@ -170,6 +194,30 @@ jobs:
             ${{ github.sha }} \
             indexer-worker-bsc-2
           ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-sepolia.yaml \
+            ${{ github.sha }} \
+            indexer-worker-sepolia
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-mumbai.yaml \
+            ${{ github.sha }} \
+            indexer-worker-mumbai
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-base-goerli.yaml \
+            ${{ github.sha }} \
+            indexer-worker-base-goerli
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-arbitrum-nova.yaml \
+            ${{ github.sha }} \
+            indexer-worker-arbitrum-nova
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-scroll-alpha.yaml \
+            ${{ github.sha }} \
+            indexer-worker-scroll-alpha
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-worker-zora-testnet.yaml \
+            ${{ github.sha }} \
+            indexer-worker-zora-testnet
+          ./utils/version_update.sh \
             ./prod/platform/indexer-websocket-ethereum.yaml \
             ${{ github.sha }} \
             indexer-websocket-ethereum
@@ -177,3 +225,7 @@ jobs:
             ./prod/platform/indexer-websocket-polygon.yaml \
             ${{ github.sha }} \
             indexer-websocket-polygon
+          ./utils/version_update.sh \
+            ./prod/platform/indexer-kafka-worker.yaml \
+            ${{ github.sha }} \
+            indexer-kafka-worker

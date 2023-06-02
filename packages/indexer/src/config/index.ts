@@ -44,6 +44,7 @@ export const config = {
   redisWebsocketUrl: String(process.env.REDIS_WEBSOCKET_URL || process.env.REDIS_URL),
   metricsRedisUrl: String(process.env.METRICS_REDIS_URL || process.env.REDIS_URL),
   orderbookRedisUrl: String(process.env.ORDERSBOOK_REDIS_URL || process.env.REDIS_URL),
+  allChainsSyncRedisUrl: String(process.env.ALL_CHAINS_SYNC_REDIS_URL || process.env.REDIS_URL),
   redshiftUrl: String(process.env.REDSHIFT_URL),
 
   master: Boolean(Number(process.env.MASTER)),
@@ -53,6 +54,16 @@ export const config = {
   doWebsocketServerWork: Boolean(Number(process.env.DO_WEBSOCKET_SERVER_WORK)),
   doEventsSyncBackfill: Boolean(Number(process.env.DO_EVENTS_SYNC_BACKFILL)),
   disableOrders: Boolean(Number(process.env.DISABLE_ORDERS)),
+
+  // for kafka
+  doKafkaWork: Boolean(Number(process.env.DO_KAFKA_WORK)),
+  kafkaPartitionsConsumedConcurrently: Number(process.env.KAFKA_PARTITIONS_CONSUMED_CONCURRENTLY),
+  kafkaConsumerGroupId: String(process.env.KAFKA_CONSUMER_GROUP_ID),
+  kafkaBrokers: String(process.env.KAFKA_BROKERS).split(","),
+  kafkaClientId: String(process.env.KAFKA_CLIENT_ID),
+
+  // for testing order websocket triggers
+  doOldOrderWebsocketWork: Boolean(Number(process.env.DO_OLD_ORDER_WEBSOCKET_WORK)),
 
   maxTokenSetSize: 100000,
 
@@ -86,7 +97,9 @@ export const config = {
   openSeaApiKey: String(process.env.OPENSEA_API_KEY),
   openSeaApiUrl: String(process.env.OPENSEA_API_URL || ""),
 
-  openSeaCrossPostingApiKey: String(process.env.OPENSEA_CROSS_POSTING_API_KEY),
+  openSeaCrossPostingApiKey: String(
+    process.env.OPENSEA_CROSS_POSTING_API_KEY || process.env.OPENSEA_API_KEY
+  ),
 
   x2y2ApiKey: String(process.env.X2Y2_API_KEY),
   cbApiKey: String(process.env.CB_API_KEY),
@@ -117,4 +130,13 @@ export const config = {
   doProcessRealtime: Boolean(Number(process.env.DO_PROCESS_REALTIME)),
 
   enableDebug: Boolean(Number(process.env.ENABLE_DEBUG)),
+
+  // Elasticsearch
+  elasticsearchUrl: String(process.env.ELASTICSEARCH_URL || ""),
+  doElasticsearchWork: Boolean(Number(process.env.DO_ELASTICSEARCH_WORK)),
+  enableElasticsearchRead: Boolean(Number(process.env.ENABLE_ELASTICSEARCH_READ)),
+
+  // realtime v2
+  enableRealtimeProcessing: Boolean(process.env.ENABLE_REALTIME_PROCESSING),
+  enableRealtimeV2BlockQueue: Boolean(process.env.ENABLE_REALTIME_V2_BLOCK_QUEUE),
 };

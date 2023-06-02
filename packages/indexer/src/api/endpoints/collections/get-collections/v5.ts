@@ -44,9 +44,9 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "Filter to a particular collection with collection id. Example: `0x8d04a8c79ceb0889bdd12acdf3fa9d207ed3ff63`"
         ),
-      slug: Joi.string()
-        .lowercase()
-        .description("Filter to a particular collection slug. Example: `boredapeyachtclub`"),
+      slug: Joi.string().description(
+        "Filter to a particular collection slug. Example: `boredapeyachtclub`"
+      ),
       collectionsSetId: Joi.string()
         .lowercase()
         .description(
@@ -82,19 +82,6 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "If true, attributes will be included in the response. Must filter by `id` or `slug` to a particular collection."
         ),
-      includeOwnerCount: Joi.boolean()
-        .when("id", {
-          is: Joi.exist(),
-          then: Joi.allow(),
-          otherwise: Joi.when("slug", {
-            is: Joi.exist(),
-            then: Joi.allow(),
-            otherwise: Joi.forbidden(),
-          }),
-        })
-        .description(
-          "If true, owner count will be included in the response. Must filter by `id` or `slug` to a particular collection and the collection has less than 50k tokens."
-        ),
       includeSalesCount: Joi.boolean()
         .when("id", {
           is: Joi.exist(),
@@ -108,6 +95,9 @@ export const getCollectionsV5Options: RouteOptions = {
         .description(
           "If true, sales count (1 day, 7 day, 30 day, all time) will be included in the response. Must filter by `id` or `slug` to a particular collection."
         ),
+      includeMintStages: Joi.boolean()
+        .default(false)
+        .description("If true, mint data for the collection will be included in the response."),
       normalizeRoyalties: Joi.boolean()
         .default(false)
         .description("If true, prices will include missing royalties to be added on-top."),
@@ -153,9 +143,9 @@ export const getCollectionsV5Options: RouteOptions = {
       continuation: Joi.string().allow(null),
       collections: Joi.array().items(
         Joi.object({
-          id: Joi.string(),
+          id: Joi.string().description("Collection id"),
           slug: Joi.string().allow("", null).description("Open Sea slug"),
-          createdAt: Joi.string(),
+          createdAt: Joi.string().description("Time when added to indexer"),
           name: Joi.string().allow("", null),
           image: Joi.string().allow("", null),
           banner: Joi.string().allow("", null),
@@ -165,8 +155,8 @@ export const getCollectionsV5Options: RouteOptions = {
           openseaVerificationStatus: Joi.string().allow("", null),
           description: Joi.string().allow("", null),
           sampleImages: Joi.array().items(Joi.string().allow("", null)),
-          tokenCount: Joi.string(),
-          onSaleCount: Joi.string(),
+          tokenCount: Joi.string().description("Total tokens within the collection."),
+          onSaleCount: Joi.string().description("Total tokens currently on sale."),
           primaryContract: Joi.string().lowercase().pattern(regex.address),
           tokenSetId: Joi.string().allow(null),
           royalties: Joi.object({
@@ -196,7 +186,9 @@ export const getCollectionsV5Options: RouteOptions = {
               tokenId: Joi.string().pattern(regex.number).allow(null),
               name: Joi.string().allow(null),
               image: Joi.string().allow("", null),
-            }).allow(null),
+            })
+              .allow(null)
+              .description("Lowest Ask Price."),
           },
           topBid: Joi.object({
             id: Joi.string().allow(null),
@@ -205,53 +197,73 @@ export const getCollectionsV5Options: RouteOptions = {
             maker: Joi.string().lowercase().pattern(regex.address).allow(null),
             validFrom: Joi.number().unsafe().allow(null),
             validUntil: Joi.number().unsafe().allow(null),
-          }).optional(),
+          })
+            .description("Highest current offer")
+            .optional(),
           rank: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
-          }),
+          }).description("Current rank based from overall volume"),
           volume: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
-          }),
-          volumeChange: {
+          }).description("Total volume in given time period."),
+          volumeChange: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
-          },
-          floorSale: {
+          }).description(
+            "Total volume change X-days vs previous X-days. (e.g. 7day [days 1-7] vs 7day prior [days 8-14])"
+          ),
+          floorSale: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
-          },
-          floorSaleChange: {
+          }).description("The floor sale from X-days ago."),
+          floorSaleChange: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
-          },
-          salesCount: {
+          }).description(
+            "Floor sale change from X-days vs X-days ago. (e.g. 7day floor sale vs floor sale 14 days ago)"
+          ),
+          salesCount: Joi.object({
             "1day": Joi.number().unsafe().allow(null),
             "7day": Joi.number().unsafe().allow(null),
             "30day": Joi.number().unsafe().allow(null),
             allTime: Joi.number().unsafe().allow(null),
-          },
-          collectionBidSupported: Joi.boolean(),
-          ownerCount: Joi.number().optional(),
+          }).description("Number of sales of X-days period"),
+          collectionBidSupported: Joi.boolean().description(`true or false`),
+          ownerCount: Joi.number().description("Unique number of owners."),
           attributes: Joi.array()
             .items(
               Joi.object({
-                key: Joi.string().allow("", null),
-                kind: Joi.string().allow("", null),
+                key: Joi.string().allow("", null).description("Case sensitive"),
+                kind: Joi.string()
+                  .allow("", null)
+                  .description("`string`, `number`, `date`, or `range`"),
                 count: Joi.number().allow("", null),
               })
             )
             .optional(),
-          contractKind: Joi.string().allow("", null),
+          contractKind: Joi.string()
+            .allow("", null)
+            .description("Returns `erc721`, `erc1155`, etc."),
           mintedTimestamp: Joi.number().allow(null),
+          mintStages: Joi.array().items(
+            Joi.object({
+              stage: Joi.string().required(),
+              kind: Joi.string().required(),
+              price: JoiPrice.required(),
+              startTime: Joi.number().allow(null),
+              endTime: Joi.number().allow(null),
+              maxMintsPerWallet: Joi.number().allow(null),
+            })
+          ),
         })
       ),
     }).label(`getCollections${version.toUpperCase()}Response`),
@@ -319,43 +331,30 @@ export const getCollectionsV5Options: RouteOptions = {
         `;
       }
 
-      // Include owner count
-      let ownerCountSelectQuery = "";
-      let ownerCountJoinQuery = "";
-      let includeOwnerCount = false;
-
-      // TODO: Cache owners count on collection instead of not allowing for big collections.
-      if (query.includeOwnerCount) {
-        const collectionResult = await redb.oneOrNone(
-          `
-              SELECT
-                collections.token_count
-              FROM collections
-              WHERE ${query.id ? "collections.id = $/id/" : "collections.slug = $/slug/"}
-              ORDER BY created_at DESC  
-              LIMIT 1  
-            `,
-          { slug: query.slug, id: query.id }
-        );
-
-        if (collectionResult) {
-          const isLargeCollection = collectionResult.token_count > 50000;
-
-          if (!isLargeCollection) {
-            includeOwnerCount = true;
-            ownerCountSelectQuery = ", z.*";
-            ownerCountJoinQuery = `
-                  LEFT JOIN LATERAL (
-                    SELECT
-                      COUNT(DISTINCT(owner)) AS owner_count
-                    FROM nft_balances
-                    WHERE nft_balances.contract = x.contract
-                      AND nft_balances.token_id <@ x.token_id_range
-                    AND amount > 0
-                  ) z ON TRUE
-                `;
-          }
-        }
+      // Include mint stages
+      let mintStagesSelectQuery = "";
+      let mintStagesJoinQuery = "";
+      if (query.includeMintStages) {
+        mintStagesSelectQuery = ", v.*";
+        mintStagesJoinQuery = `
+          LEFT JOIN LATERAL (
+            SELECT
+              array_agg(
+                json_build_object(
+                  'stage', collection_mints.stage,
+                  'kind', collection_mints.kind,
+                  'currency', concat('0x', encode(collection_mints.currency, 'hex')),
+                  'price', collection_mints.price::TEXT,
+                  'startTime', collection_mints.start_time,
+                  'endTime', collection_mints.end_time,
+                  'maxMintsPerWallet', collection_mints.max_mints_per_wallet
+                )
+              ) AS mint_stages
+            FROM collection_mints
+            WHERE collection_mints.collection_id = x.id
+              AND collection_mints.status = 'open'
+          ) v ON TRUE
+        `;
       }
 
       let saleCountSelectQuery = "";
@@ -382,7 +381,8 @@ export const getCollectionsV5Options: RouteOptions = {
                 END) AS month_sale_count,
             COUNT(*) AS total_sale_count
           FROM fill_events_2 fe
-          WHERE fe.contract = x.contract
+          JOIN "tokens" "t" ON "fe"."token_id" = "t"."token_id" AND "fe"."contract" = "t"."contract"
+          WHERE t.collection_id = x.id
           AND fe.is_deleted = 0
         ) s ON TRUE
       `;
@@ -452,6 +452,7 @@ export const getCollectionsV5Options: RouteOptions = {
           collections.day30_floor_sell_value,
           ${floorAskSelectQuery}
           collections.token_count,
+          collections.owner_count,
           collections.created_at,
           collections.minted_timestamp,
           (
@@ -598,10 +599,10 @@ export const getCollectionsV5Options: RouteOptions = {
         SELECT
           x.*,
           y.*
-          ${ownerCountSelectQuery}
           ${attributesSelectQuery}
           ${topBidSelectQuery}
           ${saleCountSelectQuery}
+          ${mintStagesSelectQuery}
         FROM x
         LEFT JOIN LATERAL (
            SELECT
@@ -620,10 +621,10 @@ export const getCollectionsV5Options: RouteOptions = {
            JOIN tokens ON tokens.contract = token_sets_tokens.contract AND tokens.token_id = token_sets_tokens.token_id
            WHERE orders.id = x.floor_sell_id
         ) y ON TRUE
-        ${ownerCountJoinQuery}
         ${attributesJoinQuery}
         ${topBidJoinQuery}
         ${saleCountJoinQuery}
+        ${mintStagesJoinQuery}
       `;
 
       // Any further joins might not preserve sorting
@@ -780,7 +781,7 @@ export const getCollectionsV5Options: RouteOptions = {
                 }
               : undefined,
             collectionBidSupported: Number(r.token_count) <= config.maxTokenSetSize,
-            ownerCount: includeOwnerCount ? Number(r.owner_count) : undefined,
+            ownerCount: Number(r.owner_count),
             attributes: query.includeAttributes
               ? _.map(_.sortBy(r.attributes, ["rank", "key"]), (attribute) => ({
                   key: attribute.key,
@@ -790,6 +791,18 @@ export const getCollectionsV5Options: RouteOptions = {
               : undefined,
             contractKind: r.contract_kind,
             mintedTimestamp: r.minted_timestamp,
+            mintStages: r.mint_stages
+              ? await Promise.all(
+                  r.mint_stages.map(async (m: any) => ({
+                    stage: m.stage,
+                    kind: m.kind,
+                    price: await getJoiPriceObject({ gross: { amount: m.price } }, m.currency),
+                    startTime: m.startTime,
+                    endTime: m.endTime,
+                    maxMintsPerWallet: m.maxMintsPerWallet,
+                  }))
+                )
+              : [],
           };
         })
       );

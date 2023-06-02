@@ -21,6 +21,7 @@ export * as nftx from "@/orderbook/orders/nftx";
 export * as manifold from "@/orderbook/orders/manifold";
 export * as superrare from "@/orderbook/orders/superrare";
 export * as looksRareV2 from "@/orderbook/orders/looks-rare-v2";
+export * as collectionxyz from "@/orderbook/orders/collectionxyz";
 
 // Imports
 
@@ -72,7 +73,9 @@ export type OrderKind =
   | "zeroex-v2"
   | "zeroex-v3"
   | "treasure"
-  | "looks-rare-v2";
+  | "looks-rare-v2"
+  | "blend"
+  | "collectionxyz";
 
 // In case we don't have the source of an order readily available, we use
 // a default value where possible (since very often the exchange protocol
@@ -155,6 +158,7 @@ export const getOrderSourceByOrderKind = async (
       case "nftx":
         return sources.getOrInsert("nftx.io");
       case "blur":
+      case "blend":
         return sources.getOrInsert("blur.io");
       case "flow":
         return sources.getOrInsert("flow.so");
@@ -174,6 +178,8 @@ export const getOrderSourceByOrderKind = async (
         return sources.getOrInsert("superrare.com");
       case "alienswap":
         return sources.getOrInsert("alienswap.xyz");
+      case "collectionxyz":
+        return sources.getOrInsert("collection.xyz");
 
       case "mint": {
         if (address && mintsSources.has(address)) {
@@ -225,7 +231,7 @@ export const generateListingDetailsV6 = (
       return {
         kind: "blur",
         ...common,
-        order: new Sdk.Blur.Order(config.chainId, order.rawData),
+        order: order.rawData,
       };
     }
 
@@ -410,6 +416,14 @@ export const generateListingDetailsV6 = (
       };
     }
 
+    case "collectionxyz": {
+      return {
+        kind: "collectionxyz",
+        ...common,
+        order: new Sdk.CollectionXyz.Order(config.chainId, order.rawData),
+      };
+    }
+
     default: {
       throw new Error("Unsupported order kind");
     }
@@ -425,6 +439,7 @@ export const generateBidDetailsV6 = async (
     rawData: any;
     source?: string;
     fees?: Sdk.RouterV6.Types.Fee[];
+    builtInFeeBps?: number;
     isProtected?: boolean;
   },
   token: {
@@ -703,6 +718,38 @@ export const generateBidDetailsV6 = async (
       return {
         kind: "looks-rare-v2",
         ...common,
+        order: sdkOrder,
+      };
+    }
+
+    case "collectionxyz": {
+      const extraArgs: any = {};
+      const sdkOrder = new Sdk.CollectionXyz.Order(config.chainId, order.rawData);
+
+      if (order.rawData.tokenSetId !== undefined) {
+        // When selling to a filtered pool, we also need to pass in the full
+        // list of tokens accepted by the pool (in order to be able to generate
+        // a valid merkle proof)
+        const tokens = await idb.manyOrNone(
+          `
+            SELECT
+              token_sets_tokens.token_id
+            FROM token_sets_tokens
+            WHERE token_sets_tokens.token_set_id = $/id/
+          `,
+          { id: sdkOrder.params.tokenSetId }
+        );
+        extraArgs.tokenIds = tokens.map(({ token_id }) => token_id);
+      }
+
+      if (order.builtInFeeBps) {
+        extraArgs.totalFeeBps = order.builtInFeeBps;
+      }
+
+      return {
+        kind: "collectionxyz",
+        ...common,
+        extraArgs,
         order: sdkOrder,
       };
     }

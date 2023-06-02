@@ -146,7 +146,7 @@ export const getBidEventsV2Options: RouteOptions = {
           (${criteriaBuildQuery}) AS criteria,
           orders.kind AS order_kind
         FROM bid_events
-        LEFT JOIN LATERAL (
+        JOIN LATERAL (
           SELECT kind
           FROM orders
           WHERE orders.id = bid_events.order_id

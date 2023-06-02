@@ -15,6 +15,7 @@ import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 
 import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
+import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
 import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
 import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
@@ -63,28 +64,28 @@ if (config.doBackgroundWork) {
         const queries: PgPromiseQuery[] = [];
         queries.push({
           query: `
-              INSERT INTO "collections" (
-                "id",
-                "slug",
-                "name",
-                "community",
-                "metadata",
-                "contract",
-                "token_id_range",
-                "token_set_id",
-                "minted_timestamp"
-              ) VALUES (
-                $/id/,
-                $/slug/,
-                $/name/,
-                $/community/,
-                $/metadata:json/,
-                $/contract/,
-                ${tokenIdRangeParam},
-                $/tokenSetId/,
-                $/mintedTimestamp/
-              ) ON CONFLICT DO NOTHING;
-            `,
+            INSERT INTO "collections" (
+              "id",
+              "slug",
+              "name",
+              "community",
+              "metadata",
+              "contract",
+              "token_id_range",
+              "token_set_id",
+              "minted_timestamp"
+            ) VALUES (
+              $/id/,
+              $/slug/,
+              $/name/,
+              $/community/,
+              $/metadata:json/,
+              $/contract/,
+              ${tokenIdRangeParam},
+              $/tokenSetId/,
+              $/mintedTimestamp/
+            ) ON CONFLICT DO NOTHING;
+          `,
           values: {
             id: collection.id,
             slug: collection.slug,
@@ -94,7 +95,7 @@ if (config.doBackgroundWork) {
             contract: toBuffer(collection.contract),
             tokenIdRange,
             tokenSetId: collection.tokenSetId,
-            mintedTimestamp,
+            mintedTimestamp: mintedTimestamp ?? null,
           },
         });
 
@@ -126,6 +127,9 @@ if (config.doBackgroundWork) {
 
         // Schedule a job to re-count tokens in the collection
         await collectionRecalcTokenCount.addToQueue(collection.id);
+        await collectionRecalcOwnerCount.addToQueue([
+          { context: QUEUE_NAME, kind: "collectionId", data: { collectionId: collection.id } },
+        ]);
 
         // If token has moved collections, update the old collection's token count
         if (oldCollectionId) {
@@ -199,7 +203,7 @@ if (config.doBackgroundWork) {
 export type FetchCollectionMetadataInfo = {
   contract: string;
   tokenId: string;
-  mintedTimestamp: number;
+  mintedTimestamp?: number;
   newCollection?: boolean;
   oldCollectionId?: string;
 };

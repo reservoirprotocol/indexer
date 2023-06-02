@@ -20,7 +20,7 @@ export const getActivityV5Options: RouteOptions = {
   description: "All activity",
   notes:
     "This API can be used to return all activity including sales, asks, transfers, mints, bids, cancelled bids, and cancelled asks.",
-  tags: ["api", "Activity"],
+  tags: ["api", "x-deprecated"],
   plugins: {
     "hapi-swagger": {
       order: 1,
@@ -57,16 +57,24 @@ export const getActivityV5Options: RouteOptions = {
       activities: Joi.array().items(
         Joi.object({
           id: Joi.number(),
-          type: Joi.string(),
+          type: Joi.string().description(
+            "Possible types returned: `ask`, `ask_cancel`, `bid`, `bid_cancel`, `sale`, `mint, and `transfer`."
+          ),
           contract: Joi.string(),
           collectionId: Joi.string().allow(null),
           tokenId: Joi.string().allow(null),
           fromAddress: Joi.string(),
           toAddress: Joi.string().allow(null),
-          price: JoiPrice.allow(null),
+          price: JoiPrice.allow(null).description(
+            "Return native currency unless displayCurrency contract was passed."
+          ),
           amount: Joi.number().unsafe(),
-          timestamp: Joi.number(),
-          txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
+          timestamp: Joi.number().description("Time when added on the blockchain."),
+          txHash: Joi.string()
+            .lowercase()
+            .pattern(regex.bytes32)
+            .allow(null)
+            .description("Txn hash from the blockchain."),
           logIndex: Joi.number().allow(null),
           batchIndex: Joi.number().allow(null),
           order: JoiActivityOrder,
@@ -105,6 +113,7 @@ export const getActivityV5Options: RouteOptions = {
           tokenId: activity.tokenId,
           fromAddress: activity.fromAddress,
           toAddress: activity.toAddress,
+          // When creating a new version make sure price is always returned (https://linear.app/reservoir/issue/PLATF-1323/usersactivityv6-price-property-missing)
           price: activity.order?.currency
             ? await getJoiPriceObject(
                 {

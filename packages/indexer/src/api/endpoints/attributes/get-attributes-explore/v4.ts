@@ -20,7 +20,7 @@ export const getAttributesExploreV4Options: RouteOptions = {
   description: "Explore attributes",
   notes:
     "Use this API to see stats on a specific attribute within a collection. This endpoint will return `tokenCount`, `onSaleCount`, `sampleImages`, and `floorAsk` by default. ",
-  tags: ["api", "Attributes"],
+  tags: ["api", "x-deprecated", "Attributes"],
   plugins: {
     "hapi-swagger": {
       order: 15,
@@ -77,12 +77,16 @@ export const getAttributesExploreV4Options: RouteOptions = {
     schema: Joi.object({
       attributes: Joi.array().items(
         Joi.object({
-          key: Joi.string().required(),
-          value: JoiAttributeValue,
-          tokenCount: Joi.number().required(),
-          onSaleCount: Joi.number().required(),
+          key: Joi.string().required().description("Case sensitive"),
+          value: JoiAttributeValue.description("Case sensitive"),
+          tokenCount: Joi.number().required().description("Total token count with this attribute."),
+          onSaleCount: Joi.number()
+            .required()
+            .description("Token count with this attribute on sale."),
           sampleImages: Joi.array().items(Joi.string().allow("", null)),
-          floorAskPrices: Joi.array().items(Joi.number().unsafe()),
+          floorAskPrices: Joi.array()
+            .items(Joi.number().unsafe())
+            .description("Current floor price ask."),
           lastBuys: Joi.array().items(
             Joi.object({
               tokenId: Joi.string().required(),

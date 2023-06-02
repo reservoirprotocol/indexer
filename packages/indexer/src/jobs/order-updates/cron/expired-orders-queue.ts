@@ -2,12 +2,10 @@ import { Queue, QueueScheduler, Worker } from "bullmq";
 import _ from "lodash";
 import cron from "node-cron";
 
-import { hdb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
 import { now } from "@/common/utils";
 import { config } from "@/config/index";
-import * as orderUpdatesById from "@/jobs/order-updates/by-id-queue";
 import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 
 const QUEUE_NAME = "expired-orders";
@@ -38,47 +36,19 @@ if (config.doBackgroundWork) {
     async () => {
       logger.info(QUEUE_NAME, "Invalidating expired orders");
 
+      const lastTimestampKey = "expired-orders-last-timestamp";
+      const lastTimestamp = await redis.get(lastTimestampKey).then((t) => (t ? Number(t) : now()));
+
       // Update the expired orders second by second
       const currentTime = now();
-      await backfillExpiredOrders.addToQueue(
-        _.range(0, intervalInSeconds).map((s) => currentTime - s)
-      );
+      if (currentTime > lastTimestamp) {
+        await backfillExpiredOrders.addToQueue(
+          _.range(0, currentTime - lastTimestamp + 1).map((s) => currentTime - s)
+        );
+      }
 
-      // As a safety mechanism, update any left expired orders
-
-      // Use `hdb` for lower timeouts (to avoid long-running queries which can result in deadlocks)
-      const expiredOrders: { id: string }[] = await hdb.manyOrNone(
-        `
-          WITH x AS (
-            SELECT
-              orders.id,
-              upper(orders.valid_between) AS expiration
-            FROM orders
-            WHERE upper(orders.valid_between) < now()
-              AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
-            LIMIT 5000
-          )
-          UPDATE orders SET
-            fillability_status = 'expired',
-            expiration = x.expiration,
-            updated_at = now()
-          FROM x
-          WHERE orders.id = x.id
-          RETURNING orders.id
-        `
-      );
-      logger.info(QUEUE_NAME, `Invalidated ${expiredOrders.length} orders`);
-
-      await orderUpdatesById.addToQueue(
-        expiredOrders.map(
-          ({ id }) =>
-            ({
-              context: `expired-orders-check-${currentTime}-${id}`,
-              id,
-              trigger: { kind: "expiry" },
-            } as orderUpdatesById.OrderInfo)
-        )
-      );
+      // Make sure to have some redundancy checks
+      await redis.set(lastTimestampKey, currentTime - intervalInSeconds);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

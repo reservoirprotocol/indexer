@@ -229,6 +229,14 @@ export const extractEventsBatches = async (
             kind: "looks-rare-v2",
             data: kindToEvents.get("looks-rare-v2") ?? [],
           },
+          {
+            kind: "blend",
+            data: kindToEvents.get("blend") ?? [],
+          },
+          {
+            kind: "collectionxyz",
+            data: kindToEvents.get("collectionxyz") ?? [],
+          },
         ];
 
         txHashToEventsBatch.set(txHash, {
@@ -360,17 +368,17 @@ export const syncEvents = async (
         // Keep track of the block
         blocksSet.add(`${log.blockNumber}-${log.blockHash}`);
 
-        // Find first matching event:
+        // Find matching events:
         // - matching topic
         // - matching number of topics (eg. indexed fields)
         // - matching address
-        const eventData = availableEventData.find(
+        const matchingEventDatas = availableEventData.filter(
           ({ addresses, numTopics, topic }) =>
             log.topics[0] === topic &&
             log.topics.length === numTopics &&
             (addresses ? addresses[log.address.toLowerCase()] : true)
         );
-        if (eventData) {
+        for (const eventData of matchingEventDatas) {
           enhancedEvents.push({
             kind: eventData.kind,
             subKind: eventData.subKind,

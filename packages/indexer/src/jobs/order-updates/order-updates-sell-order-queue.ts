@@ -214,17 +214,21 @@ if (config.doBackgroundWork) {
             }
           }
 
-          await WebsocketEventRouter({
-            eventInfo: {
-              kind: trigger.kind,
-              orderId: order.id,
-            },
-            eventKind:
-              order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
-          });
+          if (config.doOldOrderWebsocketWork) {
+            await WebsocketEventRouter({
+              eventInfo: {
+                kind: trigger.kind,
+                orderId: order.id,
+              },
+              eventKind:
+                order.side === "sell" ? WebsocketEventKind.SellOrder : WebsocketEventKind.BuyOrder,
+            });
+          }
 
           if (eventInfo) {
-            await processActivityEvent.addToQueue([eventInfo as processActivityEvent.EventInfo]);
+            await processActivityEvent.addActivitiesToList([
+              eventInfo as processActivityEvent.EventInfo,
+            ]);
           }
         }
 

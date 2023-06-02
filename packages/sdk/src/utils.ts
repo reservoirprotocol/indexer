@@ -99,16 +99,24 @@ export type TxData = {
 };
 
 export enum Network {
+  // Mainnets
   Ethereum = 1,
-  EthereumGoerli = 5,
+  EthereumSepolia = 11155111,
   Optimism = 10,
   Bsc = 56,
   Gnosis = 100,
   Polygon = 137,
   Arbitrum = 42161,
   Avalanche = 43114,
-  // Scroll
+  ArbitrumNova = 42170,
+  // Testnets
+  EthereumGoerli = 5,
+  ZoraTestnet = 999,
+  MantleTestnet = 5001,
+  LineaTestnet = 59140,
   ScrollAlpha = 534353,
+  Mumbai = 80001,
+  BaseGoerli = 84531,
 }
 
 export type ChainIdToAddress = { [chainId: number]: string };

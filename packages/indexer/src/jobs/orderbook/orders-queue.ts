@@ -1,11 +1,14 @@
 import { Job, Queue, QueueScheduler, Worker } from "bullmq";
+import _ from "lodash";
 import cron from "node-cron";
 
-import { redb } from "@/common/db";
+import { ridb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { redis, redlock } from "@/common/redis";
+import { now } from "@/common/utils";
 import { config } from "@/config/index";
 import * as orders from "@/orderbook/orders";
+import * as backfillExpiredOrders from "@/jobs/backfill/backfill-expired-orders";
 import { addToQueue as addToQueueV2 } from "@/jobs/orderbook/orders-queue-v2";
 
 const QUEUE_NAME = "orderbook-orders-queue";
@@ -58,20 +61,28 @@ if (config.doBackgroundWork) {
 
   // Pending expired orders
   cron.schedule(
-    "0 */2 * * *",
+    "0 */1 * * *",
     async () =>
       await redlock
-        .acquire(["pending-expired-orders-check-lock"], (2 * 3600 - 5) * 1000)
+        .acquire(["pending-expired-orders-check-lock"], (3600 - 5) * 1000)
         .then(async () => {
-          const result = await redb.oneOrNone(
+          const result = await ridb.oneOrNone(
             `
               SELECT
-                count(*) AS expired_count
+                count(*) AS expired_count,
+                extract(epoch from min(upper(orders.valid_between))) AS min_timestamp
               FROM orders
               WHERE upper(orders.valid_between) < now()
                 AND (orders.fillability_status = 'fillable' OR orders.fillability_status = 'no-balance')
             `
           );
+
+          const currentTime = now();
+          if (currentTime - Number(result.min_timestamp) >= 60) {
+            await backfillExpiredOrders.addToQueue(
+              _.range(0, currentTime - result.min_timestamp + 1).map((s) => currentTime - s)
+            );
+          }
 
           logger.info(
             "pending-expired-orders-check",
@@ -159,13 +170,19 @@ export type GenericOrderInfo =
     }
   | {
       kind: "blur";
-      info: orders.blur.ListingOrderInfo;
+      info: orders.blur.FullListingOrderInfo;
+      validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
+    }
+  | {
+      kind: "blur-listing";
+      info: orders.blur.PartialListingOrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
     }
   | {
       kind: "blur-bid";
-      info: orders.blur.BidOrderInfo;
+      info: orders.blur.PartialBidOrderInfo;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
     }
@@ -196,6 +213,13 @@ export type GenericOrderInfo =
   | {
       kind: "looks-rare-v2";
       info: orders.looksRareV2.OrderInfo;
+      validateBidValue?: boolean;
+      ingestMethod?: "websocket" | "rest";
+    }
+  | {
+      kind: "collectionxyz";
+      info: orders.collectionxyz.OrderInfo;
+      relayToArweave?: boolean;
       validateBidValue?: boolean;
       ingestMethod?: "websocket" | "rest";
     };
@@ -272,12 +296,17 @@ export const jobProcessor = async (job: Job) => {
       }
 
       case "blur": {
-        result = await orders.blur.saveListings([info], ingestMethod);
+        result = await orders.blur.saveFullListings([info], ingestMethod);
+        break;
+      }
+
+      case "blur-listing": {
+        result = await orders.blur.savePartialListings([info], ingestMethod);
         break;
       }
 
       case "blur-bid": {
-        result = await orders.blur.saveBids([info], ingestMethod);
+        result = await orders.blur.savePartialBids([info], ingestMethod);
         break;
       }
 
@@ -298,6 +327,11 @@ export const jobProcessor = async (job: Job) => {
 
       case "looks-rare-v2": {
         result = await orders.looksRareV2.save([info]);
+        break;
+      }
+
+      case "collectionxyz": {
+        result = await orders.collectionxyz.save([info]);
         break;
       }
     }

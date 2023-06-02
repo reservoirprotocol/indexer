@@ -1,7 +1,10 @@
 import { BigNumber } from "@ethersproject/bignumber";
+import { AddressZero } from "@ethersproject/constants";
+import { keccak256 } from "@ethersproject/solidity";
 import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import * as Sdk from "@reservoir0x/sdk";
+import { TxData } from "@reservoir0x/sdk/dist/utils";
 import { FillListingsResult, ListingDetails } from "@reservoir0x/sdk/dist/router/v6/types";
 import axios from "axios";
 import Joi from "joi";
@@ -24,15 +27,19 @@ import * as b from "@/utils/auth/blur";
 import { getCurrency } from "@/utils/currencies";
 import { ExecutionsBuffer } from "@/utils/executions";
 import * as onChainData from "@/utils/on-chain-data";
+import * as mints from "@/utils/mints/collection-mints";
+import { generateMintTxData } from "@/utils/mints/calldata/generator";
 import { getUSDAndCurrencyPrices } from "@/utils/prices";
 
 const version = "v7";
 
 export const getExecuteBuyV7Options: RouteOptions = {
   description: "Buy tokens (fill listings)",
+  notes:
+    "Use this API to fill listings. We recommend using the SDK over this API as the SDK will iterate through the steps and return callbacks. Please mark `excludeEOA` as `true` to exclude Blur orders.",
   tags: ["api", "Fill Orders (buy & sell)"],
   timeout: {
-    server: 20 * 1000,
+    server: 40 * 1000,
   },
   plugins: {
     "hapi-swagger": {
@@ -44,6 +51,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
       items: Joi.array()
         .items(
           Joi.object({
+            collection: Joi.string().lowercase().description("Collection to buy."),
             token: Joi.string().lowercase().pattern(regex.token).description("Token to buy."),
             quantity: Joi.number()
               .integer()
@@ -57,6 +65,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 .valid(
                   "opensea",
                   "blur",
+                  "blur-partial",
                   "looks-rare",
                   "zeroex-v4",
                   "seaport",
@@ -86,8 +95,8 @@ export const getExecuteBuyV7Options: RouteOptions = {
               .when("token", { is: Joi.exist(), then: Joi.allow(), otherwise: Joi.forbidden() })
               .description("Only consider orders from this source."),
           })
-            .oxor("token", "orderId", "rawOrder")
-            .or("token", "orderId", "rawOrder")
+            .oxor("token", "collection", "orderId", "rawOrder")
+            .or("token", "collection", "orderId", "rawOrder")
             .oxor("preferredOrderSource", "exactOrderSource")
         )
         .min(1)
@@ -135,7 +144,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
         .description(
           "Exclude orders that can only be filled by EOAs, to support filling with smart contracts. If marked `true`, blur will be excluded."
         ),
-      maxFeePerGas: Joi.string().pattern(regex.number).description("Optional custom gas settings."),
+      maxFeePerGas: Joi.string()
+        .pattern(regex.number)
+        .description(
+          "Optional custom gas settings. Includes base fee & priority fee in this limit."
+        ),
       maxPriorityFeePerGas: Joi.string()
         .pattern(regex.number)
         .description("Optional custom gas settings."),
@@ -144,7 +157,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
       openseaApiKey: Joi.string().description(
         "Optional OpenSea API key used for filling. You don't need to pass your own key, but if you don't, you are more likely to be rate-limited."
       ),
-      blurAuth: Joi.string().description("Optional Blur auth used for filling"),
+      blurAuth: Joi.string().description(
+        "Advanced use case to pass personal blurAuthToken; the API will generate one if left empty."
+      ),
     }),
   },
   response: {
@@ -158,7 +173,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
           items: Joi.array()
             .items(
               Joi.object({
-                status: Joi.string().valid("complete", "incomplete").required(),
+                status: Joi.string()
+                  .valid("complete", "incomplete")
+                  .required()
+                  .description("Response is `complete` or `incomplete`."),
                 tip: Joi.string(),
                 orderIds: Joi.array().items(Joi.string()),
                 data: Joi.object(),
@@ -178,7 +196,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
           orderId: Joi.string(),
           contract: Joi.string().lowercase().pattern(regex.address),
           tokenId: Joi.string().lowercase().pattern(regex.number),
-          quantity: Joi.number().unsafe(),
+          quantity: Joi.number().unsafe().description("Can be higher than 1 if erc1155"),
           source: Joi.string().allow("", null),
           currency: Joi.string().lowercase().pattern(regex.address),
           currencySymbol: Joi.string().optional(),
@@ -189,8 +207,10 @@ export const getExecuteBuyV7Options: RouteOptions = {
           buyInRawQuote: Joi.string().pattern(regex.number),
           totalPrice: Joi.number().unsafe(),
           totalRawPrice: Joi.string().pattern(regex.number),
-          builtInFees: Joi.array().items(JoiExecuteFee),
-          feesOnTop: Joi.array().items(JoiExecuteFee),
+          builtInFees: Joi.array()
+            .items(JoiExecuteFee)
+            .description("Can be marketplace fees or royalties"),
+          feesOnTop: Joi.array().items(JoiExecuteFee).description("Can be referral fees."),
         })
       ),
     }).label(`getExecuteBuy${version.toUpperCase()}Response`),
@@ -307,16 +327,18 @@ export const getExecuteBuyV7Options: RouteOptions = {
         }
         quantityFilled[order.id] += quantity;
 
-        // Decrement the maker's available NFT balance
-        const key = getMakerBalancesKey(order.maker, token.contract, token.tokenId);
-        if (!makerBalances[key]) {
-          makerBalances[key] = await commonHelpers.getNftBalance(
-            token.contract,
-            token.tokenId,
-            order.maker
-          );
+        if (order.kind !== "mint") {
+          // Decrement the maker's available NFT balance
+          const key = getMakerBalancesKey(order.maker, token.contract, token.tokenId);
+          if (!makerBalances[key]) {
+            makerBalances[key] = await commonHelpers.getNftBalance(
+              token.contract,
+              token.tokenId,
+              order.maker
+            );
+          }
+          makerBalances[key] = makerBalances[key].sub(quantity);
         }
-        makerBalances[key] = makerBalances[key].sub(quantity);
 
         const unitPrice = bn(order.price);
         const additionalFees = payload.normalizeRoyalties ? order.additionalFees ?? [] : [];
@@ -361,57 +383,68 @@ export const getExecuteBuyV7Options: RouteOptions = {
           ],
         });
 
-        const flaggedResult = await idb.oneOrNone(
-          `
-            SELECT
-              tokens.is_flagged
-            FROM tokens
-            WHERE tokens.contract = $/contract/
-              AND tokens.token_id = $/tokenId/
-            LIMIT 1
-          `,
-          {
-            contract: toBuffer(token.contract),
-            tokenId: token.tokenId,
-          }
-        );
-
-        listingDetails.push(
-          generateListingDetailsV6(
+        if (order.kind !== "mint") {
+          const flaggedResult = await idb.oneOrNone(
+            `
+              SELECT
+                tokens.is_flagged
+              FROM tokens
+              WHERE tokens.contract = $/contract/
+                AND tokens.token_id = $/tokenId/
+              LIMIT 1
+            `,
             {
-              id: order.id,
-              kind: order.kind,
-              currency: order.currency,
-              price: order.price,
-              source: path[path.length - 1].source ?? undefined,
-              rawData: order.rawData,
-              fees: additionalFees,
-            },
-            {
-              kind: token.kind,
-              contract: token.contract,
+              contract: toBuffer(token.contract),
               tokenId: token.tokenId,
-              amount: token.quantity,
-              isFlagged: Boolean(flaggedResult.is_flagged),
             }
-          )
-        );
+          );
+
+          listingDetails.push(
+            generateListingDetailsV6(
+              {
+                id: order.id,
+                kind: order.kind,
+                currency: order.currency,
+                price: order.price,
+                source: path[path.length - 1].source ?? undefined,
+                rawData: order.rawData,
+                fees: additionalFees,
+              },
+              {
+                kind: token.kind,
+                contract: token.contract,
+                tokenId: token.tokenId,
+                amount: token.quantity,
+                isFlagged: Boolean(flaggedResult.is_flagged),
+              }
+            )
+          );
+        }
       };
 
       const items: {
-        token: string;
-        quantity: number;
+        token?: string;
+        collection?: string;
         orderId?: string;
         rawOrder?: {
           kind: string;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           data: any;
         };
+        quantity: number;
         preferredOrderSource?: string;
         exactOrderSource?: string;
       }[] = payload.items;
 
-      for (const item of items) {
+      // Keep track of any mint transactions that need to be aggregated
+      const mintTxs: {
+        orderId: string;
+        txData: TxData;
+      }[] = [];
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+
         // Scenario 1: fill via `rawOrder`
         if (item.rawOrder) {
           const order = item.rawOrder;
@@ -425,6 +458,27 @@ export const getExecuteBuyV7Options: RouteOptions = {
             item.orderId = sudoswap.getOrderId(order.data.pair, "sell", order.data.tokenId);
           } else if (order.kind === "nftx") {
             item.orderId = nftx.getOrderId(order.data.pool, "sell", order.data.specificIds[0]);
+          } else if (order.kind === "blur-partial") {
+            await addToPath(
+              {
+                id: keccak256(
+                  ["string", "address", "uint256"],
+                  ["blur", order.data.contract, order.data.tokenId]
+                ),
+                kind: "blur",
+                maker: AddressZero,
+                price: order.data.price,
+                sourceId: sources.getByDomain("blur.io")?.id ?? null,
+                currency: Sdk.Common.Addresses.Eth[config.chainId],
+                rawData: order.data,
+                builtInFees: [],
+              },
+              {
+                kind: "erc721",
+                contract: order.data.contract,
+                tokenId: order.data.tokenId,
+              }
+            );
           } else {
             const response = await inject({
               method: "POST",
@@ -462,6 +516,9 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 orders.missing_royalties,
                 orders.maker,
                 orders.fee_breakdown,
+                orders.fillability_status,
+                orders.approval_status,
+                orders.quantity_remaining,
                 token_sets_tokens.contract,
                 token_sets_tokens.token_id
               FROM orders
@@ -471,25 +528,68 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 ON orders.token_set_id = token_sets_tokens.token_set_id
               WHERE orders.id = $/id/
                 AND orders.side = 'sell'
-                AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL OR orders.taker = $/taker/)
-                AND orders.quantity_remaining >= $/quantity/
-                ${
-                  payload.allowInactiveOrderIds
-                    ? ""
-                    : " AND orders.fillability_status = 'fillable' AND orders.approval_status = 'approved'"
-                }
+                AND (
+                  orders.taker IS NULL
+                  OR orders.taker = '\\x0000000000000000000000000000000000000000'
+                  OR orders.taker = $/taker/
+                )
             `,
             {
               taker: toBuffer(payload.taker),
               id: item.orderId,
-              quantity: item.quantity,
             }
           );
+
+          let error: string | undefined;
           if (!result) {
+            error = "No fillable orders";
+          } else {
+            // Check fillability
+            if (!error && !payload.allowInactiveOrderIds) {
+              if (
+                result.fillability_status === "no-balance" ||
+                result.approval_status === "no-approval"
+              ) {
+                error = "Order is inactive (insufficient balance or approval) and can't be filled";
+              } else if (result.fillability_status === "filled") {
+                error = "Order has been filled";
+              } else if (result.fillability_status === "cancelled") {
+                error = "Order has been cancelled";
+              } else if (result.fillability_status === "expired") {
+                error = "Order has expired";
+              } else if (
+                result.fillability_status !== "fillable" ||
+                result.approval_status !== "approved"
+              ) {
+                error = "No fillable orders";
+              }
+            }
+
+            // Check taker
+            if (!error) {
+              if (fromBuffer(result.maker) === payload.taker) {
+                error = "No fillable orders (taker cannot fill own orders)";
+              }
+            }
+
+            // Check quantity
+            if (!error) {
+              if (bn(result.quantity_remaining).lt(item.quantity)) {
+                if (!payload.partial) {
+                  error = "Unable to fill requested quantity";
+                } else {
+                  // Fill as much as we can from the order
+                  item.quantity = result.quantity_remaining;
+                }
+              }
+            }
+          }
+
+          if (error) {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData(`Order ${item.orderId} not found or not fillable`);
+              throw Boom.badData(error);
             }
           }
 
@@ -514,7 +614,134 @@ export const getExecuteBuyV7Options: RouteOptions = {
           );
         }
 
-        // Scenario 3: fill via `token`
+        // Scenario 3: fill via `collection`
+        if (item.collection) {
+          // Fetch any open mints on the collection which the taker is elligible for
+          // const openMints = await mints.getOpenCollectionMints(item.collection);
+          const openMints: mints.CollectionMint[] = [];
+          for (const mint of openMints) {
+            if (!payload.currency || mint.currency === payload.currency) {
+              const collectionData = await idb.one(
+                `
+                  SELECT
+                    collections.contract,
+                    contracts.kind AS token_kind,
+                    (
+                      SELECT
+                        MAX(tokens.token_id) + 1
+                      FROM tokens
+                      WHERE tokens.contract = collections.contract
+                        AND tokens.collection_id = collections.id
+                    ) AS next_token_id
+                  FROM collections
+                  JOIN contracts
+                    ON collections.contract = contracts.address
+                  WHERE collections.id = $/id/
+                `,
+                {
+                  id: item.collection,
+                }
+              );
+              if (collectionData) {
+                const quantityToMint = mint.maxMintsPerWallet
+                  ? Math.min(item.quantity, mint.maxMintsPerWallet)
+                  : item.quantity;
+
+                const orderId = `mint:${item.collection}`;
+                mintTxs.push({
+                  orderId,
+                  txData: generateMintTxData(
+                    mint.details,
+                    payload.taker,
+                    fromBuffer(collectionData.contract),
+                    quantityToMint,
+                    mint.price
+                  ),
+                });
+
+                await addToPath(
+                  {
+                    id: orderId,
+                    kind: "mint",
+                    maker: fromBuffer(collectionData.contract),
+                    price: mint.price,
+                    sourceId: null,
+                    currency: mint.currency,
+                    rawData: {},
+                    builtInFees: [],
+                    additionalFees: [],
+                  },
+                  {
+                    kind: collectionData.token_kind,
+                    contract: fromBuffer(collectionData.contract),
+                    tokenId: collectionData.next_token_id,
+                    quantity: quantityToMint,
+                  }
+                );
+
+                item.quantity -= quantityToMint;
+              }
+            }
+          }
+
+          if (item.quantity > 0) {
+            // Filtering by collection on the `orders` table is inefficient, so what we
+            // do here is select the cheapest tokens from the `tokens` table and filter
+            // out the ones that aren't fillable. For this to work we fetch more tokens
+            // than we need, so we can filter out the ones that aren't fillable and not
+            // end up with too few tokens.
+
+            const redundancyFactor = 5;
+            const tokenResults = await idb.manyOrNone(
+              `
+                WITH x AS (
+                  SELECT
+                    tokens.contract,
+                    tokens.token_id,
+                    ${
+                      payload.normalizeRoyalties
+                        ? "tokens.normalized_floor_sell_id"
+                        : "tokens.floor_sell_id"
+                    } AS order_id
+                  FROM tokens
+                  WHERE tokens.collection_id = $/collection/
+                  ORDER BY ${
+                    payload.normalizeRoyalties
+                      ? "tokens.normalized_floor_sell_value"
+                      : "tokens.floor_sell_value"
+                  }
+                  LIMIT $/quantity/ * ${redundancyFactor}
+                )
+                SELECT
+                  x.contract,
+                  x.token_id
+                FROM x
+                JOIN orders
+                  ON x.order_id = orders.id
+                WHERE orders.fillability_status = 'fillable'
+                  AND orders.approval_status = 'approved'
+                LIMIT $/quantity/
+              `,
+              {
+                collection: item.collection,
+                quantity: item.quantity,
+              }
+            );
+
+            // Add each retrieved token as a new item so that it will get
+            // processed by the next pipeline of the same API rather than
+            // building something custom for it.
+
+            for (const t of tokenResults) {
+              items.push({
+                token: `${fromBuffer(t.contract)}:${t.token_id}`,
+                quantity: 1,
+              });
+            }
+          }
+        }
+
+        // Scenario 4: fill via `token`
         if (item.token) {
           const [contract, tokenId] = item.token.split(":");
 
@@ -551,7 +778,11 @@ export const getExecuteBuyV7Options: RouteOptions = {
                 AND orders.side = 'sell'
                 AND orders.fillability_status = 'fillable'
                 AND orders.approval_status = 'approved'
-                AND (orders.taker = '\\x0000000000000000000000000000000000000000' OR orders.taker IS NULL)
+                AND (
+                  orders.taker IS NULL
+                  OR orders.taker = '\\x0000000000000000000000000000000000000000'
+                  OR orders.taker = $/taker/
+                )
                 ${
                   payload.normalizeRoyalties || payload.excludeEOA
                     ? " AND orders.kind != 'blur'"
@@ -576,11 +807,18 @@ export const getExecuteBuyV7Options: RouteOptions = {
               tokenSetId: `token:${item.token}`,
               quantity: item.quantity,
               sourceId: sourceDomain ? sources.getByDomain(sourceDomain)?.id ?? -1 : undefined,
+              taker: toBuffer(payload.taker),
             }
           );
 
           let quantityToFill = item.quantity;
+          let makerEqualsTakerQuantity = 0;
           for (const result of orderResults) {
+            if (fromBuffer(result.maker) === payload.taker) {
+              makerEqualsTakerQuantity += Number(result.quantity_remaining);
+              continue;
+            }
+
             // Stop if we filled the total quantity
             if (quantityToFill <= 0) {
               break;
@@ -635,16 +873,18 @@ export const getExecuteBuyV7Options: RouteOptions = {
             if (payload.partial) {
               continue;
             } else {
-              throw Boom.badData(
-                `No available orders for token ${item.token} with quantity ${item.quantity}`
-              );
+              if (makerEqualsTakerQuantity >= quantityToFill) {
+                throw Boom.badData("No fillable orders (taker cannot fill own orders)");
+              } else {
+                throw Boom.badData("Unable to fill requested quantity");
+              }
             }
           }
         }
       }
 
       if (!path.length) {
-        throw Boom.badRequest("No available orders");
+        throw Boom.badRequest("No fillable orders");
       }
 
       let buyInCurrency = payload.currency;
@@ -706,14 +946,18 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
       const addGlobalFee = async (item: (typeof path)[0], fee: Sdk.RouterV6.Types.Fee) => {
         // Global fees get split across all eligible orders
-        fee.amount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
+        const adjustedFeeAmount = bn(fee.amount).div(ordersEligibleForGlobalFees.length).toString();
 
         const itemNetPrice = bn(item.rawQuote).sub(
           item.feesOnTop.map((f) => bn(f.rawAmount)).reduce((a, b) => a.add(b), bn(0))
         );
 
-        const amount = formatPrice(fee.amount, (await getCurrency(item.currency)).decimals, true);
-        const rawAmount = bn(fee.amount).toString();
+        const amount = formatPrice(
+          adjustedFeeAmount,
+          (await getCurrency(item.currency)).decimals,
+          true
+        );
+        const rawAmount = bn(adjustedFeeAmount).toString();
 
         item.feesOnTop.push({
           recipient: fee.recipient,
@@ -881,11 +1125,21 @@ export const getExecuteBuyV7Options: RouteOptions = {
 
       const { txs, success } = result;
 
+      // Add any mint transactions
+      for (const { orderId, txData } of mintTxs) {
+        txs.push({
+          approvals: [],
+          txData,
+          orderIds: [orderId],
+        });
+        success[orderId] = true;
+      }
+
       // Filter out any non-fillable orders from the path
       path = path.filter((p) => success[p.orderId]);
 
       if (!path.length) {
-        throw Boom.badRequest("No available orders");
+        throw Boom.badRequest("No fillable orders");
       }
 
       // Custom gas settings
@@ -900,7 +1154,7 @@ export const getExecuteBuyV7Options: RouteOptions = {
         // Handle approvals
         for (const approval of approvals) {
           const approvedAmount = await onChainData
-            .fetchAndUpdateFtApproval(approval.currency, approval.owner, approval.operator, true)
+            .fetchAndUpdateFtApproval(approval.currency, approval.owner, approval.operator)
             .then((a) => a.value);
 
           const isApproved = bn(approvedAmount).gte(approval.amount);

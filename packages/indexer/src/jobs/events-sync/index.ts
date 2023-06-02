@@ -6,6 +6,7 @@ import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
 import * as realtimeEventsSync from "@/jobs/events-sync/realtime-queue";
+import * as realtimeEventsSyncV2 from "@/jobs/events-sync/realtime-queue-v2";
 
 // For syncing events we have two separate job queues. One is for
 // handling backfilling of past event while the other one handles
@@ -24,6 +25,7 @@ import "@/jobs/events-sync/block-check-queue";
 import "@/jobs/events-sync/process/backfill";
 import "@/jobs/events-sync/process/realtime";
 import "@/jobs/events-sync/realtime-queue";
+import "@/jobs/events-sync/realtime-queue-v2";
 import "@/jobs/events-sync/write-buffers/ft-transfers";
 import "@/jobs/events-sync/write-buffers/nft-transfers";
 
@@ -66,6 +68,9 @@ if (config.doBackgroundWork && config.catchup) {
 
         try {
           await realtimeEventsSync.addToQueue();
+          if (config.enableRealtimeV2BlockQueue) {
+            await realtimeEventsSyncV2.addToQueue({ block });
+          }
         } catch (error) {
           logger.error("events-sync-catchup", `Failed to catch up events: ${error}`);
         }

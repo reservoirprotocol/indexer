@@ -214,6 +214,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/trigger-job",
+    options: adminEndpoints.postTriggerJobOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/resync-source",
     options: adminEndpoints.postResyncSourceOptions,
   });
@@ -282,6 +288,12 @@ export const setupRoutes = (server: Server) => {
     method: "POST",
     path: "/admin/resync-floor-events",
     options: adminEndpoints.postResyncFloorEventsOptions,
+  });
+
+  server.route({
+    method: "POST",
+    path: "/admin/resync-nft-balances",
+    options: adminEndpoints.postResyncNftBalances,
   });
 
   server.route({
@@ -412,6 +424,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/collections/{collection}/attributes/explore/v4",
     options: attributesEndpoints.getAttributesExploreV4Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/collections/{collection}/attributes/explore/v5",
+    options: attributesEndpoints.getAttributesExploreV5Options,
   });
 
   // Collections
@@ -778,6 +796,12 @@ export const setupRoutes = (server: Server) => {
     options: executeEndpoints.postCancelSignatureV1Options,
   });
 
+  server.route({
+    method: "POST",
+    path: "/execute/mint/v1",
+    options: executeEndpoints.postExecuteMintV1Options,
+  });
+
   // Health
 
   // Both `/readyz` and `/livez` point to the same handler,
@@ -1113,6 +1137,12 @@ export const setupRoutes = (server: Server) => {
     method: "GET",
     path: "/search/collections/v2",
     options: searchEndpoints.getSearchCollectionsV2Options,
+  });
+
+  server.route({
+    method: "GET",
+    path: "/search/activities/v1",
+    options: searchEndpoints.getSearchActivitiesV1Options,
   });
 
   // Stats

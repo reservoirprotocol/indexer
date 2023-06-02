@@ -157,6 +157,10 @@ export const getBuildInfo = async (
     }
   }
 
+  if (bn(buildParams.price).lte(totalFees)) {
+    throw new Error("Total fees exceed price");
+  }
+
   // If the order is a listing, subtract the fees from the price.
   // Otherwise, keep them (since the taker will pay them from the
   // amount received from the maker).

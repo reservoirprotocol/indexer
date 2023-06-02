@@ -7,6 +7,7 @@ import Joi from "joi";
 import { inject } from "@/api/index";
 import { idb, redb } from "@/common/db";
 import { logger } from "@/common/logger";
+import { baseProvider } from "@/common/provider";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
@@ -63,6 +64,7 @@ export const postSimulateOrderV1Options: RouteOptions = {
           JSON.stringify({
             error: "stale-order",
             callTrace: options?.callTrace,
+            block: await baseProvider.getBlock("latest").then((b) => b.number),
             payload: options?.payload,
             orderId: id,
             status,
@@ -114,6 +116,14 @@ export const postSimulateOrderV1Options: RouteOptions = {
       }
       if (getNetworkSettings().nonSimulatableContracts.includes(fromBuffer(orderResult.contract))) {
         return { message: "Associated contract is not simulatable" };
+      }
+      if (
+        orderResult.side === "buy" &&
+        fromBuffer(orderResult.contract) === "0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85"
+      ) {
+        return {
+          message: "ENS bids are not simulatable due to us not yet handling expiration of domains",
+        };
       }
 
       const contractResult = await redb.one(

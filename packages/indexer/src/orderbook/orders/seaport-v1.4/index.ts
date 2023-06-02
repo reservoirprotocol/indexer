@@ -122,7 +122,6 @@ export const save = async (
       if (
         ![
           HashZero,
-          Sdk.SeaportBase.Addresses.OpenseaConduitKey[config.chainId],
           Sdk.SeaportBase.Addresses.OriginConduitKey[config.chainId],
           Sdk.SeaportBase.Addresses.SpaceIdConduitKey[config.chainId],
         ].includes(order.params.conduitKey)
@@ -648,6 +647,17 @@ export const save = async (
           const collectionTopBidValue = await topBidsCache.getCollectionTopBidValue(
             info.contract,
             Number(tokenId)
+          );
+
+          logger.debug(
+            "orders-seaport-v1.4-save",
+            JSON.stringify({
+              topic: "validateBidValue",
+              collectionTopBidValue,
+              contract: info.contract,
+              tokenId,
+              value: value.toString(),
+            })
           );
 
           if (collectionTopBidValue) {

@@ -15,6 +15,7 @@ export type NFTToken = {
 };
 
 export type NFTApproval = {
+  orderIds: string[];
   contract: string;
   owner: string;
   operator: string;
@@ -94,6 +95,10 @@ export type GenericOrder =
   | {
       kind: "sudoswap";
       order: Sdk.Sudoswap.Order;
+    }
+  | {
+      kind: "collectionxyz";
+      order: Sdk.CollectionXyz.Order;
     }
   | {
       kind: "zora";

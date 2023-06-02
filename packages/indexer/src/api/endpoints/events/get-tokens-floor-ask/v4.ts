@@ -104,8 +104,8 @@ export const getTokensFloorAskV4Options: RouteOptions = {
             ),
             previousPrice: Joi.number().unsafe().allow(null),
             txHash: Joi.string().lowercase().pattern(regex.bytes32).allow(null),
-            txTimestamp: Joi.number().allow(null),
-            createdAt: Joi.string(),
+            txTimestamp: Joi.number().allow(null).description("Time when added on the blockchain."),
+            createdAt: Joi.string().description("Time when added to indexer"),
           }),
         })
       ),
@@ -225,7 +225,7 @@ export const getTokensFloorAskV4Options: RouteOptions = {
       const sources = await Sources.getInstance();
       const result = await Promise.all(
         rawResult.map(async (r) => {
-          const source = sources.get(r.source_id_int);
+          const source = sources.get(r.source_id_int, fromBuffer(r.contract), r.token_id);
 
           const floorAskCurrency = r.currency
             ? fromBuffer(r.currency)
@@ -334,7 +334,11 @@ export const getTokensFloorAskV4Options: RouteOptions = {
                 ? await getJoiPriceObject(
                     {
                       gross: {
-                        amount: r.currency_price ?? r.price,
+                        // We need to return the event price vs order price for orders
+                        // that can get modified in-place (for now NFTX and Sudoswap).
+                        amount: ["nftx", "sudoswap"].includes(r.order_kind)
+                          ? r.price
+                          : r.currency_price ?? r.price,
                         nativeAmount: r.price,
                       },
                     },

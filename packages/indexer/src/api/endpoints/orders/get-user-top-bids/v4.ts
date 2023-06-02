@@ -29,7 +29,8 @@ const version = "v4";
 
 export const getUserTopBidsV4Options: RouteOptions = {
   description: "User Top Bids",
-  notes: "Return the top bids for the given user tokens",
+  notes:
+    "Return the top bids for the given user tokens. Please mark `excludeEOA` as `true` to exclude Blur orders.",
   tags: ["api", "Orders"],
   plugins: {
     "hapi-swagger": {
@@ -110,30 +111,38 @@ export const getUserTopBidsV4Options: RouteOptions = {
   },
   response: {
     schema: Joi.object({
-      totalTokensWithBids: Joi.number(),
-      totalAmount: Joi.number(),
+      totalTokensWithBids: Joi.number().description("Amount of token with bids."),
+      totalAmount: Joi.number().description(
+        "Amount of currency from all token bids; native currency unless `displayCurrency` passed"
+      ),
       topBids: Joi.array().items(
         Joi.object({
           id: Joi.string(),
-          price: JoiPrice,
+          price: JoiPrice.description(
+            "Return native currency unless displayCurrency contract was passed."
+          ),
           maker: Joi.string()
             .lowercase()
             .pattern(/^0x[a-fA-F0-9]{40}$/),
-          createdAt: Joi.string(),
+          createdAt: Joi.string().description("Time when added to indexer"),
           validFrom: Joi.number().unsafe(),
           validUntil: Joi.number().unsafe(),
-          floorDifferencePercentage: Joi.number().unsafe(),
+          floorDifferencePercentage: Joi.number()
+            .unsafe()
+            .description("Percentage difference between this bid and the current floor price."),
           source: Joi.object().allow(null),
           feeBreakdown: Joi.array()
             .items(
               Joi.object({
-                kind: Joi.string(),
+                kind: Joi.string().description("Can be marketplace or royalty"),
                 recipient: Joi.string().allow("", null),
                 bps: Joi.number(),
               })
             )
             .allow(null),
-          criteria: JoiOrderCriteria.allow(null),
+          criteria: JoiOrderCriteria.allow(null).description(
+            "Kind can be token, collection, or attribute"
+          ),
           token: Joi.object({
             contract: Joi.string(),
             tokenId: Joi.string(),
@@ -145,7 +154,9 @@ export const getUserTopBidsV4Options: RouteOptions = {
               id: Joi.string().allow(null),
               name: Joi.string().allow("", null),
               imageUrl: Joi.string().allow(null),
-              floorAskPrice: JoiPrice.allow(null),
+              floorAskPrice: JoiPrice.allow(null).description(
+                "Native currency to chain unless displayCurrency is passed."
+              ),
             }),
           }),
         })

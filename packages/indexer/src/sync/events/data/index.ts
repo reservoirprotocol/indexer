@@ -6,6 +6,7 @@ import * as erc1155 from "@/events-sync/data/erc1155";
 
 import * as bendDao from "@/events-sync/data/bend-dao";
 import * as blur from "@/events-sync/data/blur";
+import * as collectionxyz from "@/events-sync/data/collectionxyz";
 import * as cryptoPunks from "@/events-sync/data/cryptopunks";
 import * as decentraland from "@/events-sync/data/decentraland";
 import * as element from "@/events-sync/data/element";
@@ -36,6 +37,7 @@ import * as zeroExV3 from "@/events-sync/data/zeroex-v3";
 import * as zeroExV4 from "@/events-sync/data/zeroex-v4";
 import * as zora from "@/events-sync/data/zora";
 import * as looksRareV2 from "@/events-sync/data/looks-rare-v2";
+import * as blend from "@/events-sync/data/blend";
 
 // All events we're syncing should have an associated `EventData`
 // entry which dictates the way the event will be parsed and then
@@ -49,6 +51,7 @@ export type EventKind =
   | "erc1155"
   | "bend-dao"
   | "blur"
+  | "collectionxyz"
   | "cryptopunks"
   | "decentraland"
   | "element"
@@ -74,7 +77,8 @@ export type EventKind =
   | "zeroex-v3"
   | "zeroex-v4"
   | "zora"
-  | "looks-rare-v2";
+  | "looks-rare-v2"
+  | "blend";
 
 // Event sub-kind in each of the above protocol/standard
 export type EventSubKind =
@@ -166,6 +170,9 @@ export type EventSubKind =
   | "nftx-user-staked"
   | "nftx-swapped"
   | "nftx-swap"
+  | "nftx-swap-v3"
+  | "nftx-mint"
+  | "nftx-burn"
   | "nftx-vault-init"
   | "nftx-vault-shutdown"
   | "nftx-eligibility-deployed"
@@ -201,7 +208,32 @@ export type EventSubKind =
   | "looks-rare-v2-order-nonces-cancelled"
   | "looks-rare-v2-subset-nonces-cancelled"
   | "looks-rare-v2-taker-ask"
-  | "looks-rare-v2-taker-bid";
+  | "looks-rare-v2-taker-bid"
+  | "blend-loan-offer-taken"
+  | "blend-repay"
+  | "blend-refinance"
+  | "blend-buy-locked"
+  | "blend-nonce-incremented"
+  | "collectionxyz-new-pool"
+  | "collectionxyz-token-deposit"
+  | "collectionxyz-token-withdrawal"
+  | "collectionxyz-nft-deposit"
+  | "collectionxyz-nft-withdrawal"
+  | "collectionxyz-accrued-trade-fee-withdrawal"
+  | "collectionxyz-accepts-token-ids"
+  | "collectionxyz-swap-nft-in-pool"
+  | "collectionxyz-swap-nft-out-pool"
+  | "collectionxyz-spot-price-update"
+  | "collectionxyz-delta-update"
+  | "collectionxyz-props-update"
+  | "collectionxyz-state-update"
+  | "collectionxyz-royalty-numerator-update"
+  | "collectionxyz-royalty-recipient-fallback-update"
+  | "collectionxyz-external-filter-set"
+  | "collectionxyz-fee-update"
+  | "collectionxyz-protocol-fee-multiplier-update"
+  | "collectionxyz-carry-fee-multiplier-update"
+  | "collectionxyz-asset-recipient-change";
 
 export type EventData = {
   kind: EventKind;
@@ -305,6 +337,8 @@ const allEventData = [
   nftx.redeemed,
   nftx.swapped,
   nftx.swap,
+  nftx.mint,
+  nftx.burn,
   nftx.vaultInit,
   nftx.vaultShutdown,
   nftx.eligibilityDeployed,
@@ -336,6 +370,31 @@ const allEventData = [
   zeroExV2.fill,
   zeroExV3.fill,
   treasure.itemSold,
+  blend.buyLocked,
+  blend.loanOfferTaken,
+  blend.refinance,
+  blend.repay,
+  blend.nonceIncremented,
+  collectionxyz.acceptsTokenIds,
+  collectionxyz.accruedTradeFeeWithdrawal,
+  collectionxyz.assetRecipientChange,
+  collectionxyz.carryFeeMultiplierUpdate,
+  collectionxyz.deltaUpdate,
+  collectionxyz.externalFilterSet,
+  collectionxyz.feeUpdate,
+  collectionxyz.newPool,
+  collectionxyz.nftDeposit,
+  collectionxyz.nftWithdrawal,
+  collectionxyz.propsUpdate,
+  collectionxyz.protocolFeeMultiplierUpdate,
+  collectionxyz.royaltyNumeratorUpdate,
+  collectionxyz.royaltyRecipientFallbackUpdate,
+  collectionxyz.spotPriceUpdate,
+  collectionxyz.stateUpdate,
+  collectionxyz.swapNftInPool,
+  collectionxyz.swapNftOutPool,
+  collectionxyz.tokenDeposit,
+  collectionxyz.tokenWithdrawal,
 ];
 
 export const getEventData = (events?: string[]) => {

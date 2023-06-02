@@ -199,6 +199,7 @@ const isTestnetCurrency = (currencyAddress: string) =>
     Sdk.Common.Addresses.Weth[config.chainId],
     "0x07865c6e87b9f70255377e024ace6630c1eaa37f",
     "0x68b7e050e6e2c7efe11439045c9d49813c1724b8",
+    "0x2f3a40a3db8a7e3d09b0adfefbce4f6f81927557",
   ].includes(currencyAddress);
 
 const areEquivalentCurrencies = (currencyAddress1: string, currencyAddress2: string) => {
