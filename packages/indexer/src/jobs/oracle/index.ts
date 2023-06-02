@@ -11,7 +11,12 @@ import { redlock } from "@/common/redis";
 import { config } from "@/config/index";
 
 // MASTER ONLY
-if (config.doBackgroundWork && config.master && config.chainId === 5) {
+if (
+  config.doBackgroundWork &&
+  config.master &&
+  config.chainId === 5 &&
+  config.environment === "dev"
+) {
   // Publish new prices to data feeds every hour
   cron.schedule(
     "0 0 */1 * * *",

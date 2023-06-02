@@ -16,20 +16,32 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
     }
 
     if (!config.doOldOrderWebsocketWork) {
+      let eventKind;
+      if (payload.after.side === "sell") {
+        eventKind = WebsocketEventKind.SellOrder;
+      } else if (payload.after.kind === "buy") {
+        eventKind = WebsocketEventKind.BuyOrder;
+      } else {
+        logger.warn(
+          "kafka-event-handler",
+          `${this.topicName}: Unknown order kind, skipping websocket event router for order=${
+            JSON.stringify(payload.after) || "null"
+          }`
+        );
+        return;
+      }
+
       await WebsocketEventRouter({
         eventInfo: {
           kind: payload.after.kind,
           orderId: payload.after.id,
           trigger: "insert",
         },
-        eventKind:
-          payload.after.side === "sell"
-            ? WebsocketEventKind.SellOrder
-            : WebsocketEventKind.BuyOrder,
+        eventKind,
       });
     } else {
       logger.info(
-        "kahfka-event-handler",
+        "kafka-event-handler",
         `${
           this.topicName
         }: Old order websocket work is enabled, skipping websocket event router for order=${
@@ -45,20 +57,32 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
     }
 
     if (!config.doOldOrderWebsocketWork) {
+      let eventKind;
+      if (payload.after.side === "sell") {
+        eventKind = WebsocketEventKind.SellOrder;
+      } else if (payload.after.kind === "buy") {
+        eventKind = WebsocketEventKind.BuyOrder;
+      } else {
+        logger.warn(
+          "kafka-event-handler",
+          `${this.topicName}: Unknown order kind, skipping websocket event router for order=${
+            JSON.stringify(payload.after) || "null"
+          }`
+        );
+        return;
+      }
+
       await WebsocketEventRouter({
         eventInfo: {
           kind: payload.after.kind,
           orderId: payload.after.id,
           trigger: "update",
         },
-        eventKind:
-          payload.after.side === "sell"
-            ? WebsocketEventKind.SellOrder
-            : WebsocketEventKind.BuyOrder,
+        eventKind: eventKind,
       });
     } else {
       logger.info(
-        "kahfka-event-handler",
+        "kafka-event-handler",
         `${
           this.topicName
         }: Old order websocket work is enabled, skipping websocket event router for order=${

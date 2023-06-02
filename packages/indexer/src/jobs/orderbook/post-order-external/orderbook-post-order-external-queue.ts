@@ -80,6 +80,33 @@ export const jobProcessor = async (job: Job) => {
   const rateLimiter = getRateLimiter(orderbook);
   const rateLimiterKey = `${orderbook}:${orderbookApiKey}`;
 
+  // TODO: move this to a validateOrder method
+  if (orderbook === "opensea") {
+    const order = new Sdk.SeaportV15.Order(
+      config.chainId,
+      orderData as Sdk.SeaportBase.Types.OrderComponents
+    );
+
+    if (order.params.endTime <= now()) {
+      logger.info(
+        job.queueName,
+        `Post Order Failed - Order is expired. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+          orderData
+        )}, retry=${retry}`
+      );
+
+      if (crossPostingOrderId) {
+        await crossPostingOrdersModel.updateOrderStatus(
+          crossPostingOrderId,
+          CrossPostingOrderStatus.failed,
+          "Order is expired."
+        );
+      }
+
+      return;
+    }
+  }
+
   try {
     await rateLimiter.consume(rateLimiterKey, 1);
   } catch (error) {

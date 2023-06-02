@@ -1,5 +1,6 @@
 import tracer from "dd-trace";
 import { getServiceName } from "@/config/network";
+import { config } from "@/config/index";
 
 if (process.env.DATADOG_AGENT_URL) {
   const service = getServiceName();
@@ -11,6 +12,7 @@ if (process.env.DATADOG_AGENT_URL) {
     clientIpEnabled: true,
     service,
     url: process.env.DATADOG_AGENT_URL,
+    env: config.environment,
   });
 
   tracer.use("hapi", {
