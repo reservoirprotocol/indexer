@@ -24,6 +24,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 10:
         url = `https://opt-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
+      case 56:
+        url = "";
+        break;
       case 137:
         url = `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
@@ -109,6 +112,7 @@ const config: HardhatUserConfig = {
     polygon: getNetworkConfig(137),
     arbitrum: getNetworkConfig(42161),
     "arbitrum-nova": getNetworkConfig(42170),
+    bsc: getNetworkConfig(56),
     // Testnets
     goerli: getNetworkConfig(5),
     "zora-testnet": getNetworkConfig(999),
