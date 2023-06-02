@@ -25,7 +25,7 @@ import { RateLimiterRedis, RateLimiterRes } from "rate-limiter-flexible";
 import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import { CrossPostingOrderStatus } from "@/models/cross-posting-orders";
 import { TSTAttribute, TSTCollection, TSTCollectionNonFlagged } from "@/orderbook/token-sets/utils";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { fromBuffer, toBuffer, now } from "@/common/utils";
 import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
 
 import { addToQueue as addToQueueOpensea } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
