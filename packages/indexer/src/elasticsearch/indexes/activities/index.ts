@@ -337,7 +337,7 @@ const _search = async (
     );
 
     if ((error as any).meta?.body?.error?.caused_by?.type === "node_not_connected_exception") {
-      logger.error(
+      logger.warn(
         "elasticsearch-activities",
         JSON.stringify({
           topic: "_search",
