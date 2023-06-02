@@ -31,7 +31,7 @@ export class RarityQueueJob extends AbstractRabbitMqJobHandler {
 
     // If the collection is too big
     if (collection.tokenCount > 30000) {
-      logger.error(
+      logger.warn(
         this.queueName,
         `Collection ${payload.collectionId} has too many tokens (${collection.tokenCount})`
       );
@@ -40,7 +40,7 @@ export class RarityQueueJob extends AbstractRabbitMqJobHandler {
 
     const keysCount = await AttributeKeys.getKeysCount(payload.collectionId);
     if (keysCount > 100) {
-      logger.error(
+      logger.warn(
         this.queueName,
         `Collection ${payload.collectionId} has too many keys (${keysCount})`
       );
