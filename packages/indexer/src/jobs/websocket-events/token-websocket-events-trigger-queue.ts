@@ -115,21 +115,12 @@ if (config.doBackgroundWork && config.doWebsocketServerWork) {
 
         baseQuery += ` LIMIT 1`;
 
-        // eslint-disable-next-line
-        console.log(baseQuery, {
-          contract: data.after.contract ? toBuffer(data.after.contract) : null,
-          tokenId: data.after.token_id,
-        });
-
         const rawResult = await redb.manyOrNone(baseQuery, {
           contract: data.after.contract ? toBuffer(data.after.contract) : null,
           tokenId: data.after.token_id,
         });
 
         const r = rawResult[0];
-
-        // eslint-disable-next-line
-        console.log(r, rawResult);
 
         const contract = fromBuffer(r.contract);
         const tokenId = r.token_id;
