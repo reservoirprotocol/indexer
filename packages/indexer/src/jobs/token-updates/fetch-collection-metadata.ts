@@ -9,16 +9,16 @@ import { redis } from "@/common/redis";
 import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { getNetworkSettings } from "@/config/network";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import MetadataApi from "@/utils/metadata-api";
 import * as royalties from "@/utils/royalties";
 import * as marketplaceFees from "@/utils/marketplace-fees";
 
-import * as collectionRecalcTokenCount from "@/jobs/collection-updates/recalc-token-count-queue";
-import * as collectionRecalcOwnerCount from "@/jobs/collection-updates/recalc-owner-count-queue";
-import * as collectionUpdatesFloorAsk from "@/jobs/collection-updates/floor-queue";
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
-import * as collectionUpdatesNormalizedFloorAsk from "@/jobs/collection-updates/normalized-floor-queue";
+import { recalcTokenCountQueueJob } from "@/jobs/collection-updates/recalc-token-count-queue-job";
+import { recalcOwnerCountQueueJob } from "@/jobs/collection-updates/recalc-owner-count-queue-job";
+import { floorQueueJob } from "@/jobs/collection-updates/floor-queue-job";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
+import { normalizedFloorQueueJob } from "@/jobs/collection-updates/normalized-floor-queue-job";
+import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
 
 const QUEUE_NAME = "token-updates-fetch-collection-metadata-queue";
 
@@ -126,14 +126,14 @@ if (config.doBackgroundWork) {
         await idb.none(pgp.helpers.concat(queries));
 
         // Schedule a job to re-count tokens in the collection
-        await collectionRecalcTokenCount.addToQueue(collection.id);
-        await collectionRecalcOwnerCount.addToQueue([
+        await recalcTokenCountQueueJob.addToQueue({ collection: collection.id });
+        await recalcOwnerCountQueueJob.addToQueue([
           { context: QUEUE_NAME, kind: "collectionId", data: { collectionId: collection.id } },
         ]);
 
         // If token has moved collections, update the old collection's token count
         if (oldCollectionId) {
-          await collectionRecalcTokenCount.addToQueue(oldCollectionId, true);
+          await recalcTokenCountQueueJob.addToQueue({ collection: oldCollectionId, force: true });
         }
 
         // If this is a new collection, recalculate floor price
@@ -147,19 +147,19 @@ if (config.doBackgroundWork) {
           };
 
           await Promise.all([
-            collectionUpdatesFloorAsk.addToQueue([floorAskInfo]),
-            collectionUpdatesNonFlaggedFloorAsk.addToQueue([floorAskInfo]),
-            collectionUpdatesNormalizedFloorAsk.addToQueue([floorAskInfo]),
+            floorQueueJob.addToQueue([floorAskInfo]),
+            nonFlaggedFloorQueueJob.addToQueue([floorAskInfo]),
+            normalizedFloorQueueJob.addToQueue([floorAskInfo]),
           ]);
         }
 
         if (collection?.id && !config.disableRealtimeMetadataRefresh) {
-          await metadataIndexFetch.addToQueue(
+          await metadataFetchQueueJob.addToQueue(
             [
               {
                 kind: "single-token",
                 data: {
-                  method: metadataIndexFetch.getIndexingMethod(collection.community),
+                  method: metadataFetchQueueJob.getIndexingMethod(collection.community),
                   contract,
                   tokenId,
                   collection: collection.id,

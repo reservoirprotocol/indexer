@@ -39,7 +39,7 @@ export const getDailyVolumesV1Options: RouteOptions = {
           timestamp: Joi.number(),
           volume: Joi.number().unsafe(true),
           rank: Joi.number(),
-          floor_sell_value: Joi.number().unsafe(true),
+          floor_sell_value: Joi.number().unsafe(true).description("Native currency to chain."),
           sales_count: Joi.number(),
         }).allow(null)
       ),

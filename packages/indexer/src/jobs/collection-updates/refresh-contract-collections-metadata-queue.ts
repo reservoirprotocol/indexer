@@ -7,9 +7,9 @@ import { config } from "@/config/index";
 import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { Tokens } from "@/models/tokens";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import { CollectionMetadataInfo } from "@/jobs/collection-updates/metadata-queue";
+import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
+import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
 
 const QUEUE_NAME = "refresh-contract-collections-metadata-queue";
 
@@ -58,7 +58,7 @@ if (config.doBackgroundWork) {
             });
           }
 
-          await collectionUpdatesMetadata.addToQueueBulk(infos);
+          await metadataQueueJob.addToQueueBulk(infos);
         } else {
           const contractToken = await redb.oneOrNone(
             `
@@ -74,7 +74,7 @@ if (config.doBackgroundWork) {
           );
 
           if (contractToken) {
-            await metadataIndexFetch.addToQueue([
+            await metadataFetchQueueJob.addToQueue([
               {
                 kind: "single-token",
                 data: {

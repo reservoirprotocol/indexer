@@ -37,7 +37,7 @@ export const getTokenActivityV1Options: RouteOptions = {
       limit: Joi.number()
         .integer()
         .min(1)
-        .max(20)
+        .max(200)
         .default(20)
         .description("Amount of items returned in response."),
       continuation: Joi.number().description(
@@ -176,6 +176,8 @@ export const getTokenActivityV1Options: RouteOptions = {
         const source = activity.metadata.orderSourceIdInt
           ? sources.get(activity.metadata.orderSourceIdInt)
           : undefined;
+
+        // console.log("activity", activity.eventTimestamp, activity.id, activity.metadata.orderId);
 
         return {
           type: activity.type,

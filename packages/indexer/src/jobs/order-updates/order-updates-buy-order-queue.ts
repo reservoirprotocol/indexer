@@ -11,13 +11,20 @@ import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
 
-import * as processActivityEvent from "@/jobs/activities/process-activity-event";
-import * as collectionUpdatesTopBid from "@/jobs/collection-updates/top-bid-queue";
-import * as handleNewBuyOrder from "@/jobs/update-attribute/handle-new-buy-order";
 import {
   WebsocketEventKind,
   WebsocketEventRouter,
 } from "../websocket-events/websocket-event-router";
+import { handleNewBuyOrderJob } from "@/jobs/update-attribute/handle-new-buy-order-job";
+import {
+  processActivityEventJob,
+  ActivityEventKind,
+  ActivityEvent,
+} from "@/jobs/activities/process-activity-event-job";
+import {
+  topBidCollectionQueueJob,
+  TopBidCollectionQueueJobPayload,
+} from "@/jobs/collection-updates/top-bid-collection-queue-job";
 
 const QUEUE_NAME = "order-updates-buy-order";
 
@@ -140,17 +147,17 @@ if (config.doBackgroundWork) {
 
             for (const result of buyOrderResult) {
               if (!_.isNull(result.attributeId)) {
-                await handleNewBuyOrder.addToQueue(result);
+                await handleNewBuyOrderJob.addToQueue(result);
               }
 
               if (!_.isNull(result.collectionId) && !tokenSetId.startsWith("token")) {
-                await collectionUpdatesTopBid.addToQueue([
+                await topBidCollectionQueueJob.addToQueue([
                   {
                     collectionId: result.collectionId,
                     kind: trigger.kind,
                     txHash: trigger.txHash || null,
                     txTimestamp: trigger.txTimestamp || null,
-                  } as collectionUpdatesTopBid.TopBidInfo,
+                  } as TopBidCollectionQueueJobPayload,
                 ]);
               }
             }
@@ -264,7 +271,7 @@ if (config.doBackgroundWork) {
 
             if (order.side === "buy") {
               eventInfo = {
-                kind: processActivityEvent.EventKind.buyOrderCancelled,
+                kind: ActivityEventKind.buyOrderCancelled,
                 data: eventData,
               };
             }
@@ -289,12 +296,12 @@ if (config.doBackgroundWork) {
 
             if (order.side === "sell") {
               eventInfo = {
-                kind: processActivityEvent.EventKind.newSellOrder,
+                kind: ActivityEventKind.newSellOrder,
                 data: eventData,
               };
             } else if (order.side === "buy") {
               eventInfo = {
-                kind: processActivityEvent.EventKind.newBuyOrder,
+                kind: ActivityEventKind.newBuyOrder,
                 data: eventData,
               };
             }
@@ -309,9 +316,7 @@ if (config.doBackgroundWork) {
           });
 
           if (eventInfo) {
-            await processActivityEvent.addActivitiesToList([
-              eventInfo as processActivityEvent.EventInfo,
-            ]);
+            await processActivityEventJob.addActivitiesToList([eventInfo as ActivityEvent]);
           }
         }
 

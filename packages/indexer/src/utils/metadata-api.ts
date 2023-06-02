@@ -17,7 +17,17 @@ interface TokenMetadata {
   flagged: boolean;
   name?: string;
   description?: string;
+  originalMetadata?: JSON;
   imageUrl?: string;
+  imageOriginalUrl?: string;
+  imageProperties?: {
+    width?: number;
+    height?: number;
+    size?: number;
+    mime_type?: string;
+  };
+  animationOriginalUrl?: string;
+  metadataOriginalUrl?: string;
   mediaUrl?: string;
   attributes: {
     key: string;
@@ -157,6 +167,7 @@ export class MetadataApi {
       return null;
     }
     const tokenMetadata: TokenMetadata = response.data;
+
     return tokenMetadata;
   }
 

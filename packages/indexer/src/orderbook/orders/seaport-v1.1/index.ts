@@ -1,7 +1,6 @@
 import { AddressZero, HashZero } from "@ethersproject/constants";
 import * as Sdk from "@reservoir0x/sdk";
 import { generateMerkleTree } from "@reservoir0x/sdk/dist/common/helpers/merkle";
-import { OrderKind } from "@reservoir0x/sdk/dist/seaport-base/types";
 import _ from "lodash";
 import pLimit from "p-limit";
 
@@ -23,9 +22,9 @@ import { TokenSet } from "@/orderbook/token-sets/token-list";
 import { getUSDAndNativePrices } from "@/utils/prices";
 import * as royalties from "@/utils/royalties";
 
-import * as refreshContractCollectionsMetadata from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { allPlatformFeeRecipients } from "@/events-sync/handlers/royalties/config";
+import { refreshContractCollectionsMetadataQueueJob } from "@/jobs/collection-updates/refresh-contract-collections-metadata-queue-job";
 
 export type OrderInfo = {
   kind?: "full";
@@ -37,7 +36,7 @@ export type OrderInfo = {
 };
 
 export declare type OpenseaOrderParams = {
-  kind: OrderKind;
+  kind: Sdk.SeaportBase.Types.OrderKind;
   side: "buy" | "sell";
   hash: string;
   price?: string;
@@ -838,7 +837,9 @@ const getCollection = async (
 
       if (lockAcquired) {
         // Try to refresh the contract collections metadata.
-        await refreshContractCollectionsMetadata.addToQueue(orderParams.contract);
+        await refreshContractCollectionsMetadataQueueJob.addToQueue({
+          contract: orderParams.contract,
+        });
       }
     }
 

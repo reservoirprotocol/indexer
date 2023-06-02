@@ -25,7 +25,8 @@ import {
 } from "@/common/utils";
 import { config } from "@/config/index";
 import { Sources } from "@/models/sources";
-import { Assets } from "@/utils/assets";
+import { Assets, ImageSize } from "@/utils/assets";
+import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v6";
 
@@ -204,12 +205,18 @@ export const getTokensV6Options: RouteOptions = {
             name: Joi.string().allow("", null),
             description: Joi.string().allow("", null),
             image: Joi.string().allow("", null),
+            imageSmall: Joi.string().allow("", null),
+            imageLarge: Joi.string().allow("", null),
+            metadata: Joi.object().allow(null),
             media: Joi.string().allow("", null),
-            kind: Joi.string().allow("", null),
+            kind: Joi.string().allow("", null).description("Can be erc721, erc115, etc."),
             isFlagged: Joi.boolean().default(false),
             lastFlagUpdate: Joi.string().allow("", null),
             lastFlagChange: Joi.string().allow("", null),
-            supply: Joi.number().unsafe().allow(null),
+            supply: Joi.number()
+              .unsafe()
+              .allow(null)
+              .description("Can be higher than 1 if erc1155"),
             remainingSupply: Joi.number().unsafe().allow(null),
             rarity: Joi.number().unsafe().allow(null),
             rarityRank: Joi.number().unsafe().allow(null),
@@ -224,9 +231,9 @@ export const getTokensV6Options: RouteOptions = {
             attributes: Joi.array()
               .items(
                 Joi.object({
-                  key: Joi.string(),
-                  kind: Joi.string(),
-                  value: JoiAttributeValue,
+                  key: Joi.string().description("Case sensitive."),
+                  kind: Joi.string().description("Can be `string`, `number`, `date`, or `range`."),
+                  value: JoiAttributeValue.description("Case sensitive."),
                   tokenCount: Joi.number(),
                   onSaleCount: Joi.number(),
                   floorAskPrice: Joi.number().unsafe().allow(null),
@@ -248,7 +255,7 @@ export const getTokensV6Options: RouteOptions = {
               dynamicPricing: Joi.object({
                 kind: Joi.string().valid("dutch", "pool"),
                 data: Joi.object(),
-              }),
+              }).description("Can be null if no active ask."),
               source: Joi.object().allow(null),
             },
             topBid: Joi.object({
@@ -261,12 +268,13 @@ export const getTokensV6Options: RouteOptions = {
               feeBreakdown: Joi.array()
                 .items(
                   Joi.object({
-                    kind: Joi.string(),
+                    kind: Joi.string().description("Can be `marketplace` or `royalty`."),
                     recipient: Joi.string().lowercase().pattern(regex.address).allow(null),
                     bps: Joi.number(),
                   })
                 )
-                .allow(null),
+                .allow(null)
+                .description("Can be null if no active bids"),
             }).optional(),
           }),
         })
@@ -532,6 +540,7 @@ export const getTokensV6Options: RouteOptions = {
           t.name,
           t.description,
           t.image,
+          t.metadata,
           t.media,
           t.collection_id,
           c.name AS collection_name,
@@ -579,13 +588,6 @@ export const getTokensV6Options: RouteOptions = {
           JOIN token_sets_tokens tst
             ON t.contract = tst.contract
             AND t.token_id = tst.token_id
-        `;
-      }
-
-      if (query.collectionsSetId) {
-        baseQuery += `
-          JOIN collections_sets_collections csc
-            ON t.collection_id = csc.collection_id
         `;
       }
 
@@ -694,10 +696,6 @@ export const getTokensV6Options: RouteOptions = {
 
       if (query.tokenSetId) {
         conditions.push(`tst.token_set_id = $/tokenSetId/`);
-      }
-
-      if (query.collectionsSetId) {
-        conditions.push(`csc.collections_set_id = $/collectionsSetId/`);
       }
 
       if (query.currencies) {
@@ -818,52 +816,74 @@ export const getTokensV6Options: RouteOptions = {
 
       // Sorting
 
+      const getSort = function (sortBy: string, union: boolean) {
+        switch (sortBy) {
+          case "rarity": {
+            return ` ORDER BY ${union ? "" : "t."}rarity_rank ${
+              query.sortDirection || "ASC"
+            } NULLS ${nullsPosition}, ${union ? "" : "t."}contract ${
+              query.sortDirection || "ASC"
+            }, ${union ? "" : "t."}token_id ${query.sortDirection || "ASC"}`;
+          }
+          case "tokenId": {
+            return ` ORDER BY ${union ? "" : "t."}contract ${query.sortDirection || "ASC"}, ${
+              union ? "" : "t."
+            }token_id ${query.sortDirection || "ASC"}`;
+          }
+          case "floorAskPrice":
+          default: {
+            const sortColumn = query.nativeSource
+              ? `${union ? "" : "s."}floor_sell_value`
+              : query.normalizeRoyalties
+              ? `${union ? "" : "t."}normalized_floor_sell_value`
+              : `${union ? "" : "t."}floor_sell_value`;
+
+            return ` ORDER BY ${sortColumn} ${
+              query.sortDirection || "ASC"
+            } NULLS ${nullsPosition}, ${union ? "" : "t."}contract ${
+              query.sortDirection || "ASC"
+            }, ${union ? "" : "t."}token_id ${query.sortDirection || "ASC"}`;
+          }
+        }
+      };
+
       // Only allow sorting on floorSell when we filter by collection / attributes / tokenSetId / rarity
       if (
         query.collection ||
         query.attributes ||
         query.tokenSetId ||
         query.rarity ||
-        query.collectionsSetId ||
         query.tokens
       ) {
-        switch (query.sortBy) {
-          case "rarity": {
-            baseQuery += ` ORDER BY t.rarity_rank ${
-              query.sortDirection || "ASC"
-            } NULLS ${nullsPosition}, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
-              query.sortDirection || "ASC"
-            }`;
-            break;
-          }
-
-          case "tokenId": {
-            baseQuery += ` ORDER BY t.contract ${query.sortDirection || "ASC"}, t.token_id ${
-              query.sortDirection || "ASC"
-            }`;
-            break;
-          }
-
-          case "floorAskPrice":
-          default: {
-            const sortColumn = query.nativeSource
-              ? "s.floor_sell_value"
-              : query.normalizeRoyalties
-              ? "t.normalized_floor_sell_value"
-              : "t.floor_sell_value";
-
-            baseQuery += ` ORDER BY ${sortColumn} ${
-              query.sortDirection || "ASC"
-            } NULLS ${nullsPosition}, t.contract ${query.sortDirection || "ASC"}, t.token_id ${
-              query.sortDirection || "ASC"
-            }`;
-            break;
-          }
-        }
+        baseQuery += getSort(query.sortBy, false);
       } else if (query.contract) {
         baseQuery += ` ORDER BY t.contract ${query.sortDirection || "ASC"}, t.token_id ${
           query.sortDirection || "ASC"
         }`;
+      }
+
+      // Break query into UNION of results for each collectionId when filtering on collectionsSetId
+      if (query.collectionsSetId) {
+        const collectionsSetQueries = [];
+        const collections = await CollectionSets.getCollectionsIds(query.collectionsSetId);
+        const collectionsSetSort = getSort(query.sortBy, true);
+
+        for (const i in collections) {
+          (query as any)[`collection${i}`] = collections[i];
+          collectionsSetQueries.push(
+            `(
+              ${baseQuery}
+              ${conditions.length ? `AND ` : `WHERE `} t.collection_id = $/collection${i}/
+              ${collectionsSetSort}
+              LIMIT $/limit/
+            )`
+          );
+        }
+
+        baseQuery = `
+          ${collectionsSetQueries.join(` UNION ALL `)}
+          ${collectionsSetSort}
+        `;
       }
 
       baseQuery += ` LIMIT $/limit/`;
@@ -1035,6 +1055,13 @@ export const getTokensV6Options: RouteOptions = {
             name: r.name,
             description: r.description,
             image: Assets.getLocalAssetsLink(r.image),
+            imageSmall: Assets.getResizedImageUrl(r.image, ImageSize.small),
+            imageLarge: Assets.getResizedImageUrl(r.image, ImageSize.large),
+            metadata: r.metadata?.image_original_url
+              ? {
+                  imageOriginal: r.metadata.image_original_url,
+                }
+              : undefined,
             media: r.media,
             kind: r.kind,
             isFlagged: Boolean(Number(r.is_flagged)),

@@ -110,7 +110,6 @@ export const config = {
   blurWsUrl: process.env.BLUR_WS_URL,
 
   orderFetcherBaseUrl: String(process.env.ORDER_FETCHER_BASE_URL),
-  railwayStaticUrl: String(process.env.RAILWAY_STATIC_URL || ""),
 
   cipherSecret: String(process.env.CIPHER_SECRET),
 
@@ -139,4 +138,7 @@ export const config = {
   // realtime v2
   enableRealtimeProcessing: Boolean(process.env.ENABLE_REALTIME_PROCESSING),
   enableRealtimeV2BlockQueue: Boolean(process.env.ENABLE_REALTIME_V2_BLOCK_QUEUE),
+
+  // RabbitMq
+  rabbitMqUrl: String(process.env.RABBIT_MQ_URL),
 };

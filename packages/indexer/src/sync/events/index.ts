@@ -15,11 +15,11 @@ import * as syncEventsUtils from "@/events-sync/utils";
 import * as blocksModel from "@/models/blocks";
 import getUuidByString from "uuid-by-string";
 
-import * as removeUnsyncedEventsActivities from "@/jobs/activities/remove-unsynced-events-activities";
-import * as blockCheck from "@/jobs/events-sync/block-check-queue";
-import * as eventsSyncBackfillProcess from "@/jobs/events-sync/process/backfill";
-import * as eventsSyncRealtimeProcess from "@/jobs/events-sync/process/realtime";
 import { BlocksToCheck } from "@/jobs/events-sync/block-check-queue";
+import { removeUnsyncedEventsActivitiesJob } from "@/jobs/activities/remove-unsynced-events-activities-job";
+import { blockCheckQueueJob } from "@/jobs/events-sync/block-check-queue-job";
+import { backfillJob } from "@/jobs/events-sync/process/backfill-job";
+import { realtimeJob } from "@/jobs/events-sync/process/realtime-job";
 
 export const extractEventsBatches = async (
   enhancedEvents: EnhancedEvent[],
@@ -230,6 +230,10 @@ export const extractEventsBatches = async (
             data: kindToEvents.get("looks-rare-v2") ?? [],
           },
           {
+            kind: "collectionxyz",
+            data: kindToEvents.get("collectionxyz") ?? [],
+          },
+          {
             kind: "blend",
             data: kindToEvents.get("blend") ?? [],
           },
@@ -257,7 +261,7 @@ export const syncEvents = async (
   options?: {
     // When backfilling, certain processes will be disabled
     backfill?: boolean;
-    syncDetails:
+    syncDetails?:
       | {
           method: "events";
           events: string[];
@@ -482,6 +486,6 @@ export const unsyncEvents = async (block: number, blockHash: string) => {
     es.ftTransfers.removeEvents(block, blockHash),
     es.nftApprovals.removeEvents(block, blockHash),
     es.nftTransfers.removeEvents(block, blockHash),
-    removeUnsyncedEventsActivities.addToQueue(blockHash),
+    removeUnsyncedEventsActivitiesJob.addToQueue({ blockHash }),
   ]);
 };

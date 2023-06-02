@@ -5,7 +5,7 @@ import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 import { EventSubKind } from "@/events-sync/data";
 import { syncEvents } from "@/events-sync/index";
-import * as eventsSyncBackfill from "@/jobs/events-sync/backfill-queue";
+import { backfillQueueJob } from "@/jobs/events-sync/backfill-queue-job";
 
 const QUEUE_NAME = "process-resync-request";
 
@@ -33,7 +33,7 @@ if (config.doBackgroundWork) {
       if (Number(toBlock) - Number(fromBlock) <= 16) {
         await syncEvents(fromBlock, toBlock, { backfill, syncDetails });
       } else {
-        await eventsSyncBackfill.addToQueue(fromBlock, toBlock, {
+        await backfillQueueJob.addToQueue(fromBlock, toBlock, {
           backfill,
           syncDetails,
           blocksPerBatch,
