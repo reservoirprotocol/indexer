@@ -4,7 +4,7 @@ import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
-import { redis, redlock } from "@/common/redis";
+import { redis } from "@/common/redis";
 
 import { config } from "@/config/index";
 import { ridb } from "@/common/db";
@@ -31,6 +31,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   const worker = new Worker(
     QUEUE_NAME,
     async (job: Job) => {
+      job.data.addToQueue = false;
+
       const cursor = job.data.cursor as CursorInfo;
 
       const fromTimestamp = job.data.fromTimestamp || 0;
@@ -96,16 +98,13 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
             }`
           );
 
-          await addToQueue(
-            {
-              timestamp: lastResult.event_timestamp,
-              txHash: fromBuffer(lastResult.event_tx_hash),
-              logIndex: lastResult.event_log_index,
-              batchIndex: lastResult.event_batch_index,
-            },
-            fromTimestamp,
-            toTimestamp
-          );
+          job.data.addToQueue = true;
+          job.data.addToQueueCursor = {
+            timestamp: lastResult.event_timestamp,
+            txHash: fromBuffer(lastResult.event_tx_hash),
+            logIndex: lastResult.event_log_index,
+            batchIndex: lastResult.event_batch_index,
+          };
         }
       } catch (error) {
         logger.error(
@@ -119,21 +118,15 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
     { connection: redis.duplicate(), concurrency: 1 }
   );
 
+  worker.on("completed", async (job) => {
+    if (job.data.addToQueue) {
+      await addToQueue(job.data.addToQueueCursor, job.data.fromTimestamp, job.data.toTimestamp);
+    }
+  });
+
   worker.on("error", (error) => {
     logger.error(QUEUE_NAME, `Worker errored: ${error}`);
   });
-
-  redlock
-    .acquire([`${QUEUE_NAME}-lock-v13`], 60 * 60 * 24 * 30 * 1000)
-    .then(async () => {
-      await addToQueue(undefined, undefined, 1609459199);
-      await addToQueue(undefined, 1609459200, 1640995199);
-      await addToQueue(undefined, 1640995200, 1672531199);
-      await addToQueue(undefined, 1672531200);
-    })
-    .catch(() => {
-      // Skip on any errors
-    });
 }
 
 export const addToQueue = async (

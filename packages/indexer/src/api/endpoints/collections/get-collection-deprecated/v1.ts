@@ -20,7 +20,7 @@ export const getCollectionDeprecatedV1Options: RouteOptions = {
   },
   validate: {
     params: Joi.object({
-      collectionOrSlug: Joi.string().lowercase().required(),
+      collectionOrSlug: Joi.string().required(),
     }),
   },
   response: {

@@ -1,4 +1,4 @@
-import { AddressZero } from "@ethersproject/constants";
+import { AddressZero, HashZero } from "@ethersproject/constants";
 import { keccak256 } from "@ethersproject/solidity";
 import { parseEther } from "@ethersproject/units";
 import * as Sdk from "@reservoir0x/sdk";
@@ -6,7 +6,7 @@ import pLimit from "p-limit";
 
 import { idb, pgp } from "@/common/db";
 import { logger } from "@/common/logger";
-import { bn, now, toBuffer } from "@/common/utils";
+import { bn, fromBuffer, now, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as ordersUpdateById from "@/jobs/order-updates/by-id-queue";
 import { Sources } from "@/models/sources";
@@ -21,24 +21,24 @@ type SaveResult = {
   id: string;
   status: string;
   unfillable?: boolean;
-  triggerKind?: "new-order" | "reprice";
+  triggerKind?: "new-order" | "cancel" | "reprice";
 };
 
-// Listings
+// Listings (full)
 
-export type ListingOrderInfo = {
+export type FullListingOrderInfo = {
   orderParams: Sdk.Blur.Types.BaseOrder;
   metadata: OrderMetadata;
 };
 
-export const saveListings = async (
-  orderInfos: ListingOrderInfo[],
+export const saveFullListings = async (
+  orderInfos: FullListingOrderInfo[],
   ingestMethod?: "websocket" | "rest"
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
 
-  const handleOrder = async ({ orderParams, metadata }: ListingOrderInfo) => {
+  const handleOrder = async ({ orderParams, metadata }: FullListingOrderInfo) => {
     try {
       const order = new Sdk.Blur.Order(config.chainId, orderParams);
       const id = order.hash();
@@ -227,7 +227,7 @@ export const saveListings = async (
     } catch (error) {
       logger.error(
         "orders-blur-save",
-        `Failed to handle listing with params ${JSON.stringify(orderParams)}: ${error}`
+        `Failed to handle full listing with params ${JSON.stringify(orderParams)}: ${error}`
       );
     }
   };
@@ -294,9 +294,307 @@ export const saveListings = async (
   return results;
 };
 
-// Bids
+// Listings (partial)
 
-export type BidOrderInfo = {
+type PartialListingOrderParams = {
+  collection: string;
+  tokenId: string;
+  // If empty then no Blur listing is available anymore
+  price?: string;
+  createdAt?: string;
+};
+
+export type PartialListingOrderInfo = {
+  orderParams: PartialListingOrderParams;
+  metadata: OrderMetadata;
+};
+
+const getBlurListingId = (orderParams: PartialListingOrderParams, owner: string) =>
+  keccak256(
+    ["string", "address", "address", "uint256", "uint256", "uint256"],
+    [
+      "blur",
+      owner,
+      orderParams.collection,
+      orderParams.tokenId,
+      parseEther(orderParams.price!),
+      Math.floor(new Date(orderParams.createdAt!).getTime() / 1000),
+    ]
+  );
+
+export const savePartialListings = async (
+  orderInfos: PartialListingOrderInfo[],
+  ingestMethod?: "websocket" | "rest"
+): Promise<SaveResult[]> => {
+  const results: SaveResult[] = [];
+  const orderValues: DbOrder[] = [];
+
+  const handleOrder = async ({ orderParams }: PartialListingOrderInfo) => {
+    logger.info("blur-debug", JSON.stringify(orderInfos));
+
+    try {
+      // Fetch current owner
+      const owner = await idb
+        .oneOrNone(
+          `
+            SELECT
+              nft_balances.owner
+            FROM nft_balances
+            WHERE nft_balances.contract = $/contract/
+              AND nft_balances.token_id = $/tokenId/
+              AND nft_balances.amount > 0
+            LIMIT 1
+          `,
+          {
+            contract: toBuffer(orderParams.collection),
+            tokenId: orderParams.tokenId,
+          }
+        )
+        .then((r) => fromBuffer(r.owner));
+
+      // Handle: source
+      const sources = await Sources.getInstance();
+      const source = await sources.getOrInsert("blur.io");
+
+      // Invalidate any old orders
+      const anyActiveOrders = orderParams.price && orderParams.createdAt;
+      const invalidatedOrderIds = await idb.manyOrNone(
+        `
+          UPDATE orders SET
+            fillability_status = 'cancelled',
+            expiration = now(),
+            updated_at = now()
+          WHERE orders.token_set_id = $/tokenSetId/
+            AND orders.source_id_int = $/sourceId/
+            AND orders.fillability_status = 'fillable'
+            AND orders.raw_data->>'createdAt' IS NOT NULL
+            AND orders.id != $/excludeOrderId/
+          RETURNING orders.id
+        `,
+        {
+          tokenSetId: `token:${orderParams.collection}:${orderParams.tokenId}`,
+          sourceId: source.id,
+          excludeOrderId: anyActiveOrders ? getBlurListingId(orderParams, owner) : HashZero,
+        }
+      );
+      for (const { id } of invalidatedOrderIds) {
+        results.push({
+          id,
+          status: "success",
+          triggerKind: "cancel",
+        });
+      }
+
+      if (!anyActiveOrders) {
+        // No order is fillable, so we return early
+        return results.push({
+          id: HashZero,
+          status: "no-active-orders",
+        });
+      }
+
+      const id = getBlurListingId(orderParams, owner);
+
+      // Handle: royalties
+      let feeBps = 0;
+      const feeBreakdown: { kind: string; recipient: string; bps: number }[] = [];
+      const royalties = await getBlurRoyalties(orderParams.collection);
+      if (royalties) {
+        feeBreakdown.push({
+          recipient: royalties.recipient,
+          bps: royalties.minimumRoyaltyBps,
+          kind: "royalty",
+        });
+        feeBps += feeBreakdown[0].bps;
+      }
+
+      // Handle: currency
+      const currency = Sdk.Common.Addresses.Eth[config.chainId];
+
+      // Handle: price
+      const price = parseEther(orderParams.price!).toString();
+
+      const validFrom = `'${orderParams.createdAt}'`;
+      const validTo = `'Infinity'`;
+
+      const orderResult = await idb.oneOrNone(
+        `
+          SELECT
+            orders.id,
+            orders.fillability_status
+          FROM orders
+          WHERE orders.id = $/id/
+        `,
+        { id }
+      );
+      if (!orderResult) {
+        // Order does not exist
+
+        // Check and save: associated token set
+        const schemaHash = generateSchemaHash();
+        const [{ id: tokenSetId }] = await tokenSet.singleToken.save([
+          {
+            id: `token:${orderParams.collection}:${orderParams.tokenId}`,
+            schemaHash,
+            contract: orderParams.collection,
+            tokenId: orderParams.tokenId,
+          },
+        ]);
+
+        if (!tokenSetId) {
+          return results.push({
+            id,
+            status: "invalid-token-set",
+          });
+        }
+
+        // Handle: native Reservoir orders
+        const isReservoir = false;
+
+        orderValues.push({
+          id,
+          kind: "blur",
+          side: "sell",
+          fillability_status: "fillable",
+          approval_status: "approved",
+          token_set_id: tokenSetId,
+          token_set_schema_hash: toBuffer(schemaHash),
+          maker: toBuffer(owner),
+          taker: toBuffer(AddressZero),
+          price: price.toString(),
+          value: price.toString(),
+          currency: toBuffer(currency),
+          currency_price: price.toString(),
+          currency_value: price.toString(),
+          needs_conversion: null,
+          quantity_remaining: "1",
+          valid_between: `tstzrange(${validFrom}, ${validTo}, '[]')`,
+          nonce: null,
+          source_id_int: source?.id,
+          is_reservoir: isReservoir ? isReservoir : null,
+          contract: toBuffer(orderParams.collection),
+          conduit: null,
+          fee_bps: feeBps,
+          fee_breakdown: feeBreakdown || null,
+          dynamic: null,
+          raw_data: orderParams,
+          expiration: validTo,
+          missing_royalties: null,
+          normalized_value: null,
+          currency_normalized_value: null,
+          originated_at: orderParams.createdAt ?? null,
+        });
+
+        results.push({
+          id,
+          status: "success",
+          triggerKind: "new-order",
+        });
+      } else {
+        // Order already exists
+
+        await idb.none(
+          `
+            UPDATE orders SET
+              fillability_status = 'fillable',
+              price = $/price/,
+              currency_price = $/price/,
+              value = $/price/,
+              currency_value = $/price/,
+              quantity_remaining = 1,
+              valid_between = tstzrange('${orderParams.createdAt}', 'Infinity', '[]'),
+              expiration = 'Infinity',
+              updated_at = now(),
+              raw_data = $/rawData:json/
+            WHERE orders.id = $/id/
+          `,
+          {
+            id,
+            price,
+            rawData: orderParams,
+          }
+        );
+
+        results.push({
+          id,
+          status: "success",
+          triggerKind: "reprice",
+        });
+      }
+    } catch (error) {
+      logger.error(
+        "orders-blur-save",
+        `Failed to handle partial listing with params ${JSON.stringify(orderParams)}: ${error}`
+      );
+    }
+  };
+
+  // Process all orders concurrently
+  const limit = pLimit(20);
+  await Promise.all(orderInfos.map((orderInfo) => limit(() => handleOrder(orderInfo))));
+
+  logger.info("blur-debug", JSON.stringify(results));
+
+  if (orderValues.length) {
+    const columns = new pgp.helpers.ColumnSet(
+      [
+        "id",
+        "kind",
+        "side",
+        "fillability_status",
+        "approval_status",
+        "token_set_id",
+        "token_set_schema_hash",
+        "maker",
+        "taker",
+        "price",
+        "value",
+        "currency",
+        "currency_price",
+        "currency_value",
+        "needs_conversion",
+        "quantity_remaining",
+        { name: "valid_between", mod: ":raw" },
+        "nonce",
+        "source_id_int",
+        "is_reservoir",
+        "contract",
+        "conduit",
+        "fee_bps",
+        { name: "fee_breakdown", mod: ":json" },
+        "dynamic",
+        "raw_data",
+        { name: "expiration", mod: ":raw" },
+      ],
+      {
+        table: "orders",
+      }
+    );
+    await idb.none(pgp.helpers.insert(orderValues, columns) + " ON CONFLICT DO NOTHING");
+  }
+
+  await ordersUpdateById.addToQueue(
+    results
+      .filter((r) => r.status === "success")
+      .map(
+        ({ id, triggerKind }) =>
+          ({
+            context: `${triggerKind}-${id}`,
+            id,
+            trigger: {
+              kind: triggerKind,
+            },
+            ingestMethod,
+          } as ordersUpdateById.OrderInfo)
+      )
+  );
+
+  return results;
+};
+
+// Bids (partial)
+
+export type PartialBidOrderInfo = {
   orderParams: Sdk.Blur.Types.BlurBidPool;
   metadata: OrderMetadata;
   fullUpdate?: boolean;
@@ -306,14 +604,14 @@ const getBlurBidId = (collection: string) =>
   // Buy orders have a single order id per collection
   keccak256(["string", "address"], ["blur", collection]);
 
-export const saveBids = async (
-  orderInfos: BidOrderInfo[],
+export const savePartialBids = async (
+  orderInfos: PartialBidOrderInfo[],
   ingestMethod?: "websocket" | "rest"
 ): Promise<SaveResult[]> => {
   const results: SaveResult[] = [];
   const orderValues: DbOrder[] = [];
 
-  const handleOrder = async ({ orderParams, fullUpdate }: BidOrderInfo) => {
+  const handleOrder = async ({ orderParams, fullUpdate }: PartialBidOrderInfo) => {
     if (!fullUpdate && !orderParams.pricePoints.length) {
       return;
     }
@@ -432,6 +730,7 @@ export const saveBids = async (
         results.push({
           id,
           status: "success",
+          triggerKind: "new-order",
         });
       } else {
         const currentBid = orderResult.raw_data as Sdk.Blur.Types.BlurBidPool;
@@ -479,6 +778,7 @@ export const saveBids = async (
             `
               UPDATE orders SET
                 fillability_status = 'no-balance',
+                expiration = now(),
                 updated_at = now()
               WHERE orders.id = $/id/
             `,
@@ -490,6 +790,7 @@ export const saveBids = async (
               `
                 UPDATE orders SET
                   fillability_status = 'no-balance',
+                  expiration = now(),
                   updated_at = now()
                 WHERE orders.id = $/id/
               `,

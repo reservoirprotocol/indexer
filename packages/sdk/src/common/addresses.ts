@@ -15,7 +15,10 @@ export const Eth: ChainIdToAddress = {
   [Network.ScrollAlpha]: AddressZero,
   [Network.MantleTestnet]: AddressZero,
   [Network.LineaTestnet]: AddressZero,
-  [Network.MiscTestnet]: AddressZero,
+  [Network.ZoraTestnet]: AddressZero,
+  [Network.Mumbai]: AddressZero,
+  [Network.ArbitrumNova]: AddressZero,
+  [Network.BaseGoerli]: AddressZero,
 };
 
 export const Weth: ChainIdToAddress = {
@@ -27,14 +30,17 @@ export const Weth: ChainIdToAddress = {
   [Network.Optimism]: "0x4200000000000000000000000000000000000006",
   [Network.Gnosis]: "0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1",
   [Network.Arbitrum]: "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+  [Network.ArbitrumNova]: "0x722e8bdd2ce80a4422e880164f2079488e115365",
   // Polygon: Wrapped MATIC
   [Network.Polygon]: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+  [Network.Mumbai]: "0x9c3c9283d3e44854697cd22d3faa240cfb032889",
   // Avalanche: Wrapped AVAX
   [Network.Avalanche]: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
   [Network.ScrollAlpha]: "0x7160570bb153edd0ea1775ec2b2ac9b65f1ab61b",
   [Network.MantleTestnet]: "0xbaafec4b6ef4f5e0bafa850cbc48364b953efcf9",
   [Network.LineaTestnet]: "0x2c1b868d6596a18e32e61b901e4060c872647b6c",
-  [Network.MiscTestnet]: "0x4200000000000000000000000000000000000006",
+  [Network.ZoraTestnet]: "0x4200000000000000000000000000000000000006",
+  [Network.BaseGoerli]: "0x497c4c4041613bd4642760f3e4428abc88b3a565",
 };
 
 // TODO: Include addresses across all supported chains
@@ -55,7 +61,7 @@ export const RoyaltyEngine: ChainIdToAddress = {
   [Network.Optimism]: "0xef770dfb6d5620977213f55f99bfd781d04bbe15",
   [Network.Polygon]: "0x28edfcf0be7e86b07493466e7631a213bde8eef2",
   [Network.Arbitrum]: "0xef770dfb6d5620977213f55f99bfd781d04bbe15",
-  [Network.MiscTestnet]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
+  [Network.ZoraTestnet]: "0x8755310f937528173e7c5a106131d79a3601c9d9",
 };
 
 export const SwapRouter: ChainIdToAddress = {
@@ -64,9 +70,10 @@ export const SwapRouter: ChainIdToAddress = {
   [Network.Optimism]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.Polygon]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
   [Network.Arbitrum]: "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
+  [Network.Bsc]: "0xb971ef87ede563556b2ed4b1c0b0019111dd85d2",
 };
 
 export const Create3Factory: ChainIdToAddress = {
   [Network.EthereumSepolia]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
-  [Network.MiscTestnet]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
+  [Network.ZoraTestnet]: "0x0000000000000a9efe52e741bcb25da0e4438e71",
 };

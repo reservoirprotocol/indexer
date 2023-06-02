@@ -219,7 +219,8 @@ export const getExecuteSellV6Options: RouteOptions = {
                 orders.currency,
                 orders.missing_royalties,
                 orders.maker,
-                orders.token_set_id
+                orders.token_set_id,
+                orders.fee_bps
               FROM orders
               JOIN contracts
                 ON orders.contract = contracts.address
@@ -264,7 +265,8 @@ export const getExecuteSellV6Options: RouteOptions = {
                 orders.currency,
                 orders.missing_royalties,
                 orders.maker,
-                orders.token_set_id
+                orders.token_set_id,
+                orders.fee_bps
               FROM orders
               JOIN contracts
                 ON orders.contract = contracts.address
@@ -380,6 +382,7 @@ export const getExecuteSellV6Options: RouteOptions = {
           rawData: orderResult.raw_data,
           source: source || undefined,
           fees,
+          builtInFeeBps: orderResult.fee_bps,
           isProtected:
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (orderResult.raw_data as any).zone ===

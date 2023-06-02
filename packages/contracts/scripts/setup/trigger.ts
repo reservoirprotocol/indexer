@@ -243,6 +243,12 @@ export const trigger = {
         Sdk.RouterV6.Addresses.Router[chainId],
         Sdk.Zora.Addresses.Exchange[chainId],
       ]),
+    CollectionXyzModule: async (chainId: number) =>
+      dv("CollectionXyzModule", "v2", [
+        DEPLOYER,
+        Sdk.RouterV6.Addresses.Router[chainId],
+        Sdk.CollectionXyz.Addresses.CollectionRouter[chainId],
+      ]),
   },
   // Utilities
   Utilities: {

@@ -34,6 +34,9 @@ const getNetworkConfig = (chainId?: number) => {
       case 5:
         url = `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`;
         break;
+      case 999:
+        url = "";
+        break;
       case 5001:
         url = "https://rpc.testnet.mantle.xyz";
         break;
@@ -57,8 +60,8 @@ const getNetworkConfig = (chainId?: number) => {
     accounts: process.env.DEPLOYER_PK ? [process.env.DEPLOYER_PK] : undefined,
   };
 };
-const networkConfig = getNetworkConfig();
 
+const networkConfig = getNetworkConfig();
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [
@@ -98,7 +101,7 @@ const config: HardhatUserConfig = {
     arbitrum: getNetworkConfig(42161),
     // Testnets
     goerli: getNetworkConfig(5),
-    "misc-testnet": getNetworkConfig(999),
+    "zora-testnet": getNetworkConfig(999),
     "mantle-testnet": getNetworkConfig(5001),
     "linea-testnet": getNetworkConfig(59140),
     "scroll-alpha": getNetworkConfig(534353),

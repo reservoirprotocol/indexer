@@ -441,20 +441,26 @@ export const getUserTokensV7Options: RouteOptions = {
             o.currency_value AS "top_bid_currency_value",
             o.source_id_int AS "top_bid_source_id_int"
           FROM "orders" "o"
-          JOIN "token_sets_tokens" "tst" ON "o"."token_set_id" = "tst"."token_set_id"
+          JOIN "token_sets_tokens" "tst"
+            ON "o"."token_set_id" = "tst"."token_set_id"
           WHERE "tst"."contract" = "b"."contract"
-          AND "tst"."token_id" = "b"."token_id"
-          AND "o"."side" = 'buy'
-          AND "o"."fillability_status" = 'fillable'
-          AND "o"."approval_status" = 'approved'
-          ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
-          AND EXISTS(
-            SELECT FROM "nft_balances" "nb"
-              WHERE "nb"."contract" = "b"."contract"
-              AND "nb"."token_id" = "b"."token_id"
-              AND "nb"."amount" > 0
-              AND "nb"."owner" != "o"."maker"
-          )
+            AND "tst"."token_id" = "b"."token_id"
+            AND "o"."side" = 'buy'
+            AND "o"."fillability_status" = 'fillable'
+            AND "o"."approval_status" = 'approved'
+            ${query.normalizeRoyalties ? " AND o.normalized_value IS NOT NULL" : ""}
+            AND EXISTS(
+              SELECT FROM "nft_balances" "nb"
+                WHERE "nb"."contract" = "b"."contract"
+                AND "nb"."token_id" = "b"."token_id"
+                AND "nb"."amount" > 0
+                AND "nb"."owner" != "o"."maker"
+                AND (
+                  "o"."taker" IS NULL
+                  OR "o"."taker" = '\\x0000000000000000000000000000000000000000'
+                  OR "o"."taker" = "nb"."owner"
+                )
+            )
           ORDER BY "o"."value" DESC
           LIMIT 1
         ) "y" ON TRUE

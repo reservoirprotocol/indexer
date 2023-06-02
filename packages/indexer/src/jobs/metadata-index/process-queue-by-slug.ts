@@ -169,15 +169,6 @@ if (config.doBackgroundWork) {
       // If there are potentially more tokens to process trigger another job
       if (rateLimitExpiredIn || _.size(refreshTokensBySlug) == countTotal || retry) {
         if (await extendLock(getLockName(method), 60 * 5 + rateLimitExpiredIn)) {
-          logger.info(
-            QUEUE_NAME,
-            `Debug. jobId=${job.id}, method=${method}, refreshTokensBySlugSize=${_.size(
-              refreshTokensBySlug
-            )}, metadata=${
-              metadata.length
-            }, rateLimitExpiredIn=${rateLimitExpiredIn}, retry=${retry}, countTotal=${countTotal}`
-          );
-
           job.data.addToQueue = true;
           job.data.addToQueueDelay = rateLimitExpiredIn * 1000;
         }

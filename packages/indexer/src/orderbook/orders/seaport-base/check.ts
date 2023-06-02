@@ -71,6 +71,11 @@ export const offChainCheck = async (
 
   const checkQuantity = options?.quantityRemaining ?? info.amount;
 
+  // Fix for the weird race condition of orders being fillable but having a quantity remaining of 0
+  if (String(checkQuantity) === "0") {
+    throw new Error("filled");
+  }
+
   let hasBalance = true;
   let hasApproval = true;
   if (info.side === "buy") {

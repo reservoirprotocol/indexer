@@ -281,7 +281,7 @@ export const postOrderV4Options: RouteOptions = {
                   orderbookApiKey,
                 });
               } else if (orderbook === "reservoir") {
-                const [result] = await orders.blur.saveListings([
+                const [result] = await orders.blur.saveFullListings([
                   {
                     orderParams: order.data,
                     metadata: {
