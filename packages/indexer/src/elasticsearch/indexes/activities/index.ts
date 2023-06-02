@@ -295,7 +295,7 @@ const _search = async (
 
     if (retries > 0) {
       logger.info(
-        "elasticsearch-search-activities",
+        "elasticsearch-activities",
         JSON.stringify({
           topic: "_search",
           latency: esResult.took,
@@ -305,7 +305,7 @@ const _search = async (
       );
     } else {
       logger.debug(
-        "elasticsearch-search-activities",
+        "elasticsearch-activities",
         JSON.stringify({
           topic: "_search",
           latency: esResult.took,
