@@ -225,8 +225,8 @@ import { blockCheckQueueJob } from "@/jobs/events-sync/block-check-queue-job";
 import { processResyncRequestQueueJob } from "@/jobs/events-sync/process-resync-request-queue-job";
 import { realtimeQueueJob } from "@/jobs/events-sync/realtime-queue-job";
 import { realtimeQueueV2Job } from "@/jobs/events-sync/realtime-queue-v2-job";
-import { ftTransfersJobJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
-import { nftTransfersJobJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
+import { ftTransfersJob } from "@/jobs/events-sync/write-buffers/ft-transfers-job";
+import { nftTransfersJob } from "@/jobs/events-sync/write-buffers/nft-transfers-job";
 
 export const gracefulShutdownJobWorkers = [
   orderUpdatesById.worker,
@@ -445,8 +445,8 @@ export class RabbitMqJobsConsumer {
       processResyncRequestQueueJob,
       realtimeQueueJob,
       realtimeQueueV2Job,
-      ftTransfersJobJob,
-      nftTransfersJobJob,
+      ftTransfersJob,
+      nftTransfersJob,
     ];
   }
 
