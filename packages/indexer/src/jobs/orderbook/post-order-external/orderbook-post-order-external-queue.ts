@@ -26,7 +26,9 @@ import * as crossPostingOrdersModel from "@/models/cross-posting-orders";
 import { CrossPostingOrderStatus } from "@/models/cross-posting-orders";
 import { TSTAttribute, TSTCollection, TSTCollectionNonFlagged } from "@/orderbook/token-sets/utils";
 import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
-import { fromBuffer, toBuffer } from "@/common/utils";
+import { fromBuffer, now, toBuffer } from "@/common/utils";
+
+import { addToQueue as addToQueueOpensea } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
 
 import { addToQueue as addToQueueOpensea } from "@/jobs/orderbook/post-order-external/orderbook-post-order-external-opensea-queue";
 
@@ -79,6 +81,33 @@ export const jobProcessor = async (job: Job) => {
 
   const rateLimiter = getRateLimiter(orderbook);
   const rateLimiterKey = `${orderbook}:${orderbookApiKey}`;
+
+  // TODO: move this to a validateOrder method
+  if (orderbook === "opensea") {
+    const order = new Sdk.SeaportV15.Order(
+      config.chainId,
+      orderData as Sdk.SeaportBase.Types.OrderComponents
+    );
+
+    if (order.params.endTime <= now()) {
+      logger.info(
+        job.queueName,
+        `Post Order Failed - Order is expired. orderbook=${orderbook}, crossPostingOrderId=${crossPostingOrderId}, orderId=${orderId}, orderData=${JSON.stringify(
+          orderData
+        )}, retry=${retry}`
+      );
+
+      if (crossPostingOrderId) {
+        await crossPostingOrdersModel.updateOrderStatus(
+          crossPostingOrderId,
+          CrossPostingOrderStatus.failed,
+          "Order is expired."
+        );
+      }
+
+      return;
+    }
+  }
 
   try {
     await rateLimiter.consume(rateLimiterKey, 1);
