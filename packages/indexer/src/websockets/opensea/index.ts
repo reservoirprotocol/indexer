@@ -24,7 +24,7 @@ import { handleEvent as handleItemReceivedBidEvent } from "@/websockets/opensea/
 import { handleEvent as handleCollectionOfferEvent } from "@/websockets/opensea/handlers/collection_offer";
 import { handleEvent as handleTraitOfferEvent } from "@/websockets/opensea/handlers/trait_offer";
 import MetadataApi from "@/utils/metadata-api";
-import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
+// import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 
 if (config.doWebsocketWork && config.openSeaApiKey) {
   const network = config.chainId === 5 ? Network.TESTNET : Network.MAINNET;
@@ -141,7 +141,7 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       const parsedMetadata = await MetadataApi.parseTokenMetadata(metadata, "opensea");
 
       if (parsedMetadata) {
-        await metadataIndexWrite.addToQueue([parsedMetadata]);
+        // await metadataIndexWrite.addToQueue([parsedMetadata]);
       }
     } catch (error) {
       logger.error(
