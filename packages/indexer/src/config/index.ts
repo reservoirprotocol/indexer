@@ -2,6 +2,7 @@ export const config = {
   version: String(process.env.VERSION),
   port: Number(process.env.PORT),
   chainId: Number(process.env.CHAIN_ID),
+  environment: String(process.env.ENVIRONMENT),
 
   adminApiKey: String(process.env.ADMIN_API_KEY),
   bullmqAdminPassword: String(process.env.BULLMQ_ADMIN_PASSWORD),

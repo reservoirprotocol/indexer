@@ -16,7 +16,7 @@ export const getNetworkName = () => {
       return "mainnet";
 
     case 5:
-      return "goerli";
+      return config.environment === "prod" ? "prod-goerli" : "goerli";
 
     case 10:
       return "optimism";

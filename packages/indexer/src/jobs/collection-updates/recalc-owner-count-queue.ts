@@ -102,7 +102,7 @@ if (config.doBackgroundWork) {
             QUEUE_NAME,
             JSON.stringify({
               topic: "Update owner count",
-              jobData: job.data,
+              job,
               collection: collection.id,
               collectionOwnerCount: collection.ownerCount,
               ownerCount,
