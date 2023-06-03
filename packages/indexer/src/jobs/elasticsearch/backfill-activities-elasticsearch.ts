@@ -40,9 +40,8 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
       let loop = new Date(start);
 
       while (loop <= end) {
-        const newDate = loop.setDate(loop.getDate() + 1);
-
         const fromTimestamp = Math.floor(loop.getTime() / 1000);
+        const newDate = loop.setDate(loop.getDate() + 1);
         const toTimestamp = Math.floor(newDate / 1000);
 
         await addToQueueTransfers(undefined, fromTimestamp, toTimestamp);
