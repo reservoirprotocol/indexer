@@ -25,6 +25,8 @@ export type AbstractRabbitMqJobHandlerEvents = {
 };
 
 export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new () => TypedEmitter<AbstractRabbitMqJobHandlerEvents>) {
+  static defaultMaxDeadLetterQueue = 5000;
+
   abstract queueName: string;
   abstract maxRetries: number;
 

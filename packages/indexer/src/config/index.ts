@@ -142,4 +142,5 @@ export const config = {
 
   // RabbitMq
   rabbitMqUrl: String(process.env.RABBIT_MQ_URL),
+  rabbitHttpUrl: String(process.env.RABBIT_HTTP_URL),
 };
