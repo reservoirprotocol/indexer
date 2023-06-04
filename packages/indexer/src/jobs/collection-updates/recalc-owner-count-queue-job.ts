@@ -26,7 +26,6 @@ export class RecalcOwnerCountQueueJob extends AbstractRabbitMqJobHandler {
   queueName = "collection-recalc-owner-count-queue";
   maxRetries = 10;
   concurrency = 10;
-  maxDeadLetterQueue = 2000;
   backoff = {
     type: "exponential",
     delay: 20000,
