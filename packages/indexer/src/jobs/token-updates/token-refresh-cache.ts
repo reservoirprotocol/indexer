@@ -56,17 +56,17 @@ if (config.doBackgroundWork) {
         // Revalidate
         await orderFixes.addToQueue([{ by: "id", data: { id: floorAsk.id } }]);
 
-        // // Simulate
-        // await inject({
-        //   method: "POST",
-        //   url: `/management/orders/simulate/v1`,
-        //   headers: {
-        //     "Content-Type": "application/json",
-        //   },
-        //   payload: {
-        //     id: floorAsk.id,
-        //   },
-        // });
+        // Simulate
+        await inject({
+          method: "POST",
+          url: `/management/orders/simulate/v1`,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          payload: {
+            id: floorAsk.id,
+          },
+        });
       }
 
       // Top bid simulation is very costly so we only do it if explicitly requested
