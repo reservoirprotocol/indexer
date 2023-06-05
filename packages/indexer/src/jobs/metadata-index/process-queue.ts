@@ -8,8 +8,8 @@ import { logger } from "@/common/logger";
 import { redis, extendLock, releaseLock } from "@/common/redis";
 import { config } from "@/config/index";
 import { PendingRefreshTokens } from "@/models/pending-refresh-tokens";
-import * as metadataIndexWrite from "@/jobs/metadata-index/write-queue";
 import MetadataApi from "@/utils/metadata-api";
+import { metadataWriteQueueJob } from "@/jobs/metadata-index/write-queue-job";
 
 const QUEUE_NAME = "metadata-index-process-queue";
 
@@ -101,7 +101,7 @@ if (config.doBackgroundWork) {
 
       const metadata = results.flat(1);
 
-      await metadataIndexWrite.addToQueue(
+      await metadataWriteQueueJob.addToQueue(
         metadata.map((m) => ({
           ...m,
         }))

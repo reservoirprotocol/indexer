@@ -9,7 +9,6 @@ import Joi from "joi";
 import { logger } from "@/common/logger";
 import { regex } from "@/common/utils";
 import { config } from "@/config/index";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { ApiKeyManager } from "@/models/api-keys";
 import { Collections } from "@/models/collections";
@@ -17,6 +16,7 @@ import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
+import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
 
 const version = "v1";
 
@@ -116,9 +116,9 @@ export const postTokensRefreshV1Options: RouteOptions = {
         );
       }
 
-      const method = metadataIndexFetch.getIndexingMethod(collection?.community || null);
+      const method = metadataFetchQueueJob.getIndexingMethod(collection?.community || null);
 
-      await metadataIndexFetch.addToQueue(
+      await metadataFetchQueueJob.addToQueue(
         [
           {
             kind: "single-token",

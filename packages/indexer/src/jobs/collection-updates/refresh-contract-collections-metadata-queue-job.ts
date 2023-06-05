@@ -5,8 +5,8 @@ import { toBuffer } from "@/common/utils";
 import { CollectionMetadataInfo } from "@/jobs/collection-updates/metadata-queue";
 import { Tokens } from "@/models/tokens";
 import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import { config } from "@/config/index";
+import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
 
 export type RefreshContractCollectionsMetadataQueueJobPayload = {
   contract: string;
@@ -62,7 +62,7 @@ export class RefreshContractCollectionsMetadataQueueJob extends AbstractRabbitMq
         );
 
         if (contractToken) {
-          await metadataIndexFetch.addToQueue([
+          await metadataFetchQueueJob.addToQueue([
             {
               kind: "single-token",
               data: {

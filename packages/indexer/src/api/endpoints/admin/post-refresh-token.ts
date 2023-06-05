@@ -7,13 +7,13 @@ import Joi from "joi";
 
 import { logger } from "@/common/logger";
 import { config } from "@/config/index";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { Collections } from "@/models/collections";
 import { Tokens } from "@/models/tokens";
 import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { tokenRefreshCacheJob } from "@/jobs/token-updates/token-refresh-cache-job";
 import { resyncAttributeCacheJob } from "@/jobs/update-attribute/resync-attribute-cache-job";
+import { metadataFetchQueueJob } from "@/jobs/metadata-index/fetch-queue-job";
 
 export const postRefreshTokenOptions: RouteOptions = {
   description: "Refresh a token's orders and metadata",
@@ -60,12 +60,12 @@ export const postRefreshTokenOptions: RouteOptions = {
       // Refresh meta data
       const collection = await Collections.getByContractAndTokenId(contract, tokenId);
 
-      await metadataIndexFetch.addToQueue(
+      await metadataFetchQueueJob.addToQueue(
         [
           {
             kind: "single-token",
             data: {
-              method: metadataIndexFetch.getIndexingMethod(collection?.community || null),
+              method: metadataFetchQueueJob.getIndexingMethod(collection?.community || null),
               contract,
               tokenId,
               collection: collection?.id || contract,

@@ -9,7 +9,6 @@ import { edb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer } from "@/common/utils";
 import { config } from "@/config/index";
-import * as metadataIndexFetch from "@/jobs/metadata-index/fetch-queue";
 import * as openseaOrdersProcessQueue from "@/jobs/opensea-orders/process-queue";
 import * as orderFixes from "@/jobs/order-fixes/fixes";
 import { Collections } from "@/models/collections";
@@ -18,6 +17,10 @@ import { OpenseaIndexerApi } from "@/utils/opensea-indexer-api";
 import { fetchCollectionMetadataJob } from "@/jobs/token-updates/fetch-collection-metadata-job";
 import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
 import { collectionRefreshCacheJob } from "@/jobs/collections-refresh/collections-refresh-cache-job";
+import {
+  metadataFetchQueueJob,
+  MetadataFetchQueueJobPayload,
+} from "@/jobs/metadata-index/fetch-queue-job";
 
 export const postRefreshCollectionOptions: RouteOptions = {
   description: "Refresh a collection's orders and metadata",
@@ -138,8 +141,8 @@ export const postRefreshCollectionOptions: RouteOptions = {
         // Revalidate the contract orders
         await orderFixes.addToQueue([{ by: "contract", data: { contract: collection.contract } }]);
 
-        const method = metadataIndexFetch.getIndexingMethod(collection.community);
-        let metadataIndexInfo: metadataIndexFetch.MetadataIndexInfo = {
+        const method = metadataFetchQueueJob.getIndexingMethod(collection.community);
+        let metadataIndexInfo: MetadataFetchQueueJobPayload = {
           kind: "full-collection",
           data: {
             method,
@@ -164,7 +167,7 @@ export const postRefreshCollectionOptions: RouteOptions = {
         }
 
         // Refresh the collection tokens metadata
-        await metadataIndexFetch.addToQueue([metadataIndexInfo], true);
+        await metadataFetchQueueJob.addToQueue([metadataIndexInfo], true);
       }
 
       return { message: "Request accepted" };
