@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Queue, QueueScheduler, Worker } from "bullmq";
+import { Job, Queue, QueueScheduler, Worker } from "bullmq";
 import { randomUUID } from "crypto";
 
 import { logger } from "@/common/logger";
@@ -33,7 +33,18 @@ new QueueScheduler(QUEUE_NAME, { connection: redis.duplicate() });
 if (config.doBackgroundWork && config.doElasticsearchWork) {
   const worker = new Worker(
     QUEUE_NAME,
-    async () => {
+    async (job: Job) => {
+      logger.info(
+        QUEUE_NAME,
+        JSON.stringify({
+          topic: "backfillTransferActivities",
+          message: "Start",
+          jobData: job.data,
+        })
+      );
+
+      const promises = [];
+
       const backfillTransferActivities = async () => {
         logger.info(
           QUEUE_NAME,
@@ -106,7 +117,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
       const backfillAskActivities = async () => {
         const query =
-          "SELECT min(updated_at) AS min_timestamp, MAX(updated_at) AS max_timestamp from orders WHERE side = 'sell';";
+          "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'sell';";
 
         const timestamps = await ridb.oneOrNone(query);
 
@@ -137,7 +148,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
       const backfillAskCancelActivities = async () => {
         const query =
-          "SELECT min(updated_at) AS min_timestamp, MAX(updated_at) AS max_timestamp from orders WHERE side = 'sell' AND fillability_status = 'cancelled';";
+          "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'sell' AND fillability_status = 'cancelled';";
 
         const timestamps = await ridb.oneOrNone(query);
 
@@ -168,7 +179,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
       const backfillBidActivities = async () => {
         const query =
-          "SELECT min(updated_at) AS min_timestamp, MAX(updated_at) AS max_timestamp from orders WHERE side = 'buy';";
+          "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'buy';";
 
         const timestamps = await ridb.oneOrNone(query);
 
@@ -199,7 +210,7 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
 
       const backfillBidCancelActivities = async () => {
         const query =
-          "SELECT min(updated_at) AS min_timestamp, MAX(updated_at) AS max_timestamp from orders WHERE side = 'buy' AND fillability_status = 'cancelled';";
+          "SELECT extract(epoch from min(updated_at)) AS min_timestamp, extract(epoch from max(updated_at)) AS max_timestamp from orders WHERE side = 'buy' AND fillability_status = 'cancelled';";
 
         const timestamps = await ridb.oneOrNone(query);
 
@@ -228,14 +239,35 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
         );
       };
 
-      await Promise.all([
-        backfillTransferActivities(),
-        backfillSaleActivities(),
-        backfillAskActivities(),
-        backfillAskCancelActivities(),
-        backfillBidActivities(),
-        backfillBidCancelActivities(),
-      ]);
+      if (job.data.backfillTransferActivities) {
+        promises.push(backfillTransferActivities());
+      }
+
+      if (job.data.backfillSaleActivities) {
+        promises.push(backfillSaleActivities());
+      }
+
+      if (job.data.backfillTransferActivities) {
+        promises.push(backfillTransferActivities());
+      }
+
+      if (job.data.backfillAskActivities) {
+        promises.push(backfillAskActivities());
+      }
+
+      if (job.data.backfillAskCancelActivities) {
+        promises.push(backfillAskCancelActivities());
+      }
+
+      if (job.data.backfillBidActivities) {
+        promises.push(backfillBidActivities());
+      }
+
+      if (job.data.backfillBidCancelActivities) {
+        promises.push(backfillBidCancelActivities());
+      }
+
+      await Promise.all(promises);
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );
@@ -245,6 +277,20 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
   });
 }
 
-export const addToQueue = async () => {
-  await queue.add(randomUUID(), {});
+export const addToQueue = async (
+  backfillTransferActivities = true,
+  backfillSaleActivities = true,
+  backfillAskActivities = true,
+  backfillAskCancelActivities = true,
+  backfillBidActivities = true,
+  backfillBidCancelActivities = true
+) => {
+  await queue.add(randomUUID(), {
+    backfillTransferActivities,
+    backfillSaleActivities,
+    backfillAskActivities,
+    backfillAskCancelActivities,
+    backfillBidActivities,
+    backfillBidCancelActivities,
+  });
 };
