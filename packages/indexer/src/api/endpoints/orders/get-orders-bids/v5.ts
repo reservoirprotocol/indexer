@@ -376,7 +376,7 @@ export const getOrdersBidsV5Options: RouteOptions = {
           query.source)
       ) {
         throw Boom.badRequest(
-          `You must provide one of the following: [ids, maker, contracts] in order to filter querys with sortBy = updatedAt and status != 'active.`
+          `Cannot filter with additional query params when sortBy = updatedAt and status != 'active.`
         );
       }
 
