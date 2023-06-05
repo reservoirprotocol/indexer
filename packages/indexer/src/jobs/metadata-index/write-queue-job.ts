@@ -26,7 +26,17 @@ export type MetadataWriteQueueJobPayload = {
   tokenId: string;
   name?: string;
   description?: string;
+  originalMetadata?: JSON;
   imageUrl?: string;
+  imageOriginalUrl?: string;
+  imageProperties?: {
+    width?: number;
+    height?: number;
+    size?: number;
+    mime_type?: string;
+  };
+  animationOriginalUrl?: string;
+  metadataOriginalUrl?: string;
   mediaUrl?: string;
   flagged?: boolean;
   attributes: {
@@ -54,7 +64,12 @@ export class MetadataWriteQueueJob extends AbstractRabbitMqJobHandler {
       tokenId,
       name,
       description,
+      originalMetadata,
       imageUrl,
+      imageOriginalUrl,
+      imageProperties,
+      animationOriginalUrl,
+      metadataOriginalUrl,
       mediaUrl,
       flagged,
       attributes,
@@ -68,6 +83,7 @@ export class MetadataWriteQueueJob extends AbstractRabbitMqJobHandler {
               name = $/name/,
               description = $/description/,
               image = $/image/,
+              metadata = $/metadata:json/,
               media = $/media/,
               updated_at = now(),
               collection_id = collection_id,
@@ -82,6 +98,14 @@ export class MetadataWriteQueueJob extends AbstractRabbitMqJobHandler {
           name: name || null,
           description: description || null,
           image: imageUrl || null,
+          metadata:
+            {
+              original_metadata: originalMetadata || null,
+              image_original_url: imageOriginalUrl || null,
+              image_properties: imageProperties || null,
+              animation_original_url: animationOriginalUrl || null,
+              metadata_original_url: metadataOriginalUrl || null,
+            } || {},
           media: mediaUrl || null,
         }
       );
