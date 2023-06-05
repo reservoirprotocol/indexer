@@ -445,7 +445,7 @@ export class MetadataWriteQueueJob extends AbstractRabbitMqJobHandler {
     } catch (error) {
       logger.error(
         this.queueName,
-        `Failed to process token metadata info ${JSON.stringify(payload)}: ${error}`
+        `Failed to process token metadata info ${JSON.stringify(payload)}: ${JSON.stringify(error)}`
       );
       throw error;
     }
