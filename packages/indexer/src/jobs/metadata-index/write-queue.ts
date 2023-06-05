@@ -20,6 +20,7 @@ import * as updateCollectionUserActivity from "@/jobs/collection-updates/update-
 import * as updateCollectionDailyVolume from "@/jobs/collection-updates/update-collection-daily-volume";
 import * as updateAttributeCounts from "@/jobs/update-attribute/update-attribute-counts";
 import * as updateActivitiesCollection from "@/jobs/elasticsearch/update-activities-collection";
+import * as refreshActivitiesTokenMetadata from "@/jobs/elasticsearch/refresh-activities-token-metadata";
 
 import PgPromise from "pg-promise";
 import { updateActivities } from "@/jobs/activities/utils";
@@ -73,7 +74,17 @@ if (config.doBackgroundWork) {
               created_at = created_at
             WHERE tokens.contract = $/contract/
             AND tokens.token_id = $/tokenId/
-            RETURNING collection_id, created_at
+            RETURNING collection_id, created_at, (
+                  SELECT
+                  json_build_object(
+                    'name', tokens.name,
+                    'image', tokens.image,
+                    'media', tokens.media
+                  )
+                  FROM tokens
+                  WHERE tokens.contract = $/contract/
+                  AND tokens.token_id = $/tokenId/
+                ) AS old_metadata
           `,
           {
             contract: toBuffer(contract),
@@ -102,6 +113,21 @@ if (config.doBackgroundWork) {
               result,
             })
           );
+        }
+
+        if (
+          result.old_metadata.name != name ||
+          result.old_metadata.image != imageUrl ||
+          result.old_metadata.image != mediaUrl
+        ) {
+          logger.info(
+            QUEUE_NAME,
+            `Token metadata changed. contract=${contract}, tokenId=${tokenId}`
+          );
+
+          if (config.doElasticsearchWork) {
+            await refreshActivitiesTokenMetadata.addToQueue(contract, tokenId);
+          }
         }
 
         // If the new collection ID is different from the collection ID currently stored

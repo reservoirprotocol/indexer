@@ -16,6 +16,7 @@ import { config } from "@/config/index";
 import _ from "lodash";
 import { buildContinuation, splitContinuation } from "@/common/utils";
 import { addToQueue as backfillActivitiesAddToQueue } from "@/jobs/elasticsearch/backfill-activities-elasticsearch";
+import { TokensEntity } from "@/models/tokens/tokens-entity";
 
 const INDEX_NAME = `${getNetworkName()}.activities`;
 
@@ -593,6 +594,95 @@ export const updateActivitiesCollection = async (
           tokenId,
           oldCollectionId,
           newCollection,
+        },
+        query: JSON.stringify(query),
+        error,
+      })
+    );
+
+    throw error;
+  }
+};
+
+export const updateActivitiesTokenMetadata = async (
+  contract: string,
+  tokenId: string,
+  tokenData: TokensEntity
+): Promise<void> => {
+  const query = {
+    bool: {
+      must: [
+        {
+          term: {
+            contract: contract.toLowerCase(),
+          },
+        },
+        {
+          term: {
+            "token.id": tokenId,
+          },
+        },
+      ],
+    },
+  };
+
+  try {
+    const response = await elasticsearch.updateByQuery({
+      index: INDEX_NAME,
+      conflicts: "proceed",
+      // This is needed due to issue with elasticsearch DSL.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      query,
+      script: {
+        source:
+          "ctx._source.token.name = params.token_name; ctx._source.token.image = params.token_image; ctx._source.token.media = params.token_media;",
+        params: {
+          token_name: tokenData.name,
+          token_image: tokenData.image,
+          token_media: tokenData.media,
+        },
+      },
+    });
+
+    if (response?.failures?.length) {
+      logger.error(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesTokenMetadata",
+          data: {
+            contract,
+            tokenId,
+            tokenData,
+          },
+          query: JSON.stringify(query),
+          response,
+        })
+      );
+    } else {
+      logger.info(
+        "elasticsearch-activities",
+        JSON.stringify({
+          topic: "updateActivitiesTokenMetadata",
+          data: {
+            contract,
+            tokenId,
+            tokenData,
+          },
+          query: JSON.stringify(query),
+          response,
+        })
+      );
+    }
+  } catch (error) {
+    logger.error(
+      "elasticsearch-activities",
+      JSON.stringify({
+        topic: "updateActivitiesTokenMetadata",
+        data: {
+          contract,
+          tokenId,
+          tokenData,
         },
         query: JSON.stringify(query),
         error,
