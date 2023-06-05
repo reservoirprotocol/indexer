@@ -18,9 +18,14 @@ import {
   saveTransactions,
 } from "@/models/transactions";
 import { getTransactionLogs, saveTransactionLogs } from "@/models/transaction-logs";
-import { getTransactionTraces, saveTransactionTraces } from "@/models/transaction-traces";
+import {
+  TransactionTrace,
+  getTransactionTraces,
+  saveTransactionTraces,
+} from "@/models/transaction-traces";
 import { OrderKind, getOrderSourceByOrderId, getOrderSourceByOrderKind } from "@/orderbook/orders";
 import { getRouters } from "@/utils/routers";
+import { logger } from "@/common/logger";
 
 export const fetchBlock = async (blockNumber: number, force = false) => {
   if (!force) {
@@ -133,6 +138,24 @@ export const fetchTransactionTraces = async (txHashes: string[], provider?: Json
     return existingTraces.concat(missingTraces);
   } else {
     return existingTraces;
+  }
+};
+
+export const fetchTransactionTracesForBlock = async (blockNumber: number) => {
+  try {
+    const response = await baseProvider.send("debug_traceBlockByNumber", [
+      "0x" + blockNumber.toString(16),
+      { tracer: "callTracer" },
+    ]);
+
+    const traces: TransactionTrace[] = response.result;
+    await saveTransactionTraces(traces);
+
+    return traces;
+  } catch (e) {
+    logger.error("fetch-transaction-traces", `Failed to fetch traces for block ${blockNumber}`);
+
+    return [];
   }
 };
 
