@@ -99,7 +99,7 @@ if (config.doBackgroundWork) {
             JSON.stringify({
               topic: "Invalid metadata",
               jobData: job.data,
-              collection,
+              result,
             })
           );
         }
