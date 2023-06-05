@@ -9,7 +9,6 @@ import { redis } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { TriggerKind } from "@/jobs/order-updates/types";
-import * as processActivityEvent from "@/jobs/activities/process-activity-event";
 import * as updateNftBalanceFloorAskPriceQueue from "@/jobs/nft-balance-updates/update-floor-ask-price-queue";
 import {
   WebsocketEventKind,
@@ -20,6 +19,11 @@ import {
   NormalizedFloorQueueJobPayload,
 } from "@/jobs/token-updates/normalized-floor-queue-job";
 import { floorQueueJob } from "@/jobs/token-updates/floor-queue-job";
+import {
+  processActivityEventJob,
+  ActivityEventKind,
+  ActivityEvent,
+} from "@/jobs/activities/process-activity-event-job";
 
 const QUEUE_NAME = "order-updates-sell-order";
 
@@ -181,12 +185,12 @@ if (config.doBackgroundWork) {
 
             if (order.side === "sell") {
               eventInfo = {
-                kind: processActivityEvent.EventKind.sellOrderCancelled,
+                kind: ActivityEventKind.sellOrderCancelled,
                 data: eventData,
               };
             } else if (order.side === "buy") {
               eventInfo = {
-                kind: processActivityEvent.EventKind.buyOrderCancelled,
+                kind: ActivityEventKind.buyOrderCancelled,
                 data: eventData,
               };
             }
@@ -211,7 +215,7 @@ if (config.doBackgroundWork) {
 
             if (order.side === "sell") {
               eventInfo = {
-                kind: processActivityEvent.EventKind.newSellOrder,
+                kind: ActivityEventKind.newSellOrder,
                 data: eventData,
               };
             }
@@ -229,9 +233,7 @@ if (config.doBackgroundWork) {
           }
 
           if (eventInfo) {
-            await processActivityEvent.addActivitiesToList([
-              eventInfo as processActivityEvent.EventInfo,
-            ]);
+            await processActivityEventJob.addActivitiesToList([eventInfo as ActivityEvent]);
           }
         }
 

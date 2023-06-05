@@ -122,15 +122,16 @@ export abstract class AbstractRabbitMqJobHandler extends (EventEmitter as new ()
     );
   }
 
-  protected async sendBatch(job: { payload: any; jobId?: string }[], delay = 0, priority = 0) {
+  protected async sendBatch(
+    job: { payload: any; jobId?: string; delay?: number; priority?: number }[]
+  ) {
     await RabbitMq.sendBatch(
       this.getQueue(),
       job.map((j) => ({
-        payload: j.payload,
-        jobId: j.jobId ? `${this.getQueue()}:${j.jobId}` : undefined,
-      })),
-      delay,
-      priority
+        content: { payload: j.payload, jobId: j.jobId },
+        delay: j.delay,
+        priority: j.priority,
+      }))
     );
   }
 }

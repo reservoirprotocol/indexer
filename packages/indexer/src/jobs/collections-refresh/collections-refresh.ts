@@ -8,10 +8,10 @@ import { logger } from "@/common/logger";
 import { redis } from "@/common/redis";
 import { config } from "@/config/index";
 
-import * as collectionUpdatesMetadata from "@/jobs/collection-updates/metadata-queue";
 import { sub, set, getUnixTime, add } from "date-fns";
 import { Collections } from "@/models/collections";
 import { CollectionsEntity } from "@/models/collections/collections-entity";
+import { metadataQueueJob } from "@/jobs/collection-updates/metadata-queue-job";
 
 const QUEUE_NAME = "collections-refresh-queue";
 
@@ -65,7 +65,8 @@ if (config.doBackgroundWork) {
         contract: collection.contract,
         community: collection.community,
       }));
-      await collectionUpdatesMetadata.addToQueue(contracts);
+
+      await metadataQueueJob.addToQueue({ contract: contracts });
     },
     { connection: redis.duplicate(), concurrency: 1 }
   );

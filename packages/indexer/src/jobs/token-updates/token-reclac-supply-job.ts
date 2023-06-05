@@ -5,7 +5,6 @@ import { redb } from "@/common/db";
 import { toBuffer } from "@/common/utils";
 import { AddressZero } from "@ethersproject/constants";
 import { AbstractRabbitMqJobHandler } from "@/jobs/abstract-rabbit-mq-job-handler";
-import { logger } from "@/common/logger";
 
 export type TokenRecalcSupplyPayload = {
   contract: string;
@@ -55,19 +54,9 @@ export class TokenReclacSupplyJob extends AbstractRabbitMqJobHandler {
 
   public async addToQueue(tokens: TokenRecalcSupplyPayload[], delay = 60 * 5 * 1000) {
     await this.sendBatch(
-      tokens.map((t) => ({ payload: t, jobId: `${t.contract}:${t.tokenId}` })),
-      delay
+      tokens.map((t) => ({ payload: t, jobId: `${t.contract}:${t.tokenId}`, delay }))
     );
   }
 }
 
 export const tokenReclacSupplyJob = new TokenReclacSupplyJob();
-
-tokenReclacSupplyJob.on("onCompleted", (message) => {
-  logger.info(
-    tokenReclacSupplyJob.queueName,
-    `COMPLETED in ${
-      (Number(message.completeTime) - Number(message.publishTime)) / 1000
-    } message ${JSON.stringify(message)}`
-  );
-});
