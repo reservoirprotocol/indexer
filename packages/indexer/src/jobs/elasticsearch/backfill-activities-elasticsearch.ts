@@ -35,6 +35,14 @@ if (config.doBackgroundWork && config.doElasticsearchWork) {
     QUEUE_NAME,
     async () => {
       const backfillTransferActivities = async () => {
+        logger.info(
+          QUEUE_NAME,
+          JSON.stringify({
+            topic: "backfillActivities",
+            message: "Start",
+          })
+        );
+
         const query =
           "SELECT min(timestamp) AS min_timestamp, MAX(timestamp) AS max_timestamp from nft_transfer_events;";
 
