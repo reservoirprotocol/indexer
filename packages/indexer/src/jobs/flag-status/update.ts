@@ -8,8 +8,8 @@ import { toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import * as tokenSets from "@/orderbook/token-sets";
 
-import * as collectionUpdatesNonFlaggedFloorAsk from "@/jobs/collection-updates/non-flagged-floor-queue";
 import * as flagStatusGenerateCollectionTokenSet from "@/jobs/flag-status/generate-collection-token-set";
+import { nonFlaggedFloorQueueJob } from "@/jobs/collection-updates/non-flagged-floor-queue-job";
 
 const QUEUE_NAME = "flag-status-update";
 
@@ -68,7 +68,7 @@ if (config.doBackgroundWork) {
           // Trigger further processes that depend on flagged tokens changes
           await Promise.all([
             // Update the token's collection cached non-flagged floor ask
-            collectionUpdatesNonFlaggedFloorAsk.addToQueue([
+            nonFlaggedFloorQueueJob.addToQueue([
               {
                 kind: "revalidation",
                 contract,

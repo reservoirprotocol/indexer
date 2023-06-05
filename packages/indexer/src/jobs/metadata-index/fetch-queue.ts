@@ -9,9 +9,9 @@ import { redis, acquireLock } from "@/common/redis";
 import { fromBuffer, toBuffer } from "@/common/utils";
 import { config } from "@/config/index";
 import { PendingRefreshTokens, RefreshTokens } from "@/models/pending-refresh-tokens";
-import * as metadataIndexProcess from "@/jobs/metadata-index/process-queue";
-import * as metadataIndexProcessBySlug from "@/jobs/metadata-index/process-queue-by-slug";
 import { PendingRefreshTokensBySlug } from "@/models/pending-refresh-tokens-by-slug";
+import { metadataProcessQueueJob } from "@/jobs/metadata-index/process-queue-job";
+import { metadataProcessQueueBySlugJob } from "@/jobs/metadata-index/process-queue-by-slug-job";
 
 export const QUEUE_NAME = "metadata-index-fetch-queue";
 
@@ -59,13 +59,13 @@ if (config.doBackgroundWork) {
           prioritized
         );
 
-        if (await acquireLock(metadataIndexProcessBySlug.getLockName(data.method), 60 * 5)) {
+        if (await acquireLock(metadataProcessQueueBySlugJob.getLockName(data.method), 60 * 5)) {
           logger.info(
             QUEUE_NAME,
             `Full collection by slug - acquireLock. data=${JSON.stringify(data)}`
           );
 
-          await metadataIndexProcessBySlug.addToQueue();
+          await metadataProcessQueueBySlugJob.addToQueue();
         }
         return;
       }
@@ -116,9 +116,9 @@ if (config.doBackgroundWork) {
       const pendingRefreshTokens = new PendingRefreshTokens(data.method);
       await pendingRefreshTokens.add(refreshTokens, prioritized);
 
-      if (await acquireLock(metadataIndexProcess.getLockName(data.method), 60 * 5)) {
+      if (await acquireLock(metadataProcessQueueJob.getLockName(data.method), 60 * 5)) {
         // Trigger a job to process the queue
-        await metadataIndexProcess.addToQueue(data.method);
+        await metadataProcessQueueJob.addToQueue({ method: data.method });
       }
     },
     { connection: redis.duplicate(), concurrency: 5 }
