@@ -104,8 +104,11 @@ export class FillEventCreatedEventHandler extends BaseActivityEventHandler {
 
   parseEvent(data: any) {
     if (data.order_side === "buy") {
-      data.from = data.to;
-      data.to = data.from;
+      const dataFrom = data.from;
+      const dataTo = data.to;
+
+      data.from = dataTo;
+      data.to = dataFrom;
     }
 
     data.timestamp = data.event_timestamp;

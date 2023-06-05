@@ -122,6 +122,31 @@ if (config.doBackgroundWork) {
           },
         });
 
+        logger.info(
+          QUEUE_NAME,
+          JSON.stringify({
+            topic: "debug",
+            jobData: job.data,
+            collection,
+            tokenIdRange,
+          })
+        );
+
+        if (
+          collection.contract === "0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab" &&
+          collection.id === "0x82c7a8f707110f5fbb16184a5933e9f78a34c6ab"
+        ) {
+          logger.error(
+            QUEUE_NAME,
+            JSON.stringify({
+              topic: "Invalid metadata",
+              jobData: job.data,
+              collection,
+              tokenIdRange,
+            })
+          );
+        }
+
         // Write the collection to the database
         await idb.none(pgp.helpers.concat(queries));
 
